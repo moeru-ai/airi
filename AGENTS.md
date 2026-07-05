@@ -46,20 +46,13 @@ AI companion desktop OS — Electron + Vue 3 + TypeScript pnpm monorepo. Your ch
 
 ### Symbol & Declaration Operations
 
-| Operation | PRIMARY (jcodemunch) | PRIMARY (serena) | Fallback (native) |
-|---|---|---|---|
-| Find symbol / declaration | `jcodemunch___search_units` | `serena___find_symbol` | Grep |
-| Find references | `jcodemunch___find_references` | `serena___find_referencing_symbols` | Grep |
-| Find implementations | `jcodemunch___find_implementations` | `serena___find_implementations` | Grep |
-| Find declaration location | — | `serena___find_declaration` | Grep |
-| File symbol overview | `jcodemunch___get_outline` / `jcodemunch___get_repo_map` | `serena___get_symbols_overview` | Read+Grep |
-| Rename symbol globally | — | `serena___rename_symbol` | Manual Edit loop |
-| Safe symbol deletion | `jcodemunch___check_safe` (mode=delete) | `serena___safe_delete_symbol` | Grep+Edit |
-| Replace single symbol body | — | `serena___replace_symbol_body` | Edit |
-| Insert after / before symbol | — | `serena___insert_after_symbol` / `_before_symbol` | Edit |
-| Replace content (anywhere) | — | `serena___replace_content` | Edit |
-| Bulk replace (multi-file) | — | `serena___replace_in_files` | Multi-Edit |
-| Lint & diagnostics window | — | `serena___get_diagnostics_for_file` | Grep |
+| Operation | PRIMARY (jcodemunch) | Fallback (native) |
+|---|---|---|
+| Find symbol / declaration | `jcodemunch___search_units` | Grep |
+| Find references | `jcodemunch___find_references` | Grep |
+| Find implementations | `jcodemunch___find_implementations` | Grep |
+| File symbol overview | `jcodemunch___get_outline` / `jcodemunch___get_repo_map` | Read+Grep |
+| Safe symbol deletion | `jcodemunch___check_safe` (mode=delete) | Grep+Edit |
 
 ### Search & Code Intelligence
 
@@ -75,13 +68,13 @@ AI companion desktop OS — Electron + Vue 3 + TypeScript pnpm monorepo. Your ch
 
 ### Call Hierarchy & Class Hierarchy
 
-| Operation | PRIMARY (jcodemunch) | PRIMARY (serena) | Fallback (native) |
-|---|---|---|---|
-| Caller trace (who calls me) | `jcodemunch___get_call_hierarchy` (callers) | `serena___find_referencing_symbols` | Grep |
-| Callee trace (what I call) | `jcodemunch___get_call_hierarchy` (callees) | — | Grep |
-| Full inheritance tree | `jcodemunch___get_class_hierarchy` | — | Grep |
-| Blast radius (impact) | `jcodemunch___get_blast_radius` | — | Grep |
-| Dependency graph (file) | `jcodemunch___get_dependency_graph` | — | Grep |
+| Operation | PRIMARY (jcodemunch) | Fallback (native) |
+|---|---|---|
+| Caller trace (who calls me) | `jcodemunch___get_call_hierarchy` (callers) | Grep |
+| Callee trace (what I call) | `jcodemunch___get_call_hierarchy` (callees) | Grep |
+| Full inheritance tree | `jcodemunch___get_class_hierarchy` | Grep |
+| Blast radius (impact) | `jcodemunch___get_blast_radius` | Grep |
+| Dependency graph (file) | `jcodemunch___get_dependency_graph` | Grep |
 
 ### Git & Change Intelligence
 
@@ -110,28 +103,70 @@ AI companion desktop OS — Electron + Vue 3 + TypeScript pnpm monorepo. Your ch
 | Runtime trace ingest | `jcodemunch___import_runtime_signal` |
 | Task-context assembly | `jcodemunch___assemble_task_context` |
 
-### Serena Project Memory
-
-| Operation | Tool |
-|---|---|
-| List all memories | `serena___list_memories` |
-| Read a memory | `serena___read_memory` |
-| Write a memory | `serena___write_memory` |
-| Edit a memory | `serena___edit_memory` |
-| Delete a memory | `serena___delete_memory` |
-| Rename/move memory | `serena___rename_memory` |
-| Activate project | `serena___activate_project("/home/vi/anima")` |
-| Diagnostics window | `serena___get_diagnostics_for_file` |
-| Config dump | `serena___get_current_config` |
-
 ---
+
+## Fresh Web Research: Google AI Mode
+
+For current external information, prefer Google AI Mode search when it is available. Use it for:
+
+- Current API/package documentation, release/version state, and migration notes.
+- Browser, web-platform, extension, Electron, Tauri, OS, and store-policy behavior.
+- Any user question where fresh web context materially improves correctness.
+
+Do not let web search replace local repository inspection, tests, compiler output, or primary project docs. Use search to fill external/contextual gaps, then verify against the codebase.
+
+### Search Tool Priority
+
+1. If the runtime exposes a native MCP tool named `search_google_ai`, call it directly.
+2. If direct MCP tool access is unavailable, Codex may use the local workaround in `~/anima-use-google/AGENTS.md`.
+3. Do not use unrelated web-search mechanisms when `search_google_ai` or the local workaround is available.
+
+### Codex Workaround
+
+Codex may call the local MCP server over stdio from `/home/vi/anima-use-google`. Build that helper once if `dist/index.js` is missing:
+
+```bash
+cd /home/vi/anima-use-google
+npm run build
+```
+
+Then run a query through the official MCP SDK:
+
+```bash
+cd /home/vi/anima-use-google
+node --input-type=module <<'EOF'
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+const query = process.argv.slice(2).join(' ') || 'Chrome Manifest V3 native messaging restrictions answer in English';
+const transport = new StdioClientTransport({
+  command: 'node',
+  args: ['dist/index.js'],
+  cwd: process.cwd(),
+  stderr: 'pipe',
+});
+transport.stderr?.on('data', (chunk) => process.stderr.write(`[mcp stderr] ${chunk}`));
+
+const client = new Client({ name: 'codex-google-ai-research', version: '0.0.0' });
+try {
+  await client.connect(transport);
+  const result = await client.callTool({
+    name: 'search_google_ai',
+    arguments: { query, timeout_ms: 60000 },
+  });
+  console.log(result.content?.[0]?.text ?? JSON.stringify(result, null, 2));
+}
+finally {
+  await client.close().catch(() => {});
+}
+EOF
+```
+
+For multiple searches, keep one MCP client open and call `client.callTool(...)` repeatedly. Prefer precise research-style queries, and include `answer in English` when language matters.
 
 ## Session Startup Protocol (MANDATORY — run BEFORE any other work)
 
-1. `serena___list_memories()` — list all recorded memories.
-2. Auto-read every memory whose `memory_name` contains a substring matching any token in the user's current task prompt (case-insensitive keyword overlap). Do NOT ask — just load.
-3. `serena___activate_project("/home/vi/anima")`.
-4. `jcodemunch___resolve_repo("/home/vi/anima")` → assert repo id is `"airi"`.
+1. `jcodemunch___resolve_repo("/home/vi/anima")` → assert repo id is `"airi"`.
 
 This protocol applies to **every** session — no matter how trivial the task appears. Skip is NOT permitted.
 
@@ -141,7 +176,7 @@ This protocol applies to **every** session — no matter how trivial the task ap
 
 ### Step 1: Analyze & Plan
 1. Call `jcodemunch___assemble_task_context(repo="airi", task="<user request>")` for auto-classification.
-2. Use `serena___get_symbols_overview` + `serena___find_symbol` (or `jcodemunch___search_units`) to locate exact symbol IDs.
+2. Use `jcodemunch___get_outline` + `jcodemunch___search_units` to locate exact symbol IDs.
 3. Run `jcodemunch___get_blast_radius(symbol=<id>, depth=2, include_source=true)`.
 4. Run `jcodemunch___get_call_hierarchy(symbol_id=<id>, direction="both", depth=3)`.
 5. Optionally: `jcodemunch___find_similar_symbols`, `jcodemunch___get_dead_code_v2`, `jcodemunch___search_ast`, `jcodemunch___check_safe`.
@@ -173,18 +208,14 @@ This protocol applies to **every** session — no matter how trivial the task ap
 
 **Subagent Prompt Template:**
 ```
-You are working in repo "airi" (indexed via jcodemunch-mcp + serena).
+You are working in repo "airi" (indexed via jcodemunch-mcp).
 
-TOOL MANDATORY — use MCP for ALL code lookup and edits. Native tools are emergency fallback ONLY.
+TOOL MANDATORY — use MCP for ALL code lookup. Native tools are emergency fallback ONLY.
 - jcodemunch: search_units, get_unit, get_unit_context, get_file_outline, get_blast_radius,
   get_call_hierarchy, get_class_hierarchy, get_dependency_graph, find_references,
   find_implementations, check_safe, plan_refactoring, register_edit
-- serena: find_symbol, find_referencing_symbols, find_implementations, find_declaration,
-  get_symbols_overview, replace_symbol_body, insert_after_symbol, insert_before_symbol,
-  replace_content, replace_in_files, rename_symbol, safe_delete_symbol, get_diagnostics_for_file
 
-Primary flow: serena___get_symbols_overview -> serena___find_symbol -> jcodemunch___get_unit
--> jcodemunch___get_blast_radius -> apply edit via serena -> jcodemunch___register_edit
+Primary flow: get_outline -> search_units -> get_unit -> get_blast_radius -> apply edit via native tools -> register_edit
 
 Target symbols: [<symbol_ids>]
 Task: <description>
@@ -200,19 +231,6 @@ After every delegated task, in this order:
 5. `pnpm -F @proj-airi/<pkg> exec vitest run <changed-file>` — run targeted tests.
 
 **If any verification step fails, re-delegate with corrective feedback — never fix yourself.**
-
----
-
-## Memory Write Policy
-
-After completing a task or discovering a reusable fact, persist to Serena memory:
-```
-serena___write_memory(
-  memory_name="tasks/<topic>",
-  content="<decision>\n<rationale>\n<symbol_ids>\n<commit_sha>"
-)
-```
-Useful keys: `tasks/`, `bugs/`, `patterns/`, `decisions/`, `blast-radius/`.
 
 ---
 
@@ -267,21 +285,89 @@ The subagent for ["Extract persistence logic from Electron main thread"](https:/
 
 ---
 
+## Standard Operating Procedure — Local Helper Scripts
+
+The following scripts are installed at `~/.agents/skills/`. Use them when the
+situation calls for it. Soft guidance — apply judgment, not dogma.
+
+### auto-execute (plan runner)
+
+`~/.agents/skills/auto-execute/auto-execute.sh`
+
+Use when the user has an implementation plan (Markdown with `### Task N:` headers)
+and wants it executed task-by-task in isolated sessions.
+
+CLI binaries: any `claude`-prefixed command name. Pass 1-5 for failover redundancy.
+
+
+```bash
+auto-execute.sh [--max-turns 80] [--task-timeout 600] [--context-limit 100000]
+                [--start-task N] [--log-dir logs/auto-execute]
+                <claude-binary> [claude-binary-2..5] <plan-input>
+```
+
+Plan input: path to plan file, partial match against `docs/plans/`, or `latest` for
+most recent.
+
+Behavior: runs each task as `claude -p "/auto-execute task-N.md"`, monitors for
+timeout/context-limit, verifies exit+commit+tree-clean after each step, retries
+with next binary on failure. Ctrl+C is trapped cleanly.
+
+Do not use for single-shot tasks, exploratory work, or when the user wants to
+review each step manually.
+
+### commit (git committer)
+
+`~/.agents/skills/commit/SKILL.md` — Claude Code skill, triggered via `/commit`
+
+Use when the user says "commit" or "save this" or asks for a commit message.
+Generates `type: description` format, runs `git diff --staged`, prompts for staging
+if nothing staged.
+
+Alternative without skill invocation:
+
+```bash
+git diff --staged → git add . → git commit -m "type: description"
+```
+
+### humanizer (writer)
+
+`~/.agents/skills/humanizer/SKILL.md` — Claude Code skill, triggered via
+`/humanizer`
+
+Use when the user asks to "clean up" writing, "make this sound natural", "de-AI
+this", or similar. Applies 25 pattern replacements (significance inflation, copula
+avoidance, chatbot artifacts, em dash overuse, etc.) with personality-injection
+pass. Repo-agnostic — works on any prose.
+
+### When to invoke automatically
+
+| User says | Invoke |
+|-----------|--------|
+| "run the plan" / "execute tasks from <file>" | auto-execute |
+| "commit this" / "commit changes" | commit skill or manual |
+| "fix this text" / "make it sound human" / "de-AI" | humanizer skill |
+
+Platform check: these scripts assume Linux/macOS. On Windows, use PowerShell
+equivalents (not yet ported).
+
+---
+
 ## Tool Selection Cheat-Sheet
 
 Repo: `airi` (indexed). Symbol ID: `{file_path}::{qualified_name}#{kind}`
 
 ### Opening move (before ANY task)
-`jcodemunch___assemble_task_context` · `serena___list_memories` · `jcodemunch___get_repo_map(token_budget=2048)`
+`jcodemunch___assemble_task_context` · `jcodemunch___get_repo_map(token_budget=2048)`
 
 ### Locate target
-`serena___find_symbol` · `serena___get_symbols_overview` · `jcodemunch___search_units`
+`jcodemunch___search_units` · `jcodemunch___get_outline`
 
 ### Understand impact
 `jcodemunch___get_blast_radius(include_source=true)` · `jcodemunch___get_call_hierarchy(direction="both")` · `jcodemunch___get_class_hierarchy` · `jcodemunch___get_dependency_graph`
 
 ### Apply edit
-`serena___replace_symbol_body` · `serena___replace_content` · `serena___replace_in_files` · `serena___insert_after_symbol` · `serena___insert_before_symbol` · `serena___rename_symbol` · `serena___safe_delete_symbol`
+Native tools (Edit, ApplyPatch) — no MCP edit tools available.
 
 ### Verify & reindex
-`jcodemunch___get_unit(unit_id, verify=true)` · `jcodemunch___register_edit(file_paths, reindex=true)` · `serena___get_diagnostics_for_file`
+`jcodemunch___get_unit(unit_id, verify=true)` · `jcodemunch___register_edit(file_paths, reindex=true)`
