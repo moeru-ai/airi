@@ -121,27 +121,23 @@ const updaterRequestActive = computed(
   () =>
     updaterChecking.value || updaterState.value.status === 'checking' || updaterState.value.status === 'downloading',
 )
+const updaterStatusLabels: Record<string, string> = {
+  disabled: 'Updater disabled',
+  checking: 'Checking',
+  available: 'Update available',
+  'not-available': 'No updates available',
+  downloading: 'Downloading update',
+  downloaded: 'Update downloaded',
+}
 const updaterStatus = computed(() => {
-  switch (updaterState.value.status) {
-    case 'idle':
-      return updaterState.value.isUpdateAvailable ? 'Update available' : 'Idle'
-    case 'disabled':
-      return 'Updater disabled'
-    case 'checking':
-      return 'Checking'
-    case 'available':
-      return 'Update available'
-    case 'not-available':
-      return 'No updates available'
-    case 'downloading':
-      return 'Downloading update'
-    case 'downloaded':
-      return 'Update downloaded'
-    case 'error':
-      return updaterState.value.error?.message ? `Updater error: ${updaterState.value.error.message}` : 'Updater error'
+  const { error, isUpdateAvailable, status } = updaterState.value
+
+  if (status === 'idle') return isUpdateAvailable ? 'Update available' : 'Idle'
+  if (status === 'error') {
+    return error?.message ? `Updater error: ${error.message}` : 'Updater error'
   }
 
-  return 'Idle'
+  return updaterStatusLabels[status] ?? 'Idle'
 })
 let mountedNoticeId: string | null = null
 let widgetEventCleanups: Array<() => void> = []

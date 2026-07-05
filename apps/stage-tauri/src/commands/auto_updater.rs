@@ -19,7 +19,15 @@ pub struct AutoUpdaterState {
 
 impl Default for AutoUpdaterState {
     fn default() -> Self {
-        AutoUpdaterState::no_feed(false)
+        AutoUpdaterState {
+            current_version: env!("CARGO_PKG_VERSION").to_string(),
+            is_update_available: false,
+            status: NO_UPDATE_STATUS.to_string(),
+            info: None,
+            progress: None,
+            error: None,
+            diagnostics: None,
+        }
     }
 }
 
