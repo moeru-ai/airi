@@ -27,6 +27,7 @@
     "./contracts/power-monitor": "./dist/contracts/power-monitor.mjs",
     "./contracts/electron-updater": "./dist/contracts/electron-updater.mjs",
     "./contracts/server-channel": "./dist/contracts/server-channel.mjs",
+    "./contracts/godot-stage": "./dist/contracts/godot-stage.mjs",
     "./contracts/stage-windows": "./dist/contracts/stage-windows.mjs",
     "./contracts/plugins": "./dist/contracts/plugins.mjs",
     "./package.json": "./package.json"

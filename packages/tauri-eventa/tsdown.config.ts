@@ -13,6 +13,7 @@ export default defineConfig({
     './src/contracts/power-monitor.ts',
     './src/contracts/electron-updater.ts',
     './src/contracts/server-channel.ts',
+    './src/contracts/godot-stage.ts',
     './src/contracts/stage-windows.ts',
     './src/contracts/plugins.ts',
   ],
