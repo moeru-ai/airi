@@ -265,10 +265,15 @@
         "VAL-CROSS-004"
       ],
       "milestone": "tauri-app-scaffold",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "implementation-complete-runtime-evidence-pending",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-05T01-33-17Z"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-05T01-33-17Z",
+      "commit": "8b5b49d0d",
+      "commitId": "8b5b49d0d",
+      "completedAt": "2026-07-05T02:57:39.017Z"
     },
     {
       "id": "channel-server-health",
