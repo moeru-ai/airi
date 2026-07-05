@@ -26,8 +26,8 @@
     "VAL-CROSS-003": {
       "status": "implementation-complete-runtime-evidence-pending",
       "featureId": "channel-server-health",
-      "commitId": "42419800d",
-      "updatedAt": "2026-07-05T03:52:05.262Z",
+      "commitId": "7e8262aee",
+      "updatedAt": "2026-07-05T03:57:13.894Z",
       "evidence": [
         "Channel server startup binds to 0.0.0.0 by default on a dynamic OS-selected port outside the reserved 3100..=3199 range.",
         "ChannelServerState records LAN host candidates for QR/config consumers.",
@@ -119,13 +119,13 @@
     "VAL-TAURI-SRV-001": {
       "status": "implementation-complete-runtime-evidence-pending",
       "featureId": "channel-server-health",
-      "commitId": "42419800d",
-      "updatedAt": "2026-07-05T03:52:05.262Z",
+      "commitId": "7e8262aee",
+      "updatedAt": "2026-07-05T03:57:13.894Z",
       "evidence": [
         "Tauri setup manages ChannelServerState and spawns start_channel_server with tauri::async_runtime::spawn.",
         "The channel server uses tokio::net::TcpListener on a dynamic non-reserved port and serves GET/HEAD /health.",
-        "cargo test --manifest-path apps/stage-tauri/Cargo.toml channel_server covers reserved port detection, URL formatting, health JSON, HTTP status handling, shared state snapshots, and an async TCP /health request returning HTTP 200 JSON.",
-        "cargo test --manifest-path apps/stage-tauri/Cargo.toml passed with 41 Rust tests."
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml channel_server covers reserved port detection, URL formatting, health JSON, HTTP status handling, shared state snapshots, accept-error continuation, split request-line reads, and async TCP /health requests returning HTTP 200 JSON.",
+        "cargo test --manifest-path apps/stage-tauri/Cargo.toml passed with 43 Rust tests."
       ],
       "remainingEvidence": [
         "Runtime curl -i http://localhost:<port>/health from a launched desktop app was not captured in this CLI run."
