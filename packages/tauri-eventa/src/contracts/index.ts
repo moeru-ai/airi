@@ -60,6 +60,30 @@ export type {
   AutoUpdaterState,
   AutoUpdaterStatus,
 } from './electron-updater'
+export {
+  electronPluginsList,
+  electronPluginsSetEnabled,
+  electronPluginsSetAutoReload,
+  electronPluginsLoadEnabled,
+  electronPluginsLoad,
+  electronPluginsUnload,
+  electronPluginsInspect,
+  electronPluginsCapabilityUpdate,
+  electronPluginsToolsList,
+  electronPluginsToolsListXsai,
+  electronPluginsToolsInvoke,
+  projAiriPluginSdkApisProtocolResourcesProvidersListProviders,
+  electronPluginsAssetBaseUrl,
+  type PluginManifestSummary,
+  type PluginRegistrySnapshot,
+  type PluginCapabilityState,
+  type PluginHostSessionSummary,
+  type PluginHostKitSummary,
+  type PluginHostModuleSummary,
+  type PluginHostDebugSnapshot,
+  type ElectronPluginToolDescriptor,
+  type ElectronPluginXsaiToolsetDefinition,
+} from './plugins'
 
 import { app } from './app'
 import { powerMonitorEvents } from './power-monitor'

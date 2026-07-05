@@ -21,11 +21,13 @@ const AUTO_UPDATER_STATE_CHANGED_EVENT: &str = "electron:auto-updater:state-chan
 
 fn main() {
     let channel_server_state = channel_server::ChannelServerState::default();
+    let plugin_host_state = commands::plugins::PluginHostState::default();
 
     tauri::Builder::default()
         .manage(channel_server_state.clone())
         .manage(commands::notice::new_notice_registry())
         .manage(commands::widgets::new_widget_registry())
+        .manage(plugin_host_state.clone())
         .setup(move |app| {
             let handle = app.handle().clone();
             spawn_channel_server(channel_server_state.clone());

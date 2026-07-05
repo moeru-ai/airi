@@ -15,6 +15,7 @@ const routeTitles: Record<string, string> = {
   inlay: 'Inlay',
   notice: 'Notice',
   onboarding: 'Onboarding',
+  plugins: 'Plugin Host',
   settings: 'Settings',
   widgets: 'Widgets',
 }

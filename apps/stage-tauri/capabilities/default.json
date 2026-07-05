@@ -17,7 +17,25 @@
     "devtools-*",
     "beat-sync",
     "inlay",
-    "dashboard"
+    "dashboard",
+    "plugins"
   ],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "sidecars/plugin-host",
+          "sidecar": true,
+          "args": [
+            {
+              "validator": "\\S+"
+            }
+          ]
+        }
+      ]
+    },
+    "store:default"
+  ]
 }

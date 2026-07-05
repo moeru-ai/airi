@@ -46,11 +46,20 @@ describe('resolveStageTauriWindowRoute', () => {
   })
 
   it('falls back to a secondary shell for unknown non-main routes', () => {
+    expect(resolveStageTauriWindowRoute('#/extensions', 'extensions')).toMatchObject({
+      kind: 'secondary',
+      label: 'extensions',
+      route: '/extensions',
+      title: 'Extensions',
+    })
+  })
+
+  it('maps the plugins route to the plugin host window', () => {
     expect(resolveStageTauriWindowRoute('#/plugins/example', 'plugins')).toMatchObject({
       kind: 'secondary',
       label: 'plugins',
       route: '/plugins/example',
-      title: 'Plugins',
+      title: 'Plugin Host',
     })
   })
 })

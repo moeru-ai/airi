@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings'
 import {
+  electronPluginsInspect,
+  electronPluginsList,
+  electronPluginsLoad,
+  electronPluginsLoadEnabled,
+  electronPluginsSetAutoReload,
+  electronPluginsSetEnabled,
+  electronPluginsUnload,
   noticeWindowEventa,
   widgetsClearEvent,
   widgetsFetch,
@@ -44,6 +52,7 @@ const sendNoticeAction = eventaContext
   : undefined
 const fetchWidget = eventaContext ? useElectronEventaInvoke(widgetsFetch, eventaContext.value) : undefined
 
+const pluginHostInspectorStore = usePluginHostInspectorStore()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStageModelStore = useSettingsStageModel()
 const stageWindowLifecycleStore = useStageWindowLifecycleStore()
@@ -296,6 +305,35 @@ onMounted(async () => {
 
   if (runtime === 'Tauri') {
     await stageWindowLifecycleStore.initializeWindowLifecycleBridge()
+  }
+
+  if (eventaContext) {
+    const ctx = eventaContext.value
+    const listPlugins = useElectronEventaInvoke(electronPluginsList, ctx)
+    const setPluginEnabled = useElectronEventaInvoke(electronPluginsSetEnabled, ctx)
+    const setPluginAutoReload = useElectronEventaInvoke(electronPluginsSetAutoReload, ctx)
+    const loadEnabledPlugins = useElectronEventaInvoke(electronPluginsLoadEnabled, ctx)
+    const loadPlugin = useElectronEventaInvoke(electronPluginsLoad, ctx)
+    const unloadPlugin = useElectronEventaInvoke(electronPluginsUnload, ctx)
+    const inspectPluginHost = useElectronEventaInvoke(electronPluginsInspect, ctx)
+
+    pluginHostInspectorStore.setBridge({
+      list: () =>
+        listPlugins().then((snapshot) => {
+          pluginHostInspectorStore.assignRegistry(snapshot)
+          return snapshot
+        }),
+      setEnabled: (payload) => setPluginEnabled(payload),
+      setAutoReload: (payload) => setPluginAutoReload(payload),
+      loadEnabled: () => loadEnabledPlugins(),
+      load: (payload) => loadPlugin(payload),
+      unload: (payload) => unloadPlugin(payload),
+      inspect: () => inspectPluginHost(),
+    })
+
+    void pluginHostInspectorStore.refreshAll().catch((error) => {
+      console.warn('[App] Failed to refresh plugin host debug state:', error)
+    })
   }
 
   if (windowRoute.value.kind !== 'stage') return

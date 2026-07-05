@@ -14,6 +14,7 @@ export default defineConfig({
     './src/contracts/electron-updater.ts',
     './src/contracts/server-channel.ts',
     './src/contracts/stage-windows.ts',
+    './src/contracts/plugins.ts',
   ],
   dts: true,
   format: 'esm',

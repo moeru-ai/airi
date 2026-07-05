@@ -28,6 +28,7 @@
     "./contracts/electron-updater": "./dist/contracts/electron-updater.mjs",
     "./contracts/server-channel": "./dist/contracts/server-channel.mjs",
     "./contracts/stage-windows": "./dist/contracts/stage-windows.mjs",
+    "./contracts/plugins": "./dist/contracts/plugins.mjs",
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.mts",
@@ -37,6 +38,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@proj-airi/stage-ui": "workspace:^",
     "vitest": "catalog:vitest"
   },
   "dependencies": {

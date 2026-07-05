@@ -1,138 +1,371 @@
-// Plugin host commands matching apps/stage-tamagotchi/src/shared/eventa contracts
-// All commands use placeholder implementations
+use crate::commands::plugin_host::config;
+use crate::commands::plugin_host::config::{
+    disable_plugin, enable_plugin, mark_plugin_known, set_auto_reload,
+};
+use crate::commands::plugin_host::manifests;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::{AppHandle, Manager, State};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginManifestSummary {
     pub name: String,
-    pub entrypoints: Value,
+    pub entrypoints: HashMap<String, Option<String>>,
     pub path: String,
     pub enabled: bool,
+    pub auto_reload: bool,
     pub loaded: bool,
     pub is_new: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginRegistrySnapshot {
     pub root: String,
     pub plugins: Vec<PluginManifestSummary>,
 }
 
-/// List plugins - placeholder
-#[tauri::command]
-pub async fn electron_plugins_list() -> PluginRegistrySnapshot {
-    PluginRegistrySnapshot {
-        root: String::new(),
-        plugins: vec![],
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginCapabilityState {
+    pub key: String,
+    pub state: String,
+    pub metadata: Option<Value>,
+    pub updated_at: u64,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginHostStateInner {
+    pub capabilities: HashMap<String, PluginCapabilityState>,
+}
+
+#[derive(Clone, Default)]
+pub struct PluginHostState {
+    inner: Arc<Mutex<PluginHostStateInner>>,
+}
+
+impl PluginHostState {
+    pub fn update_capability(
+        &self,
+        key: String,
+        state: String,
+        metadata: Option<Value>,
+        updated_at: u64,
+    ) {
+        let mut guard = self.inner.lock().expect("plugin host capability lock poisoned");
+        guard.capabilities.insert(
+            key.clone(),
+            PluginCapabilityState {
+                key,
+                state,
+                metadata,
+                updated_at,
+            },
+        );
+    }
+
+    pub fn snapshot(&self) -> PluginHostStateInner {
+        self.inner.lock().expect("plugin host capability lock poisoned").clone()
     }
 }
 
-/// Set plugin enabled state - placeholder
+pub fn plugin_config_path(app_data_dir: &std::path::Path) -> std::path::PathBuf {
+    app_data_dir.join("plugins-v1.json")
+}
+
+pub fn plugin_root_path(app_data_dir: &std::path::Path) -> std::path::PathBuf {
+    app_data_dir.join("plugins")
+}
+
+pub async fn build_registry_snapshot(
+    app_handle: &AppHandle,
+    _state: &PluginHostState,
+) -> PluginRegistrySnapshot {
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let root = plugin_root_path(&app_data);
+    let config_path = plugin_config_path(&app_data);
+    let mut config = config::read_plugin_config(&config_path);
+    let result = manifests::scan_plugin_root(&root);
+    let mut plugins = Vec::with_capacity(result.manifests.len());
+    let mut config_changed = false;
+    for manifest in &result.manifests {
+        let known = config.known.get(&manifest.name);
+        let known_path = known.map(|k| k.path.clone());
+        let is_new = known.is_none();
+        if known_path.as_deref() != Some(&manifest.path) {
+            config.known.entry(manifest.name.clone()).or_insert_with(|| config::PluginKnownEntry {
+                path: manifest.path.clone(),
+            });
+            config_changed = true;
+        }
+        plugins.push(PluginManifestSummary {
+            name: manifest.name.clone(),
+            entrypoints: entrypoints_to_map(&manifest.entrypoints),
+            path: manifest.path.clone(),
+            enabled: config.enabled.iter().any(|n| n == &manifest.name),
+            auto_reload: config.auto_reload.iter().any(|n| n == &manifest.name),
+            loaded: false,
+            is_new,
+        });
+    }
+
+    for (name, entry) in &config.known {
+        if !plugins.iter().any(|p| &p.name == name) {
+            plugins.push(PluginManifestSummary {
+                name: name.clone(),
+                entrypoints: HashMap::default(),
+                path: entry.path.clone(),
+                enabled: config.enabled.iter().any(|n| n == name),
+                auto_reload: config.auto_reload.iter().any(|n| n == name),
+                loaded: false,
+                is_new: false,
+            });
+        }
+    }
+
+    if config_changed {
+        let _ = config::write_plugin_config_locked(&config_path, &config);
+    }
+
+    plugins.sort_by(|a, b| a.name.cmp(&b.name));
+
+    PluginRegistrySnapshot {
+        root: root.to_string_lossy().to_string(),
+        plugins,
+    }
+}
+
+fn entrypoints_to_map(entrypoints: &manifests::RawEntrypoints) -> HashMap<String, Option<String>> {
+    let mut map = HashMap::new();
+    map.insert("default".to_string(), entrypoints.default.clone());
+    map.insert("electron".to_string(), entrypoints.electron.clone());
+    map.insert("node".to_string(), entrypoints.node.clone());
+    map.insert("web".to_string(), entrypoints.web.clone());
+    map
+}
+
+#[allow(dead_code)]
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system time")
+        .as_millis() as u64
+}
+
+/// List plugins
+#[tauri::command]
+pub async fn electron_plugins_list(
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+) -> Result<PluginRegistrySnapshot, String> {
+    Ok(build_registry_snapshot(&app_handle, &state).await)
+}
+
+/// Set plugin enabled state
 #[tauri::command]
 pub async fn electron_plugins_set_enabled(
-    _name: Option<String>,
-    _enabled: bool,
-    _path: Option<String>,
-) -> PluginRegistrySnapshot {
-    PluginRegistrySnapshot {
-        root: String::new(),
-        plugins: vec![],
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+    name: Option<String>,
+    enabled: bool,
+    path: Option<String>,
+) -> Result<PluginRegistrySnapshot, String> {
+    let Some(name) = name.filter(|n| !n.trim().is_empty()) else {
+        return Err("plugin name is required".to_string());
+    };
+
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("resolve app data dir: {e}"))?;
+    let config_path = plugin_config_path(&app_data);
+
+    let updated = if enabled {
+        enable_plugin(&config_path, &name)
+    } else {
+        disable_plugin(&config_path, &name)
     }
+    .map_err(|e| format!("update plugin config: {e}"))?;
+
+    if let Some(path) = path {
+        let _ = mark_plugin_known(&config_path, &name, &path);
+    }
+
+    let _ = updated;
+    Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Set plugin auto-reload - placeholder
+/// Set plugin auto-reload
 #[tauri::command]
 pub async fn electron_plugins_set_auto_reload(
-    _name: Option<String>,
-    _enabled: bool,
-) -> PluginRegistrySnapshot {
-    PluginRegistrySnapshot {
-        root: String::new(),
-        plugins: vec![],
-    }
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+    name: Option<String>,
+    enabled: bool,
+) -> Result<PluginRegistrySnapshot, String> {
+    let Some(name) = name.filter(|n| !n.trim().is_empty()) else {
+        return Err("plugin name is required".to_string());
+    };
+
+    let app_data = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("resolve app data dir: {e}"))?;
+    let config_path = plugin_config_path(&app_data);
+
+    set_auto_reload(&config_path, &name, enabled).map_err(|e| format!("update auto-reload: {e}"))?;
+
+    Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Load all enabled plugins - placeholder
+/// Load all enabled plugins — reports degraded because the sidecar binary is out of scope
 #[tauri::command]
-pub async fn electron_plugins_load_enabled() -> PluginRegistrySnapshot {
-    PluginRegistrySnapshot {
-        root: String::new(),
-        plugins: vec![],
-    }
+pub async fn electron_plugins_load_enabled(
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+) -> Result<PluginRegistrySnapshot, String> {
+    state.update_capability(
+        "plugin-host:sidecar".to_string(),
+        "degraded".to_string(),
+        Some(serde_json::json!({ "reason": "sidecar binary not bundled in this slice" })),
+        now_millis(),
+    );
+
+    Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Load a specific plugin - placeholder
+/// Load a specific plugin — degraded stub
 #[tauri::command]
-pub async fn electron_plugins_load(_name: Option<String>) -> PluginRegistrySnapshot {
-    PluginRegistrySnapshot {
-        root: String::new(),
-        plugins: vec![],
-    }
+pub async fn electron_plugins_load(
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+    name: Option<String>,
+) -> Result<PluginRegistrySnapshot, String> {
+    let Some(name) = name.filter(|n| !n.trim().is_empty()) else {
+        return Err("plugin name is required".to_string());
+    };
+
+    state.update_capability(
+        format!("plugin-host:plugin:{name}"),
+        "degraded".to_string(),
+        Some(serde_json::json!({ "name": &name, "reason": "sidecar runtime not bundled" })),
+        now_millis(),
+    );
+
+    Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Unload a specific plugin - placeholder
+/// Unload a specific plugin — degraded stub
 #[tauri::command]
-pub async fn electron_plugins_unload(_name: Option<String>) -> PluginRegistrySnapshot {
-    PluginRegistrySnapshot {
-        root: String::new(),
-        plugins: vec![],
-    }
+pub async fn electron_plugins_unload(
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+    name: Option<String>,
+) -> Result<PluginRegistrySnapshot, String> {
+    let Some(name) = name.filter(|n| !n.trim().is_empty()) else {
+        return Err("plugin name is required".to_string());
+    };
+
+    state.update_capability(
+        format!("plugin-host:plugin:{name}"),
+        "withdrawn".to_string(),
+        Some(serde_json::json!({ "name": &name })),
+        now_millis(),
+    );
+
+    Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Inspect plugin host debug state - placeholder
+/// Inspect plugin host debug state
 #[tauri::command]
-pub async fn electron_plugins_inspect() -> Value {
-    serde_json::json!({
-        "registry": { "root": "", "plugins": [] },
+pub async fn electron_plugins_inspect(
+    app_handle: AppHandle,
+    state: State<'_, PluginHostState>,
+) -> Result<Value, String> {
+    let registry = build_registry_snapshot(&app_handle, &state).await;
+    let snapshot = state.snapshot();
+    let mut capabilities: Vec<_> = snapshot.capabilities.values().cloned().collect();
+    capabilities.sort_by(|a, b| a.key.cmp(&b.key));
+
+    Ok(serde_json::json!({
+        "registry": registry,
         "sessions": [],
         "kits": [],
         "modules": [],
-        "capabilities": [],
-        "refreshedAt": 0,
-    })
+        "capabilities": capabilities,
+        "refreshedAt": now_millis(),
+    }))
 }
 
-/// List plugin tools for agents - placeholder
+/// List plugin tools for agents — empty because sidecar runtime is out of scope
 #[tauri::command]
 pub async fn electron_plugins_tools_list() -> Vec<Value> {
     vec![]
 }
 
-/// List plugin xsai tools - placeholder
+/// List plugin xsai tools — empty because sidecar runtime is out of scope
 #[tauri::command]
 pub async fn electron_plugins_tools_list_xsai() -> Value {
     serde_json::json!({ "tools": [], "prompts": [] })
 }
 
-/// Invoke a plugin tool - placeholder
+/// Invoke a plugin tool — returns error directing to degraded state
 #[tauri::command]
 pub async fn electron_plugins_tools_invoke(
     _owner_plugin_id: Option<String>,
-    _name: Option<String>,
+    name: Option<String>,
     _input: Option<Value>,
 ) -> Value {
-    serde_json::json!({ "result": null })
+    serde_json::json!({
+        "result": null,
+        "error": format!("plugin tool execution is degraded: sidecar binary not yet bundled (requested tool={})", name.unwrap_or_default()),
+    })
 }
 
-/// Update plugin capability state - placeholder
+/// Update plugin capability state (renderer-side dual-state forwarding)
 #[tauri::command]
 pub async fn electron_plugins_capability_update(
-    _key: Option<String>,
-    _state: Option<String>,
-    _metadata: Option<Value>,
-) -> Value {
-    serde_json::json!({ "key": "", "state": "announced", "updatedAt": 0 })
+    state: State<'_, PluginHostState>,
+    key: Option<String>,
+    value_state: Option<String>,
+    metadata: Option<Value>,
+) -> Result<Value, String> {
+    let Some(key) = key.filter(|k| !k.trim().is_empty()) else {
+        return Err("capability key is required".to_string());
+    };
+
+    let value_state = value_state.unwrap_or_else(|| "announced".to_string());
+
+    state.update_capability(
+        key.clone(),
+        value_state.clone(),
+        metadata.clone(),
+        now_millis(),
+    );
+
+    Ok(serde_json::json!({
+        "key": key,
+        "state": value_state,
+        "updatedAt": now_millis(),
+    }))
 }
 
-/// List plugin protocol providers - placeholder
+/// List plugin protocol providers
 #[tauri::command]
 pub async fn proj_airi_plugin_sdk_apis_protocol_resources_providers_list_providers() -> Vec<Value> {
     vec![]
 }
 
-/// Get plugin asset base URL - placeholder
+/// Get plugin asset base URL — returns placeholder
 #[tauri::command]
 pub async fn electron_plugins_asset_base_url() -> String {
     "https://assets.local/".to_string()
