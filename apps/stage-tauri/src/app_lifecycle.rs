@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
     tray::TrayIconBuilder,
-    AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize,
+    AppHandle, LogicalPosition, LogicalSize, Manager, Monitor, PhysicalPosition, PhysicalSize,
     WebviewWindow, WindowEvent,
 };
 
@@ -17,6 +17,14 @@ enum TrayMenuAction {
     Show,
     Quit,
     Ignore,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct DisplayWorkArea {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
@@ -90,6 +98,59 @@ fn window_geometry_from_physical_state(
         width: size.width as f64 / scale_factor,
         height: size.height as f64 / scale_factor,
     }
+}
+
+fn display_work_area_from_monitor(monitor: &Monitor) -> DisplayWorkArea {
+    let work_area = monitor.work_area();
+    let scale_factor = normalize_scale_factor(monitor.scale_factor());
+
+    DisplayWorkArea {
+        x: work_area.position.x as f64 / scale_factor,
+        y: work_area.position.y as f64 / scale_factor,
+        width: work_area.size.width as f64 / scale_factor,
+        height: work_area.size.height as f64 / scale_factor,
+    }
+}
+
+fn geometry_intersects_display(geometry: &WindowGeometry, display: &DisplayWorkArea) -> bool {
+    if !valid_geometry(geometry)
+        || !display.x.is_finite()
+        || !display.y.is_finite()
+        || !display.width.is_finite()
+        || !display.height.is_finite()
+        || display.width <= 0.0
+        || display.height <= 0.0
+    {
+        return false;
+    }
+
+    let geometry_right = geometry.x + geometry.width;
+    let geometry_bottom = geometry.y + geometry.height;
+    let display_right = display.x + display.width;
+    let display_bottom = display.y + display.height;
+
+    geometry.x < display_right
+        && geometry_right > display.x
+        && geometry.y < display_bottom
+        && geometry_bottom > display.y
+}
+
+fn geometry_intersects_any_display(
+    geometry: &WindowGeometry,
+    displays: &[DisplayWorkArea],
+) -> bool {
+    displays
+        .iter()
+        .any(|display| geometry_intersects_display(geometry, display))
+}
+
+fn current_display_work_areas(app: &AppHandle) -> Result<Vec<DisplayWorkArea>, String> {
+    Ok(app
+        .available_monitors()
+        .map_err(|e| e.to_string())?
+        .iter()
+        .map(display_work_area_from_monitor)
+        .collect())
 }
 
 fn window_state_path_from_app_data_dir(app_data_dir: &Path) -> PathBuf {
@@ -166,6 +227,9 @@ pub(crate) fn restore_main_window_state(app: &AppHandle) -> Result<bool, String>
         return Ok(false);
     };
     if !valid_geometry(&geometry) {
+        return Ok(false);
+    }
+    if !geometry_intersects_any_display(&geometry, &current_display_work_areas(app)?) {
         return Ok(false);
     }
 
@@ -396,6 +460,46 @@ mod tests {
                 height: 600.0,
             }
         );
+    }
+
+    #[test]
+    fn detects_geometry_that_intersects_a_display_work_area() {
+        let displays = [DisplayWorkArea {
+            x: 0.0,
+            y: 0.0,
+            width: 1920.0,
+            height: 1080.0,
+        }];
+
+        assert!(geometry_intersects_any_display(
+            &WindowGeometry {
+                x: 1800.0,
+                y: 900.0,
+                width: 480.0,
+                height: 720.0,
+            },
+            &displays,
+        ));
+    }
+
+    #[test]
+    fn rejects_geometry_outside_display_work_areas() {
+        let displays = [DisplayWorkArea {
+            x: 0.0,
+            y: 0.0,
+            width: 1920.0,
+            height: 1080.0,
+        }];
+
+        assert!(!geometry_intersects_any_display(
+            &WindowGeometry {
+                x: 5000.0,
+                y: 5000.0,
+                width: 480.0,
+                height: 720.0,
+            },
+            &displays,
+        ));
     }
 
     #[test]
