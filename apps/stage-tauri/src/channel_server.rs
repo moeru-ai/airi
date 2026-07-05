@@ -2,12 +2,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 use std::sync::{Arc, Mutex};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 pub const DEFAULT_CHANNEL_SERVER_HOSTNAME: &str = "0.0.0.0";
 pub const DEFAULT_CHANNEL_SERVER_AUTH_TOKEN: &str = "placeholder-token";
 const RESERVED_CHANNEL_PORTS: std::ops::RangeInclusive<u16> = 3100..=3199;
+
+#[derive(Debug, Eq, PartialEq)]
+enum AcceptLoopAction {
+    Continue,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChannelServerConfig {
@@ -182,11 +187,12 @@ pub async fn start_channel_server(
     );
 
     loop {
-        let (stream, _) = listener.accept().await.map_err(|error| {
-            let message = error.to_string();
-            state.record_error(message.clone());
-            message
-        })?;
+        let (stream, _) = match listener.accept().await {
+            Ok(connection) => connection,
+            Err(error) => match handle_accept_error(&state, error) {
+                AcceptLoopAction::Continue => continue,
+            },
+        };
         let connection_state = state.clone();
         tokio::spawn(async move {
             if let Err(error) = serve_connection(stream, connection_state).await {
@@ -194,6 +200,13 @@ pub async fn start_channel_server(
             }
         });
     }
+}
+
+fn handle_accept_error(state: &ChannelServerState, error: std::io::Error) -> AcceptLoopAction {
+    let message = error.to_string();
+    state.record_error(message.clone());
+    eprintln!("channel server accept failed: {message}");
+    AcceptLoopAction::Continue
 }
 
 async fn bind_channel_listener(config: &ChannelServerConfig) -> std::io::Result<TcpListener> {
@@ -217,9 +230,11 @@ async fn bind_channel_listener(config: &ChannelServerConfig) -> std::io::Result<
 }
 
 async fn serve_connection(mut stream: TcpStream, state: ChannelServerState) -> std::io::Result<()> {
-    let mut buffer = vec![0_u8; 8192];
-    let bytes_read = stream.read(&mut buffer).await?;
-    let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+    let mut request = String::default();
+    {
+        let mut reader = BufReader::new(&mut stream);
+        reader.read_line(&mut request).await?;
+    }
     let snapshot = state.snapshot();
     let response = handle_http_request(&request, &snapshot);
     stream.write_all(&response).await?;
@@ -369,6 +384,21 @@ mod tests {
         assert_eq!(state.snapshot().last_error.as_deref(), Some("bind failed"));
     }
 
+    #[test]
+    fn accept_errors_are_recorded_without_stopping_listener() {
+        let state = ChannelServerState::default();
+        let action = handle_accept_error(
+            &state,
+            std::io::Error::new(std::io::ErrorKind::Interrupted, "temporary accept failure"),
+        );
+
+        assert_eq!(action, AcceptLoopAction::Continue);
+        assert_eq!(
+            state.snapshot().last_error.as_deref(),
+            Some("temporary accept failure")
+        );
+    }
+
     #[tokio::test]
     async fn serves_health_over_tcp_on_dynamic_port() {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -408,6 +438,47 @@ mod tests {
         assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
         assert!(response.contains("\"status\":\"ok\""));
         assert!(response.contains("\"port\":"));
+
+        task.abort();
+    }
+
+    #[tokio::test]
+    async fn serves_health_when_request_line_arrives_in_chunks() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::net::TcpStream;
+
+        let state = ChannelServerState::default();
+        let server_state = state.clone();
+        let task = tokio::spawn(async move {
+            start_channel_server(
+                server_state,
+                ChannelServerConfig {
+                    hostname: "127.0.0.1".to_string(),
+                    auth_token: "test-token".to_string(),
+                    port: None,
+                },
+            )
+            .await
+        });
+
+        let port = wait_for_started_port(&state).await;
+        let mut stream = TcpStream::connect(("127.0.0.1", port))
+            .await
+            .expect("connects to channel server");
+        stream.write_all(b"GET /hea").await.expect("writes chunk");
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        stream
+            .write_all(b"lth HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            .await
+            .expect("writes request remainder");
+
+        let mut response = String::default();
+        stream
+            .read_to_string(&mut response)
+            .await
+            .expect("reads response");
+
+        assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
 
         task.abort();
     }
