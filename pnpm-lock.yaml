@@ -2921,6 +2921,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
       '@tauri-apps/api':
         specifier: 'catalog:'
         version: 2.11.1

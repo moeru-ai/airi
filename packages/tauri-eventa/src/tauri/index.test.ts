@@ -3,6 +3,7 @@ import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   electron,
+  electronGetServerChannelQrPayload,
   electronGetWindowLifecycleState,
   stageTauriManagedWindowOpen,
   widgetsAdd,
@@ -168,6 +169,29 @@ describe('createContextFromTauriIpc', () => {
       reason: 'snapshot',
       updatedAt: 123,
       visible: true,
+    })
+  })
+
+  it('maps server-channel QR payload invokes to the registered Tauri command', async () => {
+    const internals = buildMockInternals()
+    ;(internals.invoke as any).mockResolvedValue({
+      type: 'airi:server-channel',
+      version: 1,
+      urls: ['ws://192.168.1.10:49152/ws'],
+      authToken: 'test-token',
+    })
+
+    const { context } = createContextFromTauriIpc(internals)
+    const getQrPayload = defineInvoke(context, electronGetServerChannelQrPayload)
+
+    const result = await getQrPayload()
+
+    expect(internals.invoke).toHaveBeenCalledWith('electron_server_channel_get_qr_payload', undefined)
+    expect(result).toEqual({
+      type: 'airi:server-channel',
+      version: 1,
+      urls: ['ws://192.168.1.10:49152/ws'],
+      authToken: 'test-token',
     })
   })
 

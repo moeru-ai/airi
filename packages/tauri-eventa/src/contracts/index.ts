@@ -16,6 +16,12 @@ export { systemPreferences } from './system-preferences'
 export { powerMonitorEvents } from './power-monitor'
 export { autoUpdater, electronAutoUpdaterStateChanged } from './electron-updater'
 export {
+  electronApplyServerChannelConfig,
+  electronGetServerChannelConfig,
+  electronGetServerChannelQrPayload,
+  type ElectronServerChannelConfig,
+} from './server-channel'
+export {
   electronOnboardingClose,
   electronOpenChat,
   electronOpenDevtoolsWindow,
