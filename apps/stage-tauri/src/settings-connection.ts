@@ -59,6 +59,8 @@ export function createServerChannelQrPayloadController(
   const qrCodeSource = computed(() => serverChannelQrSvgDataUrl(payload.value))
 
   async function refreshPayload() {
+    if (loading.value) return
+
     loading.value = true
     errorMessage.value = ''
 

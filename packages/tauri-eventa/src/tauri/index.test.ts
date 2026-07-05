@@ -10,7 +10,9 @@ import {
   widgetsFetch,
   widgetsPrepareWindow,
 } from '../contracts'
-import { createContextFromTauriIpc, buildIpcRendererLike, subscribeTauriEvent } from './index'
+import { buildIpcRendererLike, createContextFromTauriIpc, subscribeTauriEvent } from './index'
+
+type TauriCallback = (...args: unknown[]) => unknown
 
 const { listenMock, invokeMock, registeredHandlers } = vi.hoisted(() => {
   const registeredHandlers = new Map<string, (event: any) => void>()
@@ -45,13 +47,13 @@ beforeEach(() => {
 })
 
 function buildMockInternals(): TauriInternals {
-  const callbacks = new Map<number, Function>()
+  const callbacks = new Map<number, TauriCallback>()
   let nextId = 1
 
   return {
     ipc: vi.fn(),
     invoke: vi.fn(async () => ({})),
-    transformCallback: vi.fn((fn: Function) => {
+    transformCallback: vi.fn((fn: TauriCallback) => {
       const id = nextId++
       callbacks.set(id, fn)
       return id
@@ -136,7 +138,7 @@ describe('createContextFromTauriIpc', () => {
 
   it('maps eventa window get-bounds invokes to the registered Tauri command', async () => {
     const internals = buildMockInternals()
-    ;(internals.invoke as any).mockResolvedValue({ x: 0, y: 0, width: 100, height: 100 })
+    vi.mocked(internals.invoke).mockResolvedValue({ x: 0, y: 0, width: 100, height: 100 })
 
     const { context } = createContextFromTauriIpc(internals)
     const getBounds = defineInvoke(context, electron.window.getBounds)
@@ -149,7 +151,7 @@ describe('createContextFromTauriIpc', () => {
 
   it('maps eventa window lifecycle state invokes to the registered Tauri command', async () => {
     const internals = buildMockInternals()
-    ;(internals.invoke as any).mockResolvedValue({
+    vi.mocked(internals.invoke).mockResolvedValue({
       focused: true,
       minimized: false,
       reason: 'snapshot',
@@ -174,7 +176,7 @@ describe('createContextFromTauriIpc', () => {
 
   it('maps server-channel QR payload invokes to the registered Tauri command', async () => {
     const internals = buildMockInternals()
-    ;(internals.invoke as any).mockResolvedValue({
+    vi.mocked(internals.invoke).mockResolvedValue({
       type: 'airi:server-channel',
       version: 1,
       urls: ['ws://192.168.1.10:49152/ws'],
@@ -197,7 +199,7 @@ describe('createContextFromTauriIpc', () => {
 
   it('maps request-window factory invokes to their registered Tauri commands', async () => {
     const internals = buildMockInternals()
-    ;(internals.invoke as any).mockResolvedValue(true)
+    vi.mocked(internals.invoke).mockResolvedValue(true)
 
     const { context } = createContextFromTauriIpc(internals)
     const cases = [
@@ -235,7 +237,7 @@ describe('createContextFromTauriIpc', () => {
 
   it('maps managed stage-window invokes to the registered Tauri command', async () => {
     const internals = buildMockInternals()
-    ;(internals.invoke as any).mockResolvedValue({ label: 'about', route: '/about', reused: false })
+    vi.mocked(internals.invoke).mockResolvedValue({ label: 'about', route: '/about', reused: false })
 
     const { context } = createContextFromTauriIpc(internals)
     const openManagedWindow = defineInvoke(context, stageTauriManagedWindowOpen)
@@ -248,7 +250,7 @@ describe('createContextFromTauriIpc', () => {
 
   it('exports widget invoke contracts that map to registered Tauri commands', async () => {
     const internals = buildMockInternals()
-    ;(internals.invoke as any).mockResolvedValue('widget-1')
+    vi.mocked(internals.invoke).mockResolvedValue('widget-1')
 
     const { context } = createContextFromTauriIpc(internals)
     const addWidget = defineInvoke(context, widgetsAdd)

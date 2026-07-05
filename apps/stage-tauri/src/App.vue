@@ -17,7 +17,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronWindowBou
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import ServerChannelQrCard from './components/ServerChannelQrCard.vue'
+import ServerChannelQrCard from './components/ServerChannelQrCard.vue' // deepsource: ignore
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { resolveStageTauriWindowRoute } from './window-routes'
 

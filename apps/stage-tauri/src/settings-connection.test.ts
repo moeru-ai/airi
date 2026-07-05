@@ -39,7 +39,7 @@ describe('settings connection QR helpers', () => {
   })
 
   it('refreshes payload state from the supplied loader', async () => {
-    const loadPayload = vi.fn(async () => payload)
+    const loadPayload = vi.fn(() => Promise.resolve(payload))
     const controller = createServerChannelQrPayloadController(loadPayload)
 
     await controller.refreshPayload()
@@ -53,13 +53,34 @@ describe('settings connection QR helpers', () => {
     expect(controller.qrCodeSource.value.startsWith('data:image/svg+xml;utf8,')).toBe(true)
   })
 
+  it('ignores refresh requests while a payload load is already running', async () => {
+    let resolvePayload!: (value: ServerChannelQrPayload) => void
+    const pendingPayload = new Promise<ServerChannelQrPayload>((resolve) => {
+      resolvePayload = resolve
+    })
+    const loadPayload = vi.fn(() => pendingPayload)
+    const controller = createServerChannelQrPayloadController(loadPayload)
+
+    const firstRefresh = controller.refreshPayload()
+    const secondRefresh = controller.refreshPayload()
+
+    expect(loadPayload).toHaveBeenCalledOnce()
+    expect(controller.loading.value).toBe(true)
+
+    resolvePayload(payload)
+    await Promise.all([firstRefresh, secondRefresh])
+
+    expect(controller.loading.value).toBe(false)
+    expect(controller.payload.value).toEqual(payload)
+  })
+
   it('clears stale payload and stores error text when refresh fails', async () => {
-    const controller = createServerChannelQrPayloadController(async () => payload)
+    const controller = createServerChannelQrPayloadController(() => Promise.resolve(payload))
     await controller.refreshPayload()
 
-    const failingController = createServerChannelQrPayloadController(async () => {
-      throw new Error('server not ready')
-    })
+    const failingController = createServerChannelQrPayloadController(() =>
+      Promise.reject(new Error('server not ready')),
+    )
 
     await failingController.refreshPayload()
 

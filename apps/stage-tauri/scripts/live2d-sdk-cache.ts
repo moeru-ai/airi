@@ -1,15 +1,15 @@
+import type { Readable } from 'node:stream'
+import type { Plugin } from 'vite'
+import type { Entry, ZipFile } from 'yauzl'
 import { Buffer } from 'node:buffer'
 import { createWriteStream } from 'node:fs'
 import { copyFile, cp, mkdir, mkdtemp, rename, rm, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
-import type { Readable } from 'node:stream'
+import process from 'node:process'
 import { pipeline } from 'node:stream/promises'
 
-import type { Entry, ZipFile } from 'yauzl'
 import { fromBuffer } from 'yauzl'
-
-import type { Plugin } from 'vite'
 
 export const LIVE2D_SDK_DIRECTORY = 'CubismSdkForWeb-5-r.3'
 export const LIVE2D_SDK_CORE_RELATIVE_PATH = join('Core', 'live2dcubismcore.min.js')
@@ -20,7 +20,7 @@ const DEFAULT_DOWNLOAD_TIMEOUT_MS = 120_000
 type Environment = Record<string, string | undefined>
 
 interface Live2dSdkLogger {
-  info(message: string): void
+  info: (message: string) => void
 }
 
 export interface StageLive2dSdkFromCacheOptions {
@@ -193,7 +193,10 @@ async function unzip(buffer: Buffer, target: string): Promise<void> {
       })
 
       zipFile.on('end', resolvePromise)
-      zipFile.on('error', rejectPromise)
+      zipFile.on('error', (zipError) => {
+        zipFile.close()
+        rejectPromise(zipError)
+      })
       zipFile.readEntry()
     })
   })
@@ -251,7 +254,7 @@ async function moveDirectory(from: string, to: string): Promise<void> {
   }
 }
 
-async function hasLive2dSdkCore(cacheDir: string): Promise<boolean> {
+function hasLive2dSdkCore(cacheDir: string): Promise<boolean> {
   return exists(live2dSdkCorePath(cacheDir))
 }
 
