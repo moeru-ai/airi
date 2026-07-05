@@ -90,7 +90,8 @@ describe('live2d sdk cache', () => {
 
       await expect(readFile(stagedPaths.cache, 'utf8')).resolves.toBe('cached-sdk-core')
       await expect(readFile(stagedPaths.public, 'utf8')).resolves.toBe('cached-sdk-core')
-    } finally {
+    }
+    finally {
       await rm(root, { recursive: true, force: true })
       await rm(cacheRoot, { recursive: true, force: true })
     }
@@ -110,7 +111,8 @@ describe('live2d sdk cache', () => {
       })
 
       await expect(readFile(projectSdkCorePaths(root).public, 'utf8')).resolves.toBe('cached-sdk-core')
-    } finally {
+    }
+    finally {
       await rm(root, { recursive: true, force: true })
       await rm(cacheDir, { recursive: true, force: true })
     }
@@ -134,7 +136,8 @@ describe('live2d sdk cache', () => {
       await expect(readFile(join(cacheDir, LIVE2D_SDK_CORE_RELATIVE_PATH), 'utf8')).resolves.toBe('downloaded-sdk-core')
       await expect(readFile(stagedPaths.cache, 'utf8')).resolves.toBe('downloaded-sdk-core')
       await expect(readFile(stagedPaths.public, 'utf8')).resolves.toBe('downloaded-sdk-core')
-    } finally {
+    }
+    finally {
       await rm(root, { recursive: true, force: true })
       await rm(cacheDir, { recursive: true, force: true })
     }
@@ -163,7 +166,8 @@ describe('live2d sdk cache', () => {
         }),
       ).rejects.toThrow('broken archive')
       expect(closeZipFileMock).toHaveBeenCalledOnce()
-    } finally {
+    }
+    finally {
       await rm(root, { recursive: true, force: true })
       await rm(cacheDir, { recursive: true, force: true })
     }

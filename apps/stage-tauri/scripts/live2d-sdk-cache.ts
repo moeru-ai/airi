@@ -94,15 +94,15 @@ export async function ensureLive2dSdk(options: EnsureLive2dSdkOptions): Promise<
     options.logger?.info('Downloading Cubism SDK...')
     await rm(cacheDir, { recursive: true, force: true })
 
-    const downloadSdk =
-      options.downloadSdk ||
-      ((targetCacheDir: string) =>
-        downloadAndExtractLive2dSdk({
-          cacheDir: targetCacheDir,
-          from: options.from || DEFAULT_LIVE2D_SDK_URL,
-          logger: options.logger,
-          timeoutMs: options.timeoutMs || DEFAULT_DOWNLOAD_TIMEOUT_MS,
-        }))
+    const downloadSdk
+      = options.downloadSdk
+        || ((targetCacheDir: string) =>
+          downloadAndExtractLive2dSdk({
+            cacheDir: targetCacheDir,
+            from: options.from || DEFAULT_LIVE2D_SDK_URL,
+            logger: options.logger,
+            timeoutMs: options.timeoutMs || DEFAULT_DOWNLOAD_TIMEOUT_MS,
+          }))
 
     await downloadSdk(cacheDir)
 
@@ -151,7 +151,8 @@ async function downloadAndExtractLive2dSdk(options: DownloadAndExtractLive2dSdkO
     await rm(options.cacheDir, { recursive: true, force: true })
     await moveDirectory(extractedDir, options.cacheDir)
     options.logger?.info(`Cubism SDK cached at ${options.cacheDir}`)
-  } finally {
+  }
+  finally {
     await rm(tempRoot, { recursive: true, force: true })
   }
 }
@@ -168,7 +169,8 @@ async function fetchArchive(from: string, timeoutMs: number): Promise<Buffer> {
     }
 
     return Buffer.from(await response.arrayBuffer())
-  } finally {
+  }
+  finally {
     globalThis.clearTimeout(timeout)
   }
 }
@@ -244,7 +246,8 @@ function resolveZipEntryTarget(target: string, entryName: string): string {
 async function moveDirectory(from: string, to: string): Promise<void> {
   try {
     await rename(from, to)
-  } catch (error) {
+  }
+  catch (error) {
     if (!isErrnoException(error) || error.code !== 'EXDEV') {
       throw error
     }
@@ -263,7 +266,8 @@ async function exists(path: string): Promise<boolean> {
     const result = await stat(path)
 
     return result.isFile() || result.isDirectory()
-  } catch (error) {
+  }
+  catch (error) {
     if (isErrnoException(error) && error.code === 'ENOENT') {
       return false
     }

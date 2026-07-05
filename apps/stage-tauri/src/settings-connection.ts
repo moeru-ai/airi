@@ -12,19 +12,23 @@ function hasCandidateUrl(payload: ServerChannelQrPayload | null | undefined): pa
 }
 
 function messageFromError(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message
-  if (typeof error === 'string' && error) return error
+  if (error instanceof Error && error.message)
+    return error.message
+  if (typeof error === 'string' && error)
+    return error
   return DEFAULT_QR_ERROR_MESSAGE
 }
 
 export function serverChannelQrPayloadText(payload: ServerChannelQrPayload | null | undefined): string {
-  if (!hasCandidateUrl(payload)) return ''
+  if (!hasCandidateUrl(payload))
+    return ''
   return JSON.stringify(payload)
 }
 
 export function serverChannelQrSvgDataUrl(payload: ServerChannelQrPayload | null | undefined): string {
   const payloadText = serverChannelQrPayloadText(payload)
-  if (!payloadText) return ''
+  if (!payloadText)
+    return ''
 
   const svg = renderSVG(payloadText, {
     border: 2,
@@ -59,17 +63,20 @@ export function createServerChannelQrPayloadController(
   const qrCodeSource = computed(() => serverChannelQrSvgDataUrl(payload.value))
 
   async function refreshPayload() {
-    if (loading.value) return
+    if (loading.value)
+      return
 
     loading.value = true
     errorMessage.value = ''
 
     try {
       payload.value = await loadPayload()
-    } catch (error) {
+    }
+    catch (error) {
       payload.value = undefined
       errorMessage.value = messageFromError(error)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
