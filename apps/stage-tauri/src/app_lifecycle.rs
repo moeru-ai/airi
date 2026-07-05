@@ -255,12 +255,11 @@ pub(crate) fn setup_main_window_close_persistence(app: &AppHandle) {
     };
 
     let handle = app.clone();
-    window.on_window_event(move |event| match event {
-        WindowEvent::CloseRequested { api, .. } => {
+    window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
             api.prevent_close();
             quit_after_persisting(&handle);
         }
-        _ => {}
     });
 }
 
