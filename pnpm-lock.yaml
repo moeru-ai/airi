@@ -1560,6 +1560,9 @@ importers:
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../../packages/stage-shared
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
@@ -1575,6 +1578,9 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
+      uqr:
+        specifier: 'catalog:'
+        version: 0.1.3
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)

@@ -11,11 +11,13 @@
   },
   "dependencies": {
     "@proj-airi/i18n": "workspace:^",
+    "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/tauri-eventa": "workspace:^",
     "@proj-airi/tauri-vueuse": "workspace:^",
     "@tauri-apps/api": "catalog:",
     "pinia": "catalog:",
+    "uqr": "catalog:",
     "vue": "catalog:",
     "vue-i18n": "catalog:"
   },
