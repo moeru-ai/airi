@@ -4,13 +4,38 @@
       "status": "pending"
     },
     "VAL-CROSS-002": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "app-lifecycle-persistence",
+      "commitId": "b917e7df6",
+      "updatedAt": "2026-07-05T01:33:17.342Z",
+      "evidence": [
+        "Main window geometry is captured from Tauri physical position/size with scale-factor normalization and persisted to main-window-state.json under app data.",
+        "Startup restores saved main window size/position before falling back to cursor-display placement, and reasserts always-on-top after restore.",
+        "Rust unit tests cover JSON persistence, malformed JSON fallback, app-data state path construction, and physical-to-logical geometry conversion."
+      ],
+      "remainingEvidence": [
+        "Runtime relaunch screenshot and terminal output confirming restored geometry were not captured in this CLI run.",
+        "The persisted transparency field is recorded in state JSON, but visual transparency relaunch evidence remains pending."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-CROSS-003": {
       "status": "pending"
     },
     "VAL-CROSS-004": {
-      "status": "pending"
+      "status": "implementation-complete-runtime-evidence-pending",
+      "featureId": "app-lifecycle-persistence",
+      "commitId": "b917e7df6",
+      "updatedAt": "2026-07-05T01:33:17.342Z",
+      "evidence": [
+        "Tray menu setup adds stable Show AIRI and Quit entries using Tauri tray/menu APIs.",
+        "Tray Quit, electron_app_quit, and main-window CloseRequested now route through quit_after_persisting, which persists state and calls app.exit(0).",
+        "Rust unit tests cover stable tray menu IDs and tray menu action routing."
+      ],
+      "remainingEvidence": [
+        "Runtime ps output showing no cargo/rustc/airi-tauri orphan processes after tray quit and window close was not captured in this CLI run."
+      ],
+      "runtimeEvidenceStatus": "pending"
     },
     "VAL-NFR-001": {
       "status": "pending"

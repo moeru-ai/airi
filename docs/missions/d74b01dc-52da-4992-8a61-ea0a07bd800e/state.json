@@ -3,13 +3,13 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-05T01:00:46.406Z",
+  "updatedAt": "2026-07-05T01:33:17.342Z",
   "lastReviewedHandoffCount": 10,
   "orchestrator": {
     "current": "codex",
-    "note": "PR #69 window-display-features merged into main at b8875cb2c08585e62ae9b5f699f1b571008cbffd with admin override for documented external/pre-existing checks. Local main is fast-forwarded. Continue currentFeatureId app-lifecycle-persistence next."
+    "note": "app-lifecycle-persistence implementation complete on branch vi/feat/app-lifecycle-persistence through b917e7df6 with Rust verification passing. Runtime relaunch/process evidence remains pending, and stage-tauri typecheck is blocked by pre-existing stage-ui/@proj-airi/server-sdk export drift. Continue currentFeatureId channel-server-health next after PR merge."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
-  "currentFeatureId": "app-lifecycle-persistence"
+  "currentFeatureId": "channel-server-health"
 }
