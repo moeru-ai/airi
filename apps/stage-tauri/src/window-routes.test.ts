@@ -36,6 +36,15 @@ describe('resolveStageTauriWindowRoute', () => {
     }
   })
 
+  it('selects the settings connection QR view for the settings connection route', () => {
+    expect(resolveStageTauriWindowRoute('#/settings/connection', 'settings')).toMatchObject({
+      kind: 'settings-connection',
+      label: 'settings',
+      route: '/settings/connection',
+      title: 'Connection',
+    })
+  })
+
   it('falls back to a secondary shell for unknown non-main routes', () => {
     expect(resolveStageTauriWindowRoute('#/plugins/example', 'plugins')).toMatchObject({
       kind: 'secondary',

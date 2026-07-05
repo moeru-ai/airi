@@ -5,7 +5,7 @@ import { defineConfig } from 'tsdown'
 const sharedConfig: UserConfig = {
   format: 'esm',
   external: ['electron', 'vue'],
-  exports: true,
+  exports: false,
 }
 
 export default defineConfig([

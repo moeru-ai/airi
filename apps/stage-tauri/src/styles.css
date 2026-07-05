@@ -213,3 +213,120 @@ h1 {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.secondary-panel-block {
+  display: block;
+}
+
+.server-channel-qr-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 760px;
+}
+
+.qr-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.qr-card-header h2 {
+  margin: 0;
+  color: #edf3fb;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.qr-card-description {
+  margin: 8px 0 0;
+  color: #b9c5d6;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.qr-refresh-button {
+  min-width: 96px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 6px;
+  background: #23483f;
+  color: #eefaf6;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 12px;
+}
+
+.qr-refresh-button:disabled {
+  cursor: default;
+  opacity: 0.56;
+}
+
+.qr-error {
+  margin: 0;
+  border: 1px solid rgb(255 183 77 / 36%);
+  border-radius: 6px;
+  background: rgb(132 76 18 / 22%);
+  color: #ffdca8;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 12px;
+}
+
+.qr-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.qr-image {
+  width: 192px;
+  height: 192px;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.qr-details {
+  min-width: 0;
+}
+
+.qr-url-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qr-url-list li {
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 6px;
+  background: rgb(0 0 0 / 22%);
+  color: #d8e1ee;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+}
+
+@media (max-width: 640px) {
+  .qr-card-header,
+  .qr-content {
+    grid-template-columns: 1fr;
+  }
+
+  .qr-card-header {
+    flex-direction: column;
+  }
+
+  .qr-image {
+    width: 176px;
+    height: 176px;
+  }
+}

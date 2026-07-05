@@ -1,16 +1,23 @@
 // Server-channel commands matching apps/stage-tamagotchi/src/shared/eventa contracts
 
-use crate::channel_server::{
-    format_channel_server_url, preferred_qr_host, ChannelServerSnapshot, ChannelServerState,
-};
+use crate::channel_server::{preferred_qr_host, ChannelServerSnapshot, ChannelServerState};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::State;
 
+const SERVER_CHANNEL_QR_PAYLOAD_TYPE: &str = "airi:server-channel";
+const SERVER_CHANNEL_QR_PAYLOAD_VERSION: u8 = 1;
+const CHANNEL_SERVER_QR_UNAVAILABLE_ERROR: &str =
+    "Channel server QR payload is not available until the server has started.";
+
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ServerChannelQrPayload {
-    pub url: String,
-    pub token: String,
+    #[serde(rename = "type")]
+    pub payload_type: String,
+    pub version: u8,
+    pub urls: Vec<String>,
+    pub auth_token: String,
 }
 
 /// Get server channel config
@@ -35,7 +42,7 @@ pub async fn electron_server_channel_apply_config(
 pub async fn electron_server_channel_get_qr_payload(
     state: State<'_, ChannelServerState>,
 ) -> Result<ServerChannelQrPayload, String> {
-    Ok(qr_payload_from_snapshot(&state.snapshot()))
+    qr_payload_from_snapshot(&state.snapshot())
 }
 
 fn config_payload_from_snapshot(snapshot: &ChannelServerSnapshot) -> Value {
@@ -46,19 +53,30 @@ fn config_payload_from_snapshot(snapshot: &ChannelServerSnapshot) -> Value {
     })
 }
 
-fn qr_payload_from_snapshot(snapshot: &ChannelServerSnapshot) -> ServerChannelQrPayload {
+fn format_channel_server_websocket_url(hostname: &str, port: u16) -> String {
+    let host = match hostname {
+        "0.0.0.0" | "::" => "localhost".to_string(),
+        value if value.contains(':') && !value.starts_with('[') => format!("[{value}]"),
+        value => value.to_string(),
+    };
+
+    format!("ws://{host}:{port}/ws")
+}
+
+fn qr_payload_from_snapshot(
+    snapshot: &ChannelServerSnapshot,
+) -> Result<ServerChannelQrPayload, String> {
     let Some(port) = snapshot.port else {
-        return ServerChannelQrPayload {
-            url: String::default(),
-            token: String::default(),
-        };
+        return Err(CHANNEL_SERVER_QR_UNAVAILABLE_ERROR.to_string());
     };
 
     let host = preferred_qr_host(snapshot);
-    ServerChannelQrPayload {
-        url: format_channel_server_url(&host, port),
-        token: snapshot.auth_token.clone(),
-    }
+    Ok(ServerChannelQrPayload {
+        payload_type: SERVER_CHANNEL_QR_PAYLOAD_TYPE.to_string(),
+        version: SERVER_CHANNEL_QR_PAYLOAD_VERSION,
+        urls: vec![format_channel_server_websocket_url(&host, port)],
+        auth_token: snapshot.auth_token.clone(),
+    })
 }
 
 #[cfg(test)]
@@ -86,18 +104,52 @@ mod tests {
     }
 
     #[test]
-    fn qr_payload_prefers_lan_host_when_server_is_started() {
-        let payload = qr_payload_from_snapshot(&active_snapshot());
+    fn qr_payload_matches_shared_contract() {
+        let payload = qr_payload_from_snapshot(&active_snapshot()).expect("active QR payload");
+        let value = serde_json::to_value(&payload).expect("serializes QR payload");
 
-        assert_eq!(payload.url, "http://192.168.1.10:49152");
-        assert_eq!(payload.token, "test-token");
+        assert_eq!(
+            value,
+            serde_json::json!({
+                "type": "airi:server-channel",
+                "version": 1,
+                "urls": ["ws://192.168.1.10:49152/ws"],
+                "authToken": "test-token",
+            })
+        );
     }
 
     #[test]
-    fn qr_payload_is_empty_until_server_port_is_known() {
-        let payload = qr_payload_from_snapshot(&ChannelServerSnapshot::default());
+    fn qr_payload_uses_websocket_path_and_ipv6_brackets() {
+        let snapshot = ChannelServerSnapshot {
+            hostname: "0.0.0.0".to_string(),
+            port: Some(49152),
+            lan_hosts: vec!["fe80::1".to_string()],
+            auth_token: "test-token".to_string(),
+            last_error: None,
+        };
 
-        assert_eq!(payload.url, String::default());
-        assert_eq!(payload.token, String::default());
+        let payload = qr_payload_from_snapshot(&snapshot).expect("active QR payload");
+
+        assert_eq!(payload.urls, vec!["ws://[fe80::1]:49152/ws"]);
+    }
+
+    #[test]
+    fn qr_payload_prefers_lan_host_when_server_is_started() {
+        let payload = qr_payload_from_snapshot(&active_snapshot()).expect("active QR payload");
+
+        assert_eq!(payload.urls, vec!["ws://192.168.1.10:49152/ws"]);
+        assert_eq!(payload.auth_token, "test-token");
+    }
+
+    #[test]
+    fn qr_payload_errors_until_server_port_is_known() {
+        let error = qr_payload_from_snapshot(&ChannelServerSnapshot::default())
+            .expect_err("portless snapshot cannot produce shared QR payload");
+
+        assert_eq!(
+            error,
+            "Channel server QR payload is not available until the server has started."
+        );
     }
 }

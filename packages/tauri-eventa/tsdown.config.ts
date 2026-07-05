@@ -12,6 +12,7 @@ export default defineConfig({
     './src/contracts/system-preferences.ts',
     './src/contracts/power-monitor.ts',
     './src/contracts/electron-updater.ts',
+    './src/contracts/server-channel.ts',
     './src/contracts/stage-windows.ts',
   ],
   dts: true,

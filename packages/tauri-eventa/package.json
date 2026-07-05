@@ -26,6 +26,7 @@
     "./contracts/app": "./dist/contracts/app.mjs",
     "./contracts/power-monitor": "./dist/contracts/power-monitor.mjs",
     "./contracts/electron-updater": "./dist/contracts/electron-updater.mjs",
+    "./contracts/server-channel": "./dist/contracts/server-channel.mjs",
     "./contracts/stage-windows": "./dist/contracts/stage-windows.mjs",
     "./package.json": "./package.json"
   },
@@ -40,6 +41,7 @@
   },
   "dependencies": {
     "@moeru/eventa": "catalog:",
+    "@proj-airi/stage-shared": "workspace:^",
     "@tauri-apps/api": "catalog:",
     "builder-util-runtime": "catalog:"
   }

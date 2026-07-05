@@ -17,6 +17,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronWindowBou
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import ServerChannelQrCard from './components/ServerChannelQrCard.vue' // deepsource: ignore
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { resolveStageTauriWindowRoute } from './window-routes'
 
@@ -352,7 +353,10 @@ onBeforeUnmount(() => {
           <dd>{{ lifecycleStatus }}</dd>
         </div>
       </dl>
-      <div v-if="isNoticeRoute(windowRoute.route)" class="secondary-panel">
+      <div v-if="windowRoute.kind === 'settings-connection'" class="secondary-panel secondary-panel-block">
+        <ServerChannelQrCard />
+      </div>
+      <div v-else-if="isNoticeRoute(windowRoute.route)" class="secondary-panel">
         <div>
           <p class="panel-title">Notice</p>
           <p class="panel-text">{{ noticeStatus }}</p>

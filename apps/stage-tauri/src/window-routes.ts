@@ -1,5 +1,5 @@
 export interface StageTauriWindowRoute {
-  kind: 'stage' | 'secondary'
+  kind: 'stage' | 'secondary' | 'settings-connection'
   label: string
   route: string
   title: string
@@ -45,6 +45,15 @@ export function resolveStageTauriWindowRoute(hash = '', label = 'main'): StageTa
       label,
       route,
       title: 'Character stage',
+    }
+  }
+
+  if (route === '/settings/connection') {
+    return {
+      kind: 'settings-connection',
+      label,
+      route,
+      title: 'Connection',
     }
   }
 

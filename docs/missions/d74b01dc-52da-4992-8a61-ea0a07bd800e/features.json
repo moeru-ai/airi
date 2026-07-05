@@ -326,10 +326,24 @@
         "VAL-TAURI-SRV-002"
       ],
       "milestone": "service-ports",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "implementation-complete-runtime-evidence-pending",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-05-channel-server-qr"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-05-channel-server-qr",
+      "commit": "26ff69589",
+      "commitId": "26ff69589",
+      "completedAt": "2026-07-05T06:32:47.863Z",
+      "implementationNotes": [
+        "Tauri server-channel QR payload now matches the shared AIRI QR contract with type/version/urls/authToken.",
+        "QR candidate URLs use the ws:// scheme with /ws path and prefer the discovered LAN host when available.",
+        "The Tauri settings connection route renders an app-local QR card from electron:server-channel:get-qr-payload.",
+        "Stage Tauri Vitest now uses a dedicated test config so pure unit tests do not trigger the Live2D Cubism SDK downloader.",
+        "Stage Tauri Vite now caches the Cubism SDK under the user cache directory and stages it into each worktree, so fresh worktrees do not redownload after the first cache fill.",
+        "Stage Tauri typecheck/build now resolve @proj-airi/electron-screen-capture from source, without requiring a prebuilt screen-capture dist directory.",
+        "The @proj-airi/tauri-eventa package root re-exports server-channel contracts for renderer consumers."
+      ]
     },
     {
       "id": "plugin-host-sidecar",
