@@ -3,11 +3,11 @@
   "state": "orchestrator_turn",
   "workingDirectory": "/home/vi/anima",
   "createdAt": "2026-07-03T13:04:45.737Z",
-  "updatedAt": "2026-07-05T00:05:29.173Z",
+  "updatedAt": "2026-07-05T00:12:02.385Z",
   "lastReviewedHandoffCount": 10,
   "orchestrator": {
     "current": "codex",
-    "note": "window-display-features implementation committed as 5ae07591b. Runtime screenshots/manual validation remain pending because Vite/Vitest stall in the external @proj-airi/unplugin-live2d-sdk Cubism SDK download hook on a cold cache. Continue app-lifecycle-persistence next."
+    "note": "PR #69 opened for window-display-features: https://github.com/animaios/anima/pull/69. Runtime screenshots/manual validation remain pending because Vite/Vitest stall in the external @proj-airi/unplugin-live2d-sdk Cubism SDK download hook on a cold cache. Continue by watching PR reviews/checks, then app-lifecycle-persistence after merge."
   },
   "missionDirectory": "/home/vi/anima/docs/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
   "migratedFrom": "/home/vi/.factory/missions/d74b01dc-52da-4992-8a61-ea0a07bd800e",
