@@ -142,9 +142,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxyge
 <h3>Provider Interface (<code>core/cognition/provider.ts</code>)</h3>
 <p>Minimal interface for cognition providers:</p>
 <pre><code class="language-ts">interface CognitionProvider {
-  generatePlanProposal(request, cancellationToken?): Promise&lt;CognitionResponse&gt;
-  getModelInfo(): ModelInfo
-  isAvailable(): Promise&lt;boolean&gt;
+  generatePlanProposal: (request, cancellationToken?) =&gt; Promise&lt;CognitionResponse&gt;
+  getModelInfo: () =&gt; ModelInfo
+  isAvailable: () =&gt; Promise&lt;boolean&gt;
 }
 </code></pre>
 <h3>Plan Validator (<code>core/cognition/validator.ts</code>)</h3>
@@ -184,7 +184,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxyge
 <p>Cognition events are stored as regular <code>AiriEvent</code> entries in the event store — no special handling needed.</p>
 <h2>Usage</h2>
 <h3>Basic Pipeline</h3>
-<pre><code class="language-ts">import { CognitionCoordinator, PlanValidator, MockCognitionProvider } from &#39;./core/cognition/index.js&#39;
+<pre><code class="language-ts">import { CognitionCoordinator, MockCognitionProvider, PlanValidator } from &#39;./core/cognition/index.js&#39;
 
 const provider = new MockCognitionProvider()
 const validator = new PlanValidator(capabilityRegistry, workspaceManager)
@@ -201,7 +201,8 @@ const result = await coordinator.proposePlan(
 if (result.accepted) {
   // result.plan is ready for the planner
   console.log(`Plan accepted: ${result.plan.name} (${result.plan.steps.length} steps)`)
-} else {
+}
+else {
   // result.validationResult contains errors
   console.log(`Plan rejected: ${result.validationResult.errors.map(e =&gt; e.message).join(&#39;, &#39;)}`)
 }

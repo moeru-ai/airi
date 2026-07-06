@@ -157,8 +157,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxyge
 <h3>TaskExecutor (<code>core/tasks/executor.ts</code>)</h3>
 <p>The interface that modules implement to execute tasks.</p>
 <pre><code class="language-ts">interface TaskExecutor {
-  canExecute(task: Task): boolean
-  execute(task: Task, ctx: TaskExecutionContext): Promise&lt;TaskResult&gt;
+  canExecute: (task: Task) =&gt; boolean
+  execute: (task: Task, ctx: TaskExecutionContext) =&gt; Promise&lt;TaskResult&gt;
 }
 </code></pre>
 <p><strong>Execution context provides:</strong></p>
