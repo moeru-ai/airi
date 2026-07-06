@@ -398,14 +398,14 @@
 <text x="36" y="178" fill="#ffd1e8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600">Top active repos this year</text>
 <rect x="186" y="192" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
 <rect x="186" y="192" width="280" height="10" rx="3" ry="3" fill="#ff6b9d"/>
-<text x="474" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3150</text>
+<text x="474" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3152</text>
 <text x="36" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">anima</text>
 <rect x="186" y="212" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
 <rect x="186" y="212" width="165" height="10" rx="3" ry="3" fill="#ff6b9d"/>
 <text x="474" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">1857</text>
 <text x="36" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animavault</text>
 <rect x="186" y="232" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
-<rect x="186" y="232" width="117" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<rect x="186" y="232" width="116" height="10" rx="3" ry="3" fill="#ff6b9d"/>
 <text x="474" y="241" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">1311</text>
 <text x="36" y="241" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animaland</text>
 <rect x="186" y="252" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
@@ -444,5 +444,5 @@
 <rect x="186" y="412" width="2" height="10" rx="3" ry="3" fill="#ff6b9d"/>
 <text x="474" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">28</text>
 <text x="36" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animawave</text>
-<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 9389 commits across 20 repos · 2026-07-06 · refreshed 4x daily by CI</text>
+<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 9396 commits across 20 repos · 2026-07-06 · refreshed 4x daily by CI</text>
 </svg>
