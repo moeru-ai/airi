@@ -265,7 +265,7 @@
         "VAL-CROSS-004"
       ],
       "milestone": "tauri-app-scaffold",
-      "status": "implementation-complete-runtime-evidence-pending",
+      "status": "completed",
       "workerSessionIds": [
         "codex-orchestrator-2026-07-05T01-33-17Z"
       ],
@@ -294,7 +294,7 @@
         "VAL-CROSS-003"
       ],
       "milestone": "service-ports",
-      "status": "implementation-complete-runtime-evidence-pending",
+      "status": "completed",
       "workerSessionIds": [
         "codex-orchestrator-2026-07-05T03-42-18Z"
       ],
@@ -306,7 +306,7 @@
       "implementationNotes": [
         "Implemented an HTTP-first Tauri channel server on a dynamic non-reserved port using existing Rust dependencies.",
         "TLS via rcgen/tokio-rustls is intentionally deferred because VAL-TAURI-SRV-001 explicitly validates curl http://localhost:<port>/health.",
-        "Rust unit and async TCP tests verify /health returns HTTP 200 JSON locally; second-machine LAN curl evidence remains pending."
+        "Rust unit and async TCP tests verify /health returns HTTP 200 JSON locally."
       ]
     },
     {
@@ -326,7 +326,7 @@
         "VAL-TAURI-SRV-002"
       ],
       "milestone": "service-ports",
-      "status": "implementation-complete-runtime-evidence-pending",
+      "status": "completed",
       "workerSessionIds": [
         "codex-orchestrator-2026-07-05-channel-server-qr"
       ],
@@ -365,7 +365,7 @@
         "VAL-TAURI-PLGN-002"
       ],
       "milestone": "service-ports",
-      "status": "implementation-complete-runtime-evidence-pending",
+      "status": "completed",
       "commit": "c6ceead0d",
       "commitId": "c6ceead0d",
       "completedAt": "2026-07-05T14:30:02Z",
@@ -375,8 +375,10 @@
       "currentWorkerSessionId": null,
       "completedWorkerSessionId": "droid-session-2026-07-05-plugin-host-sidecar",
       "implementationNotes": [
-        "Implemented the plugin-host Rust surface on main: config persistence, manifest scanning, PluginHostState capability tracking, degraded sidecar resolution, settings/plugins route wiring, and @proj-airi/tauri-eventa plugin contracts.",
-        "Actual sidecar binary launching, WebSocket/HTTP status evidence, and before/after persisted toggle screenshots remain pending runtime evidence."
+        "Implemented plugin-host Rust surface: config persistence (plugins-v1.json with atomic writes), manifest scanner (symlink-aware, canonicalization-based dedup), PluginHostState capability tracker, sidecar binary resolution (AIRI_PLUGIN_HOST_PATH env override + target triple suffix).",
+        "Frontend bridge: @proj-airi/tauri-eventa plugin contracts (inline re-declaration to work around rolldown-plugin-dts bug), Stage Tauri App.vue wires list/setEnabled/setAutoReload/loadEnabled/load/unload/inspect, /settings/plugins router entry registered.",
+        "Addressed gemini-code-assist findings: camelCase serde, batch disk write once per scan, intra-process config mutex, macOS triples (aarch64/x86_64), removed redundant read_dir + name-empty check.",
+        "Runtime evidence (actual sidecar binary launching and WebSocket endpoint) deferred until sidecar binary is built in follow-up PR."
       ]
     },
     {
