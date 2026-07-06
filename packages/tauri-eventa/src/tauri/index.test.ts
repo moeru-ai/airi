@@ -37,8 +37,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 function fireChannel(eventName: string, payload: any): void {
   const handler = registeredHandlers.get(eventName)
-  if (!handler)
-    throw new Error(`no registered listener for "${eventName}"`)
+  if (!handler) throw new Error(`no registered listener for "${eventName}"`)
   handler({ event: eventName, id: 0, payload })
 }
 
@@ -85,7 +84,7 @@ describe('createContextFromTauriIpc', () => {
     context.on({ id: 'eventa:event:electron:screen:cursor-screen-point', type: 'event' } as any, listener)
 
     expect(listenMock).toHaveBeenCalledWith('electron:screen:cursor-screen-point', expect.any(Function))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
     fireChannel('electron:screen:cursor-screen-point', { x: 3, y: 4 })
 
     expect(listener).toHaveBeenCalledOnce()

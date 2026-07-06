@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  electronGodotStageGetStatus,
+  electronGodotStageStart,
+  electronGodotStageStatusChanged,
+  electronGodotStageStop,
   electronGetServerChannelQrPayload,
   electronPluginsList,
   electronPluginsSetEnabled,
@@ -32,6 +36,13 @@ describe('@proj-airi/tauri-eventa root exports', () => {
     expect(projAiriPluginSdkApisProtocolResourcesProvidersListProviders.sendEvent.id).toBe(
       'eventa:invoke:proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers-send',
     )
+  })
+
+  it('exports Godot stage contracts with stable eventa IDs', () => {
+    expect(electronGodotStageStart.sendEvent.id).toBe('eventa:invoke:electron:godot-stage:start-send')
+    expect(electronGodotStageStop.sendEvent.id).toBe('eventa:invoke:electron:godot-stage:stop-send')
+    expect(electronGodotStageGetStatus.sendEvent.id).toBe('eventa:invoke:electron:godot-stage:get-status-send')
+    expect(electronGodotStageStatusChanged.id).toBe('eventa:event:electron:godot-stage:status-changed')
   })
 
   it('exports MCP invoke contracts with stable eventa IDs', () => {

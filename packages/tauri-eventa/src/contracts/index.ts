@@ -22,6 +22,21 @@ export {
   type ElectronServerChannelConfig,
 } from './server-channel'
 export {
+  electronGodotStageApplySceneInput,
+  electronGodotStageApplyViewPatch,
+  electronGodotStageGetStatus,
+  electronGodotStageGetViewSnapshot,
+  electronGodotStageRequestViewSnapshot,
+  electronGodotStageStart,
+  electronGodotStageStatusChanged,
+  electronGodotStageStop,
+  electronGodotStageViewSnapshotChanged,
+  electronGodotStageViewStateError,
+  type ElectronGodotStageSceneInputPayload,
+  type ElectronGodotStageState,
+  type ElectronGodotStageStatus,
+} from './godot-stage'
+export {
   electronOnboardingClose,
   electronOpenChat,
   electronOpenDevtoolsWindow,
