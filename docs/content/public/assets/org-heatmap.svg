@@ -1,7 +1,448 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="560" height="240" viewBox="0 0 560 240" role="image" aria-label="animaios org commit activity placeholder">
-  <rect width="560" height="240" fill="#0d1117"/>
-  <text x="36" y="24" fill="#ffd1e8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600">animaios org activity — refreshing…</text>
-  <text x="36" y="50" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">Placeholder — the CI workflow will replace this file with live data on the next scheduled run.</text>
-  <text x="36" y="220" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · auto-refreshed by CI (4x daily)</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="778" height="472" viewBox="0 0 778 472" role="img" aria-label="animaios org commit activity over the last 365 days">
+<rect width="778" height="472" fill="#0d1117"/>
+<text x="36" y="18" fill="#ffd1e8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" font-weight="600">animaios org activity · last 365 days</text>
+<text x="78" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Aug</text>
+<text x="148" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Sep</text>
+<text x="204" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Oct</text>
+<text x="260" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Nov</text>
+<text x="330" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Dec</text>
+<text x="386" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Jan</text>
+<text x="442" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Feb</text>
+<text x="498" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Mar</text>
+<text x="568" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Apr</text>
+<text x="624" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">May</text>
+<text x="694" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Jun</text>
+<text x="750" y="18" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Jul</text>
+<text x="28" y="51" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Mon</text>
+<text x="28" y="79" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Wed</text>
+<text x="28" y="107" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Fri</text>
+<rect x="36" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="414" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="484" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="526" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="540" y="28" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="28" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="568" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="582" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="596" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="610" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="624" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="638" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="652" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="666" y="28" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="680" y="28" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="694" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="708" y="28" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="722" y="28" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="736" y="28" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="750" y="28" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>3 commits</title></rect>
+<rect x="764" y="28" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"><title>9 commits</title></rect>
+<rect x="36" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="414" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="484" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="526" y="42" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="540" y="42" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="568" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="582" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="596" y="42" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="610" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="624" y="42" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="638" y="42" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="652" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="666" y="42" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="680" y="42" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="694" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="708" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="722" y="42" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>3 commits</title></rect>
+<rect x="736" y="42" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>5 commits</title></rect>
+<rect x="750" y="42" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"><title>8 commits</title></rect>
+<rect x="764" y="42" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<rect x="36" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="414" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="484" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="526" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="540" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="568" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="582" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="596" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="610" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="624" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="638" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="652" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="666" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="680" y="56" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="694" y="56" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="708" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="722" y="56" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="736" y="56" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>6 commits</title></rect>
+<rect x="750" y="56" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>5 commits</title></rect>
+<rect x="764" y="56" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<rect x="36" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="70" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="414" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="484" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="526" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="540" y="70" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="568" y="70" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="582" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="596" y="70" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="610" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="624" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="638" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="652" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="666" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="680" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>3 commits</title></rect>
+<rect x="694" y="70" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="708" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="722" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="736" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="750" y="70" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="764" y="70" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<rect x="36" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="414" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="484" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="526" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="540" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="568" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="582" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="596" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="610" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="624" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="638" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="652" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="666" y="84" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="680" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="694" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="708" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="722" y="84" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>3 commits</title></rect>
+<rect x="736" y="84" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="750" y="84" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>5 commits</title></rect>
+<rect x="764" y="84" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<rect x="36" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="414" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="484" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="526" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="540" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="568" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="582" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="596" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="610" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="624" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="638" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="652" y="98" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="666" y="98" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="680" y="98" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="694" y="98" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="708" y="98" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="722" y="98" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="736" y="98" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>4 commits</title></rect>
+<rect x="750" y="98" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>4 commits</title></rect>
+<rect x="764" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<rect x="36" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="50" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="64" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="78" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="92" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="106" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="120" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="134" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="148" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="162" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="176" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="190" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="204" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="218" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="232" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="246" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="260" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="274" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="288" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="302" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="316" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="330" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="344" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="358" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="372" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="386" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="400" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="414" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="428" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="442" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="456" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="470" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="484" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="498" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="512" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="526" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="540" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="554" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="568" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="582" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="596" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="610" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="624" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="638" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="652" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="666" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="680" y="112" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
+<rect x="694" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="708" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
+<rect x="722" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>3 commits</title></rect>
+<rect x="736" y="112" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>4 commits</title></rect>
+<rect x="750" y="112" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"><title>12 commits</title></rect>
+<rect x="764" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<text x="700" y="143" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Less</text>
+<rect x="708" y="134" width="11" height="11" rx="2" ry="2" fill="#161b22"/>
+<rect x="722" y="134" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"/>
+<rect x="736" y="134" width="11" height="11" rx="2" ry="2" fill="#7a2d51"/>
+<rect x="750" y="134" width="11" height="11" rx="2" ry="2" fill="#c63578"/>
+<rect x="764" y="134" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"/>
+<text x="782" y="143" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">More</text>
+<text x="36" y="178" fill="#ffd1e8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600">Top active repos this year</text>
+<rect x="186" y="192" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="192" width="280" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3146</text>
+<text x="36" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">anima</text>
+<rect x="186" y="212" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="212" width="165" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">1857</text>
+<text x="36" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animavault</text>
+<rect x="186" y="232" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="232" width="117" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="241" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">1311</text>
+<text x="36" y="241" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animaland</text>
+<rect x="186" y="252" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="252" width="99" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="261" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">1117</text>
+<text x="36" y="261" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animamunchmcp</text>
+<rect x="186" y="272" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="272" width="57" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="281" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">637</text>
+<text x="36" y="281" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animarouter</text>
+<rect x="186" y="292" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="292" width="28" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="301" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">320</text>
+<text x="36" y="301" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animapanel</text>
+<rect x="186" y="312" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="312" width="6" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="321" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">71</text>
+<text x="36" y="321" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">anima-use-interactive…</text>
+<rect x="186" y="332" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="332" width="5" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="341" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">56</text>
+<text x="36" y="341" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animabox</text>
+<rect x="186" y="352" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="352" width="4" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="361" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">44</text>
+<text x="36" y="361" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">anima-use-desktop</text>
+<rect x="186" y="372" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="372" width="4" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="381" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">40</text>
+<text x="36" y="381" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animaksmd</text>
+<rect x="186" y="392" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="392" width="2" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="401" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">25</text>
+<text x="36" y="401" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animadots</text>
+<rect x="186" y="412" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
+<rect x="186" y="412" width="2" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">24</text>
+<text x="36" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animawave</text>
+<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 8720 commits across 18 repos · 2026-07-06 · refreshed 4x daily by CI</text>
 </svg>
