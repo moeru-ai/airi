@@ -183,7 +183,8 @@ owners:
 This is not Godot Environment Glow and does not use material emission as the
 avatar-style glow source. The color mapping is an independently enabled final
 stage inside the stage post-process compositor. Future avatar-only edge light
-work must first establish same-scene visual comparison against this baseline.
+work should establish same-scene visual comparison artifacts before changing the
+pipeline.
 
 Design notes live in [`docs/rendering-effects.md`](docs/rendering-effects.md).
 
@@ -205,25 +206,25 @@ outline passes, and mesh shadow casters. The current A/B fixtures do not contain
 unlit materials, so this check reports `unlit = 0` and does not treat that as a
 failure.
 
-## Visual Baseline Check
+## Visual Observation
 
-Renderer-facing changes must compare against the accepted main-stage visual
-baseline before they are accepted:
+Renderer-facing changes should produce comparable render artifacts before they
+are accepted:
 
 ```powershell
-pnpm -F @proj-airi/stage-tamagotchi-godot verify:visual-baseline
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages
 ```
 
-When the current output is manually accepted as the new local baseline:
+For rim or edge-light shape checks, prefer the upper-body camera preset:
 
 ```powershell
-pnpm -F @proj-airi/stage-tamagotchi-godot verify:visual-baseline -- --update-baseline
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages:upper-body
 ```
 
 The command launches the real `StageRoot` scene through the local WebSocket
 protocol, loads `AvatarSample_A.vrm`, captures the visible Godot window client
-area as the final rendered output, and compares it with
-`tests/visual-baselines/avatarSampleA-main-stage.png`.
+area as the final rendered output, and writes diagnostic render-stage artifacts
+under `artifacts/`.
 
 The Technical Art workflow and acceptance rules live in
 [`docs/technical-art-workflow.md`](docs/technical-art-workflow.md).

@@ -95,29 +95,30 @@ C:\Godot_v4.6.2-stable_mono_win64\Godot_v4.6.2-stable_mono_win64.exe `
   --scene "res://tests/<check-name>/<checkName>.tscn"
 ```
 
-For shipped stage visuals, use the main-stage baseline command instead of a
+For shipped stage visuals, export render-stage artifacts instead of relying on a
 temporary manual screenshot:
 
 ```powershell
-pnpm -F @proj-airi/stage-tamagotchi-godot verify:visual-baseline
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages
 ```
 
-The command runs this flow:
+For rim or edge-light shape checks, prefer the upper-body camera preset:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages:upper-body
+```
+
+The dump command runs this flow:
 
 1. Start a local WebSocket host.
 2. Launch the main Godot stage with a fixed `--resolution`.
 3. Wait for `stage.ready`.
 4. Send `host.scene.apply` with the tracked AvatarSample A VRM.
 5. Wait for `scene.applied`.
-6. Capture the visible Godot window client area as the final rendered output.
-7. Compare the final window PNG with the accepted baseline.
+6. Capture the visible Godot window client area for each requested render-stage
+   view.
+7. Write diagnostic PNGs under `artifacts/`.
 8. Send `host.shutdown`.
-
-Use `--update-baseline` only after manually accepting the current PNG:
-
-```powershell
-pnpm -F @proj-airi/stage-tamagotchi-godot verify:visual-baseline -- --update-baseline
-```
 
 ## Cleanup
 

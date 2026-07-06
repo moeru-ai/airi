@@ -4,11 +4,10 @@ import { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { inflateSync } from 'node:zlib'
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url))
 const projectDirectory = resolve(scriptDirectory, '..')
@@ -24,10 +23,7 @@ const defaultModelPath = join(
   'AvatarSample-A',
   'AvatarSample_A.vrm',
 )
-const artifactDirectory = join(projectDirectory, 'artifacts', 'visual-baseline')
-const baselineDirectory = join(projectDirectory, 'tests', 'visual-baselines')
-const defaultBaselinePath = join(baselineDirectory, 'avatarSampleA-main-stage.png')
-const defaultCurrentPath = join(artifactDirectory, 'avatarSampleA-main-stage.current.png')
+const artifactDirectory = join(projectDirectory, 'artifacts', 'render-stages')
 const defaultLogPath = join(artifactDirectory, 'godot-stage.log')
 const defaultRenderStageViews = [
   'scene-copy',
@@ -40,43 +36,30 @@ const defaultRenderStageViews = [
 ]
 const windowCaptureScriptPath = join(scriptDirectory, 'captureWindowClientPng.ps1')
 const webSocketGuid = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
-const pngSignature = '89504e470d0a1a0a'
 
 function parseArgs(argv) {
   const options = {
     avatarEdgeLight: true,
-    baselinePath: defaultBaselinePath,
-    currentPath: defaultCurrentPath,
     godotPath: process.env.GODOT4,
     headless: false,
     height: 720,
     logPath: defaultLogPath,
-    maxChannelDiff: 32,
-    meanAbsoluteDiff: 0.01,
     modelPath: defaultModelPath,
     renderStageViews: null,
     settleMs: 1000,
     stageDumpDirectory: null,
-    updateBaseline: false,
     viewPreset: 'default',
     width: 1280,
-    changedPixelRatio: 0.005,
   }
 
   for (let index = 0; index < argv.length; index++) {
     const argument = argv[index]
     switch (argument) {
-      case '--baseline':
-        options.baselinePath = resolveRequiredValue(argv, ++index, argument)
-        break
       case '--avatar-edge-light':
         options.avatarEdgeLight = parseAvatarEdgeLight(
           resolveRequiredValue(argv, ++index, argument),
           argument,
         )
-        break
-      case '--current':
-        options.currentPath = resolveRequiredValue(argv, ++index, argument)
         break
       case '--godot':
         options.godotPath = resolveRequiredValue(argv, ++index, argument)
@@ -93,18 +76,6 @@ function parseArgs(argv) {
       case '--log-file':
         options.logPath = resolveRequiredValue(argv, ++index, argument)
         break
-      case '--max-channel-diff':
-        options.maxChannelDiff = parseNonNegativeNumber(
-          resolveRequiredValue(argv, ++index, argument),
-          argument,
-        )
-        break
-      case '--mean-absolute-diff':
-        options.meanAbsoluteDiff = parseNonNegativeNumber(
-          resolveRequiredValue(argv, ++index, argument),
-          argument,
-        )
-        break
       case '--model':
         options.modelPath = resolveRequiredValue(argv, ++index, argument)
         break
@@ -120,20 +91,11 @@ function parseArgs(argv) {
           argument,
         )
         break
-      case '--update-baseline':
-        options.updateBaseline = true
-        break
       case '--view-preset':
         options.viewPreset = parseViewPreset(resolveRequiredValue(argv, ++index, argument), argument)
         break
       case '--width':
         options.width = parsePositiveInteger(resolveRequiredValue(argv, ++index, argument), argument)
-        break
-      case '--changed-pixel-ratio':
-        options.changedPixelRatio = parseNonNegativeNumber(
-          resolveRequiredValue(argv, ++index, argument),
-          argument,
-        )
         break
       default:
         throw new Error(`Unknown argument: ${argument}`)
@@ -145,18 +107,18 @@ function parseArgs(argv) {
   }
 
   if (options.headless) {
-    throw new Error('Window visual baseline capture requires a visible Godot window. Remove --headless.')
+    throw new Error('Render-stage window capture requires a visible Godot window. Remove --headless.')
   }
 
-  options.baselinePath = resolve(options.baselinePath)
-  options.currentPath = resolve(options.currentPath)
+  if (!options.stageDumpDirectory) {
+    throw new Error('Pass --dump-render-stages <directory>. Baseline comparison is not supported.')
+  }
+
   options.godotPath = resolve(options.godotPath)
   options.logPath = resolve(options.logPath)
   options.modelPath = resolve(options.modelPath)
-  if (options.stageDumpDirectory) {
-    options.stageDumpDirectory = resolve(options.stageDumpDirectory)
-    options.renderStageViews ??= defaultRenderStageViews
-  }
+  options.stageDumpDirectory = resolve(options.stageDumpDirectory)
+  options.renderStageViews ??= defaultRenderStageViews
   return options
 }
 
@@ -182,15 +144,6 @@ function parseNonNegativeInteger(value, label) {
   const parsed = Number.parseInt(value, 10)
   if (!Number.isInteger(parsed) || parsed < 0) {
     throw new Error(`${label} must be a non-negative integer.`)
-  }
-
-  return parsed
-}
-
-function parseNonNegativeNumber(value, label) {
-  const parsed = Number.parseFloat(value)
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error(`${label} must be a non-negative number.`)
   }
 
   return parsed
@@ -498,7 +451,7 @@ async function stopGodot(host, processHandle) {
 
 async function captureGodotWindowPng(processHandle, options) {
   if (process.platform !== 'win32') {
-    throw new Error('Window visual baseline capture currently requires Windows.')
+    throw new Error('Render-stage window capture currently requires Windows.')
   }
 
   if (!processHandle.pid) {
@@ -668,224 +621,6 @@ function runProcess(command, args) {
   })
 }
 
-function decodePng(buffer) {
-  if (buffer.subarray(0, 8).toString('hex') !== pngSignature) {
-    throw new Error('File is not a PNG image.')
-  }
-
-  let offset = 8
-  let width
-  let height
-  let bitDepth
-  let colorType
-  const idatChunks = []
-
-  while (offset < buffer.length) {
-    const length = buffer.readUInt32BE(offset)
-    const type = buffer.subarray(offset + 4, offset + 8).toString('ascii')
-    const data = buffer.subarray(offset + 8, offset + 8 + length)
-    offset += 12 + length
-
-    if (type === 'IHDR') {
-      width = data.readUInt32BE(0)
-      height = data.readUInt32BE(4)
-      bitDepth = data[8]
-      colorType = data[9]
-    }
-    else if (type === 'IDAT') {
-      idatChunks.push(data)
-    }
-    else if (type === 'IEND') {
-      break
-    }
-  }
-
-  if (bitDepth !== 8) {
-    throw new Error(`Unsupported PNG bit depth: ${bitDepth}.`)
-  }
-
-  const channels = channelsForColorType(colorType)
-  const inflated = inflateSync(Buffer.concat(idatChunks))
-  const rowBytes = width * channels
-  const raw = Buffer.alloc(rowBytes * height)
-  let sourceOffset = 0
-
-  for (let y = 0; y < height; y++) {
-    const filter = inflated[sourceOffset++]
-    const rowStart = y * rowBytes
-    const previousRowStart = rowStart - rowBytes
-
-    for (let x = 0; x < rowBytes; x++) {
-      const rawByte = inflated[sourceOffset++]
-      const left = x >= channels ? raw[rowStart + x - channels] : 0
-      const up = y > 0 ? raw[previousRowStart + x] : 0
-      const upLeft = y > 0 && x >= channels ? raw[previousRowStart + x - channels] : 0
-
-      raw[rowStart + x] = (rawByte + unfilterByte(filter, left, up, upLeft)) & 0xFF
-    }
-  }
-
-  return {
-    data: expandToRgba(raw, width, height, colorType),
-    height,
-    width,
-  }
-}
-
-function channelsForColorType(colorType) {
-  switch (colorType) {
-    case 0:
-      return 1
-    case 2:
-      return 3
-    case 6:
-      return 4
-    default:
-      throw new Error(`Unsupported PNG color type: ${colorType}.`)
-  }
-}
-
-function unfilterByte(filter, left, up, upLeft) {
-  switch (filter) {
-    case 0:
-      return 0
-    case 1:
-      return left
-    case 2:
-      return up
-    case 3:
-      return Math.floor((left + up) / 2)
-    case 4:
-      return paeth(left, up, upLeft)
-    default:
-      throw new Error(`Unsupported PNG filter: ${filter}.`)
-  }
-}
-
-function paeth(left, up, upLeft) {
-  const estimate = left + up - upLeft
-  const leftDistance = Math.abs(estimate - left)
-  const upDistance = Math.abs(estimate - up)
-  const upLeftDistance = Math.abs(estimate - upLeft)
-
-  if (leftDistance <= upDistance && leftDistance <= upLeftDistance) {
-    return left
-  }
-
-  if (upDistance <= upLeftDistance) {
-    return up
-  }
-
-  return upLeft
-}
-
-function expandToRgba(raw, width, height, colorType) {
-  const pixelCount = width * height
-  const rgba = Buffer.alloc(pixelCount * 4)
-
-  if (colorType === 0) {
-    for (let pixel = 0; pixel < pixelCount; pixel++) {
-      const value = raw[pixel]
-      rgba[pixel * 4] = value
-      rgba[pixel * 4 + 1] = value
-      rgba[pixel * 4 + 2] = value
-      rgba[pixel * 4 + 3] = 0xFF
-    }
-    return rgba
-  }
-
-  if (colorType === 2) {
-    for (let pixel = 0; pixel < pixelCount; pixel++) {
-      rgba[pixel * 4] = raw[pixel * 3]
-      rgba[pixel * 4 + 1] = raw[pixel * 3 + 1]
-      rgba[pixel * 4 + 2] = raw[pixel * 3 + 2]
-      rgba[pixel * 4 + 3] = 0xFF
-    }
-    return rgba
-  }
-
-  raw.copy(rgba)
-  return rgba
-}
-
-async function comparePngFiles(baselinePath, currentPath) {
-  const baseline = decodePng(await readFile(baselinePath))
-  const current = decodePng(await readFile(currentPath))
-  if (baseline.width !== current.width || baseline.height !== current.height) {
-    throw new Error(
-      `PNG size mismatch: baseline ${baseline.width}x${baseline.height}, `
-      + `current ${current.width}x${current.height}.`,
-    )
-  }
-
-  let changedPixels = 0
-  let totalAbsoluteDiff = 0
-  let maxChannelDiff = 0
-  const pixelCount = baseline.width * baseline.height
-
-  for (let pixel = 0; pixel < pixelCount; pixel++) {
-    let pixelChanged = false
-    for (let channel = 0; channel < 4; channel++) {
-      const index = pixel * 4 + channel
-      const diff = Math.abs(baseline.data[index] - current.data[index])
-      totalAbsoluteDiff += diff
-      maxChannelDiff = Math.max(maxChannelDiff, diff)
-      pixelChanged ||= diff > 0
-    }
-
-    if (pixelChanged) {
-      changedPixels++
-    }
-  }
-
-  return {
-    changedPixelRatio: changedPixels / pixelCount,
-    height: baseline.height,
-    maxChannelDiff,
-    meanAbsoluteDiff: totalAbsoluteDiff / (pixelCount * 4),
-    width: baseline.width,
-  }
-}
-
-function assertMetricsWithinThreshold(metrics, options) {
-  const failures = []
-  if (metrics.maxChannelDiff > options.maxChannelDiff) {
-    failures.push(
-      `maxChannelDiff ${metrics.maxChannelDiff} > threshold ${options.maxChannelDiff}`,
-    )
-  }
-
-  if (metrics.meanAbsoluteDiff > options.meanAbsoluteDiff) {
-    failures.push(
-      `meanAbsoluteDiff ${metrics.meanAbsoluteDiff} > threshold ${options.meanAbsoluteDiff}`,
-    )
-  }
-
-  if (metrics.changedPixelRatio > options.changedPixelRatio) {
-    failures.push(
-      `changedPixelRatio ${metrics.changedPixelRatio} > threshold ${options.changedPixelRatio}`,
-    )
-  }
-
-  if (failures.length > 0) {
-    throw new Error(`Visual baseline mismatch:\n${failures.map(line => `- ${line}`).join('\n')}`)
-  }
-}
-
-function printMetrics(metrics) {
-  console.info(`Visual metrics: ${metrics.width}x${metrics.height}`)
-  console.info(`  maxChannelDiff: ${metrics.maxChannelDiff}`)
-  console.info(`  meanAbsoluteDiff: ${metrics.meanAbsoluteDiff}`)
-  console.info(`  changedPixelRatio: ${metrics.changedPixelRatio}`)
-}
-
-function printThresholds(options) {
-  console.info('Visual thresholds:')
-  console.info(`  maxChannelDiff: ${options.maxChannelDiff}`)
-  console.info(`  meanAbsoluteDiff: ${options.meanAbsoluteDiff}`)
-  console.info(`  changedPixelRatio: ${options.changedPixelRatio}`)
-}
-
 async function main() {
   const options = parseArgs(process.argv.slice(2))
   if (!existsSync(options.godotPath)) {
@@ -896,13 +631,8 @@ async function main() {
     throw new Error(`VRM model does not exist: ${options.modelPath}`)
   }
 
-  await mkdir(dirname(options.currentPath), { recursive: true })
-  await mkdir(dirname(options.baselinePath), { recursive: true })
   await mkdir(dirname(options.logPath), { recursive: true })
-  if (options.stageDumpDirectory) {
-    await mkdir(options.stageDumpDirectory, { recursive: true })
-  }
-  await rm(options.currentPath, { force: true })
+  await mkdir(options.stageDumpDirectory, { recursive: true })
 
   const host = await createStageHost()
   const godot = launchGodot(options, host.url)
@@ -913,42 +643,14 @@ async function main() {
     await host.waitForType('stage.ready', 20000)
     host.send('host.scene.apply', {
       format: 'vrm',
-      modelId: 'visual-baseline-avatar-sample-a',
+      modelId: 'render-stage-observation-avatar-sample-a',
       name: 'AvatarSample_A',
       path: options.modelPath,
     })
     await host.waitForType('scene.applied', 45000)
     await applyViewPreset(host, options.viewPreset)
     await setAvatarEdgeLight(host, options.avatarEdgeLight)
-    if (options.stageDumpDirectory) {
-      await captureRenderStageViews(host, godot, options)
-      return
-    }
-
-    const capture = await captureGodotWindowPng(godot, options)
-    console.info(
-      `Captured final window PNG: ${capture.path} (${capture.width}x${capture.height})`,
-    )
-    console.info(`Captured window title: ${capture.title}`)
-
-    if (options.updateBaseline) {
-      await copyFile(options.currentPath, options.baselinePath)
-      console.info(`Updated visual baseline: ${options.baselinePath}`)
-      return
-    }
-
-    if (!existsSync(options.baselinePath)) {
-      throw new Error(
-        `Visual baseline does not exist: ${options.baselinePath}\n`
-        + 'Run this command with --update-baseline after manually accepting the current image.',
-      )
-    }
-
-    const metrics = await comparePngFiles(options.baselinePath, options.currentPath)
-    printMetrics(metrics)
-    printThresholds(options)
-    assertMetricsWithinThreshold(metrics, options)
-    console.info('Visual baseline comparison passed.')
+    await captureRenderStageViews(host, godot, options)
   }
   finally {
     await stopGodot(host, godot)

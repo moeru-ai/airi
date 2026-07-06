@@ -18,9 +18,7 @@
   "scripts": {
     "build": "dotnet build ./stage-tamagotchi-godot.csproj",
     "typecheck": "dotnet build ./stage-tamagotchi-godot.csproj",
-    "dump:render-stages": "node ./tools/verifyVisualBaseline.mjs --dump-render-stages ./artifacts/render-stages",
-    "dump:render-stages:upper-body": "node ./tools/verifyVisualBaseline.mjs --dump-render-stages ./artifacts/render-stages-upper-body --view-preset upper-body",
-    "verify:visual-baseline": "node ./tools/verifyVisualBaseline.mjs",
-    "verify:visual-baseline:edge-off": "node ./tools/verifyVisualBaseline.mjs --avatar-edge-light off"
+    "dump:render-stages": "node ./tools/dumpRenderStages.mjs --dump-render-stages ./artifacts/render-stages",
+    "dump:render-stages:upper-body": "node ./tools/dumpRenderStages.mjs --dump-render-stages ./artifacts/render-stages-upper-body --view-preset upper-body"
   }
 }

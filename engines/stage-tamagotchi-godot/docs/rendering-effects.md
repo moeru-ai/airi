@@ -50,7 +50,8 @@ Current implementation details:
   post-process pass graph.
 - The final NAES/toon color mapping is a separate compositor stage and no
   longer depends on avatar glow being enabled. Later source effects can feed the
-  same final color stage before display output after visual baseline comparison.
+  same final color stage before display output after same-scene visual
+  comparison.
 - Godot Environment Glow is disabled in `StageVisualPreset`; avatar-style glow
   source selection comes from the shared stencil overlay, not from material
   emission.
