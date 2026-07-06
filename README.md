@@ -11,12 +11,6 @@ Full distro based on [CachyOS](https://cachyos.org/) coming soon!
 
 ---
 
-### 🌸 animaios org activity (last 365 days)
-
-<p align="center">
-  <img src="docs/content/public/assets/org-heatmap.svg" alt="animaios org commit activity across all repos over the last 365 days" width="100%">
-</p>
-
 ## 🌙 The Vision
 
 - **Always-Present Stage:** Your character lives on your desktop! She can open, close and switch between windows and most importantly read text in those windows through accessibility integration~
@@ -91,13 +85,12 @@ cd apps/stage-tamagotchi
 
 _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.deb` into `.zst` for Arch/Manjaro/CachyOS)._
 -->
-### ❔ Troubleshooting
 
-**Electron build approvals (pnpm 10+):**
+## 🌸 AnimAIOS Project activity (last 365 days)
 
-```shell
-pnpm approve-builds # Select 'electron' and confirm
-```
+<p align="center">
+  <img src="docs/content/public/assets/org-heatmap.svg" alt="animaios org commit activity across all repos over the last 365 days" width="100%">
+</p>
 
 ## 🚙 Roadmap
 
