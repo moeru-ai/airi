@@ -141,7 +141,7 @@ async function importDisplayModel(zip: JSZip, manifest: Manifest, store: Display
     return (await store.addDisplayModel(resource.format, new File([data], resource.name))).id
   }
   catch (cause) {
-    throw error('invalid-file', 'Failed to import display model file', cause)
+    throw error('invalid-file', 'Failed to import display model file', { cause })
   }
 }
 
@@ -150,7 +150,7 @@ async function loadZip(file: File) {
     return await JSZip.loadAsync(await file.arrayBuffer())
   }
   catch (cause) {
-    throw error('invalid-file', 'Invalid zip file', cause)
+    throw error('invalid-file', 'Invalid zip file', { cause })
   }
 }
 
@@ -163,7 +163,7 @@ async function readJsonFile<S extends GenericSchema>(zip: JSZip, path: string, s
     return parse(schema, JSON.parse(await file.async('string')))
   }
   catch (cause) {
-    throw error('invalid-file', `Invalid ${path}`, cause)
+    throw error('invalid-file', `Invalid ${path}`, { cause })
   }
 }
 
@@ -260,10 +260,10 @@ async function displayModelPayload(model: DisplayModel): Promise<{ data: ArrayBu
     return { data: await file.arrayBuffer(), file }
   }
   catch (cause) {
-    throw error('invalid-file', 'Failed to read display model file', cause)
+    throw error('invalid-file', 'Failed to read display model file', { cause })
   }
 }
 
-function error(code: AiriCardPackageErrorCode, message: string, cause?: unknown) {
-  return new AiriCardPackageError(code, message, cause === undefined ? undefined : { cause })
+function error(code: AiriCardPackageErrorCode, message: string, options?: { cause?: unknown }) {
+  return new AiriCardPackageError(code, message, options)
 }

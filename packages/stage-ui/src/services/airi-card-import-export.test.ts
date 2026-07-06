@@ -31,7 +31,7 @@ describe('airi card package import/export', () => {
     })
     mockAddDisplayModel(displayModelsStore, 'display-model-imported')
 
-    const exported = await exportAiriCardPackage({ card: createCard('preset-vrm-1'), displayModelsStore })
+    const exported = await exportAiriCardPackage({ card: createCard(), displayModelsStore })
     const zip = await JSZip.loadAsync(await exported.arrayBuffer())
     const cardJson = await readJson<ccv3.CharacterCardV3>(zip, 'card.json')
     const imported = await importAiriCardPackage({ file: new File([exported], 'card.zip'), displayModelsStore })
@@ -54,7 +54,6 @@ describe('airi card package import/export', () => {
     const invalidJsonZip = new JSZip()
     const displayModelsStore = useDisplayModelsStore()
     invalidJsonZip.file('manifest.json', '{')
-    mockAddDisplayModel(displayModelsStore)
     const cases = [
       [new File(['not zip'], 'card.zip'), { code: 'invalid-file', message: 'Invalid zip file' }],
       [new File([await emptyZip.generateAsync({ type: 'arraybuffer' })], 'empty.zip'), { code: 'missing-file' }],
