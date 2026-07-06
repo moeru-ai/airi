@@ -534,6 +534,7 @@ export function setupApp(options?: AppOptions): {
     mPeerUnhealthy.set(unhealthy)
     mModuleTotal.set(peersByModule.size)
   }
+  refreshMetrics()
 
   // === Broadcasting & Registry Synchronization ===
   function sendRegistrySync(peer: Peer, parentId?: string) {
@@ -1047,6 +1048,8 @@ export function setupApp(options?: AppOptions): {
   })
 
   app.get('/metrics', () => {
+    refreshMetrics()
+
     return new Response(metrics.expose(), {
       headers: {
         'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',

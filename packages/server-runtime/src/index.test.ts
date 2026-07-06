@@ -2,7 +2,7 @@ import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-shar
 
 import { describe, expect, it } from 'vitest'
 
-import { heartbeatFrameFrom, resolveEventDelivery, selectConsumerPeerId } from './index'
+import { heartbeatFrameFrom, resolveEventDelivery, selectConsumerPeerId, setupApp } from './index'
 
 function createInputTextEvent(
   overrides: Partial<WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>> = {},
@@ -208,5 +208,20 @@ describe('heartbeatFrameFrom', () => {
     expect(heartbeatFrameFrom('')).toBeUndefined()
     expect(heartbeatFrameFrom('🩵')).toBeUndefined()
     expect(heartbeatFrameFrom('{"type":"transport:connection:heartbeat"}')).toBeUndefined()
+  })
+})
+
+describe('server runtime metrics', () => {
+  it('exposes zero-valued server gauges before any peer connects', () => {
+    const runtime = setupApp()
+
+    try {
+      expect(runtime.metrics.expose()).toContain('airi_server_peer_total 0')
+      expect(runtime.metrics.expose()).toContain('airi_server_peer_healthy 0')
+      expect(runtime.metrics.expose()).toContain('airi_server_peer_unhealthy 0')
+      expect(runtime.metrics.expose()).toContain('airi_server_module_total 0')
+    } finally {
+      runtime.dispose()
+    }
   })
 })
