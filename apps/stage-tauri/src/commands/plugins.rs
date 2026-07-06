@@ -3,6 +3,9 @@ use crate::commands::plugin_host::config::{
     disable_plugin, enable_plugin, mark_plugin_known, set_auto_reload,
 };
 use crate::commands::plugin_host::manifests;
+use crate::commands::sidecar::{
+    PluginHostSidecarController, PluginHostSidecarState, PluginHostSidecarStatus,
+};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -161,6 +164,21 @@ fn now_millis() -> u64 {
         .as_millis() as u64
 }
 
+fn update_sidecar_capability(state: &PluginHostState, status: &PluginHostSidecarStatus) {
+    state.update_capability(
+        "plugin-host:sidecar".to_string(),
+        status.state.as_str().to_string(),
+        Some(serde_json::json!({
+            "pid": status.pid,
+            "endpoint": status.endpoint,
+            "executablePath": status.executable_path,
+            "lastError": status.last_error,
+            "updatedAt": status.updated_at,
+        })),
+        now_millis(),
+    );
+}
+
 /// List plugins
 #[tauri::command]
 pub async fn electron_plugins_list(
@@ -227,37 +245,43 @@ pub async fn electron_plugins_set_auto_reload(
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Load all enabled plugins — reports degraded because the sidecar binary is out of scope
+/// Load all enabled plugins by starting the plugin-host sidecar when available.
 #[tauri::command]
 pub async fn electron_plugins_load_enabled(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
+    sidecar: State<'_, PluginHostSidecarController>,
 ) -> Result<PluginRegistrySnapshot, String> {
-    state.update_capability(
-        "plugin-host:sidecar".to_string(),
-        "degraded".to_string(),
-        Some(serde_json::json!({ "reason": "sidecar binary not bundled in this slice" })),
-        now_millis(),
-    );
+    let sidecar_status = sidecar.start_blocking();
+    update_sidecar_capability(&state, &sidecar_status);
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Load a specific plugin — degraded stub
+/// Load a specific plugin by starting the plugin-host sidecar when available.
 #[tauri::command]
 pub async fn electron_plugins_load(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
+    sidecar: State<'_, PluginHostSidecarController>,
     name: Option<String>,
 ) -> Result<PluginRegistrySnapshot, String> {
     let Some(name) = name.filter(|n| !n.trim().is_empty()) else {
         return Err("plugin name is required".to_string());
     };
 
+    let sidecar_status = sidecar.start_blocking();
+    update_sidecar_capability(&state, &sidecar_status);
+    let plugin_state = if sidecar_status.state == PluginHostSidecarState::Ready {
+        "ready"
+    } else {
+        "degraded"
+    };
+
     state.update_capability(
         format!("plugin-host:plugin:{name}"),
-        "degraded".to_string(),
-        Some(serde_json::json!({ "name": &name, "reason": "sidecar runtime not bundled" })),
+        plugin_state.to_string(),
+        Some(serde_json::json!({ "name": &name, "sidecar": sidecar_status })),
         now_millis(),
     );
 
@@ -290,8 +314,11 @@ pub async fn electron_plugins_unload(
 pub async fn electron_plugins_inspect(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
+    sidecar: State<'_, PluginHostSidecarController>,
 ) -> Result<Value, String> {
     let registry = build_registry_snapshot(&app_handle, &state).await;
+    let sidecar_status = sidecar.status_blocking();
+    update_sidecar_capability(&state, &sidecar_status);
     let snapshot = state.snapshot();
     let mut capabilities: Vec<_> = snapshot.capabilities.values().cloned().collect();
     capabilities.sort_by(|a, b| a.key.cmp(&b.key));
@@ -301,6 +328,7 @@ pub async fn electron_plugins_inspect(
         "sessions": [],
         "kits": [],
         "modules": [],
+        "sidecar": sidecar_status,
         "capabilities": capabilities,
         "refreshedAt": now_millis(),
     }))
@@ -369,4 +397,39 @@ pub async fn proj_airi_plugin_sdk_apis_protocol_resources_providers_list_provide
 #[tauri::command]
 pub async fn electron_plugins_asset_base_url() -> String {
     "https://assets.local/".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::sidecar::{PluginHostSidecarState, PluginHostSidecarStatus};
+
+    #[test]
+    fn plugin_host_sidecar_capability_records_state_and_metadata() {
+        let state = PluginHostState::default();
+        let status = PluginHostSidecarStatus {
+            state: PluginHostSidecarState::Ready,
+            pid: Some(42),
+            endpoint: Some("http://127.0.0.1:49152".to_string()),
+            executable_path: Some("/tmp/plugin-host".to_string()),
+            last_error: None,
+            updated_at: 123,
+        };
+
+        update_sidecar_capability(&state, &status);
+
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:sidecar").unwrap();
+        assert_eq!(capability.state, "ready");
+        assert_eq!(capability.metadata.as_ref().unwrap()["pid"], 42);
+        assert_eq!(
+            capability.metadata.as_ref().unwrap()["endpoint"],
+            "http://127.0.0.1:49152"
+        );
+        assert_eq!(
+            capability.metadata.as_ref().unwrap()["executablePath"],
+            "/tmp/plugin-host"
+        );
+        assert_eq!(capability.metadata.as_ref().unwrap()["updatedAt"], 123);
+    }
 }
