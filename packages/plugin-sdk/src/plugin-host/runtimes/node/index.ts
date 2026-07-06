@@ -1,12 +1,26 @@
 import type { ChannelHost } from '../../../channels/shared'
 
 import type { PluginTransport } from '../../transports'
-import { createContext } from '@moeru/eventa'
+import { createContext as createInMemoryContext } from '@moeru/eventa'
+
+import { createWebSocketHostChannel } from '../../../channels/remote/websocket'
 
 export * from '../../core'
 export * from '../../shared'
 export * from '../../transports'
 export * from './loaders'
+
+function createNodeWebSocket(url: string, protocols?: string[]): WebSocket {
+  const WebSocketConstructor = globalThis.WebSocket
+
+  if (typeof WebSocketConstructor !== 'function') {
+    throw new Error(
+      'Node runtime WebSocket transport requires globalThis.WebSocket. Use Node 22+ or install a WebSocket polyfill before creating the plugin context.',
+    )
+  }
+
+  return protocols && protocols.length > 0 ? new WebSocketConstructor(url, protocols) : new WebSocketConstructor(url)
+}
 
 /**
  * Creates the Eventa context used by node-side plugin host sessions.
@@ -23,9 +37,9 @@ export * from './loaders'
 export function createPluginContext(transport: PluginTransport): ChannelHost {
   switch (transport.kind) {
     case 'in-memory':
-      return createContext()
+      return createInMemoryContext()
     case 'websocket':
-      throw new Error('WebSocket transport is not implemented for node runtime yet.')
+      return createWebSocketHostChannel(createNodeWebSocket(transport.url, transport.protocols))
     case 'node-worker':
       throw new Error('Node worker transport is not implemented yet.')
     case 'electron':
