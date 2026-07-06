@@ -22,12 +22,14 @@ const AUTO_UPDATER_STATE_CHANGED_EVENT: &str = "electron:auto-updater:state-chan
 fn main() {
     let channel_server_state = channel_server::ChannelServerState::default();
     let plugin_host_state = commands::plugins::PluginHostState::default();
+    let mcp_runtime = commands::mcp::McpRuntimeManager::default();
 
     tauri::Builder::default()
         .manage(channel_server_state.clone())
         .manage(commands::notice::new_notice_registry())
         .manage(commands::widgets::new_widget_registry())
         .manage(plugin_host_state.clone())
+        .manage(mcp_runtime)
         .setup(move |app| {
             let godot_app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
             app.manage(commands::godot::GodotStageController::new(
@@ -155,15 +157,15 @@ fn main() {
                 });
             }
 
-            // Auto-updater init handshake stub. Emits "not-available" so the frontend
-            // adapter completes its init sequence without a real updater backend.
+            // Auto-updater init handshake. Until tauri-plugin-updater is configured
+            // with a feed, emit a stable no-updates state that includes the app version.
             {
                 let handle = handle.clone();
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                     let _ = handle.emit(
                         AUTO_UPDATER_STATE_CHANGED_EVENT,
-                        serde_json::json!({ "status": "not-available" }),
+                        commands::auto_updater::current_state(),
                     );
                 });
             }

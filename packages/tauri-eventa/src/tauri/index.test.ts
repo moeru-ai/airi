@@ -2,6 +2,7 @@ import type { TauriInternals } from './types'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  autoUpdater,
   electron,
   electronGetServerChannelQrPayload,
   electronGetWindowLifecycleState,
@@ -36,8 +37,7 @@ vi.mock('@tauri-apps/api/event', () => ({
 
 function fireChannel(eventName: string, payload: any): void {
   const handler = registeredHandlers.get(eventName)
-  if (!handler)
-    throw new Error(`no registered listener for "${eventName}"`)
+  if (!handler) throw new Error(`no registered listener for "${eventName}"`)
   handler({ event: eventName, id: 0, payload })
 }
 
@@ -84,7 +84,7 @@ describe('createContextFromTauriIpc', () => {
     context.on({ id: 'eventa:event:electron:screen:cursor-screen-point', type: 'event' } as any, listener)
 
     expect(listenMock).toHaveBeenCalledWith('electron:screen:cursor-screen-point', expect.any(Function))
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await new Promise((resolve) => setTimeout(resolve, 0))
     fireChannel('electron:screen:cursor-screen-point', { x: 3, y: 4 })
 
     expect(listener).toHaveBeenCalledOnce()
@@ -173,6 +173,42 @@ describe('createContextFromTauriIpc', () => {
       updatedAt: 123,
       visible: true,
     })
+  })
+
+  it('maps auto-updater state and check invokes to registered Tauri commands', async () => {
+    const internals = buildMockInternals()
+    vi.mocked(internals.invoke)
+      .mockResolvedValueOnce({
+        currentVersion: '0.1.0',
+        isUpdateAvailable: false,
+        status: 'not-available',
+      })
+      .mockResolvedValueOnce({
+        currentVersion: '0.1.0',
+        info: {
+          isUpdateAvailable: false,
+          version: '0.1.0',
+        },
+        isUpdateAvailable: false,
+        status: 'not-available',
+      })
+
+    const { context } = createContextFromTauriIpc(internals)
+    const getState = defineInvoke(context, autoUpdater.getState)
+    const checkForUpdates = defineInvoke(context, autoUpdater.checkForUpdates)
+
+    await expect(getState()).resolves.toEqual({
+      currentVersion: '0.1.0',
+      isUpdateAvailable: false,
+      status: 'not-available',
+    })
+    await expect(checkForUpdates()).resolves.toMatchObject({
+      currentVersion: '0.1.0',
+      isUpdateAvailable: false,
+      status: 'not-available',
+    })
+    expect(internals.invoke).toHaveBeenNthCalledWith(1, 'electron_auto_updater_get_state', undefined)
+    expect(internals.invoke).toHaveBeenNthCalledWith(2, 'electron_auto_updater_check_for_updates', undefined)
   })
 
   it('maps server-channel QR payload invokes to the registered Tauri command', async () => {

@@ -99,6 +99,27 @@ export {
   type ElectronPluginToolDescriptor,
   type ElectronPluginXsaiToolsetDefinition,
 } from './plugins'
+export {
+  electronMcpApplyAndRestart,
+  electronMcpCallTool,
+  electronMcpGetRuntimeStatus,
+  electronMcpListTools,
+  electronMcpOpenConfigFile,
+  electronMcpReadConfigText,
+  electronMcpTestServer,
+  electronMcpWriteConfigText,
+  type ElectronMcpCallToolPayload,
+  type ElectronMcpCallToolResult,
+  type ElectronMcpStdioApplyResult,
+  type ElectronMcpStdioConfigFile,
+  type ElectronMcpStdioConfigText,
+  type ElectronMcpStdioRuntimeStatus,
+  type ElectronMcpStdioServerConfig,
+  type ElectronMcpStdioServerRuntimeStatus,
+  type ElectronMcpStdioTestPayload,
+  type ElectronMcpStdioTestResult,
+  type ElectronMcpToolDescriptor,
+} from './mcp'
 
 import { app } from './app'
 import { powerMonitorEvents } from './power-monitor'

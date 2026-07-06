@@ -30,6 +30,7 @@
     "./contracts/godot-stage": "./dist/contracts/godot-stage.mjs",
     "./contracts/stage-windows": "./dist/contracts/stage-windows.mjs",
     "./contracts/plugins": "./dist/contracts/plugins.mjs",
+    "./contracts/mcp": "./dist/contracts/mcp.mjs",
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.mts",

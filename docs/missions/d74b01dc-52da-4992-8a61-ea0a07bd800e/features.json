@@ -365,10 +365,19 @@
         "VAL-TAURI-PLGN-002"
       ],
       "milestone": "service-ports",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "implementation-complete-runtime-evidence-pending",
+      "commit": "c6ceead0d",
+      "commitId": "c6ceead0d",
+      "completedAt": "2026-07-05T14:30:02Z",
+      "workerSessionIds": [
+        "droid-session-2026-07-05-plugin-host-sidecar"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "droid-session-2026-07-05-plugin-host-sidecar",
+      "implementationNotes": [
+        "Implemented the plugin-host Rust surface on main: config persistence, manifest scanning, PluginHostState capability tracking, degraded sidecar resolution, settings/plugins route wiring, and @proj-airi/tauri-eventa plugin contracts.",
+        "Actual sidecar binary launching, WebSocket/HTTP status evidence, and before/after persisted toggle screenshots remain pending runtime evidence."
+      ]
     },
     {
       "id": "godot-stage-sidecar",
@@ -387,10 +396,19 @@
         "VAL-TAURI-SRV-004"
       ],
       "milestone": "service-ports",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "implementation-complete-runtime-evidence-pending",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-05-godot-stage-sidecar"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-05-godot-stage-sidecar",
+      "commit": "0a710b0fa",
+      "commitId": "0a710b0fa",
+      "completedAt": "2026-07-05T22:42:51.414Z",
+      "implementationNotes": [
+        "Implemented Godot stage sidecar process spawn, status, and degraded missing-binary handling on branch vi/feat/godot-stage-sidecar.",
+        "Runtime evidence with $GODOT4 or a bundled godot-stage binary, WebSocket readiness, and settings/system/godot-stage screenshot remain pending."
+      ]
     },
     {
       "id": "mcp-server-config",
@@ -409,10 +427,19 @@
         "VAL-TAURI-SRV-005"
       ],
       "milestone": "service-ports",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "implementation-complete-runtime-evidence-pending",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-05-mcp-server-config"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-05-mcp-server-config",
+      "commit": "cf4c565af",
+      "commitId": "cf4c565af",
+      "completedAt": "2026-07-05T22:42:51.414Z",
+      "implementationNotes": [
+        "Implemented MCP config read/write and stdio server process status handling on branch vi/feat/mcp-server-config.",
+        "Protocol handshake/tool catalog support, JS package verification in a linked workspace, and runtime settings/modules/mcp screenshot remain pending."
+      ]
     },
     {
       "id": "auth-oidc-flow",
@@ -455,10 +482,19 @@
         "VAL-TAURI-UPD-002"
       ],
       "milestone": "service-ports",
-      "status": "pending",
-      "workerSessionIds": [],
+      "status": "implementation-complete-runtime-evidence-pending",
+      "workerSessionIds": [
+        "codex-orchestrator-2026-07-05-auto-updater-binding"
+      ],
       "currentWorkerSessionId": null,
-      "completedWorkerSessionId": null
+      "completedWorkerSessionId": "codex-orchestrator-2026-07-05-auto-updater-binding",
+      "commit": "d41426fe",
+      "commitId": "d41426fe",
+      "completedAt": "2026-07-05T22:42:51.414Z",
+      "implementationNotes": [
+        "Implemented no-feed-safe updater state, current version display, check-for-updates command binding, and minimal about/updater UI on branch vi/feat/auto-updater-binding.",
+        "Acceptance remains blocked on adding and configuring tauri-plugin-updater plus runtime screenshot/console evidence for the check result."
+      ]
     },
     {
       "id": "end-to-end-user-session",

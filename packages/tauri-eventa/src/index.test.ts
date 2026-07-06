@@ -11,6 +11,14 @@ import {
   electronPluginsInspect,
   electronPluginsCapabilityUpdate,
   projAiriPluginSdkApisProtocolResourcesProvidersListProviders,
+  electronMcpApplyAndRestart,
+  electronMcpCallTool,
+  electronMcpGetRuntimeStatus,
+  electronMcpListTools,
+  electronMcpOpenConfigFile,
+  electronMcpReadConfigText,
+  electronMcpTestServer,
+  electronMcpWriteConfigText,
 } from './index'
 
 describe('@proj-airi/tauri-eventa root exports', () => {
@@ -35,5 +43,16 @@ describe('@proj-airi/tauri-eventa root exports', () => {
     expect(electronGodotStageStop.sendEvent.id).toBe('eventa:invoke:electron:godot-stage:stop-send')
     expect(electronGodotStageGetStatus.sendEvent.id).toBe('eventa:invoke:electron:godot-stage:get-status-send')
     expect(electronGodotStageStatusChanged.id).toBe('eventa:event:electron:godot-stage:status-changed')
+  })
+
+  it('exports MCP invoke contracts with stable eventa IDs', () => {
+    expect(electronMcpOpenConfigFile.sendEvent.id).toBe('eventa:invoke:electron:mcp:open-config-file-send')
+    expect(electronMcpApplyAndRestart.sendEvent.id).toBe('eventa:invoke:electron:mcp:apply-and-restart-send')
+    expect(electronMcpGetRuntimeStatus.sendEvent.id).toBe('eventa:invoke:electron:mcp:get-runtime-status-send')
+    expect(electronMcpListTools.sendEvent.id).toBe('eventa:invoke:electron:mcp:list-tools-send')
+    expect(electronMcpCallTool.sendEvent.id).toBe('eventa:invoke:electron:mcp:call-tool-send')
+    expect(electronMcpReadConfigText.sendEvent.id).toBe('eventa:invoke:electron:mcp:read-config-text-send')
+    expect(electronMcpWriteConfigText.sendEvent.id).toBe('eventa:invoke:electron:mcp:write-config-text-send')
+    expect(electronMcpTestServer.sendEvent.id).toBe('eventa:invoke:electron:mcp:test-server-send')
   })
 })

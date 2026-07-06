@@ -16,6 +16,7 @@ export default defineConfig({
     './src/contracts/godot-stage.ts',
     './src/contracts/stage-windows.ts',
     './src/contracts/plugins.ts',
+    './src/contracts/mcp.ts',
   ],
   dts: true,
   format: 'esm',
