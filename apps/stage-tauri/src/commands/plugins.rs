@@ -164,16 +164,43 @@ fn now_millis() -> u64 {
         .as_millis() as u64
 }
 
+fn sidecar_capability_state(status: &PluginHostSidecarStatus) -> &'static str {
+    match status.state {
+        PluginHostSidecarState::Stopped => "withdrawn",
+        PluginHostSidecarState::Booting => "announced",
+        PluginHostSidecarState::Ready => "ready",
+        PluginHostSidecarState::Degraded => "degraded",
+    }
+}
+
 fn update_sidecar_capability(state: &PluginHostState, status: &PluginHostSidecarStatus) {
     state.update_capability(
         "plugin-host:sidecar".to_string(),
-        status.state.as_str().to_string(),
+        sidecar_capability_state(status).to_string(),
         Some(serde_json::json!({
+            "state": status.state.as_str(),
             "pid": status.pid,
             "endpoint": status.endpoint,
             "executablePath": status.executable_path,
             "lastError": status.last_error,
             "updatedAt": status.updated_at,
+        })),
+        now_millis(),
+    );
+}
+
+fn update_plugin_load_request_capability(
+    state: &PluginHostState,
+    name: &str,
+    sidecar_status: &PluginHostSidecarStatus,
+) {
+    state.update_capability(
+        format!("plugin-host:plugin:{name}"),
+        "degraded".to_string(),
+        Some(serde_json::json!({
+            "name": name,
+            "reason": "plugin session loading requires the sidecar load API",
+            "sidecar": sidecar_status,
         })),
         now_millis(),
     );
@@ -272,18 +299,7 @@ pub async fn electron_plugins_load(
 
     let sidecar_status = sidecar.start_blocking();
     update_sidecar_capability(&state, &sidecar_status);
-    let plugin_state = if sidecar_status.state == PluginHostSidecarState::Ready {
-        "ready"
-    } else {
-        "degraded"
-    };
-
-    state.update_capability(
-        format!("plugin-host:plugin:{name}"),
-        plugin_state.to_string(),
-        Some(serde_json::json!({ "name": &name, "sidecar": sidecar_status })),
-        now_millis(),
-    );
+    update_plugin_load_request_capability(&state, &name, &sidecar_status);
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
@@ -431,5 +447,67 @@ mod tests {
             "/tmp/plugin-host"
         );
         assert_eq!(capability.metadata.as_ref().unwrap()["updatedAt"], 123);
+    }
+
+    #[test]
+    fn plugin_host_sidecar_capability_maps_lifecycle_state_to_capability_state() {
+        let state = PluginHostState::default();
+
+        update_sidecar_capability(
+            &state,
+            &PluginHostSidecarStatus {
+                state: PluginHostSidecarState::Stopped,
+                pid: None,
+                endpoint: None,
+                executable_path: None,
+                last_error: None,
+                updated_at: 123,
+            },
+        );
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:sidecar").unwrap();
+        assert_eq!(capability.state, "withdrawn");
+
+        update_sidecar_capability(
+            &state,
+            &PluginHostSidecarStatus {
+                state: PluginHostSidecarState::Booting,
+                pid: None,
+                endpoint: Some("http://127.0.0.1:49152".to_string()),
+                executable_path: Some("/tmp/plugin-host".to_string()),
+                last_error: None,
+                updated_at: 124,
+            },
+        );
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:sidecar").unwrap();
+        assert_eq!(capability.state, "announced");
+        assert_eq!(capability.metadata.as_ref().unwrap()["state"], "booting");
+    }
+
+    #[test]
+    fn plugin_load_request_capability_does_not_report_ready_without_load_api() {
+        let state = PluginHostState::default();
+        let status = PluginHostSidecarStatus {
+            state: PluginHostSidecarState::Ready,
+            pid: Some(42),
+            endpoint: Some("http://127.0.0.1:49152".to_string()),
+            executable_path: Some("/tmp/plugin-host".to_string()),
+            last_error: None,
+            updated_at: 123,
+        };
+
+        update_plugin_load_request_capability(&state, "alpha", &status);
+
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:plugin:alpha").unwrap();
+        assert_eq!(capability.state, "degraded");
+        assert!(capability
+            .metadata
+            .as_ref()
+            .unwrap()["reason"]
+            .as_str()
+            .unwrap()
+            .contains("sidecar load API"));
     }
 }

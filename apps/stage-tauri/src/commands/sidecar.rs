@@ -112,6 +112,8 @@ pub struct PluginHostSidecarController {
 
 struct PluginHostSidecarControllerInner {
     child: Option<Child>,
+    health_host: Option<String>,
+    health_port: Option<u16>,
     status: PluginHostSidecarStatus,
 }
 
@@ -121,6 +123,8 @@ impl PluginHostSidecarController {
             app_data_dir,
             inner: Mutex::new(PluginHostSidecarControllerInner {
                 child: None,
+                health_host: None,
+                health_port: None,
                 status: PluginHostSidecarStatus::default(),
             }),
         }
@@ -140,6 +144,7 @@ impl PluginHostSidecarController {
 
         let Some(executable) = resolve_plugin_host_sidecar_path(&self.app_data_dir) else {
             inner.child = None;
+            inner.clear_health_endpoint();
             inner.status = PluginHostSidecarStatus::degraded(format!(
                 "Plugin host sidecar binary not found. Set {PLUGIN_HOST_ENV} or place plugin-host under {}.",
                 self.app_data_dir.join("sidecars").display()
@@ -151,6 +156,7 @@ impl PluginHostSidecarController {
             Ok(port) => port,
             Err(error) => {
                 inner.child = None;
+                inner.clear_health_endpoint();
                 inner.status = PluginHostSidecarStatus::degraded(error);
                 return inner.status.clone();
             }
@@ -171,6 +177,8 @@ impl PluginHostSidecarController {
                 Ok(()) => {
                     let pid = child.id();
                     inner.child = Some(child);
+                    inner.health_host = Some(launch.host.clone());
+                    inner.health_port = Some(launch.port);
                     inner.status = PluginHostSidecarStatus::ready(
                         pid,
                         launch.endpoint,
@@ -181,6 +189,7 @@ impl PluginHostSidecarController {
                     let _ = child.kill();
                     let _ = child.wait();
                     inner.child = None;
+                    inner.clear_health_endpoint();
                     inner.status = PluginHostSidecarStatus::degraded(format!(
                         "Plugin host sidecar health check failed at {}: {error}",
                         launch.endpoint
@@ -189,6 +198,7 @@ impl PluginHostSidecarController {
             },
             Err(error) => {
                 inner.child = None;
+                inner.clear_health_endpoint();
                 inner.status = PluginHostSidecarStatus::degraded(error);
             }
         }
@@ -198,10 +208,7 @@ impl PluginHostSidecarController {
 
     pub fn stop_blocking(&self) -> PluginHostSidecarStatus {
         let mut inner = self.inner.lock().unwrap();
-        if let Some(mut child) = inner.child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
+        inner.stop_child();
 
         inner.status = PluginHostSidecarStatus::stopped();
         inner.status.clone()
@@ -215,8 +222,22 @@ impl PluginHostSidecarController {
 }
 
 impl PluginHostSidecarControllerInner {
+    fn clear_health_endpoint(&mut self) {
+        self.health_host = None;
+        self.health_port = None;
+    }
+
+    fn stop_child(&mut self) {
+        if let Some(mut child) = self.child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        self.clear_health_endpoint();
+    }
+
     fn refresh_child_status(&mut self) {
         let Some(child) = self.child.as_mut() else {
+            self.clear_health_endpoint();
             if matches!(
                 self.status.state,
                 PluginHostSidecarState::Ready | PluginHostSidecarState::Booting
@@ -229,13 +250,38 @@ impl PluginHostSidecarControllerInner {
         match child.try_wait() {
             Ok(Some(exit_status)) => {
                 self.child = None;
+                self.clear_health_endpoint();
                 self.status = PluginHostSidecarStatus::degraded(format!(
                     "Plugin host sidecar exited unexpectedly with status {exit_status}."
                 ));
             }
-            Ok(None) => {}
+            Ok(None) => {
+                if !matches!(self.status.state, PluginHostSidecarState::Ready) {
+                    return;
+                }
+
+                let Some(host) = self.health_host.clone() else {
+                    return;
+                };
+                let Some(port) = self.health_port else {
+                    return;
+                };
+
+                if let Err(error) = probe_plugin_host_health(&host, port, PLUGIN_HOST_HEALTH_TIMEOUT) {
+                    let endpoint = self
+                        .status
+                        .endpoint
+                        .clone()
+                        .unwrap_or_else(|| format!("http://{host}:{port}"));
+                    self.stop_child();
+                    self.status = PluginHostSidecarStatus::degraded(format!(
+                        "Plugin host sidecar health check failed at {endpoint}: {error}"
+                    ));
+                }
+            }
             Err(error) => {
                 self.child = None;
+                self.clear_health_endpoint();
                 self.status = PluginHostSidecarStatus::degraded(format!(
                     "Failed to check plugin host sidecar health: {error}"
                 ));
@@ -247,10 +293,7 @@ impl PluginHostSidecarControllerInner {
 impl Drop for PluginHostSidecarController {
     fn drop(&mut self) {
         if let Ok(mut inner) = self.inner.lock() {
-            if let Some(mut child) = inner.child.take() {
-                let _ = child.kill();
-                let _ = child.wait();
-            }
+            inner.stop_child();
         }
     }
 }
@@ -645,6 +688,48 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
         let stopped = controller.stop_blocking();
         assert_eq!(stopped.state, PluginHostSidecarState::Stopped);
         assert_eq!(stopped.pid, None);
+
+        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn plugin_host_ready_sidecar_degrades_when_later_health_probe_fails() {
+        let _guard = env_lock().lock().unwrap();
+        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        let root = unique_sidecar_test_dir("later-unhealthy");
+        let sidecars = root.join("sidecars");
+        fs::create_dir_all(&sidecars).unwrap();
+
+        let executable = sidecars.join("plugin-host-test");
+        write_fake_executable(
+            &executable,
+            r#"#!/bin/sh
+PORT=""
+for arg in "$@"; do
+  case "$arg" in
+    --airi-port=*) PORT="${arg#--airi-port=}" ;;
+  esac
+done
+exec node -e 'const http = require("node:http"); const port = Number(process.argv[1]); let probes = 0; const server = http.createServer((req, res) => { if (req.url === "/health") { probes += 1; if (probes === 1) { res.writeHead(200, {"content-type":"application/json"}); res.end("{\"ok\":true}"); } else { res.writeHead(503, {"content-type":"application/json"}); res.end("{\"ok\":false}"); } } else { res.writeHead(404); res.end(""); } }); server.listen(port, "127.0.0.1"); setInterval(() => {}, 1000);' "$PORT"
+"#,
+        );
+
+        std::env::set_var("AIRI_PLUGIN_HOST_PATH", &executable);
+        let controller = PluginHostSidecarController::new(root.clone());
+
+        let started = controller.start_blocking();
+        assert_eq!(started.state, PluginHostSidecarState::Ready);
+
+        let unhealthy = controller.status_blocking();
+        assert_eq!(unhealthy.state, PluginHostSidecarState::Degraded);
+        assert_eq!(unhealthy.pid, None);
+        assert!(unhealthy
+            .last_error
+            .as_deref()
+            .unwrap()
+            .contains("health check failed"));
 
         std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
         let _ = fs::remove_dir_all(&root);

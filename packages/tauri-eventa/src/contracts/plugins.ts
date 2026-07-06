@@ -7,6 +7,17 @@ export interface PluginCapabilityState {
   updatedAt: number
 }
 
+export type PluginHostSidecarState = 'stopped' | 'booting' | 'ready' | 'degraded'
+
+export interface PluginHostSidecarStatus {
+  state: PluginHostSidecarState
+  pid: number | null
+  endpoint?: string
+  executablePath?: string
+  lastError?: string
+  updatedAt: number
+}
+
 /**
  * Renderer-facing plugin manifest summary (mirrors
  * `apps/stage-tamagotchi/src/shared/eventa/plugin/host.ts::PluginManifestSummary`).
@@ -68,6 +79,7 @@ export interface PluginHostDebugSnapshot {
   sessions: PluginHostSessionSummary[]
   kits: PluginHostKitSummary[]
   modules: PluginHostModuleSummary[]
+  sidecar: PluginHostSidecarStatus
   capabilities: PluginCapabilityState[]
   refreshedAt: number
 }

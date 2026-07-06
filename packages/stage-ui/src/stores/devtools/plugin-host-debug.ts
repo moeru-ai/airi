@@ -25,6 +25,17 @@ export interface PluginCapabilityState {
   updatedAt: number
 }
 
+export type PluginHostSidecarState = 'stopped' | 'booting' | 'ready' | 'degraded'
+
+export interface PluginHostSidecarStatus {
+  state: PluginHostSidecarState
+  pid: number | null
+  endpoint?: string
+  executablePath?: string
+  lastError?: string
+  updatedAt: number
+}
+
 export interface PluginHostSessionSummary {
   id: string
   manifestName: string
@@ -63,6 +74,7 @@ export interface PluginHostDebugSnapshot {
   sessions: PluginHostSessionSummary[]
   kits: PluginHostKitSummary[]
   modules: PluginHostModuleSummary[]
+  sidecar: PluginHostSidecarStatus
   capabilities: PluginCapabilityState[]
   refreshedAt: number
 }
@@ -91,6 +103,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   const sessions = ref<PluginHostSessionSummary[]>([])
   const kits = ref<PluginHostKitSummary[]>([])
   const capabilities = ref<PluginCapabilityState[]>([])
+  const sidecar = ref<PluginHostSidecarStatus>()
   const refreshedAt = ref<number>()
   const error = ref<string>()
   const loading = ref(false)
@@ -119,6 +132,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     sessions.value = snapshot.sessions
     kits.value = snapshot.kits
     capabilities.value = snapshot.capabilities
+    sidecar.value = snapshot.sidecar
     refreshedAt.value = snapshot.refreshedAt
   }
 
@@ -208,6 +222,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     sessions,
     kits,
     capabilities,
+    sidecar,
     refreshedAt,
     loading,
     error,
