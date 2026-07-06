@@ -281,18 +281,24 @@ describe('edge-case coverage', () => {
     const tools = await createCodingWorkspaceTools(runtime)
     const rankedContext = tools.find((tool) => tool.function.name === 'workspace_ranked_context')
 
-    const result = await rankedContext?.execute({ query: 'needle' }, toolExecutionContext)
+    expect(rankedContext).toBeDefined()
+    const result = await rankedContext!.execute({ query: 'needle' }, toolExecutionContext)
 
     // find_symbol resolves to empty unavailable (no Serena find_symbol), and is filtered out.
     // search_for_pattern resolves via Serena.
-    expect(result.backend).toBe('serena')
-    expect(result.rawResult.items).toHaveLength(1)
-    expect(result.rawResult.items[0]).toMatchObject({
-      kind: 'pattern',
-      result: {
-        backend: 'serena',
-        serverName: 'serena',
-        toolName: 'search_for_pattern',
+    expect(result).toMatchObject({
+      backend: 'serena',
+      rawResult: {
+        items: [
+          {
+            kind: 'pattern',
+            result: {
+              backend: 'serena',
+              serverName: 'serena',
+              toolName: 'search_for_pattern',
+            },
+          },
+        ],
       },
     })
   })

@@ -14,7 +14,7 @@
 
 import type { WorkspaceId } from './types.js'
 import { execFile } from 'node:child_process'
-import { promises as fs } from 'node:fs'
+import { existsSync, promises as fs } from 'node:fs'
 import path from 'node:path'
 
 import { promisify } from 'node:util'
@@ -121,8 +121,7 @@ export class WorkspaceWorktree {
    */
   getWorktreePath(workspaceId: WorkspaceId): string | undefined {
     const worktreePath = this.resolveWorktreePath(workspaceId)
-    // Check if the directory exists.
-    return fs.access(worktreePath).then(() => worktreePath).catch(() => undefined)
+    return existsSync(worktreePath) ? worktreePath : undefined
   }
 
   /**

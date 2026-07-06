@@ -1,4 +1,5 @@
 import type { Tool } from '@xsai/shared-chat'
+import type { McpToolSummary } from '@proj-airi/stage-ui/coding-workspace'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -134,8 +135,13 @@ describe('useTamagotchiCodingWorkspaceStore', async () => {
 
   // -- New tests --
   describe('runtime behavior', () => {
+    const defaultMcpTools: McpToolSummary[] = [
+      { serverName: 'serena', name: 'serena::find_symbol', toolName: 'find_symbol' },
+      { serverName: 'serena', name: 'serena::search_for_pattern', toolName: 'search_for_pattern' },
+    ]
+
     // helper: enable the workspace with a default mock runtime and return both tools + status tool
-    ;async () => {
+    async function enable(tools: McpToolSummary[] = defaultMcpTools) {
       const callMcpTool = vi.fn(async (input: unknown) => ({ toolResult: { input }, called: input }))
       const listMcpTools = vi.fn(async () => tools)
       const store = useTamagotchiCodingWorkspaceStore()
@@ -144,7 +150,7 @@ describe('useTamagotchiCodingWorkspaceStore', async () => {
       store.setActiveWorkspaceRoot('/repo/airi')
       store.setCodingMode('code')
       await store.setCodingContextEnabled(true)
-      const codingTools = llmToolsStore.toolsByProvider['coding-workspace'] ?? []
+      const codingTools: Tool[] = llmToolsStore.toolsByProvider['coding-workspace'] ?? []
       return { store, callMcpTool, listMcpTools, codingTools, llmToolsStore }
     }
 

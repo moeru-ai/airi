@@ -115,7 +115,7 @@ export function createInferenceServiceProvidersModel(
     options?.abortSignal?.throwIfAborted()
     const all = await list(options)
     options?.abortSignal?.throwIfAborted()
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete all[id]
     await saveAll(all, options)
   }

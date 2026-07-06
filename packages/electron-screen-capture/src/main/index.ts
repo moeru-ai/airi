@@ -4,6 +4,7 @@
 import type { Format, LogLevelString } from '@guiiai/logg'
 import type { MutexInterface } from 'async-mutex'
 import type { BrowserWindow, DesktopCapturerSource, SourcesOptions } from 'electron'
+import type { ScreenCaptureSetSourceRequest } from '..'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -224,8 +225,8 @@ function createSetSourceTimeoutHandler(
 }
 
 function handleSetSource(
-  request: { sourceId: string; options?: SourcesOptions; timeout?: number },
-  eventaOptions: { raw: { ipcMainEvent: { sender: { id: number } } } },
+  request: ScreenCaptureSetSourceRequest,
+  eventaOptions: { raw: { ipcMainEvent: { sender: { id: number } } } } | undefined,
   window: BrowserWindow,
   windowId: number,
   windowTitle: string,
@@ -249,7 +250,7 @@ function handleSetSource(
 
     try {
       sessionModule.defaultSession.setDisplayMediaRequestHandler((_req, callback) => {
-        desktopCapturer.getSources(request.options).then((sources) => {
+        desktopCapturer.getSources(request.options ?? defaultSourcesOptions).then((sources) => {
           const source = sources.find((s) => s.id === request.sourceId)
           if (!source) {
             throw new Error(`Source with id ${request.sourceId} not found.`)
@@ -337,7 +338,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     // NOTICE(@sumimakito): Not only thumbnail is empty, the appIcon could be empty as well with nothing returned.
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
     // read more here https://github.com/electron/electron/issues/44504
-    const sources = await desktopCapturer.getSources(sourcesOptions)
+    const sources = await desktopCapturer.getSources(sourcesOptions ?? defaultSourcesOptions)
     return sources.map((source) => toSerializableDesktopCapturerSource(source))
   })
 

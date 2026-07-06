@@ -403,11 +403,7 @@ onMounted(async () => {
     })
 
     pluginHostInspectorStore.setBridge({
-      list: () =>
-        listPlugins().then((snapshot) => {
-          pluginHostInspectorStore.assignRegistry(snapshot)
-          return snapshot
-        }),
+      list: () => listPlugins(),
       setEnabled: (payload) => setPluginEnabled(payload),
       setAutoReload: (payload) => setPluginAutoReload(payload),
       loadEnabled: () => loadEnabledPlugins(),

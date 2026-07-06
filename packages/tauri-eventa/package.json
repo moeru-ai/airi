@@ -40,7 +40,6 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@proj-airi/stage-ui": "workspace:^",
     "vitest": "catalog:vitest"
   },
   "dependencies": {

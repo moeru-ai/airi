@@ -455,11 +455,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // We fixed this by performing every in-memory and IDB mutation
     // synchronously up front, then firing the cloud DELETE as
     // fire-and-forget. Persistence races now read the post-deletion state.
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete sessionMetas.value[sessionId]
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete sessionMessages.value[sessionId]
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
     loadingSessions.delete(sessionId)
@@ -467,7 +467,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (index.value) {
       const characterIndex = index.value.characters[characterId]
       if (characterIndex) {
-        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+        // eslint-disable-next-line ts/no-dynamic-delete
         delete characterIndex.sessions[sessionId]
         if (characterIndex.activeSessionId === sessionId) characterIndex.activeSessionId = ''
       }

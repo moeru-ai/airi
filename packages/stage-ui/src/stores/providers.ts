@@ -2524,7 +2524,7 @@ export const useProvidersStore = defineStore('providers', () => {
   }
 
   function unmarkProviderAdded(providerId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete addedProviders.value[providerId]
   }
 
@@ -2701,9 +2701,9 @@ export const useProvidersStore = defineStore('providers', () => {
   })
 
   function deleteProvider(providerId: string) {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete providerCredentials.value[providerId]
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete providerRuntimeState.value[providerId]
     unmarkProviderAdded(providerId)
   }
@@ -2926,7 +2926,7 @@ export const useProvidersStore = defineStore('providers', () => {
     const instance = providerInstanceCache.value[providerId] as { dispose?: () => Promise<void> | void } | undefined
     if (instance?.dispose) await instance.dispose()
 
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    // eslint-disable-next-line ts/no-dynamic-delete
     delete providerInstanceCache.value[providerId]
   }
 

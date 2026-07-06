@@ -270,7 +270,7 @@ describe('workspace-scoped tool execution', () => {
 
 describe('filesystem constraint', () => {
   it('validates paths within workspace root', () => {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line ts/no-var-requires
     const path = require('node:path')
     const root = '/home/user/workspace'
 

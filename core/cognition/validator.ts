@@ -23,7 +23,8 @@ import type {
   ValidationResult,
   ValidationWarning,
 } from './types.js'
-import { createToolId } from '../capabilities/types.js'
+import { createCapabilityId, createToolId } from '../capabilities/types.js'
+import { createWorkspaceId } from '../workspace/types.js'
 
 /**
  * Validates plan proposals before they reach the planner.
@@ -94,7 +95,7 @@ export class PlanValidator {
 
     for (const step of proposal.steps) {
       if (step.capabilityRequirement) {
-        const info = this.capabilityRegistry.get(step.capabilityRequirement)
+        const info = this.capabilityRegistry.get(createCapabilityId(step.capabilityRequirement))
         if (!info) {
           errors.push({
             code: 'UNKNOWN_STEP_CAPABILITY',
@@ -109,7 +110,7 @@ export class PlanValidator {
   }
 
   private validateCapability(capabilityId: string): ValidationError | undefined {
-    const info = this.capabilityRegistry.get(capabilityId)
+    const info = this.capabilityRegistry.get(createCapabilityId(capabilityId))
     if (!info) {
       return {
         code: 'UNKNOWN_CAPABILITY',
@@ -142,7 +143,7 @@ export class PlanValidator {
 
     for (const step of proposal.steps) {
       if (step.workspaceRequirement) {
-        const descriptor = this.workspaceManager.getWorkspace(step.workspaceRequirement)
+        const descriptor = this.workspaceManager.getWorkspace(createWorkspaceId(step.workspaceRequirement))
         if (!descriptor) {
           errors.push({
             code: 'UNKNOWN_STEP_WORKSPACE',
@@ -157,7 +158,7 @@ export class PlanValidator {
   }
 
   private validateWorkspace(workspaceId: string): ValidationError | undefined {
-    const descriptor = this.workspaceManager.getWorkspace(workspaceId)
+    const descriptor = this.workspaceManager.getWorkspace(createWorkspaceId(workspaceId))
     if (!descriptor) {
       return {
         code: 'UNKNOWN_WORKSPACE',

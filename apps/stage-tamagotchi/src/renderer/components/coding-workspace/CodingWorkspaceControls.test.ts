@@ -28,7 +28,7 @@ async function mountControls() {
   await nextTick()
 
   const storeModule = await import('../../stores/coding-workspace')
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  // eslint-disable-next-line ts/no-unsafe-member-access
   const store = storeModule.useTamagotchiCodingWorkspaceStore(pinia)
 
   return {

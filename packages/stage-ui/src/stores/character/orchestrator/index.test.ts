@@ -1,5 +1,3 @@
-/* eslint-disable style/indent-binary-ops */
-
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { Store, StoreDefinition } from 'pinia'
 import type { Mock } from 'vitest'
@@ -45,7 +43,7 @@ function mockedStore<TStoreDef extends () => unknown>(
 }
 
 // DeepSource: any is intentional for JSON schema traversal — the schema structure is dynamic
-type JsonSchema = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+type JsonSchema = Record<string, any> // eslint-disable-line ts/no-explicit-any
 
 function getObjectSchema(schema?: JsonSchema) {
   if (!schema) return undefined

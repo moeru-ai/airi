@@ -48,7 +48,7 @@ export function takeManagedVrmInstance(scopeKey: string, modelSrc: string) {
     return undefined
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  // eslint-disable-next-line ts/no-dynamic-delete
   delete managedVrmCacheState.detachedByScope[scopeKey]
   emitCacheTrace('take', scopeKey, 'hit', modelSrc)
   return cached
@@ -74,7 +74,7 @@ export function stashManagedVrmInstance(instance: ManagedVrmInstance) {
 
 export function clearManagedVrmInstance(scopeKey: string) {
   const cached = managedVrmCacheState.detachedByScope[scopeKey]
-  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  // eslint-disable-next-line ts/no-dynamic-delete
   delete managedVrmCacheState.detachedByScope[scopeKey]
 
   if (cached) {

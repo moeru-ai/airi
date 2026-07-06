@@ -47,8 +47,9 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
     try {
       return await fs.readFile(filePath)
     }
-    catch (error: NodeJS.ErrnoException) {
-      if (error?.code === 'ENOENT')
+    catch (error: unknown) {
+      const err = error as NodeJS.ErrnoException | undefined
+      if (err?.code === 'ENOENT')
         return null
       throw error
     }
@@ -100,8 +101,9 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
         await fs.unlink(filePath)
       }
     }
-    catch (error: NodeJS.ErrnoException) {
-      if (error?.code === 'ENOENT')
+    catch (error: unknown) {
+      const err = error as NodeJS.ErrnoException | undefined
+      if (err?.code === 'ENOENT')
         return
       throw error
     }
@@ -190,8 +192,9 @@ export class FilesystemPersistenceAdapter implements PersistenceAdapter {
     try {
       return await fs.readdir(dirPath, { withFileTypes: true })
     }
-    catch (error: NodeJS.ErrnoException) {
-      if (error?.code === 'ENOENT')
+    catch (error: unknown) {
+      const err = error as NodeJS.ErrnoException | undefined
+      if (err?.code === 'ENOENT')
         return null
       throw error
     }

@@ -51,7 +51,7 @@ export function setupSentryBreadcrumbsFromLogg(): () => void {
     // Forward to Sentry as a breadcrumb
     try {
       // Lazy import avoids hard-require before Sentry is initialized.
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      // eslint-disable-next-line ts/no-require-imports
       const Sentry = require('@sentry/electron/main')
       Sentry.addBreadcrumb({
         message: log.message,

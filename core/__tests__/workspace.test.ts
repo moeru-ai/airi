@@ -890,7 +890,7 @@ describe('path traversal prevention', () => {
   it('rejects paths that escape workspace root', () => {
     const root = '/home/user/workspace'
     expect(() => {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line ts/no-var-requires
       const path = require('node:path')
       const target = '../../etc/passwd'
       const resolved = path.resolve(root, target)
@@ -903,7 +903,7 @@ describe('path traversal prevention', () => {
 
   it('accepts paths within workspace root', () => {
     const root = '/home/user/workspace'
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line ts/no-var-requires
     const path = require('node:path')
     const target = 'src/index.ts'
     const resolved = path.resolve(root, target)
@@ -914,7 +914,7 @@ describe('path traversal prevention', () => {
 
   it('rejects absolute paths that point outside workspace', () => {
     const root = '/home/user/workspace'
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // eslint-disable-next-line ts/no-var-requires
     const path = require('node:path')
     const target = '/etc/passwd'
     const resolved = path.resolve(root, target)

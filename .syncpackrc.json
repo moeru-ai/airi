@@ -9,17 +9,44 @@
     "prod",
     "resolutions"
   ],
+  "lintFormatting": false,
+  "lintSemverRanges": false,
   "semverGroups": [
     {
+      "isIgnored": true,
+      "label": "Catalog specifiers are managed by pnpm-workspace.yaml",
+      "specifierTypes": ["unsupported"]
+    },
+    {
+      "isIgnored": true,
+      "label": "Workspace protocol ranges are managed by pnpm",
+      "specifierTypes": ["workspace-protocol"]
+    },
+    {
       "dependencies": ["**"],
-      "isIgnored": false,
       "label": "All dependencies should use the same version",
       "packages": ["**"],
-      "range": "^"
+      "range": "^",
+      "specifierTypes": ["exact", "range"]
     }
   ],
   "type": "dev",
   "versionGroups": [
+    {
+      "dependencyTypes": ["local"],
+      "isIgnored": true,
+      "label": "Workspace package version fields are optional in this repo"
+    },
+    {
+      "isIgnored": true,
+      "label": "Catalog specifiers are managed by pnpm-workspace.yaml",
+      "specifierTypes": ["unsupported"]
+    },
+    {
+      "isIgnored": true,
+      "label": "Workspace protocol ranges are managed by pnpm",
+      "specifierTypes": ["workspace-protocol"]
+    },
     {
       "dependencies": ["@proj-airi/**", "@moeru/**"],
       "label": "Internal workspace packages must be versioned consistently",

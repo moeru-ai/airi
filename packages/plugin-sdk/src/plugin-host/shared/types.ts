@@ -72,7 +72,7 @@ export type PluginRuntime = (typeof pluginRuntimeValues)[number]
  */
 export const pluginRuntimeSchema = picklist(pluginRuntimeValues)
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line ts/no-empty-interface
 // HostDataArray is an empty interface by design: it serves as a recursive
 // typed-array marker in the HostDataValue union, enabling clearer type
 // errors and IDE hover information than a plain `HostDataValue[]` alias.
