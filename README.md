@@ -4,7 +4,7 @@
 <h3>Anima is an agentic AI desktop OS built around your digital companion</h3>
 <sub>
 
-Full distro based on [CachyOS](https://cachyos.org/) coming soon!
+💙🐧 AnimAIOS distro based on [CachyOS](https://cachyos.org/) coming this fall!
 
 </sub>
 </div>
@@ -40,10 +40,12 @@ Full distro based on [CachyOS](https://cachyos.org/) coming soon!
 ### ☕ Prerequisites
 
 - pnpm
-- Node.js (Electron only)
-- Rust (Tauri only)
+- Node.js (Electron app)
+- Rust (Tauri app)
 
 ### 🖱️ Quick Start
+
+The current recommended desktop app is still the Electron version in `apps/stage-tamagotchi/`, while the Tauri port is actively being built in `apps/stage-tauri/`.
 
 🍎🐧🪟 Electron desktop app:
 
@@ -67,13 +69,11 @@ cargo tauri dev
 cargo install tauri-cli --version '^2.0'
 ```
 
-### 🦀 Tauri Migration (WIP)
-
-The current recommended desktop app is still the Electron version in `apps/stage-tamagotchi/`, while the Tauri port is actively being built in `apps/stage-tauri/`.
+### ❔ Why Tauri
 
 Tauri lets us keep the Vue 3 renderer and AIRI companion experience while replacing the Electron main process with a smaller Rust backend. That means lower idle memory use, smaller native bundles, better Linux desktop integration, and a cleaner path to shipping AIRI as a native mobile app.
 
-The Electron version will be archived only after the Tauri build reaches full feature parity, including local LLM inference support. The same migration is also our path to native Android and iOS AIRI builds over the next few months.
+The same migration is also our path to native Android and iOS AIRI builds over the next few months.
 
 <!--
 ### ⌨️ Building for Linux (under construction)
@@ -86,7 +86,7 @@ cd apps/stage-tamagotchi
 _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.deb` into `.zst` for Arch/Manjaro/CachyOS)._
 -->
 
-## 🌸 AnimAIOS Project activity (last 365 days)
+## 🌸 Project activity
 
 <p align="center">
   <img src="docs/content/public/assets/org-heatmap.svg" alt="animaios org commit activity across all repos over the last 365 days" width="100%">
