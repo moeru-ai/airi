@@ -572,12 +572,12 @@ function createViewPresetPatch(preset, snapshot) {
 
 async function captureRenderStageViews(host, processHandle, options) {
   await mkdir(options.stageDumpDirectory, { recursive: true })
-  await setAvatarEdgeLight(host, true)
 
   for (const view of options.renderStageViews) {
-    const edgeLightEnabled = view !== 'final-edge-off'
+    const isEdgeOffView = view === 'final-edge-off'
+    const edgeLightEnabled = isEdgeOffView ? false : options.avatarEdgeLight
     await setAvatarEdgeLight(host, edgeLightEnabled)
-    await setRenderDebugView(host, edgeLightEnabled ? view : 'final')
+    await setRenderDebugView(host, isEdgeOffView ? 'final' : view)
     const stageCapturePath = join(options.stageDumpDirectory, `${view}.png`)
     const capture = await captureGodotWindowPng(processHandle, {
       ...options,
@@ -588,7 +588,7 @@ async function captureRenderStageViews(host, processHandle, options) {
     )
   }
 
-  await setAvatarEdgeLight(host, true)
+  await setAvatarEdgeLight(host, options.avatarEdgeLight)
   await setRenderDebugView(host, 'final')
 }
 

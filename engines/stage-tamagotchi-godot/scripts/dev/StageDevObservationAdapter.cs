@@ -402,8 +402,7 @@ public sealed class StageDevObservationAdapter : IDisposable
             }
 
             var currentPath = Path.Combine(ResolveDiscoveryRoot(), "current.json");
-            if (File.Exists(currentPath)
-                && File.ReadAllText(currentPath).Contains(_instancePath, StringComparison.Ordinal))
+            if (IsCurrentDiscoveryRecord(currentPath))
             {
                 File.Delete(currentPath);
             }
@@ -412,6 +411,21 @@ public sealed class StageDevObservationAdapter : IDisposable
         {
             GD.PushWarning($"Failed to clean AIRI Godot dev observation discovery record: {error.Message}");
         }
+    }
+
+    private bool IsCurrentDiscoveryRecord(string currentPath)
+    {
+        if (!File.Exists(currentPath))
+        {
+            return false;
+        }
+
+        var currentRecord = JsonSerializer.Deserialize<StageDevObservationCurrentRecord>(
+            File.ReadAllText(currentPath),
+            _jsonOptions
+        );
+
+        return string.Equals(currentRecord?.InstancePath, _instancePath, StringComparison.Ordinal);
     }
 
     private static string ResolveDiscoveryRoot()
@@ -426,6 +440,7 @@ public sealed class StageDevObservationAdapter : IDisposable
     }
 
     private sealed record StageDevObservationRequest(string Type, string RequestId, string Token, JsonElement Payload);
+    private sealed record StageDevObservationCurrentRecord(string InstancePath);
     private sealed record StageDevObservationRenderExportPayload(string OutputDir, string[] Stages);
 }
 
