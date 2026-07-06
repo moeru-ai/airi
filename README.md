@@ -88,9 +88,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 
 ## 🌸 Project activity
 
-<p align="center">
-  <img src="docs/content/public/assets/org-heatmap.svg" alt="animaios org commit activity across all repos over the last 365 days" width="100%">
-</p>
+[![Organization Heatmap](https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg)](https://github.com/orgs/animaios/repositories)
 
 ## 🚙 Roadmap
 
