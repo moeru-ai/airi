@@ -98,6 +98,21 @@ public sealed class StageViewRuntime
         EmitSnapshot("loaded");
     }
 
+    public StageViewSnapshotPayload CreateSnapshot(string reason, string requestId = null)
+    {
+        if (!_hasViewState)
+        {
+            return null;
+        }
+
+        return new StageViewSnapshotPayload(
+            _state,
+            reason,
+            requestId,
+            _controller.ResolveAvatarBounds()
+        );
+    }
+
     public void EmitInvalidPayload(string message, string requestId = null)
     {
         EmitError("invalid-payload", message, requestId);
@@ -155,12 +170,11 @@ public sealed class StageViewRuntime
 
     private void EmitSnapshot(string reason, string requestId = null)
     {
-        SnapshotReady?.Invoke(new StageViewSnapshotPayload(
-            _state,
-            reason,
-            requestId,
-            _controller.ResolveAvatarBounds()
-        ));
+        var snapshot = CreateSnapshot(reason, requestId);
+        if (snapshot != null)
+        {
+            SnapshotReady?.Invoke(snapshot);
+        }
     }
 
     private void EmitError(string code, string message, string requestId = null)

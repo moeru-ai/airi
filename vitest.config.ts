@@ -5,7 +5,6 @@ export default defineConfig({
     projects: [
       'apps/server',
       'apps/ui-server-auth',
-      'apps/ui-admin',
       'apps/stage-tamagotchi',
       'packages/cap-vite',
       'packages/core-agent',

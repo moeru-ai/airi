@@ -17,6 +17,7 @@ import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
 import type { ProductEventService } from './services/domain/product-events'
+import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
 import type { StripeService } from './services/domain/stripe'
@@ -55,8 +56,10 @@ import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
+import { createAdminCapabilityAliasRoutes } from './routes/admin/capability-aliases'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
+import { createAdminProviderCatalogRoutes } from './routes/admin/provider-catalog'
 import { createAdminUsersRoutes } from './routes/admin/users'
 import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
@@ -83,6 +86,7 @@ import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createProductEventService } from './services/domain/product-events'
+import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
@@ -117,6 +121,7 @@ interface AppDeps {
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
   llmRouter: LlmRouterService
+  providerCatalogService: ProviderCatalogService
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -226,6 +231,7 @@ export async function buildApp(deps: AppDeps) {
     env: deps.env,
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
+    providerCatalogService: deps.providerCatalogService,
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own
@@ -249,6 +255,7 @@ export async function buildApp(deps: AppDeps) {
     productEventService: deps.productEventService,
     ttsMeter: deps.ttsMeter,
     llmRouter: deps.llmRouter,
+    providerCatalogService: deps.providerCatalogService,
     voicePackService: deps.voicePackService,
     genAi: deps.otel?.genAi,
     revenue: deps.otel?.revenue,
@@ -412,6 +419,23 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/admin/voice-packs', createAdminVoicePackRoutes({
       productEventService: deps.productEventService,
       service: deps.voicePackService,
+    }))
+
+    /**
+     * Admin product capability alias curation routes.
+     */
+    .route('/api/admin/capability-aliases', createAdminCapabilityAliasRoutes({
+      configKV: deps.configKV,
+      service: deps.providerCatalogService,
+    }))
+
+    /**
+     * Admin provider catalog curation routes.
+     */
+    .route('/api/admin/provider-catalog', createAdminProviderCatalogRoutes({
+      configKV: deps.configKV,
+      llmRouter: deps.llmRouter,
+      service: deps.providerCatalogService,
     }))
 
     /**
@@ -661,6 +685,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
   })
 
+  const providerCatalogService = injeca.provide('services:providerCatalog', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createProviderCatalogService(dependsOn.db),
+  })
+
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
@@ -771,6 +800,7 @@ export async function createApp() {
     otel,
     userDeletionService,
     llmRouter,
+    providerCatalogService,
     ttsConcurrencyLedger,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
@@ -815,6 +845,7 @@ export async function createApp() {
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
     llmRouter: resolved.llmRouter,
+    providerCatalogService: resolved.providerCatalogService,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

@@ -120,6 +120,13 @@
       "when": 1782847276369,
       "tag": "0016_tired_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782912836523,
+      "tag": "0017_nappy_dagger",
+      "breakpoints": true
     }
   ]
 }
