@@ -22,16 +22,12 @@ describe('node plugin-host runtime createPluginContext', () => {
 
   it('creates a websocket-backed host channel with url and protocols', async () => {
     const constructed: Array<{ protocols?: string[]; url: string }> = []
-    class FakeWebSocket {
-      constructor(url: string, protocols?: string[]) {
-        constructed.push({ protocols, url })
-      }
-
-      close() {}
+    function FakeWebSocket(this: WebSocket, url: string, protocols?: string[]) {
+      constructed.push({ protocols, url })
     }
     Object.defineProperty(globalThis, 'WebSocket', {
       configurable: true,
-      value: FakeWebSocket,
+      value: FakeWebSocket as unknown as typeof WebSocket,
       writable: true,
     })
 

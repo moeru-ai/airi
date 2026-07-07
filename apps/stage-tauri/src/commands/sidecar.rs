@@ -407,25 +407,31 @@ fn spawn_plugin_host_sidecar(launch: &PluginHostSidecarLaunch) -> Result<Child, 
 fn probe_plugin_host_health(host: &str, port: u16, timeout: Duration) -> Result<(), String> {
     let deadline = Instant::now() + timeout;
     let mut last_connect_error = None;
+    let mut last_probe_error = None;
 
     while Instant::now() < deadline {
         match TcpStream::connect((host, port)) {
             Ok(mut stream) => {
                 let _ = stream.set_read_timeout(Some(timeout));
                 let _ = stream.set_write_timeout(Some(timeout));
-                stream
-                    .write_all(
-                        format!(
-                            "GET /health HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-                        )
+                if let Err(error) = stream.write_all(
+                    format!("GET /health HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n")
                         .as_bytes(),
-                    )
-                    .map_err(|error| format!("write health request: {error}"))?;
+                ) {
+                    last_probe_error = Some(format!("write health request: {error}"));
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
 
                 let mut buffer = [0_u8; 1024];
-                let bytes = stream
-                    .read(&mut buffer)
-                    .map_err(|error| format!("read health response: {error}"))?;
+                let bytes = match stream.read(&mut buffer) {
+                    Ok(bytes) => bytes,
+                    Err(error) => {
+                        last_probe_error = Some(format!("read health response: {error}"));
+                        std::thread::sleep(Duration::from_millis(50));
+                        continue;
+                    }
+                };
                 let response = String::from_utf8_lossy(&buffer[..bytes]);
                 let status_line = response.lines().next().unwrap_or_default().trim();
                 if status_line.starts_with("HTTP/1.1 200")
@@ -434,7 +440,8 @@ fn probe_plugin_host_health(host: &str, port: u16, timeout: Duration) -> Result<
                     return Ok(());
                 }
 
-                return Err(format!("unexpected health status `{status_line}`"));
+                last_probe_error = Some(format!("unexpected health status `{status_line}`"));
+                std::thread::sleep(Duration::from_millis(50));
             }
             Err(error) => {
                 last_connect_error = Some(error.to_string());
@@ -443,11 +450,21 @@ fn probe_plugin_host_health(host: &str, port: u16, timeout: Duration) -> Result<
         }
     }
 
+    let mut details = Vec::new();
+    if let Some(error) = last_probe_error {
+        details.push(format!("last probe error: {error}"));
+    }
+    if let Some(error) = last_connect_error {
+        details.push(format!("last connection error: {error}"));
+    }
+
     Err(format!(
         "timed out waiting for plugin host health at http://{host}:{port}/health{}",
-        last_connect_error
-            .map(|error| format!("; last connection error: {error}"))
-            .unwrap_or_default()
+        if details.is_empty() {
+            String::new()
+        } else {
+            format!("; {}", details.join("; "))
+        }
     ))
 }
 
@@ -640,6 +657,30 @@ mod tests {
         let error = probe_plugin_host_health("127.0.0.1", port, std::time::Duration::from_secs(1))
             .expect_err("non-200 health response should fail");
         assert!(error.contains("status"));
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn plugin_host_health_probe_retries_transient_non_200() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let handle = thread::spawn(move || {
+            for response in [
+                b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    .as_slice(),
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+                    .as_slice(),
+            ] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut buffer = [0_u8; 512];
+                let _ = stream.read(&mut buffer).unwrap();
+                stream.write_all(response).unwrap();
+            }
+        });
+
+        assert!(
+            probe_plugin_host_health("127.0.0.1", port, std::time::Duration::from_secs(1)).is_ok()
+        );
         handle.join().unwrap();
     }
 
