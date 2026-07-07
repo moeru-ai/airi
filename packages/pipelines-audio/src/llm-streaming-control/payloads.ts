@@ -34,11 +34,6 @@ export interface NormalizedActPayload {
   motion?: string
 }
 
-/** Runtime-safe object detection. */
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
 /**
  * Converts arbitrary emotion text into canonical emotion.
  *
@@ -101,7 +96,7 @@ function normalizeEmotion(
       : undefined
   }
 
-  if (!isObject(value)) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return undefined
   }
 
