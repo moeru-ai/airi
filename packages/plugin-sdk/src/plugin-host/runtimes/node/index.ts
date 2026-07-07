@@ -14,7 +14,7 @@ function createNodeWebSocket(url: string, protocols?: string[]): WebSocket {
   const WebSocketConstructor = globalThis.WebSocket
 
   if (typeof WebSocketConstructor !== 'function') {
-    throw new Error(
+    throw new TypeError(
       'Node runtime WebSocket transport requires globalThis.WebSocket. Use Node 22+ or install a WebSocket polyfill before creating the plugin context.',
     )
   }

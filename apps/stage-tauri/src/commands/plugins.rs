@@ -427,7 +427,7 @@ mod tests {
             state: PluginHostSidecarState::Ready,
             pid: Some(42),
             endpoint: Some("http://127.0.0.1:49152".to_string()),
-            executable_path: Some("/tmp/plugin-host".to_string()),
+            executable_path: Some("/opt/airi/plugin-host".to_string()),
             last_error: None,
             updated_at: 123,
         };
@@ -444,7 +444,7 @@ mod tests {
         );
         assert_eq!(
             capability.metadata.as_ref().unwrap()["executablePath"],
-            "/tmp/plugin-host"
+            "/opt/airi/plugin-host"
         );
         assert_eq!(capability.metadata.as_ref().unwrap()["updatedAt"], 123);
     }
@@ -474,7 +474,7 @@ mod tests {
                 state: PluginHostSidecarState::Booting,
                 pid: None,
                 endpoint: Some("http://127.0.0.1:49152".to_string()),
-                executable_path: Some("/tmp/plugin-host".to_string()),
+                executable_path: Some("/opt/airi/plugin-host".to_string()),
                 last_error: None,
                 updated_at: 124,
             },
@@ -492,7 +492,7 @@ mod tests {
             state: PluginHostSidecarState::Ready,
             pid: Some(42),
             endpoint: Some("http://127.0.0.1:49152".to_string()),
-            executable_path: Some("/tmp/plugin-host".to_string()),
+            executable_path: Some("/opt/airi/plugin-host".to_string()),
             last_error: None,
             updated_at: 123,
         };

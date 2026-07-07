@@ -478,7 +478,7 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("sidecars")).unwrap();
         // Leverage env var to confirm it is respected only when set — missing target falls through.
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
 
         assert_eq!(resolve_plugin_host_sidecar_path(&root), None);
 
@@ -494,7 +494,7 @@ mod tests {
         fs::create_dir_all(root.join("sidecars")).unwrap();
         let sidecar = root.join("sidecars").join(executable_name());
         fs::write(&sidecar, b"fake-binary").unwrap();
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
 
         assert_eq!(resolve_plugin_host_sidecar_path(&root), Some(sidecar));
 
@@ -508,27 +508,27 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("sidecars")).unwrap();
         // Defensive: ensure env from another test didn't leak.
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
 
         let override_path =
             std::env::temp_dir().join(format!("airi-plugin-host-override-{}", std::process::id()));
         let _ = fs::remove_file(&override_path);
         fs::write(&override_path, b"custom-binary").unwrap();
 
-        std::env::set_var("AIRI_PLUGIN_HOST_PATH", &override_path);
+        std::env::set_var(PLUGIN_HOST_ENV, &override_path);
         let actual = resolve_plugin_host_sidecar_path(&root);
         assert_eq!(actual, Some(override_path.clone()));
 
         let sidecar_in_default = root.join("sidecars").join(executable_name());
         fs::write(&sidecar_in_default, b"default-binary").unwrap();
 
-        // Make sure ovveride still wins when default candidate exists.
+        // Make sure override still wins when default candidate exists.
         assert_eq!(
             resolve_plugin_host_sidecar_path(&root),
             Some(override_path.clone())
         );
 
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
 
         assert_eq!(
             resolve_plugin_host_sidecar_path(&root),
@@ -545,7 +545,7 @@ mod tests {
             state: PluginHostSidecarState::Ready,
             pid: Some(42),
             endpoint: Some("http://127.0.0.1:49152".to_string()),
-            executable_path: Some("/tmp/plugin-host".to_string()),
+            executable_path: Some("/opt/airi/plugin-host".to_string()),
             last_error: None,
             updated_at: 123,
         };
@@ -556,7 +556,7 @@ mod tests {
                 "state": "ready",
                 "pid": 42,
                 "endpoint": "http://127.0.0.1:49152",
-                "executablePath": "/tmp/plugin-host",
+                "executablePath": "/opt/airi/plugin-host",
                 "updatedAt": 123,
             })
         );
@@ -630,7 +630,7 @@ mod tests {
     #[test]
     fn plugin_host_start_degrades_when_binary_is_missing() {
         let _guard = env_lock().lock().unwrap();
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
         let root = unique_sidecar_test_dir("missing");
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(root.join("sidecars")).unwrap();
@@ -640,7 +640,7 @@ mod tests {
 
         assert_eq!(status.state, PluginHostSidecarState::Degraded);
         assert_eq!(status.pid, None);
-        assert!(status.last_error.unwrap().contains("AIRI_PLUGIN_HOST_PATH"));
+        assert!(status.last_error.unwrap().contains(PLUGIN_HOST_ENV));
 
         let _ = fs::remove_dir_all(&root);
     }
@@ -649,7 +649,7 @@ mod tests {
     #[test]
     fn plugin_host_start_ready_then_stop_with_fake_node_health_server() {
         let _guard = env_lock().lock().unwrap();
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
         let root = unique_sidecar_test_dir("ready");
         let sidecars = root.join("sidecars");
         fs::create_dir_all(&sidecars).unwrap();
@@ -668,7 +668,7 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
 "#,
         );
 
-        std::env::set_var("AIRI_PLUGIN_HOST_PATH", &executable);
+        std::env::set_var(PLUGIN_HOST_ENV, &executable);
         let controller = PluginHostSidecarController::new(root.clone());
 
         let started = controller.start_blocking();
@@ -689,7 +689,7 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
         assert_eq!(stopped.state, PluginHostSidecarState::Stopped);
         assert_eq!(stopped.pid, None);
 
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -697,7 +697,7 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
     #[test]
     fn plugin_host_ready_sidecar_degrades_when_later_health_probe_fails() {
         let _guard = env_lock().lock().unwrap();
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
         let root = unique_sidecar_test_dir("later-unhealthy");
         let sidecars = root.join("sidecars");
         fs::create_dir_all(&sidecars).unwrap();
@@ -716,7 +716,7 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
 "#,
         );
 
-        std::env::set_var("AIRI_PLUGIN_HOST_PATH", &executable);
+        std::env::set_var(PLUGIN_HOST_ENV, &executable);
         let controller = PluginHostSidecarController::new(root.clone());
 
         let started = controller.start_blocking();
@@ -731,7 +731,7 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
             .unwrap()
             .contains("health check failed"));
 
-        std::env::remove_var("AIRI_PLUGIN_HOST_PATH");
+        std::env::remove_var(PLUGIN_HOST_ENV);
         let _ = fs::remove_dir_all(&root);
     }
 }
