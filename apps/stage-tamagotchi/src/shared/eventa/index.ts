@@ -173,6 +173,17 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
+export type PluginHostSidecarState = 'stopped' | 'booting' | 'ready' | 'degraded'
+
+export interface PluginHostSidecarStatus {
+  state: PluginHostSidecarState
+  pid: number | null
+  endpoint?: string
+  executablePath?: string
+  lastError?: string
+  updatedAt: number
+}
+
 // TODO: Replace these manually duplicated IPC types with re-exports from
 // @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
 // eventa layer can depend on the SDK without introducing unwanted coupling.
@@ -200,6 +211,7 @@ export interface PluginHostSessionSummary {
 export interface PluginHostDebugSnapshot {
   registry: PluginRegistrySnapshot
   sessions: PluginHostSessionSummary[]
+  sidecar: PluginHostSidecarStatus
   capabilities: PluginCapabilityState[]
   refreshedAt: number
 }

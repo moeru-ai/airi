@@ -31,9 +31,10 @@ fn main() {
         .manage(plugin_host_state.clone())
         .manage(mcp_runtime)
         .setup(move |app| {
-            let godot_app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
-            app.manage(commands::godot::GodotStageController::new(
-                godot_app_data_dir,
+            let app_data_dir = app.path().app_data_dir().map_err(|error| error.to_string())?;
+            app.manage(commands::godot::GodotStageController::new(app_data_dir.clone()));
+            app.manage(commands::sidecar::PluginHostSidecarController::new(
+                app_data_dir,
             ));
 
             let handle = app.handle().clone();

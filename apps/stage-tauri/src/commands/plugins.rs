@@ -3,6 +3,9 @@ use crate::commands::plugin_host::config::{
     disable_plugin, enable_plugin, mark_plugin_known, set_auto_reload,
 };
 use crate::commands::plugin_host::manifests;
+use crate::commands::sidecar::{
+    PluginHostSidecarController, PluginHostSidecarState, PluginHostSidecarStatus,
+};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -58,7 +61,10 @@ impl PluginHostState {
         metadata: Option<Value>,
         updated_at: u64,
     ) {
-        let mut guard = self.inner.lock().expect("plugin host capability lock poisoned");
+        let mut guard = self
+            .inner
+            .lock()
+            .expect("plugin host capability lock poisoned");
         guard.capabilities.insert(
             key.clone(),
             PluginCapabilityState {
@@ -71,7 +77,10 @@ impl PluginHostState {
     }
 
     pub fn snapshot(&self) -> PluginHostStateInner {
-        self.inner.lock().expect("plugin host capability lock poisoned").clone()
+        self.inner
+            .lock()
+            .expect("plugin host capability lock poisoned")
+            .clone()
     }
 }
 
@@ -102,9 +111,12 @@ pub async fn build_registry_snapshot(
         let known_path = known.map(|k| k.path.clone());
         let is_new = known.is_none();
         if known_path.as_deref() != Some(&manifest.path) {
-            config.known.entry(manifest.name.clone()).or_insert_with(|| config::PluginKnownEntry {
-                path: manifest.path.clone(),
-            });
+            config
+                .known
+                .entry(manifest.name.clone())
+                .or_insert_with(|| config::PluginKnownEntry {
+                    path: manifest.path.clone(),
+                });
             config_changed = true;
         }
         plugins.push(PluginManifestSummary {
@@ -159,6 +171,66 @@ fn now_millis() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("system time")
         .as_millis() as u64
+}
+
+fn sidecar_capability_state(status: &PluginHostSidecarStatus) -> &'static str {
+    match status.state {
+        PluginHostSidecarState::Stopped => "withdrawn",
+        PluginHostSidecarState::Booting => "announced",
+        PluginHostSidecarState::Ready => "ready",
+        PluginHostSidecarState::Degraded => "degraded",
+    }
+}
+
+fn update_sidecar_capability(state: &PluginHostState, status: &PluginHostSidecarStatus) {
+    state.update_capability(
+        "plugin-host:sidecar".to_string(),
+        sidecar_capability_state(status).to_string(),
+        Some(serde_json::json!({
+            "state": status.state.as_str(),
+            "pid": status.pid,
+            "endpoint": status.endpoint,
+            "executablePath": status.executable_path,
+            "lastError": status.last_error,
+            "updatedAt": status.updated_at,
+        })),
+        now_millis(),
+    );
+}
+
+fn update_plugin_load_request_capability(
+    state: &PluginHostState,
+    name: &str,
+    sidecar_status: &PluginHostSidecarStatus,
+) {
+    state.update_capability(
+        format!("plugin-host:plugin:{name}"),
+        "degraded".to_string(),
+        Some(serde_json::json!({
+            "name": name,
+            "reason": "plugin session loading requires the sidecar load API",
+            "sidecar": sidecar_status,
+        })),
+        now_millis(),
+    );
+}
+
+async fn start_sidecar_blocking(app_handle: AppHandle) -> Result<PluginHostSidecarStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let sidecar = app_handle.state::<PluginHostSidecarController>();
+        sidecar.start_blocking()
+    })
+    .await
+    .map_err(|error| format!("start plugin host sidecar task: {error}"))
+}
+
+async fn status_sidecar_blocking(app_handle: AppHandle) -> Result<PluginHostSidecarStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let sidecar = app_handle.state::<PluginHostSidecarController>();
+        sidecar.status_blocking()
+    })
+    .await
+    .map_err(|error| format!("inspect plugin host sidecar task: {error}"))
 }
 
 /// List plugins
@@ -222,28 +294,25 @@ pub async fn electron_plugins_set_auto_reload(
         .map_err(|e| format!("resolve app data dir: {e}"))?;
     let config_path = plugin_config_path(&app_data);
 
-    set_auto_reload(&config_path, &name, enabled).map_err(|e| format!("update auto-reload: {e}"))?;
+    set_auto_reload(&config_path, &name, enabled)
+        .map_err(|e| format!("update auto-reload: {e}"))?;
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Load all enabled plugins — reports degraded because the sidecar binary is out of scope
+/// Load all enabled plugins by starting the plugin-host sidecar when available.
 #[tauri::command]
 pub async fn electron_plugins_load_enabled(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
 ) -> Result<PluginRegistrySnapshot, String> {
-    state.update_capability(
-        "plugin-host:sidecar".to_string(),
-        "degraded".to_string(),
-        Some(serde_json::json!({ "reason": "sidecar binary not bundled in this slice" })),
-        now_millis(),
-    );
+    let sidecar_status = start_sidecar_blocking(app_handle.clone()).await?;
+    update_sidecar_capability(&state, &sidecar_status);
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
 
-/// Load a specific plugin — degraded stub
+/// Load a specific plugin by starting the plugin-host sidecar when available.
 #[tauri::command]
 pub async fn electron_plugins_load(
     app_handle: AppHandle,
@@ -254,12 +323,9 @@ pub async fn electron_plugins_load(
         return Err("plugin name is required".to_string());
     };
 
-    state.update_capability(
-        format!("plugin-host:plugin:{name}"),
-        "degraded".to_string(),
-        Some(serde_json::json!({ "name": &name, "reason": "sidecar runtime not bundled" })),
-        now_millis(),
-    );
+    let sidecar_status = start_sidecar_blocking(app_handle.clone()).await?;
+    update_sidecar_capability(&state, &sidecar_status);
+    update_plugin_load_request_capability(&state, &name, &sidecar_status);
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
@@ -292,6 +358,8 @@ pub async fn electron_plugins_inspect(
     state: State<'_, PluginHostState>,
 ) -> Result<Value, String> {
     let registry = build_registry_snapshot(&app_handle, &state).await;
+    let sidecar_status = status_sidecar_blocking(app_handle.clone()).await?;
+    update_sidecar_capability(&state, &sidecar_status);
     let snapshot = state.snapshot();
     let mut capabilities: Vec<_> = snapshot.capabilities.values().cloned().collect();
     capabilities.sort_by(|a, b| a.key.cmp(&b.key));
@@ -301,6 +369,7 @@ pub async fn electron_plugins_inspect(
         "sessions": [],
         "kits": [],
         "modules": [],
+        "sidecar": sidecar_status,
         "capabilities": capabilities,
         "refreshedAt": now_millis(),
     }))
@@ -369,4 +438,101 @@ pub async fn proj_airi_plugin_sdk_apis_protocol_resources_providers_list_provide
 #[tauri::command]
 pub async fn electron_plugins_asset_base_url() -> String {
     "https://assets.local/".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::sidecar::{PluginHostSidecarState, PluginHostSidecarStatus};
+
+    #[test]
+    fn plugin_host_sidecar_capability_records_state_and_metadata() {
+        let state = PluginHostState::default();
+        let status = PluginHostSidecarStatus {
+            state: PluginHostSidecarState::Ready,
+            pid: Some(42),
+            endpoint: Some("http://127.0.0.1:49152".to_string()),
+            executable_path: Some("/opt/airi/plugin-host".to_string()),
+            last_error: None,
+            updated_at: 123,
+        };
+
+        update_sidecar_capability(&state, &status);
+
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:sidecar").unwrap();
+        assert_eq!(capability.state, "ready");
+        assert_eq!(capability.metadata.as_ref().unwrap()["pid"], 42);
+        assert_eq!(
+            capability.metadata.as_ref().unwrap()["endpoint"],
+            "http://127.0.0.1:49152"
+        );
+        assert_eq!(
+            capability.metadata.as_ref().unwrap()["executablePath"],
+            "/opt/airi/plugin-host"
+        );
+        assert_eq!(capability.metadata.as_ref().unwrap()["updatedAt"], 123);
+    }
+
+    #[test]
+    fn plugin_host_sidecar_capability_maps_lifecycle_state_to_capability_state() {
+        let state = PluginHostState::default();
+
+        update_sidecar_capability(
+            &state,
+            &PluginHostSidecarStatus {
+                state: PluginHostSidecarState::Stopped,
+                pid: None,
+                endpoint: None,
+                executable_path: None,
+                last_error: None,
+                updated_at: 123,
+            },
+        );
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:sidecar").unwrap();
+        assert_eq!(capability.state, "withdrawn");
+
+        update_sidecar_capability(
+            &state,
+            &PluginHostSidecarStatus {
+                state: PluginHostSidecarState::Booting,
+                pid: None,
+                endpoint: Some("http://127.0.0.1:49152".to_string()),
+                executable_path: Some("/opt/airi/plugin-host".to_string()),
+                last_error: None,
+                updated_at: 124,
+            },
+        );
+        let snapshot = state.snapshot();
+        let capability = snapshot.capabilities.get("plugin-host:sidecar").unwrap();
+        assert_eq!(capability.state, "announced");
+        assert_eq!(capability.metadata.as_ref().unwrap()["state"], "booting");
+    }
+
+    #[test]
+    fn plugin_load_request_capability_does_not_report_ready_without_load_api() {
+        let state = PluginHostState::default();
+        let status = PluginHostSidecarStatus {
+            state: PluginHostSidecarState::Ready,
+            pid: Some(42),
+            endpoint: Some("http://127.0.0.1:49152".to_string()),
+            executable_path: Some("/opt/airi/plugin-host".to_string()),
+            last_error: None,
+            updated_at: 123,
+        };
+
+        update_plugin_load_request_capability(&state, "alpha", &status);
+
+        let snapshot = state.snapshot();
+        let capability = snapshot
+            .capabilities
+            .get("plugin-host:plugin:alpha")
+            .unwrap();
+        assert_eq!(capability.state, "degraded");
+        assert!(capability.metadata.as_ref().unwrap()["reason"]
+            .as_str()
+            .unwrap()
+            .contains("sidecar load API"));
+    }
 }

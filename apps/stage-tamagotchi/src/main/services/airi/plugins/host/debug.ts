@@ -80,6 +80,11 @@ export function buildPluginHostDebugSnapshot(options: {
     })),
     kits: options.host.listKits(),
     modules: resolvedModules as PluginHostDebugSnapshot['modules'],
+    sidecar: {
+      state: 'stopped',
+      pid: null,
+      updatedAt: Date.now(),
+    },
     capabilities: options.host.listCapabilities(),
     refreshedAt: Date.now(),
   }))
