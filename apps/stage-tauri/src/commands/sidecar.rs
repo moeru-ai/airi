@@ -9,6 +9,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 const PLUGIN_HOST_ENV: &str = "AIRI_PLUGIN_HOST_PATH";
 const PLUGIN_HOST_HEALTH_HOST: &str = "127.0.0.1";
 const PLUGIN_HOST_HEALTH_TIMEOUT: Duration = Duration::from_secs(2);
+const PLUGIN_HOST_HEALTH_MIN_INTERVAL_MS: u64 = 5_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -260,6 +261,16 @@ impl PluginHostSidecarControllerInner {
                     return;
                 }
 
+                let now = current_timestamp_ms();
+                if now
+                    < self
+                        .status
+                        .updated_at
+                        .saturating_add(PLUGIN_HOST_HEALTH_MIN_INTERVAL_MS)
+                {
+                    return;
+                }
+
                 let Some(host) = self.health_host.clone() else {
                     return;
                 };
@@ -267,16 +278,21 @@ impl PluginHostSidecarControllerInner {
                     return;
                 };
 
-                if let Err(error) = probe_plugin_host_health(&host, port, PLUGIN_HOST_HEALTH_TIMEOUT) {
-                    let endpoint = self
-                        .status
-                        .endpoint
-                        .clone()
-                        .unwrap_or_else(|| format!("http://{host}:{port}"));
-                    self.stop_child();
-                    self.status = PluginHostSidecarStatus::degraded(format!(
-                        "Plugin host sidecar health check failed at {endpoint}: {error}"
-                    ));
+                match probe_plugin_host_health(&host, port, PLUGIN_HOST_HEALTH_TIMEOUT) {
+                    Ok(()) => {
+                        self.status.updated_at = now;
+                    }
+                    Err(error) => {
+                        let endpoint = self
+                            .status
+                            .endpoint
+                            .clone()
+                            .unwrap_or_else(|| format!("http://{host}:{port}"));
+                        self.stop_child();
+                        self.status = PluginHostSidecarStatus::degraded(format!(
+                            "Plugin host sidecar health check failed at {endpoint}: {error}"
+                        ));
+                    }
                 }
             }
             Err(error) => {
@@ -721,6 +737,10 @@ exec node -e 'const http = require("node:http"); const port = Number(process.arg
 
         let started = controller.start_blocking();
         assert_eq!(started.state, PluginHostSidecarState::Ready);
+        {
+            let mut inner = controller.inner.lock().unwrap();
+            inner.status.updated_at = 0;
+        }
 
         let unhealthy = controller.status_blocking();
         assert_eq!(unhealthy.state, PluginHostSidecarState::Degraded);

@@ -11,10 +11,10 @@ describe('usePluginHostInspectorStore', () => {
 
   it('preserves sidecar status from inspection snapshots', async () => {
     const store = usePluginHostInspectorStore()
-    const registry = { plugins: [], root: '/tmp/airi/plugins' }
+    const registry = { plugins: [], root: '/var/lib/airi/plugins' }
     const sidecar = {
       endpoint: 'http://127.0.0.1:49152',
-      executablePath: '/tmp/plugin-host',
+      executablePath: '/opt/airi/plugin-host',
       lastError: undefined,
       pid: 42,
       state: 'ready' as const,
@@ -22,21 +22,22 @@ describe('usePluginHostInspectorStore', () => {
     }
 
     store.setBridge({
-      inspect: async () => ({
-        capabilities: [],
-        kits: [],
-        modules: [],
-        refreshedAt: 456,
-        registry,
-        sessions: [],
-        sidecar,
-      }),
-      list: async () => registry,
-      load: async () => registry,
-      loadEnabled: async () => registry,
-      setAutoReload: async () => registry,
-      setEnabled: async () => registry,
-      unload: async () => registry,
+      inspect: () =>
+        Promise.resolve({
+          capabilities: [],
+          kits: [],
+          modules: [],
+          refreshedAt: 456,
+          registry,
+          sessions: [],
+          sidecar,
+        }),
+      list: () => Promise.resolve(registry),
+      load: () => Promise.resolve(registry),
+      loadEnabled: () => Promise.resolve(registry),
+      setAutoReload: () => Promise.resolve(registry),
+      setEnabled: () => Promise.resolve(registry),
+      unload: () => Promise.resolve(registry),
     })
 
     await store.refreshInspection()

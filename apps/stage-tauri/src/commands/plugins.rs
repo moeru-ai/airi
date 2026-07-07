@@ -61,7 +61,10 @@ impl PluginHostState {
         metadata: Option<Value>,
         updated_at: u64,
     ) {
-        let mut guard = self.inner.lock().expect("plugin host capability lock poisoned");
+        let mut guard = self
+            .inner
+            .lock()
+            .expect("plugin host capability lock poisoned");
         guard.capabilities.insert(
             key.clone(),
             PluginCapabilityState {
@@ -74,7 +77,10 @@ impl PluginHostState {
     }
 
     pub fn snapshot(&self) -> PluginHostStateInner {
-        self.inner.lock().expect("plugin host capability lock poisoned").clone()
+        self.inner
+            .lock()
+            .expect("plugin host capability lock poisoned")
+            .clone()
     }
 }
 
@@ -105,9 +111,12 @@ pub async fn build_registry_snapshot(
         let known_path = known.map(|k| k.path.clone());
         let is_new = known.is_none();
         if known_path.as_deref() != Some(&manifest.path) {
-            config.known.entry(manifest.name.clone()).or_insert_with(|| config::PluginKnownEntry {
-                path: manifest.path.clone(),
-            });
+            config
+                .known
+                .entry(manifest.name.clone())
+                .or_insert_with(|| config::PluginKnownEntry {
+                    path: manifest.path.clone(),
+                });
             config_changed = true;
         }
         plugins.push(PluginManifestSummary {
@@ -206,6 +215,24 @@ fn update_plugin_load_request_capability(
     );
 }
 
+async fn start_sidecar_blocking(app_handle: AppHandle) -> Result<PluginHostSidecarStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let sidecar = app_handle.state::<PluginHostSidecarController>();
+        sidecar.start_blocking()
+    })
+    .await
+    .map_err(|error| format!("start plugin host sidecar task: {error}"))
+}
+
+async fn status_sidecar_blocking(app_handle: AppHandle) -> Result<PluginHostSidecarStatus, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let sidecar = app_handle.state::<PluginHostSidecarController>();
+        sidecar.status_blocking()
+    })
+    .await
+    .map_err(|error| format!("inspect plugin host sidecar task: {error}"))
+}
+
 /// List plugins
 #[tauri::command]
 pub async fn electron_plugins_list(
@@ -267,7 +294,8 @@ pub async fn electron_plugins_set_auto_reload(
         .map_err(|e| format!("resolve app data dir: {e}"))?;
     let config_path = plugin_config_path(&app_data);
 
-    set_auto_reload(&config_path, &name, enabled).map_err(|e| format!("update auto-reload: {e}"))?;
+    set_auto_reload(&config_path, &name, enabled)
+        .map_err(|e| format!("update auto-reload: {e}"))?;
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
 }
@@ -277,9 +305,8 @@ pub async fn electron_plugins_set_auto_reload(
 pub async fn electron_plugins_load_enabled(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
-    sidecar: State<'_, PluginHostSidecarController>,
 ) -> Result<PluginRegistrySnapshot, String> {
-    let sidecar_status = sidecar.start_blocking();
+    let sidecar_status = start_sidecar_blocking(app_handle.clone()).await?;
     update_sidecar_capability(&state, &sidecar_status);
 
     Ok(build_registry_snapshot(&app_handle, &state).await)
@@ -290,14 +317,13 @@ pub async fn electron_plugins_load_enabled(
 pub async fn electron_plugins_load(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
-    sidecar: State<'_, PluginHostSidecarController>,
     name: Option<String>,
 ) -> Result<PluginRegistrySnapshot, String> {
     let Some(name) = name.filter(|n| !n.trim().is_empty()) else {
         return Err("plugin name is required".to_string());
     };
 
-    let sidecar_status = sidecar.start_blocking();
+    let sidecar_status = start_sidecar_blocking(app_handle.clone()).await?;
     update_sidecar_capability(&state, &sidecar_status);
     update_plugin_load_request_capability(&state, &name, &sidecar_status);
 
@@ -330,10 +356,9 @@ pub async fn electron_plugins_unload(
 pub async fn electron_plugins_inspect(
     app_handle: AppHandle,
     state: State<'_, PluginHostState>,
-    sidecar: State<'_, PluginHostSidecarController>,
 ) -> Result<Value, String> {
     let registry = build_registry_snapshot(&app_handle, &state).await;
-    let sidecar_status = sidecar.status_blocking();
+    let sidecar_status = status_sidecar_blocking(app_handle.clone()).await?;
     update_sidecar_capability(&state, &sidecar_status);
     let snapshot = state.snapshot();
     let mut capabilities: Vec<_> = snapshot.capabilities.values().cloned().collect();
@@ -500,12 +525,12 @@ mod tests {
         update_plugin_load_request_capability(&state, "alpha", &status);
 
         let snapshot = state.snapshot();
-        let capability = snapshot.capabilities.get("plugin-host:plugin:alpha").unwrap();
+        let capability = snapshot
+            .capabilities
+            .get("plugin-host:plugin:alpha")
+            .unwrap();
         assert_eq!(capability.state, "degraded");
-        assert!(capability
-            .metadata
-            .as_ref()
-            .unwrap()["reason"]
+        assert!(capability.metadata.as_ref().unwrap()["reason"]
             .as_str()
             .unwrap()
             .contains("sidecar load API"));

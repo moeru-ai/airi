@@ -26,6 +26,8 @@ describe('node plugin-host runtime createPluginContext', () => {
       constructor(url: string, protocols?: string[]) {
         constructed.push({ protocols, url })
       }
+
+      close() {}
     }
     Object.defineProperty(globalThis, 'WebSocket', {
       configurable: true,
