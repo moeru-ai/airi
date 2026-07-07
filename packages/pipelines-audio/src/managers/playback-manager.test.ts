@@ -117,4 +117,39 @@ describe('createPlaybackManager', () => {
 
     expect(play).toHaveBeenCalledTimes(3)
   })
+
+  it('does not drain the queue while stealing an owner-overflow playback slot', async () => {
+    const resolveMap = new Map<string, () => void>()
+    const play = vi.fn((item: PlaybackItem<unknown>, signal) => new Promise<void>((resolve) => {
+      resolveMap.set(item.id, () => {
+        if (signal.aborted) {
+          resolve()
+          return
+        }
+        signal.addEventListener('abort', () => resolve(), { once: true })
+      })
+    }))
+    const manager = createPlaybackManager({
+      maxVoices: 2,
+      maxVoicesPerOwner: 1,
+      overflowPolicy: 'queue',
+      ownerOverflowPolicy: 'steal-oldest',
+      play,
+    })
+
+    manager.schedule(createPlaybackItem('a', 10, 'intent-1', 'owner-x'))
+    manager.schedule(createPlaybackItem('d', 10, 'intent-2', 'owner-y'))
+    manager.schedule(createPlaybackItem('a2', 9, 'intent-3', 'owner-x'))
+    manager.schedule(createPlaybackItem('b', 8, 'intent-4', 'owner-y'))
+    manager.schedule(createPlaybackItem('c', 7, 'intent-5', 'owner-y'))
+
+    expect(play).toHaveBeenCalledTimes(2)
+
+    resolveMap.get('d')?.()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(play).toHaveBeenCalledTimes(3)
+    expect(play).toHaveBeenNthCalledWith(3, expect.objectContaining({ id: 'a2' }), expect.any(AbortSignal))
+  })
 })

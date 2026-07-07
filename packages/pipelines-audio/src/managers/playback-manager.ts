@@ -300,7 +300,7 @@ export function createPlaybackManager<TAudio>(
       return
     }
 
-    interrupt(victim, 'overflow')
+    interrupt(victim, 'overflow', { allowStartWaiting: false })
     start(item)
   }
 
@@ -313,7 +313,7 @@ export function createPlaybackManager<TAudio>(
       return
     }
 
-    interrupt(victim, 'priority-overflow')
+    interrupt(victim, 'priority-overflow', { allowStartWaiting: false })
     start(item)
   }
 
