@@ -100,9 +100,14 @@ function normalizeEmotion(
     return undefined
   }
 
+  const normalizedValue = value as {
+    name?: unknown
+    intensity?: unknown
+  }
+
   const name
-    = typeof value.name === 'string'
-      ? normalizeEmotionName(value.name)
+    = typeof normalizedValue.name === 'string'
+      ? normalizeEmotionName(normalizedValue.name)
       : undefined
 
   if (!name) {
@@ -111,7 +116,7 @@ function normalizeEmotion(
 
   return {
     name,
-    intensity: normalizeIntensity(value.intensity),
+    intensity: normalizeIntensity(normalizedValue.intensity),
   }
 }
 
