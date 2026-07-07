@@ -89,6 +89,56 @@ describe('createPlaybackManager', () => {
     expect(rejected).toEqual(['equal'])
   })
 
+  it('rejects an owner-overflow item after stealing a different-owner victim with steal-oldest', () => {
+    const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
+      signal.addEventListener('abort', () => resolve(), { once: true })
+    }))
+    const rejected: string[] = []
+    const manager = createPlaybackManager({
+      maxVoices: 2,
+      maxVoicesPerOwner: 1,
+      overflowPolicy: 'steal-oldest',
+      ownerOverflowPolicy: 'reject',
+      play,
+    })
+
+    manager.onReject((event) => {
+      rejected.push(event.item.id)
+    })
+
+    manager.schedule(createPlaybackItem('b', 9, 'intent-2', 'owner-y'))
+    manager.schedule(createPlaybackItem('a', 10, 'intent-1', 'owner-x'))
+    manager.schedule(createPlaybackItem('a2', 8, 'intent-3', 'owner-x'))
+
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(rejected).toEqual(['a2'])
+  })
+
+  it('rejects an owner-overflow item after stealing a lower-priority victim with steal-lowest-priority', () => {
+    const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
+      signal.addEventListener('abort', () => resolve(), { once: true })
+    }))
+    const rejected: string[] = []
+    const manager = createPlaybackManager({
+      maxVoices: 2,
+      maxVoicesPerOwner: 1,
+      overflowPolicy: 'steal-lowest-priority',
+      ownerOverflowPolicy: 'reject',
+      play,
+    })
+
+    manager.onReject((event) => {
+      rejected.push(event.item.id)
+    })
+
+    manager.schedule(createPlaybackItem('a', 10, 'intent-1', 'owner-x'))
+    manager.schedule(createPlaybackItem('b', 1, 'intent-2', 'owner-y'))
+    manager.schedule(createPlaybackItem('a2', 5, 'intent-3', 'owner-x'))
+
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(rejected).toEqual(['a2'])
+  })
+
   it('steals the oldest active item for queued owner-overflow when a slot frees up', async () => {
     let resolvePlayback: (() => void) | undefined
     const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {

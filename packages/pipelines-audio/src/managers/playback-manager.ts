@@ -224,6 +224,23 @@ export function createPlaybackManager<TAudio>(
       : overflowPolicy
   }
 
+  function handleBlocked(item: PlaybackItem<TAudio>, blocked: 'overflow' | 'owner-overflow') {
+    const policy = resolvePolicy(blocked)
+    switch (policy) {
+      case 'queue':
+        enqueue(item)
+        return
+      case 'reject':
+        reject(item, blocked)
+        return
+      case 'steal-oldest':
+        stealOldest(item, blocked)
+        return
+      case 'steal-lowest-priority':
+        stealLowestPriority(item)
+    }
+  }
+
   function tryStartWaiting() {
     let i = 0
 
@@ -301,7 +318,14 @@ export function createPlaybackManager<TAudio>(
     }
 
     interrupt(victim, 'overflow', { allowStartWaiting: false })
-    start(item)
+
+    const recheck = canStart(item)
+    if (!recheck) {
+      start(item)
+      return
+    }
+
+    handleBlocked(item, recheck)
   }
 
   function stealLowestPriority(item: PlaybackItem<TAudio>) {
@@ -314,7 +338,14 @@ export function createPlaybackManager<TAudio>(
     }
 
     interrupt(victim, 'priority-overflow', { allowStartWaiting: false })
-    start(item)
+
+    const recheck = canStart(item)
+    if (!recheck) {
+      start(item)
+      return
+    }
+
+    handleBlocked(item, recheck)
   }
 
   function schedule(item: PlaybackItem<TAudio>) {
@@ -328,20 +359,7 @@ export function createPlaybackManager<TAudio>(
       return
     }
 
-    const policy = resolvePolicy(blocked)
-    switch (policy) {
-      case 'queue':
-        enqueue(item)
-        return
-      case 'reject':
-        reject(item, blocked)
-        return
-      case 'steal-oldest':
-        stealOldest(item, blocked)
-        return
-      case 'steal-lowest-priority':
-        stealLowestPriority(item)
-    }
+    handleBlocked(item, blocked)
   }
 
   function stopByIntent(intentId: string, reason = 'stop-by-intent') {
