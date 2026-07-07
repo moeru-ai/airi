@@ -7,21 +7,23 @@ import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import {
   DEFAULT_POSTHOG_CONFIG,
   POSTHOG_ENABLED,
-  POSTHOG_PROJECT_KEY_DESKTOP,
-  POSTHOG_PROJECT_KEY_POCKET,
-  POSTHOG_PROJECT_KEY_WEB,
+  POSTHOG_PROJECT_KEY,
 } from '../../../../../posthog.config'
 
 let posthogInitialized = false
 
-function getPosthogProjectKey(): string {
+// All AIRI surfaces (web, desktop, mobile) capture into a single PostHog
+// project. The platform is carried on every event via the `surface` super
+// property (registered at init), so cross-platform funnels live in one
+// project instead of being split across per-platform projects.
+function currentSurface(): 'web' | 'mobile' | 'electron' {
   if (isStageTamagotchi())
-    return POSTHOG_PROJECT_KEY_DESKTOP
+    return 'electron'
 
   if (isStageCapacitor())
-    return POSTHOG_PROJECT_KEY_POCKET
+    return 'mobile'
 
-  return POSTHOG_PROJECT_KEY_WEB
+  return 'web'
 }
 
 export function isPosthogAvailableInBuild(): boolean {
@@ -35,10 +37,13 @@ export function ensurePosthogInitialized(enabled: boolean): boolean {
   if (posthogInitialized)
     return true
 
-  posthog.init(getPosthogProjectKey(), {
+  posthog.init(POSTHOG_PROJECT_KEY, {
     ...DEFAULT_POSTHOG_CONFIG,
     opt_out_capturing_by_default: !enabled,
   })
+  // Tag every event (including autocapture / pageview) with the platform so
+  // the single project can still be broken down by web / desktop / mobile.
+  posthog.register({ surface: currentSurface() })
   posthogInitialized = true
   return true
 }
