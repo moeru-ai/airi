@@ -354,6 +354,8 @@ export function createPlaybackManager<TAudio>(
       if (entry.item.intentId === intentId)
         interrupt(entry, reason, { allowStartWaiting: false })
     }
+
+    tryStartWaiting()
   }
 
   function stopByOwner(ownerId: string, reason = 'stop-by-owner') {
@@ -366,6 +368,8 @@ export function createPlaybackManager<TAudio>(
       if (entry.item.ownerId === ownerId)
         interrupt(entry, reason, { allowStartWaiting: false })
     }
+
+    tryStartWaiting()
   }
 
   return {

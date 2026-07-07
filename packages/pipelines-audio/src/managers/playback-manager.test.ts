@@ -121,13 +121,11 @@ describe('createPlaybackManager', () => {
   it('does not drain the queue while stealing an owner-overflow playback slot', async () => {
     const resolveMap = new Map<string, () => void>()
     const play = vi.fn((item: PlaybackItem<unknown>, signal) => new Promise<void>((resolve) => {
-      resolveMap.set(item.id, () => {
-        if (signal.aborted) {
-          resolve()
-          return
-        }
+      resolveMap.set(item.id, () => resolve())
+
+      if (!signal.aborted) {
         signal.addEventListener('abort', () => resolve(), { once: true })
-      })
+      }
     }))
     const manager = createPlaybackManager({
       maxVoices: 2,
