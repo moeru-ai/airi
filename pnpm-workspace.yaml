@@ -105,7 +105,7 @@ catalog:
   '@mdit/plugin-tasklist': ^0.23.2
   '@mediapipe/tasks-vision': ^0.10.34
   '@modelcontextprotocol/sdk': ^1.29.0
-  '@moeru/eslint-config': 0.1.0-beta.18
+  '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.0-beta.8
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
