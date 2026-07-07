@@ -95,9 +95,6 @@ export function createPlaybackManager<TAudio>(
     | 'overflow'
     | 'owner-overflow'
     | undefined {
-    if (active.size >= maxVoices)
-      return 'overflow'
-
     if (
       maxVoicesPerOwner
       && item.ownerId
@@ -106,6 +103,9 @@ export function createPlaybackManager<TAudio>(
     ) {
       return 'owner-overflow'
     }
+
+    if (active.size >= maxVoices)
+      return 'overflow'
 
     return undefined
   }
