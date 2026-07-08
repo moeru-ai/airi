@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ccv3 } from '@proj-airi/ccc'
-
 import { Alert } from '@proj-airi/stage-ui/components'
+import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
@@ -9,6 +9,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 import CardCreate from './components/CardCreate.vue'
 import CardCreationDialog from './components/CardCreationDialog.vue'
@@ -18,6 +19,7 @@ import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
+const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
 
@@ -57,15 +59,17 @@ watch(inputFiles, async (newFiles) => {
     return
 
   try {
-    const content = await file.text()
-    const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
-
-    // Add card and select it
-    selectedCardId.value = addCard(cardJSON, 'import')
-    isCardDialogOpen.value = true
+    addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    toast(t('settings.pages.card.imported'))
   }
   catch (error) {
-    console.error('Error processing card file:', error)
+    console.error('Error processing card package:', error)
+    toast(t(error instanceof AiriCardPackageError && error.code === 'missing-file'
+      ? 'settings.pages.card.import_missing_file'
+      : 'settings.pages.card.import_invalid_file'))
+  }
+  finally {
+    inputFiles.value = []
   }
 })
 
@@ -267,7 +271,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
-      <InputFileCard v-model="inputFiles" accept="*.json">
+      <InputFileCard v-model="inputFiles" accept=".zip">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
             <div flex flex-col items-center>
