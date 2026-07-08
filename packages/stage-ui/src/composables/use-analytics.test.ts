@@ -716,12 +716,6 @@ describe('useAnalytics conversation product events', () => {
       preset_type: 'stage_model',
       source: 'settings',
     })
-    analytics.trackModelChanged({
-      from_model: 'gpt-old',
-      to_model: 'gpt-new',
-      provider: 'official-provider',
-      reason: 'manual',
-    })
     analytics.trackProviderSwitched({
       from_provider: 'openai-compatible',
       to_provider: 'official-provider',
@@ -777,14 +771,7 @@ describe('useAnalytics conversation product events', () => {
       preset_type: 'stage_model',
       source: 'settings',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'model_changed', {
-      surface: 'web',
-      from_model: 'gpt-old',
-      to_model: 'gpt-new',
-      provider: 'official-provider',
-      reason: 'manual',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'provider_switched', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'provider_switched', {
       surface: 'web',
       from_provider: 'openai-compatible',
       to_provider: 'official-provider',
@@ -792,14 +779,14 @@ describe('useAnalytics conversation product events', () => {
       to_provider_type: 'official',
       reason: 'manual',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'settings_changed', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'settings_changed', {
       surface: 'web',
       setting_name: 'analytics_enabled',
       previous_value: false,
       new_value: true,
       source: 'settings',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(10, 'support_contacted', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'support_contacted', {
       surface: 'web',
       channel: 'discord',
       source: 'settings',
@@ -852,5 +839,107 @@ describe('useAnalytics conversation product events', () => {
       user_type: 'new_user',
       entrypoint: 'community_manual_tag',
     })
+  })
+
+  it('emits account lifecycle events shared with the ui-server-auth surface', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackPasswordChanged()
+    analytics.trackPasswordResetRequested()
+    analytics.trackOauthProviderLinkStarted({ provider: 'github' })
+    analytics.trackOauthProviderUnlinked({ provider: 'google' })
+    analytics.trackAccountDeletionRequested()
+    analytics.trackOauthCallbackFailed({ stage: 'missing_flow_state' })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'password_changed', { surface: 'web' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'password_reset_requested', { surface: 'web' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
+      3,
+      'oauth_provider_link_started',
+      { surface: 'web', provider: 'github' },
+      { send_instantly: true, transport: 'sendBeacon' },
+    )
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'oauth_provider_unlinked', {
+      surface: 'web',
+      provider: 'google',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'account_deletion_requested', { surface: 'web' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'oauth_callback_failed', {
+      surface: 'web',
+      stage: 'missing_flow_state',
+    })
+  })
+
+  it('emits AIRI card edit and scene background events', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackCardEdited({ card_id: 'card-1' })
+    analytics.trackSceneBackgroundSet({ source: 'card_gallery', cleared: false })
+    analytics.trackSceneBackgroundSet({ source: 'scene_settings', cleared: true })
+    analytics.trackCharacterUpdated({ character_id: 'character-1' })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'card_edited', {
+      surface: 'web',
+      card_id: 'card-1',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'scene_background_set', {
+      surface: 'web',
+      source: 'card_gallery',
+      cleared: false,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'scene_background_set', {
+      surface: 'web',
+      source: 'scene_settings',
+      cleared: true,
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'character_updated', {
+      character_id: 'character-1',
+    })
+  })
+
+  it('emits data maintenance actions as one event with an action discriminator', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackDataAction({ action: 'chats_exported' })
+    analytics.trackDataAction({ action: 'app_data_cleared' })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'data_action', {
+      surface: 'web',
+      action: 'chats_exported',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'data_action', {
+      surface: 'web',
+      action: 'app_data_cleared',
+    })
+  })
+
+  it('emits desktop differentiator events for spotlight, widgets, updater, MCP, and pairing', () => {
+    analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
+    const analytics = useAnalytics()
+
+    analytics.trackSpotlightUsed()
+    analytics.trackWidgetOpened({ widget_id: 'weather' })
+    analytics.trackUpdateCheckClicked({ channel: 'auto' })
+    analytics.trackUpdateDownloaded({ channel: 'stable', version: '0.11.0' })
+    analytics.trackUpdateInstallClicked({ channel: 'stable', version: '0.11.0' })
+    analytics.trackMcpServerAdded()
+    analytics.trackMcpServerRemoved()
+    analytics.trackMcpConnectionTestRun({ success: false })
+    analytics.trackDevicePairingQrShown()
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'spotlight_used')
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'widget_opened', { widget_id: 'weather' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'update_check_clicked', { channel: 'auto' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'update_downloaded', { channel: 'stable', version: '0.11.0' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
+      5,
+      'update_install_clicked',
+      { channel: 'stable', version: '0.11.0' },
+      { send_instantly: true, transport: 'sendBeacon' },
+    )
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'mcp_server_added')
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'mcp_server_removed')
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'mcp_connection_test_run', { success: false })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'device_pairing_qr_shown')
   })
 })

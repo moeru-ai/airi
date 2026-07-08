@@ -136,4 +136,102 @@ describe('productEventService', () => {
       flux_balance_bucket: 'zero',
     })
   })
+
+  it('forwards allowlisted business facts to PostHog keyed by user id, mapping user_signed_up to signup_completed', async () => {
+    const capture = vi.fn(async () => {})
+    const sink = { capture, shutdown: vi.fn(async () => {}) }
+    const service = createProductEventService(db, null, sink)
+
+    await service.track({
+      userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+      source: 'stripe.webhook',
+      metadata: { amount_minor_unit: 990, currency: 'usd' },
+    })
+    await service.track({
+      userId: 'user-2',
+      feature: 'auth',
+      action: 'user_signed_up',
+      status: 'succeeded',
+    })
+
+    expect(capture).toHaveBeenNthCalledWith(1, {
+      distinctId: 'user-1',
+      event: 'payment_completed',
+      properties: {
+        surface: 'server',
+        feature: 'billing',
+        status: 'succeeded',
+        source: 'stripe.webhook',
+        amount_minor_unit: 990,
+        currency: 'usd',
+      },
+    })
+    expect(capture).toHaveBeenNthCalledWith(2, {
+      distinctId: 'user-2',
+      event: 'signup_completed',
+      properties: {
+        surface: 'server',
+        feature: 'auth',
+        status: 'succeeded',
+      },
+    })
+
+    const rows = await db.select().from(schema.productEvents)
+    expect(rows).toHaveLength(2)
+  })
+
+  it('does not forward high-volume per-request actions to PostHog', async () => {
+    const capture = vi.fn(async () => {})
+    const sink = { capture, shutdown: vi.fn(async () => {}) }
+    const service = createProductEventService(db, null, sink)
+
+    await service.track({
+      userId: 'user-1',
+      feature: 'gen_ai_chat',
+      action: 'completion_succeeded',
+      status: 'succeeded',
+    })
+    await service.track({
+      userId: 'user-1',
+      feature: 'billing',
+      action: 'checkout_started',
+      status: 'started',
+    })
+
+    expect(capture).not.toHaveBeenCalled()
+    const rows = await db.select().from(schema.productEvents)
+    expect(rows).toHaveLength(2)
+  })
+
+  it('persists the product event even when a misbehaving sink throws', async () => {
+    // ROOT CAUSE:
+    //
+    // The PosthogSink contract says implementations swallow transport
+    // errors, but the forwarding call sits on the Stripe webhook path —
+    // if a sink ever throws, an unguarded `await` would fail the webhook
+    // after the fact was already persisted, causing Stripe to retry and
+    // (before the idempotency guard) double-process the payment.
+    //
+    // track() therefore wraps forwarding in its own try/catch: the DB row
+    // must survive and track() must resolve regardless of sink behavior.
+    const capture = vi.fn(async () => {
+      throw new Error('posthog exploded')
+    })
+    const sink = { capture, shutdown: vi.fn(async () => {}) }
+    const service = createProductEventService(db, null, sink)
+
+    await expect(service.track({
+      userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+    })).resolves.toBeUndefined()
+
+    const rows = await db.select().from(schema.productEvents)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({ action: 'payment_completed', status: 'succeeded' })
+  })
 })

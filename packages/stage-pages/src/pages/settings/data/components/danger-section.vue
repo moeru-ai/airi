@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '../status'
 
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
 import { DoubleCheckButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
@@ -9,12 +10,14 @@ import { createDataSettingsStatusHelpers } from '../status'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
+const { trackDataAction } = useAnalytics()
 const { deleteAllData, resetProvidersSettings } = useDataMaintenance()
 const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
 
 async function resetProviders() {
   try {
     await resetProvidersSettings()
+    trackDataAction({ action: 'provider_settings_reset' })
     emitStatus(t('settings.pages.data.status.providers_reset'))
   }
   catch (error) {
@@ -25,6 +28,7 @@ async function resetProviders() {
 async function deleteAll() {
   try {
     await deleteAllData()
+    trackDataAction({ action: 'app_data_cleared' })
     emitStatus(t('settings.pages.data.status.all_deleted'))
   }
   catch (error) {

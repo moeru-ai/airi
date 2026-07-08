@@ -61,7 +61,7 @@ watch(inputFiles, async (newFiles) => {
     const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
 
     // Add card and select it
-    selectedCardId.value = addCard(cardJSON)
+    selectedCardId.value = addCard(cardJSON, 'import')
     isCardDialogOpen.value = true
   }
   catch (error) {

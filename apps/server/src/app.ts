@@ -75,6 +75,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
+import { createPosthogSink } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
 import { createAdminUsersService } from './services/domain/admin/users'
@@ -593,9 +594,19 @@ export async function createApp() {
     }, undefined, dependsOn.otel?.email),
   })
 
+  const posthogSink = injeca.provide('services:posthogSink', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => dependsOn.env.POSTHOG_PROJECT_KEY
+      ? createPosthogSink({
+          projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
+          host: dependsOn.env.POSTHOG_API_HOST,
+        })
+      : null,
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { db, otel },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product),
+    dependsOn: { db, otel, posthogSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product, dependsOn.posthogSink),
   })
 
   const characterService = injeca.provide('services:characters', {

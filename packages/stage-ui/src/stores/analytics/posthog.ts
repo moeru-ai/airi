@@ -88,9 +88,9 @@ export function registerPosthogBuildInfo(buildInfo: AboutBuildInfo): void {
  * land on the anonymous device person, PostHog cannot join them.
  *
  * Expects:
- * - `userId` is the Better Auth user id (`user.id`) — must match what
- *   `apps/server/src/routes/stripe/index.ts` passes as `distinctId` in
- *   `capturePaymentCompleted`.
+ * - `userId` is the Better Auth user id (`user.id`) — the same value the
+ *   server-side product-events forwarder passes as `distinctId` (see
+ *   `apps/server/src/services/domain/product-events.ts`).
  */
 export function identifyPosthogUser(userId: string): void {
   if (!posthogInitialized || posthog.has_opted_out_capturing())

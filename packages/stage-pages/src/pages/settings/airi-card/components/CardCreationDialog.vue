@@ -5,6 +5,7 @@ import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card
 import kebabcase from '@stdlib/string-base-kebabcase'
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -58,6 +59,7 @@ const emit = defineEmits<{
 const modelValue = defineModel<boolean>()
 
 const { t } = useI18n()
+const { trackCardEdited } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const visionStore = useVisionStore()
@@ -417,10 +419,11 @@ function saveCard(card: Card): boolean {
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
     cardStore.updateCard(props.cardId, cardWithModules)
+    trackCardEdited({ card_id: props.cardId })
   }
   else {
     // Create mode: add new card
-    cardStore.addCard(cardWithModules)
+    cardStore.addCard(cardWithModules, 'scratch')
   }
 
   modelValue.value = false // Close this

@@ -20,6 +20,7 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -320,6 +321,7 @@ catalog:
   postcss: ^8.5.10
   postgres: ^3.4.9
   posthog-js: 1.306.1
+  posthog-node: ^5.39.4
   postprocessing: ^6.39.1
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0
@@ -452,7 +454,6 @@ onlyBuiltDependencies:
   - uiohook-napi
   - utf-8-validate
   - vue-demi
-
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:
