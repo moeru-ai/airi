@@ -8,6 +8,12 @@ import { computed, reactive, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import {
+  trackLoginFailed,
+  trackLoginStarted,
+  trackLoginSucceeded,
+  trackSignupCompleted,
+} from '../modules/analytics'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import {
   checkEmail,
@@ -127,9 +133,11 @@ async function handleProviderSelect(provider: OAuthProvider) {
       callbackURL: effectiveCallbackURL.value,
     })
 
+    trackLoginStarted({ method: provider })
     window.location.href = redirectUrl
   }
   catch (error) {
+    trackLoginFailed({ method: provider })
     errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
     pendingProvider.value = null
   }
@@ -202,9 +210,11 @@ async function handleEmailSignIn(event: Event) {
     // After a successful credential sign-in better-auth has set the session
     // cookie. Bounce into the OIDC `/oauth2/authorize` flow (or wherever the
     // OIDC client originally pointed) so the upstream stage app gets its tokens.
+    trackLoginSucceeded({ method: 'email' })
     window.location.href = result.redirectURL ?? effectiveCallbackURL.value
   }
   catch (error) {
+    trackLoginFailed({ method: 'email' })
     errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
   }
   finally {
@@ -237,6 +247,7 @@ async function handleEmailSignUp(event: Event) {
     })
 
     if (result.requiresVerification) {
+      trackSignupCompleted({ source: 'email', requires_verification: true })
       await router.push({
         path: '/verify-email',
         query: {
@@ -249,6 +260,7 @@ async function handleEmailSignUp(event: Event) {
 
     // Verification disabled at server config: session is live, fall through
     // to the OIDC continuation just like sign-in.
+    trackSignupCompleted({ source: 'email', requires_verification: false })
     window.location.href = effectiveCallbackURL.value
   }
   catch (error) {

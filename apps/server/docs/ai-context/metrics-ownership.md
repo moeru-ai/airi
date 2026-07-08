@@ -130,7 +130,8 @@
 | Conversation controls | `chat_message_deleted` / `chat_messages_cleared` / `chat_message_retried` | 前端 | `packages/stage-layouts/src/components/Layouts/*InteractiveArea.vue` / `packages/stage-layouts/src/components/Widgets/ChatActionButtons.vue` / `apps/stage-tamagotchi/src/renderer/components/InteractiveArea.vue` | PostHog |
 | Conversation controls | `tts_stop_clicked` | 前端 | `packages/stage-layouts/src/composables/useStopSpeakingButton.ts` | PostHog |
 | Churn | `subscription_cancelled`（带 cancellation_reason） | 外部 Stripe 数据源 | PostHog Stripe source connector | Stripe/Postgres |
-| 老事件 | `provider_card_clicked` / `first_message_sent` | 前端 | `packages/stage-ui/src/composables/use-analytics.ts` | PostHog |
+| 老事件 | `provider_card_clicked` | 前端 | `packages/stage-ui/src/composables/use-analytics.ts` | PostHog |
+| 已退役 | `first_message_sent` / `user_signed_up`（前端版） | 无生产者 | wrapper 已删除；激活口径用 `chat_activation_succeeded`，注册事实用服务端转发的 `signup_completed` | PostHog 历史数据仍在 |
 
 待埋点（API 已在 `use-analytics.ts` 暴露但调用点未接入）：
 
@@ -150,22 +151,21 @@
 
 ## PostHog 接入路线图
 
-落地分两步，**不要一次性埋全部事件**，否则 schema 漂移会很快出现。PostHog 采集只发生在前端或外部 source connector；server 请求路径只写 Postgres/Grafana。
+落地分两步，**不要一次性埋全部事件**，否则 schema 漂移会很快出现。PostHog 采集以前端为主；服务端只经 product-events 白名单转发业务事实（注册、支付、订阅），per-request 路径仍只写 Postgres/Grafana。
 
 ### 阶段 1（P0 — 付费漏斗 + activation）
 
-`apps/stage-web`：
+所有 surface 共用根目录 `posthog.config.ts`（单一 project key，`surface` super property 区分端）。初始化实况：
 
 ```ts
-import posthog from 'posthog-js'
+import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY } from '../posthog.config'
 
-posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-  api_host: 'https://us.i.posthog.com',
-  capture_pageview: false, // 手动 capture 控制语义
-})
-// 登录后
+// DEFAULT_POSTHOG_CONFIG 内含 defaults: '2025-05-24'：
+// SPA 路由切换自动发 $pageview / $pageleave，页面浏览不再手动埋。
+posthog.init(POSTHOG_PROJECT_KEY, { ...DEFAULT_POSTHOG_CONFIG })
+// 登录后（stage 端在 analytics store，auth 端在 profile.vue）
 posthog.identify(user.id)
-// 在 pricing.vue
+// 在 flux.vue
 posthog.capture('pricing_page_viewed', { plan_period, source })
 ```
 
@@ -184,13 +184,13 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
 
 埋点事件清单（P0）：
 
-- 前端：`pricing_page_viewed`、`plan_selected`、`checkout_started`、`user_signed_up`、`first_message_sent`、`first_model_selected`
-- 后端：不直接发 PostHog；`payment_completed` 写入 `product_events`，PostHog 侧通过 Stripe source connector 或离线导入展示
+- 前端：`pricing_page_viewed`、`plan_selected`、`checkout_started`、`signup_completed`（ui-server-auth 邮箱注册路径）、`first_model_selected`
+- 后端：`product_events` 是事实账本；其中业务事实白名单（`signup_completed`、`payment_completed`、`subscription_started/renewed/cancelled`）由 product-events 服务经 posthog-node 转发一份到 PostHog（`apps/server/src/services/domain/product-events.ts`，distinctId = Better Auth user id）。LLM / TTS 等 per-request 事件不转发
 
 PostHog UI 配两个 funnel：
 
-- **付费漏斗** (7d 窗口)：`pricing_page_viewed → plan_selected → checkout_started → payment_completed`（最后一步来自 Stripe source connector / 离线导入）
-- **激活漏斗** (14d 窗口)：`user_signed_up → first_message_sent → first_model_selected → payment_completed`（最后一步同上）
+- **付费漏斗** (7d 窗口)：`pricing_page_viewed → plan_selected → checkout_started → payment_completed`（最后一步来自服务端转发）
+- **激活漏斗** (14d 窗口)：`signup_completed → onboarding_started → chat_activation_succeeded → payment_completed`
 
 ### 阶段 2（P1 — retention / feature adoption / churn）
 

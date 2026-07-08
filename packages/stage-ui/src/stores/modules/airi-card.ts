@@ -115,9 +115,16 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeSpeechModel,
   } = storeToRefs(speechStore)
 
-  const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3) => {
+  /**
+   * `source` feeds the `card_created` analytics event: `scratch` = built in
+   * the creation dialog, `import` = ccv3 JSON upload, `duplicate` = cloned
+   * from an existing card (profile switcher). Required so a new call site
+   * can't silently degrade creation attribution.
+   */
+  const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
+    capturePosthogEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
 

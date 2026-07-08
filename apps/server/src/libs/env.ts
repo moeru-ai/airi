@@ -175,6 +175,14 @@ const EnvSchema = object({
   DB_POOL_CONNECTION_TIMEOUT_MS: optionalIntegerFromString(5000, 'DB_POOL_CONNECTION_TIMEOUT_MS', 1),
   DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: optionalIntegerFromString(10000, 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS', 1),
 
+  // PostHog product-event forwarding (signup / payment / subscription facts).
+  // Defaults to the shared AIRI project key (same browser-safe phc_* key the
+  // client surfaces embed in posthog.config.ts), so forwarding is on out of
+  // the box. Set to an empty string to disable; Postgres `product_events`
+  // stays the source of truth either way.
+  POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
+  POSTHOG_API_HOST: optional(string(), 'https://us.i.posthog.com'),
+
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),
   OTEL_SERVICE_NAME: optional(string(), 'server'),

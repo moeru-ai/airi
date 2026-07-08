@@ -37,6 +37,20 @@ export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'c
 export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 
+/**
+ * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
+ * The web/PKCE stages fire from `pages/auth/callback.vue`; the electron
+ * relay stages fire from ui-server-auth's `electron-callback.vue`, which
+ * imports this type so the two emitters can't drift apart silently.
+ */
+export type OauthCallbackFailureStage
+  = | 'provider_error'
+    | 'missing_code_or_state'
+    | 'missing_flow_state'
+    | 'token_exchange_failed'
+    | 'parse'
+    | 'relay_unreachable'
+
 interface ChatActivationBaseProperties {
   provider_mode: ProviderMode
   provider_id: string
@@ -187,8 +201,10 @@ export function useAnalytics() {
    *   the regular batched queue would race the redirect and drop the
    *   event, which breaks the funnel.
    *
-   * The funnel terminator `payment_completed` is emitted server-side from
-   * the Stripe webhook — see `apps/server/src/routes/stripe/index.ts`.
+   * The funnel terminator `payment_completed` is forwarded to PostHog
+   * server-side by the product-events service (allowlist in
+   * `apps/server/src/services/domain/product-events.ts`), keyed by the
+   * Better Auth user id.
    */
   function trackCheckoutStarted(planId: string, properties: { checkout_session_id?: string, price_minor_unit?: number, currency?: string }) {
     if (!canCapture())
@@ -215,12 +231,71 @@ export function useAnalytics() {
     })
   }
 
-  /** Activation funnel — step 1. */
-  function trackSignup(method: 'email' | 'google' | 'github' | string) {
+  /**
+   * OAuth/OIDC callback landing failed before a session existed. Stage
+   * values map 1:1 to the guard branches in `pages/auth/callback.vue` so
+   * the funnel can tell a provider-side denial from a lost PKCE state.
+   */
+  function trackOauthCallbackFailed(properties: {
+    stage: Extract<OauthCallbackFailureStage, 'provider_error' | 'missing_code_or_state' | 'missing_flow_state' | 'token_exchange_failed'>
+  }) {
     if (!canCapture())
       return
-    posthog.capture('user_signed_up', { method })
-    posthog.capture('signup_completed', { source: method })
+    posthog.capture('oauth_callback_failed', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  // ─── Account lifecycle (same event names as apps/ui-server-auth's
+  // analytics module — both surfaces feed one PostHog series) ───────────
+
+  function trackPasswordChanged() {
+    if (!canCapture())
+      return
+    posthog.capture('password_changed', { surface: getConversationAnalyticsSurface() })
+  }
+
+  function trackPasswordResetRequested() {
+    if (!canCapture())
+      return
+    posthog.capture('password_reset_requested', { surface: getConversationAnalyticsSurface() })
+  }
+
+  function trackOauthProviderLinkStarted(properties: { provider: string }) {
+    if (!canCapture())
+      return
+    // The only caller (`useLinkedAccounts.link`) navigates to the OAuth
+    // consent page right after this hook — the batched queue would race
+    // the unload and drop the event, same as `trackCheckoutStarted`.
+    posthog.capture(
+      'oauth_provider_link_started',
+      {
+        ...properties,
+        surface: getConversationAnalyticsSurface(),
+      },
+      { send_instantly: true, transport: 'sendBeacon' },
+    )
+  }
+
+  function trackOauthProviderUnlinked(properties: { provider: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('oauth_provider_unlinked', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  /**
+   * Deletion email sent (user confirmed in the dialog). The completion
+   * event lands on ui-server-auth's success page; this one is the churn
+   * intent signal even when the user never clicks the email link.
+   */
+  function trackAccountDeletionRequested() {
+    if (!canCapture())
+      return
+    posthog.capture('account_deletion_requested', { surface: getConversationAnalyticsSurface() })
   }
 
   function trackSignupCompleted(properties: {
@@ -253,19 +328,6 @@ export function useAnalytics() {
       ...properties,
       surface: getConversationAnalyticsSurface(),
     })
-  }
-
-  /**
-   * Activation funnel — fires the first time a user picks a model in any
-   * provider settings. De-dup is intentional caller-side (we don't have a
-   * persistent "first model selected" flag yet); a small number of repeats
-   * is OK in PostHog funnels because step matching is per-distinctId, not
-   * per-event.
-   */
-  function trackFirstModelSelected(modelId: string, provider: string) {
-    if (!canCapture())
-      return
-    posthog.capture('first_model_selected', { model_id: modelId, provider })
   }
 
   /** Retention driver — character creation is a strong D7 retention predictor. */
@@ -312,10 +374,10 @@ export function useAnalytics() {
 
   // ─── LLM round events (client-known fields only) ──────────────────────
   // Source-of-truth for HTTP status / token usage / billing stage is the
-  // server (apps/server/src/routes/openai/v1) — emitting those server-side
-  // via captureSafe so PostHog has both perspectives merged on the same
-  // distinctId. These client emits supply the user-facing latency picture
-  // (TTFT, render time) that the server cannot see.
+  // server (apps/server/src/routes/openai/v1), which records them as
+  // Postgres `product_events` rows — deliberately NOT forwarded to PostHog
+  // (per-request volume stays in DB/Grafana). These client emits supply the
+  // user-facing latency picture (TTFT, render time) the server cannot see.
 
   function trackMessageSendStarted(properties: { source: 'text' | 'voice', model?: string }) {
     if (!canCapture())
@@ -878,20 +940,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackModelChanged(properties: {
-    from_model?: string
-    to_model: string
-    provider: string
-    reason: 'manual' | 'auto'
-  }) {
-    if (!canCapture())
-      return
-    posthog.capture('model_changed', {
-      ...properties,
-      surface: getConversationAnalyticsSurface(),
-    })
-  }
-
   function trackOfficialTtsPreviewSucceeded(properties: Omit<TtsVoiceBaseProperties, 'source'> & {
     voice_id: string
     voice_type: VoiceType
@@ -967,6 +1015,38 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('autonomous_generate_text', properties)
+  }
+
+  // ─── AIRI card (ccv3 character card) events ──────────────────────────
+  // `card_created` is emitted store-side (`stores/modules/airi-card.ts`)
+  // because creation has three entry points; edit has exactly one
+  // user-driven entry (the creation dialog in edit mode), so it lives
+  // here. Background card writes (autonomous artistry, image journal,
+  // scene background) intentionally do NOT count as edits.
+
+  function trackCardEdited(properties: { card_id: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('card_edited', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  /** Stage background switched on the active card. `cleared` = set to none. */
+  function trackSceneBackgroundSet(properties: { source: 'scene_settings' | 'card_gallery', cleared: boolean }) {
+    if (!canCapture())
+      return
+    posthog.capture('scene_background_set', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackCharacterUpdated(properties: { character_id: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('character_updated', properties)
   }
 
   // ─── App lifecycle ───────────────────────────────────────────────────
@@ -1058,6 +1138,87 @@ export function useAnalytics() {
     })
   }
 
+  // ─── Data maintenance (churn-precursor signals) ──────────────────────
+
+  /**
+   * One event for every destructive/exporting action on the data settings
+   * page. Wipes and exports often precede churn, so cohorts built on this
+   * event feed the at-risk-user list. Fires only after the action
+   * succeeded — a failed wipe is not a churn signal.
+   */
+  function trackDataAction(properties: {
+    action: 'chats_exported' | 'chats_imported' | 'chats_cleared' | 'app_data_cleared' | 'models_cache_cleared' | 'modules_settings_reset' | 'provider_settings_reset' | 'desktop_state_reset'
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('data_action', {
+      ...properties,
+      surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  // ─── Desktop (Electron / Tamagotchi) differentiators ─────────────────
+  // These measure whether the desktop-only surfaces earn their upkeep:
+  // spotlight quick-input, floating widgets, the in-app updater, MCP
+  // server management. Input text never leaves the device — events carry
+  // counts and low-cardinality ids only.
+
+  function trackSpotlightUsed() {
+    if (!canCapture())
+      return
+    posthog.capture('spotlight_used')
+  }
+
+  function trackWidgetOpened(properties: { widget_id: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('widget_opened', properties)
+  }
+
+  function trackUpdateCheckClicked(properties: { channel: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('update_check_clicked', properties)
+  }
+
+  function trackUpdateDownloaded(properties: { channel: string, version?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('update_downloaded', properties)
+  }
+
+  /** User confirmed restart-and-install; the app quits right after. */
+  function trackUpdateInstallClicked(properties: { channel: string, version?: string }) {
+    if (!canCapture())
+      return
+    posthog.capture('update_install_clicked', properties, { send_instantly: true, transport: 'sendBeacon' })
+  }
+
+  function trackMcpServerAdded() {
+    if (!canCapture())
+      return
+    posthog.capture('mcp_server_added')
+  }
+
+  function trackMcpServerRemoved() {
+    if (!canCapture())
+      return
+    posthog.capture('mcp_server_removed')
+  }
+
+  function trackMcpConnectionTestRun(properties: { success: boolean }) {
+    if (!canCapture())
+      return
+    posthog.capture('mcp_connection_test_run', properties)
+  }
+
+  /** Pairing QR revealed — the funnel start for `device_channel_connected`. */
+  function trackDevicePairingQrShown() {
+    if (!canCapture())
+      return
+    posthog.capture('device_pairing_qr_shown')
+  }
+
   // ─── Voice clone (custom TTS voice) ──────────────────────────────────
 
   function trackVoiceCloneCreated(properties: { provider: string }) {
@@ -1082,11 +1243,15 @@ export function useAnalytics() {
     trackPlanSelected,
     trackCheckoutStarted,
     trackPaywallSeen,
-    trackSignup,
     trackSignupCompleted,
+    trackOauthCallbackFailed,
+    trackPasswordChanged,
+    trackPasswordResetRequested,
+    trackOauthProviderLinkStarted,
+    trackOauthProviderUnlinked,
+    trackAccountDeletionRequested,
     trackOnboardingStarted,
     trackOnboardingCompleted,
-    trackFirstModelSelected,
     trackCharacterCreated,
     trackVoiceModeActivated,
     trackModelSwitched,
@@ -1146,7 +1311,6 @@ export function useAnalytics() {
     trackVoicePackBound,
     trackAttachmentUploaded,
     trackPresetUsed,
-    trackModelChanged,
     trackProviderSwitched,
     trackSettingsChanged,
     trackSupportContacted,
@@ -1159,6 +1323,9 @@ export function useAnalytics() {
 
     trackAppLoaded,
 
+    trackCardEdited,
+    trackSceneBackgroundSet,
+    trackCharacterUpdated,
     trackCharacterDeleted,
     trackCharacterSwitched,
     trackChatSessionDeleted,
@@ -1172,5 +1339,16 @@ export function useAnalytics() {
     trackFeatureUsed,
     trackVoiceCloneCreated,
     trackDeviceChannelConnected,
+
+    trackDataAction,
+    trackSpotlightUsed,
+    trackWidgetOpened,
+    trackUpdateCheckClicked,
+    trackUpdateDownloaded,
+    trackUpdateInstallClicked,
+    trackMcpServerAdded,
+    trackMcpServerRemoved,
+    trackMcpConnectionTestRun,
+    trackDevicePairingQrShown,
   }
 }
