@@ -1,6 +1,7 @@
 import type { Database } from '../../libs/db'
 import type { ProductMetrics } from '../../otel'
 
+import { sql } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
@@ -204,6 +205,41 @@ describe('productEventService', () => {
     expect(capture).not.toHaveBeenCalled()
     const rows = await db.select().from(schema.productEvents)
     expect(rows).toHaveLength(2)
+  })
+
+  it('does not forward to PostHog when the DB write fails', async () => {
+    // ROOT CAUSE:
+    //
+    // track() swallows DB insert errors to protect the caller, but the
+    // PostHog forwarding block ran unconditionally afterwards — a Postgres
+    // outage during a Stripe webhook would mint `payment_completed` in
+    // PostHog with no `product_events` row backing it, breaking the
+    // "Postgres is the fact of record" invariant and later reconciliation.
+    // Found by PR #2038 review.
+    //
+    // Fixed by gating forwarding on a `persisted` flag set only after the
+    // insert resolves.
+    const capture = vi.fn(async () => {})
+    const sink = { capture, shutdown: vi.fn(async () => {}) }
+    const service = createProductEventService(db, null, sink)
+
+    // Simulate a DB outage by renaming the table out from under the insert.
+    await db.execute(sql`ALTER TABLE product_events RENAME TO product_events_outage`)
+    try {
+      await expect(service.track({
+        userId: 'user-1',
+        feature: 'billing',
+        action: 'payment_completed',
+        status: 'succeeded',
+      })).resolves.toBeUndefined()
+    }
+    finally {
+      await db.execute(sql`ALTER TABLE product_events_outage RENAME TO product_events`)
+    }
+
+    expect(capture).not.toHaveBeenCalled()
+    const rows = await db.select().from(schema.productEvents)
+    expect(rows).toHaveLength(0)
   })
 
   it('persists the product event even when a misbehaving sink throws', async () => {

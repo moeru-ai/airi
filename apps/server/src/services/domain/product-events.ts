@@ -135,6 +135,11 @@ function metricLabels(input: ProductEventInput): Record<string, string> {
 export function createProductEventService(db: Database, metrics?: ProductMetrics | null, posthog?: PosthogSink | null) {
   return {
     async track(input: ProductEventInput): Promise<void> {
+      // Postgres is the fact of record, so forwarding is gated both ways:
+      // the DB write comes first (a PostHog outage can't lose the row) and
+      // forwarding only runs when the row actually landed (a DB outage
+      // can't mint PostHog events with no DB backing).
+      let persisted = false
       try {
         await db.insert(schema.productEvents).values({
           userId: input.userId,
@@ -148,6 +153,7 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
           metadata: input.metadata,
           createdAt: input.createdAt,
         })
+        persisted = true
 
         metrics?.events.add(1, metricLabels(input))
       }
@@ -161,11 +167,9 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
       }
 
       // PostHog copy so browser funnels (identified by the same Better Auth
-      // user id) get their server-side terminator events. Runs after the DB
-      // write on purpose: the Postgres row is the fact of record, and a
-      // PostHog outage must not lose it.
+      // user id) get their server-side terminator events.
       const forwardedEvent = POSTHOG_FORWARDED_ACTIONS[input.action]
-      if (posthog && forwardedEvent) {
+      if (persisted && posthog && forwardedEvent) {
         try {
           await posthog.capture({
             distinctId: input.userId,
