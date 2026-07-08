@@ -164,7 +164,7 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
       // user id) get their server-side terminator events. Runs after the DB
       // write on purpose: the Postgres row is the fact of record, and a
       // PostHog outage must not lose it.
-      const forwardedEvent = posthog ? POSTHOG_FORWARDED_ACTIONS[input.action] : undefined
+      const forwardedEvent = POSTHOG_FORWARDED_ACTIONS[input.action]
       if (posthog && forwardedEvent) {
         try {
           await posthog.capture({

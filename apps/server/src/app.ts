@@ -596,6 +596,9 @@ export async function createApp() {
 
   const posthogSink = injeca.provide('services:posthogSink', {
     dependsOn: { env: parsedEnv },
+    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
+    // branch is only reachable via the documented off-switch: setting the
+    // env var to an empty string (valibot defaults don't apply to '').
     build: ({ dependsOn }) => dependsOn.env.POSTHOG_PROJECT_KEY
       ? createPosthogSink({
           projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
