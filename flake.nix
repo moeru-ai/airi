@@ -72,16 +72,16 @@
                   at-spi2-core
                   cups.lib # libcups.so.2 is in 'lib' output, not 'out'
                   libdrm
-                  xorg.libX11
-                  xorg.libXcomposite
-                  xorg.libXdamage
-                  xorg.libXext
-                  xorg.libXfixes
-                  xorg.libXrandr
-                  xorg.libxcb
-                  xorg.libXcursor
-                  xorg.libXi
-                  xorg.libXtst
+                  libx11
+                  libxcomposite
+                  libxdamage
+                  libxext
+                  libxfixes
+                  libxrandr
+                  libxcb
+                  libxcursor
+                  libxi
+                  libxtst
                   expat
                   libxkbcommon
                   libgbm # libgbm.so.1 is now a separate package from mesa
