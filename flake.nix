@@ -81,6 +81,7 @@
                   libxcb
                   libxcursor
                   libxi
+                  libxt
                   libxtst
                   expat
                   libxkbcommon
