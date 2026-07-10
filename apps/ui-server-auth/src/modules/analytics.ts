@@ -1,12 +1,11 @@
 /**
  * PostHog product analytics for the auth-only SPA (`apps/ui-server-auth`).
  *
- * This surface is the top of the activation funnel: sign-up, sign-in, email
- * verification, password recovery. Events captured here are the funnel
- * entry that the in-app surfaces (`signup_completed → onboarding_started →
- * first message`) join against, keyed by the Better Auth user id passed to
- * {@link identifyAuthUser} — the same id the server uses as `distinctId`
- * for its own events, so the person profiles merge.
+ * This surface captures anonymous auth-UI milestones such as form completion,
+ * sign-in attempts, email verification, and password recovery. Canonical
+ * registration facts come from the server as identified `signup_completed`
+ * events; the auth SPA intentionally uses `signup_form_completed` so an event
+ * emitted before {@link identifyAuthUser} cannot double-count a new user.
  *
  * Unlike the stage apps there is no in-app analytics consent toggle here
  * (the user isn't signed in yet, so there's no settings store to read).
@@ -43,9 +42,9 @@ export function initAuthAnalytics(): boolean {
     return true
 
   posthog.init(POSTHOG_PROJECT_KEY, { ...DEFAULT_POSTHOG_CONFIG })
-  // Same single-project setup as the stage apps: the `surface` super
+  // Same single-project setup as the stage apps: the `app_surface` super
   // property is how auth traffic is told apart in shared dashboards.
-  posthog.register({ surface: 'auth' })
+  posthog.register({ app_surface: 'auth' })
   initialized = true
   return true
 }
@@ -81,9 +80,9 @@ function capture(event: string, properties: Record<string, unknown>, options?: C
   )
 }
 
-/** Activation funnel step 1 — the account now exists (email flow). */
-export function trackSignupCompleted(properties: { source: AuthMethod, requires_verification: boolean }): void {
-  capture('signup_completed', properties, { beforeNavigation: !properties.requires_verification })
+/** Anonymous email-signup UI milestone; the server owns the registration fact. */
+export function trackSignupFormCompleted(properties: { source: AuthMethod, requires_verification: boolean }): void {
+  capture('signup_form_completed', properties, { beforeNavigation: !properties.requires_verification })
 }
 
 /**

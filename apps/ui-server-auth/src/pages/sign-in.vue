@@ -12,7 +12,7 @@ import {
   trackLoginFailed,
   trackLoginStarted,
   trackLoginSucceeded,
-  trackSignupCompleted,
+  trackSignupFormCompleted,
 } from '../modules/analytics'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import {
@@ -247,7 +247,7 @@ async function handleEmailSignUp(event: Event) {
     })
 
     if (result.requiresVerification) {
-      trackSignupCompleted({ source: 'email', requires_verification: true })
+      trackSignupFormCompleted({ source: 'email', requires_verification: true })
       await router.push({
         path: '/verify-email',
         query: {
@@ -260,7 +260,7 @@ async function handleEmailSignUp(event: Event) {
 
     // Verification disabled at server config: session is live, fall through
     // to the OIDC continuation just like sign-in.
-    trackSignupCompleted({ source: 'email', requires_verification: false })
+    trackSignupFormCompleted({ source: 'email', requires_verification: false })
     window.location.href = effectiveCallbackURL.value
   }
   catch (error) {

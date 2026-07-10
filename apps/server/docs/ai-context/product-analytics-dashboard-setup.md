@@ -60,7 +60,7 @@ Steps:
 Breakdowns:
 
 - `provider_mode`
-- `surface`
+- `app_surface`
 
 Filters:
 
@@ -115,6 +115,26 @@ Watch for:
 - `failure_stage = provider_config`
 - `failure_stage = model_list`
 - `failure_stage = llm_response`
+
+### Insight 2a: All Message Round Failures
+
+Type: Trends
+
+Event:
+
+- `message_round_failed`
+
+Breakdowns:
+
+- `failure_stage`
+- `error_code`
+- `provider_id`
+- `app_surface`
+
+Watch for:
+
+- Failures where `turn_index > 1`, which are intentionally outside the activation-failure series.
+- Repeated failures for the same `conversation_id` with different `round_id` values.
 
 ### Insight 3: Provider Configuration Health
 
@@ -213,7 +233,7 @@ Breakdowns:
 
 - `stt_provider_id`
 - `error_code`
-- `surface`
+- `app_surface`
 
 ### Insight 7: Feedback And Bug Reports
 
@@ -229,7 +249,7 @@ Breakdowns:
 - `category`
 - `severity`
 - `entrypoint`
-- `surface`
+- `app_surface`
 
 Watch for:
 
