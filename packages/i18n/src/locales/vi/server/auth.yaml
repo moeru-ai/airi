@@ -1,6 +1,6 @@
 electronCallback:
   title:
-    loading: Completing sign-in
+    loading: Đang hoàn thành đăng nhập
     openingAiri: Đang mở AIRI
     signedIn: Bạn đã đăng nhập
     signInFailed: Đăng nhập thất bại
@@ -10,191 +10,191 @@ electronCallback:
     checkingResponse: Đang kiểm tra phản hồi đăng nhập của bạn và chuẩn bị chuyển giao cho AIRI.
     passingToAiri: Đang chuyển thông tin đăng nhập của bạn cho AIRI. Trang này sẽ tự động đóng trong giây lát.
     syncedAndSafeToClose: We notified AIRI client you signed from.
-    invalidResponse: We could not use this sign-in response.
-    loopbackUnreachable: The browser could not reach AIRI through the local callback port.
+    invalidResponse: Chúng tôi không thể dùng phản hồi đăng nhập này.
+    loopbackUnreachable: Trình duyệt không thể kết nối đến AIRI thông qua cổng callback cục bộ.
     tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
     automaticHandoffFailed: Automatic handoff did not finish in this browser session.
   label:
-    signIn: Sign in
-    safeToClose: It is safe to close this tab now.
-    whyStillHere: Why this tab still here?
+    signIn: Đăng nhập
+    safeToClose: Bạn có thể đóng tab này rồi đó.
+    whyStillHere: Tại sao tab này lại ở đây?
   action:
-    openAiriManually: Open AIRI manually
+    openAiriManually: Mở AIRI thủ công
   hint:
-    closeTabManually: Some browsers do not allow this page to close itself automatically. You can close it manually.
+    closeTabManually: Một số trình duyệt không cho phép trang này tự đóng. Bạn có thể đóng thủ công.
 signIn:
-  title: Sign in
+  title: Đăng nhập
   step:
     identify:
-      heading: Sign in
-      description: Enter your email to sign in or create an account.
+      heading: Đăng nhập
+      description: Nhập email của bạn để đăng nhập hoặc tạo tài khoản.
     password:
-      heading: Welcome back
-      description: Continue as {email}.
+      heading: Chào mừng trở lại
+      description: Tiếp tục với {email}.
     create:
-      heading: Create your account
-      description: We will create a new account for {email}.
+      heading: Tạo tài khoản
+      description: Chúng tôi sẽ tạo tài khoản mới cho {email}.
   email:
     label: Email
     placeholder: you{'@'}example.com
   password:
-    label: Password
-    placeholder: Your password
+    label: Mật khẩu
+    placeholder: Mật khẩu của bạn
   newPassword:
-    label: Create password
-    placeholder: At least 8 characters
+    label: Tạo mật khẩu
+    placeholder: Ít nhất 8 ký tự
   confirmPassword:
-    label: Confirm password
-    placeholder: Repeat your password
+    label: Xác nhận mật khẩu
+    placeholder: Lặp lại mật khẩu
   name:
-    label: Display name
-    placeholder: Optional, defaults to your email handle
+    label: Tên hiển thị
+    placeholder: Không bắt buộc, mặc định dùng tên trong địa chỉ email
   action:
-    continue: Continue
-    signIn: Sign in
-    createAccount: Create account
-    forgotPassword: Forgot password?
-    useDifferentEmail: Use a different email
+    continue: Tiếp tục
+    signIn: Đăng nhập
+    createAccount: Tạo tài khoản
+    forgotPassword: Quên mật khẩu?
+    useDifferentEmail: Sử dụng email khác
   divider:
-    or: or
+    or: hoặc
   error:
-    fallback: Sign in failed
-    unknown: An unknown error occurred
-    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
-    passwordMismatch: Password and confirmation do not match.
-    invalidEmail: Please enter a valid email address.
+    fallback: Đăng nhập thất bại
+    unknown: Lỗi không xác định đã xảy ra
+    socialOnlyNoPassword: Email này được đăng ký bằng Google hoặc Github. Đăng nhập với nút bên dưới; bạn có thể thêm mật khẩu trong cài đật tài khoản sau khi đăng nhập.
+    passwordMismatch: Mật khẩu không khớp.
+    invalidEmail: Hãy nhập địa chỉ email hợp lệ.
   footer:
-    prefix: By continuing, you agree to our
-    terms: Terms
-    and: and
-    privacy: Privacy Policy
+    prefix: Bằng việc tiếp tục, bạn đồng ý với
+    terms: Điều khoản
+    and: và
+    privacy: Chính sách quyền riêng tư
 verifyEmail:
   title:
-    pending: Check your inbox
-    success: Email verified
-    failed: Verification failed
+    pending: Kiểm tra hộp thư của bạn
+    success: Email đã xác thực
+    failed: Xác thực thất bại
   message:
-    pending: We sent a verification link to your email. Open it to finish creating your account — this page will continue automatically once you click the link.
-    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
-    success: Your email has been verified and you are signed in. You can close this tab.
-    failed: We could not verify your email ({error}). Try requesting a new link.
+    pending: Chúng tôi đã gửi link xác thực tới email của bạn. Mở hộp thư và hoàn thành việc tạo tài khoản - trang này sẽ tự động tiếp tục khi bạn nhấp vào link.
+    pendingWithAddress: Chúng tôi đã gửi link xác thực đến {email}. Mở nó để hoàn thành việc tạo tài khoản — trang này sẽ tự động tiếp tục khi bạn nhấp vào link.
+    success: Email của bạn đã được xác thực và bạn đã đăng nhập. Bạn có thể đóng tab này.
+    failed: Chúng tôi không thể xác thực email ({error}). Hãy thử yêu cầu một link mới.
   action:
-    backToSignIn: Back to sign in
+    backToSignIn: Trở lại đăng nhập
 forgotPassword:
-  title: Reset your password
-  description: Enter the email address associated with your account and we will send you a reset link.
+  title: Đặt lại mật khẩu
+  description: Hãy nhập địa chỉ email đã được liên kết với tài khoản của bạn và chúng tôi sẽ gửi bạn link để thiết lập lại.
   email:
     label: Email
     placeholder: you{'@'}example.com
   action:
-    send: Send reset link
-    backToSignIn: Back to sign in
+    send: Gửi link đặt lại
+    backToSignIn: Trở lại đăng nhập
   message:
-    sent: If {email} matches an account, a reset link is on the way.
+    sent: Nếu {email} khớp với một tài khoản, một link để đặt lại đang được gửi.
   error:
-    fallback: We could not send the reset email.
+    fallback: Chúng tôi không thể gửi email khôi phục.
 deleteAccount:
   title:
-    success: Account deleted
-    failed: Could not delete account
+    success: Tài khoản đã bị xóa
+    failed: Không thể xóa tài khoản
   message:
-    success: Your account has been deleted.
+    success: Tài khoản của bạn đã được xóa.
   action:
-    closeTab: You can close this tab.
+    closeTab: Bạn có thể đóng tab này.
 resetPassword:
   title:
-    default: Set a new password
-    success: Password updated
+    default: Đặt mật khẩu mới
+    success: Mật khẩu đã được cập nhật
   password:
-    label: New password
-    placeholder: At least 8 characters
+    label: Mật khẩu mới
+    placeholder: Ít nhất 8 ký tự
   confirmPassword:
-    label: Confirm new password
-    placeholder: Repeat your new password
+    label: Xác nhận mật khẩu mới
+    placeholder: Lặp lại mật khẩu mới
   action:
-    reset: Update password
-    goSignIn: Go to sign in
+    reset: Cập nhật mật khẩu
+    goSignIn: Đi tới đăng nhập
   message:
-    success: Your password has been updated. Sign in with your new password.
+    success: Mật khẩu của bạn đã được cập nhật. Đăng nhập bằng mật khẩu mới của bạn.
   error:
-    fallback: We could not update your password.
-    missingToken: Reset link is invalid or has expired.
-    passwordMismatch: Password and confirmation do not match.
+    fallback: Chúng tôi không thể cập nhật mật khẩu của bạn.
+    missingToken: Link đặt lại không hợp lệ hoặc đã hết hạn.
+    passwordMismatch: Mật khẩu không khớp.
 profile:
-  title: Account profile
-  description: Manage your avatar, display name, and connected accounts.
+  title: Hồ sơ tài khoản
+  description: Quản lý ảnh đại diện, tên hiển thị và các tài khoản được liên kết.
   section:
-    profile: Profile
-    avatar: Avatar
-    password: Password
-    linkedAccounts: Connected accounts
+    profile: Hồ sơ
+    avatar: Ảnh đại diện
+    password: Mật khẩu
+    linkedAccounts: Các tài khoản đã được liên kết
   field:
     email: Email
-    emailVerified: Email status
-    createdAt: Joined
+    emailVerified: Trạng thái email
+    createdAt: Đã tham gia
   label:
-    verified: Verified
-    unverified: Unverified
+    verified: Đã xác thực
+    unverified: Chưa xác thực
   name:
-    label: Display name
-    placeholder: How others see you
+    label: Tên hiển thị
+    placeholder: Cách người khác thấy bạn
   avatar:
-    altText: Profile avatar
-    gravatarNotice: Avatar from Gravatar.
-    gravatarLink: Manage on gravatar.com
+    altText: Ảnh đại diện hồ sơ
+    gravatarNotice: Ảnh đại diện từ Gravatar.
+    gravatarLink: Quản lý trên gravatar.com
   password:
-    currentLabel: Current password
-    currentPlaceholder: Enter your current password
-    newLabel: New password
-    newPlaceholder: At least 8 characters
-    confirmLabel: Confirm new password
-    confirmPlaceholder: Repeat your new password
-    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
-    setLinkSent: Check {email} for the link to set your password.
-    setLinkFailed: We could not send the password setup link.
+    currentLabel: Mật khẩu hiện tại
+    currentPlaceholder: Nhập mật khẩu hiện tại
+    newLabel: Mật khẩu mới
+    newPlaceholder: Ít nhất 8 ký tự
+    confirmLabel: Xác nhận mật khẩu mới
+    confirmPlaceholder: Lặp lại mật khẩu mới của bạn
+    setDescription: Bạn đăng nhập thông qua nhà cung cấp tài khoản mạng xã hội, vì vậy hiện tại chưa có mật khẩu. Chúng tôi sẽ gửi email liên kết bảo mật để giúp bạn đặt mật khẩu.
+    setLinkSent: Kiểm tra {email} để thấy link đặt mật khẩu.
+    setLinkFailed: Chúng tôi không thể gửi link thiết lập mật khẩu.
   linkedAccounts:
-    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    description: Đăng nhập AIRI thông qua các nhà cung cấp này. Hủy liên kết để thu hồi quyền truy cập, sau đó liên kết lại một lần nữa để chuyển sang tài khoản khác.
     status:
-      linked: Linked
-      notLinked: Not linked
-      linkedSince: Linked on {date}
+      linked: Đã liên kết
+      notLinked: Chưa được liên kết
+      linkedSince: Đã liên kết vào {date}
     action:
-      link: Link
-      unlink: Unlink
+      link: Liên kết
+      unlink: Hủy liên kết
     message:
-      loading: Loading connected accounts...
-      unlinked: '{provider} disconnected.'
-      linkStarted: Redirecting to {provider}…
+      loading: Đang tải các tài khoản đã được liên kết...
+      unlinked: '{provider} đã ngắt kết nối.'
+      linkStarted: Đang chuyển hướng đến {provider}…
     error:
-      listFailed: Could not load connected accounts.
-      unlinkFailed: Could not unlink this account.
-      linkFailed: Could not start the link flow.
-      lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+      listFailed: Không thể tải các tài khoản đã liên kết.
+      unlinkFailed: Không thể hủy liên kết tài khoản này.
+      linkFailed: Không thể khởi động liên kết luồng (link flow).
+      lastAccount: Đây là phương thức đăng nhập duy nhất của bạn. Đặt mật khẩu trước khi hủy liên kết.
   action:
-    saveProfile: Save changes
-    changePassword: Change password
-    sendSetPasswordLink: Email me a link to set my password
-    signOut: Sign out
+    saveProfile: Lưu thay đổi
+    changePassword: Thay đổi mật khẩu
+    sendSetPasswordLink: Gửi link thiết lập mật khẩu đến email của tôi
+    signOut: Đăng xuất
   message:
-    loading: Loading your profile...
-    profileSaved: Profile updated.
-    passwordChanged: Password changed. Other sessions have been signed out.
+    loading: Đang tải hồ sơ của bạn...
+    profileSaved: Hồ sơ đã được cập nhật.
+    passwordChanged: Mật khẩu đã được thay đổi. Các phiên khác đã được đăng xuất.
   error:
-    loadFailed: We could not load your profile.
-    saveFailed: We could not save your changes.
-    changePasswordFailed: We could not change your password.
-    signOutFailed: We could not sign you out.
-    passwordMismatch: New password and confirmation do not match.
-    passwordSameAsCurrent: New password must differ from the current one.
+    loadFailed: Chúng tôi không thể tải hồ sơ của bạn.
+    saveFailed: Chúng tôi không thể lưu các thay đổi của bạn.
+    changePasswordFailed: Chúng tôi không thể thay đổi mật khẩu của bạn.
+    signOutFailed: Chúng tôi không thể đăng xuất tài khoản của bạn.
+    passwordMismatch: Mật khẩu không khớp.
+    passwordSameAsCurrent: Mật khẩu mới phải khác mật khẩu hiện tại.
 webCallback:
   title:
-    signIn: Sign in
-    errorLabel: We encountered an error while signing you in
-    loading: Signing in...
+    signIn: Đăng nhập
+    errorLabel: Đã xảy ra lỗi trong khi đăng nhập
+    loading: Đang đăng nhập...
   message:
-    missingCodeOrState: Missing authorization code or state
-    missingFlowState: Missing OIDC flow state - please try logging in again
-    tokenExchangeFailed: Token exchange failed
-    finalizing: Finalizing authentication with AIRI.
+    missingCodeOrState: Thiếu mã ủy quyền hoặc giá trị trạng thái
+    missingFlowState: Thiếu giá trị trạng thái của luồng OIDC - hãy thử đăng nhập lại
+    tokenExchangeFailed: Trao đổi token thất bại
+    finalizing: Đang hoàn tất quá trình xác thực với AIRI.
   action:
-    tryAgain: Try again
+    tryAgain: Thử lại
