@@ -9,6 +9,14 @@ import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import {
+  identifyAuthUser,
+  trackOauthProviderLinkStarted,
+  trackOauthProviderUnlinked,
+  trackPasswordChanged,
+  trackPasswordResetRequested,
+  trackSignedOut,
+} from '../modules/analytics'
 import { getAuthClient } from '../modules/auth-client'
 import { requestPasswordReset } from '../modules/email-password'
 import {
@@ -98,6 +106,8 @@ const {
     unlinked: provider => t('server.auth.profile.linkedAccounts.message.unlinked', { provider }),
     linkStarted: provider => t('server.auth.profile.linkedAccounts.message.linkStarted', { provider }),
   },
+  onUnlinked: providerId => trackOauthProviderUnlinked({ provider: providerId }),
+  onLinkStarted: providerId => trackOauthProviderLinkStarted({ provider: providerId }),
 })
 
 const nameDirty = computed(() => {
@@ -138,6 +148,9 @@ onMounted(async () => {
     // call needed here.
     user.value = result.user
     profileForm.name = result.user.name
+    // Merge this browser's anonymous funnel events (sign-in page views,
+    // login_started, …) into the Better Auth user person.
+    identifyAuthUser(result.user.id)
   }
   catch (error) {
     profileError.value = describeProfileError(error) || t('server.auth.profile.error.loadFailed')
@@ -200,6 +213,7 @@ async function handleChangePassword(event: Event) {
     passwordForm.next = ''
     passwordForm.confirm = ''
     passwordSuccess.value = t('server.auth.profile.message.passwordChanged')
+    trackPasswordChanged()
   }
   catch (error) {
     passwordError.value = describeProfileError(error) || t('server.auth.profile.error.changePasswordFailed')
@@ -237,6 +251,7 @@ async function handleSendSetPasswordLink() {
       redirectTo: new URL('/auth/reset-password', apiServerUrl).toString(),
     })
     setPasswordSuccess.value = t('server.auth.profile.password.setLinkSent', { email: user.value.email })
+    trackPasswordResetRequested()
   }
   catch (error) {
     setPasswordError.value = describeProfileError(error)
@@ -256,6 +271,7 @@ async function handleSignOut() {
 
   try {
     await signOut({ apiServerUrl })
+    trackSignedOut()
     await router.replace('/sign-in')
   }
   catch (error) {

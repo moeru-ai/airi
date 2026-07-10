@@ -390,8 +390,14 @@ pages:
     systemprompt: Lời nhắc hệ thống
     title: Thẻ AIRI
     try_different_search: Hãy thử từ khóa khác
+    export: Xuất
+    exported: Đã xuất gói thẻ
+    export_failed: Không thể xuất gói thẻ
+    imported: Đã nhập gói thẻ
+    import_missing_file: Gói thẻ thiếu tệp bắt buộc
+    import_invalid_file: Tệp gói thẻ không hợp lệ
     upload: Tải lên
-    upload_desc: Bấm hoặc kéo thả tệp để tải lên
+    upload_desc: Bấm hoặc kéo thả gói thẻ AIRI để nhập
   memory:
     description: Nơi lưu trữ và tổ chức ký ức
     title: Bộ nhớ

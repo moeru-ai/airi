@@ -14,6 +14,7 @@ import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { initAuthAnalytics } from './modules/analytics'
 import { AUTH_UI_ROUTER_BASE_PATH } from './modules/auth-ui-base'
 import { i18n } from './modules/i18n'
 
@@ -22,6 +23,8 @@ import '@unocss/reset/tailwind.css'
 import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
+
+initAuthAnalytics()
 
 const pinia = createPinia()
 

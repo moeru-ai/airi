@@ -873,6 +873,9 @@ catalogs:
     posthog-js:
       specifier: 1.306.1
       version: 1.306.1
+    posthog-node:
+      specifier: ^5.39.4
+      version: 5.39.4
     postprocessing:
       specifier: ^6.39.1
       version: 6.39.1
@@ -1523,6 +1526,9 @@ importers:
       pg:
         specifier: 'catalog:'
         version: 8.20.0
+      posthog-node:
+        specifier: 'catalog:'
+        version: 5.39.4(rxjs@7.8.2)
       resend:
         specifier: 'catalog:'
         version: 6.12.2
@@ -4181,6 +4187,9 @@ importers:
       idb-keyval:
         specifier: 'catalog:'
         version: 6.2.2
+      jszip:
+        specifier: 'catalog:'
+        version: 3.10.1
       kokoro-js:
         specifier: 'catalog:'
         version: 1.2.1
@@ -9543,8 +9552,14 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
+  '@posthog/core@1.39.6':
+    resolution: {integrity: sha512-o6ajIwN5zXoNP0D4H/QPmOyibNTUkSyOR6ya7AG5U2ywXx4awo72L2KnCoiZPQM5x/bXv6jPBdimH8M18Ax0aw==}
+
   '@posthog/core@1.7.1':
     resolution: {integrity: sha512-kjK0eFMIpKo9GXIbts8VtAknsoZ18oZorANdtuTj1CbgS28t4ZVq//HAWhnxEuXRTrtkd+SUJ6Ux3j2Af8NCuA==}
+
+  '@posthog/types@1.392.1':
+    resolution: {integrity: sha512-Qg6Gl7/1vlr8+gPtBi5gwnLgAgiyFoKOVmTvTtDcvya9cpTwZfna7rQmkGQ4B63CunUYNNbOlqcwiUwUDyTK6w==}
 
   '@prisma/client@5.22.0':
     resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
@@ -16523,6 +16538,15 @@ packages:
 
   posthog-js@1.306.1:
     resolution: {integrity: sha512-wO7bliv/5tlAlfoKCUzwkGXZVNexk0dHigMf9tNp0q1rzs62wThogREY7Tz7h/iWKYiuXy1RumtVlTmHuBXa1w==}
+
+  posthog-node@5.39.4:
+    resolution: {integrity: sha512-+fCQ7htBFRQQFbIzl1T0TA7bDwYyaB9XP308ZFMCUoB5LzTzOFxBa6TYVrxdH/VQl43WXTp6sf0QsG2Z4XlNBg==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
 
   postject@1.0.0-alpha.6:
     resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
@@ -23597,9 +23621,15 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
+  '@posthog/core@1.39.6':
+    dependencies:
+      '@posthog/types': 1.392.1
+
   '@posthog/core@1.7.1':
     dependencies:
       cross-spawn: 7.0.6
+
+  '@posthog/types@1.392.1': {}
 
   '@prisma/client@5.22.0': {}
 
@@ -31702,6 +31732,12 @@ snapshots:
       fflate: 0.4.8
       preact: 10.28.1
       web-vitals: 4.2.4
+
+  posthog-node@5.39.4(rxjs@7.8.2):
+    dependencies:
+      '@posthog/core': 1.39.6
+    optionalDependencies:
+      rxjs: 7.8.2
 
   postject@1.0.0-alpha.6:
     dependencies:
