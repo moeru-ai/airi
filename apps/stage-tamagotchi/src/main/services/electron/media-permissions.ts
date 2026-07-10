@@ -1,5 +1,7 @@
 import type { Session, WebContents } from 'electron'
 
+import { isLocalAppURL } from '../../libs/electron/url'
+
 type PermissionCheckHandler = Exclude<Parameters<Session['setPermissionCheckHandler']>[0], null>
 type PermissionRequestHandler = Exclude<Parameters<Session['setPermissionRequestHandler']>[0], null>
 type ElectronPermission = Parameters<PermissionCheckHandler>[1] | Parameters<PermissionRequestHandler>[1]
@@ -10,30 +12,6 @@ const LOCAL_APP_PERMISSION_NAMES = new Set<ElectronPermission>([
   'display-capture',
   'clipboard-sanitized-write',
 ])
-
-/**
- * Checks whether a permission identity belongs to an AIRI-owned local page.
- */
-function isLocalAppURL(rawURL: string | undefined): boolean {
-  if (!rawURL)
-    return false
-
-  try {
-    const url = new URL(rawURL)
-    if (url.protocol === 'file:')
-      return true
-
-    if (url.protocol !== 'http:' && url.protocol !== 'https:')
-      return false
-
-    return url.hostname === 'localhost'
-      || url.hostname === '127.0.0.1'
-      || url.hostname === '[::1]'
-  }
-  catch {
-    return false
-  }
-}
 
 /**
  * Filters out Chromium's opaque origin marker before evaluating explicit frame URLs.
