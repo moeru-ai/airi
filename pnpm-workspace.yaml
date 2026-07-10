@@ -33,7 +33,7 @@ patchedDependencies:
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@antfu/eslint-config': ^8.2.0
-  '@anthropic-ai/claude-code': ^2.1.114
+  '@anthropic-ai/claude-code': ^2.1.204
   '@arethetypeswrong/core': ^0.18.2
   '@ax-llm/ax': ^19.0.43
   '@better-auth/cli': ^1.4.21
