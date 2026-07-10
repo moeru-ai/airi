@@ -1,6 +1,6 @@
 import type { MediaAccessPermissionRequest, PermissionCheckHandlerHandlerDetails, WebContents } from 'electron'
 
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
 
@@ -34,6 +34,14 @@ function createPermissionCheckDetails(overrides: Partial<PermissionCheckHandlerH
  * shouldGrantElectronPermission(localWebContents, 'media', origin, details)
  */
 describe('media permissions', () => {
+  beforeEach(() => {
+    vi.stubEnv('ELECTRON_RENDERER_URL', 'http://localhost:5173')
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   /** @example Local packaged pages may request audio-only media. */
   it('grants local audio media permission requests', () => {
     expect(shouldGrantAudioCapturePermission(
@@ -130,6 +138,39 @@ describe('media permissions', () => {
         securityOrigin: 'http://localhost:5173',
       }),
     )).toBe(true)
+  })
+
+  /** @example Extension assets served from AIRI's loopback server remain untrusted. */
+  it('rejects plugin asset frames served from a loopback origin', () => {
+    // ROOT CAUSE:
+    //
+    // Treating every loopback HTTP origin as AIRI-owned also trusts extension UI frames.
+    // Those frames use the same loopback transport but do not share the renderer origin.
+    // We fixed this by matching HTTP origins against ELECTRON_RENDERER_URL exactly.
+    expect(shouldGrantAudioCapturePermission(
+      null,
+      'media',
+      'http://127.0.0.1:48123',
+      createPermissionCheckDetails({
+        mediaType: 'audio',
+        requestingUrl: 'http://127.0.0.1:48123/_airi/extensions/example/sessions/session/ui/index.html',
+        securityOrigin: 'http://127.0.0.1:48123',
+      }),
+    )).toBe(false)
+  })
+
+  /** @example A plugin development server cannot inherit AIRI renderer permissions. */
+  it('rejects plugin frames served from another localhost port', () => {
+    expect(shouldGrantAudioCapturePermission(
+      null,
+      'media',
+      'http://localhost:4173',
+      createPermissionCheckDetails({
+        mediaType: 'audio',
+        requestingUrl: 'http://localhost:4173/index.html',
+        securityOrigin: 'http://localhost:4173',
+      }),
+    )).toBe(false)
   })
 
   /** @example Chromium's opaque origin does not override an explicit packaged file URL. */

@@ -1,3 +1,5 @@
+import { env } from 'node:process'
+
 /**
  * Checks whether a URL belongs to an AIRI-owned local renderer page.
  *
@@ -7,10 +9,10 @@
  *
  * Expects:
  * - Packaged pages use file URLs
- * - Development pages use loopback HTTP or HTTPS URLs
+ * - Development pages share the exact origin configured by Electron Vite
  *
  * Returns:
- * - Whether the URL uses the packaged file scheme or an explicit loopback hostname
+ * - Whether the URL uses the packaged file scheme or the configured renderer origin
  */
 export function isLocalAppURL(rawURL: string | undefined): boolean {
   if (!rawURL)
@@ -21,12 +23,11 @@ export function isLocalAppURL(rawURL: string | undefined): boolean {
     if (url.protocol === 'file:')
       return true
 
-    if (url.protocol !== 'http:' && url.protocol !== 'https:')
+    if ((url.protocol !== 'http:' && url.protocol !== 'https:') || !env.ELECTRON_RENDERER_URL)
       return false
 
-    return url.hostname === 'localhost'
-      || url.hostname === '127.0.0.1'
-      || url.hostname === '[::1]'
+    const rendererURL = new URL(env.ELECTRON_RENDERER_URL)
+    return url.origin === rendererURL.origin
   }
   catch {
     return false
