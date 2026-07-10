@@ -11048,6 +11048,7 @@ packages:
 
   '@velin-dev/core@0.4.0':
     resolution: {integrity: sha512-yhIH6x9CCkXGYuCuoARn2dhYRKVBQaRK81ws88HUm71jpd2S/rd1z53NWtGr4+VQukhdzwKMQfkLjQh13svrMQ==}
+    deprecated: 'BREAKING: @velin-dev/core has been renamed to @velin-dev/core-vue. Please migrate imports from @velin-dev/core and @velin-dev/core/* to @velin-dev/core-vue and @velin-dev/core-vue/*.'
 
   '@velin-dev/utils@0.4.0':
     resolution: {integrity: sha512-QWUpeVIV+FQLTnSpeZObJVBCJVR2ObriOLVy7c10bw1mngmp+oTMm6kQndZCbMGNSSS8yk0NXiCUwhJ4GmZSKg==}
