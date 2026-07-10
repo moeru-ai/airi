@@ -68,7 +68,7 @@ describe('store settings-audio-devices', () => {
     storageMock.values.clear()
     audioDeviceMock.audioInputs.value = []
     audioDeviceMock.selectedAudioInput.value = ''
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   afterEach(() => {
@@ -100,19 +100,15 @@ describe('store settings-audio-devices', () => {
     expect(storageMock.values.get('settings/audio/input')).toBe('microphone-1')
   })
 
-  it('ignores stale microphone startup failures after a newer start succeeds', async () => {
+  /** @example A rapid off/on toggle keeps using the pending browser microphone request. */
+  it('reuses a pending microphone start after disable and re-enable', async () => {
     const { useSettingsAudioDevice } = await import('./audio-device')
     const store = useSettingsAudioDevice()
 
-    let rejectFirstStart!: (error: unknown) => void
-    let resolveSecondStart!: () => void
-    audioDeviceMock.startStream
-      .mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
-        rejectFirstStart = reject
-      }))
-      .mockImplementationOnce(() => new Promise<void>((resolve) => {
-        resolveSecondStart = resolve
-      }))
+    let resolveStart!: () => void
+    audioDeviceMock.startStream.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveStart = resolve
+    }))
 
     store.enabled = true
     await nextTick()
@@ -123,14 +119,49 @@ describe('store settings-audio-devices', () => {
     store.enabled = true
     await nextTick()
 
-    resolveSecondStart()
-    await Promise.resolve()
+    /** @example Rapid toggles do not allocate another stream while the first request is pending. */
+    expect(audioDeviceMock.startStream).toHaveBeenCalledTimes(1)
 
-    rejectFirstStart(new Error('old startup failed'))
+    resolveStart()
     await Promise.resolve()
     await nextTick()
 
+    /** @example The re-enabled microphone remains active after the shared request succeeds. */
     expect(store.enabled).toBe(true)
+    /** @example Disabling still stops the previously requested stream once. */
     expect(audioDeviceMock.stopStream).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * @example
+   * Concurrent page and store consumers share one pending browser microphone request.
+   */
+  // https://github.com/moeru-ai/airi/pull/2004#discussion_r3560276717
+  it('reuses an in-flight microphone start for PR #2004', async () => {
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+
+    let resolveStart!: () => void
+    const pendingStart = new Promise<void>((resolve) => {
+      resolveStart = resolve
+    })
+    audioDeviceMock.startStream.mockReturnValue(pendingStart)
+
+    const firstStart = store.startStream()
+    const secondStart = store.startStream()
+
+    // ROOT CAUSE:
+    //
+    // The store previously forwarded every caller to VueUse while stream.value was still empty.
+    // VueUse only guards completed streams, so concurrent calls created separate getUserMedia requests.
+    // We fixed this by sharing the pending store-owned startup promise until it settles.
+    /** @example Only one getUserMedia-backed operation starts while it remains pending. */
+    expect(audioDeviceMock.startStream).toHaveBeenCalledTimes(1)
+
+    resolveStart()
+    await Promise.all([firstStart, secondStart])
+
+    /** @example Both callers complete through the same underlying startup. */
+    expect(audioDeviceMock.startStream).toHaveBeenCalledTimes(1)
   })
 })
