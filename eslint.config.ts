@@ -25,6 +25,7 @@ export default defineConfig({
     'apps/stage-pocket/android/**',
     '**/drizzle/**',
     '**/.astro/**',
+    'docs/superpowers/**',
     '.agents/**',
     '.github/**',
     'CLAUDE.md', // Skip the symbolic link

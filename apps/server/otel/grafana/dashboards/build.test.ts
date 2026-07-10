@@ -58,14 +58,12 @@ describe('grafana dashboard builder', () => {
    * @example
    * expect(panelTitle('panel-99')).toBe('TTS Success %')
    */
-  it('keeps the product analytics row focused on server-side TTS health', () => {
+  it('keeps the product analytics row focused on Prometheus-safe engagement signals', () => {
     expect(panelTitle('panel-95')).toBe('Product Events (range)')
     expect(panelTitle('panel-96')).toBe('Product Failure %')
-    expect(panelTitle('panel-99')).toBe('TTS Success %')
-    expect(panelTitle('panel-100')).toBe('TTS Failed / Blocked (range)')
-    expect(panelTitle('panel-101')).toBe('TTS Event Rate by Source')
-    expect(panelTitle('panel-102')).toBe('TTS Blocked by Reason')
-    expect(panelTitle('panel-103')).toBe('TTS Blocked by Flux Bucket')
+    expect(panelTitle('panel-97')).toBe('Top Product Actions (range)')
+    expect(panelTitle('panel-98')).toBe('Product Event Rate')
+    expect(panelTitle('panel-99')).toBe('日活')
   })
 
   /**
@@ -80,10 +78,6 @@ describe('grafana dashboard builder', () => {
       dashboard.elements['panel-97'],
       dashboard.elements['panel-98'],
       dashboard.elements['panel-99'],
-      dashboard.elements['panel-100'],
-      dashboard.elements['panel-101'],
-      dashboard.elements['panel-102'],
-      dashboard.elements['panel-103'],
     ]).join('\n')
 
     expect(productPanelExpressions).not.toContain('voice_id')

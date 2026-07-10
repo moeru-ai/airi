@@ -75,6 +75,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
+import { createPosthogSink } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
 import { createAdminUsersService } from './services/domain/admin/users'
@@ -593,9 +594,27 @@ export async function createApp() {
     }, undefined, dependsOn.otel?.email),
   })
 
+  const posthogSink = injeca.provide('services:posthogSink', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
+    // branch is only reachable via the documented off-switch: setting the
+    // env var to an empty string (valibot defaults don't apply to '').
+    build: ({ dependsOn }) => {
+      if (!dependsOn.env.POSTHOG_PROJECT_KEY)
+        return null
+
+      const sink = createPosthogSink({
+        projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
+        host: dependsOn.env.POSTHOG_API_HOST,
+      })
+      dependsOn.lifecycle.appHooks.onStop(() => sink.shutdown())
+      return sink
+    },
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { db, otel },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product),
+    dependsOn: { db, otel, posthogSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product, dependsOn.posthogSink),
   })
 
   const characterService = injeca.provide('services:characters', {

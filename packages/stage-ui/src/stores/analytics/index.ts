@@ -59,7 +59,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         previous_value: previousEnabled,
         new_value: enabled,
         source: 'settings',
-        surface: analyticsSurface(),
+        app_surface: analyticsSurface(),
       })
     }
 
@@ -71,7 +71,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
           previous_value: previousEnabled,
           new_value: enabled,
           source: 'settings',
-          surface: analyticsSurface(),
+          app_surface: analyticsSurface(),
         })
       }
 
@@ -189,7 +189,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
             from_provider_type: providerMode(prev.provider),
             to_provider_type: providerMode(next.provider),
             reason: 'manual',
-            surface: analyticsSurface(),
+            app_surface: analyticsSurface(),
           })
         }
 
@@ -204,7 +204,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
             to_model: next.model,
             provider: next.provider,
             reason: 'manual',
-            surface: analyticsSurface(),
+            app_surface: analyticsSurface(),
           })
         }
       },

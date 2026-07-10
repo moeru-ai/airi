@@ -390,8 +390,14 @@ pages:
     systemprompt: システムプロンプト
     title: AIRIカード
     try_different_search: 別の検索ワードを試してください
+    export: エクスポート
+    exported: カードパッケージをエクスポートしました
+    export_failed: カードパッケージのエクスポートに失敗しました
+    imported: カードパッケージをインポートしました
+    import_missing_file: カードパッケージに必要なファイルがありません
+    import_invalid_file: カードパッケージファイルが正しくありません
     upload: アップロード
-    upload_desc: ファイルをアップロードするにはクリックまたはドラッグ
+    upload_desc: AIRI カードパッケージをクリックまたはドラッグしてインポート
   memory:
     description: 記憶が保存され、整理される場所
     title: 記憶

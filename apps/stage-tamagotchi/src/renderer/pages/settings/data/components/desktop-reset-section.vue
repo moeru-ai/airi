@@ -2,18 +2,21 @@
 import type { DataSettingsStatusEmits } from '@proj-airi/stage-pages/pages/settings/data/status'
 
 import { createDataSettingsStatusHelpers } from '@proj-airi/stage-pages/pages/settings/data/status'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
 import { DoubleCheckButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
+const { trackDataAction } = useAnalytics()
 const { resetDesktopApplicationState } = useDataMaintenance()
 const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
 
 async function resetDesktopState() {
   try {
     await resetDesktopApplicationState()
+    trackDataAction({ action: 'desktop_state_reset' })
     emitStatus(t('settings.pages.data.status.desktop_reset'))
   }
   catch (error) {

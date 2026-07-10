@@ -2,7 +2,7 @@
 
 Status: **code-level instrumentation verified; live PostHog dashboard updated; Grafana dashboard updated; alert setup pending**
 Owner: Community / Product Analytics
-Last updated: 2026-07-01
+Last updated: 2026-07-10
 Related:
 - [`product-analytics-instrumentation.md`](../product-analytics-instrumentation.md)
 - [`product-analytics-dashboard-setup.md`](../product-analytics-dashboard-setup.md)
@@ -20,6 +20,7 @@ Related:
 |---|---|
 | Frontend analytics API | `packages/stage-ui/src/composables/use-analytics.test.ts` 覆盖 activation、model list、provider config、voice selection、voice input、feedback event API |
 | Chat activation hooks | `packages/core-agent/src/runtime/chat-orchestrator-runtime.test.ts` 覆盖 activation started / succeeded / failed hook |
+| Chat round failures | core runtime 与 stage contract tests 覆盖激活前和激活后的 `message_round_failed`，并验证 `conversation_id` / `round_id` / `turn_index` |
 | Voice input failures | `packages/stage-ui/src/composables/audio/audio-device.test.ts` 与 `packages/stage-ui/src/stores/modules/hearing.analytics.test.ts` 覆盖 permission / device / cancel / STT failed |
 | Server TTS metadata | `apps/server/src/routes/openai/v1/route.test.ts` 与 `apps/server/src/routes/audio-speech-ws/route.test.ts` 覆盖 REST / WS TTS `voice_id`、`voice_type`、`voice_pack_id` metadata |
 | Grafana product row | `apps/server/otel/grafana/dashboards/build.test.ts` 覆盖 Product Analytics panels、layout references、PromQL 不包含 high-cardinality voice / user fields |
@@ -51,8 +52,10 @@ Required properties:
 provider_mode = official
 provider_id = <official provider id>
 model_id = <selected model id>
-surface = web | mobile | electron
-turn_index = 2
+app_surface = web | mobile | electron
+conversation_id = <same application session id across the chat chain>
+round_id = <same id across one message round; different between the first and second round>
+turn_index = 1 for the first round; 2 for second_turn_started and the second round
 ```
 
 Fail if:
@@ -60,9 +63,52 @@ Fail if:
 - `chat_activation_started` appears but `chat_activation_succeeded` never appears for a successful chat.
 - The second message is sent but `second_turn_started` does not appear.
 - `provider_mode` is missing or always `unknown`.
-- `surface` is missing.
+- `app_surface` is missing.
+- Any chat-chain event is missing `conversation_id`, `round_id`, or `turn_index`.
+- Events from one round disagree on `round_id`, or two different rounds reuse the same `round_id`.
 
-### 1b. PostHog: official provider selection
+### 1a. PostHog: message round failure
+
+Action:
+
+1. Complete a successful first chat round.
+2. Force the second round to fail before the assistant response completes.
+
+Expected PostHog events:
+
+```text
+message_round_failed
+```
+
+Required properties:
+
+```text
+conversation_id = <same application session id as the successful first round>
+round_id = <the failed round's user message id>
+turn_index = 2
+provider_id = <active provider id>
+model_id = <selected model id>
+failure_stage = llm_response
+error_code = llm_response_failed
+app_surface = web | mobile | electron
+```
+
+Fail if:
+
+- The failed second round has no `message_round_failed` event.
+- The failed round emits `message_round`, `chat_failed`, or `assistant_response_completed` as an alias.
+- A new `chat_activation_failed` appears after the conversation already completed its first assistant response.
+- Correlation keys disagree with the failed round's preceding message / LLM events.
+
+### 1b. Signup identity ownership
+
+1. Complete an email signup in the auth SPA.
+2. Confirm the auth SPA emits `signup_form_completed` with `app_surface = auth`.
+3. Confirm the Better Auth user-create hook emits exactly one `signup_completed` with `app_surface = server` and the Better Auth user id as `distinctId`.
+
+Fail if the auth SPA emits `signup_completed`, or if the server event lands on a different PostHog person from later identified onboarding events.
+
+### 1c. PostHog: official provider selection
 
 Action:
 
@@ -219,7 +265,7 @@ paywall_seen
 Required properties:
 
 ```text
-surface = settings_flux
+entry_surface = settings_flux
 reason = manual_topup
 flux_balance_bucket = zero | 1_100 | 101_1000 | 1001_10000 | 10000_plus | unknown
 ```

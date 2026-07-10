@@ -12,25 +12,22 @@ function isEnvFlagEnabled(value: string | undefined): boolean {
 // For Release workflows set `VITE_ENABLE_POSTHOG=true`.
 export const POSTHOG_ENABLED = isEnvFlagEnabled(import.meta.env.VITE_ENABLE_POSTHOG)
 
-export const POSTHOG_PROJECT_KEY_WEB
-  = import.meta.env.VITE_POSTHOG_PROJECT_KEY_WEB
-    ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
-
-export const POSTHOG_PROJECT_KEY_DESKTOP
-  = import.meta.env.VITE_POSTHOG_PROJECT_KEY_DESKTOP
-    ?? 'phc_rljw376z5gt6vXJlc3sTr7hFbXodciY9THEQXIRnW53'// cspell:disable-line
-
-// FIXME: Using the same key for 'web' for now.
-export const POSTHOG_PROJECT_KEY_POCKET
-  = import.meta.env.VITE_POSTHOG_PROJECT_KEY_POCKET
-    ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
-
-// FIXME: Using the same key for 'web' for now.
-export const POSTHOG_PROJECT_KEY_DOCS
-  = import.meta.env.VITE_POSTHOG_PROJECT_KEY_DOCS
+// Single PostHog project for every AIRI surface (web / desktop / mobile).
+// Platforms are told apart by the `app_surface` super property set at init, not
+// by routing to separate per-platform projects.
+export const POSTHOG_PROJECT_KEY
+  = import.meta.env.VITE_POSTHOG_PROJECT_KEY
     ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
 
 export const DEFAULT_POSTHOG_CONFIG = {
   api_host: 'https://us.i.posthog.com',
   person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
+  // Without this, posthog-js only fires `$pageview` on the initial page load.
+  // Every AIRI surface is an SPA (vue-router / VitePress client routing), so
+  // route changes would be invisible in PostHog. The '2025-05-24' defaults
+  // preset switches `capture_pageview` to 'history_change' — and because
+  // `capture_pageleave` defaults to 'if_capture_pageview', every surface
+  // that spreads this config also starts emitting `$pageleave`. That is
+  // intentional: pageleave is what makes route-level dwell time queryable.
+  defaults: '2025-05-24',
 } as const satisfies Partial<PostHogConfig>

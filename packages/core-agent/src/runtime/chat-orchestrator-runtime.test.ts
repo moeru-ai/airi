@@ -43,6 +43,7 @@ function createHarness() {
     llmFirstToken: [] as unknown[],
     assistantResponseRendered: [] as unknown[],
     messageRound: [] as unknown[],
+    messageRoundFailed: [] as unknown[],
   }
   const stream = vi.fn(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options?: {
     onStreamEvent?: (event: StreamEvent) => Promise<void> | void
@@ -100,6 +101,7 @@ function createHarness() {
     onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
     onAssistantResponseRendered: event => telemetry.assistantResponseRendered.push(event),
     onMessageRound: event => telemetry.messageRound.push(event),
+    onMessageRoundFailed: event => telemetry.messageRoundFailed.push(event),
   })
 
   return {
@@ -308,40 +310,84 @@ describe('createChatOrchestratorRuntime', () => {
     })
 
     expect(harness.telemetry.messageSendStarted).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
       source: 'voice',
       model: 'gpt-test',
+      turnIndex: 1,
     }])
     expect(harness.telemetry.llmRequestStarted).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
       model: 'gpt-test',
       provider: 'mock-provider',
       hasVoice: true,
+      turnIndex: 1,
     }])
     expect(harness.telemetry.llmFirstToken).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
       model: 'gpt-test',
       ttfbMs: 100,
+      turnIndex: 1,
     }])
     expect(harness.telemetry.assistantResponseRendered).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
       model: 'gpt-test',
       latencyMs: 250,
+      turnIndex: 1,
     }])
     expect(harness.telemetry.messageRound).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
       durationMs: 360,
       hasVoice: true,
       model: 'gpt-test',
+      turnIndex: 1,
     }])
     expect(harness.telemetry.chatActivationStarted).toEqual([{
+      conversationId: 'session-1',
       model: 'gpt-test',
       provider: 'mock-provider',
-      sessionId: 'session-1',
+      roundId: 'user-id',
       source: 'voice',
+      turnIndex: 1,
     }])
     expect(harness.telemetry.chatActivationSucceeded).toEqual([{
+      conversationId: 'session-1',
       durationMs: 360,
       model: 'gpt-test',
       provider: 'mock-provider',
+      roundId: 'user-id',
       source: 'voice',
+      turnIndex: 1,
     }])
     expect(harness.telemetry.chatActivationFailed).toEqual([])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Activation callbacks were emitted for every chat round, so production
+  // `chat_activation_*` volume tracked message traffic instead of the first
+  // successful assistant response in a conversation.
+  it('emits activation milestones only until the conversation gets its first assistant response', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('first turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    await harness.runtime.ingest('second turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
+    expect(harness.telemetry.messageSendStarted).toHaveLength(2)
+    expect(harness.telemetry.messageRound).toHaveLength(2)
   })
 
   /**
@@ -358,19 +404,60 @@ describe('createChatOrchestratorRuntime', () => {
     })).rejects.toThrow('provider rejected')
 
     expect(harness.telemetry.chatActivationStarted).toEqual([{
+      conversationId: 'session-1',
       model: 'gpt-test',
       provider: 'mock-provider',
-      sessionId: 'session-1',
+      roundId: 'user-id',
       source: 'text',
+      turnIndex: 1,
     }])
     expect(harness.telemetry.chatActivationSucceeded).toEqual([])
     expect(harness.telemetry.chatActivationFailed).toEqual([{
+      conversationId: 'session-1',
       errorCode: 'llm_response_failed',
       failureStage: 'llm_response',
       model: 'gpt-test',
       provider: 'mock-provider',
+      roundId: 'user-id',
       source: 'text',
+      turnIndex: 1,
     }])
+    expect(harness.telemetry.messageRoundFailed).toEqual([{
+      conversationId: 'session-1',
+      errorCode: 'llm_response_failed',
+      failureStage: 'llm_response',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      roundId: 'user-id',
+      source: 'text',
+      turnIndex: 1,
+    }])
+  })
+
+  it('emits a round failure for later turns without repeating activation failure', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('first turn succeeds', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    harness.stream.mockRejectedValueOnce(new Error('later turn rejected'))
+
+    await expect(harness.runtime.ingest('second turn fails', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('later turn rejected')
+
+    expect(harness.telemetry.chatActivationFailed).toEqual([])
+    expect(harness.telemetry.messageRoundFailed).toEqual([
+      expect.objectContaining({
+        conversationId: 'session-1',
+        errorCode: 'llm_response_failed',
+        failureStage: 'llm_response',
+        roundId: expect.any(String),
+        turnIndex: 2,
+      }),
+    ])
   })
 
   /**

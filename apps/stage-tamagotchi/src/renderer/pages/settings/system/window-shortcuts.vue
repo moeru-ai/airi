@@ -3,6 +3,7 @@ import type { ShortcutAccelerator, ShortcutFailureReason } from '@proj-airi/stag
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Button } from '@proj-airi/ui'
 import { isMacOS } from 'std-env'
 import { computed, onMounted, shallowRef } from 'vue'
@@ -17,6 +18,7 @@ import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcu
 
 const getShortcut = useElectronEventaInvoke(electronSpotlightShortcutGet)
 const setShortcut = useElectronEventaInvoke(electronSpotlightShortcutSet)
+const { trackSettingsChanged } = useAnalytics()
 const { t } = useI18n()
 const tt = (key: string) => t(`tamagotchi.settings.pages.system.window-shortcuts.${key}`)
 
@@ -64,6 +66,13 @@ async function saveShortcut(next: ShortcutAccelerator | null) {
       return
     }
     accelerator.value = result.actualAccelerator ?? next ?? accelerator.value
+    // Value is intentionally coarse (customized / reset) — the exact key
+    // combo is a fingerprinting-adjacent detail no dashboard needs.
+    trackSettingsChanged({
+      setting_name: 'spotlight_shortcut',
+      new_value: next ? 'customized' : 'reset_to_default',
+      source: 'settings',
+    })
   }
   catch {
     toast.error(tt('errors.failed'))
