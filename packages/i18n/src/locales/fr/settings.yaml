@@ -390,14 +390,14 @@ pages:
     systemprompt: Prompt système
     title: Carte AIRI
     try_different_search: Essayez un autre terme de recherche
-    export: Exporter
-    exported: Paquet de carte exporté
-    export_failed: Impossible d’exporter le paquet de carte
-    imported: Paquet de carte importé
-    import_missing_file: Le paquet de carte ne contient pas les fichiers requis
-    import_invalid_file: Le fichier du paquet de carte est invalide
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Téléverser
-    upload_desc: Cliquez ou glissez un paquet de carte AIRI pour l’importer
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Endroit où les souvenirs sont stockés et organisés
     title: Mémoire
