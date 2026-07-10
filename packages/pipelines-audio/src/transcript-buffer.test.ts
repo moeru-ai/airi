@@ -134,4 +134,36 @@ describe('createTranscriptBuffer', () => {
      */
     expect(flushed).toEqual([])
   })
+
+  /**
+   * @example
+   * A failed network send does not prevent a later transcript from flushing.
+   */
+  it('continues flushing after a previous flush rejects', async () => {
+    const flush = vi.fn<(text: string) => Promise<void>>()
+      .mockRejectedValueOnce(new Error('temporary send failure'))
+      .mockResolvedValue(undefined)
+    const buffer = createTranscriptBuffer({
+      flushDelayMs: 1200,
+      flush,
+    })
+
+    buffer.push('first transcript')
+
+    // ROOT CAUSE:
+    //
+    // The rejected first flush was stored as the shared serialization chain.
+    // Every later flush chained from that rejection and skipped the callback entirely.
+    // We fixed this by retaining the caller-facing rejection while recovering the internal chain.
+    /** @example The failed item still reports its delivery error to the caller. */
+    await expect(buffer.flushNow()).rejects.toThrow('temporary send failure')
+
+    buffer.push('second transcript')
+    await buffer.flushNow()
+
+    /** @example Both items reach the callback even though the first delivery failed. */
+    expect(flush).toHaveBeenNthCalledWith(1, 'first transcript')
+    /** @example The recovered chain delivers the next buffered transcript. */
+    expect(flush).toHaveBeenNthCalledWith(2, 'second transcript')
+  })
 })

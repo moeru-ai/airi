@@ -75,8 +75,11 @@ export function createTranscriptBuffer(options: TranscriptBufferOptions) {
     if (!text)
       return flushChain
 
-    flushChain = flushChain.then(() => options.flush(text))
-    return flushChain
+    const delivery = flushChain.then(() => options.flush(text))
+
+    // Keep the failed delivery observable to its caller without poisoning later queued flushes.
+    flushChain = delivery.catch(() => {})
+    return delivery
   }
 
   /** Schedules a delayed flush after the configured pause window. */
