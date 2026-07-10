@@ -1,6 +1,14 @@
-interface VoiceInputTranscriptBufferOptions {
+/** Options for grouping nearby ASR fragments into one transcript. */
+export interface TranscriptBufferOptions {
+  /** Delay after the latest fragment before the buffer flushes. */
   flushDelayMs: number
+  /**
+   * Maximum buffered text length before an immediate flush.
+   *
+   * @default 80
+   */
   maxBufferedTextLength?: number
+  /** Receives serialized, normalized transcript text. */
   flush: (text: string) => Promise<void> | void
 }
 
@@ -9,7 +17,15 @@ const CJK_BOUNDARY_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p
 const CJK_START_RE = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
 
 /**
- * Joins two ASR fragments without adding visible spaces inside CJK text.
+ * Normalizes the boundary between two ASR transcript fragments.
+ *
+ * Before:
+ * - `"你好"`, `"世界"`
+ * - `"hello"`, `"world"`
+ *
+ * After:
+ * - `"你好世界"`
+ * - `"hello world"`
  */
 function joinTranscriptFragments(previous: string, next: string) {
   if (!previous)
@@ -22,27 +38,26 @@ function joinTranscriptFragments(previous: string, next: string) {
 }
 
 /**
- * Creates a short-lived transcript buffer for grouping nearby ASR fragments.
+ * Groups nearby ASR fragments into serialized transcript flushes.
  *
  * Use when:
- * - Record-then-transcribe providers return one text result per VAD segment.
- * - Natural pauses should not split one spoken thought into many chat turns.
+ * - Record-then-transcribe providers emit one result per VAD segment.
+ * - Natural pauses should remain part of one spoken turn.
  *
  * Expects:
- * - `flushDelayMs` is long enough to cover a normal thinking pause.
+ * - `flushDelayMs` covers the pause window that should remain in one turn.
+ * - The flush callback may be asynchronous and must run in transcript order.
  *
  * Returns:
- * - Push/dispose actions that serialize flushes through the provided callback.
+ * - Actions to push fragments, flush or discard pending text, and dispose the buffer.
  */
-export function createVoiceInputTranscriptBuffer(options: VoiceInputTranscriptBufferOptions) {
+export function createTranscriptBuffer(options: TranscriptBufferOptions) {
   let pendingText = ''
   let flushTimer: ReturnType<typeof setTimeout> | undefined
   let flushChain = Promise.resolve()
   const maxBufferedTextLength = options.maxBufferedTextLength ?? DEFAULT_MAX_BUFFERED_TEXT_LENGTH
 
-  /**
-   * Clears the pending delayed flush timer.
-   */
+  /** Clears the pending delayed flush timer. */
   function clearFlushTimer() {
     if (!flushTimer)
       return
@@ -51,9 +66,7 @@ export function createVoiceInputTranscriptBuffer(options: VoiceInputTranscriptBu
     flushTimer = undefined
   }
 
-  /**
-   * Sends buffered text through the configured flush callback.
-   */
+  /** Sends the current transcript through the serialized flush chain. */
   function flushNow() {
     clearFlushTimer()
 
@@ -66,9 +79,7 @@ export function createVoiceInputTranscriptBuffer(options: VoiceInputTranscriptBu
     return flushChain
   }
 
-  /**
-   * Schedules a delayed flush so nearby speech fragments can be merged.
-   */
+  /** Schedules a delayed flush after the configured pause window. */
   function scheduleFlush() {
     clearFlushTimer()
     flushTimer = setTimeout(() => {
@@ -76,16 +87,13 @@ export function createVoiceInputTranscriptBuffer(options: VoiceInputTranscriptBu
     }, options.flushDelayMs)
   }
 
-  /**
-   * Adds a transcription fragment to the pending spoken turn.
-   */
+  /** Adds one normalized ASR fragment to the pending spoken turn. */
   function push(text: string) {
     const trimmed = text.trim()
     if (!trimmed)
       return
 
     pendingText = joinTranscriptFragments(pendingText, trimmed)
-
     if (pendingText.length >= maxBufferedTextLength) {
       void flushNow()
       return
@@ -94,19 +102,15 @@ export function createVoiceInputTranscriptBuffer(options: VoiceInputTranscriptBu
     scheduleFlush()
   }
 
-  /**
-   * Flushes pending text and stops future delayed sends.
-   */
-  async function dispose() {
-    await flushNow()
-  }
-
-  /**
-   * Discards pending text without sending it to chat.
-   */
+  /** Discards pending text without invoking the flush callback. */
   function clear() {
     clearFlushTimer()
     pendingText = ''
+  }
+
+  /** Flushes pending text and prevents its delayed timer from firing later. */
+  async function dispose() {
+    await flushNow()
   }
 
   return {
