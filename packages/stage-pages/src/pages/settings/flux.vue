@@ -284,11 +284,11 @@ onMounted(async () => {
 
   // PostHog funnel step 1: pricing surface view. Today this is an in-app
   // settings page (already-authenticated users); when we add a public
-  // pricing landing page the surface label changes but the event stays the
+  // pricing landing page the entry-surface label changes but the event stays the
   // same, so the funnel definition in PostHog doesn't need re-wiring.
   if (!fluxPurchaseDisabled) {
     trackPaywallSeen({
-      surface: 'settings_flux',
+      entry_surface: 'settings_flux',
       reason: 'manual_topup',
       flux_balance_bucket: fluxBalanceBucket(credits.value),
     })
@@ -317,7 +317,10 @@ async function handleBuy(stripePriceId: string) {
     current_plan: 'flux',
     trigger: 'manual_topup',
   })
-  trackPlanSelected(stripePriceId, { currency: selectedCurrency.value })
+  trackPlanSelected(stripePriceId, {
+    currency: selectedCurrency.value,
+    entry_surface: 'settings_flux',
+  })
   try {
     const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
     if (!res.ok) {
@@ -330,7 +333,10 @@ async function handleBuy(stripePriceId: string) {
       // PostHog funnel step 3: about to redirect to Stripe. Capture before
       // the page nav so the event is sent (PostHog's beforeunload handler
       // would otherwise race the navigation).
-      trackCheckoutStarted(stripePriceId, { currency: selectedCurrency.value })
+      trackCheckoutStarted(stripePriceId, {
+        currency: selectedCurrency.value,
+        entry_surface: 'settings_flux',
+      })
       // Electron renderer runs from file:// and cannot navigate to Stripe in-window
       // (the settings window would load checkout.stripe.com and never come back).
       // window.open routes through setWindowOpenHandler -> shell.openExternal, so the

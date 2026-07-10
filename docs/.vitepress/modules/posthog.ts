@@ -8,5 +8,5 @@ if (!import.meta.env.DEV) {
   })
   // Tag docs-site traffic so it can be told apart from the app surfaces
   // inside the shared project.
-  posthog.register({ surface: 'docs' })
+  posthog.register({ app_surface: 'docs' })
 }

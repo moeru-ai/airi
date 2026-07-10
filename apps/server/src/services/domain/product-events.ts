@@ -82,9 +82,9 @@ export interface ProductEventAggregateRow {
  * a funnel are forwarded — per-request LLM/TTS volume stays in Postgres and
  * Grafana where it belongs (see `docs/ai-context/metrics-ownership.md`).
  *
- * `user_signed_up` maps to `signup_completed` because that is the canonical
- * activation-funnel step name the browser surfaces emit; the server copy
- * covers OAuth signups the auth UI cannot classify client-side.
+ * `user_signed_up` maps to `signup_completed` because the identified server
+ * hook is the canonical registration fact for every signup method. Anonymous
+ * auth UI progress uses `signup_form_completed` and never reuses this name.
  */
 const POSTHOG_FORWARDED_ACTIONS: Partial<Record<ProductAction, string>> = {
   user_signed_up: 'signup_completed',
@@ -175,7 +175,7 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
             distinctId: input.userId,
             event: forwardedEvent,
             properties: {
-              surface: 'server',
+              app_surface: 'server',
               feature: input.feature,
               status: input.status,
               ...(input.source && { source: input.source }),

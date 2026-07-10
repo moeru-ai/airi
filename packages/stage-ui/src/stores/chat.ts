@@ -51,16 +51,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const {
     trackFirstMessage,
-    trackChatFailed,
-    trackChatStarted,
     trackMessageSendStarted,
     trackMessageSent,
     trackLlmRequestStarted,
     trackLlmFirstToken,
     trackAssistantResponseRendered,
-    trackAssistantResponseCompleted,
     trackMessageRound,
-    trackFeatureUsed,
+    trackMessageRoundFailed,
     trackChatActivationStarted,
     trackChatActivationSucceeded,
     trackChatActivationFailed,
@@ -185,109 +182,119 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onStateChange: syncRuntimeState,
     onSendSettled: settleOwnedActiveTurnSpan,
     onTrackFirstMessage: trackFirstMessage,
-    onMessageSendStarted: ({ source, model }) => {
+    onMessageSendStarted: ({ conversationId, roundId, turnIndex, source, model }) => {
       lastSendSource = source
       trackMessageSendStarted({
+        conversation_id: conversationId,
+        round_id: roundId,
+        turn_index: turnIndex,
         source,
         model,
       })
-      trackChatStarted({
-        conversation_id: activeSessionId.value || 'unknown',
-        provider_type: providerMode(activeProvider.value),
-        provider_name: activeProvider.value || 'unknown',
-        model: model || 'unknown',
-        entry: 'chat',
-      })
     },
-    onLlmRequestStarted: ({ model, provider, hasVoice }) => trackLlmRequestStarted({
+    onLlmRequestStarted: ({ conversationId, roundId, turnIndex, model, provider, hasVoice }) => trackLlmRequestStarted({
+      conversation_id: conversationId,
+      round_id: roundId,
+      turn_index: turnIndex,
       model,
       provider,
       has_voice: hasVoice,
     }),
-    onLlmFirstToken: ({ model, ttfbMs }) => trackLlmFirstToken({
+    onLlmFirstToken: ({ conversationId, roundId, turnIndex, model, ttfbMs }) => trackLlmFirstToken({
+      conversation_id: conversationId,
+      round_id: roundId,
+      turn_index: turnIndex,
       model,
       ttfb_ms: ttfbMs,
     }),
-    onAssistantResponseRendered: ({ model, latencyMs }) => {
+    onAssistantResponseRendered: ({ conversationId, roundId, turnIndex, model, latencyMs }) => {
       trackAssistantResponseRendered({
+        conversation_id: conversationId,
+        round_id: roundId,
+        turn_index: turnIndex,
         model,
         latency_ms: latencyMs,
       })
-      trackAssistantResponseCompleted({
-        conversation_id: activeSessionId.value || 'unknown',
-        provider_type: providerMode(activeProvider.value),
-        provider_name: activeProvider.value || 'unknown',
-        model: model || 'unknown',
-        latency_ms: latencyMs,
-      })
     },
-    onMessageRound: ({ durationMs, hasVoice, model }) => trackMessageRound({
+    onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model }) => trackMessageRound({
+      conversation_id: conversationId,
+      round_id: roundId,
+      turn_index: turnIndex,
       duration_ms: durationMs,
       has_voice: hasVoice,
       model,
     }),
-    onChatActivationStarted: ({ model, provider, source }) => {
+    onMessageRoundFailed: ({ conversationId, roundId, turnIndex, model, provider, errorCode, failureStage, source }) => trackMessageRoundFailed({
+      conversation_id: conversationId,
+      round_id: roundId,
+      turn_index: turnIndex,
+      provider_id: provider || 'unknown',
+      model_id: model || 'unknown',
+      source,
+      error_code: errorCode,
+      failure_stage: failureStage,
+    }),
+    onChatActivationStarted: ({ conversationId, roundId, turnIndex, model, provider, source }) => {
       const mode = providerMode(provider)
       const providerId = provider || 'unknown'
       const modelId = model || 'unknown'
 
       trackChatActivationStarted({
+        conversation_id: conversationId,
         provider_mode: mode,
         provider_id: providerId,
         model_id: modelId,
+        round_id: roundId,
         source,
+        turn_index: turnIndex,
       })
     },
-    onChatActivationSucceeded: ({ model, provider, durationMs, source }) => trackChatActivationSucceeded({
+    onChatActivationSucceeded: ({ conversationId, roundId, turnIndex, model, provider, durationMs, source }) => trackChatActivationSucceeded({
+      conversation_id: conversationId,
       provider_mode: providerMode(provider),
       provider_id: provider || 'unknown',
       model_id: model || 'unknown',
+      round_id: roundId,
       time_to_first_message_ms: durationMs,
       source,
+      turn_index: turnIndex,
     }),
-    onChatActivationFailed: ({ model, provider, errorCode, failureStage, source }) => {
+    onChatActivationFailed: ({ conversationId, roundId, turnIndex, model, provider, errorCode, failureStage, source }) => {
       trackChatActivationFailed({
+        conversation_id: conversationId,
         provider_mode: providerMode(provider),
         provider_id: provider || 'unknown',
         model_id: model || 'unknown',
+        round_id: roundId,
         error_code: errorCode,
         failure_stage: failureStage,
         source,
-      })
-      trackChatFailed({
-        conversation_id: activeSessionId.value || 'unknown',
-        provider_type: providerMode(provider),
-        provider_name: provider || 'unknown',
-        model: model || 'unknown',
-        failure_stage: failureStage,
-        error_code: errorCode,
+        turn_index: turnIndex,
       })
     },
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, turnIndex }) => {
+    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
       trackMessageSent({
         conversation_id: sessionId,
         provider_type: providerMode(activeProvider.value),
         provider_name: activeProvider.value || 'unknown',
         model: activeModel.value || 'unknown',
         message_id: message.id,
+        round_id: roundId,
+        turn_index: turnIndex,
         message_index: chatSession.getSessionMessages(sessionId).length,
         message_length: messageText.length,
         has_attachment: false,
         mode: lastSendSource,
       })
-      trackFeatureUsed({
-        feature_name: 'chat',
-        business_domain: 'conversation',
-        entry: 'chat',
-        success: true,
-      })
       if (turnIndex === 2) {
         trackSecondTurnStarted({
+          conversation_id: sessionId,
           provider_mode: providerMode(provider),
           provider_id: provider || 'unknown',
           model_id: model || 'unknown',
+          round_id: roundId,
           source,
           turn_index: turnIndex,
         })

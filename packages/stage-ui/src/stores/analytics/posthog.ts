@@ -13,7 +13,7 @@ import {
 let posthogInitialized = false
 
 // All AIRI surfaces (web, desktop, mobile) capture into a single PostHog
-// project. The platform is carried on every event via the `surface` super
+// project. The platform is carried on every event via the `app_surface` super
 // property (registered at init), so cross-platform funnels live in one
 // project instead of being split across per-platform projects.
 function currentSurface(): 'web' | 'mobile' | 'electron' {
@@ -43,7 +43,7 @@ export function ensurePosthogInitialized(enabled: boolean): boolean {
   })
   // Tag every event (including autocapture / pageview) with the platform so
   // the single project can still be broken down by web / desktop / mobile.
-  posthog.register({ surface: currentSurface() })
+  posthog.register({ app_surface: currentSurface() })
   posthogInitialized = true
   return true
 }

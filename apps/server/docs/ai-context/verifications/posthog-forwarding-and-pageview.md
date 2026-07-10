@@ -16,7 +16,7 @@ Environment: commit 689f02ac4 + 本次工作区改动；posthog-node 5.39.4；po
 |---|---|---|
 | 转发白名单与映射 | `pnpm exec vitest run src/services/domain/product-events.test.ts`（apps/server） | 6 passed：`payment_completed` 原名转发、`user_signed_up→signup_completed` 映射、per-request 动作不转发、sink 抛错时 DB 行仍落库且 track 不抛 |
 | posthog-node 真实传输 | `node posthog-smoke.mjs`（captureImmediate → us.i.posthog.com，生产 project key，事件名 `server_forwarding_smoke_test`） | `captureImmediate resolved in 1380ms` + `shutdown clean` |
-| SPA 路由 pageview | `VITE_ENABLE_POSTHOG=true pnpm -F @proj-airi/stage-web dev` + agent-browser 两次 `history.pushState` | 两条 `$pageview`，`$pathname` 分别为 `/settings/flux`、`/settings/airi-card`，`navigation_type: pushState`，携带 `$prev_pageview_duration` 与 `surface: web` super property；批量 POST `us.i.posthog.com/e/` 返回 200 |
+| SPA 路由 pageview | `VITE_ENABLE_POSTHOG=true pnpm -F @proj-airi/stage-web dev` + agent-browser 两次 `history.pushState` | 两条 `$pageview`，`$pathname` 分别为 `/settings/flux`、`/settings/airi-card`，`navigation_type: pushState`，携带 `$prev_pageview_duration` 与 `app_surface: web` super property；批量 POST `us.i.posthog.com/e/` 返回 200 |
 | 服务端 typecheck / lint | `pnpm -F @proj-airi/server typecheck`、eslint 改动文件 | 均通过 |
 
 ## 注意事项

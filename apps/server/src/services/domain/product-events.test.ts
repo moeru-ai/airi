@@ -162,7 +162,7 @@ describe('productEventService', () => {
       distinctId: 'user-1',
       event: 'payment_completed',
       properties: {
-        surface: 'server',
+        app_surface: 'server',
         feature: 'billing',
         status: 'succeeded',
         source: 'stripe.webhook',
@@ -174,7 +174,7 @@ describe('productEventService', () => {
       distinctId: 'user-2',
       event: 'signup_completed',
       properties: {
-        surface: 'server',
+        app_surface: 'server',
         feature: 'auth',
         status: 'succeeded',
       },

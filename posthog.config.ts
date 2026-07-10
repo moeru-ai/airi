@@ -13,7 +13,7 @@ function isEnvFlagEnabled(value: string | undefined): boolean {
 export const POSTHOG_ENABLED = isEnvFlagEnabled(import.meta.env.VITE_ENABLE_POSTHOG)
 
 // Single PostHog project for every AIRI surface (web / desktop / mobile).
-// Platforms are told apart by the `surface` super property set at init, not
+// Platforms are told apart by the `app_surface` super property set at init, not
 // by routing to separate per-platform projects.
 export const POSTHOG_PROJECT_KEY
   = import.meta.env.VITE_POSTHOG_PROJECT_KEY

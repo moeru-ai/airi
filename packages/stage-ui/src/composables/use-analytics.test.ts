@@ -70,7 +70,7 @@ describe('useAnalytics conversation product events', () => {
     analyticsMocks.isPosthogAvailableInBuildMock.mockClear()
   })
 
-  it('infers the web surface for browser conversation actions', () => {
+  it('uses app_surface for the web runtime without occupying the event entry surface', () => {
     const analytics = useAnalytics()
 
     analytics.trackTtsStopClicked({
@@ -78,7 +78,7 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('tts_stop_clicked', {
-      surface: 'web',
+      app_surface: 'web',
       reason: 'manual-chat',
     })
   })
@@ -94,7 +94,7 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('chat_session_selected', {
-      surface: 'mobile',
+      app_surface: 'mobile',
       source: 'sessions_drawer',
       message_count: 4,
       cloud_synced: true,
@@ -118,36 +118,42 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'chat_message_deleted', {
-      surface: 'electron',
+      app_surface: 'electron',
       source: 'history',
       message_role: 'assistant',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'chat_messages_cleared', {
-      surface: 'electron',
+      app_surface: 'electron',
       source: 'chat_controls',
       message_count: 3,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'chat_message_retried', {
-      surface: 'electron',
+      app_surface: 'electron',
       source: 'history',
     })
   })
 
   /**
    * @example
-   * analytics.trackChatActivationStarted({ provider_mode: 'official', provider_id: 'official-provider', model_id: 'gpt-test', source: 'text' })
-   * expect(posthog.capture).toHaveBeenCalledWith('chat_activation_started', expect.objectContaining({ surface: 'web' }))
+   * analytics.trackChatActivationStarted({ conversation_id: 'session-1', round_id: 'round-1', turn_index: 1, provider_mode: 'official', provider_id: 'official-provider', model_id: 'gpt-test', source: 'text' })
+   * expect(posthog.capture).toHaveBeenCalledWith('chat_activation_started', expect.objectContaining({ app_surface: 'web' }))
    */
   it('emits chat activation milestones with inferred surface and normalized fields', () => {
     const analytics = useAnalytics()
 
     analytics.trackChatActivationStarted({
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
       provider_mode: 'official',
       provider_id: 'official-provider',
       model_id: 'gpt-test',
       source: 'text',
     })
     analytics.trackChatActivationSucceeded({
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
       provider_mode: 'official',
       provider_id: 'official-provider',
       model_id: 'gpt-test',
@@ -155,6 +161,9 @@ describe('useAnalytics conversation product events', () => {
       source: 'voice',
     })
     analytics.trackChatActivationFailed({
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
       provider_mode: 'custom',
       provider_id: 'openai-compatible',
       model_id: 'custom',
@@ -164,14 +173,20 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'chat_activation_started', {
-      surface: 'web',
+      app_surface: 'web',
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
       provider_mode: 'official',
       provider_id: 'official-provider',
       model_id: 'gpt-test',
       source: 'text',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'chat_activation_succeeded', {
-      surface: 'web',
+      app_surface: 'web',
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
       provider_mode: 'official',
       provider_id: 'official-provider',
       model_id: 'gpt-test',
@@ -179,7 +194,10 @@ describe('useAnalytics conversation product events', () => {
       source: 'voice',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'chat_activation_failed', {
-      surface: 'web',
+      app_surface: 'web',
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
       provider_mode: 'custom',
       provider_id: 'openai-compatible',
       model_id: 'custom',
@@ -225,13 +243,13 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'tts_provider_selected', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider',
       tts_model_id: 'stepfun/tts',
       source: 'settings',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'voice_selected', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider',
       tts_model_id: 'stepfun/tts',
       voice_id: 'longxiaochun_v2',
@@ -239,7 +257,7 @@ describe('useAnalytics conversation product events', () => {
       source: 'settings',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'voice_preview_played', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider',
       tts_model_id: 'stepfun/tts',
       voice_id: 'longxiaochun_v2',
@@ -247,7 +265,7 @@ describe('useAnalytics conversation product events', () => {
       source: 'manual_preview',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'voice_pack_bound', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider',
       tts_model_id: 'stepfun/tts',
       voice_id: 'longxiaochun_v2',
@@ -272,15 +290,17 @@ describe('useAnalytics conversation product events', () => {
       model_id: 'chat-auto',
     })
     analytics.trackSecondTurnStarted({
+      conversation_id: 'session-1',
       provider_id: 'official-provider',
       provider_mode: 'official',
       model_id: 'chat-auto',
+      round_id: 'round-2',
       source: 'text',
       turn_index: 2,
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'official_provider_selected', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'official-provider',
       provider_mode: 'official',
       source: 'default_auto',
@@ -288,10 +308,12 @@ describe('useAnalytics conversation product events', () => {
       model_id: 'chat-auto',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'second_turn_started', {
-      surface: 'web',
+      app_surface: 'web',
+      conversation_id: 'session-1',
       provider_id: 'official-provider',
       provider_mode: 'official',
       model_id: 'chat-auto',
+      round_id: 'round-2',
       source: 'text',
       turn_index: 2,
     })
@@ -333,13 +355,13 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'official_tts_exposed', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider-speech',
       tts_model_id: 'stepfun/tts',
       source: 'post_first_chat',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'official_tts_preview_started', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider-speech',
       tts_model_id: 'stepfun/tts',
       voice_id: 'longxiaochun_v2',
@@ -347,7 +369,7 @@ describe('useAnalytics conversation product events', () => {
       source: 'manual_preview',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'official_tts_preview_succeeded', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider-speech',
       tts_model_id: 'stepfun/tts',
       voice_id: 'longxiaochun_v2',
@@ -356,7 +378,7 @@ describe('useAnalytics conversation product events', () => {
       duration_ms: 320,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'official_tts_auto_enabled', {
-      surface: 'web',
+      app_surface: 'web',
       tts_provider_id: 'official-provider-speech',
       tts_model_id: 'stepfun/tts',
       source: 'settings',
@@ -368,23 +390,55 @@ describe('useAnalytics conversation product events', () => {
     const analytics = useAnalytics()
 
     analytics.trackPaywallSeen({
-      surface: 'settings_flux',
+      entry_surface: 'settings_flux',
       reason: 'manual_topup',
       flux_balance_bucket: '1_100',
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('paywall_seen', {
-      surface: 'settings_flux',
       app_surface: 'web',
+      entry_surface: 'settings_flux',
       reason: 'manual_topup',
       flux_balance_bucket: '1_100',
+    })
+  })
+
+  it('uses entry_surface across the pricing funnel without emitting surface', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackPricingViewed('settings_flux', 'one_time')
+    analytics.trackPlanSelected('price-1', {
+      currency: 'USD',
+      entry_surface: 'settings_flux',
+    })
+    analytics.trackCheckoutStarted('price-1', {
+      currency: 'USD',
+      entry_surface: 'settings_flux',
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'pricing_page_viewed', {
+      entry_surface: 'settings_flux',
+      plan_period: 'one_time',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'plan_selected', {
+      currency: 'USD',
+      entry_surface: 'settings_flux',
+      plan_id: 'price-1',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'checkout_started', {
+      currency: 'USD',
+      entry_surface: 'settings_flux',
+      plan_id: 'price-1',
+    }, {
+      send_instantly: true,
+      transport: 'sendBeacon',
     })
   })
 
   /**
    * @example
    * analytics.trackMicrophonePermissionDenied({ stt_provider_id: 'browser-web-speech-api' })
-   * expect(posthog.capture).toHaveBeenCalledWith('microphone_permission_denied', expect.objectContaining({ surface: 'web' }))
+   * expect(posthog.capture).toHaveBeenCalledWith('microphone_permission_denied', expect.objectContaining({ app_surface: 'web' }))
    */
   it('emits voice input friction events with low-cardinality error fields', () => {
     const analytics = useAnalytics()
@@ -409,29 +463,29 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'voice_input_started', {
-      surface: 'web',
+      app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'voice_input_used', {
-      surface: 'web',
+      app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'microphone_permission_requested', {
-      surface: 'web',
+      app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'microphone_permission_denied', {
-      surface: 'web',
+      app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'permission_denied',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'audio_device_unavailable', {
-      surface: 'web',
+      app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'device_unavailable',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'voice_input_cancelled', {
-      surface: 'web',
+      app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       duration_ms: 420,
     })
@@ -459,14 +513,14 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'model_list_loaded', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'official-provider',
       provider_mode: 'official',
       model_count: 3,
       duration_ms: 25,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'model_list_failed', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'openai-compatible',
       provider_mode: 'custom',
       error_code: 'provider_error',
@@ -502,20 +556,20 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'provider_config_started', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'openai-compatible',
       provider_mode: 'custom',
       step: 'settings_auto_validate',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'provider_config_succeeded', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'official-provider',
       provider_mode: 'official',
       step: 'manual_chat_ping',
       duration_ms: 18,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'provider_config_completed', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'official-provider',
       provider_mode: 'official',
       provider_type: 'official',
@@ -526,12 +580,12 @@ describe('useAnalytics conversation product events', () => {
       success: true,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'official_provider_enabled', {
-      surface: 'web',
+      app_surface: 'web',
       provider_name: 'official-provider',
       entry: 'settings',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'provider_config_failed', {
-      surface: 'web',
+      app_surface: 'web',
       provider_id: 'openai-compatible',
       provider_mode: 'custom',
       step: 'settings_auto_validate',
@@ -540,14 +594,9 @@ describe('useAnalytics conversation product events', () => {
     })
   })
 
-  it('emits P0 activation, chat, quota, and feature events using canonical names', () => {
+  it('emits P0 onboarding, message, quota, and feature events using canonical names', () => {
     const analytics = useAnalytics()
 
-    analytics.trackSignupCompleted({
-      source: 'google',
-      locale: 'en',
-      utm_source: 'launch',
-    })
     analytics.trackOnboardingStarted({
       entry: 'app_start',
     })
@@ -556,40 +605,18 @@ describe('useAnalytics conversation product events', () => {
       selected_provider_id: 'official-provider',
       selected_use_case: 'role_chat',
     })
-    analytics.trackChatStarted({
-      conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      model: 'gpt-test',
-      entry: 'chat',
-      is_paid_user: true,
-    })
     analytics.trackMessageSent({
       conversation_id: 'session-1',
       provider_type: 'official',
       provider_name: 'official-provider',
       model: 'gpt-test',
       message_id: 'message-1',
+      round_id: 'message-1',
+      turn_index: 1,
       message_index: 2,
       message_length: 24,
       has_attachment: false,
       mode: 'text',
-    })
-    analytics.trackAssistantResponseCompleted({
-      conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      model: 'gpt-test',
-      latency_ms: 350,
-      completion_length: 120,
-    })
-    analytics.trackChatFailed({
-      conversation_id: 'session-1',
-      provider_type: 'custom',
-      provider_name: 'openai-compatible',
-      model: 'custom',
-      failure_stage: 'llm_response',
-      error_code: 'provider_error',
     })
     analytics.trackQuotaLimitReached({
       limit_type: 'flux',
@@ -609,73 +636,43 @@ describe('useAnalytics conversation product events', () => {
       success: true,
     })
 
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'signup_completed', {
-      source: 'google',
-      locale: 'en',
-      utm_source: 'launch',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'onboarding_started', {
-      surface: 'web',
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'onboarding_started', {
+      app_surface: 'web',
       entry: 'app_start',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'onboarding_completed', {
-      surface: 'web',
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'onboarding_completed', {
+      app_surface: 'web',
       selected_provider_type: 'official',
       selected_provider_id: 'official-provider',
       selected_use_case: 'role_chat',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'chat_started', {
-      surface: 'web',
-      conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      model: 'gpt-test',
-      entry: 'chat',
-      is_paid_user: true,
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'message_sent', {
-      surface: 'web',
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'message_sent', {
+      app_surface: 'web',
       conversation_id: 'session-1',
       provider_type: 'official',
       provider_name: 'official-provider',
       model: 'gpt-test',
       message_id: 'message-1',
+      round_id: 'message-1',
+      turn_index: 1,
       message_index: 2,
       message_length: 24,
       has_attachment: false,
       mode: 'text',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'assistant_response_completed', {
-      surface: 'web',
-      conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      model: 'gpt-test',
-      latency_ms: 350,
-      completion_length: 120,
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'chat_failed', {
-      surface: 'web',
-      conversation_id: 'session-1',
-      provider_type: 'custom',
-      provider_name: 'openai-compatible',
-      model: 'custom',
-      failure_stage: 'llm_response',
-      error_code: 'provider_error',
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'quota_limit_reached', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'quota_limit_reached', {
       limit_type: 'flux',
       current_usage: 0,
       limit_value: 0,
       entry: 'pricing',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'upgrade_clicked', {
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'upgrade_clicked', {
       source_page: 'settings_flux',
       current_plan: 'flux',
       trigger: 'manual_topup',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(10, 'feature_used', {
-      surface: 'web',
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'feature_used', {
+      app_surface: 'web',
       feature_name: 'chat',
       business_domain: 'conversation',
       entry: 'chat',
@@ -736,43 +733,43 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'conversation_created', {
-      surface: 'web',
+      app_surface: 'web',
       conversation_id: 'session-1',
       source: 'new_session',
       character_id: 'character-1',
       cloud_synced: true,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'conversation_renamed', {
-      surface: 'web',
+      app_surface: 'web',
       conversation_id: 'session-1',
       source: 'sessions_drawer',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'conversation_shared', {
-      surface: 'web',
+      app_surface: 'web',
       conversation_id: 'session-1',
       source: 'share_button',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'conversation_deleted', {
-      surface: 'web',
+      app_surface: 'web',
       conversation_id: 'session-1',
       message_count: 6,
       cloud_synced: true,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'attachment_uploaded', {
-      surface: 'web',
+      app_surface: 'web',
       attachment_type: 'image',
       size_bytes: 2048,
       source: 'chat',
       success: true,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'preset_used', {
-      surface: 'web',
+      app_surface: 'web',
       preset_id: 'preset-live2d-1',
       preset_type: 'stage_model',
       source: 'settings',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'provider_switched', {
-      surface: 'web',
+      app_surface: 'web',
       from_provider: 'openai-compatible',
       to_provider: 'official-provider',
       from_provider_type: 'custom',
@@ -780,14 +777,14 @@ describe('useAnalytics conversation product events', () => {
       reason: 'manual',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'settings_changed', {
-      surface: 'web',
+      app_surface: 'web',
       setting_name: 'analytics_enabled',
       previous_value: false,
       new_value: true,
       source: 'settings',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'support_contacted', {
-      surface: 'web',
+      app_surface: 'web',
       channel: 'discord',
       source: 'settings',
       category: 'payment',
@@ -821,7 +818,7 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'bug_report_submitted', {
-      surface: 'web',
+      app_surface: 'web',
       source: 'app',
       category: 'update',
       severity: 'major',
@@ -832,7 +829,7 @@ describe('useAnalytics conversation product events', () => {
       screenshot_attached: true,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'feedback_submitted', {
-      surface: 'web',
+      app_surface: 'web',
       source: 'discord',
       category: 'voice_input',
       severity: 'minor',
@@ -851,21 +848,21 @@ describe('useAnalytics conversation product events', () => {
     analytics.trackAccountDeletionRequested()
     analytics.trackOauthCallbackFailed({ stage: 'missing_flow_state' })
 
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'password_changed', { surface: 'web' })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'password_reset_requested', { surface: 'web' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'password_changed', { app_surface: 'web' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'password_reset_requested', { app_surface: 'web' })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
       3,
       'oauth_provider_link_started',
-      { surface: 'web', provider: 'github' },
+      { app_surface: 'web', provider: 'github' },
       { send_instantly: true, transport: 'sendBeacon' },
     )
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'oauth_provider_unlinked', {
-      surface: 'web',
+      app_surface: 'web',
       provider: 'google',
     })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'account_deletion_requested', { surface: 'web' })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(5, 'account_deletion_requested', { app_surface: 'web' })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'oauth_callback_failed', {
-      surface: 'web',
+      app_surface: 'web',
       stage: 'missing_flow_state',
     })
   })
@@ -879,16 +876,16 @@ describe('useAnalytics conversation product events', () => {
     analytics.trackCharacterUpdated({ character_id: 'character-1' })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'card_edited', {
-      surface: 'web',
+      app_surface: 'web',
       card_id: 'card-1',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'scene_background_set', {
-      surface: 'web',
+      app_surface: 'web',
       source: 'card_gallery',
       cleared: false,
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'scene_background_set', {
-      surface: 'web',
+      app_surface: 'web',
       source: 'scene_settings',
       cleared: true,
     })
@@ -904,11 +901,11 @@ describe('useAnalytics conversation product events', () => {
     analytics.trackDataAction({ action: 'app_data_cleared' })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'data_action', {
-      surface: 'web',
+      app_surface: 'web',
       action: 'chats_exported',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'data_action', {
-      surface: 'web',
+      app_surface: 'web',
       action: 'app_data_cleared',
     })
   })

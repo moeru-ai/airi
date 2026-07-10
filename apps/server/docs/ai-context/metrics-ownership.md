@@ -112,17 +112,17 @@
 ### PostHog（前端 / 外部数据源，产品侧）
 
 已接入：
-- 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化，三个 app（web / desktop / pocket）按 `isStageTamagotchi()` 等选 project key
-- Server 不接入 `posthog-node`。后端产品事件写 `product_events`，Grafana 展示低基数聚合；需要 PostHog revenue/person analytics 时优先用 PostHog Stripe source connector 或离线导入，不允许在 API 请求路径同步发 PostHog。
+- 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化；web / desktop / pocket / auth / docs 共用一个 project key，以 `app_surface` 区分运行端。
+- Server 先把产品事实写入 `product_events`，再异步 best-effort 转发注册、支付、订阅等白名单业务事实到 PostHog；LLM / TTS per-request 事件不转发，PostHog 失败也不能影响请求主链路。
 - 前端 identity：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
-- Conversation controls 事件的 `surface` 由 `packages/stage-ui/src/composables/use-analytics.ts` 统一按 runtime 推断，UI 调用点只传业务字段。
+- 平台统一写入 `app_surface`；`entry_surface` 只表示 `settings_flux` 这类业务入口，避免同名字段混用或覆盖 PostHog super property。
 
 已埋点：
 
 | 域 | 事件 | 来源 | 落点 | Truth |
 |---|---|---|---|---|
 | 付费漏斗 | `pricing_page_viewed` / `plan_selected` / `checkout_started` | 前端 | `packages/stage-pages/src/pages/settings/flux.vue` | PostHog |
-| 付费漏斗终点 | `payment_completed` | 后端 webhook | `product_events` + Grafana；PostHog 走 Stripe source connector/离线导入 | Postgres |
+| 付费漏斗终点 | `payment_completed` | 后端 webhook | `product_events` + Grafana，并 best-effort 转发 PostHog | Postgres |
 | Activation / Retention | `first_model_selected` / `model_switched` | 前端（consciousness store watcher） | `packages/stage-ui/src/stores/analytics/index.ts` | PostHog |
 | Retention | `character_created` | 前端 | `apps/stage-web/src/pages/settings/characters/components/CharacterDialog.vue` | PostHog |
 | Retention | `chat_session_started` | 前端 | `packages/stage-ui/src/components/scenarios/chat/components/sessions-drawer.vue` | PostHog |
@@ -131,13 +131,15 @@
 | Conversation controls | `tts_stop_clicked` | 前端 | `packages/stage-layouts/src/composables/useStopSpeakingButton.ts` | PostHog |
 | Churn | `subscription_cancelled`（带 cancellation_reason） | 外部 Stripe 数据源 | PostHog Stripe source connector | Stripe/Postgres |
 | 老事件 | `provider_card_clicked` | 前端 | `packages/stage-ui/src/composables/use-analytics.ts` | PostHog |
-| 已退役 | `first_message_sent` / `user_signed_up`（前端版） | 无生产者 | wrapper 已删除；激活口径用 `chat_activation_succeeded`，注册事实用服务端转发的 `signup_completed` | PostHog 历史数据仍在 |
+| 兼容指标 | `first_message_sent` | 前端 | 仍有生产者，仅供历史 dashboard；新激活口径使用 `chat_activation_succeeded` | PostHog |
+| 聊天轮次 | `message_send_started` / `message_sent` / `llm_*` / `message_round` / `message_round_failed` | 前端 core runtime | 以 `conversation_id` / `round_id` / `turn_index` 关联；成功和失败各有唯一终点事件 | PostHog |
+| 注册 UI | `signup_form_completed` | auth SPA | 匿名表单完成信号，不计作注册事实 | PostHog |
+| 注册事实 | `signup_completed` | Better Auth user create hook | 仅服务端生产，以 Better Auth user id 识别 | Postgres + PostHog |
 
 待埋点（API 已在 `use-analytics.ts` 暴露但调用点未接入）：
 
 | 域 | 事件 | 状态 |
 |---|---|---|
-| Activation | `user_signed_up` | 等接到 auth callback 完成事件（Better Auth 的 signUp 成功 hook） |
 | Retention | `voice_mode_activated` | 需要先在 hearing store 加显式 `enableVoiceMode` action — 当前 hearing 没有单一"用户主动启用"那一刻的 trigger，被动监听 + 录音 action 不构成 user intent 信号 |
 | Feature adoption | `flux_image_generated` | 等图片生成 feature 上线 |
 
@@ -155,7 +157,7 @@
 
 ### 阶段 1（P0 — 付费漏斗 + activation）
 
-所有 surface 共用根目录 `posthog.config.ts`（单一 project key，`surface` super property 区分端）。初始化实况：
+所有运行端共用根目录 `posthog.config.ts`（单一 project key，`app_surface` super property 区分端）。初始化实况：
 
 ```ts
 import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY } from '../posthog.config'
@@ -184,7 +186,7 @@ posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
 
 埋点事件清单（P0）：
 
-- 前端：`pricing_page_viewed`、`plan_selected`、`checkout_started`、`signup_completed`（ui-server-auth 邮箱注册路径）、`first_model_selected`
+- 前端：`pricing_page_viewed`、`plan_selected`、`checkout_started`、`signup_form_completed`（ui-server-auth 匿名邮箱表单里程碑）、`first_model_selected`
 - 后端：`product_events` 是事实账本；其中业务事实白名单（`signup_completed`、`payment_completed`、`subscription_started/renewed/cancelled`）由 product-events 服务经 posthog-node 转发一份到 PostHog（`apps/server/src/services/domain/product-events.ts`，distinctId = Better Auth user id）。LLM / TTS 等 per-request 事件不转发
 
 PostHog UI 配两个 funnel：
