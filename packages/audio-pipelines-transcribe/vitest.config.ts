@@ -1,6 +1,8 @@
 import { dirname } from 'node:path'
+import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
+import { playwright } from '@vitest/browser-playwright'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
