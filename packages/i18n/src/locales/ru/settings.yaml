@@ -437,6 +437,7 @@ pages:
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
+        center: Переместить окно в центр экрана
         reset: Сбросить данные для рабочего стола
     confirmations:
       tooltip: Вы уверены?
@@ -450,6 +451,7 @@ pages:
       modules_reset: Настройки модуля сброшены.
       providers_reset: Настройки провайдера сброшены.
       all_deleted: Все локальные данные удалены.
+      desktop_window_centered: Окно рабочего стола перемещено в центр экрана.
       desktop_reset: Данные рабочего стола сброшены.
   models:
     description: Live2D, VRM, Spine и др.
