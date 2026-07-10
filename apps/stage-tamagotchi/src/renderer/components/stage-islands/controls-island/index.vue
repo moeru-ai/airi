@@ -135,9 +135,7 @@ function refreshWindow() {
  * Requests the main process to move the AIRI desktop window back to screen center.
  */
 function resetMainWindowPosition() {
-  void centerMainWindow().catch((error) => {
-    console.error(error)
-  })
+  centerMainWindow().catch(console.error)
 }
 </script>
 
