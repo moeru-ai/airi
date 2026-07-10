@@ -1,5 +1,4 @@
 import { dirname } from 'node:path'
-import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
 import { playwright } from '@vitest/browser-playwright'
@@ -24,12 +23,9 @@ export default defineConfig(({ mode }) => ({
           include: ['**/*.browser.{spec,test}.ts'],
           exclude: ['**/node_modules/**'],
           browser: {
+            provider: playwright(),
             enabled: true,
-            // NOTICE: CI uses the GitHub-hosted runner's preinstalled Google Chrome.
-            // Playwright's Chromium installer is currently hanging after the download
-            // reaches 100%, so CI selects Chrome by channel while local runs keep the
-            // default bundled Chromium behavior.
-            provider: playwright(env.CI ? { launchOptions: { channel: 'chrome' } } : undefined),
+            // Vitest browser mode requires an explicit browser instance list.
             instances: [
               { browser: 'chromium' },
             ],

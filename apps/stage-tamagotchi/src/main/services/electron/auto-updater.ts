@@ -259,8 +259,17 @@ export interface AutoUpdater {
   subscribe: (callback: (state: AutoUpdaterState) => void) => () => void
 }
 
+/** Configures updater ownership and persisted release-channel preferences. */
 export interface AutoUpdaterOptions {
+  /**
+   * Whether AIRI owns application updates for this distribution.
+   *
+   * @default true
+   */
+  enabled?: boolean
+  /** Reads the release channel persisted by the application configuration. */
   getStoredUpdateLane?: () => UpdateLane | undefined
+  /** Persists a release-channel change requested through updater IPC. */
   setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
 }
 
@@ -268,7 +277,39 @@ function isPrereleaseVersion(version: string) {
   return (semver.prerelease(version)?.length ?? 0) > 0
 }
 
+/**
+ * Creates an updater boundary for distributions whose storefront manages updates.
+ *
+ * The service keeps the existing IPC contract available while ensuring callers cannot
+ * check, download, or install a GitHub release outside the storefront update flow.
+ */
+function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
+  const state: AutoUpdaterState = { status: 'disabled' }
+  let storedPreferredLane = options.getStoredUpdateLane?.()
+
+  return {
+    state,
+    async checkForUpdates() {},
+    async downloadUpdate() {},
+    async quitAndInstall() {},
+    getPreferredUpdateLane() {
+      return storedPreferredLane
+    },
+    async setPreferredUpdateLane(lane) {
+      storedPreferredLane = lane
+      options.setStoredUpdateLane?.(lane)
+    },
+    subscribe(callback) {
+      callback(state)
+      return () => {}
+    },
+  }
+}
+
 export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
+  if (options.enabled === false)
+    return createDisabledAutoUpdater(options)
+
   const semaphore = new Semaphore(1)
   const appVersion = app.getVersion()
   const isPrereleaseBuild = isPrereleaseVersion(appVersion)

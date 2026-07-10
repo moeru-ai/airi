@@ -13,6 +13,33 @@ env:
   VERSION: ''
 
 on:
+  workflow_call:
+    inputs:
+      build_only:
+        description: Build without publishing distribution artifacts
+        required: false
+        default: false
+        type: boolean
+      artifacts_only:
+        description: Build and upload workflow artifacts without publishing a release
+        required: false
+        default: false
+        type: boolean
+      tag:
+        description: Specific tag or commit to build
+        required: false
+        default: ''
+        type: string
+      platform:
+        description: Platform group to build
+        required: false
+        default: all
+        type: string
+      distribution:
+        description: Storefront that owns application updates for this build
+        required: false
+        default: direct
+        type: string
   release:
     types:
       - prereleased
@@ -48,6 +75,7 @@ jobs:
     name: Build
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
+      VITE_DISTRIBUTION: ${{ inputs.distribution || 'direct' }}
       VITE_ENABLE_POSTHOG: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
     strategy:
       matrix:
@@ -223,6 +251,7 @@ jobs:
           name: steam-content-windows
           path: steam-content-windows.tar
           if-no-files-found: error
+          overwrite: true
 
       - name: Package macOS Steam content
         if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}
@@ -261,6 +290,7 @@ jobs:
           name: steam-content-macos
           path: steam-content-macos.tar
           if-no-files-found: error
+          overwrite: true
 
       - name: Package Linux Steam content
         if: ${{ github.event_name != 'schedule' && matrix.os == 'ubuntu-latest' }}
@@ -282,6 +312,7 @@ jobs:
           name: steam-content-linux
           path: steam-content-linux.tar
           if-no-files-found: error
+          overwrite: true
 
       - name: Setup Flatpak (Linux Only)
         if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}

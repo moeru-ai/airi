@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { cwd, env } from 'node:process'
+import { cwd } from 'node:process'
 
 import Vue from '@vitejs/plugin-vue'
 import Info from 'unplugin-info/vite'
@@ -36,11 +36,7 @@ export default defineConfig(({ mode }) => {
             exclude: ['**/node_modules/**'],
             browser: {
               enabled: true,
-              // NOTICE: CI uses the GitHub-hosted runner's preinstalled Google Chrome.
-              // Playwright's Chromium installer is currently hanging after the download
-              // reaches 100%, so CI selects Chrome by channel while local runs keep the
-              // default bundled Chromium behavior.
-              provider: playwright(env.CI ? { launchOptions: { channel: 'chrome' } } : undefined),
+              provider: playwright(),
               instances: [
                 { browser: 'chromium' },
               ],

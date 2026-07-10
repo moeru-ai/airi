@@ -6,17 +6,12 @@ permissions:
 
 env:
   STEAM_APP_ID: '3885340'
-  STEAM_ARTIFACT_REPOSITORY: moeru-ai/airi
   STEAM_DEBUG_BRANCH: 'false'
   STEAM_WINDOWS_DEPOT_ID: '3885342'
 
 on:
   workflow_dispatch:
     inputs:
-      release_run_id:
-        description: Release Tamagotchi workflow run ID that produced steam-content artifacts
-        required: true
-        type: string
       release_branch:
         description: Steam branch to set live after upload
         required: true
@@ -28,147 +23,47 @@ on:
         type: string
 
 jobs:
-  resolve-metadata:
-    name: Resolve Steam upload metadata
-    runs-on: ubuntu-latest
-    outputs:
-      build_description: ${{ steps.metadata.outputs.build_description }}
-    steps:
-      - name: Resolve build metadata
-        id: metadata
-        env:
-          INPUT_BUILD_DESCRIPTION: ${{ inputs.build_description }}
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-        run: |
-          description="$INPUT_BUILD_DESCRIPTION"
-
-          if [ -z "$description" ]; then
-            description="AIRI desktop Steam artifacts from Release Tamagotchi run $RELEASE_RUN_ID"
-          fi
-
-          # NOTICE: game-ci/steam-deploy writes buildDescription into SteamPipe VDF.
-          # Keep manual input single-line and quote-safe so it cannot break the
-          # generated manifest syntax.
-          description="$(
-            RAW_BUILD_DESCRIPTION="$description" python3 <<'PY'
-          import os
-          import re
-
-          value = os.environ['RAW_BUILD_DESCRIPTION']
-          value = re.sub(r'[\r\n\t]+', ' ', value)
-          value = re.sub(r'[\x00-\x1f\x7f]+', ' ', value)
-          value = value.replace('\\', '/').replace('"', "'")
-          value = re.sub(r' {2,}', ' ', value).strip()
-          print(value[:512])
-          PY
-          )"
-
-          if [ -z "$description" ]; then
-            description="AIRI desktop Steam artifacts from Release Tamagotchi run $RELEASE_RUN_ID"
-          fi
-
-          echo "build_description=$description" >> "$GITHUB_OUTPUT"
+  build-steam-content:
+    name: Build Steam content
+    uses: ./.github/workflows/release-tamagotchi.yml
+    with:
+      artifacts_only: true
+      distribution: steam
+      platform: all
+    secrets: inherit
 
   deploy-steam:
     name: Upload to Steam
     runs-on: ubuntu-latest
     needs:
-      - resolve-metadata
+      - build-steam-content
     steps:
-      - name: Validate Steam upload inputs
+      - name: Resolve build metadata
+        id: metadata
+        uses: actions/github-script@v9
         env:
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
-          STEAM_RELEASE_BRANCH: ${{ inputs.release_branch }}
-          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
-        run: |
-          case "$RELEASE_RUN_ID" in
-            ''|*[!0-9]*)
-              echo "release_run_id must be a numeric GitHub Actions run ID."
-              exit 1
-              ;;
-          esac
+          INPUT_BUILD_DESCRIPTION: ${{ inputs.build_description }}
+        with:
+          result-encoding: string
+          script: |
+            const fallback = `AIRI desktop Steam artifacts from workflow run ${process.env.GITHUB_RUN_ID}`
+            const description = (process.env.INPUT_BUILD_DESCRIPTION || fallback)
+              .replace(/[\r\n\t]+/g, ' ')
+              .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+              .replaceAll('\\', '/')
+              .replaceAll('"', "'")
+              .replace(/ {2,}/g, ' ')
+              .trim()
+              .slice(0, 512)
 
-          if [ -z "$STEAM_RELEASE_BRANCH" ]; then
-            echo "release_branch must not be empty."
-            exit 1
-          fi
+            return description || fallback
 
-          case "$STEAM_RELEASE_BRANCH" in
-            *[!A-Za-z0-9._-]*)
-              echo "release_branch may only contain ASCII letters, numbers, dots, underscores, and hyphens."
-              exit 1
-              ;;
-          esac
-
-          if [ -z "$STEAM_USERNAME" ]; then
-            echo "Missing STEAM_USERNAME secret."
-            exit 1
-          fi
-
-          if [ -z "$STEAM_CONFIG_VDF" ]; then
-            echo "Missing STEAM_CONFIG_VDF secret."
-            exit 1
-          fi
-
-          case "$STEAM_WINDOWS_DEPOT_ID" in
-            ''|*[!0-9]*)
-              echo "STEAM_WINDOWS_DEPOT_ID must be a numeric Steam depot ID."
-              exit 1
-              ;;
-          esac
-
-      - name: Validate Release Tamagotchi run
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-        run: |
-          run_info="$(gh run view "$RELEASE_RUN_ID" \
-            --repo "$STEAM_ARTIFACT_REPOSITORY" \
-            --json conclusion,event,headBranch,headSha,status,url,workflowName)"
-
-          workflow_name="$(jq -r '.workflowName' <<< "$run_info")"
-          conclusion="$(jq -r '.conclusion' <<< "$run_info")"
-          event="$(jq -r '.event' <<< "$run_info")"
-          status="$(jq -r '.status' <<< "$run_info")"
-
-          if [ "$workflow_name" != "Release Tamagotchi" ]; then
-            echo "release_run_id must point to a Release Tamagotchi workflow run."
-            echo "Actual workflow: $workflow_name"
-            exit 1
-          fi
-
-          case "$event" in
-            workflow_dispatch|release)
-              ;;
-            *)
-              echo "Release Tamagotchi run must come from a manual dispatch or release event so Steam content artifacts exist."
-              echo "Actual event: $event"
-              exit 1
-              ;;
-          esac
-
-          if [ "$conclusion" != "success" ]; then
-            echo "Release Tamagotchi run must have completed successfully before Steam upload."
-            echo "Current status: $status"
-            echo "Current conclusion: $conclusion"
-            exit 1
-          fi
-
-          echo "$run_info" | jq -r '"Using Release Tamagotchi run \(.url) from \(.headBranch) at \(.headSha) via \(.event)."'
-
-      - name: Download Release Tamagotchi Steam content artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
-        run: |
-          mkdir -p steam-artifacts
-          gh run download "$RELEASE_RUN_ID" \
-            --repo "$STEAM_ARTIFACT_REPOSITORY" \
-            --dir steam-artifacts \
-            --name steam-content-windows \
-            --name steam-content-macos \
-            --name steam-content-linux
+      - name: Download Steam content
+        uses: actions/download-artifact@v5
+        with:
+          pattern: steam-content-*
+          path: steam-artifacts
+          merge-multiple: true
 
       - name: Prepare Steam upload root
         run: |
@@ -205,7 +100,7 @@ jobs:
           configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
           appId: ${{ env.STEAM_APP_ID }}
           firstDepotIdOverride: ${{ env.STEAM_WINDOWS_DEPOT_ID }}
-          buildDescription: ${{ needs.resolve-metadata.outputs.build_description }}
+          buildDescription: ${{ steps.metadata.outputs.result }}
           rootPath: steam-build
           depot1Path: windows
           depot2Path: macos
