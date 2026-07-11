@@ -251,8 +251,9 @@ jobs:
           fi
 
           mkdir -p steam-content/macos
-          ditto "$app_path" steam-content/macos/AIRI.app
-          tar -cf steam-content-macos.tar -C steam-content macos
+          ditto --norsrc "$app_path" steam-content/macos/AIRI.app
+          find steam-content/macos -name '._*' -delete
+          COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
 
       - name: Upload macOS Steam content
         if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}

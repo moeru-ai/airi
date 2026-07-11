@@ -190,6 +190,12 @@ jobs:
           test -x steam-build/macos/AIRI.app/Contents/MacOS/airi
           test -x steam-build/linux/airi
 
+          find steam-build/macos/AIRI.app -name '._*' -delete
+          if find steam-build/macos/AIRI.app -name '._*' -print -quit | grep -q .; then
+            echo "macOS Steam content still contains AppleDouble files that break codesign."
+            exit 1
+          fi
+
           if ! file steam-build/macos/AIRI.app/Contents/MacOS/airi | grep -q 'arm64'; then
             echo "Steam macOS content currently supports Apple Silicon only."
             file steam-build/macos/AIRI.app/Contents/MacOS/airi
