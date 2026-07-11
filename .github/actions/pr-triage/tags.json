@@ -1,0 +1,31 @@
+{
+  "tags": [
+    { "name": "bug", "description": "Something is not working" },
+    { "name": "feature", "description": "Introduces or extends product behavior" },
+    { "name": "pending triage", "description": "The pull request cannot yet be classified confidently" },
+    { "name": "apps/stage-pocket", "description": "Mobile app for iOS or Android" },
+    { "name": "apps/stage-tamagotchi", "description": "Desktop app for Windows, macOS, or Linux" },
+    { "name": "apps/stage-web", "description": "Web app, PWA, or browser surface" },
+    { "name": "env/os-all", "description": "All major desktop operating systems" },
+    { "name": "env/os-linux", "description": "Linux, including X11 and Wayland where relevant" },
+    { "name": "env/os-macos", "description": "macOS-specific behavior" },
+    { "name": "env/os-windows", "description": "Windows-specific behavior" },
+    { "name": "priority/general", "description": "Normal work intended for the current release" },
+    { "name": "priority/nice-to-have", "description": "Optional polish or explicitly low-urgency work" },
+    { "name": "priority/urgent", "description": "Critical, blocking, or production-breaking work" },
+    { "name": "scope/agent", "description": "Agent workflows, orchestration, LLM runtime, prompt routing, or agent behavior" },
+    { "name": "scope/audio-input", "description": "ASR, STT, microphone capture, VAD, hearing, or transcription input" },
+    { "name": "scope/audio-output", "description": "TTS, voice output, speech synthesis, playback, or voice cloning" },
+    { "name": "scope/avatar", "description": "General avatar rendering, control, or interaction" },
+    { "name": "scope/avatar/live2d", "description": "Live2D-specific avatar work" },
+    { "name": "scope/avatar/vrm", "description": "VRM-specific avatar work" },
+    { "name": "scope/documentation", "description": "Documentation, manuals, tutorials, guides, or README work" },
+    { "name": "scope/engineering", "description": "CI, build, release, packaging, toolchain, workflow, infrastructure, or repository automation" },
+    { "name": "scope/extension", "description": "Extensions, plugins, mod APIs, tentacle APIs, or channel integrations" },
+    { "name": "scope/game-playing-ai", "description": "Game-playing agent behavior" },
+    { "name": "scope/i18n", "description": "Translations, localization, locale data, or internationalization" },
+    { "name": "scope/providers", "description": "Provider integrations, configuration, selection, or supported provider behavior" },
+    { "name": "scope/server-api", "description": "Maintained server API or public server service behavior" },
+    { "name": "scope/ui", "description": "UI, UX, settings, layouts, views, components, visual behavior, or interaction flows" }
+  ]
+}

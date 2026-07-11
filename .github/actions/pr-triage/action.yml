@@ -1,0 +1,43 @@
+name: Agentic PR Triage
+description: Classify a pull request or apply validated labels through an OpenAI-compatible API.
+
+inputs:
+  operation:
+    description: Either classify or apply-labels.
+    required: true
+  github-token:
+    description: GitHub token scoped by the calling job.
+    required: true
+  pull-request-number:
+    description: Pull request number to process.
+    required: true
+  llm-api-key:
+    description: LLM provider API key; required only for classify.
+    required: false
+    default: ''
+  llm-model:
+    description: LLM model or provider preset; required only for classify.
+    required: false
+    default: openai/gpt-4.1-mini
+  llm-api-url:
+    description: OpenAI-compatible chat completions endpoint.
+    required: false
+    default: https://openrouter.ai/api/v1/chat/completions
+  max-prompt-bytes:
+    description: Maximum UTF-8 bytes sent as system prompt plus PR context.
+    required: false
+    default: '65536'
+  tags-json:
+    description: Validated JSON string array; required only for apply-labels.
+    required: false
+    default: '[]'
+
+outputs:
+  pr-number:
+    description: Validated pull request number.
+  tags-json:
+    description: Validated compact JSON string array returned by classification.
+
+runs:
+  using: node24
+  main: src/index.cjs
