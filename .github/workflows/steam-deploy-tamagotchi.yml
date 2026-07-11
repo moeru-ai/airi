@@ -27,7 +27,7 @@ jobs:
     name: Build Steam content
     uses: ./.github/workflows/release-tamagotchi.yml
     with:
-      artifacts_only: true
+      build_only: true
       distribution: steam
       platform: all
     secrets: inherit
