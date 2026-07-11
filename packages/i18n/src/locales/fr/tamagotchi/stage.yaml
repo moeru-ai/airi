@@ -15,7 +15,7 @@ docs:
   'open-settings': Ouvrir les paramètres
   'open-chat': Ouvrir le Chat
   'refresh': Actualiser
-  'center-main-window': Recentrer sur l’écran
+  'center-main-window': Move to screen center
   'open-hearing-controls': Ouvrir les contrôles d'écoute
   'drag-to-move-window': Glisser pour déplacer la fenêtre
   'switch-to-light-mode': Passer au mode clair
@@ -84,7 +84,7 @@ about:
     actions:
       download: Télécharger la mise à jour
       download-short: Télécharger
-      confirm-download: Confirmer le téléchargement
+      confirm-download: Confirmer le téléchargement 
       check-for-updates: Rechercher des mises à jour
       checking: Vérification en cours...
       latest-version: Dernière version
