@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { setTimeout: sleep } = require('node:timers/promises');
 
 const { buildPrompt } = require('./compact.cjs');
 const { fetchPullRequest, syncLabels } = require('./github.cjs');
@@ -38,10 +39,6 @@ function addMask(value) {
 function safeError(error) {
   const message = error instanceof Error ? error.message : String(error);
   return message.replace(/[\r\n]+/g, ' ').slice(0, 1000);
-}
-
-function safeLogValue(value) {
-  return String(value ?? '').replace(/[\r\n]/g, '');
 }
 
 function escapeMarkdown(value) {
@@ -108,10 +105,6 @@ function parseModelContent(content) {
     const hash = crypto.createHash('sha256').update(content).digest('hex');
     throw new Error(`LLM content was not valid JSON: bytes=${bytes} lines=${lines} sha256=${hash}`);
   }
-}
-
-function sleep(milliseconds) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function callLlm({ apiKey, apiUrl, model, system, context, repository, fetchImpl = fetch }) {
@@ -182,7 +175,7 @@ async function callLlm({ apiKey, apiUrl, model, system, context, repository, fet
       }
       const parsed = parseModelContent(message.content);
       console.log(
-        `LLM usage: model=${safeLogValue(responseJson.model ?? 'unknown')} format=${parsed.format} prompt_tokens=${responseJson.usage?.prompt_tokens ?? 'unknown'} completion_tokens=${responseJson.usage?.completion_tokens ?? 'unknown'} total_tokens=${responseJson.usage?.total_tokens ?? 'unknown'}`,
+        `LLM usage: model=${String(responseJson.model ?? 'unknown').replace(/[\r\n]/g, '')} format=${parsed.format} prompt_tokens=${responseJson.usage?.prompt_tokens ?? 'unknown'} completion_tokens=${responseJson.usage?.completion_tokens ?? 'unknown'} total_tokens=${responseJson.usage?.total_tokens ?? 'unknown'}`,
       );
       return parsed.value;
     } catch (error) {
@@ -226,7 +219,7 @@ function parseInputs() {
 }
 
 function logDiagnostics(inputs, diagnostics) {
-  console.log(`Triage request: pr=${inputs.number} model=${safeLogValue(inputs.model)} api_host=${new URL(inputs.llmApiUrl).host}`);
+  console.log(`Triage request: pr=${inputs.number} model=${inputs.model.replace(/[\r\n]/g, '')} api_host=${new URL(inputs.llmApiUrl).host}`);
   console.log(`Prompt budget: final=${diagnostics.inputBytes} max=${inputs.maxPromptBytes} context=${diagnostics.contextBytes}/${diagnostics.contextRawBytes} bytes`);
   console.log(`Description: compact=${diagnostics.bodyBytes} raw=${diagnostics.bodyRawBytes} bytes`);
   console.log(`File manifest: compact=${diagnostics.manifestBytes} raw=${diagnostics.manifestRawBytes} bytes`);

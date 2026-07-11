@@ -39,7 +39,7 @@ test('truncateMiddle preserves UTF-8 boundaries and reports omitted lines', () =
 
 test('selectDiffFiles keeps both ends and inserts one marker', () => {
   const files = Array.from({ length: 129 }, (_, index) => ({ filename: `file-${index}.txt` }));
-  const selected = selectDiffFiles(files, 20);
+  const selected = selectDiffFiles(files);
   assert.equal(selected.length, 21);
   assert.equal(selected[0].filename, 'file-0.txt');
   assert.equal(selected[9].filename, 'file-9.txt');
