@@ -28,7 +28,7 @@ function truncateMiddle(text, byteLimit, unit = 'lines') {
     if (Buffer.byteLength(tailCandidate, 'utf8') <= byteLimit) {
       tail.unshift(lines[right]);
       right -= 1;
-    } else if (headCandidate && left <= right) {
+    } else {
       break;
     }
   }
@@ -49,16 +49,17 @@ function truncateMiddle(text, byteLimit, unit = 'lines') {
   return result;
 }
 
-function selectDiffFiles(files, maxFiles = 20) {
+function selectDiffFiles(files) {
+  const maxFiles = 20;
   if (files.length <= maxFiles) {
-    return files.map((file) => ({ ...file }));
+    return files;
   }
   const half = Math.floor(maxFiles / 2);
   const omitted = files.length - maxFiles;
   return [
-    ...files.slice(0, half).map((file) => ({ ...file })),
+    ...files.slice(0, half),
     { _truncated: true, filename: `... ${omitted} files truncated ...` },
-    ...files.slice(-half).map((file) => ({ ...file })),
+    ...files.slice(-half),
   ];
 }
 
@@ -86,7 +87,7 @@ function buildPrompt({ pr, files, prompt, catalog, maxBytes = 65536 }) {
     .map((file) => `${file.filename} [${file.status}, +${file.additions}/-${file.deletions}, ${file.changes} changes]`)
     .join('\n');
   const manifest = truncateMiddle(manifestRaw, 4500, 'files');
-  const selected = selectDiffFiles(files, 20);
+  const selected = selectDiffFiles(files);
   const selectedCount = selected.filter((file) => !file._truncated).length;
 
   const systemBytes = Buffer.byteLength(system, 'utf8');
