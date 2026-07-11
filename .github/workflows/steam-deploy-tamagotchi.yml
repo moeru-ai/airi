@@ -148,8 +148,8 @@ jobs:
               ;;
           esac
 
-          if [ "$conclusion" != "success" ]; then
-            echo "Release Tamagotchi run must have completed successfully before Steam upload."
+          if [ "$conclusion" != "success" ] && [ "$status" != "in_progress" ]; then
+            echo "Release Tamagotchi run must have completed successfully or still be running with Steam artifacts available."
             echo "Current status: $status"
             echo "Current conclusion: $conclusion"
             exit 1
