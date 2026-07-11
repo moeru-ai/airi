@@ -1,8 +1,16 @@
 import type { Rectangle } from 'electron'
 
+import { screen } from 'electron'
 import { describe, expect, it, vi } from 'vitest'
 
-import { computeResizedBoundsAnchoredToDominantDisplay, heightFrom, mapForBreakpoints, widthFrom } from './display'
+import {
+  centerWindowOnDisplay,
+  computeCenteredWindowBounds,
+  computeResizedBoundsAnchoredToDominantDisplay,
+  heightFrom,
+  mapForBreakpoints,
+  widthFrom,
+} from './display'
 
 // NOTICE:
 // Mocking 'electron' is needed to prevent Vitest from attempting to resolve/load the real Electron binary during tests.
@@ -130,5 +138,104 @@ describe('computeResizedBoundsAnchoredToDominantDisplay', () => {
     expect(bounds.y).toBe(390)
     expect(bounds.width).toBe(450)
     expect(bounds.height).toBe(600)
+  })
+})
+
+/**
+ * @example
+ * computeCenteredWindowBounds({ displayWorkArea, windowBounds })
+ */
+describe('computeCenteredWindowBounds', () => {
+  /**
+   * @example
+   * A 450x600 window is centered without changing its size.
+   */
+  it('preserves the window size and centers it inside the display work area', () => {
+    const result = computeCenteredWindowBounds({
+      displayWorkArea: { x: 0, y: 25, width: 1440, height: 875 },
+      windowBounds: { x: 1200, y: 700, width: 450, height: 600 },
+    })
+
+    expect(result).toEqual({ x: 495, y: 162, width: 450, height: 600 })
+  })
+
+  /**
+   * @example
+   * A display above and left of the primary screen keeps negative coordinates.
+   */
+  it('supports display work areas with negative origins', () => {
+    const result = computeCenteredWindowBounds({
+      displayWorkArea: { x: -1920, y: -1080, width: 1920, height: 1055 },
+      windowBounds: { x: -2300, y: -1300, width: 500, height: 620 },
+    })
+
+    expect(result).toEqual({ x: -1210, y: -863, width: 500, height: 620 })
+  })
+
+  /**
+   * @example
+   * An oversized window starts at the work-area origin instead of moving farther off-screen.
+   */
+  it('keeps oversized windows anchored inside the display work area origin', () => {
+    const result = computeCenteredWindowBounds({
+      displayWorkArea: { x: 120, y: 45, width: 800, height: 500 },
+      windowBounds: { x: -2000, y: -900, width: 1000, height: 640 },
+    })
+
+    expect(result).toEqual({ x: 120, y: 45, width: 1000, height: 640 })
+  })
+})
+
+/**
+ * @example
+ * centerWindowOnDisplay(window)
+ */
+describe('centerWindowOnDisplay', () => {
+  /**
+   * @example
+   * The recovered window receives centered bounds and becomes visible.
+   */
+  it('sets centered bounds and shows the window', () => {
+    const windowBounds = { x: 1200, y: 700, width: 450, height: 600 }
+    const displayWorkArea = { x: 0, y: 25, width: 1440, height: 875 }
+    const setBounds = vi.fn()
+    const show = vi.fn()
+    vi.mocked(screen.getDisplayMatching).mockReturnValue({ workArea: displayWorkArea } as Electron.Display)
+
+    const result = centerWindowOnDisplay({
+      getBounds: () => windowBounds,
+      isDestroyed: () => false,
+      setBounds,
+      show,
+    })
+
+    expect(result).toEqual({ x: 495, y: 162, width: 450, height: 600 })
+    expect(screen.getDisplayMatching).toHaveBeenCalledWith(windowBounds)
+    expect(setBounds).toHaveBeenCalledWith({ x: 495, y: 162, width: 450, height: 600 })
+    expect(show).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * @example
+   * A missing main window reports a stable domain error to the renderer.
+   */
+  it('rejects recovery when the target window is unavailable', () => {
+    expect(() => centerWindowOnDisplay(undefined)).toThrowError('Main AIRI window is not available.')
+  })
+
+  /**
+   * @example
+   * A destroyed window is rejected before Electron bounds methods are called.
+   */
+  it('rejects recovery when the target window was destroyed', () => {
+    const getBounds = vi.fn()
+
+    expect(() => centerWindowOnDisplay({
+      getBounds,
+      isDestroyed: () => true,
+      setBounds: vi.fn(),
+      show: vi.fn(),
+    })).toThrowError('Main AIRI window is not available.')
+    expect(getBounds).not.toHaveBeenCalled()
   })
 })

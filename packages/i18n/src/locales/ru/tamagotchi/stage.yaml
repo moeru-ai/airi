@@ -15,6 +15,7 @@ docs:
   'open-settings': Открыть настройки
   'open-chat': Открыть чат
   'refresh': Обновить результаты
+  'center-main-window': Move to screen center
   'open-hearing-controls': Управление слухом
   'drag-to-move-window': Перетащите окно
   'switch-to-light-mode': Переключить на светлую тему

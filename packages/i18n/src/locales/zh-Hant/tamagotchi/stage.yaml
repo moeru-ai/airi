@@ -15,6 +15,7 @@ docs:
   'open-settings': 開啟設定
   'open-chat': 打開聊天
   'refresh': 重新整理
+  'center-main-window': Move to screen center
   'open-hearing-controls': 開啟聽力控制
   'drag-to-move-window': 長按以移動視窗
   'switch-to-light-mode': 切換至亮色模式

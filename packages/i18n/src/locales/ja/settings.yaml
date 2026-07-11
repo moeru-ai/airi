@@ -437,6 +437,7 @@ pages:
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。
+        center: Move desktop window to center
         reset: デスクトップのデータをリセット
     confirmations:
       tooltip: 本当によろしいですか？
@@ -450,6 +451,7 @@ pages:
       modules_reset: モジュールの設定をリセットしました。
       providers_reset: プロバイダーの設定をリセットしました。
       all_deleted: すべてのローカルデータを削除しました。
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: デスクトップのデータをリセットしました。
   models:
     description: Live2D、VRM、Spine、など。

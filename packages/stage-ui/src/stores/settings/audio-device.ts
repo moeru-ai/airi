@@ -20,6 +20,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const selectedAudioInputPersist = useLocalStorageManualReset<string>('settings/audio/input', selectedAudioInputNonPersist.value)
   const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
   let audioInputStartGeneration = 0
+  let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
 
   function syncSelectedAudioInputFromRuntime() {
     if (selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
@@ -46,9 +47,24 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     audioInputStartGeneration += 1
   }
 
+  /** Reuses the active browser request so concurrent consumers cannot allocate duplicate streams. */
+  function getOrStartAudioInputStream() {
+    if (audioInputStart)
+      return audioInputStart
+
+    const currentStart = startAudioInputStream()
+    audioInputStart = currentStart
+    const clearCurrentStart = () => {
+      if (audioInputStart === currentStart)
+        audioInputStart = undefined
+    }
+    void currentStart.then(clearCurrentStart, clearCurrentStart)
+    return currentStart
+  }
+
   async function startStreamForGeneration(generation: number) {
     syncSelectedAudioInputToRuntime()
-    await startAudioInputStream()
+    await getOrStartAudioInputStream()
 
     if (generation === audioInputStartGeneration)
       syncSelectedAudioInputFromRuntime()

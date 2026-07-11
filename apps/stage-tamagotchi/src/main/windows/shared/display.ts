@@ -9,6 +9,62 @@ export function currentDisplayBounds(window: BrowserWindow) {
   return nearbyDisplay.bounds
 }
 
+/**
+ * Computes bounds that center a window inside an Electron display work area.
+ *
+ * Use when:
+ * - Recovering a desktop window that was moved outside the visible work area
+ * - Preserving the current window size while changing only its position
+ *
+ * Expects:
+ * - Both rectangles use Electron logical display coordinates
+ * - The display work area excludes menu bars, docks, and taskbars
+ *
+ * Returns:
+ * - Centered bounds that preserve the window width and height
+ */
+export function computeCenteredWindowBounds(options: {
+  displayWorkArea: Rectangle
+  windowBounds: Rectangle
+}): Rectangle {
+  const centeredOffsetX = Math.floor((options.displayWorkArea.width - options.windowBounds.width) / 2)
+  const centeredOffsetY = Math.floor((options.displayWorkArea.height - options.windowBounds.height) / 2)
+
+  return {
+    x: options.displayWorkArea.x + Math.max(0, centeredOffsetX),
+    y: options.displayWorkArea.y + Math.max(0, centeredOffsetY),
+    width: options.windowBounds.width,
+    height: options.windowBounds.height,
+  }
+}
+
+/**
+ * Centers and reveals an Electron window on the display matching its current bounds.
+ *
+ * Use when:
+ * - A renderer requests recovery of an off-screen AIRI window
+ * - A hidden window must become visible after its position is restored
+ *
+ * Expects:
+ * - The window is alive and supports Electron's bounds APIs
+ *
+ * Returns:
+ * - The centered bounds applied to the window
+ */
+export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setBounds' | 'show'> | undefined): Rectangle {
+  if (!window || window.isDestroyed())
+    throw new Error('Main AIRI window is not available.')
+
+  const windowBounds = window.getBounds()
+  const displayWorkArea = screen.getDisplayMatching(windowBounds).workArea
+  const centeredBounds = computeCenteredWindowBounds({ displayWorkArea, windowBounds })
+
+  window.setBounds(centeredBounds)
+  window.show()
+
+  return centeredBounds
+}
+
 export interface ResizableDisplayArea {
   /** Full display bounds used to decide which physical display owns most of a window. */
   bounds: Rectangle

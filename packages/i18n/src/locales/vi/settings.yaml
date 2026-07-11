@@ -437,6 +437,7 @@ pages:
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
+        center: Move desktop window to center
         reset: Đặt lại dữ liệu desktop
     confirmations:
       tooltip: Bạn chắc chứ?
@@ -450,6 +451,7 @@ pages:
       modules_reset: Đã đặt lại cài đặt mô-đun.
       providers_reset: Đã đặt lại cài đặt nhà cung cấp.
       all_deleted: Tất cả dữ liệu cục bộ đã bị xóa.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
   models:
     description: Live2D, VRM, Spine, v.v.
