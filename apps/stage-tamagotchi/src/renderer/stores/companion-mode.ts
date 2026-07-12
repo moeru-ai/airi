@@ -54,6 +54,12 @@ type CompanionModeLogEntryInput = CompanionModeLogEntry extends infer Entry
     : never
   : never
 
+type PersistedCompanionModeLogEntry = CompanionModeLogEntry extends infer Entry
+  ? Entry extends { type: 'capture' }
+    ? Omit<Entry, 'imageDataUrl'>
+    : Entry
+  : never
+
 interface CompanionModeCaptureLogInput {
   sourceKind: CompanionModeSourceKind
   sourceName?: string
@@ -319,14 +325,37 @@ function createLogId(timestamp = Date.now()) {
   return `${timestamp.toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+export function sanitizeCompanionModePersistedLogs(logs: CompanionModeLogEntry[]): PersistedCompanionModeLogEntry[] {
+  return logs.map((entry) => {
+    if (entry.type !== 'capture')
+      return entry
+
+    const { imageDataUrl: _imageDataUrl, ...persistedEntry } = entry
+    return persistedEntry
+  })
+}
+
 export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', () => {
   const enabled = useLocalStorage<boolean>('settings/companion-mode/enabled', false)
   const intervalMs = useLocalStorage<number>('settings/companion-mode/interval-ms', COMPANION_MODE_DEFAULT_INTERVAL_MS)
   const rawSourceKind = useLocalStorage<CompanionModeSourceKind>('settings/companion-mode/source-kind', 'screen')
   const sourceId = useLocalStorage<string>('settings/companion-mode/source-id', '')
   const promptTemplate = useLocalStorage<string>('settings/companion-mode/prompt-template', '')
-  const logs = useLocalStorage<CompanionModeLogEntry[]>('settings/companion-mode/logs', [])
+  const persistedLogs = useLocalStorage<CompanionModeLogEntry[]>('settings/companion-mode/logs', [])
   const runtimeSnapshot = useLocalStorage<CompanionModeRuntimeSnapshot>('settings/companion-mode/runtime', createDefaultCompanionModeRuntimeSnapshot())
+  const logImages = ref<Record<string, string>>({})
+
+  persistedLogs.value = sanitizeCompanionModePersistedLogs(persistedLogs.value)
+
+  const logs = computed<CompanionModeLogEntry[]>(() => persistedLogs.value.map((entry) => {
+    if (entry.type !== 'capture')
+      return entry
+
+    return {
+      ...entry,
+      imageDataUrl: logImages.value[entry.id],
+    }
+  }))
 
   const isRunning = ref(false)
   const isCapturing = ref(false)
@@ -354,13 +383,28 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
 
   function appendLog(entry: CompanionModeLogEntryInput) {
     const createdAt = entry.createdAt
-    logs.value = [
-      {
-        ...entry,
-        id: createLogId(createdAt),
-      } as CompanionModeLogEntry,
-      ...logs.value,
-    ].slice(0, COMPANION_MODE_MAX_LOG_ENTRIES)
+    const id = createLogId(createdAt)
+    const logEntry = {
+      ...entry,
+      id,
+    } as CompanionModeLogEntry
+
+    if (logEntry.type === 'capture' && logEntry.imageDataUrl) {
+      logImages.value = {
+        ...logImages.value,
+        [id]: logEntry.imageDataUrl,
+      }
+    }
+
+    persistedLogs.value = sanitizeCompanionModePersistedLogs([
+      logEntry,
+      ...persistedLogs.value,
+    ]).slice(0, COMPANION_MODE_MAX_LOG_ENTRIES)
+
+    const retainedLogIds = new Set(persistedLogs.value.map(log => log.id))
+    logImages.value = Object.fromEntries(
+      Object.entries(logImages.value).filter(([logId]) => retainedLogIds.has(logId)),
+    )
   }
 
   function publishRuntimeState(patch: Partial<CompanionModeRuntimeSnapshot> = {}, now = Date.now()) {
@@ -414,7 +458,8 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
   }
 
   function clearLogs() {
-    logs.value = []
+    persistedLogs.value = []
+    logImages.value = {}
   }
 
   function recordCapture(capturedAt = Date.now(), logInput?: CompanionModeCaptureLogInput) {

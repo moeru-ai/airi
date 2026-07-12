@@ -18,6 +18,7 @@ import {
   resolveCompanionModeCaptureSourceId,
   resolveCompanionModeRuntimeStatus,
   resolveCompanionModeWindowFallbackSelection,
+  sanitizeCompanionModePersistedLogs,
 } from './companion-mode'
 
 describe('companion mode helpers', () => {
@@ -123,6 +124,39 @@ describe('companion mode helpers', () => {
       mimeType: 'image/jpeg',
       data: 'abc123',
     })
+  })
+
+  it('removes captured images from persisted log entries', () => {
+    expect(sanitizeCompanionModePersistedLogs([
+      {
+        id: 'capture-1',
+        type: 'capture',
+        createdAt: 1,
+        sourceKind: 'screen',
+        prompt: 'prompt',
+        imageDataUrl: 'data:image/jpeg;base64,abc123',
+      },
+      {
+        id: 'skip-1',
+        type: 'skip',
+        createdAt: 2,
+        message: 'busy',
+      },
+    ])).toEqual([
+      {
+        id: 'capture-1',
+        type: 'capture',
+        createdAt: 1,
+        sourceKind: 'screen',
+        prompt: 'prompt',
+      },
+      {
+        id: 'skip-1',
+        type: 'skip',
+        createdAt: 2,
+        message: 'busy',
+      },
+    ])
   })
 
   it('builds a casual companion prompt with source context', () => {
