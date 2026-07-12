@@ -66,7 +66,6 @@ export function safelistAllPrimaryBackgrounds(): string[] {
   }).flat()
 }
 
-
 export function safelistSettingsEntryIcons(): string[] {
   return [
     'i-solar:emoji-funny-square-bold-duotone',
