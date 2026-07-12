@@ -60,6 +60,8 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Send this turn to the provider without persisting/rendering the user message. */
+  hiddenUserMessage?: boolean
 }
 
 interface QueuedSend {
@@ -510,32 +512,42 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      const hiddenUserMessage = options.hiddenUserMessage === true
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
         createdAt: sendingCreatedAt,
         id: roundId,
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
+      const visibleSessionMessagesBeforeUser = deps.session.getSessionMessages(sessionId)
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
+      if (!hiddenUserMessage) {
+        deps.session.appendSessionMessage(sessionId, userMessage)
 
-      const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
-      deps.onUserTurnReady?.({
-        messageText: sendingMessage,
-        sessionMessages: sessionMessagesForSend,
-      })
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
+
+      const sessionMessagesForSend = hiddenUserMessage
+        ? [...visibleSessionMessagesBeforeUser, userMessage]
+        : deps.session.getSessionMessages(sessionId)
+
+      if (!hiddenUserMessage) {
+        deps.onUserTurnReady?.({
+          messageText: sendingMessage,
+          sessionMessages: sessionMessagesForSend,
+        })
+      }
 
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0

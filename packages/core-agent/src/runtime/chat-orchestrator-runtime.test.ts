@@ -695,4 +695,47 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
   })
+
+  /**
+   * @example
+   * Companion Mode sends screen context without rendering the prompt/image as a user bubble.
+   */
+  it('sends hidden user turns to the provider without appending them to session history', async () => {
+    const harness = createHarness()
+    let composedMessages: Message[] = []
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      composedMessages = messages
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'screen reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('hidden screen prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+      attachments: [
+        {
+          type: 'image',
+          data: 'aW1hZ2U=',
+          mimeType: 'image/png',
+        },
+      ],
+    })
+
+    expect(composedMessages[1]?.content).toEqual([
+      {
+        type: 'text',
+        text: '[2026-04-25 18:47] hidden screen prompt',
+      },
+      {
+        type: 'image_url',
+        image_url: {
+          url: 'data:image/png;base64,aW1hZ2U=',
+        },
+      },
+    ])
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system', 'assistant'])
+    expect(harness.userAppended).toEqual([])
+    expect(harness.userTurns).toEqual([])
+  })
 })

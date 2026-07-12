@@ -48,6 +48,7 @@ interface IngestCommandPayload {
   input?: WebSocketEventInputs
   sessionId?: string
   toolset?: ToolsetId
+  hidden?: boolean
 }
 
 interface SpotlightIngestPayload {
@@ -99,6 +100,7 @@ interface PendingRequest {
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
+const INGEST_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 const SPOTLIGHT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 
 function createRequestId() {
@@ -336,13 +338,16 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
     }
 
-    await chatOrchestrator.ingest(payload.text, {
+    const sendOptions = {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
       tools: resolveTools(payload.toolset),
-    }, payload.sessionId)
+      hiddenUserMessage: payload.hidden,
+    } as Parameters<typeof chatOrchestrator.ingest>[1] & { hiddenUserMessage?: boolean }
+
+    await chatOrchestrator.ingest(payload.text, sendOptions, payload.sessionId)
   }
 
   async function executeSpotlightIngest(payload: SpotlightIngestPayload): Promise<SpotlightIngestResult> {
@@ -627,7 +632,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       senderId: instanceId,
       command: 'ingest',
       payload,
-    })
+    }, INGEST_REQUEST_TIMEOUT_MS, () => new Error('Chat response timed out'))
   }
 
   async function requestSpotlightIngest(payload: SpotlightIngestPayload) {

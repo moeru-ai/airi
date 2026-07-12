@@ -7,6 +7,57 @@ spotlight:
     prefix: '出错啦：{message}'
     shortcutRegistrationFailed: '出错啦：快捷键注册失败'
 pages:
+  companion:
+    title: 陪伴模式
+    description: 让 AIRI 偶尔看看屏幕，并像日常聊天一样回应。
+    enable:
+      title: 开启陪伴模式
+      description: 按设定间隔捕获所选显示器画面，并发送给角色生成简短的闲聊回应。
+    interval:
+      title: 捕获间隔
+      description: 上一次观察请求完整结束后，再等待这个时间。
+      value: '{seconds} 秒'
+    source:
+      kind-title: 观察目标
+      kind:
+        screen: 整个屏幕
+        window: 单独窗口
+      screen-title: 显示器来源
+      screen-description: 选择 AIRI 要观察的显示器。
+      window-title: 窗口来源
+      window-description: 选择 AIRI 要观察的浏览器或游戏窗口。
+      auto: 自动选择来源
+      auto-screen: 自动选择显示器
+      auto-window: 自动选择窗口
+      refetch: 刷新
+      refetching: 刷新中...
+    prompt:
+      title: 陪伴模式提示词
+      description: 每次捕获画面时会随截图一起发送这段提示词。
+      placeholder: 陪伴模式提示词
+      save: 保存提示词
+      saved: 已保存
+      reset: 重置
+    logs:
+      title: 陪伴模式日志
+      empty: 还没有隐藏捕获记录。
+      clear: 清空
+      capture: 隐藏捕获
+      skip: 已跳过
+      error: 错误
+      prompt: 提示词
+      open-image: 查看截图
+      close-image: 关闭预览
+      image-preview: 陪伴模式截图
+    status:
+      idle: 陪伴模式未运行
+      running: 陪伴模式正在等待下一次观察
+      capturing: 正在捕获屏幕
+      unreported: 已开启，但主窗口未报告运行状态
+      error: 陪伴模式需要处理
+      last-capture: '上次捕获时间：{time}'
+      last-skip: '聊天忙碌，已在 {time} 跳过一次'
+      no-capture: 还没有捕获记录。
   modules:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具

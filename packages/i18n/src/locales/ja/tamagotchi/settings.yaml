@@ -7,6 +7,57 @@ spotlight:
     prefix: '問題が発生しました: {message}'
     shortcutRegistrationFailed: '問題が発生しました: Spotlight ショートカットを登録できませんでした。'
 pages:
+  companion:
+    title: Companion Mode
+    description: Let AIRI occasionally look at the screen and casually chat about it.
+    enable:
+      title: Enable Companion Mode
+      description: Capture the selected display on a timer and send it to the character for a short casual reply.
+    interval:
+      title: Capture interval
+      description: Wait this long after the previous observation request finishes.
+      value: '{seconds}s'
+    source:
+      kind-title: Observation target
+      kind:
+        screen: Entire screen
+        window: Single window
+      screen-title: Display source
+      screen-description: Choose which display AIRI should glance at.
+      window-title: Window source
+      window-description: Choose which application or game window AIRI should glance at.
+      auto: Auto select source
+      auto-screen: Auto select display
+      auto-window: Auto select window
+      refetch: Refetch
+      refetching: Refetching...
+    prompt:
+      title: Companion prompt
+      description: This prompt is sent with each captured frame.
+      placeholder: Companion Mode prompt
+      save: Save prompt
+      saved: Saved
+      reset: Reset
+    logs:
+      title: Companion Mode logs
+      empty: No hidden captures yet.
+      clear: Clear
+      capture: Hidden capture
+      skip: Skipped
+      error: Error
+      prompt: Prompt
+      open-image: Open screenshot
+      close-image: Close preview
+      image-preview: Companion Mode screenshot
+    status:
+      idle: Companion Mode is idle
+      running: Companion Mode is waiting for the next glance
+      capturing: Capturing the screen
+      unreported: Companion Mode is enabled, but the main window has not reported its running state
+      error: Companion Mode needs attention
+      last-capture: 'Last captured at {time}'
+      last-skip: 'Skipped while chat was busy at {time}'
+      no-capture: No captures yet.
   modules:
     mcp-server:
       description: MCPサーバーとツールの接続と管理

@@ -87,6 +87,45 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     })
   }
 
+  function bytesToDataUrl(bytes: Uint8Array, mimeType = 'image/jpeg') {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result)
+          return
+        }
+
+        reject(new Error('Failed to read captured source thumbnail'))
+      })
+      reader.addEventListener('error', () => {
+        reject(reader.error ?? new Error('Failed to read captured source thumbnail'))
+      })
+      const arrayBuffer = new ArrayBuffer(bytes.byteLength)
+      new Uint8Array(arrayBuffer).set(bytes)
+      reader.readAsDataURL(new Blob([arrayBuffer], { type: mimeType }))
+    })
+  }
+
+  async function requestDisplayMediaStream(sourceId: string) {
+    return await selectWithSource(
+      () => sourceId,
+      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
+    )
+  }
+
+  async function requestLegacyDesktopStream(sourceId: string) {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        mandatory: {
+          chromeMediaSource: 'desktop',
+          chromeMediaSourceId: sourceId,
+        },
+      },
+    } as MediaStreamConstraints)
+  }
+
   async function refetchSources() {
     try {
       isRefetching.value = true
@@ -127,10 +166,15 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
     clearActiveStream()
 
-    const stream = await selectWithSource(
-      () => sourceId,
-      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
-    )
+    let stream: MediaStream
+    try {
+      stream = await requestDisplayMediaStream(sourceId)
+    }
+    catch (error) {
+      console.warn('[screen-capture] getDisplayMedia failed, falling back to Electron desktop constraints:', error)
+      stream = await requestLegacyDesktopStream(sourceId)
+    }
+
     if (!isActiveStream(stream)) {
       stream.getTracks().forEach(track => track.stop())
       throw new Error('Selected source did not provide a live video track')
@@ -141,6 +185,17 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     attachStreamLifecycle(stream, sourceId)
 
     return stream
+  }
+
+  async function captureSourceThumbnail(sourceId = activeSourceId.value) {
+    if (!sourceId)
+      throw new Error('No active source selected')
+
+    const source = (await getSources()).find(source => source.id === sourceId)
+    if (!source?.thumbnail || source.thumbnail.length <= 0)
+      return null
+
+    return await bytesToDataUrl(source.thumbnail)
   }
 
   function stopStream() {
@@ -186,5 +241,6 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     stopStream,
     cleanup,
     captureFrame,
+    captureSourceThumbnail,
   }
 }
