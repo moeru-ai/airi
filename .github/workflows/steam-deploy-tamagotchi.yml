@@ -25,6 +25,9 @@ on:
 jobs:
   build-steam-content:
     name: Build Steam content
+    permissions:
+      actions: read
+      contents: write
     uses: ./.github/workflows/release-tamagotchi.yml
     with:
       build_only: true
