@@ -1,23 +1,43 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '@proj-airi/stage-pages/pages/settings/data/status'
 
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { createDataSettingsStatusHelpers } from '@proj-airi/stage-pages/pages/settings/data/status'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
-import { DoubleCheckButton } from '@proj-airi/ui'
+import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
+
+import { electronCenterMainWindow } from '../../../../../shared/eventa'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
 const { trackDataAction } = useAnalytics()
 const { resetDesktopApplicationState } = useDataMaintenance()
 const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
+const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
+/**
+ * Clears persisted desktop state from the local application data folder.
+ */
 async function resetDesktopState() {
   try {
     await resetDesktopApplicationState()
     trackDataAction({ action: 'desktop_state_reset' })
     emitStatus(t('settings.pages.data.status.desktop_reset'))
+  }
+  catch (error) {
+    handleActionError(error)
+  }
+}
+
+/**
+ * Moves the main AIRI desktop window back to the current display center.
+ */
+async function handleCenterMainWindow() {
+  try {
+    await centerMainWindow()
+    emitStatus(t('settings.pages.data.status.desktop_window_centered'))
   }
   catch (error) {
     handleActionError(error)
@@ -37,6 +57,9 @@ async function resetDesktopState() {
         </p>
       </div>
       <div :class="['flex flex-col items-start gap-2']">
+        <Button variant="caution" icon="i-solar:target-linear" @click="handleCenterMainWindow">
+          {{ t('settings.pages.data.sections.desktop.center') }}
+        </Button>
         <DoubleCheckButton variant="caution" @confirm="resetDesktopState">
           {{ t('settings.pages.data.sections.desktop.reset') }}
           <template #confirm>

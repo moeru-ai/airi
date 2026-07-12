@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI Official Provider
+      title: Nhà cung cấp chính thức của AIRI
     title: Chào mừng đến với AIRI!
     description: Hãy thiết lập nhà cung cấp AI đầu tiên để bắt đầu.
     selectProvider: Chọn nhà cung cấp AI
@@ -20,70 +20,70 @@ dialogs:
     baseUrl: URL gốc
     baseUrlHelp: Địa chỉ API đầu cuối (dùng mặc định nếu không chắc)
     accountId: ID tài khoản
-    validationRunning: Running tests
+    validationRunning: Đang chạy các bài kiểm tra
     validationSuccess: Xác thực cấu hình thành công
-    validationPartial: Configuration partially validated
+    validationPartial: Cấu hình đã được xác thực một phần
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
     testGeneration: Ping API
     testGenerationRunning: Ping...
-    testGenerationFailed: Ping test failed
-    retryPingCheck: Retry
+    testGenerationFailed: Ping test thất bại
+    retryPingCheck: Thử lại
     skipForNow: Bỏ qua
     saveAndContinue: Lưu và tiếp tục
     next: Tiếp
     retry: Thử lại
-    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLabel: Hãy giữ các khóa API và thông tin xác thực an toàn!
     credentialsSafeLocal: >-
-      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+      AIRI đang chạy hoàn toàn cục bộ trên PC của bạn và chúng tôi sẽ không bao giờ đánh cắp các thông tin xác thực cho các nhà cung cấp AI / LLM. Nhưng hãy nhớ rằng các khóa API của bạn là thông tin nhạy cảm. Hãy giữ chúng an toàn và không được chia sẽ với bất kỳ ai.
     credentialsSafeOpenSource: >-
-      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+      AIRI là dự án mã nguồn mở trên {github}, nếu bạn muốn kiểm tra cách chúng tôi xử lý các thông tin xác thực của bạn, bạn có thể kiểm tra code của chúng tôi.
     enableChatCheck: >-
-      Allow airi to send a "ping" message to the first available chat model to check availability
+      Cho phép AIRI gửi tín hiệu "ping" đến mô hình chat có thể dùng được đầu tiên để kiểm tra tính khả dụng
     start: Bắt đầu thôi!
-    loginPrompt: Sign in to use the official AIRI provider for the best experience.
-    loginAction: Sign in
-    setupWithoutSigningIn: Setup with your provider
+    loginPrompt: Đăng nhập để sử dụng nhà cung cấp AIRI chính thức để có trải nghiệm tốt nhất.
+    loginAction: Đăng nhập
+    setupWithoutSigningIn: Thiết lập nhà cung cấp của bạn
     flux: Flux
-    buyFlux: Charge Flux
+    buyFlux: Mua Flux
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
     no-models-help: >-
       Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      title: Thông báo
+      description: Bạn có thể cho phép thông báo ngay bây giờ hoặc tiếp tục và chỉnh lại sau.
+      notificationsTitle: Thông báo
+      notificationsDescription: Cho phép nhắc nhở và các cập nhật trạng thái quan trọng.
+      notificationsAction: Yêu cầu quyền thông báo
+      notificationsNotGrantedHint: Nếu từ chối, bạn có thể bật thông báo ở Cài đặt iOS.
+      openSettings: Mở Cài đặt iOS
+      optionalHint: Bạn có thể tiếp tục kể cả khi quyền thông báo không được cấp quyền.
+      stateUnknown: Không được yêu cầu
+      stateRequesting: Đang yêu cầu...
+      stateGranted: Đã cấp quyền
+      stateNotGranted: Khônh được cấp quyền
   bug-report:
-    title: Bug report (´;ω;`)ヾ(･∀･`)
-    subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
-    trigger-label: Report a Bug
-    submit-label: Send Bug Report
-    triage-description: Include screenshot and page context to help us triage this issue.
-    description-placeholder: Steps to reproduce, expected behavior, and actual behavior
-    include-current-page-screenshot: Include current page screenshot
+    title: Báo lỗi (´;ω;`)ヾ(･∀･`)
+    subtitle: Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể cho chúng tôi biết chuyện gì đã xảy ra không?
+    trigger-label: Báo lỗi
+    submit-label: Gửi báo cáo lỗi
+    triage-description: Bao gồm ảnh chụp màn hình và nội dung trang để giúp chúng tôi phân loại sự cố này.
+    description-placeholder: Các bước để tái hiện, kết quả mong đợi và kết quả đã xảy ra
+    include-current-page-screenshot: Bao gồm ảnh chụp màn hình trang hiện tại
     manual-media:
-      label: Manually choose screenshots / recordings
+      label: Chọn các ảnh chụp màn hình / quay màn hình
       optional: Optional.
     media-files:
-      label: Media files
-      description: 'Optional: manually select.'
-      placeholder: Choose screenshot or video file
-      selected-count: '{count} file(s) selected'
-    last-submitted-preview: Last Submitted Payload Preview
+      label: Tệp đa phương tiện
+      description: 'Không bắt buộc: chọn thủ công.'
+      placeholder: Chọn ảnh chụp màn hình hoặc tệp video
+      selected-count: '{count} tệp đã được chọn'
+    last-submitted-preview: Xem Trước Payload Đã Gửi
 language:
   title: Ngôn ngữ
   description: |
-    UI language. You can set characters' language later.
+    Ngôn ngữ giao diện. Bạn có thể chỉnh ngôn ngữ nhân vật sau.
 controls-island:
   icon-size:
     title: Kích thước biểu tượng đảo
@@ -93,32 +93,32 @@ controls-island:
     small: Nhỏ
 analytics:
   notice:
-    title: Usage analytics
+    title: Phân tích dữ liệu sử dụng
     description: >-
-      AIRI collects anonymous usage analytics to help us understand how the app is used and improve stability. No personal data is collected.
-    privacyPrefix: Read the
-    privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+      AIRI thu thập dữ liệu sử dụng một cách ẩn danh để giúp chúng tôi hiểu cách ứng dụng được dùng và cải thiện sử ổn định. Không có dữ liệu cá nhân nào được thu thập.
+    privacyPrefix: Đọc
+    privacyLink: chính sách quyền riêng tư
+    onboardingHint: Bạn có thể tắt phân tích ở Cài đặt > Hệ thống > Chung.
+    settingsHint: Bạn có thể tắt phân tích bất cứ lúc nào.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: Bật phân tích dữ liệu sử dụng
+    description: Tắt để từ chối việc thu thập phân tích dữ liệu.
   disabled:
-    title: Analytics disabled for this development build
+    title: Phân tích dữ liệu bị vô hiệu hóa đối với bản dành cho nhà phát triển này
 model-select:
   panel-callout:
-    support-status-header: We support both 2D and 3D models
+    support-status-header: Chúng tôi hỗ trợ cả mô hình 2D và 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Nhấp vào {select-button} để chọn hoặc nhập các mô hình. Hiện tại, {zip} (cho Live2D và các Spine model) và {vrm} (cho các VRM model) đều được hỗ trợ.
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+      Neuro-sama sử dụng mô hình 2D được vận hành bởi framework được phát triển bởi Live2D Inc, trong khi đó Grok Ani (trong Grok Companion) sử dụng mô hình 3D được vận hành bởi VRM /MMD định dạng mở.
   select-model:
-    title: Model Selector
-    button: Select model
-    select: Pick
-    import: Import
-    remove: Remove
-    confirm: Confirm
+    title: Chọn Mô Hình
+    button: Chọn mô hình
+    select: Chọn
+    import: Nhập
+    remove: Xóa
+    confirm: Xác nhận
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -144,159 +144,159 @@ live2d:
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      Xuất các màu nổi bật từ canvas đang render hiện tại. Nhấp vào màu và áp dụng nó lên AIRI. Thử xuất nhiều lần với mô hình theo nhiều tư thế khác nhau nếu màu sắc chưa được như mong muốn.
     button-extract:
       title: Trích xuất
   animation:
-    title: Animation
+    title: Hoạt ảnh
     focus:
-      title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
-      offset: Eye offset(%)
+      title: Bật theo dõi chuột
+      description: Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
+      offset: Độ lệch mắt(%)
     force-idle-eye-animation:
-      title: Idle eye movement
+      title: Chuyển động mắt nhàn rỗi (idle)
       description: Randomly look around when there is no active cursor focus.
     blink-enable:
-      title: Enable blink
-      description: Let the model blink.
+      title: Mở chớp mắt
+      description: Cho phép mô hình chớp mắt.
     auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
+      title: Tự động
+      description: Sử dụng hoạt ảnh chớp mắt mặc đinh cho mô hình
     force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
+      title: Ép buộc
+      description: Ép hoạt ảnh chớp mắt bằng bộ hẹn giờ ngoài
     blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      title: Chế độ chớp mắt
+      description: Chọn mô hình chớp mắc có sẵn hoặc bộ hẹn giờ chớp mắt bắt buộc của AIRI.
     idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
+      title: Hoạt ảnh nhàn rỗi
+      no-motion: Không có hoạt ảnh khả dụng
+      placeholder: Chọn hoạt ảnh
+      disable-motion: Tắt
+      disable-motion-description: Tắt hoạt ảnh nhàn rỗi
   parameters:
-    title: Model Parameters
+    title: Tham số mô hình
     render-scale:
-      title: Render scale
+      title: Tỉ lệ render
     fps:
       title: FPS
-      description: Limit rendering frame rate
+      description: Giới hạn tốc độ khung hình render
       options:
         unlimited: '∞'
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+    shadow: Đổ bóng
+    reset-parameters: Đặt lại tham số mặc định
+  clear-model-cache: Xóa bộ nhớ đệm của mô hình
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: Biểu cảm
+    override-toggle: Hệ thống biểu cảm
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      Quản lý biểu cảm SDK và nháy mắt được giữ nguyên khi tắt.
+    no-expression: Không có biểu cảm khả dụng cho mô hình này.
+    llm-integration-wip: Tích hợp công cụ LLM chưa được hoàn thiện.
+    save-default: Lưu biểu cảm mặc định
+    reset: Đặt lại tất cả biểu cảm
+    expose-to-llm-toggle: Cho phép LLM truy cập
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: Không
+      all: Tất cả
+      custom: Tùy chỉnh
 microphone: Micro
 models: Mô hình
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: Tài khoản
+    description: Xem hồ sơ của bạn và quản lý tài khoản
+    notLoggedIn: Đăng nhập để xem tài khoản và truy cập tất cả tính năng
+    login: Đăng nhập
+    logout: Đăng xuất
+    fluxBalance: Số dư Flux
+    viewFluxDetails: Xem chi tiết
+    signedInAs: Đăng nhập với
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: Hồ sơ
+      title: Hồ sơ
+      description: Quản lý tên hiển thị công khai.
       name:
-        label: Display name
-        placeholder: How others see you
+        label: Tên hiển thị
+        placeholder: Cách người khác thấy bạn
       avatar:
-        gravatarNotice: Avatar from Gravatar.
-        gravatarLink: Manage on gravatar.com
+        gravatarNotice: Ảnh đại diện từ Gravatar.
+        gravatarLink: Quản lý trên gravatar.com
       action:
-        save: Save changes
+        save: Lưu thay đổi
       message:
-        saved: Profile updated.
+        saved: Hồ sơ đã được cập nhật.
       error:
-        fallback: We could not save your changes.
+        fallback: Chúng tôi không thể lưu các thay đổi của bạn.
     connections:
-      tab: Connected accounts
-      title: Connected accounts
-      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      tab: Các tài khoản đã được liên kết
+      title: Các tài khoản đã được liên kết
+      description: Đăng nhập AIRI thông qua các nhà cung cấp này. Hủy liên kết để thu hồi quyền truy cập, sau đó liên kết lại một lần nữa để chuyển sang tài khoản khác.
       status:
-        linked: Linked
-        notLinked: Not linked
-        linkedSince: Linked on {date}
+        linked: Đã liên kết
+        notLinked: Chưa được liên kết
+        linkedSince: Đã liên kết vào {date}
       action:
-        link: Link
-        unlink: Unlink
+        link: Liên kết
+        unlink: Hủy liên kết
       message:
-        loading: Loading connected accounts...
-        unlinked: '{provider} disconnected.'
-        linked: '{provider} connected.'
-        linkStarted: Redirecting to {provider}…
+        loading: Đang tải các tài khoản đã được liên kết...
+        unlinked: '{provider} đã ngắt kết nối.'
+        linked: '{provider} đã kết nối.'
+        linkStarted: Đang chuyển hướng đến {provider}…
       error:
-        listFailed: Could not load connected accounts.
-        unlinkFailed: Could not unlink this account.
-        linkFailed: Could not start the link flow.
+        listFailed: Không thể tải các tài khoản đã liên kết.
+        unlinkFailed: Không thể hủy liên kết tài khoản này.
+        linkFailed: Không thể khởi động liên kết luồng (link flow).
         accountAlreadyLinkedToDifferentUser: Tài khoản OAuth này đã được liên kết với một tài khoản AIRI khác. Hãy chọn tài khoản nhà cung cấp khác hoặc hủy liên kết tài khoản đó khỏi tài khoản AIRI kia trước.
         oauthCallbackFailed: Không thể kết nối tài khoản OAuth này. Hãy thử lại hoặc chọn tài khoản nhà cung cấp khác.
-        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        lastAccount: Đây là phương thức đăng nhập duy nhất của bạn. Đặt mật khẩu trước khi hủy liên kết.
     security:
-      tab: Security
-      title: Security
-      description: Change your password. Your other devices will be signed out.
-      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      tab: Bảo mật
+      title: Bảo mật
+      description: Thay đổi mật khẩu của bạn. Các thiết bị khác sẽ được đăng xuất.
+      setDescription: Bạn đăng nhập thông qua nhà cung cấp tài khoản mạng xã hội, vì vậy hiện tại chưa có mật khẩu. Chúng tôi sẽ gửi email liên kết bảo mật để giúp bạn đặt mật khẩu.
       currentPassword:
-        label: Current password
-        placeholder: Enter your current password
+        label: Mật khẩu hiện tại
+        placeholder: Nhập mật khẩu hiện tại
       newPassword:
-        label: New password
-        placeholder: At least 8 characters
+        label: Mật khẩu mới
+        placeholder: Ít nhất 8 ký tự
       confirmPassword:
-        label: Confirm new password
-        placeholder: Repeat your new password
+        label: Xác nhận mật khẩu mới
+        placeholder: Lặp lại mật khẩu mới
       action:
-        changePassword: Change password
-        sendSetLink: Email me a link to set my password
+        changePassword: Thay đổi mật khẩu
+        sendSetLink: Gửi link thiết lập mật khẩu đến email của tôi
       message:
-        changed: Password changed. Other sessions have been signed out.
-        setLinkSent: Check {email} for the link to set your password.
+        changed: Mật khẩu đã được thay đổi. Các phiên khác đã được đăng xuất.
+        setLinkSent: Kiểm tra {email} để thấy link đặt mật khẩu.
       error:
-        fallback: We could not change your password.
-        setLinkFailed: We could not send the password setup link.
-        passwordMismatch: New password and confirmation do not match.
-        passwordSameAsCurrent: New password must differ from the current one.
+        fallback: Chúng tôi không thể thay đổi mật khẩu của bạn.
+        setLinkFailed: Chúng tôi không thể gửi link thiết lập mật khẩu.
+        passwordMismatch: Mật khẩu không khớp.
+        passwordSameAsCurrent: Mật khẩu mới phải khác mật khẩu cũ.
     danger:
-      tab: Danger Zone
-      title: Danger Zone
-      description: Irreversible account actions live here.
+      tab: Vùng Nguy Hiểm
+      title: Vùng Nguy Hiểm
+      description: Các hành động không thể đảo ngược cho tài khoản ở đây.
       deleteAccount:
-        title: Delete account
-        description: Permanently delete your account and personal data.
-        action: Delete account
+        title: Xóa tài khoản
+        description: Xóa tài khoản và dữ liệu cá nhân vĩnh viễn.
+        action: Xóa tài khoản
         modal:
-          title: Delete account?
-          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          title: Xóa tài khoản?
+          warning: Hành động này không thể đảo ngược. Các gói đăng ký đang hoạt đọng sẽ bị hủy, số dư Flux sẽ bị xóa sạch.
           confirmEmail:
-            label: Type your email to confirm
+            label: Nhập email để xác nhận
             placeholder: ''
-            mismatch: Email does not match.
-          confirm: Send confirmation email
-          cancel: Cancel
+            mismatch: Email không khớp.
+          confirm: Gửi email xác nhận
+          cancel: Hủy
         message:
-          emailSent: Check {email} for the deletion link.
+          emailSent: Kiểm tra {email} để thấy link xóa.
         error:
-          fallback: Could not start deletion. Try again later.
+          fallback: Không thể xóa. Hãy thử lại sau.
   card:
     activate: Kích hoạt
     active: Đang hoạt động
@@ -369,8 +369,8 @@ pages:
         scenario: 'Lỗi: Phải có kịch bản.'
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: None
+        invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Artistry provider) chứa JSON không hợp lệ.'
+      none: Không
     modules: Mô-đun
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
@@ -382,7 +382,7 @@ pages:
     scenario: Kịch bản
     search: Tìm thẻ...
     sort_by: Sắp xếp theo
-    body-model: Body / Display Model
+    body-model: Cơ Thể / Mô Hình Hiển Thị
     speech:
       provider: Giọng nói / Nhà cung cấp
       model: Giọng nói / Mô hình
@@ -390,14 +390,14 @@ pages:
     systemprompt: Lời nhắc hệ thống
     title: Thẻ AIRI
     try_different_search: Hãy thử từ khóa khác
-    export: Xuất
-    exported: Đã xuất gói thẻ
-    export_failed: Không thể xuất gói thẻ
-    imported: Đã nhập gói thẻ
-    import_missing_file: Gói thẻ thiếu tệp bắt buộc
-    import_invalid_file: Tệp gói thẻ không hợp lệ
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Tải lên
-    upload_desc: Bấm hoặc kéo thả gói thẻ AIRI để nhập
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Nơi lưu trữ và tổ chức ký ức
     title: Bộ nhớ
@@ -431,12 +431,13 @@ pages:
         description: Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.
         delete: Xóa sạch dữ liệu
       desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
+        title: Mở thư mục dữ liệu ứng dụng
+        description: Mở thư mục dữ liệu của AIRI trong trình quản lý tệp tin của bạn.
+        open: Mở thư mục
       desktop:
         title: Đặt lại thiết lập máy tính
         description: Xóa các cài đặt và trạng thái thực thi của AIRI trên máy tính.
+        center: Move desktop window to center
         reset: Đặt lại dữ liệu desktop
     confirmations:
       tooltip: Bạn chắc chứ?
@@ -450,6 +451,7 @@ pages:
       modules_reset: Đã đặt lại cài đặt mô-đun.
       providers_reset: Đã đặt lại cài đặt nhà cung cấp.
       all_deleted: Tất cả dữ liệu cục bộ đã bị xóa.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
   models:
     description: Live2D, VRM, Spine, v.v.
@@ -512,63 +514,63 @@ pages:
               description: Làm nóng trước khi nhận diện để đạt độ chính xác cao hơn.
               label: Khởi động (Warmup)
     artistry:
-      title: Artistry
-      description: Image generation, scene background and drawing.
+      title: Nghệ thuật
+      description: Tạo ảnh, cảnh nền và tranh ảnh.
       page:
-        title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        title: Cấu Hình Nhà Cung Cấp Nghệ Thuật
+        description: Chọn nhà cung cấp backend đang hoạt động cho việc tạo ảnh. Các nhân vật có thể ghi đè trong cài đặt Thẻ của họ.
       providers:
         none:
-          name: None
-          description: Bypass and disable the image generation module globally.
+          name: Không
+          description: Bỏ qua và vô hiệu hóa module tạo ảnh trong phạm vi toàn cục.
         comfyui:
-          name: ComfyUI (Local)
-          description: Use a local ComfyUI instance via WSL for image generation.
+          name: ComfyUI (Cục bộ)
+          description: Sử dụng bản ComfyUI cục bộ thông qua WSL cho việc tạo ảnh.
         replicate:
           name: Replicate.ai (Cloud)
-          description: Use cloud-based models via the Replicate API.
+          description: Sử dụng các mô hình dựa trên đám mây thông qua API của Replicate.
         nanobanana:
           name: Nano Banana (Preview)
-          description: Use Google AI Studio for image preview and reactions.
+          description: Sử dụng Google AI Studio để xem trước ảnh và các phản ứng.
       card:
-        description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        description: Cấu hình cách AIRI tạo ảnh và các nội dung đồ họa.
+        comfyui_empty: ComfyUI workflows chưa được cấu hình. Đi tới Cài đặt → Nhà cung cấp → ComfyUI để tải mẫu workflow.
+        exposed_fields: '{count} trường được cung cấp'
+        open_on_replicate: Mở bằng Replicate
         instruction_sync:
           title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
+          description: Prompt được chỉ định đã sẵn sàng cho workflow {workflowName} của bạn. Việc áp dụng sẽ ghi đè hướng dẫn tiện ích hiện tại nên AI sẽ biết cách dùng mẫu cụ thể này.
+          apply: Áp Dụng Prompt Được Khuyến Nghị
           keep: Keep Existing
-      provider: Artistry Provider
+      provider: Nhà Cung Cấp Nghệ Thuật
       spawn_mode:
         label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        description: Chọn cách ảnh được đưa vào giao diện.
         options:
-          bg: Background Environment
+          bg: Nền Môi Trường
           inline: Inline Chat
           widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg_widget: Kép (Ảnh Nền + Tiện Ích)
       autonomous:
         title: Cinematic Autonomy (Autonomous Artist)
         description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
         threshold: Manifestation Threshold
         threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+        threshold_min: Luôn Luôn Tạo (0%)
+        threshold_max: Khắt Khe (100%)
       model:
-        label: Artistry Model (Optional Override)
+        label: Mô Hình Nghệ Thuật (Ghi Đè Tùy Chọn)
         description: Model identifier if needed by provider
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: Tiền Tố Prompt Nghệ Thuật Mặc Định
+        description: Được thêm vào đầu mỗi prompt khi gửi đến trình tạo ảnh.
       options:
-        label: Artistry Provider Options (JSON)
+        label: Tùy Chọn Nhà Cung Cấp Nghệ Thuật (JSON)
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: Prompt Tiện Ích Hệ Thống
+        description: Tùy chỉnh các hướng dẫn cho AI về cách dùng các khả năng tạo nội dung.
     categories:
-      essential: Essential
+      essential: Cần thiết
       messaging: Messaging
       gaming: Gaming
       artistry: Artistry
@@ -579,7 +581,7 @@ pages:
           provider-model-selection:
             collapse: Thu gọn
             custom_model_placeholder: Nhập tên mô hình tùy chỉnh...
-            current_model_label: 'Current model:'
+            current_model_label: 'Mô hình hiện tại:'
             description: Chọn nhà cung cấp LLM phù hợp cho ý thức
             error: Lỗi tải mô hình
             health_check_failed: Kiểm tra trạng thái thất bại
@@ -629,22 +631,22 @@ pages:
         description: >-
           Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
       setup:
-        title: Setup
+        title: Thiết lập
         description: >-
-          You can find the instructions for setting up the bot in the following file
+          Bạn có thể tìm thấy các chỉ dẫn cho việc thiết lập bot trong file sau
       runtime:
         title: Observed runtime
-        connection: Connection
-        latest-context: Latest bot context
+        connection: Kết nối
+        latest-context: Bối cảnh bot mới nhất
         waiting: Waiting for a fresh bot-originated context push.
-        unknown: Unknown
+        unknown: Không xác định
       debug:
         title: Minecraft traffic
         empty: No Minecraft traffic observed yet.
-        source: 'Source: {source}'
+        source: 'Nguồn: {source}'
       status:
-        service-online: Service online
-        service-offline: Service offline
+        service-online: Dịch vụ trực tuyến
+        service-offline: Dịch vụ ngoại tuyến
         no-runtime-context: No bot context observed yet
         last-context-seconds: 'Last bot context: {seconds}s ago'
         last-context-stale: 'Last bot context: Stale'
@@ -656,14 +658,14 @@ pages:
           provider-selection:
             description: Chọn nhà cung cấp nhận diện giọng nói phù hợp
           confidence-threshold:
-            title: Confidence Threshold
+            title: Ngưỡng Tự Tin
             description: >-
-              Filter out low-confidence transcriptions to reduce Whisper hallucinations. Values closer to 0 are more strict; drag to the leftmost to disable. Only effective for providers supporting Whisper API (e.g., OpenAI, Groq).
-            disabled: Disabled
+              Lọc các đoạn nhận dạng giọng nói có độ tin cậy thấp để giảm tình trạng ảo tưởng của Whisper. Giá trị càng tiến về 0 thì càng khắt khe bơn; kéo sang trái để vô hiệu. Chỉ hiệu quả với các nhà dung cấp API của Whisper (ví dụ như OpenAI, Groq).
+            disabled: Tắt
             verbose-json-note: >-
-              Note: If your provider does not support verbose_json responses, this setting will have no effect.
+              Note: Nếu nhà cung cấp của bạn không hỗ trợ phản hồi verbose_json, cài đặng này sẽ không có tác dụng.
             verbose-json-unsupported: >-
-              Your provider did not return verbose_json segments. Confidence filtering had no effect on the last transcription.
+              Nhà cung cấp của bạn không trả về các đoạn (segment) verbose_json. Lọc kết quả dựa trên độ tin cậy không có tác dụng cho đoạn phiên âm mới nhất.
     memory-long-term:
       description: Cài đặt và quản lý trí nhớ dài hạn
       title: Trí nhớ dài hạn
@@ -691,11 +693,11 @@ pages:
               loading: Đang tải mô hình...
               required: Vui lòng chọn một giọng nói
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: Chọn một giọng nói được tuyển chọn cho nhân vật đang hoạt động
+            empty: Không có Gói Giọng Nói khả dụng nào
+            error: Lỗi khi tải Gói Giọng Nói
+            loading: Đang tải Gói Giọng Nói...
+            title: Gói Giọng Nói
           provider-voice-selection:
             custom_model_placeholder: Nhập tên mô hình tùy chỉnh...
             custom_voice_placeholder: Nhập ID giọng nói tùy chỉnh...
@@ -747,116 +749,116 @@ pages:
       access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
       configured: Đã cấu hình X / Twitter thành công!
     mcp-server:
-      title: MCP servers
+      title: Các máy chủ MCP
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: Trạng thái thực thi
       empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
-      error-title: Oops
-      success-title: Done!
+      error-title: Úi
+      success-title: Xong!
       existing:
         title: Configured
         description: Servers recorded in mcp.json. Click any row to expand and edit it.
-        empty: Nothing here yet. Add one below!
+        empty: Chưa có cái nào ở đây hết. Thêm một cái vào bên dưới đi!
       add:
-        title: New
+        title: Mới
         description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
-        pending-badge: Unsaved
+        pending-badge: Chưa được lưu
       status:
-        unknown: not loaded
+        unknown: chưa tải
       actions:
         open-config: Reveal in file manager
-        apply-and-restart: Save and restart
-        restart: Restart MCP
-        add-server: Add server
-        add-env: Add var
-        remove: Remove
+        apply-and-restart: Lưu và khởi động lại
+        restart: Khởi động lại MCP
+        add-server: Thêm máy chủ
+        add-env: Thêm biến
+        remove: Xóa
         test: Test
-        edit-json: Edit JSON
-        close-json: Close
-        format-json: Format
-        reset-draft: Reset
-        apply-json: Apply
-        cancel: Cancel
-        expand: Expand
+        edit-json: Chỉnh sửa JSON
+        close-json: Đóng
+        format-json: Định dạng
+        reset-draft: Khởi động lại
+        apply-json: Áp dụng
+        cancel: Hủy
+        expand: Mở rộng
         collapse: Collapse
       fields:
         identifier:
           label: Identifier
-          description: Unique name; becomes the key in mcp.json.
-          placeholder: e.g. filesystem
+          description: Tên độc nhất; trở thành khóa trong mcp.json.
+          placeholder: 'ví dụ: filesystem'
         command:
-          label: Command
+          label: Lệnh
           description: Executable spawned over stdio.
-          placeholder: e.g. npx
+          placeholder: 'ví dụ: npx'
         args:
-          label: Arguments
-          description: One per line, in order.
+          label: Đối số
+          description: Mỗi dòng một đối số, theo thứ tự.
           placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
-          label: Working directory
+          label: Thư mục làm việc
           description: Optional directory used as the process working directory.
           placeholder: e.g. /Users/you/project
         env:
-          label: Environment
-          description: Vars passed to the child process.
+          label: Môi trường
+          description: Các biến được đưa vào tiến trình con.
           key-placeholder: KEY
-          value-placeholder: value
+          value-placeholder: giá trị
         enabled:
-          label: Enabled
+          label: Bật
       json:
-        title: Edit mcp.json
+        title: Chỉnh sửa mcp.json
         description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
-        placeholder: Paste mcp.json here…
+        placeholder: Dán mcp.json vào đây…
       test:
-        title: Test connection
+        title: Kiểm tra kết nối
         description: We'll spawn the server briefly to check the command works and see what tools it exposes.
-        pick-server-label: Server
-        no-servers: Nothing to test yet
-        no-server-selected: Pick a server first.
+        pick-server-label: Máy chủ
+        no-servers: Chưa có gì để kiểm tra
+        no-server-selected: Chọn một máy chủ trước.
         server-disabled: '"{name}" is disabled — enable it on the card first.'
-        disabled-suffix: disabled
+        disabled-suffix: vô hiệu hóa
         untitled: untitled
-        running: Testing…
-        success: Connected! Found {count} tools in {ms}ms.
-        failure: Connection failed after {ms}ms
+        running: Đang kiểm tra…
+        success: Kết nối thành công! Đã tìm thấy {count} công cụ trong {ms}ms.
+        failure: Kết nối thất bại sau {ms}ms
       errors:
         empty-identifier: Server # {index} is missing an identifier.
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
-        empty-command: '"{name}" is missing a command.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        empty-command: '"{name}" đang thiếu một lệnh.'
+        invalid-shape: Nhìn không giống mcp.json hợp lệ — root cần một trường "mcpServers".
       messages:
-        opened: Opened {path} in your file manager
+        opened: Đã mở {path} trong trình quản lý tệp của bạn
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
-        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
+        restarted: Tất cả đã được khởi động lại! {started} đã khởi động, {failed} thất bại, {skipped} đã bỏ qua.
   flux:
     title: Flux
-    buy: Charge
-    currency: Currency
-    description: Current Flux
+    buy: Mua
+    currency: Tiền tệ
+    description: Số Flux hiện tại
     packagesError: Failed to load packages. Please try again later.
     checkout:
-      success: Payment successful! Your Flux has been topped up.
-      canceled: Payment was canceled.
-      error: Something went wrong. Please try again later.
+      success: Thanh toán hoàn tất! Flux của bạn đã được nạp.
+      canceled: Thanh toán đã bị hủy.
+      error: Đã xảy ra sự cố. Xin vui lòng thử lại sau.
     audit:
-      title: Transaction History
-      time: Time
-      type: Type
-      detail: Detail
-      amount: Amount
-      typeAddition: Top-up
-      typeConsumption: Usage
-      typeInitial: Initial Grant
+      title: Lịch Sử Giao Dịch
+      time: Thời gian
+      type: Loại
+      detail: Chi tiết
+      amount: Số lượng
+      typeAddition: Nạp thêm
+      typeConsumption: Mức sử dụng
+      typeInitial: Khoản Cấp Ban Đầu
       typePromo: Promo Grant
-      loading: Loading history...
-      empty: No transaction records yet.
-      loadMore: Load More
-      delayHint: Usage records may be delayed by up to 1 minute
-      ttsRequests: requests
+      loading: Đang tải lịch sử...
+      empty: Chưa có giao dịch nào.
+      loadMore: Tải Thêm
+      delayHint: Các bản ghi về mức sử dụng có thể bị trễ 1 phút
+      ttsRequests: các yêu cầu
     packages:
-      title: Flux Packages
-      buy: Charge
+      title: Gói Flux
+      buy: Mua
       description: Flux packages to choose from.
   providers:
     catalog:
@@ -955,38 +957,38 @@ pages:
         voice:
           title: Cài đặt giọng nói
     labels:
-      recommended: Recommended
+      recommended: Được gợi ý
     filters:
-      pricing: Pricing
+      pricing: Bảng Giá
       deployment: Deployment
-      all: All
-      free: Free
-      paid: Paid
+      all: Tất cả
+      free: Miễn phí
+      paid: Trả phí
       internal: Internal
-      local: Local
-      cloud: Cloud
+      local: Cục bộ
+      cloud: Đám mây
     categories:
       chat:
         title: Chat
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
       vision:
         title: Vision
-        description: Vision model providers for image understanding.
+        description: Các nhà cung cấp mô hình thị giác máy cho việc hiểu hình ảnh.
       speech:
-        title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        title: Giọng nói
+        description: 'Các nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
       transcription:
-        title: Transcription
+        title: Phiên âm
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          Các nhà cung cấp mô hình phiên âm (speech-to-text). Ví dụ: Whisper.cpp OpenAI, Azure Speech
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        title: Nghệ thuật
+        description: 'Các nhà cung cấp mô hình tạo ảnh và thiết kế. Ví dụ: ComfyUI, Replicate.'
         items:
           comfyui:
-            description: Local image generation runner.
+            description: Chương trình tạo ảnh cục bộ.
           replicate:
-            description: Cloud-based model inference service.
+            description: Dịch vụ mô hình suy luận dựa trên đám mây.
           nanobanana:
             description: Google AI Studio Image Preview.
     helpinfo:
@@ -1080,35 +1082,35 @@ pages:
           description: Connect to your local ComfyUI and bring your own workflows.
           info:
             what_you_need:
-              label: What You Need
+              label: Những Gì Bạn Cần
               value: ComfyUI running locally or on your network.
             how_to_export:
-              label: How To Export
-              value: Enable Dev Mode → "Save (API Format)".
+              label: Cách Để Xuất
+              value: Bật Chế Độ Nhà Phát Triển → "Lưu (Định Dạng API)".
             scope_boundary:
-              label: Scope Boundary
+              label: Giới Hạn Phạm Vi
               value: Model downloads & node installs are your job.
           connection:
-            title: Connection
-            connected: Connected
-            failed: Connection failed
-            error_prefix: Error
+            title: Kết nối
+            connected: Đã kết nối
+            failed: Kết nối thất bại
+            error_prefix: Lỗi
             test: Test
             testing: Testing...
-            unknown_error: Unknown connection error
-            unknown_gpu: Unknown GPU
+            unknown_error: Lỗi kết nối không xác định
+            unknown_gpu: GPU không xác định
             server_url:
               label: Server URL
-              description: The address where ComfyUI is running
+              description: Địa chỉ ComfyUI đang hoạt động
               placeholder: http://localhost:8188
           cors:
-            title: CORS Block Detected
-            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            title: Yêu Cầu Bị Chặn Bởi CORS
+            description: ComfyUI mặc định chặn các yêu cầu từ các ứng dụng khác. Để cho phép AIRI kết nối, bạn phải bắt đầu ComfyUI với flag `--enable-cors-header "*"`.
             command: python main.py --enable-cors-header "*"
           workflows:
-            title: Workflow Templates
-            upload: Upload Workflow
-            cancel_upload: Cancel
+            title: Mẫu Workflow
+            upload: Tải Workflow
+            cancel_upload: Hủy
             empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
             exposed_parameters: Exposed Parameters
             summary: '{nodes} nodes · {fields} exposed fields'
@@ -1120,32 +1122,32 @@ pages:
             prompt: Drop or select a workflow_api.json file
             invalid_json: Invalid JSON
             workflow_name:
-              label: Workflow Name
-              description: Give this workflow a recognizable name
+              label: Tên Workflow
+              description: Cho workflow này một cái tên dễ nhận biết nào
               placeholder: e.g. Anime Text2Img
             select_fields: 'Select fields to expose to the AI agent:'
-            fields_exposed: '{count} field(s) exposed'
-            save: Save Workflow
+            fields_exposed: '{count} trường được cung cấp'
+            save: Lưu Workflow
       replicate:
         settings:
           title: Replicate.ai
-          heading: Replicate.ai Configuration
-          description: Configure your cloud image generation settings.
+          heading: Cấu Hình Replicate.ai
+          description: Cấu hình cài đặt trình tạo ảnh của bạn.
           api_key:
-            label: API Key
-            description: Your Replicate API token (starts with r8_)
+            label: Khóa API
+            description: Token Replicate API của bạn (bắt đầu với r8_)
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
-            label: Default Model
+            label: Mô Hình Mặc Định
             description: Fallback owner/model string to use if the character card doesn't specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
-            label: Aspect Ratio
-            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            label: Tỉ Lệ Khung Hình
+            description: 'Tỉ lệ ảnh mặc định (ví dụ: 16:9 1:1 9:16)'
             placeholder: '16:9'
           inference_steps:
-            label: Inference Steps
-            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+            label: Các Bước Suy Luận
+            description: Số lượng bước cho quá trình khử nhiễu (giá trị thấp thì nhanh hơn, giá trị cao thì chất lượng tốt hơn)
       nanobanana:
         settings:
           title: Nano Banana
@@ -1153,14 +1155,14 @@ pages:
           description: Configure Google Gemini's native image generation capabilities.
           api_key:
             label: API Key
-            description: Your Google AI Studio API Key
+            description: Khóa Google AI Studio API của bạn
             placeholder: AIpk...
           preferred_model:
             label: Preferred Model
             description: The specific Gemini image preview model to use
           default_resolution:
-            label: Default Resolution
-            description: The target resolution for generated images
+            label: Độ Phân Giải Mặc Định
+            description: Độ phân giải mong muốn cho ảnh được tạo
           model_options:
             nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
             nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
@@ -1365,14 +1367,14 @@ pages:
         description: STT gốc trình duyệt (yêu cầu Chrome/Edge/Safari)
         title: Web Speech API
       official:
-        title: Official Provider
-        description: Official AI provider by AIRI.
+        title: Nhà Cung Cấp Chính Thức
+        description: Nhà cung cấp AI chính thức bởi AIRI.
         speech-title: Official Speech Provider
         speech-description: Official text-to-speech provider by AIRI.
-        speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
-        transcription-title: Official Transcription Provider
-        transcription-description: Official speech-to-text provider by AIRI.
+        speech-streaming-title: Nhà Cung Cấp Giọng Nói Thời Gian Thực (Streaming) Chính Thức
+        speech-streaming-description: Nhà cung cấp text-to-speech độ trễ thấp chính thức bởi AIRI (WebSocket hai chiều).
+        transcription-title: Nhà Cung Cấp Phiên Âm Chính Thức
+        transcription-description: Nhà cung cấp speech-to-text chính thức bởi AIRI.
       transcriptions:
         playground:
           title: Thử nghiệm chuyển văn bản

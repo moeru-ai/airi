@@ -109,7 +109,22 @@ function createModelSettings(text: string, url: string): ModelSettings {
     throw new Error('Unknown settings JSON')
   }
 
-  return runtime.createModelSettings(settingsJSON)
+  // pixi-live2d-display validates files with encodeURI(file.webkitRelativePath).
+  // Decode first so archives that already store URI-encoded references do not
+  // get `%` encoded again.
+  const settings = runtime.createModelSettings(settingsJSON)
+  const normalizeFileReference = (file: string) => {
+    try {
+      return encodeURI(decodeURI(file))
+    }
+    catch {
+      return encodeURI(file)
+    }
+  }
+  settings.url = normalizeFileReference(settings.url)
+  settings.replaceFiles(normalizeFileReference)
+
+  return settings
 }
 
 export function isSettingsFile(file: string) {

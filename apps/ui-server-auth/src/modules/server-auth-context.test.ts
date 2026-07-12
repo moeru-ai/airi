@@ -15,6 +15,18 @@ describe('ui-server-auth bootstrap context', () => {
     })
   })
 
+  it('uses the trusted new Go backend origin carried by standalone server redirects', () => {
+    const currentUrl = 'https://auth.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fairi-server-next.up.railway.app&client_id=airi-stage-pocket'
+
+    expect(resolveStandaloneServerAuthContext(
+      currentUrl,
+      'https://api.airi.build',
+    )).toEqual({
+      apiServerUrl: 'https://airi-server-next.up.railway.app',
+      currentUrl,
+    })
+  })
+
   it('ignores untrusted API server origins from crafted standalone auth URLs', () => {
     expect(resolveStandaloneServerAuthContext(
       'https://accounts.airi.build/ui/sign-in?api_server_url=https%3A%2F%2Fevil.example&client_id=airi-stage-web',

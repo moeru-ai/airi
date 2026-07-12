@@ -390,14 +390,14 @@ pages:
     systemprompt: 시스템 프롬프트
     title: AIRI 카드
     try_different_search: 다른 검색어를 시도해보세요
-    export: 내보내기
-    exported: 카드 패키지를 내보냈습니다
-    export_failed: 카드 패키지를 내보내지 못했습니다
-    imported: 카드 패키지를 가져왔습니다
-    import_missing_file: 카드 패키지에 필요한 파일이 없습니다
-    import_invalid_file: 카드 패키지 파일이 올바르지 않습니다
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 업로드
-    upload_desc: AIRI 카드 패키지를 클릭하거나 드래그하여 가져오기
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 기억이 저장되고 정리된 곳
     title: 메모리
@@ -437,6 +437,7 @@ pages:
       desktop:
         title: 데스크탑 설정 및 상태 초기화
         description: AIRI 데스크탑 설정 및 런타임 상태를 전부 지웁니다.
+        center: Move desktop window to center
         reset: 데스크탑 데이터 지우기
     confirmations:
       tooltip: 정말 진행하실 건가요?
@@ -450,6 +451,7 @@ pages:
       modules_reset: 모듈 설정이 초기화되었습니다.
       providers_reset: 제공자 설정이 초기화되었습니다.
       all_deleted: 로컬 데이터가 초기화되었습니다.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
     description: Live2D, VRM, Spine, 기타 등등.

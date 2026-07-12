@@ -390,14 +390,14 @@ pages:
     systemprompt: Системный промпт
     title: Карта AIRI
     try_different_search: Попробуйте другой поисковый запрос
-    export: Экспорт
-    exported: Пакет карточки экспортирован
-    export_failed: Не удалось экспортировать пакет карточки
-    imported: Пакет карточки импортирован
-    import_missing_file: В пакете карточки отсутствуют необходимые файлы
-    import_invalid_file: Файл пакета карточки недействителен
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Загрузить
-    upload_desc: Нажмите или перетащите пакет карточки AIRI для импорта
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Хранилище и организация воспоминаний
     title: Память
@@ -437,6 +437,7 @@ pages:
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
+        center: Move desktop window to center
         reset: Сбросить данные для рабочего стола
     confirmations:
       tooltip: Вы уверены?
@@ -450,6 +451,7 @@ pages:
       modules_reset: Настройки модуля сброшены.
       providers_reset: Настройки провайдера сброшены.
       all_deleted: Все локальные данные удалены.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Данные рабочего стола сброшены.
   models:
     description: Live2D, VRM, Spine и др.

@@ -390,14 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
-    export: 导出
-    exported: 角色卡包已导出
-    export_failed: 角色卡包导出失败
-    imported: 角色卡包已导入
-    import_missing_file: 角色卡包缺少必要文件
-    import_invalid_file: 角色卡包文件错误
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 上传
-    upload_desc: 点击或拖拽 AIRI 角色卡包到此处导入
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
@@ -437,6 +437,7 @@ pages:
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
+        center: Move desktop window to center
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
@@ -450,6 +451,7 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 桌面数据重置。
   models:
     description: Live2D, VRM, Spine, etc.

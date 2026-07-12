@@ -15,27 +15,28 @@ docs:
   'open-settings': Mở cài đặt
   'open-chat': Mở trò chuyện
   'refresh': Làm mới
+  'center-main-window': Move to screen center
   'open-hearing-controls': Kiểm soát thính giác mở
   'drag-to-move-window': Kéo để di chuyển cửa sổ
   'switch-to-light-mode': Chuyển sang chế độ sáng
   'switch-to-dark-mode': Chuyển sang chế độ tối
   'pin-on-top': Ghim lên trên
   'unpin-from-top': Gỡ ghim khỏi đầu trang
-  'switch-profile': Switch Profile
+  'switch-profile': Chuyển Hồ Sơ
   'close': Đóng
   'expand': Mở rộng
   'collapse': Sụp đổ
-  'login': Sign in
-  'logging-in': Signing in...
-  'account': Account
-  'logout': Sign out
+  'login': Đăng nhập
+  'logging-in': Đang đăng nhập...
+  'account': Tài khoản
+  'logout': Đăng xuất
 widgets:
-  close: Close widget
+  close: Đóng tiện ích
   empty:
-    title: No widget active
+    title: Không có tiện ích hoạt động
     description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
+  loading: Đang tải tiện ích…
+  waiting: Đang đợi dữ liệu tiện ích cho "{id}"…
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột
@@ -53,13 +54,13 @@ notice:
     preview-title: Đây là gì?
 about:
   subtitle: Desktop ver.
-  current-version: Current Version
+  current-version: Phiên Bản Hiện Tại
   common:
-    cancel: Cancel
+    cancel: Hủy
   links:
-    title: Links
-    home: Home
-    documentation: Documentations
+    title: Các Liên Kết
+    home: Trang chủ
+    documentation: Tài liệu
     github: GitHub
   update:
     lane:
@@ -67,32 +68,32 @@ about:
       description: Choose channel release to follow
       placeholder: Choose update lane
     channels:
-      auto: Auto
-      stable: Stable
+      auto: Tự động
+      stable: Ổn định
       alpha: Alpha
       beta: Beta
       nightly: Nightly
       canary: Canary
     status:
-      downloading: Downloading update...
-      error-prefix: Error
-      latest: Up to date (v{version}).
+      downloading: Đang tải bản cập nhật...
+      error-prefix: Lỗi
+      latest: Bản mới nhất (v{version}).
       downloaded:
-        windows: Update ready to install silently (v{version}).
-        restart: Update ready to install on restart (v{version}).
+        windows: Bản cập nhật sẵn sàng để tải trong im lặng (v{version}).
+        restart: Bản cập nhật sẵn sàng để tải khi khởi động lại (v{version}).
     actions:
-      download: Download Update
-      download-short: Download
-      confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
-      disabled-dev: Updates disabled in Dev
+      download: Tải Bản Cập Nhật
+      download-short: Tải
+      confirm-download: Xác Nhận Tải
+      check-for-updates: Kiểm tra bản cập nhật
+      checking: Đang kiểm tra...
+      latest-version: Phiên bản mới nhất
+      disabled-dev: Các bản cập nhật bị vô hiệu trong Dev
       retry-check: Retry Check
-      restart-silent: Restart to update silently
-      restart-install: Restart to install update
-      confirm-restart: Confirm Restart
+      restart-silent: Khởi động lại để cập nhật trong im lặng
+      restart-install: Khởi động lại để tải bản cập nhật
+      confirm-restart: Xác Nhận Khởi Động Lại
     dialog:
-      title: Update Available
-      description: A new version (v{version}) is available.
+      title: Có Bản Cập Nhật Mới
+      description: Hiện đang có phiên bản mới (v{version}).
       no-release-notes-markdown: _No release notes provided._

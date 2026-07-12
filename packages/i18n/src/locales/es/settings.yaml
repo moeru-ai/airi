@@ -390,14 +390,14 @@ pages:
     systemprompt: Prompt del Sistema
     title: Tarjeta AIRI
     try_different_search: Prueba un término de búsqueda diferente
-    export: Exportar
-    exported: Paquete de tarjeta exportado
-    export_failed: No se pudo exportar el paquete de tarjeta
-    imported: Paquete de tarjeta importado
-    import_missing_file: Al paquete de tarjeta le faltan archivos necesarios
-    import_invalid_file: El archivo del paquete de tarjeta no es válido
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Subir
-    upload_desc: Haz clic o arrastra un paquete de tarjeta AIRI para importar
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Donde se almacenan y organizan las memorias
     title: Memoria
@@ -437,6 +437,7 @@ pages:
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
+        center: Move desktop window to center
         reset: Restablecer datos de escritorio
     confirmations:
       tooltip: '¿Estás seguro?'
@@ -450,6 +451,7 @@ pages:
       modules_reset: Ajustes del módulo restablecidos.
       providers_reset: Ajustes del proveedor restablecidos.
       all_deleted: Todos los datos locales eliminados.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Datos de escritorio restablecidos.
   models:
     description: Live2D, VRM, Spine, etc.

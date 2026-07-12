@@ -456,6 +456,7 @@ pages:
       desktop:
         title: Reset desktop settings & states
         description: Clear AIRI desktop settings and runtime state.
+        center: Move desktop window to center
         reset: Reset desktop data
     confirmations:
       tooltip: Are you sure?
@@ -469,6 +470,7 @@ pages:
       modules_reset: Module settings reset.
       providers_reset: Provider settings reset.
       all_deleted: All local data deleted.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
     description: Live2D, VRM, Spine, etc.
