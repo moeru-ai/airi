@@ -282,7 +282,7 @@
 <rect x="736" y="84" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
 <rect x="750" y="84" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
 <rect x="764" y="84" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"><title>1 commits</title></rect>
-<rect x="36" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
+<rect x="36" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
 <rect x="50" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
 <rect x="64" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
 <rect x="78" y="98" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
@@ -387,7 +387,7 @@
 <rect x="722" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
 <rect x="736" y="112" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>4 commits</title></rect>
 <rect x="750" y="112" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"><title>12 commits</title></rect>
-<rect x="764" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
+<rect x="764" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>0 commits</title></rect>
 <text x="700" y="143" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Less</text>
 <rect x="708" y="134" width="11" height="11" rx="2" ry="2" fill="#161b22"/>
 <rect x="722" y="134" width="11" height="11" rx="2" ry="2" fill="#3a1f2d"/>
@@ -398,11 +398,11 @@
 <text x="36" y="178" fill="#ffd1e8" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" font-weight="600">Top active repos this year</text>
 <rect x="186" y="192" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
 <rect x="186" y="192" width="280" height="10" rx="3" ry="3" fill="#ff6b9d"/>
-<text x="474" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">5482</text>
+<text x="474" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">5460</text>
 <text x="36" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animatty</text>
 <rect x="186" y="212" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
-<rect x="186" y="212" width="161" height="10" rx="3" ry="3" fill="#ff6b9d"/>
-<text x="474" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3154</text>
+<rect x="186" y="212" width="162" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3153</text>
 <text x="36" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">anima</text>
 <rect x="186" y="232" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
 <rect x="186" y="232" width="95" height="10" rx="3" ry="3" fill="#ff6b9d"/>
@@ -417,7 +417,7 @@
 <text x="474" y="281" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">648</text>
 <text x="36" y="281" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animarouter</text>
 <rect x="186" y="292" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
-<rect x="186" y="292" width="31" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<rect x="186" y="292" width="32" height="10" rx="3" ry="3" fill="#ff6b9d"/>
 <text x="474" y="301" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">615</text>
 <text x="36" y="301" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animargb</text>
 <rect x="186" y="312" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
@@ -444,5 +444,5 @@
 <rect x="186" y="412" width="1" height="10" rx="3" ry="3" fill="#ff6b9d"/>
 <text x="474" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">28</text>
 <text x="36" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animawave</text>
-<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 13544 commits across 19 repos · 2026-07-11 · refreshed 4x daily by CI</text>
+<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 13521 commits across 19 repos · 2026-07-12 · refreshed 4x daily by CI</text>
 </svg>
