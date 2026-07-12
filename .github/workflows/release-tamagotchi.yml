@@ -40,6 +40,7 @@ on:
           - windows
           - macos
           - linux
+          - mirror-only
   schedule:
     - cron: '0 0 * * *'
 
