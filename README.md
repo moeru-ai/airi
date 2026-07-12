@@ -4,7 +4,7 @@
 <h3>Anima is an agentic AI desktop OS built around your digital companion</h3>
 <sub>
 
-💙🐧 AnimAIOS distro based on [CachyOS](https://cachyos.org/) coming this fall!
+💙🐧 AnimAIOS distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
 
 </sub>
 </div>
