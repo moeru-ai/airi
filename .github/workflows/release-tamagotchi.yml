@@ -76,6 +76,8 @@ jobs:
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_DISTRIBUTION: ${{ inputs.distribution || 'direct' }}
+      VITE_DISABLE_CUSTOM_PROVIDERS: ${{ inputs.distribution == 'steam' }}
+      VITE_DISABLE_FLUX_PURCHASE: ${{ inputs.distribution == 'steam' }}
       VITE_ENABLE_POSTHOG: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
     strategy:
       matrix:
@@ -195,6 +197,15 @@ jobs:
         run: |
           mkdir -p build/mac
           godot --headless --export-release "macOS" build/mac/godot-stage.app
+          if [ "$VITE_DISTRIBUTION" = 'steam' ]; then
+            # NOTICE:
+            # SteamPipe excludes *.pdb files after Electron signs the parent app.
+            # Removing Godot debug symbols and AppleDouble files before signing keeps macOS sealed resources aligned with the installed bundle.
+            # Source/context: Steam internal-test BuildID 24160350 and the game-ci SteamPipe FileExclusion "*.pdb" behavior.
+            # Removal condition: SteamPipe preserves these resources or the embedded Godot bundle no longer contains them.
+            find build/mac/godot-stage.app -name '*.pdb' -delete
+            find build/mac/godot-stage.app -name '._*' -delete
+          fi
 
       - name: Export Godot Stage (Linux)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
@@ -231,7 +242,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package Windows Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'windows-latest' }}
+        if: ${{ inputs.distribution == 'steam' && matrix.os == 'windows-latest' }}
         shell: pwsh
         run: |
           $exePath = 'apps/stage-tamagotchi/dist/win-unpacked/airi.exe'
@@ -245,7 +256,7 @@ jobs:
           tar -cf steam-content-windows.tar -C steam-content windows
 
       - name: Upload Windows Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'windows-latest' }}
+        if: ${{ inputs.distribution == 'steam' && matrix.os == 'windows-latest' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-windows
@@ -254,7 +265,7 @@ jobs:
           overwrite: true
 
       - name: Package macOS Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}
+        if: ${{ inputs.distribution == 'steam' && matrix.os == 'macos-26' }}
         run: |
           # NOTICE: Steam macOS content is intentionally Apple Silicon-only for
           # the first Steam release. Intel macOS support should be added later
@@ -280,11 +291,26 @@ jobs:
           fi
 
           mkdir -p steam-content/macos
-          ditto "$app_path" steam-content/macos/AIRI.app
-          tar -cf steam-content-macos.tar -C steam-content macos
+          ditto --norsrc "$app_path" steam-content/macos/AIRI.app
+          find steam-content/macos -name '._*' -delete
+
+          if find steam-content/macos/AIRI.app -name '*.pdb' -print -quit | grep -q .; then
+            echo "macOS Steam content must not contain .pdb files."
+            exit 1
+          fi
+
+          if find steam-content/macos/AIRI.app -name '._*' -print -quit | grep -q .; then
+            echo "macOS Steam content must not contain AppleDouble files."
+            exit 1
+          fi
+
+          codesign --verify --deep --strict --verbose=4 steam-content/macos/AIRI.app
+          spctl --assess --type execute --verbose=4 steam-content/macos/AIRI.app
+          xcrun stapler validate steam-content/macos/AIRI.app
+          COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
 
       - name: Upload macOS Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'macos-26' }}
+        if: ${{ inputs.distribution == 'steam' && matrix.os == 'macos-26' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-macos
@@ -293,7 +319,7 @@ jobs:
           overwrite: true
 
       - name: Package Linux Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ inputs.distribution == 'steam' && matrix.os == 'ubuntu-latest' }}
         run: |
           executable_path='apps/stage-tamagotchi/dist/linux-unpacked/airi'
           if [ ! -x "$executable_path" ]; then
@@ -306,7 +332,7 @@ jobs:
           tar -cf steam-content-linux.tar -C steam-content linux
 
       - name: Upload Linux Steam content
-        if: ${{ github.event_name != 'schedule' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ inputs.distribution == 'steam' && matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-linux

@@ -85,6 +85,16 @@ jobs:
           test -x steam-build/macos/AIRI.app/Contents/MacOS/airi
           test -x steam-build/linux/airi
 
+          if find steam-build/macos/AIRI.app -name '*.pdb' -print -quit | grep -q .; then
+            echo "Refusing to upload macOS content containing .pdb files."
+            exit 1
+          fi
+
+          if find steam-build/macos/AIRI.app -name '._*' -print -quit | grep -q .; then
+            echo "Refusing to upload macOS content containing AppleDouble files."
+            exit 1
+          fi
+
           if ! file steam-build/macos/AIRI.app/Contents/MacOS/airi | grep -q 'arm64'; then
             echo "Steam macOS content currently supports Apple Silicon only."
             file steam-build/macos/AIRI.app/Contents/MacOS/airi
