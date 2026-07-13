@@ -21,6 +21,7 @@ import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
 
 interface Props {
+  customProviderSetupEnabled: boolean
   onNext: OnboardingStepNextHandler
 }
 
@@ -133,6 +134,7 @@ function handleLocalSetup() {
         @click="handleLogin"
       />
       <Button
+        v-if="props.customProviderSetupEnabled"
         v-motion
         :initial="{ opacity: 0 }"
         :enter="{ opacity: 1 }"
