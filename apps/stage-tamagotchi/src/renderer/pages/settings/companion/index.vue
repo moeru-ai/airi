@@ -35,6 +35,11 @@ const { language } = storeToRefs(settingsGeneralStore)
 const { t } = useI18n()
 const sourcesOptions = computed<SourcesOptions>(() => ({
   types: ['screen', 'window'],
+  // The picker only uses names and app icons, so it must not capture screen content before opt-in.
+  thumbnailSize: {
+    width: 0,
+    height: 0,
+  },
   fetchWindowIcons: true,
 }))
 
