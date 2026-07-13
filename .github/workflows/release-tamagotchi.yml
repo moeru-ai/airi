@@ -29,7 +29,7 @@ on:
         default: false
         type: boolean
       tag:
-        description: Specific tag/commit for the release (leave empty to auto-detect latest tag)
+        description: Direct release version/tag; source comes from the selected workflow ref
         required: false
         type: string
       platform:
@@ -65,8 +65,64 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-release-inputs:
+    name: Validate release inputs
+    permissions: {}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate manual release mode
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+          BUILD_ONLY: ${{ inputs.build_only }}
+        shell: bash
+        run: |
+          if [[ "$BUILD_ONLY" == "true" && "$ARTIFACTS_ONLY" == "true" ]]; then
+            echo "::error::Build only and artifacts only cannot both be enabled."
+            exit 1
+          fi
+
+      - name: Validate direct release tag
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' }}
+        env:
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+          BUILD_ONLY: ${{ inputs.build_only }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          if [[ -z "$RELEASE_TAG" ]]; then
+            if [[ "$BUILD_ONLY" != "true" && "$ARTIFACTS_ONLY" != "true" ]]; then
+              echo "::error::A tag is required when publishing the direct distribution."
+              exit 1
+            fi
+
+            exit 0
+          fi
+
+          if [[ ! "$RELEASE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+            echo "::error::Direct release tag may contain only letters, numbers, dots, underscores, plus signs, and hyphens."
+            exit 1
+          fi
+
+      - name: Validate Steam release branch
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution == 'steam' && !inputs.build_only && !inputs.artifacts_only }}
+        env:
+          STEAM_RELEASE_BRANCH: ${{ inputs.release_branch }}
+        shell: bash
+        run: |
+          if [[ ! "$STEAM_RELEASE_BRANCH" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::Steam release branch may contain only letters, numbers, dots, underscores, and hyphens."
+            exit 1
+          fi
+
+          if [[ "$STEAM_RELEASE_BRANCH" == "default" ]]; then
+            echo '::error::Steam release branch "default" must be promoted manually.'
+            exit 1
+          fi
+
   build:
     name: Build
+    needs: validate-release-inputs
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_DISTRIBUTION: ${{ inputs.distribution || 'direct' }}
