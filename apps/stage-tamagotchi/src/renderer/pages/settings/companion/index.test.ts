@@ -8,9 +8,12 @@ import { createApp, nextTick, ref, toValue } from 'vue'
 
 let mountedApp: App<Element> | null = null
 let sourcesOptions: MaybeRefOrGetter<SourcesOptions> | null = null
+let hasScreenCapturePermission = false
+let emitPermissionGranted: (() => void) | null = null
 
 const refetchSources = vi.fn()
 const cleanup = vi.fn()
+const requestPermission = vi.fn()
 
 function createCompanionStore() {
   return {
@@ -59,6 +62,23 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+vi.mock('../../../components/WithScreenCapture.vue', async () => {
+  const { defineComponent } = await import('vue')
+
+  return {
+    default: defineComponent({
+      emits: ['permissionGranted'],
+      setup(_props, { emit, slots }) {
+        emitPermissionGranted = () => emit('permissionGranted')
+        return () => slots.default?.({
+          hasPermissions: hasScreenCapturePermission,
+          requestPermission,
+        })
+      },
+    }),
+  }
+})
+
 vi.mock('../../../composables/use-vision-screen-capture', () => ({
   useVisionScreenCapture: (options: MaybeRefOrGetter<SourcesOptions>) => {
     sourcesOptions = options
@@ -93,16 +113,20 @@ describe('companion mode settings', async () => {
   beforeEach(() => {
     companionStore = createCompanionStore()
     sourcesOptions = null
+    hasScreenCapturePermission = false
+    emitPermissionGranted = null
     refetchSources.mockReset()
     cleanup.mockReset()
+    requestPermission.mockReset()
   })
 
   afterEach(() => {
     mountedApp?.unmount()
     mountedApp = null
+    emitPermissionGranted = null
   })
 
-  it('does not request source thumbnails when opening the picker', async () => {
+  it('waits for screen-recording permission before loading picker sources', async () => {
     const host = document.createElement('div')
     mountedApp = createApp(CompanionModeSettingsPage)
     mountedApp.mount(host)
@@ -115,6 +139,17 @@ describe('companion mode settings', async () => {
         height: 0,
       },
     })
+    expect(refetchSources).not.toHaveBeenCalled()
+
+    companionStore.sourceKind.value = 'window'
+    await nextTick()
+    expect(refetchSources).not.toHaveBeenCalled()
+
+    hasScreenCapturePermission = true
+    expect(emitPermissionGranted).not.toBeNull()
+    emitPermissionGranted?.()
+    await nextTick()
+
     expect(refetchSources).toHaveBeenCalledTimes(1)
   })
 })

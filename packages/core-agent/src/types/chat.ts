@@ -31,6 +31,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
     speech: string
     reasoning: string
   }
+  /** True when this reply was generated from an internal hidden user message. */
+  isHiddenUserMessageResponse?: boolean
 }
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage

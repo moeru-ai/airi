@@ -387,7 +387,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       if (rawMessage.role === 'assistant') {
-        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
+        const {
+          slices: _slices,
+          tool_results: _toolResults,
+          categorization: _categorization,
+          isHiddenUserMessageResponse: _isHiddenUserMessageResponse,
+          ...rest
+        } = rawMessage as ChatAssistantMessage
         return unwrapMessage(rest)
       }
 
@@ -407,12 +413,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     deps.session.ensureSession(sessionId)
 
     const existingSessionMessages = deps.session.getSessionMessages(sessionId)
+    const hiddenUserMessage = options.hiddenUserMessage === true
+    const shouldTrackUserChatTelemetry = !hiddenUserMessage
     const turnIndex = existingSessionMessages.filter(message => message.role === 'user').length + 1
 
-    // Activation measures whether a conversation reaches its first assistant
-    // response. Later turns still emit message and latency telemetry, but they
-    // must not inflate the one-time activation milestones.
-    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
+    // Hidden Companion Mode inputs intentionally leave no user history item,
+    // while their assistant replies remain visible. Marked hidden replies must
+    // not consume the first real user-message activation milestone.
+    const isActivationAttempt = shouldTrackUserChatTelemetry
+      && !existingSessionMessages.some(message =>
+        message.role === 'assistant' && !message.isHiddenUserMessageResponse,
+      )
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -453,6 +464,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       tool_results: [],
       createdAt: now(),
       id: createId(),
+      isHiddenUserMessageResponse: hiddenUserMessage || undefined,
     }
     patchForegroundStream(sessionId, buildingMessage)
     const sendSource = options.input ? 'voice' : 'text'
@@ -465,20 +477,22 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       roundId,
       turnIndex,
     }
-    deps.onTrackFirstMessage?.()
-    if (isActivationAttempt) {
-      deps.onChatActivationStarted?.({
+    if (shouldTrackUserChatTelemetry) {
+      deps.onTrackFirstMessage?.()
+      if (isActivationAttempt) {
+        deps.onChatActivationStarted?.({
+          ...correlation,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+        })
+      }
+      deps.onMessageSendStarted?.({
         ...correlation,
         source: sendSource,
         model: options.model,
-        provider: activeProvider,
       })
     }
-    deps.onMessageSendStarted?.({
-      ...correlation,
-      source: sendSource,
-      model: options.model,
-    })
     const roundStartedAt = monotonicNow()
 
     try {
@@ -512,7 +526,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
-      const hiddenUserMessage = options.hiddenUserMessage === true
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
@@ -691,12 +704,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
-      deps.onLlmRequestStarted?.({
-        ...correlation,
-        model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
-        hasVoice: !!options.input,
-      })
+      if (shouldTrackUserChatTelemetry) {
+        deps.onLlmRequestStarted?.({
+          ...correlation,
+          model: options.model,
+          provider: deps.getActiveProvider() || 'unknown',
+          hasVoice: !!options.input,
+        })
+      }
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
@@ -732,11 +747,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             case 'text-delta':
               if (!llmFirstTokenEmitted) {
                 llmFirstTokenEmitted = true
-                deps.onLlmFirstToken?.({
-                  ...correlation,
-                  model: options.model,
-                  ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
-                })
+                if (shouldTrackUserChatTelemetry) {
+                  deps.onLlmFirstToken?.({
+                    ...correlation,
+                    model: options.model,
+                    ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+                  })
+                }
               }
               fullText += event.text
               await parser.consume(event.text)
@@ -767,11 +784,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       await parser.end()
-      deps.onAssistantResponseRendered?.({
-        ...correlation,
-        model: options.model,
-        latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
-      })
+      if (shouldTrackUserChatTelemetry) {
+        deps.onAssistantResponseRendered?.({
+          ...correlation,
+          model: options.model,
+          latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
+        })
+      }
 
       if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
         const finalAssistant = buildingMessage
@@ -801,34 +820,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       resetForegroundStream(sessionId)
       const durationMs = Math.round(monotonicNow() - roundStartedAt)
-      deps.onMessageRound?.({
-        ...correlation,
-        durationMs,
-        hasVoice: !!options.input,
-        model: options.model,
-      })
-      if (isActivationAttempt) {
-        deps.onChatActivationSucceeded?.({
+      if (shouldTrackUserChatTelemetry) {
+        deps.onMessageRound?.({
           ...correlation,
           durationMs,
-          source: sendSource,
+          hasVoice: !!options.input,
           model: options.model,
-          provider: activeProvider,
         })
+        if (isActivationAttempt) {
+          deps.onChatActivationSucceeded?.({
+            ...correlation,
+            durationMs,
+            source: sendSource,
+            model: options.model,
+            provider: activeProvider,
+          })
+        }
       }
     }
     catch (error) {
       console.error('Error sending message:', error)
-      deps.onMessageRoundFailed?.({
-        ...correlation,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
-      })
-      if (isActivationAttempt) {
-        deps.onChatActivationFailed?.({
+      if (shouldTrackUserChatTelemetry) {
+        deps.onMessageRoundFailed?.({
           ...correlation,
           source: sendSource,
           model: options.model,
@@ -836,6 +849,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           failureStage: 'llm_response',
           errorCode: 'llm_response_failed',
         })
+        if (isActivationAttempt) {
+          deps.onChatActivationFailed?.({
+            ...correlation,
+            source: sendSource,
+            model: options.model,
+            provider: activeProvider,
+            failureStage: 'llm_response',
+            errorCode: 'llm_response_failed',
+          })
+        }
       }
       throw error
     }

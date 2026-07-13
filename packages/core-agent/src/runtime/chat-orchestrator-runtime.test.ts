@@ -35,6 +35,7 @@ function createHarness() {
   const assistantTurns: unknown[] = []
   const stateChanges: unknown[] = []
   const telemetry = {
+    firstMessageTracked: 0,
     chatActivationStarted: [] as unknown[],
     chatActivationSucceeded: [] as unknown[],
     chatActivationFailed: [] as unknown[],
@@ -93,6 +94,9 @@ function createHarness() {
     onUserTurnReady: event => userTurns.push(event),
     onAssistantTurnReady: event => assistantTurns.push(event),
     onStateChange: state => stateChanges.push(state),
+    onTrackFirstMessage: () => {
+      telemetry.firstMessageTracked += 1
+    },
     onChatActivationStarted: event => telemetry.chatActivationStarted.push(event),
     onChatActivationSucceeded: event => telemetry.chatActivationSucceeded.push(event),
     onChatActivationFailed: event => telemetry.chatActivationFailed.push(event),
@@ -735,7 +739,114 @@ describe('createChatOrchestratorRuntime', () => {
       },
     ])
     expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system', 'assistant'])
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      isHiddenUserMessageResponse: true,
+    })
     expect(harness.userAppended).toEqual([])
     expect(harness.userTurns).toEqual([])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Companion Mode keeps its assistant reply in history while omitting its
+  // internal prompt. Treating every assistant reply as a user activation
+  // response caused that hidden reply to consume the first visible turn.
+  //
+  // Hidden sends now skip user-chat telemetry and mark their assistant reply,
+  // so the first visible user message starts activation normally.
+  it('keeps hidden companion turns out of telemetry and preserves the first visible activation', async () => {
+    const harness = createHarness()
+    let visibleTurnMessages: Message[] = []
+    harness.stream.mockImplementation(async (_model, _chatProvider, messages, options) => {
+      if (messages.some(message => message.role === 'assistant'))
+        visibleTurnMessages = messages
+
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('hidden screen prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    expect(harness.telemetry).toEqual({
+      firstMessageTracked: 0,
+      chatActivationStarted: [],
+      chatActivationSucceeded: [],
+      chatActivationFailed: [],
+      messageSendStarted: [],
+      llmRequestStarted: [],
+      llmFirstToken: [],
+      assistantResponseRendered: [],
+      messageRound: [],
+      messageRoundFailed: [],
+    })
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      isHiddenUserMessageResponse: true,
+    })
+
+    await harness.runtime.ingest('first visible message', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.firstMessageTracked).toBe(1)
+    expect(harness.telemetry.chatActivationStarted).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.chatActivationFailed).toEqual([])
+    expect(harness.telemetry.messageSendStarted).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.llmRequestStarted).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.llmFirstToken).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.assistantResponseRendered).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.messageRound).toEqual([
+      expect.objectContaining({ turnIndex: 1 }),
+    ])
+    expect(harness.telemetry.messageRoundFailed).toEqual([])
+    expect(visibleTurnMessages.find(message => message.role === 'assistant')).not.toHaveProperty('isHiddenUserMessageResponse')
+  })
+
+  it('does not emit user telemetry when a hidden companion turn fails', async () => {
+    const harness = createHarness()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    harness.stream.mockRejectedValueOnce(new Error('hidden observation failed'))
+
+    try {
+      await expect(harness.runtime.ingest('hidden screen prompt', {
+        model: 'gpt-test',
+        chatProvider: provider,
+        hiddenUserMessage: true,
+      })).rejects.toThrow('hidden observation failed')
+    }
+    finally {
+      consoleError.mockRestore()
+    }
+
+    expect(harness.telemetry).toEqual({
+      firstMessageTracked: 0,
+      chatActivationStarted: [],
+      chatActivationSucceeded: [],
+      chatActivationFailed: [],
+      messageSendStarted: [],
+      llmRequestStarted: [],
+      llmFirstToken: [],
+      assistantResponseRendered: [],
+      messageRound: [],
+      messageRoundFailed: [],
+    })
   })
 })

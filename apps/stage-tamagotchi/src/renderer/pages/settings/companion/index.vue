@@ -7,6 +7,8 @@ import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import WithScreenCapture from '../../../components/WithScreenCapture.vue'
+
 import { useVisionScreenCapture } from '../../../composables/use-vision-screen-capture'
 import {
   getDefaultCompanionModePromptTemplate,
@@ -235,6 +237,10 @@ function closeImagePreview() {
   previewImageDataUrl.value = ''
 }
 
+function handlePermissionGranted() {
+  void refetchSources()
+}
+
 watch([promptTemplate, language], () => {
   if (!promptDirty.value)
     loadPromptDraft()
@@ -243,15 +249,12 @@ watch([promptTemplate, language], () => {
 watch(sourceKind, () => {
   if (!isCompanionModeSourceAllowedForKind(sourceId.value, sourceKind.value))
     sourceId.value = ''
-
-  void refetchSources()
 })
 
 onMounted(() => {
   runtimeStatusTimer = setInterval(() => {
     runtimeStatusNow.value = Date.now()
   }, 1000)
-  void refetchSources()
 })
 
 onBeforeUnmount(() => {
@@ -266,56 +269,85 @@ onBeforeUnmount(() => {
 <template>
   <div :class="['flex', 'flex-col', 'gap-4']">
     <div :class="['rounded-lg', 'bg-neutral-50', 'p-4', 'dark:bg-neutral-800']">
-      <div :class="['flex', 'flex-col', 'gap-4']">
-        <FieldCheckbox
-          v-model="enabled"
-          :label="t('tamagotchi.settings.pages.companion.enable.title')"
-          :description="t('tamagotchi.settings.pages.companion.enable.description')"
-        />
+      <WithScreenCapture
+        :sources-options="sourcesOptions"
+        @permission-granted="handlePermissionGranted()"
+      >
+        <template #default="{ hasPermissions, requestPermission }">
+          <div :class="['flex', 'flex-col', 'gap-4']">
+            <FieldCheckbox
+              v-model="enabled"
+              :disabled="!hasPermissions && !enabled"
+              :label="t('tamagotchi.settings.pages.companion.enable.title')"
+              :description="t('tamagotchi.settings.pages.companion.enable.description')"
+            />
 
-        <FieldRange
-          v-model="intervalSeconds"
-          as="div"
-          :min="15"
-          :max="600"
-          :step="15"
-          :default-value="60"
-          :label="t('tamagotchi.settings.pages.companion.interval.title')"
-          :description="t('tamagotchi.settings.pages.companion.interval.description')"
-          :format-value="value => t('tamagotchi.settings.pages.companion.interval.value', { seconds: value })"
-        />
+            <FieldRange
+              v-model="intervalSeconds"
+              as="div"
+              :min="15"
+              :max="600"
+              :step="15"
+              :default-value="60"
+              :label="t('tamagotchi.settings.pages.companion.interval.title')"
+              :description="t('tamagotchi.settings.pages.companion.interval.description')"
+              :format-value="value => t('tamagotchi.settings.pages.companion.interval.value', { seconds: value })"
+            />
 
-        <div :class="['flex', 'flex-col', 'gap-2']">
-          <div :class="['text-sm', 'font-medium']">
-            {{ t('tamagotchi.settings.pages.companion.source.kind-title') }}
+            <div :class="['flex', 'flex-col', 'gap-2']">
+              <div :class="['text-sm', 'font-medium']">
+                {{ t('tamagotchi.settings.pages.companion.source.kind-title') }}
+              </div>
+              <SelectTab
+                v-model="sourceKind"
+                size="sm"
+                :options="sourceKindOptions"
+              />
+            </div>
+
+            <div v-if="hasPermissions" :class="['flex', 'items-end', 'gap-3']">
+              <FieldCombobox
+                v-model="selectedSource"
+                :label="sourceTitle"
+                :description="sourceDescription"
+                :options="sourceOptions"
+                :disabled="isRefetching"
+                :class="['flex-1']"
+                layout="vertical"
+              />
+              <Button
+                size="sm"
+                variant="secondary-muted"
+                :label="isRefetching ? t('tamagotchi.settings.pages.companion.source.refetching') : t('tamagotchi.settings.pages.companion.source.refetch')"
+                :icon="isRefetching ? 'i-svg-spinners:ring-resize' : 'i-solar:refresh-line-duotone'"
+                :disabled="isRefetching"
+                @click="refetchSources()"
+              />
+            </div>
+            <div
+              v-else
+              :class="[
+                'flex', 'flex-col', 'gap-3',
+                'rounded-md', 'bg-amber-50', 'p-3',
+                'text-sm', 'text-amber-900',
+                'dark:bg-amber-950/40', 'dark:text-amber-100',
+              ]"
+            >
+              <div>
+                {{ t('tamagotchi.settings.screen-capture.permissions-prompt.description') }}
+              </div>
+              <div>
+                <Button
+                  size="sm"
+                  variant="secondary-muted"
+                  :label="t('tamagotchi.settings.screen-capture.permissions-prompt.open-preferences')"
+                  @click="requestPermission()"
+                />
+              </div>
+            </div>
           </div>
-          <SelectTab
-            v-model="sourceKind"
-            size="sm"
-            :options="sourceKindOptions"
-          />
-        </div>
-
-        <div :class="['flex', 'items-end', 'gap-3']">
-          <FieldCombobox
-            v-model="selectedSource"
-            :label="sourceTitle"
-            :description="sourceDescription"
-            :options="sourceOptions"
-            :disabled="isRefetching"
-            :class="['flex-1']"
-            layout="vertical"
-          />
-          <Button
-            size="sm"
-            variant="secondary-muted"
-            :label="isRefetching ? t('tamagotchi.settings.pages.companion.source.refetching') : t('tamagotchi.settings.pages.companion.source.refetch')"
-            :icon="isRefetching ? 'i-svg-spinners:ring-resize' : 'i-solar:refresh-line-duotone'"
-            :disabled="isRefetching"
-            @click="refetchSources()"
-          />
-        </div>
-      </div>
+        </template>
+      </WithScreenCapture>
     </div>
 
     <div :class="['rounded-lg', 'bg-neutral-50', 'p-4', 'dark:bg-neutral-800']">
