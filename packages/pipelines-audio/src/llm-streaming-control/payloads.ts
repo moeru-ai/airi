@@ -1,3 +1,8 @@
+/**
+ * Supported emotion values emitted through ACT tokens.
+ *
+ * Keep this list synchronized with renderer/runtime support.
+ */
 const emotionValues = [
   'happy',
   'sad',
@@ -10,10 +15,15 @@ const emotionValues = [
   'neutral',
 ] as const
 
-export type StreamingControlEmotion = typeof emotionValues[number]
+/** Constant-time membership lookup. */
+const emotionSet = new Set<string>(emotionValues)
+
+export type StreamingControlEmotion = (typeof emotionValues)[number]
 
 export interface StreamingControlEmotionPayload {
+  /** Canonical normalized emotion. */
   name: StreamingControlEmotion
+  /** Emotion strength in range [0–1]. */
   intensity: number
 }
 
@@ -24,77 +34,135 @@ export interface NormalizedActPayload {
   motion?: string
 }
 
-function normalizeEmotionName(value: string): StreamingControlEmotion | undefined {
+/**
+ * Converts arbitrary emotion text into canonical emotion.
+ *
+ * Examples:
+ * - "Surprised" → "surprised"
+ * - " HAPPY " → "happy"
+ */
+function normalizeEmotionName(
+  value: string,
+): StreamingControlEmotion | undefined {
   const normalized = value.trim().toLowerCase()
-  if (emotionValues.includes(normalized as StreamingControlEmotion)) {
-    return normalized as StreamingControlEmotion
-  }
 
-  return undefined
+  return emotionSet.has(normalized)
+    ? (normalized as StreamingControlEmotion)
+    : undefined
 }
 
+/**
+ * Normalizes intensity into [0, 1].
+ *
+ * Invalid values fallback to 1.
+ *
+ * // content of things need notice:
+ * // Accept numeric strings because many streaming payloads arrive serialized.
+ */
 function normalizeIntensity(value: unknown): number {
-  if (typeof value !== 'number' || Number.isNaN(value)) {
+  const numeric
+    = typeof value === 'number'
+      ? value
+      : typeof value === 'string'
+        ? Number(value)
+        : Number.NaN
+
+  if (!Number.isFinite(numeric)) {
     return 1
   }
 
-  return Math.min(1, Math.max(0, value))
+  return Math.max(0, Math.min(1, numeric))
 }
 
-function normalizeEmotion(value: unknown): StreamingControlEmotionPayload | undefined {
+/**
+ * Converts arbitrary emotion payload into normalized structure.
+ *
+ * Supported:
+ * - "happy"
+ * - { name: "happy" }
+ * - { name: "happy", intensity: 0.8 }
+ */
+function normalizeEmotion(
+  value: unknown,
+): StreamingControlEmotionPayload | undefined {
   if (typeof value === 'string') {
     const name = normalizeEmotionName(value)
-    return name ? { name, intensity: 1 } : undefined
+
+    return name
+      ? {
+          name,
+          intensity: 1,
+        }
+      : undefined
   }
 
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return undefined
   }
 
-  if (!('name' in value) || typeof value.name !== 'string') {
-    return undefined
+  const normalizedValue = value as {
+    name?: unknown
+    intensity?: unknown
   }
 
-  const name = normalizeEmotionName(value.name)
+  const name
+    = typeof normalizedValue.name === 'string'
+      ? normalizeEmotionName(normalizedValue.name)
+      : undefined
+
   if (!name) {
     return undefined
   }
 
   return {
     name,
-    intensity: normalizeIntensity('intensity' in value ? value.intensity : undefined),
+    intensity: normalizeIntensity(normalizedValue.intensity),
   }
 }
 
+/**
+ * Trims and validates motion values.
+ *
+ * Empty strings become undefined.
+ */
 function normalizeMotion(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined
   }
 
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
+  const normalized = value.trim()
+
+  return normalized.length > 0
+    ? normalized
+    : undefined
 }
 
 /**
  * Normalizes ACT token payloads.
  *
- * Before:
- * - `{ emotion: "Surprised", motion: " nod " }`
+ * Input:
+ * {
+ *   emotion: "Surprised",
+ *   motion: " nod "
+ * }
  *
- * After:
- * - `{ emotion: { name: "surprised", intensity: 1 }, motion: "nod" }`
+ * Output:
+ * {
+ *   emotion: {
+ *     name: "surprised",
+ *     intensity: 1
+ *   },
+ *   motion: "nod"
+ * }
  */
-export function normalizeActPayload(payload: Record<string, unknown>): NormalizedActPayload {
-  const normalized: NormalizedActPayload = {}
+export function normalizeActPayload(
+  payload: Record<string, unknown>,
+): NormalizedActPayload {
   const emotion = normalizeEmotion(payload.emotion)
   const motion = normalizeMotion(payload.motion)
 
-  if (emotion) {
-    normalized.emotion = emotion
+  return {
+    ...(emotion && { emotion }),
+    ...(motion && { motion }),
   }
-  if (motion) {
-    normalized.motion = motion
-  }
-
-  return normalized
 }
