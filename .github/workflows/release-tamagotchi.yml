@@ -240,7 +240,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package Windows Steam content
-        if: ${{ inputs.distribution == 'steam' && matrix.os == 'windows-latest' }}
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'windows-latest' }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force steam-content/windows | Out-Null
@@ -248,7 +248,7 @@ jobs:
           tar -cf steam-content-windows.tar -C steam-content windows
 
       - name: Upload Windows Steam content
-        if: ${{ inputs.distribution == 'steam' && matrix.os == 'windows-latest' }}
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'windows-latest' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-windows
@@ -257,7 +257,7 @@ jobs:
           overwrite: true
 
       - name: Package macOS Steam content
-        if: ${{ inputs.distribution == 'steam' && matrix.os == 'macos-26' }}
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'macos-26' }}
         run: |
           app_path="$(find apps/stage-tamagotchi/dist dist -name '*.app' -type d 2>/dev/null | sort | head -n 1)"
           mkdir -p steam-content/macos
@@ -266,7 +266,7 @@ jobs:
           COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
 
       - name: Upload macOS Steam content
-        if: ${{ inputs.distribution == 'steam' && matrix.os == 'macos-26' }}
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'macos-26' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-macos
@@ -275,14 +275,14 @@ jobs:
           overwrite: true
 
       - name: Package Linux Steam content
-        if: ${{ inputs.distribution == 'steam' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'ubuntu-latest' }}
         run: |
           mkdir -p steam-content/linux
           cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
           tar -cf steam-content-linux.tar -C steam-content linux
 
       - name: Upload Linux Steam content
-        if: ${{ inputs.distribution == 'steam' && matrix.os == 'ubuntu-latest' }}
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'ubuntu-latest' }}
         uses: actions/upload-artifact@v7
         with:
           name: steam-content-linux
@@ -663,7 +663,7 @@ jobs:
 
   deploy-steam:
     name: Upload to Steam
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution == 'steam' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution == 'steam' && !inputs.build_only && !inputs.artifacts_only }}
     permissions:
       actions: read
       contents: read
