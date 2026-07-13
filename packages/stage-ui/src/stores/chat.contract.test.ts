@@ -100,6 +100,13 @@ vi.mock('../composables', () => ({
     trackChatActivationFailed: chatAnalyticsMocks.trackChatActivationFailed,
     trackSecondTurnStarted: trackSecondTurnStartedMock,
   }),
+  useMemoryRecall: () => ({ recall: vi.fn().mockResolvedValue('') }),
+  useMemoryWrite: () => ({ extractAndStore: vi.fn() }),
+}))
+
+// Memory is disabled in these contract tests, so the recall/write hooks no-op (see chat.ts gates).
+vi.mock('./modules/memory', () => ({
+  useMemoryStore: () => ({ enabled: false, configured: false, writeEveryNTurns: 5 }),
 }))
 
 vi.mock('../composables/use-io-tracer', () => ({
@@ -109,6 +116,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
+  buildMemoryRecallContext: vi.fn(),
 }))
 
 vi.mock('./chat/context-store', () => ({

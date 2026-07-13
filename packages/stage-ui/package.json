@@ -41,6 +41,7 @@
     "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
     "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/modules/vision": "./src/stores/modules/vision/index.ts",
+    "./stores/modules/memory": "./src/stores/modules/memory/index.ts",
     "./stores/mcp-tool-bridge": "./src/stores/mcp-tool-bridge.ts",
     "./stores/*": "./src/stores/*.ts",
     "./stores": "./src/stores/index.ts",
