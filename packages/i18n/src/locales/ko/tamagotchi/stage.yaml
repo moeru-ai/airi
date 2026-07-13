@@ -88,7 +88,7 @@ about:
       check-for-updates: 업데이트 확인하기
       checking: 확인 중...
       latest-version: 최신 버전
-      disabled-dev: Updates disabled in Dev
+      managed-by-store: 업데이트는 앱 스토어에서 관리됩니다
       retry-check: 다시 확인하기
       restart-silent: 재 시작 후 조용히 업데이트하기
       restart-install: 재시작 후 업데이트하기

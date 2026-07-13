@@ -88,7 +88,7 @@ about:
       check-for-updates: Buscar actualizaciones
       checking: Verificando...
       latest-version: Última versión
-      disabled-dev: Actualizaciones desactivadas en Dev
+      managed-by-store: Las actualizaciones se gestionan desde la tienda de aplicaciones
       retry-check: Reintentar verificación
       restart-silent: Reiniciar para actualizar silenciosamente
       restart-install: Reiniciar e instalar actualización
