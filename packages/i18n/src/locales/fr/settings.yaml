@@ -437,7 +437,7 @@ pages:
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
-        center: Recentrer la fenêtre du bureau
+        center: Move desktop window to center
         reset: Réinitialiser les données du bureau
     confirmations:
       tooltip: Êtes-vous sûr(e) ?
@@ -451,7 +451,7 @@ pages:
       modules_reset: Paramètres du module réinitialisés.
       providers_reset: Paramètres du fournisseur réinitialisés.
       all_deleted: Toutes les données locales ont été supprimées.
-      desktop_window_centered: Fenêtre du bureau recentrée sur l’écran.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Données du bureau réinitialisées.
   models:
     description: Live2D, VRM, Spine, etc.

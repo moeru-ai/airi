@@ -106,6 +106,23 @@ describe('createStreamingControlParser', () => {
     turn.complete()
   })
 
+  it('falls back to global handlers when the turn id is stale', async () => {
+    const control = createStreamingControlParser()
+    const globalHandler = vi.fn()
+    const disposeGlobal = control.on({
+      name: 'plugin.action',
+      prompt: 'Run the global plugin action.',
+    }, globalHandler)
+
+    await expect(control.dispatchWith('<|CALL ["plugin.action"]|>', {
+      turnId: 'missing-turn',
+    })).resolves.toBe(true)
+
+    expect(globalHandler).toHaveBeenCalledTimes(1)
+
+    disposeGlobal()
+  })
+
   /**
    * @example
    * const turn = control.beginTurn({ turnId: 'turn-1' })

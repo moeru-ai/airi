@@ -9,271 +9,409 @@ import type {
 import { errorMessageFrom } from '@moeru/std'
 
 export type OverflowPolicy = 'queue' | 'reject' | 'steal-oldest' | 'steal-lowest-priority'
+
 export type OwnerOverflowPolicy = 'reject' | 'steal-oldest'
 
+interface ActivePlayback<TAudio> {
+  item: PlaybackItem<TAudio>
+  controller: AbortController
+  startedAt: number
+}
+
+interface WaitingPlayback<TAudio> {
+  item: PlaybackItem<TAudio>
+  enqueuedAt: number
+}
+
+type Listener<T> = (event: T) => void
+
 export interface PlaybackManagerOptions<TAudio> {
-  play: (item: PlaybackItem<TAudio>, signal: AbortSignal) => Promise<void>
+  play: (
+    item: PlaybackItem<TAudio>,
+    signal: AbortSignal,
+  ) => Promise<void>
+
   maxVoices?: number
   maxVoicesPerOwner?: number
   overflowPolicy?: OverflowPolicy
   ownerOverflowPolicy?: OwnerOverflowPolicy
 }
 
-export function createPlaybackManager<TAudio>(options: PlaybackManagerOptions<TAudio>) {
+export function createPlaybackManager<TAudio>(
+  options: PlaybackManagerOptions<TAudio>,
+) {
   const maxVoices = Math.max(1, options.maxVoices ?? 1)
-  const maxVoicesPerOwner = options.maxVoicesPerOwner
+  const maxVoicesPerOwner = options.maxVoicesPerOwner != null
+    ? Math.max(1, options.maxVoicesPerOwner)
+    : undefined
   const overflowPolicy = options.overflowPolicy ?? 'queue'
   const ownerOverflowPolicy = options.ownerOverflowPolicy ?? 'steal-oldest'
-
-  const active = new Map<string, {
-    item: PlaybackItem<TAudio>
-    controller: AbortController
-    startedAt: number
-  }>()
-
-  const waiting: Array<{ item: PlaybackItem<TAudio>, enqueuedAt: number }> = []
-
+  const active = new Map<string, ActivePlayback<TAudio>>()
+  const waiting: WaitingPlayback<TAudio>[] = []
   const listeners = {
-    start: [] as Array<(event: PlaybackStartEvent<TAudio>) => void>,
-    end: [] as Array<(event: PlaybackEndEvent<TAudio>) => void>,
-    interrupt: [] as Array<(event: PlaybackInterruptEvent<TAudio>) => void>,
-    reject: [] as Array<(event: PlaybackRejectEvent<TAudio>) => void>,
+    start: new Set<Listener<PlaybackStartEvent<TAudio>>>(),
+    end: new Set<Listener<PlaybackEndEvent<TAudio>>>(),
+    interrupt: new Set<Listener<PlaybackInterruptEvent<TAudio>>>(),
+    reject: new Set<Listener<PlaybackRejectEvent<TAudio>>>(),
   }
 
-  function onStart(listener: (event: PlaybackStartEvent<TAudio>) => void) {
-    listeners.start.push(listener)
+  function subscribe<T>(bucket: Set<Listener<T>>, listener: Listener<T>) {
+    bucket.add(listener)
+
+    return () => {
+      bucket.delete(listener)
+    }
   }
 
-  function onEnd(listener: (event: PlaybackEndEvent<TAudio>) => void) {
-    listeners.end.push(listener)
+  function emit<T>(bucket: Set<Listener<T>>, event: T) {
+    for (const listener of [...bucket])
+      listener(event)
   }
 
-  function onInterrupt(listener: (event: PlaybackInterruptEvent<TAudio>) => void) {
-    listeners.interrupt.push(listener)
+  function exists(id: string) {
+    return (
+      active.has(id)
+      || waiting.some(
+        x => x.item.id === id,
+      )
+    )
   }
 
-  function onReject(listener: (event: PlaybackRejectEvent<TAudio>) => void) {
-    listeners.reject.push(listener)
-  }
-
-  function emitStart(item: PlaybackItem<TAudio>) {
-    const event = { item, startedAt: Date.now() }
-    listeners.start.forEach(listener => listener(event))
-  }
-
-  function emitEnd(item: PlaybackItem<TAudio>) {
-    const event = { item, endedAt: Date.now() }
-    listeners.end.forEach(listener => listener(event))
-  }
-
-  function emitInterrupt(item: PlaybackItem<TAudio>, reason: string) {
-    const event = { item, reason, interruptedAt: Date.now() }
-    listeners.interrupt.forEach(listener => listener(event))
-  }
-
-  function emitReject(item: PlaybackItem<TAudio>, reason: string) {
-    const event = { item, reason }
-    listeners.reject.forEach(listener => listener(event))
-  }
-
-  function countByOwner(ownerId?: string) {
+  function ownerCount(ownerId?: string) {
     if (!ownerId)
       return 0
+
     let count = 0
-    for (const entry of active.values()) {
-      if (entry.item.ownerId === ownerId)
-        count += 1
+    for (const x of active.values()) {
+      if (x.item.ownerId === ownerId) {
+        count++
+      }
     }
+
     return count
   }
 
-  function chooseVictimByPriority() {
-    let victim: { item: PlaybackItem<TAudio>, controller: AbortController, startedAt: number } | undefined
-    for (const entry of active.values()) {
-      if (!victim)
-        victim = entry
-      else if (entry.item.priority < victim.item.priority)
-        victim = entry
+  function canStart(item: PlaybackItem<TAudio>):
+    | 'overflow'
+    | 'owner-overflow'
+    | undefined {
+    if (
+      maxVoicesPerOwner
+      && item.ownerId
+      && ownerCount(item.ownerId)
+      >= maxVoicesPerOwner
+    ) {
+      return 'owner-overflow'
     }
-    return victim
-  }
 
-  function chooseVictimOldest(ownerId?: string) {
-    let victim: { item: PlaybackItem<TAudio>, controller: AbortController, startedAt: number } | undefined
-    for (const entry of active.values()) {
-      if (ownerId && entry.item.ownerId !== ownerId)
-        continue
-      if (!victim || entry.startedAt < victim.startedAt)
-        victim = entry
-    }
-    return victim
-  }
-
-  function stopActive(entry: { item: PlaybackItem<TAudio>, controller: AbortController }, reason: string) {
-    entry.controller.abort(reason)
-    active.delete(entry.item.id)
-    emitInterrupt(entry.item, reason)
-  }
-
-  function canStart(item: PlaybackItem<TAudio>) {
     if (active.size >= maxVoices)
-      return { ok: false, reason: 'overflow' as const }
-    if (maxVoicesPerOwner && item.ownerId) {
-      if (countByOwner(item.ownerId) >= maxVoicesPerOwner)
-        return { ok: false, reason: 'owner-overflow' as const }
+      return 'overflow'
+
+    return undefined
+  }
+
+  function pickVictim(
+    predicate?: (
+      x: ActivePlayback<TAudio>,
+    ) => boolean,
+
+    compare?: (
+      a: ActivePlayback<TAudio>,
+      b: ActivePlayback<TAudio>,
+    ) => boolean,
+  ) {
+    let victim:
+      | ActivePlayback<TAudio>
+      | undefined
+
+    for (const x of active.values()) {
+      if (predicate && !predicate(x)) {
+        continue
+      }
+
+      if (!victim || (compare && compare(x, victim))) {
+        victim = x
+      }
     }
-    return { ok: true as const }
+
+    return victim
+  }
+
+  function finalize(entry: ActivePlayback<TAudio>, interrupted?: string, options?: { allowStartWaiting?: boolean }) {
+    if (!active.delete(entry.item.id)) {
+      return
+    }
+
+    if (interrupted) {
+      emit(
+        listeners.interrupt,
+        {
+          item: entry.item,
+          reason: interrupted,
+          interruptedAt: Date.now(),
+        },
+      )
+    }
+    else {
+      emit(
+        listeners.end,
+        {
+          item: entry.item,
+          endedAt: Date.now(),
+        },
+      )
+    }
+
+    if (options?.allowStartWaiting !== false) {
+      tryStartWaiting()
+    }
   }
 
   function start(item: PlaybackItem<TAudio>) {
-    const controller = new AbortController()
-    const startedAt = Date.now()
-    active.set(item.id, { item, controller, startedAt })
-    emitStart(item)
+    const entry: ActivePlayback<TAudio>
+      = {
+        item,
+        controller: new AbortController(),
+        startedAt: Date.now(),
+      }
 
-    void options.play(item, controller.signal)
+    active.set(item.id, entry)
+
+    emit(
+      listeners.start,
+      {
+        item,
+        startedAt: entry.startedAt,
+      },
+    )
+
+    void options
+      .play(
+        item,
+        entry.controller.signal,
+      )
       .then(() => {
-        if (!active.has(item.id))
-          return
-        active.delete(item.id)
-        emitEnd(item)
-        void tryStartWaiting()
+        finalize(entry)
       })
       .catch((err) => {
-        if (!active.has(item.id))
+        if (entry.controller.signal.aborted) {
           return
-        active.delete(item.id)
-        emitInterrupt(item, errorMessageFrom(err) ?? 'playback-error')
-        void tryStartWaiting()
+        }
+
+        finalize(
+          entry,
+          errorMessageFrom(err) ?? 'playback-error',
+        )
       })
+  }
+
+  function enqueue(item: PlaybackItem<TAudio>) {
+    const queued: WaitingPlayback<TAudio>
+      = {
+        item,
+        enqueuedAt: Date.now(),
+      }
+
+    let index = waiting.findIndex(x => x.item.priority < item.priority)
+    if (index === -1)
+      index = waiting.length
+    waiting.splice(index, 0, queued)
+  }
+
+  function resolvePolicy(blocked: 'overflow' | 'owner-overflow') {
+    return blocked === 'owner-overflow'
+      ? ownerOverflowPolicy
+      : overflowPolicy
+  }
+
+  function handleBlocked(item: PlaybackItem<TAudio>, blocked: 'overflow' | 'owner-overflow') {
+    const policy = resolvePolicy(blocked)
+    switch (policy) {
+      case 'queue':
+        enqueue(item)
+        return
+      case 'reject':
+        reject(item, blocked)
+        return
+      case 'steal-oldest':
+        stealOldest(item, blocked)
+        return
+      case 'steal-lowest-priority':
+        stealLowestPriority(item)
+    }
   }
 
   function tryStartWaiting() {
-    if (waiting.length === 0)
-      return
+    let i = 0
 
-    const candidates = waiting
-      .slice()
-      .sort((a, b) => (b.item.priority - a.item.priority) || (a.enqueuedAt - b.enqueuedAt))
+    while (i < waiting.length && active.size < maxVoices) {
+      const next = waiting[i]
+      const blocked = canStart(next.item)
 
-    for (const candidate of candidates) {
-      const { ok, reason } = canStart(candidate.item)
-      if (!ok) {
-        if (reason === 'owner-overflow' && ownerOverflowPolicy === 'steal-oldest') {
-          const victim = chooseVictimOldest(candidate.item.ownerId)
-          if (victim)
-            stopActive(victim, 'owner-overflow')
-        }
+      if (!blocked) {
+        waiting.splice(i, 1)
+        start(next.item)
+
         continue
       }
 
-      const index = waiting.indexOf(candidate)
-      if (index >= 0)
-        waiting.splice(index, 1)
-
-      start(candidate.item)
-      if (active.size >= maxVoices)
-        break
-    }
-  }
-
-  function handleOverflow(item: PlaybackItem<TAudio>, reason: 'overflow' | 'owner-overflow') {
-    if (reason === 'owner-overflow') {
-      if (ownerOverflowPolicy === 'reject') {
-        emitReject(item, 'owner-overflow')
-        return
+      const policy = resolvePolicy(blocked)
+      if (policy === 'queue') {
+        i++
+        continue
       }
 
-      const victim = chooseVictimOldest(item.ownerId)
-      if (victim) {
-        stopActive(victim, 'owner-overflow')
-        waiting.push({ item, enqueuedAt: Date.now() })
-        void tryStartWaiting()
-        return
-      }
-    }
+      waiting.splice(i, 1)
 
-    switch (overflowPolicy) {
-      case 'reject':
-        emitReject(item, 'overflow')
-        break
-      case 'queue':
-        waiting.push({ item, enqueuedAt: Date.now() })
-        break
-      case 'steal-oldest': {
-        const victim = chooseVictimOldest()
-        if (victim)
-          stopActive(victim, 'steal-oldest')
-        waiting.push({ item, enqueuedAt: Date.now() })
-        void tryStartWaiting()
-        break
-      }
-      case 'steal-lowest-priority': {
-        const victim = chooseVictimByPriority()
-        if (victim && victim.item.priority <= item.priority) {
-          stopActive(victim, 'steal-lowest-priority')
-          waiting.push({ item, enqueuedAt: Date.now() })
-          void tryStartWaiting()
-        }
-        else {
-          emitReject(item, 'lower-priority')
-        }
-        break
+      switch (policy) {
+        case 'reject':
+          reject(next.item, blocked)
+          break
+        case 'steal-oldest':
+          stealOldest(next.item, blocked)
+          break
+        case 'steal-lowest-priority':
+          stealLowestPriority(next.item)
+          break
       }
     }
   }
 
-  function schedule(item: PlaybackItem<TAudio>) {
-    const { ok, reason } = canStart(item)
-    if (ok) {
+  function interrupt(entry: ActivePlayback<TAudio>, reason: string, options?: { allowStartWaiting?: boolean }) {
+    if (!active.has(entry.item.id)) {
+      return
+    }
+
+    entry.controller.abort(reason)
+    finalize(entry, reason, options)
+  }
+
+  function reject(item: PlaybackItem<TAudio>, reason: string) {
+    emit(
+      listeners.reject,
+      {
+        item,
+        reason,
+        rejectedAt:
+          Date.now(),
+      },
+    )
+  }
+
+  function stealOldest(
+    item: PlaybackItem<TAudio>,
+    blocked:
+      | 'overflow'
+      | 'owner-overflow',
+  ) {
+    const victim = pickVictim(
+      blocked === 'owner-overflow'
+        ? x => x.item.ownerId === item.ownerId
+        : undefined,
+
+      (a, b) => a.startedAt < b.startedAt,
+    )
+
+    if (!victim) {
+      enqueue(item)
+      return
+    }
+
+    interrupt(victim, 'overflow', { allowStartWaiting: false })
+
+    const recheck = canStart(item)
+    if (!recheck) {
       start(item)
       return
     }
 
-    handleOverflow(item, reason)
+    handleBlocked(item, recheck)
   }
 
-  function stopAll(reason: string) {
-    for (const entry of active.values()) {
-      stopActive(entry, reason)
+  function stealLowestPriority(item: PlaybackItem<TAudio>) {
+    const victim = pickVictim(undefined, (a, b) => a.item.priority < b.item.priority)
+    const canSteal = !!victim && victim.item.priority < item.priority
+
+    if (!canSteal) {
+      reject(item, 'priority-overflow')
+      return
     }
-    waiting.length = 0
+
+    interrupt(victim, 'priority-overflow', { allowStartWaiting: false })
+
+    const recheck = canStart(item)
+    if (!recheck) {
+      start(item)
+      return
+    }
+
+    handleBlocked(item, recheck)
   }
 
-  function stopByIntent(intentId: string, reason: string) {
-    for (const entry of active.values()) {
-      if (entry.item.intentId !== intentId)
-        continue
-      stopActive(entry, reason)
+  function schedule(item: PlaybackItem<TAudio>) {
+    if (exists(item.id)) {
+      return
     }
 
-    for (let i = waiting.length - 1; i >= 0; i -= 1) {
+    const blocked = canStart(item)
+    if (!blocked) {
+      start(item)
+      return
+    }
+
+    handleBlocked(item, blocked)
+  }
+
+  function stopByIntent(intentId: string, reason = 'stop-by-intent') {
+    for (let i = waiting.length - 1; i >= 0; i--) {
       if (waiting[i]?.item.intentId === intentId)
         waiting.splice(i, 1)
     }
-  }
 
-  function stopByOwner(ownerId: string, reason: string) {
-    for (const entry of active.values()) {
-      if (entry.item.ownerId !== ownerId)
-        continue
-      stopActive(entry, reason)
+    for (const entry of [...active.values()]) {
+      if (entry.item.intentId === intentId)
+        interrupt(entry, reason, { allowStartWaiting: false })
     }
 
-    for (let i = waiting.length - 1; i >= 0; i -= 1) {
+    tryStartWaiting()
+  }
+
+  function stopByOwner(ownerId: string, reason = 'stop-by-owner') {
+    for (let i = waiting.length - 1; i >= 0; i--) {
       if (waiting[i]?.item.ownerId === ownerId)
         waiting.splice(i, 1)
     }
+
+    for (const entry of [...active.values()]) {
+      if (entry.item.ownerId === ownerId)
+        interrupt(entry, reason, { allowStartWaiting: false })
+    }
+
+    tryStartWaiting()
   }
 
   return {
     schedule,
-    stopAll,
+    stopAll(reason = 'stop-all') {
+      waiting.length = 0
+
+      for (const x of [...active.values()]) {
+        interrupt(x, reason, { allowStartWaiting: false })
+      }
+    },
     stopByIntent,
     stopByOwner,
-    onStart,
-    onEnd,
-    onInterrupt,
-    onReject,
+    onStart: (
+      f: Listener<PlaybackStartEvent<TAudio>>,
+    ) => subscribe(listeners.start, f),
+    onEnd: (
+      f: Listener<PlaybackEndEvent<TAudio>>,
+    ) => subscribe(listeners.end, f),
+    onInterrupt: (
+      f: Listener<PlaybackInterruptEvent<TAudio>>,
+    ) => subscribe(listeners.interrupt, f),
+    onReject: (
+      f: Listener<PlaybackRejectEvent<TAudio>>,
+    ) => subscribe(listeners.reject, f),
   }
 }
