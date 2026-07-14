@@ -144,22 +144,22 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
       sources => selectExistingSource(sources, sourceId),
       async () => {
         try {
-          // Companion Mode starts from a timer, without a transient user gesture.
-          // Electron's desktop constraints can capture the already-selected source
-          // directly and do not need the browser display-picker flow.
-          return await requestLegacyDesktopStream(sourceId)
+          // Electron's display-media request handler receives the selected
+          // source lease above, so this bypasses the browser picker while using
+          // Chromium's primary screen-capture path.
+          return await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
         }
-        catch (legacyDesktopError) {
-          console.warn('[screen-capture] Electron desktop constraints failed, falling back to getDisplayMedia:', legacyDesktopError)
+        catch (displayMediaError) {
+          console.warn('[screen-capture] Selected getDisplayMedia failed, falling back to Electron desktop constraints:', displayMediaError)
 
           try {
-            return await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+            return await requestLegacyDesktopStream(sourceId)
           }
-          catch (displayMediaError) {
+          catch (legacyDesktopError) {
             throw new Error(
               'Selected source capture failed. '
-              + `desktop constraints: ${formatCaptureError(legacyDesktopError)}; `
-              + `getDisplayMedia: ${formatCaptureError(displayMediaError)}`,
+              + `getDisplayMedia: ${formatCaptureError(displayMediaError)}; `
+              + `desktop constraints: ${formatCaptureError(legacyDesktopError)}`,
             )
           }
         }

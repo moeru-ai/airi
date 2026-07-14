@@ -66,7 +66,7 @@ describe('useVisionScreenCapture', async () => {
     vi.restoreAllMocks()
   })
 
-  it('uses Electron desktop constraints while the selected-source lease is active', async () => {
+  it('uses selected getDisplayMedia while the selected-source lease is active', async () => {
     const { stream } = createVideoStream()
     let selectingSource = false
     selectWithSourceMock.mockImplementation(async (selectSource, useStream, request) => {
@@ -80,7 +80,7 @@ describe('useVisionScreenCapture', async () => {
         selectingSource = false
       }
     })
-    getUserMediaMock.mockImplementation(async () => {
+    getDisplayMediaMock.mockImplementation(async () => {
       expect(selectingSource).toBe(true)
       return stream
     })
@@ -93,26 +93,18 @@ describe('useVisionScreenCapture', async () => {
 
     await expect(screenCapture.startStream()).resolves.toBe(stream)
 
-    expect(getUserMediaMock).toHaveBeenCalledWith(expect.objectContaining({
-      audio: false,
-      video: expect.objectContaining({
-        mandatory: expect.objectContaining({
-          chromeMediaSource: 'desktop',
-          chromeMediaSourceId: 'screen:1:0',
-        }),
-      }),
-    }))
-    expect(getDisplayMediaMock).not.toHaveBeenCalled()
+    expect(getDisplayMediaMock).toHaveBeenCalledWith({ video: true, audio: false })
+    expect(getUserMediaMock).not.toHaveBeenCalled()
   })
 
-  it('falls back to getDisplayMedia when Electron desktop constraints fail', async () => {
+  it('falls back to Electron desktop constraints when selected getDisplayMedia fails', async () => {
     const { stream } = createVideoStream()
     selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
       expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
       return await useStream()
     })
-    getUserMediaMock.mockRejectedValue(new DOMException('Desktop capture unavailable', 'NotAllowedError'))
-    getDisplayMediaMock.mockResolvedValue(stream)
+    getDisplayMediaMock.mockRejectedValue(new DOMException('Display capture unavailable', 'NotAllowedError'))
+    getUserMediaMock.mockResolvedValue(stream)
 
     const screenCapture = useVisionScreenCapture({
       types: ['screen'],
@@ -122,8 +114,16 @@ describe('useVisionScreenCapture', async () => {
 
     await expect(screenCapture.startStream()).resolves.toBe(stream)
 
-    expect(getUserMediaMock).toHaveBeenCalledTimes(1)
     expect(getDisplayMediaMock).toHaveBeenCalledWith({ video: true, audio: false })
+    expect(getUserMediaMock).toHaveBeenCalledWith(expect.objectContaining({
+      audio: false,
+      video: expect.objectContaining({
+        mandatory: expect.objectContaining({
+          chromeMediaSource: 'desktop',
+          chromeMediaSourceId: 'screen:1:0',
+        }),
+      }),
+    }))
   })
 
   it('retries a temporarily unreadable selected source after the prior lease is released', async () => {
@@ -133,10 +133,10 @@ describe('useVisionScreenCapture', async () => {
       expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
       return await useStream()
     })
-    getUserMediaMock
+    getDisplayMediaMock
       .mockRejectedValueOnce(new DOMException('Could not start video source', 'NotReadableError'))
       .mockResolvedValueOnce(stream)
-    getDisplayMediaMock.mockRejectedValueOnce(new DOMException('Could not start video source', 'NotReadableError'))
+    getUserMediaMock.mockRejectedValueOnce(new DOMException('Could not start video source', 'NotReadableError'))
 
     const screenCapture = useVisionScreenCapture({
       types: ['screen'],
@@ -150,8 +150,8 @@ describe('useVisionScreenCapture', async () => {
     await vi.advanceTimersByTimeAsync(500)
 
     await expect(start).resolves.toBe(stream)
-    expect(getUserMediaMock).toHaveBeenCalledTimes(2)
-    expect(getDisplayMediaMock).toHaveBeenCalledTimes(1)
+    expect(getDisplayMediaMock).toHaveBeenCalledTimes(2)
+    expect(getUserMediaMock).toHaveBeenCalledTimes(1)
   })
 
   it('releases an ended stream before reacquiring the selected source', async () => {
@@ -162,7 +162,7 @@ describe('useVisionScreenCapture', async () => {
       expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
       return await useStream()
     })
-    getUserMediaMock.mockImplementation(async () => {
+    getDisplayMediaMock.mockImplementation(async () => {
       requestCount += 1
       if (requestCount === 1)
         return first.stream
