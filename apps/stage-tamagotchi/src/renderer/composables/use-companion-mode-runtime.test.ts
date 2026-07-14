@@ -225,6 +225,12 @@ describe('useCompanionModeRuntime', async () => {
     expect(companionStore.recordCapture).toHaveBeenCalledTimes(1)
   })
 
+  it('clears a stale source error when Companion Mode starts already enabled', async () => {
+    await mountRuntime()
+
+    expect(companionStore.recordError).toHaveBeenCalledWith(null)
+  })
+
   it('does not start vision or chat after being disabled during capture', async () => {
     const stream = deferred<MediaStream>()
     screenCapture.startStream.mockReturnValue(stream.promise)
@@ -281,7 +287,7 @@ describe('useCompanionModeRuntime', async () => {
     expect(companionStore.recordCapture).not.toHaveBeenCalled()
   })
 
-  it('does not replace a failed window capture with a whole-screen observation', async () => {
+  it('stops Companion Mode and asks the character to explain an unavailable window', async () => {
     companionStore.sourceKind.value = 'window'
     companionStore.sourceId.value = 'window:2:0'
     screenCapture.activeSourceId.value = 'window:2:0'
@@ -289,11 +295,59 @@ describe('useCompanionModeRuntime', async () => {
     screenCapture.startStream.mockRejectedValue(new Error('Window is minimized'))
 
     await mountRuntime()
-    await vi.waitFor(() => expect(companionStore.recordError).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(requestIngest).toHaveBeenCalledTimes(1))
 
     expect(runVisionInference).not.toHaveBeenCalled()
-    expect(requestIngest).not.toHaveBeenCalled()
+    expect(requestIngest).toHaveBeenCalledWith(expect.objectContaining({
+      hidden: true,
+      text: expect.stringContaining('"Window 2" cannot be observed'),
+    }))
+    expect(companionStore.recordError).toHaveBeenCalledWith('Window is minimized')
+    expect(companionStore.recordSkip).toHaveBeenCalledWith(
+      expect.any(Number),
+      'Stopped Companion Mode because the selected observation source is unavailable.',
+    )
+    expect(companionStore.enabled.value).toBe(false)
     expect(companionStore.sourceKind.value).toBe('window')
     expect(companionStore.sourceId.value).toBe('window:2:0')
+  })
+
+  it('stops rather than replacing an explicitly selected screen that no longer exists', async () => {
+    companionStore.sourceId.value = 'screen:2:0'
+    screenCapture.activeSourceId.value = 'screen:1:0'
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(requestIngest).toHaveBeenCalledTimes(1))
+
+    expect(screenCapture.startStream).not.toHaveBeenCalled()
+    expect(companionStore.enabled.value).toBe(false)
+    expect(companionStore.sourceKind.value).toBe('screen')
+    expect(companionStore.sourceId.value).toBe('screen:2:0')
+    expect(requestIngest).toHaveBeenCalledWith(expect.objectContaining({
+      hidden: true,
+      text: expect.stringContaining('the selected screen cannot be observed'),
+    }))
+  })
+
+  it('clears the source error and captures normally when Companion Mode is enabled again', async () => {
+    companionStore.sourceKind.value = 'window'
+    companionStore.sourceId.value = 'window:2:0'
+    screenCapture.activeSourceId.value = 'window:2:0'
+    screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
+    screenCapture.startStream.mockRejectedValueOnce(new Error('Window is minimized'))
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(companionStore.enabled.value).toBe(false))
+
+    companionStore.sourceKind.value = 'screen'
+    companionStore.sourceId.value = 'screen:1:0'
+    screenCapture.activeSource.value = { id: 'screen:1:0', name: 'Screen 1' }
+    screenCapture.startStream.mockResolvedValue({} as MediaStream)
+
+    companionStore.enabled.value = true
+    await vi.waitFor(() => expect(companionStore.recordCapture).toHaveBeenCalledTimes(1))
+
+    expect(companionStore.recordError).toHaveBeenCalledWith(null)
+    expect(requestIngest).toHaveBeenCalledTimes(2)
   })
 })

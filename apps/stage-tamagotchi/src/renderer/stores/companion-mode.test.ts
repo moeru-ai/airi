@@ -77,6 +77,14 @@ describe('companion mode helpers', () => {
     })).toBe('screen:2:0')
   })
 
+  it('does not replace an explicitly selected screen that is no longer available', () => {
+    expect(resolveCompanionModeCaptureSourceId({
+      sources: [{ id: 'screen:1:0' }],
+      selectedSourceId: 'screen:2:0',
+      sourceKind: 'screen',
+    })).toBe('')
+  })
+
   it('derives shared runtime status from heartbeat freshness', () => {
     const snapshot = {
       ...createDefaultCompanionModeRuntimeSnapshot(),

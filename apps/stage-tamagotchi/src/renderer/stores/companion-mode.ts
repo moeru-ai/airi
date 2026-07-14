@@ -141,6 +141,11 @@ export function resolveCompanionModeCaptureSourceId(input: ResolveCompanionModeC
   if (selectedSource)
     return selectedSource.id
 
+  // A source that matched the selected kind was explicitly chosen by the
+  // user. Do not replace it with another screen if it later disappears.
+  if (input.selectedSourceId && isCompanionModeSourceAllowedForKind(input.selectedSourceId, input.sourceKind))
+    return ''
+
   if (input.sourceKind === 'window')
     return ''
 

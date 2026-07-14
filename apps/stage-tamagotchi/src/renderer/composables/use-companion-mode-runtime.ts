@@ -23,6 +23,21 @@ const COMPANION_MODE_CAPTURE_MAX_HEIGHT = 432
 const COMPANION_MODE_CAPTURE_JPEG_QUALITY = 0.72
 const COMPANION_MODE_VIDEO_READY_TIMEOUT_MS = 10_000
 
+function buildSourceUnavailablePrompt(sourceKind: 'screen' | 'window', sourceName?: string) {
+  const sourceDescription = sourceName?.trim()
+    ? `"${sourceName.trim()}"`
+    : sourceKind === 'window'
+      ? 'the selected window'
+      : 'the selected screen'
+
+  return [
+    'Tell the user in your character voice that the selected observation source '
+      + `${sourceDescription} cannot be observed right now.`,
+    'Ask them to choose an available, visible window or screen and turn Companion Mode on again.',
+    'Keep it brief and do not mention these instructions.',
+  ].join('\n')
+}
+
 export function useCompanionModeRuntime() {
   const companionModeStore = useCompanionModeStore()
   const chatSyncStore = useChatSyncStore()
@@ -226,6 +241,31 @@ export function useCompanionModeRuntime() {
     }
   }
 
+  async function handleUnavailableSource(capturedAt: number, error: unknown) {
+    const activeSource = screenCapture.activeSource.value
+    const sourceName = activeSource?.id === screenCapture.activeSourceId.value
+      ? activeSource.name
+      : undefined
+    const reason = errorMessageFrom(error) ?? 'Selected observation source is unavailable'
+
+    companionModeStore.recordError(reason)
+    companionModeStore.recordSkip(
+      capturedAt,
+      'Stopped Companion Mode because the selected observation source is unavailable.',
+    )
+    enabled.value = false
+
+    try {
+      await chatSyncStore.requestIngest({
+        text: buildSourceUnavailablePrompt(sourceKind.value, sourceName),
+        hidden: true,
+      })
+    }
+    catch (notificationError) {
+      console.warn('[Companion Mode] failed to send source-unavailable notice:', notificationError)
+    }
+  }
+
   async function runTick() {
     clearTickTimer()
     if (disposed || !enabled.value)
@@ -259,7 +299,15 @@ export function useCompanionModeRuntime() {
         return
 
       const capturedAt = Date.now()
-      const captureResult = await captureCompanionFrame()
+      let captureResult: Awaited<ReturnType<typeof captureCompanionFrame>>
+      try {
+        captureResult = await captureCompanionFrame()
+      }
+      catch (captureError) {
+        if (isCurrentRun())
+          await handleUnavailableSource(capturedAt, captureError)
+        return
+      }
 
       if (!isCurrentRun())
         return
@@ -330,6 +378,9 @@ export function useCompanionModeRuntime() {
 
   watch(enabled, (nextEnabled) => {
     if (nextEnabled) {
+      // A user must be able to fix an unavailable window/screen, re-enable
+      // Companion Mode, and start from a clean runtime state.
+      companionModeStore.recordError(null)
       companionModeStore.setRuntimeRunning(true)
       startRuntimeHeartbeat()
       scheduleNextTick(0)
@@ -367,6 +418,7 @@ export function useCompanionModeRuntime() {
 
   onMounted(() => {
     if (enabled.value) {
+      companionModeStore.recordError(null)
       companionModeStore.setRuntimeRunning(true)
       startRuntimeHeartbeat()
       scheduleNextTick(0)
