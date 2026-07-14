@@ -269,7 +269,7 @@ async function handleArtistryTrigger(params: {
   if (params.componentName !== 'comfy' && params.componentName !== 'artistry')
     return
 
-  log.log(`Intercepted widget update [${params.id}] for component: ${params.componentName}`)
+  log.log(`🔍 Intercepted widget update [${params.id}] for component: ${params.componentName}`)
 
   const props = robustParse(params.componentProps, 'componentProps')
   const payload = robustParse(props.payload, 'payload')
@@ -319,14 +319,14 @@ async function handleArtistryTrigger(params: {
   // it protects users from unexpected credit consumption in a high-frequency reactive
   // bridge environment. (Refer to Catalog Issue #31).
   if (status === 'generating' && lastTriggerMap.get(params.id) !== triggerFingerprint && (prompt || remixId)) {
-    log.log(`Trigger detected [${params.id}]: ${triggerFingerprint} | Mode: ${mode} | Provider: ${providerId}`)
+    log.log(`🎯 TRIGGER DETECTED [${params.id}]: ${triggerFingerprint} | Mode: ${mode} | Provider: ${providerId}`)
     lastTriggerMap.set(params.id, triggerFingerprint)
     const runId = createRunId(params.id)
     activeRunMap.set(params.id, runId)
 
     const provider = artistryProviders.get(providerId)
     if (!provider) {
-      log.error(`Provider '${providerId}' not found.`)
+      log.error(`🔴 Provider '${providerId}' not found.`)
       params.widgetsManager.updateWidget({
         id: params.id,
         componentProps: { status: 'error', actionLabel: `Provider '${providerId}' not available` },
@@ -378,11 +378,11 @@ async function handleArtistryTrigger(params: {
         provider.setJobCallback(runId, (statusUpdate) => {
           updateIfActive(statusUpdate as Record<string, any>)
           if (statusUpdate.status === 'succeeded') {
-            log.log(`Job complete (via callback) for ${params.id}. Sending final status: done`)
+            log.log(`🎉 Job complete (via callback) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
           }
           else if (statusUpdate.status === 'failed') {
-            log.log(`Job failed (via callback) for ${params.id}. Preserving error status.`)
+            log.log(`🔴 Job failed (via callback) for ${params.id}. Preserving error status.`)
             // [BY DESIGN]: Don't send status: 'done' here to avoid clearing the error message (Issue #56)
           }
         })
@@ -426,18 +426,18 @@ async function handleArtistryTrigger(params: {
         if (isDone) {
           const finalStatus = await provider.getStatus(job.jobId)
           if (finalStatus.status === 'succeeded') {
-            log.log(`Job complete (via polling) for ${params.id}. Sending final status: done`)
+            log.log(`🎉 Job complete (via polling) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
           }
           else {
-            log.log(`Job failed (via polling) for ${params.id}. Preserving error status.`)
+            log.log(`🔴 Job failed (via polling) for ${params.id}. Preserving error status.`)
           }
         }
       }
     }
     catch (error: unknown) {
       const message = errorMessageFrom(error) ?? 'Unknown generation error'
-      log.error(`Generation failed: ${message}`)
+      log.error(`🔴 Generation failed: ${message}`)
       if (activeRunMap.get(params.id) === runId) {
         lastTriggerMap.delete(params.id) // [BY DESIGN]: Clear fingerprint on failure to allow retry (Issue #44)
         params.widgetsManager.updateWidget({
@@ -454,7 +454,7 @@ export async function setupArtistryBridge(params: {
   context?: ReturnType<typeof createMainEventaContext>['context']
   artistryConfig: Config<typeof artistryConfigSchema>
 }) {
-  log.log('Initializing Artistry bridge (Spawn + Update Interceptor + Headless Handler)...')
+  log.log('🚀 Initializing Artistry bridge (Spawn + Update Interceptor + Headless Handler)...')
 
   if (params.context) {
     defineInvokeHandler(params.context, artistryGenerateHeadless, async (payload) => {
@@ -463,7 +463,7 @@ export async function setupArtistryBridge(params: {
     })
 
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
-      log.log(`Syncing artistry config to main. Provider: ${payload.provider}`)
+      log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
       params.artistryConfig.update({
         artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
         artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
@@ -489,7 +489,7 @@ export async function setupArtistryBridge(params: {
     })
 
     defineInvokeHandler(params.context, artistryTestComfyUIConnection, async (payload) => {
-      log.log(`Testing ComfyUI connection at: ${payload.url}`)
+      log.log(`🔌 Testing ComfyUI connection at: ${payload.url}`)
       try {
         const url = payload.url.replace(/\/+$/, '')
         const controller = new AbortController()
@@ -510,7 +510,7 @@ export async function setupArtistryBridge(params: {
       }
       catch (e: unknown) {
         const message = errorMessageFrom(e) ?? 'Unknown connection error'
-        log.error(`ComfyUI connection test failed: ${message}`)
+        log.error(`🔌 ComfyUI connection test failed: ${message}`)
         return {
           ok: false,
           info: `Failed: ${message}`,
@@ -534,7 +534,7 @@ export async function setupArtistryBridge(params: {
   const originalPushWidget = params.widgetsManager.pushWidget
   params.widgetsManager.pushWidget = async (payload) => {
     if (payload.componentName === 'comfy' || payload.componentName === 'artistry') {
-      log.log(`Enabling 'Living Wall' mode for ${payload.id}. Forcing infinite TTL. (Component: ${payload.componentName})`)
+      log.log(`🖼️  Enabling 'Living Wall' mode for ${payload.id}. Forcing infinite TTL. (Component: ${payload.componentName})`)
       payload.ttlMs = 0
     }
 
