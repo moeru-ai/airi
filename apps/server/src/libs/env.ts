@@ -181,7 +181,7 @@ const EnvSchema = object({
   // the box. Set to an empty string to disable; Postgres `product_events`
   // stays the source of truth either way.
   POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
-  POSTHOG_API_HOST: optional(string(), 'https://us.i.posthog.com'),
+  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
 
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),

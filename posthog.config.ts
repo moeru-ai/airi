@@ -20,7 +20,7 @@ export const POSTHOG_PROJECT_KEY
     ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
 
 export const DEFAULT_POSTHOG_CONFIG = {
-  api_host: 'https://us.i.posthog.com',
+  api_host: 'https://t.airi.build',
   person_profiles: 'identified_only', // or 'always' to create profiles for anonymous users as well
   // Without this, posthog-js only fires `$pageview` on the initial page load.
   // Every AIRI surface is an SPA (vue-router / VitePress client routing), so
