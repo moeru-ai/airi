@@ -112,6 +112,15 @@ export function useCompanionModeRuntime() {
     video.srcObject = null
   }
 
+  function hasLiveVideoTrack(source: unknown) {
+    if (!source || typeof source !== 'object' || !('getVideoTracks' in source))
+      return false
+
+    const getVideoTracks = (source as Pick<MediaStream, 'getVideoTracks'>).getVideoTracks
+    return typeof getVideoTracks === 'function'
+      && getVideoTracks.call(source).some(track => track.readyState === 'live')
+  }
+
   function stopRuntime() {
     runtimeGeneration += 1
     activeVisionAbortController?.abort(new Error('Companion Mode stopped'))
@@ -144,10 +153,17 @@ export function useCompanionModeRuntime() {
   }
 
   async function ensureVideoFrame() {
-    const stream = await screenCapture.startStream()
     const video = videoRef.value
     if (!video)
       throw new Error('Companion Mode capture video element is not available')
+
+    // A track can end outside our control while the element still retains its
+    // old stream. Detach it before asking Electron to create a replacement so
+    // the native desktop-capture resource is not held during re-acquisition.
+    if (video.srcObject && !hasLiveVideoTrack(video.srcObject))
+      stopVideoPreview()
+
+    const stream = await screenCapture.startStream()
 
     if (video.srcObject !== stream)
       video.srcObject = stream

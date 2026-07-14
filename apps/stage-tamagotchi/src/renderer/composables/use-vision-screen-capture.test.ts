@@ -14,17 +14,28 @@ vi.mock('@proj-airi/electron-screen-capture/vue', () => ({
   }),
 }))
 
-function createLiveVideoStream() {
+function createVideoStream(state: MediaStreamTrackState = 'live') {
+  let onEnded: (() => void) | undefined
   const track = {
-    readyState: 'live',
-    addEventListener: vi.fn(),
+    readyState: state,
+    addEventListener: vi.fn((event: string, listener: () => void) => {
+      if (event === 'ended')
+        onEnded = listener
+    }),
     stop: vi.fn(),
   } as unknown as MediaStreamTrack
 
   return {
-    getVideoTracks: () => [track],
-    getTracks: () => [track],
-  } as unknown as MediaStream
+    stream: {
+      getVideoTracks: () => [track],
+      getTracks: () => [track],
+    } as unknown as MediaStream,
+    track,
+    end() {
+      (track as { readyState: MediaStreamTrackState }).readyState = 'ended'
+      onEnded?.()
+    },
+  }
 }
 
 describe('useVisionScreenCapture', async () => {
@@ -51,11 +62,12 @@ describe('useVisionScreenCapture', async () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
   it('uses Electron desktop constraints while the selected-source lease is active', async () => {
-    const stream = createLiveVideoStream()
+    const { stream } = createVideoStream()
     let selectingSource = false
     selectWithSourceMock.mockImplementation(async (selectSource, useStream, request) => {
       expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
@@ -94,7 +106,7 @@ describe('useVisionScreenCapture', async () => {
   })
 
   it('falls back to getDisplayMedia when Electron desktop constraints fail', async () => {
-    const stream = createLiveVideoStream()
+    const { stream } = createVideoStream()
     selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
       expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
       return await useStream()
@@ -112,6 +124,64 @@ describe('useVisionScreenCapture', async () => {
 
     expect(getUserMediaMock).toHaveBeenCalledTimes(1)
     expect(getDisplayMediaMock).toHaveBeenCalledWith({ video: true, audio: false })
+  })
+
+  it('retries a temporarily unreadable selected source after the prior lease is released', async () => {
+    vi.useFakeTimers()
+    const { stream } = createVideoStream()
+    selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
+      expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
+      return await useStream()
+    })
+    getUserMediaMock
+      .mockRejectedValueOnce(new DOMException('Could not start video source', 'NotReadableError'))
+      .mockResolvedValueOnce(stream)
+    getDisplayMediaMock.mockRejectedValueOnce(new DOMException('Could not start video source', 'NotReadableError'))
+
+    const screenCapture = useVisionScreenCapture({
+      types: ['screen'],
+      thumbnailSize: { width: 0, height: 0 },
+    } satisfies SourcesOptions)
+    screenCapture.activeSourceId.value = 'screen:1:0'
+
+    const start = screenCapture.startStream()
+    await Promise.resolve()
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(500)
+
+    await expect(start).resolves.toBe(stream)
+    expect(getUserMediaMock).toHaveBeenCalledTimes(2)
+    expect(getDisplayMediaMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('releases an ended stream before reacquiring the selected source', async () => {
+    const first = createVideoStream()
+    const second = createVideoStream()
+    let requestCount = 0
+    selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
+      expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
+      return await useStream()
+    })
+    getUserMediaMock.mockImplementation(async () => {
+      requestCount += 1
+      if (requestCount === 1)
+        return first.stream
+
+      expect(first.track.stop).toHaveBeenCalledTimes(1)
+      return second.stream
+    })
+
+    const screenCapture = useVisionScreenCapture({
+      types: ['screen'],
+      thumbnailSize: { width: 0, height: 0 },
+    } satisfies SourcesOptions)
+    screenCapture.activeSourceId.value = 'screen:1:0'
+
+    await expect(screenCapture.startStream()).resolves.toBe(first.stream)
+    first.end()
+
+    await expect(screenCapture.startStream()).resolves.toBe(second.stream)
+    expect(first.track.stop).toHaveBeenCalledTimes(1)
   })
 
   it('rejects a source that disappears before a stream request starts', async () => {

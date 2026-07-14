@@ -164,8 +164,10 @@ describe('useCompanionModeRuntime', async () => {
       },
     }))
     mountedApp.mount(host)
-    runtimeVideoRef!.value = createCaptureVideo()
+    const video = createCaptureVideo()
+    runtimeVideoRef!.value = video
     await nextTick()
+    return video
   }
 
   beforeEach(() => {
@@ -180,6 +182,7 @@ describe('useCompanionModeRuntime', async () => {
   afterEach(() => {
     mountedApp?.unmount()
     mountedApp = null
+    vi.useRealTimers()
   })
 
   it('routes the frame through vision and sends only its summary to chat', async () => {
@@ -237,6 +240,26 @@ describe('useCompanionModeRuntime', async () => {
     expect(runVisionInference).not.toHaveBeenCalled()
     expect(requestIngest).not.toHaveBeenCalled()
     expect(companionStore.recordCapture).not.toHaveBeenCalled()
+  })
+
+  it('detaches an ended preview stream before reacquiring the selected source', async () => {
+    vi.useFakeTimers()
+    screenCapture.startStream.mockImplementation(async () => {
+      expect(runtimeVideoRef!.value?.srcObject).toBeNull()
+      return {} as MediaStream
+    })
+
+    const video = await mountRuntime()
+    Object.assign(video, {
+      srcObject: {
+        getVideoTracks: () => [{ readyState: 'ended' }],
+      } as unknown as MediaStream,
+    })
+
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.waitFor(() => expect(screenCapture.startStream).toHaveBeenCalledTimes(1))
+
+    expect(video.pause).toHaveBeenCalledTimes(1)
   })
 
   it('aborts active vision inference when Companion Mode is disabled', async () => {

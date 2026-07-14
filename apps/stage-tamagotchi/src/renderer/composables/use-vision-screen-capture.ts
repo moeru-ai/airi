@@ -13,6 +13,7 @@ interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
 }
 
 const SELECTED_SOURCE_CAPTURE_LEASE_TIMEOUT_MS = 15_000
+const SELECTED_SOURCE_CAPTURE_RETRY_DELAY_MS = 500
 
 /**
  * Manages Electron-backed screen-capture sources and the active preview stream for vision workflows.
@@ -35,6 +36,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   const activeSourceId = ref('')
   const activeStream = shallowRef<MediaStream | null>(null)
   const activeStreamSourceId = ref('')
+  const inactiveStreamsPendingRelease = new Set<MediaStream>()
 
   watch(activeSourceId, (nextId) => {
     if (activeStreamSourceId.value && activeStreamSourceId.value !== nextId) {
@@ -58,13 +60,13 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   function clearActiveStream() {
     const stream = activeStream.value
-    if (!stream) {
-      activeStream.value = null
-      activeStreamSourceId.value = ''
-      return
-    }
+    if (stream)
+      inactiveStreamsPendingRelease.add(stream)
 
-    stream.getTracks().forEach(track => track.stop())
+    inactiveStreamsPendingRelease.forEach((inactiveStream) => {
+      inactiveStream.getTracks().forEach(track => track.stop())
+    })
+    inactiveStreamsPendingRelease.clear()
     activeStream.value = null
     activeStreamSourceId.value = ''
   }
@@ -82,6 +84,9 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     stream.getTracks().forEach((track) => {
       track.addEventListener('ended', () => {
         if (activeStream.value === stream && activeStreamSourceId.value === sourceId) {
+          // Keep the ended stream long enough for clearActiveStream() to stop
+          // and release its native resources before another capture starts.
+          inactiveStreamsPendingRelease.add(stream)
           activeStream.value = null
           activeStreamSourceId.value = ''
         }
@@ -123,7 +128,18 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     return String(error)
   }
 
-  async function requestSelectedSourceStream(sourceId: string) {
+  function shouldRetrySelectedSourceCapture(error: unknown) {
+    if (error instanceof DOMException)
+      return error.name === 'NotReadableError'
+
+    return /notreadableerror|could not start video source/i.test(formatCaptureError(error))
+  }
+
+  function waitForSelectedSourceCaptureRetry() {
+    return new Promise<void>(resolve => setTimeout(resolve, SELECTED_SOURCE_CAPTURE_RETRY_DELAY_MS))
+  }
+
+  async function requestSelectedSourceStreamOnce(sourceId: string) {
     return await selectWithSource(
       sources => selectExistingSource(sources, sourceId),
       async () => {
@@ -150,6 +166,23 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
       },
       { timeout: SELECTED_SOURCE_CAPTURE_LEASE_TIMEOUT_MS },
     )
+  }
+
+  async function requestSelectedSourceStream(sourceId: string) {
+    try {
+      return await requestSelectedSourceStreamOnce(sourceId)
+    }
+    catch (firstError) {
+      // Windows can keep a just-ended desktop stream alive briefly. Retrying
+      // after selectWithSource has released its lease lets Chromium recreate
+      // only the selected source without enumerating/capturing other sources.
+      if (!shouldRetrySelectedSourceCapture(firstError))
+        throw firstError
+
+      console.warn('[screen-capture] Selected source was temporarily unreadable; retrying once:', firstError)
+      await waitForSelectedSourceCaptureRetry()
+      return await requestSelectedSourceStreamOnce(sourceId)
+    }
   }
 
   async function requestLegacyDesktopStream(sourceId: string) {
