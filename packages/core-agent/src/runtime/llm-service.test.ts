@@ -27,16 +27,119 @@ const provider = {
   }),
 } as unknown as ChatProvider
 
-function createMockStreamResult(steps: Promise<unknown[]> = Promise.resolve([])) {
+function createMockStreamResult(
+  steps: Promise<unknown[]> = Promise.resolve([]),
+  totalUsage: Promise<{ prompt_tokens: number, completion_tokens: number, total_tokens: number } | undefined> = Promise.resolve(undefined),
+) {
   return {
     steps,
     messages: Promise.resolve([]),
     usage: Promise.resolve(undefined),
-    totalUsage: Promise.resolve(undefined),
+    totalUsage,
   }
 }
 
 describe('streamFrom tool error capture', () => {
+  it('requests final streaming usage and emits the reported token totals once', async () => {
+    const onUsage = vi.fn()
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve({ prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 }),
+    ))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      options: { onUsage },
+    })
+
+    expect(streamTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      streamOptions: { includeUsage: true },
+    }))
+    expect(onUsage).toHaveBeenCalledTimes(1)
+    expect(onUsage).toHaveBeenCalledWith({
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20,
+      source: 'reported',
+    })
+  })
+
+  it('marks usage unavailable when the provider omits the final usage chunk', async () => {
+    const onUsage = vi.fn()
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      options: { onUsage },
+    })
+
+    expect(onUsage).toHaveBeenCalledWith({ source: 'unavailable' })
+  })
+
+  it('marks usage unavailable when the final usage object has no token fields', async () => {
+    const onUsage = vi.fn()
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve({} as { prompt_tokens: number, completion_tokens: number, total_tokens: number }),
+    ))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      options: { onUsage },
+    })
+
+    expect(onUsage).toHaveBeenCalledWith({ source: 'unavailable' })
+  })
+
+  it('consumes totalUsage rejection when the stream fails before usage can be awaited', async () => {
+    const streamError = new Error('provider stream failed')
+    const totalUsageError = new Error('provider usage failed')
+    const unhandledRejections: unknown[] = []
+    const onUnhandledRejection = (reason: unknown) => {
+      unhandledRejections.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandledRejection)
+
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.reject(streamError),
+      Promise.reject(totalUsageError),
+    ))
+
+    try {
+      await expect(streamFrom({
+        model: 'model-a',
+        chatProvider: provider,
+        messages: [{ role: 'user', content: 'hello' }] as Message[],
+      })).rejects.toThrow('provider stream failed')
+      await new Promise(resolve => setImmediate(resolve))
+      expect(unhandledRejections).toEqual([])
+    }
+    finally {
+      process.off('unhandledRejection', onUnhandledRejection)
+    }
+  })
+
+  it('does not fail a completed generation when the usage observer throws', async () => {
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      options: {
+        onUsage: () => {
+          throw new Error('analytics unavailable')
+        },
+      },
+    })).resolves.toBeUndefined()
+  })
+
   /**
    * @example
    * await streamFrom({ model, chatProvider, messages, options: { captureToolErrors: true } })

@@ -2,7 +2,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
-import type { StreamEvent } from '../types/llm'
+import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
@@ -42,12 +42,11 @@ function createHarness() {
     llmRequestStarted: [] as unknown[],
     llmFirstToken: [] as unknown[],
     assistantResponseRendered: [] as unknown[],
+    llmGeneration: [] as unknown[],
     messageRound: [] as unknown[],
     messageRoundFailed: [] as unknown[],
   }
-  const stream = vi.fn(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options?: {
-    onStreamEvent?: (event: StreamEvent) => Promise<void> | void
-  }) => {
+  const stream = vi.fn(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options?: StreamOptions) => {
     await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
     await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
   })
@@ -100,6 +99,7 @@ function createHarness() {
     onLlmRequestStarted: event => telemetry.llmRequestStarted.push(event),
     onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
     onAssistantResponseRendered: event => telemetry.assistantResponseRendered.push(event),
+    onLlmGeneration: event => telemetry.llmGeneration.push(event),
     onMessageRound: event => telemetry.messageRound.push(event),
     onMessageRoundFailed: event => telemetry.messageRoundFailed.push(event),
   })
@@ -297,6 +297,16 @@ describe('createChatOrchestratorRuntime', () => {
   it('emits telemetry milestones for a successful voice-backed message round', async () => {
     const harness = createHarness()
     harness.monotonicNow.set([100, 150, 250, 400, 460])
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onUsage?.({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
 
     await harness.runtime.ingest('hello from voice', {
       model: 'gpt-test',
@@ -338,13 +348,28 @@ describe('createChatOrchestratorRuntime', () => {
       latencyMs: 250,
       turnIndex: 1,
     }])
+    expect(harness.telemetry.llmGeneration).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20,
+      usageSource: 'reported',
+      turnIndex: 1,
+    }])
     expect(harness.telemetry.messageRound).toEqual([{
       conversationId: 'session-1',
       roundId: 'user-id',
       durationMs: 360,
       hasVoice: true,
+      inputTokens: 12,
       model: 'gpt-test',
+      outputTokens: 8,
+      totalTokens: 20,
       turnIndex: 1,
+      usageSource: 'reported',
     }])
     expect(harness.telemetry.chatActivationStarted).toEqual([{
       conversationId: 'session-1',

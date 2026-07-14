@@ -33,6 +33,11 @@ export interface CheckoutOperationInput {
   request: Request
 }
 
+interface PosthogIdentityHeaders {
+  distinctId?: string
+  sessionId?: string
+}
+
 /**
  * Creates Stripe checkout sessions for Flux packages.
  *
@@ -75,6 +80,7 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
 
     const paymentMethods = await deps.configKV.getOptional('STRIPE_PAYMENT_METHODS')
     const paymentMethodOptions = await deps.configKV.getOptional('STRIPE_PAYMENT_METHOD_OPTIONS') ?? {}
+    const posthogIdentity = readPosthogIdentityHeaders(input.request)
 
     const sessionParams: CheckoutSessionCreateParams = {
       line_items: [{ price: stripePriceId, quantity: 1 }],
@@ -87,6 +93,8 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
       metadata: {
         userId: input.user.id,
         fluxAmount: String(fluxAmount),
+        ...(posthogIdentity.distinctId && { posthogDistinctId: posthogIdentity.distinctId }),
+        ...(posthogIdentity.sessionId && { posthogSessionId: posthogIdentity.sessionId }),
       },
     }
 
@@ -133,9 +141,31 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
         flux_amount: fluxAmount,
         amount_total: session.amount_total,
         currency: session.currency,
+        ...(posthogIdentity.distinctId && { posthog_distinct_id: posthogIdentity.distinctId }),
+        ...(posthogIdentity.sessionId && { posthog_session_id: posthogIdentity.sessionId }),
       },
     })
 
     return { url: session.url }
   }
+}
+
+function readPosthogIdentityHeaders(request: Request): PosthogIdentityHeaders {
+  const distinctId = readStripeMetadataHeader(request, 'x-posthog-distinct-id')
+  const sessionId = readStripeMetadataHeader(request, 'x-posthog-session-id')
+  return {
+    ...(distinctId && { distinctId }),
+    ...(sessionId && { sessionId }),
+  }
+}
+
+function readStripeMetadataHeader(request: Request, name: string): string | undefined {
+  const value = request.headers.get(name)?.trim()
+  if (!value)
+    return undefined
+
+  // Stripe metadata values are capped and user-controlled headers can be
+  // oversized. Truncating keeps the checkout request valid without turning
+  // analytics identity into a payment blocker.
+  return value.slice(0, 200)
 }

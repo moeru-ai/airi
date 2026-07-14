@@ -1,6 +1,17 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CommonContentPart, CompletionToolCall, CompletionToolResult, Message, Tool } from '@xsai/shared-chat'
 
+/** Describes whether generation usage came from the provider or a local fallback. */
+export type LlmUsageSource = 'reported' | 'estimated' | 'unavailable'
+
+/** Provider-safe token usage emitted after one complete streamed generation. */
+export interface LlmUsage {
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  source: LlmUsageSource
+}
+
 export type StreamEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
@@ -14,6 +25,13 @@ export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
+  /** Called once after the full stream, including tool rounds, has settled. */
+  onUsage?: (usage: LlmUsage) => void | Promise<void>
+  /** Internal correlation kept out of the provider request body. */
+  requestCorrelation?: {
+    conversationId: string
+    roundId: string
+  }
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
