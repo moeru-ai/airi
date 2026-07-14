@@ -145,6 +145,27 @@ export function shouldGrantElectronPermission(
 }
 
 /**
+ * Applies AIRI's permission policy to Chromium's non-mutating permission
+ * status checks.
+ *
+ * Video checks from local AIRI pages must not be reported as permanently
+ * denied merely because no selected-source lease exists yet. The subsequent
+ * request handler still requires the short-lived lease before granting an
+ * actual video stream.
+ */
+export function shouldGrantElectronPermissionCheck(
+  webContents: LocalAppWebContents | null,
+  permission: ElectronPermission,
+  requestingOrigin?: string,
+  details?: ElectronPermissionDetails,
+): boolean {
+  if (isVideoMediaPermission(permission, details))
+    return shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+
+  return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details)
+}
+
+/**
  * Registers the paired Electron session handlers required for complete permission policy.
  *
  * Use when:
@@ -165,6 +186,6 @@ export function setupMediaPermissionHandlers(
   })
 
   targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details)
+    return shouldGrantElectronPermissionCheck(webContents, permission, requestingOrigin, details)
   })
 }

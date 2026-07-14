@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   shouldGrantAudioCapturePermission,
   shouldGrantElectronPermission,
+  shouldGrantElectronPermissionCheck,
   shouldGrantSelectedDesktopCapturePermission,
 } from './media-permissions'
 
@@ -109,6 +110,36 @@ describe('media permissions', () => {
       createPermissionCheckDetails({ mediaType: 'video' }),
     )).toBe(true)
     expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenCalledWith(undefined)
+  })
+
+  /**
+   * @example BeatSync can check local video permission before Companion Mode
+   * acquires its selected-source lease without poisoning the shared origin.
+   */
+  it('allows local video preflight checks before a selected source request is active', () => {
+    expect(shouldGrantElectronPermissionCheck(
+      null,
+      'media',
+      'http://localhost:5173',
+      createPermissionCheckDetails({
+        embeddingOrigin: 'http://localhost:5173/beat-sync.html',
+        mediaType: 'video',
+      }),
+    )).toBe(true)
+    expect(isScreenCaptureSourceRequestActiveMock).not.toHaveBeenCalled()
+  })
+
+  /** @example A remote frame cannot use the permissive local video preflight. */
+  it('rejects remote video preflight checks', () => {
+    expect(shouldGrantElectronPermissionCheck(
+      null,
+      'media',
+      'https://example.com',
+      createPermissionCheckDetails({
+        embeddingOrigin: 'https://example.com',
+        mediaType: 'video',
+      }),
+    )).toBe(false)
   })
 
   /** @example A remote frame cannot reuse the local renderer's capture lease. */
