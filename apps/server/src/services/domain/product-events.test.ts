@@ -207,6 +207,54 @@ describe('productEventService', () => {
     expect(rows).toHaveLength(2)
   })
 
+  it('captures an LLM generation as a PostHog AI fact without storing prompts or responses', async () => {
+    const capture = vi.fn(async () => {})
+    const captureQueued = vi.fn()
+    const sink = { capture, captureQueued, shutdown: vi.fn(async () => {}) }
+    const service = createProductEventService(db, null, sink)
+
+    service.trackGeneration({
+      userId: 'user-1',
+      traceId: 'session-1',
+      generationId: 'round-1',
+      model: 'openai/gpt-5-mini',
+      provider: 'openai',
+      providerType: 'official',
+      usageSource: 'reported',
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20,
+      conversationId: 'session-1',
+      roundId: 'round-1',
+      appSurface: 'server',
+    })
+
+    expect(capture).not.toHaveBeenCalled()
+    expect(captureQueued).toHaveBeenCalledWith({
+      distinctId: 'user-1',
+      event: '$ai_generation',
+      properties: {
+        $ai_trace_id: 'session-1',
+        $ai_session_id: 'session-1',
+        $ai_span_id: 'round-1',
+        $ai_model: 'openai/gpt-5-mini',
+        $ai_provider: 'openai',
+        $ai_input_tokens: 12,
+        $ai_output_tokens: 8,
+        $ai_total_tokens: 20,
+        $insert_id: 'ai-generation:round-1',
+        provider_type: 'official',
+        usage_source: 'reported',
+        conversation_id: 'session-1',
+        round_id: 'round-1',
+        app_surface: 'server',
+      },
+    })
+
+    const rows = await db.select().from(schema.productEvents)
+    expect(rows).toHaveLength(0)
+  })
+
   it('does not forward to PostHog when the DB write fails', async () => {
     // ROOT CAUSE:
     //

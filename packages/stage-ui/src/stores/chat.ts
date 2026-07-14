@@ -10,8 +10,13 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref, toRaw, watch } from 'vue'
 
-import { useAnalytics } from '../composables'
+import { getConversationAnalyticsSurface, useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+} from '../libs/analytics-headers'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
@@ -56,6 +61,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     trackLlmRequestStarted,
     trackLlmFirstToken,
     trackAssistantResponseRendered,
+    trackAiGeneration,
     trackMessageRound,
     trackMessageRoundFailed,
     trackChatActivationStarted,
@@ -83,6 +89,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options?: StreamOptions,
   ) {
     let llmTextLength = 0
+    const headers = { ...options?.headers }
+    if (providerMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
+      headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
+      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.roundId
+      headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+    }
 
     const hadExistingTurn = !!activeTurnSpan.value
     if (!hadExistingTurn) {
@@ -101,6 +113,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     try {
       await llmStore.stream(model, chatProvider, messages, {
         ...options,
+        headers,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             if (!llmFirstTokenEmitted) {
@@ -216,13 +229,35 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
         latency_ms: latencyMs,
       })
     },
-    onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model }) => trackMessageRound({
+    onLlmGeneration: ({ conversationId, roundId, model, provider, inputTokens, outputTokens, totalTokens, usageSource }) => {
+      const mode = providerMode(provider)
+      // The official path is captured server-side from authoritative upstream usage.
+      if (mode !== 'custom')
+        return
+
+      trackAiGeneration({
+        conversation_id: conversationId,
+        round_id: roundId,
+        provider_type: mode,
+        provider_id: provider,
+        model_id: model,
+        usage_source: usageSource,
+        input_tokens: inputTokens,
+        output_tokens: outputTokens,
+        total_tokens: totalTokens,
+      })
+    },
+    onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model, inputTokens, outputTokens, totalTokens, usageSource }) => trackMessageRound({
       conversation_id: conversationId,
       round_id: roundId,
       turn_index: turnIndex,
       duration_ms: durationMs,
       has_voice: hasVoice,
       model,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      total_tokens: totalTokens,
+      usage_source: usageSource,
     }),
     onMessageRoundFailed: ({ conversationId, roundId, turnIndex, model, provider, errorCode, failureStage, source }) => trackMessageRoundFailed({
       conversation_id: conversationId,

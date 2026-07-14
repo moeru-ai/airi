@@ -36,6 +36,7 @@ export type FeedbackDescriptionLengthBucket = 'empty' | 'short' | 'medium' | 'lo
 export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'chat' | 'pricing' | 'quota_banner' | 'unknown'
 export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
+export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
@@ -108,7 +109,7 @@ interface ConversationBaseProperties {
   model: string
 }
 
-function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
+export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
   if (isStageTamagotchi())
     return 'electron'
 
@@ -397,8 +398,54 @@ export function useAnalytics() {
     posthog.capture('assistant_response_rendered', properties)
   }
 
+  /** Cost-fact event for one custom-provider generation; content is intentionally excluded. */
+  function trackAiGeneration(properties: {
+    conversation_id: string
+    round_id: string
+    provider_type: ProviderMode
+    provider_id: string
+    model_id: string
+    usage_source: AiUsageSource
+    input_tokens?: number
+    output_tokens?: number
+    total_tokens?: number
+  }) {
+    if (!canCapture())
+      return
+
+    const totalTokens = properties.total_tokens
+      ?? (properties.input_tokens != null && properties.output_tokens != null
+        ? properties.input_tokens + properties.output_tokens
+        : undefined)
+
+    posthog.capture('$ai_generation', {
+      $ai_trace_id: properties.conversation_id,
+      $ai_session_id: properties.conversation_id,
+      $ai_span_id: properties.round_id,
+      $ai_model: properties.model_id,
+      $ai_provider: properties.provider_id,
+      ...(properties.input_tokens != null && { $ai_input_tokens: properties.input_tokens }),
+      ...(properties.output_tokens != null && { $ai_output_tokens: properties.output_tokens }),
+      ...(totalTokens != null && { $ai_total_tokens: totalTokens }),
+      $insert_id: `ai-generation:${properties.round_id}`,
+      app_surface: getConversationAnalyticsSurface(),
+      conversation_id: properties.conversation_id,
+      round_id: properties.round_id,
+      provider_type: properties.provider_type,
+      usage_source: properties.usage_source,
+    })
+  }
+
   /** Closing event for one full message round (user send → assistant render). */
-  function trackMessageRound(properties: ChatRoundCorrelationProperties & { duration_ms: number, has_voice: boolean, model: string }) {
+  function trackMessageRound(properties: ChatRoundCorrelationProperties & {
+    duration_ms: number
+    has_voice: boolean
+    model: string
+    input_tokens?: number
+    output_tokens?: number
+    total_tokens?: number
+    usage_source?: AiUsageSource
+  }) {
     if (!canCapture())
       return
     posthog.capture('message_round', properties)
@@ -1234,6 +1281,7 @@ export function useAnalytics() {
     trackLlmRequestStarted,
     trackLlmFirstToken,
     trackAssistantResponseRendered,
+    trackAiGeneration,
     trackMessageRound,
     trackMessageRoundFailed,
     trackMessageSent,

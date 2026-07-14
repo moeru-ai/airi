@@ -76,6 +76,27 @@ export interface ProductEventAggregateRow {
   distinctUsers: number
 }
 
+export type AiGenerationAppSurface = 'server' | 'web' | 'mobile' | 'electron'
+
+/** Content-free PostHog AI generation fact keyed to the authenticated user. */
+export interface AiGenerationEventInput {
+  userId: string
+  traceId: string
+  generationId: string
+  model: string
+  provider: string
+  providerType: 'official' | 'custom' | 'unknown'
+  usageSource: 'reported' | 'estimated' | 'unavailable'
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  conversationId?: string
+  roundId?: string
+  appSurface: AiGenerationAppSurface
+  latencySeconds?: number
+  stream?: boolean
+}
+
 /**
  * Server-side actions worth a PostHog copy, mapped to the event name the
  * client-side funnels expect. Only business facts that terminate or anchor
@@ -134,6 +155,42 @@ function metricLabels(input: ProductEventInput): Record<string, string> {
  */
 export function createProductEventService(db: Database, metrics?: ProductMetrics | null, posthog?: PosthogSink | null) {
   return {
+    trackGeneration(input: AiGenerationEventInput): void {
+      if (!posthog)
+        return
+
+      const event = {
+        distinctId: input.userId,
+        event: '$ai_generation',
+        properties: {
+          $ai_trace_id: input.traceId,
+          ...(input.conversationId && { $ai_session_id: input.conversationId }),
+          $ai_span_id: input.generationId,
+          $ai_model: input.model,
+          $ai_provider: input.provider,
+          ...(input.inputTokens != null && { $ai_input_tokens: input.inputTokens }),
+          ...(input.outputTokens != null && { $ai_output_tokens: input.outputTokens }),
+          ...(input.totalTokens != null && { $ai_total_tokens: input.totalTokens }),
+          ...(input.latencySeconds != null && { $ai_latency: input.latencySeconds }),
+          ...(input.stream != null && { $ai_stream: input.stream }),
+          $insert_id: `ai-generation:${input.generationId}`,
+          provider_type: input.providerType,
+          usage_source: input.usageSource,
+          ...(input.conversationId && { conversation_id: input.conversationId }),
+          ...(input.roundId && { round_id: input.roundId }),
+          app_surface: input.appSurface,
+        },
+      }
+
+      if (posthog.captureQueued) {
+        posthog.captureQueued(event)
+        return
+      }
+
+      void posthog.capture(event)
+        .catch(err => logger.withError(err).withFields({ generationId: input.generationId }).warn('Failed to capture PostHog AI generation'))
+    },
+
     async track(input: ProductEventInput): Promise<void> {
       // Postgres is the fact of record, so forwarding is gated both ways:
       // the DB write comes first (a PostHog outage can't lose the row) and
