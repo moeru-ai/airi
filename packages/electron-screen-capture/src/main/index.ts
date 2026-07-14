@@ -9,7 +9,7 @@ import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { Mutex, withTimeout } from 'async-mutex'
-import { app, desktopCapturer, ipcMain, session as sessionModule } from 'electron'
+import { app, desktopCapturer, ipcMain, screen, session as sessionModule } from 'electron'
 import { nanoid } from 'nanoid'
 
 import { screenCapture } from '..'
@@ -219,7 +219,11 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
     // read more here https://github.com/electron/electron/issues/44504
     const sources = await desktopCapturer.getSources(sourcesOptions)
-    return sources.map(source => toSerializableDesktopCapturerSource(source))
+    const currentDisplayId = screen.getDisplayMatching(window.getBounds()).id.toString()
+    return sources.map(source => ({
+      ...toSerializableDesktopCapturerSource(source),
+      isCurrentDisplay: source.display_id === currentDisplayId,
+    }))
   })
 
   defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) => {

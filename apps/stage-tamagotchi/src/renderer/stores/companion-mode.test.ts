@@ -66,6 +66,20 @@ describe('companion mode helpers', () => {
     })).toBe('screen:1:0')
   })
 
+  it('uses the display containing AIRI when whole-screen selection is automatic', () => {
+    const sources = [
+      { id: 'screen:1:0' },
+      { id: 'screen:2:0', isCurrentDisplay: true },
+      { id: 'window:12:0' },
+    ]
+
+    expect(resolveCompanionModeCaptureSourceId({
+      sources,
+      selectedSourceId: '',
+      sourceKind: 'screen',
+    })).toBe('screen:2:0')
+  })
+
   it('resolves minimized window fallback to a screen source and visible character prompt', () => {
     const sources = [
       { id: 'window:12:0' },

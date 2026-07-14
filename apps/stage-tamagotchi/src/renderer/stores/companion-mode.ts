@@ -116,6 +116,7 @@ export function normalizeCompanionModeSourceKind(value: unknown): CompanionModeS
 
 export interface CompanionModeCaptureSourceCandidate {
   id: string
+  isCurrentDisplay?: boolean
 }
 
 interface ResolveCompanionModeCaptureSourceInput {
@@ -151,6 +152,12 @@ export function resolveCompanionModeCaptureSourceId(input: ResolveCompanionModeC
 
   if (selectedSource)
     return selectedSource.id
+
+  const currentScreenSource = input.sources.find(source =>
+    isCompanionModeScreenSource(source.id) && source.isCurrentDisplay,
+  )
+  if (currentScreenSource)
+    return currentScreenSource.id
 
   const screenSource = input.sources.find(source => isCompanionModeScreenSource(source.id))
   if (screenSource)
