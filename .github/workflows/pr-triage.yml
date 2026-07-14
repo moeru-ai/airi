@@ -2,7 +2,7 @@ name: Agentic PR Triage
 
 on:
   pull_request_target:
-    types: [opened]
+    types: [opened, reopened, ready_for_review]
 
 permissions: {}
 
@@ -13,6 +13,7 @@ concurrency:
 jobs:
   triage:
     name: Classify pull request
+    if: ${{ github.event.action == 'ready_for_review' || !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
