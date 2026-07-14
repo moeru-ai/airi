@@ -42,8 +42,10 @@ export function useCompanionModeRuntime() {
     types: ['screen', 'window'],
     fetchWindowIcons: false,
     thumbnailSize: {
-      width: COMPANION_MODE_CAPTURE_MAX_WIDTH,
-      height: COMPANION_MODE_CAPTURE_MAX_HEIGHT,
+      // Source enumeration must remain metadata-only. The selected source is
+      // captured through its targeted MediaStream below.
+      width: 0,
+      height: 0,
     },
   }))
 
@@ -191,14 +193,6 @@ export function useCompanionModeRuntime() {
     await ensureSourceSelected()
 
     const activeSourceId = screenCapture.activeSourceId.value
-    const thumbnailDataUrl = await screenCapture.captureSourceThumbnail(activeSourceId)
-    if (thumbnailDataUrl) {
-      return {
-        dataUrl: thumbnailDataUrl,
-        thumbnailDataUrl,
-      }
-    }
-
     let dataUrl: string | null
 
     try {

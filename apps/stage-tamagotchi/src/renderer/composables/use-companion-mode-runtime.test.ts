@@ -63,7 +63,6 @@ function createScreenCapture() {
     activeSource: ref({ id: 'screen:1:0', name: 'Screen 1' }),
     hasFetchedOnce: ref(true),
     refetchSources: vi.fn(async () => {}),
-    captureSourceThumbnail: vi.fn<() => Promise<string | null>>(async () => 'data:image/jpeg;base64,frame'),
     startStream: vi.fn(async () => ({}) as MediaStream),
     captureFrame: vi.fn(() => 'data:image/jpeg;base64,frame'),
     stopStream: vi.fn(),
@@ -187,6 +186,10 @@ describe('useCompanionModeRuntime', async () => {
     companionStore.sourceKind.value = 'window'
     companionStore.sourceId.value = 'window:2:0'
     screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
+    screenCapture.startStream.mockImplementation(async () => {
+      expect(screenCapture.activeSourceId.value).toBe('window:2:0')
+      return {} as MediaStream
+    })
 
     await mountRuntime()
 
@@ -195,13 +198,17 @@ describe('useCompanionModeRuntime', async () => {
     expect(toValue(capturedSourcesOptions!)).toMatchObject({
       types: ['screen', 'window'],
       thumbnailSize: {
-        width: 768,
-        height: 432,
+        width: 0,
+        height: 0,
       },
     })
-    expect(screenCapture.captureSourceThumbnail).toHaveBeenCalledWith('window:2:0')
-    expect(screenCapture.startStream).not.toHaveBeenCalled()
-    expect(screenCapture.captureFrame).not.toHaveBeenCalled()
+    expect(screenCapture.startStream).toHaveBeenCalledTimes(1)
+    expect(screenCapture.captureFrame).toHaveBeenCalledWith(
+      expect.any(HTMLVideoElement),
+      0.72,
+      768,
+      432,
+    )
     expect(runVisionInference).toHaveBeenCalledWith(expect.objectContaining({
       imageDataUrl: 'data:image/jpeg;base64,frame',
       workloadId: 'screen:interpret',
@@ -216,14 +223,14 @@ describe('useCompanionModeRuntime', async () => {
   })
 
   it('does not start vision or chat after being disabled during capture', async () => {
-    const capture = deferred<string | null>()
-    screenCapture.captureSourceThumbnail.mockReturnValue(capture.promise)
+    const stream = deferred<MediaStream>()
+    screenCapture.startStream.mockReturnValue(stream.promise)
     await mountRuntime()
-    await vi.waitFor(() => expect(screenCapture.captureSourceThumbnail).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(screenCapture.startStream).toHaveBeenCalledTimes(1))
 
     companionStore.enabled.value = false
     await nextTick()
-    capture.resolve('data:image/jpeg;base64,late-frame')
+    stream.resolve({} as MediaStream)
     await nextTick()
     await Promise.resolve()
 
@@ -256,7 +263,6 @@ describe('useCompanionModeRuntime', async () => {
     companionStore.sourceId.value = 'window:2:0'
     screenCapture.activeSourceId.value = 'window:2:0'
     screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
-    screenCapture.captureSourceThumbnail.mockResolvedValue(null)
     screenCapture.startStream.mockRejectedValue(new Error('Window is minimized'))
 
     await mountRuntime()
