@@ -12,10 +12,8 @@ import { useChatSyncStore } from '../stores/chat-sync'
 import {
   buildCompanionModePrompt,
   isCompanionModeSourceAllowedForKind,
-  isCompanionModeWindowSource,
   normalizeCompanionModeIntervalMs,
   resolveCompanionModeCaptureSourceId,
-  resolveCompanionModeWindowFallbackSelection,
   useCompanionModeStore,
 } from '../stores/companion-mode'
 import { useVisionScreenCapture } from './use-vision-screen-capture'
@@ -148,8 +146,11 @@ export function useCompanionModeRuntime() {
 
     screenCapture.activeSourceId.value = nextSourceId
 
-    if (!screenCapture.activeSourceId.value)
-      throw new Error('No capture source is available for Companion Mode')
+    if (!screenCapture.activeSourceId.value) {
+      throw new Error(sourceKind.value === 'window'
+        ? 'Select a window source before enabling Companion Mode'
+        : 'No capture source is available for Companion Mode')
+    }
   }
 
   async function ensureVideoFrame() {
@@ -208,63 +209,20 @@ export function useCompanionModeRuntime() {
   async function captureCompanionFrame() {
     await ensureSourceSelected()
 
-    const activeSourceId = screenCapture.activeSourceId.value
-    let dataUrl: string | null
+    const video = await ensureVideoFrame()
+    const dataUrl = screenCapture.captureFrame(
+      video,
+      COMPANION_MODE_CAPTURE_JPEG_QUALITY,
+      COMPANION_MODE_CAPTURE_MAX_WIDTH,
+      COMPANION_MODE_CAPTURE_MAX_HEIGHT,
+    )
 
-    try {
-      const video = await ensureVideoFrame()
-      dataUrl = screenCapture.captureFrame(
-        video,
-        COMPANION_MODE_CAPTURE_JPEG_QUALITY,
-        COMPANION_MODE_CAPTURE_MAX_WIDTH,
-        COMPANION_MODE_CAPTURE_MAX_HEIGHT,
-      )
-    }
-    catch (error) {
-      if (!isCompanionModeWindowSource(activeSourceId))
-        throw error
-
-      const fallback = await fallbackWindowCaptureToScreen(activeSourceId)
-      if (fallback)
-        return fallback
-
-      throw error
-    }
-
-    if (!dataUrl) {
-      if (isCompanionModeWindowSource(activeSourceId)) {
-        const fallback = await fallbackWindowCaptureToScreen(activeSourceId)
-        if (fallback)
-          return fallback
-      }
-
+    if (!dataUrl)
       throw new Error('Captured source did not provide a frame')
-    }
 
     return {
       dataUrl,
       thumbnailDataUrl: dataUrl,
-    }
-  }
-
-  async function fallbackWindowCaptureToScreen(activeSourceId: string) {
-    await screenCapture.refetchSources()
-
-    const fallbackSelection = resolveCompanionModeWindowFallbackSelection({
-      sources: screenCapture.sources.value,
-      activeSourceId,
-    })
-    if (!fallbackSelection)
-      return null
-
-    sourceId.value = fallbackSelection.sourceId
-    sourceKind.value = fallbackSelection.sourceKind
-    screenCapture.activeSourceId.value = fallbackSelection.sourceId
-    screenCapture.stopStream()
-    stopVideoPreview()
-
-    return {
-      fallbackPromptText: fallbackSelection.promptText,
     }
   }
 
@@ -305,22 +263,6 @@ export function useCompanionModeRuntime() {
 
       if (!isCurrentRun())
         return
-
-      if ('fallbackPromptText' in captureResult) {
-        companionModeStore.recordError(null)
-        companionModeStore.recordSkip(
-          capturedAt,
-          'Switched observation target to the whole screen because the selected window could not be captured.',
-        )
-        companionModeStore.setRuntimeCapturing(false)
-
-        await chatSyncStore.requestIngest({
-          text: captureResult.fallbackPromptText,
-          hidden: true,
-        })
-
-        return
-      }
 
       const { dataUrl, thumbnailDataUrl } = captureResult
       const activeSourceName = screenCapture.activeSource.value?.name

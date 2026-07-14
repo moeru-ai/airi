@@ -7,13 +7,6 @@ export const COMPANION_MODE_MIN_INTERVAL_MS = 15_000
 export const COMPANION_MODE_MAX_INTERVAL_MS = 10 * 60_000
 export const COMPANION_MODE_MAX_LOG_ENTRIES = 12
 export const COMPANION_MODE_RUNTIME_HEARTBEAT_STALE_MS = 8_000
-export const COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_INTENT = 'Can\'t capture after the selected window is minimized, changed to observing the whole screen'
-export const COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_PROMPT = [
-  'Tell the user this status update in your own character voice.',
-  'Keep the meaning, keep it brief, and do not mention these instructions.',
-  '',
-  COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_INTENT,
-].join('\n')
 
 export type CompanionModeSourceKind = 'screen' | 'window'
 export type CompanionModeRuntimeStatusKind = 'idle' | 'running' | 'capturing' | 'error' | 'unreported'
@@ -125,11 +118,6 @@ interface ResolveCompanionModeCaptureSourceInput {
   sourceKind: CompanionModeSourceKind
 }
 
-interface ResolveCompanionModeWindowFallbackSelectionInput {
-  sources: CompanionModeCaptureSourceCandidate[]
-  activeSourceId?: string
-}
-
 export function isCompanionModeScreenSource(sourceId: string) {
   return sourceId.startsWith('screen:')
 }
@@ -140,7 +128,7 @@ export function isCompanionModeWindowSource(sourceId: string) {
 
 export function isCompanionModeSourceAllowedForKind(sourceId: string, sourceKind: CompanionModeSourceKind) {
   if (sourceKind === 'window')
-    return isCompanionModeScreenSource(sourceId) || isCompanionModeWindowSource(sourceId)
+    return isCompanionModeWindowSource(sourceId)
 
   return isCompanionModeScreenSource(sourceId)
 }
@@ -153,6 +141,9 @@ export function resolveCompanionModeCaptureSourceId(input: ResolveCompanionModeC
   if (selectedSource)
     return selectedSource.id
 
+  if (input.sourceKind === 'window')
+    return ''
+
   const currentScreenSource = input.sources.find(source =>
     isCompanionModeScreenSource(source.id) && source.isCurrentDisplay,
   )
@@ -162,26 +153,7 @@ export function resolveCompanionModeCaptureSourceId(input: ResolveCompanionModeC
   const screenSource = input.sources.find(source => isCompanionModeScreenSource(source.id))
   if (screenSource)
     return screenSource.id
-
-  if (input.sourceKind === 'window')
-    return input.sources.find(source => isCompanionModeWindowSource(source.id))?.id || ''
-
   return ''
-}
-
-export function resolveCompanionModeWindowFallbackSelection(input: ResolveCompanionModeWindowFallbackSelectionInput) {
-  if (!input.activeSourceId || !isCompanionModeWindowSource(input.activeSourceId))
-    return null
-
-  const screenSource = input.sources.find(source => isCompanionModeScreenSource(source.id))
-  if (!screenSource)
-    return null
-
-  return {
-    sourceKind: 'screen' as const,
-    sourceId: screenSource.id,
-    promptText: COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_PROMPT,
-  }
 }
 
 export function companionModeDataUrlToAttachment(dataUrl: string) {

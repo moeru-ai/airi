@@ -89,6 +89,9 @@ const sourceOptions = computed(() => {
       icon: 'i-solar:window-frame-line-duotone',
     }))
 
+  if (sourceKind.value === 'window')
+    return windowOptions
+
   return [
     {
       label: t('tamagotchi.settings.pages.companion.source.auto-screen'),
@@ -96,16 +99,19 @@ const sourceOptions = computed(() => {
       icon: 'i-solar:screen-share-line-duotone',
     },
     ...screenOptions,
-    ...(sourceKind.value === 'window' ? windowOptions : []),
   ]
 })
 
 const selectedSource = computed({
-  get: () => sourceId.value || AUTO_SOURCE_VALUE,
+  get: () => sourceKind.value === 'window'
+    ? sourceId.value
+    : sourceId.value || AUTO_SOURCE_VALUE,
   set: (value: string) => {
     sourceId.value = value === AUTO_SOURCE_VALUE ? '' : value
   },
 })
+
+const canEnable = computed(() => sourceKind.value !== 'window' || !!sourceId.value)
 
 const sourceTitle = computed(() => sourceKind.value === 'window'
   ? t('tamagotchi.settings.pages.companion.source.window-title')
@@ -277,7 +283,7 @@ onBeforeUnmount(() => {
           <div :class="['flex', 'flex-col', 'gap-4']">
             <FieldCheckbox
               v-model="enabled"
-              :disabled="!hasPermissions && !enabled"
+              :disabled="(!hasPermissions && !enabled) || (!enabled && !canEnable)"
               :label="t('tamagotchi.settings.pages.companion.enable.title')"
               :description="t('tamagotchi.settings.pages.companion.enable.description')"
             />

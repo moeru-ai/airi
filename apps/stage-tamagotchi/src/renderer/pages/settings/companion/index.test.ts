@@ -95,7 +95,7 @@ vi.mock('../../../stores/companion-mode', () => ({
   getDefaultCompanionModePromptTemplate: () => 'Observe the screen.',
   isCompanionModeScreenSource: (sourceId: string) => sourceId.startsWith('screen:'),
   isCompanionModeSourceAllowedForKind: (sourceId: string, sourceKind: 'screen' | 'window') => sourceKind === 'window'
-    ? sourceId.startsWith('screen:') || sourceId.startsWith('window:')
+    ? sourceId.startsWith('window:')
     : sourceId.startsWith('screen:'),
   isCompanionModeWindowSource: (sourceId: string) => sourceId.startsWith('window:'),
   resolveCompanionModeRuntimeStatus: () => ({

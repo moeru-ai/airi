@@ -281,7 +281,7 @@ describe('useCompanionModeRuntime', async () => {
     expect(companionStore.recordCapture).not.toHaveBeenCalled()
   })
 
-  it('hides the minimized-window fallback instruction', async () => {
+  it('does not replace a failed window capture with a whole-screen observation', async () => {
     companionStore.sourceKind.value = 'window'
     companionStore.sourceId.value = 'window:2:0'
     screenCapture.activeSourceId.value = 'window:2:0'
@@ -289,11 +289,11 @@ describe('useCompanionModeRuntime', async () => {
     screenCapture.startStream.mockRejectedValue(new Error('Window is minimized'))
 
     await mountRuntime()
-    await vi.waitFor(() => expect(requestIngest).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(companionStore.recordError).toHaveBeenCalledTimes(1))
 
-    expect(requestIngest).toHaveBeenCalledWith(expect.objectContaining({
-      hidden: true,
-    }))
     expect(runVisionInference).not.toHaveBeenCalled()
+    expect(requestIngest).not.toHaveBeenCalled()
+    expect(companionStore.sourceKind.value).toBe('window')
+    expect(companionStore.sourceId.value).toBe('window:2:0')
   })
 })

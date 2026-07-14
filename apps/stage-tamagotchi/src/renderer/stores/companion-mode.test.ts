@@ -6,8 +6,6 @@ import {
   COMPANION_MODE_MAX_INTERVAL_MS,
   COMPANION_MODE_MIN_INTERVAL_MS,
   COMPANION_MODE_RUNTIME_HEARTBEAT_STALE_MS,
-  COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_INTENT,
-  COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_PROMPT,
   companionModeDataUrlToAttachment,
   createDefaultCompanionModeRuntimeSnapshot,
   getDefaultCompanionModePromptTemplate,
@@ -17,7 +15,6 @@ import {
   normalizeCompanionModeSourceKind,
   resolveCompanionModeCaptureSourceId,
   resolveCompanionModeRuntimeStatus,
-  resolveCompanionModeWindowFallbackSelection,
   sanitizeCompanionModePersistedLogs,
 } from './companion-mode'
 
@@ -34,14 +31,14 @@ describe('companion mode helpers', () => {
     expect(normalizeCompanionModeSourceKind('unknown')).toBe('screen')
   })
 
-  it('allows screen sources as the safe whole-screen fallback for window observation', () => {
+  it('allows only selected window sources in window observation mode', () => {
     expect(isCompanionModeSourceAllowedForKind('screen:1:0', 'screen')).toBe(true)
     expect(isCompanionModeSourceAllowedForKind('window:12:0', 'screen')).toBe(false)
-    expect(isCompanionModeSourceAllowedForKind('screen:1:0', 'window')).toBe(true)
+    expect(isCompanionModeSourceAllowedForKind('screen:1:0', 'window')).toBe(false)
     expect(isCompanionModeSourceAllowedForKind('window:12:0', 'window')).toBe(true)
   })
 
-  it('resolves companion capture sources with whole-screen fallback in window mode', () => {
+  it('requires an explicit window selection in window mode', () => {
     const sources = [
       { id: 'screen:1:0' },
       { id: 'window:12:0' },
@@ -57,7 +54,7 @@ describe('companion mode helpers', () => {
       sources,
       selectedSourceId: '',
       sourceKind: 'window',
-    })).toBe('screen:1:0')
+    })).toBe('')
 
     expect(resolveCompanionModeCaptureSourceId({
       sources,
@@ -78,27 +75,6 @@ describe('companion mode helpers', () => {
       selectedSourceId: '',
       sourceKind: 'screen',
     })).toBe('screen:2:0')
-  })
-
-  it('resolves minimized window fallback to a screen source and visible character prompt', () => {
-    const sources = [
-      { id: 'window:12:0' },
-      { id: 'screen:1:0' },
-    ]
-
-    expect(resolveCompanionModeWindowFallbackSelection({
-      sources,
-      activeSourceId: 'window:12:0',
-    })).toEqual({
-      sourceKind: 'screen',
-      sourceId: 'screen:1:0',
-      promptText: COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_PROMPT,
-    })
-    expect(COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_PROMPT).toContain(COMPANION_MODE_WINDOW_MINIMIZED_FALLBACK_INTENT)
-    expect(resolveCompanionModeWindowFallbackSelection({
-      sources,
-      activeSourceId: 'screen:1:0',
-    })).toBeNull()
   })
 
   it('derives shared runtime status from heartbeat freshness', () => {
