@@ -603,6 +603,17 @@ pages:
             show_more: 顯示更多
             subtitle: 從該提供者中選擇預設模型
             title: 模型
+          response-limits:
+            title: 回覆長度
+            description: 讓回覆更簡短俐落——兩項都關閉則不限制
+            max-tokens:
+              label: 最大輸出 token 數
+              description: 以 max_tokens 形式傳送給提供者的硬上限。0 表示不限制。
+              unlimited: 不限制
+            length-hint:
+              label: 回覆字數建議（字元）
+              description: 在提示詞中加入軟性約束，請角色將單次回覆控制在該字數內。0 表示關閉。
+              off: 關閉
       title: 意識
     description: 思維、視覺、語音綜合、遊戲等
     gaming-factorio:

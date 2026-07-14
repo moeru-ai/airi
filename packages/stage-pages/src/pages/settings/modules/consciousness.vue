@@ -4,6 +4,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,6 +23,8 @@ const {
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
+  responseMaxTokens,
+  responseLengthHint,
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
@@ -287,6 +290,38 @@ function handleDeleteProvider(providerId: string) {
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
           >
         </div>
+      </div>
+    </div>
+
+    <!-- Response length limits -->
+    <div>
+      <div flex="~ col gap-4">
+        <div>
+          <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+            {{ t('settings.pages.modules.consciousness.sections.section.response-limits.title') }}
+          </h2>
+          <div text="neutral-400 dark:neutral-400">
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.response-limits.description') }}</span>
+          </div>
+        </div>
+        <FieldRange
+          v-model="responseMaxTokens"
+          :min="0"
+          :max="8192"
+          :step="64"
+          :label="t('settings.pages.modules.consciousness.sections.section.response-limits.max-tokens.label')"
+          :description="t('settings.pages.modules.consciousness.sections.section.response-limits.max-tokens.description')"
+          :format-value="value => value > 0 ? String(value) : t('settings.pages.modules.consciousness.sections.section.response-limits.max-tokens.unlimited')"
+        />
+        <FieldRange
+          v-model="responseLengthHint"
+          :min="0"
+          :max="1000"
+          :step="20"
+          :label="t('settings.pages.modules.consciousness.sections.section.response-limits.length-hint.label')"
+          :description="t('settings.pages.modules.consciousness.sections.section.response-limits.length-hint.description')"
+          :format-value="value => value > 0 ? String(value) : t('settings.pages.modules.consciousness.sections.section.response-limits.length-hint.off')"
+        />
       </div>
     </div>
   </div>
