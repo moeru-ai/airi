@@ -5,8 +5,6 @@ import type { Format, LogLevelString } from '@guiiai/logg'
 import type { MutexInterface } from 'async-mutex'
 import type { BrowserWindow, DesktopCapturerSource, SourcesOptions, WebContents } from 'electron'
 
-import { platform } from 'node:process'
-
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -24,7 +22,6 @@ import {
 export const defaultSourcesOptions: SourcesOptions = { types: ['screen'] }
 
 export const featureSwitchKey = 'enable-features' as const
-export const disabledFeatureSwitchKey = 'disable-features' as const
 
 export enum LoopbackAudioTypes {
   Loopback = 'loopback',
@@ -50,17 +47,6 @@ enum ScreenCaptureKitFeatureFlags {
   MacScreenCaptureKitSystemAudioLoopbackOverride = 'MacSckSystemAudioLoopbackOverride',
 }
 
-enum WindowsScreenCaptureFeatureFlags {
-  /**
-   * Chromium 146 enables WGC monitor capture by default on Windows 11 24H2.
-   * Some Windows installations reject WGC's CreateForMonitor call with
-   * E_ACCESSDENIED even though Electron has granted the renderer request.
-   * Disabling this feature keeps selected-screen capture on the established
-   * DXGI/GDI fallback while leaving WGC window capture unchanged.
-   */
-  WebRtcAllowWgcScreenCapturer = 'WebRtcAllowWgcScreenCapturer',
-}
-
 export function buildFeatureFlags({
   otherEnabledFeatures,
   forceCoreAudioTap,
@@ -78,22 +64,6 @@ export function buildFeatureFlags({
   }
 
   return featureFlags.join(',')
-}
-
-export function buildDisabledFeatureFlags({
-  isWindowsPlatform,
-  otherDisabledFeatures,
-}: {
-  isWindowsPlatform: boolean
-  otherDisabledFeatures?: string[]
-}): string {
-  const featureFlags = [...(otherDisabledFeatures ?? [])]
-
-  if (isWindowsPlatform) {
-    featureFlags.push(WindowsScreenCaptureFeatureFlags.WebRtcAllowWgcScreenCapturer)
-  }
-
-  return [...new Set(featureFlags.filter(Boolean))].join(',')
 }
 
 let initMainCalled = false
@@ -186,18 +156,6 @@ export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
   })
 
   app.commandLine.appendSwitch(featureSwitchKey, currentFeatureFlags)
-
-  const otherDisabledFeatures = app.commandLine.getSwitchValue(disabledFeatureSwitchKey)?.split(',')
-  const disabledFeatureFlags = buildDisabledFeatureFlags({
-    isWindowsPlatform: platform === 'win32',
-    otherDisabledFeatures,
-  })
-  if (disabledFeatureFlags) {
-    if (app.commandLine.hasSwitch(disabledFeatureSwitchKey)) {
-      app.commandLine.removeSwitch(disabledFeatureSwitchKey)
-    }
-    app.commandLine.appendSwitch(disabledFeatureSwitchKey, disabledFeatureFlags)
-  }
 }
 
 function resetScreenCaptureSource() {
