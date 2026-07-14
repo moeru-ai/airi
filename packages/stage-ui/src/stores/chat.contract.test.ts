@@ -68,6 +68,7 @@ const redundantChatAnalyticsMocks = vi.hoisted(() => ({
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
+const createVisionContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
@@ -117,6 +118,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
+  createVisionContext: () => createVisionContextMock(),
 }))
 
 vi.mock('./chat/context-store', () => ({
@@ -205,6 +207,8 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue({})
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
+    createVisionContextMock.mockReset()
+    createVisionContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()

@@ -10,6 +10,25 @@ export interface VisionTickOutcome {
 
 type VisionTickHandler = () => Promise<VisionTickOutcome | void> | VisionTickOutcome | void
 
+/**
+ * System-prompt supplement that tells the chat backbone what the `vision:` /
+ * `screen:` context entries are, so it treats them as its own first-person
+ * screen perception instead of opaque side-channel data.
+ *
+ * Injected only while background capture is enabled (see `chat.ts`), so the
+ * persona is not told it can see a screen when no vision context is flowing.
+ */
+export const VISION_AWARENESS_PROMPT = [
+  'You have screen vision, but it is purely background context for understanding what the user is doing — it is never a conversation topic on its own.',
+  'Entries in the [Context] block whose ids start with vision:/screen: are live descriptions of the user\'s screen.',
+  'Rules — stay quiet by default:',
+  '- By default, do not mention, describe, list, or comment on anything you see on screen, and do not say things like "I see / I notice / you are currently…".',
+  '- Only when the user explicitly asks about the screen in this very message (e.g. "what is on my screen", "what am I doing") may you give one brief answer, then stop — do not elaborate.',
+  '- In every other case (including normal small talk), respond as if you had not looked at the screen. Use the screen information silently to understand the user better; never surface it in your reply.',
+  '- When there is no relevant entry, do not pretend to see a screen.',
+  'In short: screen information is something you are quietly aware of but do not bring up; unless directly asked, do not say a word about it.',
+].join('\n')
+
 const DEFAULT_CAPTURE_INTERVAL_MS = 3000
 const HISTORY_MAX_AGE_MS = 5 * 60 * 1000
 const PROCESSING_HISTORY_LIMIT = 240
@@ -37,17 +56,40 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     DEFAULT_CAPTURE_INTERVAL_MS,
   )
 
+  // Master switch for headless background capture. When on, a resident driver
+  // (outside the devtools Vision page) runs the ticker and publishes context.
+  // Persisted so the choice survives restarts and the driver can auto-start.
+  const backgroundCaptureEnabled = useLocalStorageManualReset<boolean>(
+    'settings/vision/background-capture-enabled',
+    false,
+  )
+
   const isRunning = ref(false)
   const isProcessing = ref(false)
   const tickCount = ref(0)
   const skippedTicks = ref(0)
-  const captureCount = ref(0)
-  const contextUpdateCount = ref(0)
+  // These four mirror capture activity for the settings UI. They are persisted to localStorage so
+  // they reflect the actual capture leader window across the multi-window app — the settings page
+  // is usually a different window than the one elected to capture, and a plain ref would read 0/Idle
+  // there even while capture is running elsewhere.
+  const captureCount = useLocalStorageManualReset<number>('settings/vision/capture-count', 0)
+  const contextUpdateCount = useLocalStorageManualReset<number>('settings/vision/context-update-count', 0)
+  const lastCaptureAt = useLocalStorageManualReset<number | null>('settings/vision/last-capture-at', null)
+  const lastContextUpdateAt = useLocalStorageManualReset<number | null>('settings/vision/last-context-update-at', null)
   const lastTickAt = ref<number | null>(null)
-  const lastCaptureAt = ref<number | null>(null)
-  const lastContextUpdateAt = ref<number | null>(null)
   const lastProcessingDurationMs = ref<number | null>(null)
   const lastError = ref<string | null>(null)
+
+  // Cross-window "is capture actually happening" signal for the settings UI, regardless of which
+  // window holds the ticker. Keyed on the context-update (completion) timestamp, not lastCaptureAt:
+  // the latter records the frame-grab time but is only written after the ~30-50s inference, so it is
+  // already stale on arrival. Gated on the toggle so it flips to Idle immediately when capture is
+  // turned off. The window is generous to span one slow inference+interval cycle.
+  const captureActive = computed(() =>
+    backgroundCaptureEnabled.value
+    && lastContextUpdateAt.value != null
+    && Date.now() - lastContextUpdateAt.value < Math.max(captureIntervalMs.value * 4, 120_000),
+  )
 
   const processingHistoryMs = ref<number[]>([])
   const captureHistory = ref<number[]>([])
@@ -162,6 +204,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     stopTicker()
     resetMetrics()
     captureIntervalMs.reset()
+    backgroundCaptureEnabled.reset()
   }
 
   watch(captureIntervalMs, (next, previous) => {
@@ -179,12 +222,14 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
 
   return {
     captureIntervalMs,
+    backgroundCaptureEnabled,
     isRunning,
     isProcessing,
     tickCount,
     skippedTicks,
     captureCount,
     contextUpdateCount,
+    captureActive,
     lastTickAt,
     lastCaptureAt,
     lastContextUpdateAt,

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { reactive, toRefs } from 'vue'
 
-const stream = vi.fn()
+const generateText = vi.fn()
 const getProviderInstance = vi.fn()
 
 vi.mock('pinia', async () => {
@@ -12,10 +12,10 @@ vi.mock('pinia', async () => {
   }
 })
 
-vi.mock('../../stores/llm', () => ({
-  useLLM: () => ({
-    stream,
-  }),
+// Vision inference runs a non-streaming completion via @xsai/generate-text; mock it so the
+// test never reaches a real provider endpoint.
+vi.mock('@xsai/generate-text', () => ({
+  generateText,
 }))
 
 vi.mock('../../stores/providers', () => ({
@@ -41,7 +41,7 @@ vi.mock('./use-vision-workloads', () => ({
 describe('useVisionInference', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    stream.mockReset()
+    generateText.mockReset()
     getProviderInstance.mockReset()
     getProviderInstance.mockResolvedValue({
       chat: vi.fn().mockReturnValue({
@@ -55,10 +55,10 @@ describe('useVisionInference', () => {
     vi.useRealTimers()
   })
 
-  it('passes an abort signal to llmStore.stream', async () => {
-    stream.mockImplementation(async (_model, _provider, _messages, options) => {
+  it('passes an abort signal to generateText and returns the trimmed text', async () => {
+    generateText.mockImplementation(async (options) => {
       expect(options?.abortSignal).toBeInstanceOf(AbortSignal)
-      options?.onStreamEvent?.({ type: 'text-delta', text: 'Frame summary' })
+      return { text: '  Frame summary  ' }
     })
 
     const { useVisionInference } = await import('./use-vision-inference')
@@ -70,8 +70,8 @@ describe('useVisionInference', () => {
     })).resolves.toBe('Frame summary')
   })
 
-  it('aborts vision inference when the stream never settles', async () => {
-    stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
+  it('aborts vision inference when generateText never settles', async () => {
+    generateText.mockImplementation(options => new Promise((_, reject) => {
       options?.abortSignal?.addEventListener('abort', () => {
         reject(options.abortSignal?.reason)
       }, { once: true })
