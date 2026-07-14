@@ -83,6 +83,65 @@ describe('useAnalytics conversation product events', () => {
     })
   })
 
+  it('captures custom-provider token usage without prompt or response content', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackAiGeneration({
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      provider_type: 'custom',
+      provider_id: 'openai-compatible',
+      model_id: 'custom-model',
+      usage_source: 'reported',
+      input_tokens: 12,
+      output_tokens: 8,
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('$ai_generation', {
+      $ai_trace_id: 'session-1',
+      $ai_session_id: 'session-1',
+      $ai_span_id: 'round-1',
+      $ai_model: 'custom-model',
+      $ai_provider: 'openai-compatible',
+      $ai_input_tokens: 12,
+      $ai_output_tokens: 8,
+      $ai_total_tokens: 20,
+      $insert_id: 'ai-generation:round-1',
+      app_surface: 'web',
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      provider_type: 'custom',
+      usage_source: 'reported',
+    })
+  })
+
+  it('records unavailable custom-provider usage without inventing token or cost fields', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackAiGeneration({
+      conversation_id: 'session-1',
+      round_id: 'round-2',
+      provider_type: 'custom',
+      provider_id: 'ollama',
+      model_id: 'local-model',
+      usage_source: 'unavailable',
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('$ai_generation', {
+      $ai_trace_id: 'session-1',
+      $ai_session_id: 'session-1',
+      $ai_span_id: 'round-2',
+      $ai_model: 'local-model',
+      $ai_provider: 'ollama',
+      $insert_id: 'ai-generation:round-2',
+      app_surface: 'web',
+      conversation_id: 'session-1',
+      round_id: 'round-2',
+      provider_type: 'custom',
+      usage_source: 'unavailable',
+    })
+  })
+
   it('infers the mobile surface for capacitor conversation actions', () => {
     analyticsMocks.isStageCapacitorMock.mockReturnValue(true)
     const analytics = useAnalytics()

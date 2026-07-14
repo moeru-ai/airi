@@ -4,7 +4,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
-import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
@@ -244,11 +244,24 @@ export interface ChatOrchestratorRuntimeDeps {
     model: string
     latencyMs: number
   }) => void
+  /** Called once per completed provider generation with content-free usage metadata. */
+  onLlmGeneration?: (event: ChatRoundCorrelation & {
+    model: string
+    provider: string
+    inputTokens?: number
+    outputTokens?: number
+    totalTokens?: number
+    usageSource: LlmUsage['source']
+  }) => void
   /** Called after one user-to-assistant message round completes successfully. */
   onMessageRound?: (event: ChatRoundCorrelation & {
     durationMs: number
     hasVoice: boolean
     model: string
+    inputTokens?: number
+    outputTokens?: number
+    totalTokens?: number
+    usageSource: LlmUsage['source']
   }) => void
   /** Called whenever a user-to-assistant round fails before completion. */
   onMessageRoundFailed?: (event: ChatRoundCorrelation & {
@@ -704,6 +717,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
+      let generationUsage: LlmUsage = { source: 'unavailable' }
       if (shouldTrackUserChatTelemetry) {
         deps.onLlmRequestStarted?.({
           ...correlation,
@@ -715,9 +729,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
+        requestCorrelation: {
+          conversationId: correlation.conversationId,
+          roundId: correlation.roundId,
+        },
         tools: options.tools,
         waitForTools: true,
         captureToolErrors: true,
+        onUsage: (usage) => {
+          generationUsage = usage
+          deps.onLlmGeneration?.({
+            ...correlation,
+            model: options.model,
+            provider: activeProvider,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens,
+            usageSource: usage.source,
+          })
+        },
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':
@@ -826,7 +856,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           durationMs,
           hasVoice: !!options.input,
           model: options.model,
+          inputTokens: generationUsage.inputTokens,
+          outputTokens: generationUsage.outputTokens,
+          totalTokens: generationUsage.totalTokens,
+          usageSource: generationUsage.source,
         })
+
         if (isActivationAttempt) {
           deps.onChatActivationSucceeded?.({
             ...correlation,
