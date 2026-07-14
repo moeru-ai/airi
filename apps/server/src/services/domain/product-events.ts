@@ -136,6 +136,11 @@ function metricLabels(input: ProductEventInput): Record<string, string> {
   return attrs
 }
 
+function stringMetadata(input: ProductEventInput, key: string): string | undefined {
+  const value = input.metadata?.[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
 /**
  * Creates AIRI's first-party product analytics event writer.
  *
@@ -228,11 +233,28 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
       const forwardedEvent = POSTHOG_FORWARDED_ACTIONS[input.action]
       if (persisted && posthog && forwardedEvent) {
         try {
+          const posthogDistinctId = stringMetadata(input, 'posthog_distinct_id')
+          const posthogSessionId = stringMetadata(input, 'posthog_session_id')
+          if (posthogDistinctId && posthogDistinctId !== input.userId) {
+            await posthog.capture({
+              distinctId: input.userId,
+              event: '$identify',
+              properties: {
+                $anon_distinct_id: posthogDistinctId,
+                airi_user_id: input.userId,
+                ...(posthogSessionId && { $session_id: posthogSessionId }),
+              },
+            })
+          }
+
           await posthog.capture({
             distinctId: input.userId,
             event: forwardedEvent,
             properties: {
               app_surface: 'server',
+              airi_user_id: input.userId,
+              ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
+              ...(posthogSessionId && { $session_id: posthogSessionId }),
               feature: input.feature,
               status: input.status,
               ...(input.source && { source: input.source }),

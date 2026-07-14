@@ -163,6 +163,7 @@ describe('productEventService', () => {
       event: 'payment_completed',
       properties: {
         app_surface: 'server',
+        airi_user_id: 'user-1',
         feature: 'billing',
         status: 'succeeded',
         source: 'stripe.webhook',
@@ -175,6 +176,7 @@ describe('productEventService', () => {
       event: 'signup_completed',
       properties: {
         app_surface: 'server',
+        airi_user_id: 'user-2',
         feature: 'auth',
         status: 'succeeded',
       },
@@ -182,6 +184,50 @@ describe('productEventService', () => {
 
     const rows = await db.select().from(schema.productEvents)
     expect(rows).toHaveLength(2)
+  })
+
+  it('merges Stripe webhook conversions with the browser PostHog person when a distinct id is present', async () => {
+    const capture = vi.fn(async () => {})
+    const sink = { capture, shutdown: vi.fn(async () => {}) }
+    const service = createProductEventService(db, null, sink)
+
+    await service.track({
+      userId: 'user-1',
+      feature: 'billing',
+      action: 'payment_completed',
+      status: 'succeeded',
+      source: 'stripe.webhook',
+      metadata: {
+        posthog_distinct_id: 'anon-browser-1',
+        posthog_session_id: 'ph-session-1',
+        stripe_checkout_session_id: 'cs_1',
+      },
+    })
+
+    expect(capture).toHaveBeenNthCalledWith(1, {
+      distinctId: 'user-1',
+      event: '$identify',
+      properties: {
+        $anon_distinct_id: 'anon-browser-1',
+        $session_id: 'ph-session-1',
+        airi_user_id: 'user-1',
+      },
+    })
+    expect(capture).toHaveBeenNthCalledWith(2, {
+      distinctId: 'user-1',
+      event: 'payment_completed',
+      properties: {
+        app_surface: 'server',
+        airi_user_id: 'user-1',
+        posthog_distinct_id: 'anon-browser-1',
+        $session_id: 'ph-session-1',
+        feature: 'billing',
+        status: 'succeeded',
+        source: 'stripe.webhook',
+        posthog_session_id: 'ph-session-1',
+        stripe_checkout_session_id: 'cs_1',
+      },
+    })
   })
 
   it('does not forward high-volume per-request actions to PostHog', async () => {

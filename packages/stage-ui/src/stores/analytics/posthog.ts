@@ -12,6 +12,13 @@ import {
 
 let posthogInitialized = false
 
+export interface PosthogIdentitySnapshot {
+  /** Current PostHog distinct id for the browser/device/user person. */
+  distinctId: string
+  /** Current PostHog session id, when the SDK has established one. */
+  sessionId?: string
+}
+
 // All AIRI surfaces (web, desktop, mobile) capture into a single PostHog
 // project. The platform is carried on every event via the `app_surface` super
 // property (registered at init), so cross-platform funnels live in one
@@ -110,6 +117,25 @@ export function resetPosthog(): void {
   if (!posthogInitialized)
     return
   posthog.reset()
+}
+
+/**
+ * Returns the current PostHog identity that server-side conversion events can
+ * use to merge Stripe webhook facts back into the same browser funnel.
+ */
+export function getPosthogIdentitySnapshot(): PosthogIdentitySnapshot | null {
+  if (!posthogInitialized || posthog.has_opted_out_capturing())
+    return null
+
+  const distinctId = posthog.get_distinct_id()
+  if (!distinctId)
+    return null
+
+  const sessionId = posthog.get_session_id()
+  return {
+    distinctId,
+    ...(sessionId && { sessionId }),
+  }
 }
 
 interface PosthogCaptureOptions {
