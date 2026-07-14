@@ -51,6 +51,36 @@ function isVideoMediaPermission(permission: ElectronPermission, details?: Electr
 }
 
 /**
+ * Checks whether Electron's media request can belong to the selected desktop
+ * capture flow.
+ *
+ * Electron 41 reports the actual Windows desktop-stream permission request
+ * with an empty `mediaTypes` array even though its earlier permission check
+ * identifies the operation as video. An active selected-source lease supplies
+ * the missing scope, while explicitly audio-only or combined requests remain
+ * excluded here.
+ */
+function isSelectedDesktopMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media')
+    return false
+
+  if (!details)
+    return true
+
+  if ('mediaTypes' in details) {
+    if (!details.mediaTypes?.length)
+      return true
+
+    return details.mediaTypes.includes('video') && !details.mediaTypes.includes('audio')
+  }
+
+  if ('mediaType' in details)
+    return details.mediaType === undefined || details.mediaType === 'video'
+
+  return true
+}
+
+/**
  * Checks whether every requester identity supplied by Electron is local to AIRI.
  */
 function shouldGrantLocalAppPermission(
@@ -105,7 +135,7 @@ export function shouldGrantSelectedDesktopCapturePermission(
   requestingOrigin?: string,
   details?: ElectronPermissionDetails,
 ): boolean {
-  return isVideoMediaPermission(permission, details)
+  return isSelectedDesktopMediaPermission(permission, details)
     && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
     // Electron can report a different or omitted WebContents identity during
     // the Chromium media permission phase. The IPC handler already restricts

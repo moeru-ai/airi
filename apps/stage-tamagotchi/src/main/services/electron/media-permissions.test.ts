@@ -99,6 +99,57 @@ describe('media permissions', () => {
     expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenCalledWith(undefined)
   })
 
+  /** @example Electron 41 may omit the media type on the actual Windows desktop-stream request. */
+  it('grants an untyped local media request only while a selected source request is active', () => {
+    const details = createMediaRequestDetails({ mediaTypes: [] })
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      localWebContents,
+      'media',
+      undefined,
+      details,
+    )).toBe(false)
+
+    isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      localWebContents,
+      'media',
+      undefined,
+      details,
+    )).toBe(true)
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      details,
+    )).toBe(true)
+  })
+
+  /** @example An active desktop lease never broadens an explicit microphone request. */
+  it('does not treat explicit audio-only media as selected desktop capture', () => {
+    isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['audio'] }),
+    )).toBe(false)
+  })
+
+  /** @example A combined camera and microphone request remains outside the selected desktop flow. */
+  it('does not treat combined audio and video media as selected desktop capture', () => {
+    isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['audio', 'video'] }),
+    )).toBe(false)
+  })
+
   /** @example Electron may omit webContents during the permission-check phase. */
   it('grants a local video permission check while a selected source request is active', () => {
     isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
