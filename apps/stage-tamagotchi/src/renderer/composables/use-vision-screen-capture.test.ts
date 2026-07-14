@@ -57,8 +57,9 @@ describe('useVisionScreenCapture', async () => {
   it('uses Electron desktop constraints while the selected-source lease is active', async () => {
     const stream = createLiveVideoStream()
     let selectingSource = false
-    selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
+    selectWithSourceMock.mockImplementation(async (selectSource, useStream, request) => {
       expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
+      expect(request).toEqual({ timeout: 15_000 })
       selectingSource = true
       try {
         return await useStream()

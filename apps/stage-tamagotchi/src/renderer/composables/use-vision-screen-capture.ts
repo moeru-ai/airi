@@ -12,6 +12,8 @@ interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
   thumbnailURL?: string
 }
 
+const SELECTED_SOURCE_CAPTURE_LEASE_TIMEOUT_MS = 15_000
+
 /**
  * Manages Electron-backed screen-capture sources and the active preview stream for vision workflows.
  *
@@ -146,6 +148,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
           }
         }
       },
+      { timeout: SELECTED_SOURCE_CAPTURE_LEASE_TIMEOUT_MS },
     )
   }
 

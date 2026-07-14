@@ -76,7 +76,7 @@ describe('media permissions', () => {
   })
 
   /** @example A selected desktop source can use Electron's scoped legacy stream fallback. */
-  it('grants video only while the local renderer owns a selected source request', () => {
+  it('grants local video only while a selected source request is active', () => {
     const sourceOwner = {
       id: 42,
       getURL: () => 'file:///app/index.html',
@@ -95,6 +95,7 @@ describe('media permissions', () => {
       undefined,
       createMediaRequestDetails({ mediaTypes: ['video'] }),
     )).toBe(true)
+    expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenCalledWith(undefined)
   })
 
   /** @example Electron may omit webContents during the permission-check phase. */

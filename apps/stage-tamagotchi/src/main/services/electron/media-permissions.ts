@@ -107,11 +107,12 @@ export function shouldGrantSelectedDesktopCapturePermission(
 ): boolean {
   return isVideoMediaPermission(permission, details)
     && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
-    && isScreenCaptureSourceRequestActive(
-      webContents && typeof webContents.id === 'number'
-        ? webContents as Pick<WebContents, 'id'>
-        : undefined,
-    )
+    // Electron can report a different or omitted WebContents identity during
+    // the Chromium media permission phase. The IPC handler already restricts
+    // lease creation to the requesting AIRI window, and the origin check above
+    // keeps this permission local, so permission checks only need to verify
+    // that a short-lived selected-source lease is active.
+    && isScreenCaptureSourceRequestActive(undefined)
 }
 
 /**

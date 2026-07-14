@@ -251,7 +251,9 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
 
         callback({
           video: source,
-          audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+          audio: _request.audioRequested
+            ? options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback
+            : undefined,
         })
       })
 
