@@ -714,7 +714,6 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 ##### 🥐🍷 readme_locale_fr_FR 🇫🇷
 
 <div align=center>
-<img width="1254" height="1254" alt="anima-logo-fr-v1" src="https://github.com/user-attachments/assets/f5f0ae86-59bc-4645-a87c-4e317c48c64c" />
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
@@ -730,6 +729,7 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
   <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
 </a>
+<img width="1254" height="1254" alt="anima-logo-fr-v1" src="https://github.com/user-attachments/assets/f5f0ae86-59bc-4645-a87c-4e317c48c64c" />
 <sub>
     <p><h2>
         Distribution AnimAIOS basée sur
