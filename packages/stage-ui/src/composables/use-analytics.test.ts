@@ -108,10 +108,15 @@ describe('useAnalytics conversation product events', () => {
       $ai_total_tokens: 20,
       $insert_id: 'ai-generation:round-1',
       app_surface: 'web',
+      capture_surface: 'client',
       conversation_id: 'session-1',
+      conversation_id_source: 'client_runtime',
       round_id: 'round-1',
       provider_type: 'custom',
       usage_source: 'reported',
+      token_usage_available: true,
+      cost_usd_source: 'unavailable',
+      cost_usd_known: false,
     })
   })
 
@@ -135,10 +140,15 @@ describe('useAnalytics conversation product events', () => {
       $ai_provider: 'ollama',
       $insert_id: 'ai-generation:round-2',
       app_surface: 'web',
+      capture_surface: 'client',
       conversation_id: 'session-1',
+      conversation_id_source: 'client_runtime',
       round_id: 'round-2',
       provider_type: 'custom',
       usage_source: 'unavailable',
+      token_usage_available: false,
+      cost_usd_source: 'unavailable',
+      cost_usd_known: false,
     })
   })
 

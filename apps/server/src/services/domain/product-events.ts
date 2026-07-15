@@ -76,7 +76,17 @@ export interface ProductEventAggregateRow {
   distinctUsers: number
 }
 
-export type AiGenerationAppSurface = 'server' | 'web' | 'mobile' | 'electron'
+/** Product runtime where the user initiated the AI generation. */
+export type AiGenerationAppSurface = 'web' | 'mobile' | 'electron'
+
+/** Runtime that captured the `$ai_generation` fact. */
+export type AiGenerationCaptureSurface = 'server' | 'client'
+
+/** Explains whether `conversation_id` is an app conversation or a server fallback. */
+export type AiGenerationConversationIdSource = 'client_header' | 'server_request'
+
+/** Explains whether AIRI supplied a trustworthy USD cost for this generation. */
+export type AiGenerationCostUsdSource = 'reported' | 'estimated' | 'unavailable'
 
 /** Content-free PostHog AI generation fact keyed to the authenticated user. */
 export interface AiGenerationEventInput {
@@ -90,9 +100,17 @@ export interface AiGenerationEventInput {
   inputTokens?: number
   outputTokens?: number
   totalTokens?: number
-  conversationId?: string
+  totalCostUsd?: number
+  costUsdSource?: AiGenerationCostUsdSource
+  /** Always present for joins; `conversationIdSource` tells whether it is request-level fallback. */
+  conversationId: string
+  /** Distinguishes real client conversation ids from server-generated request fallbacks. */
+  conversationIdSource: AiGenerationConversationIdSource
   roundId?: string
-  appSurface: AiGenerationAppSurface
+  /** Omitted when the server cannot determine the user's product runtime. */
+  appSurface?: AiGenerationAppSurface
+  /** Defaults to `server` because this service runs in the API process. */
+  captureSurface?: AiGenerationCaptureSurface
   latencySeconds?: number
   stream?: boolean
 }
@@ -169,21 +187,28 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
         event: '$ai_generation',
         properties: {
           $ai_trace_id: input.traceId,
-          ...(input.conversationId && { $ai_session_id: input.conversationId }),
+          $ai_session_id: input.conversationId,
           $ai_span_id: input.generationId,
           $ai_model: input.model,
           $ai_provider: input.provider,
           ...(input.inputTokens != null && { $ai_input_tokens: input.inputTokens }),
           ...(input.outputTokens != null && { $ai_output_tokens: input.outputTokens }),
           ...(input.totalTokens != null && { $ai_total_tokens: input.totalTokens }),
+          ...(input.totalCostUsd != null && { $ai_total_cost_usd: input.totalCostUsd }),
           ...(input.latencySeconds != null && { $ai_latency: input.latencySeconds }),
           ...(input.stream != null && { $ai_stream: input.stream }),
           $insert_id: `ai-generation:${input.generationId}`,
+          airi_user_id: input.userId,
           provider_type: input.providerType,
           usage_source: input.usageSource,
-          ...(input.conversationId && { conversation_id: input.conversationId }),
+          token_usage_available: input.usageSource !== 'unavailable',
+          cost_usd_source: input.costUsdSource ?? 'unavailable',
+          cost_usd_known: input.totalCostUsd != null,
+          conversation_id: input.conversationId,
+          conversation_id_source: input.conversationIdSource,
           ...(input.roundId && { round_id: input.roundId }),
-          app_surface: input.appSurface,
+          ...(input.appSurface && { app_surface: input.appSurface }),
+          capture_surface: input.captureSurface ?? 'server',
         },
       }
 

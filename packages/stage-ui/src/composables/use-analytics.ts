@@ -429,10 +429,15 @@ export function useAnalytics() {
       ...(totalTokens != null && { $ai_total_tokens: totalTokens }),
       $insert_id: `ai-generation:${properties.round_id}`,
       app_surface: getConversationAnalyticsSurface(),
+      capture_surface: 'client',
       conversation_id: properties.conversation_id,
+      conversation_id_source: 'client_runtime',
       round_id: properties.round_id,
       provider_type: properties.provider_type,
       usage_source: properties.usage_source,
+      token_usage_available: properties.usage_source !== 'unavailable',
+      cost_usd_source: 'unavailable',
+      cost_usd_known: false,
     })
   }
 

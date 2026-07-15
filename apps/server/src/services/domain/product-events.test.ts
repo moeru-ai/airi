@@ -271,8 +271,10 @@ describe('productEventService', () => {
       outputTokens: 8,
       totalTokens: 20,
       conversationId: 'session-1',
+      conversationIdSource: 'client_header',
       roundId: 'round-1',
-      appSurface: 'server',
+      appSurface: 'electron',
+      captureSurface: 'server',
     })
 
     expect(capture).not.toHaveBeenCalled()
@@ -289,11 +291,17 @@ describe('productEventService', () => {
         $ai_output_tokens: 8,
         $ai_total_tokens: 20,
         $insert_id: 'ai-generation:round-1',
+        airi_user_id: 'user-1',
         provider_type: 'official',
         usage_source: 'reported',
+        token_usage_available: true,
+        cost_usd_source: 'unavailable',
+        cost_usd_known: false,
         conversation_id: 'session-1',
+        conversation_id_source: 'client_header',
         round_id: 'round-1',
-        app_surface: 'server',
+        app_surface: 'electron',
+        capture_surface: 'server',
       },
     })
 
