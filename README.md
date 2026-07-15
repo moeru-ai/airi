@@ -7,8 +7,8 @@
     <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs"> 
   </a>
   <a href="https://github.com/animaios/anima#-readme_locale_en_us-">readme</a>
-  <a href="https://github.com/animaios/anima#-%E3%83%AA%E3%83%BC%E3%83%89%E3%83%9F%E3%83%BBlocale_ja_jp-">リードミー</a>
-  <a href="https://github.com/animaios/anima#-%E8%AF%BB%E6%88%91_locale_zh_cn-">读我</a>
+  <a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">リードミー</a>
+  <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">读我</a>
   <br>
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
@@ -144,7 +144,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 - [ ] Supported Embedding providers: TBD
 - [ ] [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system that will replace official AIRI provider, a limitless source of free yummy tokens for all your cyber waifus LLM and Embedding needs~ Or clone AnimaRouter and host it yourself with BYOK! UI will allow easy switching between hosted/local AnimaRouter providers!
 
-#### 🌸 リードミーlocale_ja_JP 🇯🇵
+#### 🌸 readme_locale_ja_JP 🇯🇵
 
 <sub>
     <p><h2>
@@ -296,7 +296,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
   UI からホスト型 / ローカル AnimaRouter プロバイダーをイージースイッチできます！
 
-#### 🏮 读我_locale_zh_CN 🇨🇳
+#### 🏮 readme_locale_zh_CN 🇨🇳
 
 <sub>
     <p><h2>
