@@ -168,6 +168,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 <img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
 </div>
 <div align=center>
+<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/20474a2b-9ebb-4d14-a1e7-6767281b9056" />
 <sub>
     <p><h2>
         <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>
@@ -351,6 +352,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 <img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
 </div>
 <div align=center>
+<img width="1254" height="1254" alt="anima-logo-zh-v2" src="https://github.com/user-attachments/assets/f2039dc9-b0c8-4d3b-96c7-da500466e5eb" />
 <sub>
     <p><h2>
         基于 <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a> 的 AnimAIOS 发行版，
