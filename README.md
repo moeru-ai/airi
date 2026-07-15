@@ -29,6 +29,7 @@
 
 #### 🗽 readme_locale_en_US 🇺🇸
 
+<div align=center>
 <sub>
     <p><h2>
         AnimAIOS distro based on 
@@ -40,6 +41,7 @@
         <a href="https://packages.cachyos.org/" target="_blank">CachyOS</a> repositories.</h2>
     </p>
 </sub>
+</div>
 
 ## 🌙 The Vision
 
@@ -152,6 +154,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 
 #### 🌸 readme_locale_ja_JP 🇯🇵
 
+<div align=center>
 <sub>
     <p><h2>
         <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>
@@ -164,6 +167,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
     </h2>
     </p>
 </sub>
+</div>
 
 ## 🌙 ビジョン
 
@@ -304,6 +308,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
 #### 🏮 readme_locale_zh_CN 🇨🇳
 
+<div align=center>
 <sub>
     <p><h2>
         基于 <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a> 的 AnimAIOS 发行版，
@@ -315,6 +320,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
     </h2>
     </p>
 </sub>
+</div>
 
 ## 🌙 Vision
 
