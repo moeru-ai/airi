@@ -5,6 +5,12 @@ import type { LlmTracingDeps, V1RouteDeps } from './types'
 
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+  resolveChatAnalyticsSurface,
+} from './analytics'
 import { createV1Gateway } from './gateway'
 import { chatCompletionsRateLimit } from './middlewares'
 import { chatCompletions } from './operations/chat-completions'
@@ -41,7 +47,9 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         return {
           userId: user.id,
           body,
-          sessionId: c.req.header('x-airi-session-id'),
+          sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
+          roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
+          appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),
           abortSignal: c.req.raw.signal,
         }
       },
@@ -66,7 +74,7 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         return {
           userId: user.id,
           body,
-          sessionId: c.req.header('x-airi-session-id'),
+          sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
           abortSignal: c.req.raw.signal,
         }
       },

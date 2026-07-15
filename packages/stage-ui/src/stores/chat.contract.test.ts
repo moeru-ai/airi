@@ -6,6 +6,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+} from '../libs/analytics-headers'
 import { useChatOrchestratorStore } from './chat'
 
 vi.hoisted(() => {
@@ -40,6 +45,7 @@ const ioTracerMocks = vi.hoisted(() => {
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
+  trackAiGeneration: vi.fn(),
   trackAssistantResponseRendered: vi.fn(),
   trackChatActivationFailed: vi.fn(),
   trackChatActivationStarted: vi.fn(),
@@ -82,6 +88,7 @@ vi.mock('pinia', async () => {
 })
 
 vi.mock('../composables', () => ({
+  getConversationAnalyticsSurface: () => 'web',
   useAnalytics: () => ({
     trackFirstMessage: trackFirstMessageMock,
     trackChatFailed: redundantChatAnalyticsMocks.trackChatFailed,
@@ -90,6 +97,7 @@ vi.mock('../composables', () => ({
     trackMessageSent: chatAnalyticsMocks.trackMessageSent,
     trackLlmRequestStarted: chatAnalyticsMocks.trackLlmRequestStarted,
     trackLlmFirstToken: chatAnalyticsMocks.trackLlmFirstToken,
+    trackAiGeneration: chatAnalyticsMocks.trackAiGeneration,
     trackAssistantResponseRendered: chatAnalyticsMocks.trackAssistantResponseRendered,
     trackAssistantResponseCompleted: redundantChatAnalyticsMocks.trackAssistantResponseCompleted,
     trackMessageRound: chatAnalyticsMocks.trackMessageRound,
@@ -246,6 +254,51 @@ describe('chat orchestrator contract', () => {
     expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
     expect(chatAnalyticsMocks.trackChatActivationStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
     expect(chatAnalyticsMocks.trackChatActivationSucceeded).toHaveBeenCalledWith(expect.objectContaining(correlation))
+  })
+
+  it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onUsage({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('custom turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
+      round_id: expect.any(String),
+      provider_type: 'custom',
+      provider_id: 'mock-provider',
+      model_id: 'gpt-test',
+      usage_source: 'reported',
+      input_tokens: 12,
+      output_tokens: 8,
+      total_tokens: 20,
+    })
+
+    chatAnalyticsMocks.trackAiGeneration.mockClear()
+    activeProviderRef.value = 'official-provider'
+    await store.ingest('official turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).not.toHaveBeenCalled()
+    expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
+      [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
   })
 
   it('emits second turn analytics from chat sends', async () => {

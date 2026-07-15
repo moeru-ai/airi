@@ -179,7 +179,7 @@ posthog.capture('pricing_page_viewed', { plan_period, source })
 import posthog from 'posthog-js/dist/module.full.no-external.js'
 
 posthog.init(import.meta.env.VITE_POSTHOG_KEY, {
-  api_host: 'https://us.i.posthog.com',
+  api_host: 'https://t.airi.build',
   autocapture: false, // 桌面应用没有传统 URL 路由，手动控制
 })
 ```
