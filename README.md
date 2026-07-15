@@ -2,18 +2,18 @@
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
 </a>
 <img width="1387" height="1134" alt="anima-banner-v4 7 1" src="https://github.com/user-attachments/assets/03ccef48-9929-4d43-a7d3-242747dd6e83" />
-</div>
-
-<div align=center>
 <sub>
     <p><h2>
         AnimAIOS distro based on 
@@ -158,16 +158,17 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
 </a>
-</div>
-<div align=center>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+</a>
 <img width="1254" height="1254" alt="anima-logo-ja-v2 2" src="https://github.com/user-attachments/assets/cb958041-4f9c-4801-b8f5-f23a35e36fb6" />
 <sub>
   <p>
@@ -343,16 +344,17 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
 </a>
-</div>
-<div align=center>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+</a>
 <img width="1254" height="1254" alt="anima-logo-zh-v2 1" src="https://github.com/user-attachments/assets/2a8e25c3-2c8d-45d8-a142-6f6c245da7f9" />  
   <sub>
     <p><h2>
@@ -527,6 +529,175 @@ _(可选 PKGBUILD 位于 `apps/stage-tamagotchi`，用于将 `.deb` Repackage �
   或者直接 Clone AnimaRouter，通过 BYOK 自己 Host！
 
   UI 会支持在 Hosted / Local AnimaRouter Provider 之间一键切换！
+
+##### 🌴 readme_locale_pt_BR 🇧🇷
+
+<div align=center>
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+</a>
+<img width="1254" height="1254" alt="animaios-logo-pt-v1" src="https://github.com/user-attachments/assets/23676b56-3798-45f4-a3b7-d2fa013847cf" />
+<sub>
+    <p><h2>
+        A distro AnimAIOS baseada no
+        <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>,
+        <br>
+        pro seu Desktop Linux / Termux / CyberDeck / Wearable, chegando neste outono.
+    </p>
+    <p>
+        Já vem com os pacotes pré-otimizados pro seu CPU usando os repositórios do
+        <a href="https://packages.cachyos.org/" target="_blank">CachyOS</a>.</h2>
+    </p>
+</sub>
+</div>
+
+## 🌙 A Visão
+
+* **Stage Sempre Online:** Sua personagem vive no seu desktop! Ela consegue abrir, fechar e trocar janelas e, o mais importante, ler o texto delas via integração com acessibilidade~
+* **Integração Total com o Sistema:** Hooka direto no sistema inteiro, desde notificações até controlar seu Linux completamente pelo terminal no Modo Agentic.
+* **Consciência de Contexto:** Sua companion acompanha o que acontece no desktop pra responder e interagir de forma proativa, e também pode assumir controle total do desktop no Modo Agentic.
+* **Layouts Modulares de Stage:** Widgets GTK4, backgrounds gerados em tempo real pelo módulo de artistry e layouts de janelas montados dinamicamente por cada personagem.
+
+## 🖥️ Desenvolvimento
+
+<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
+</a>
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+<br>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+</div>
+
+### ☕ Pré-requisitos
+
+* pnpm
+* Node.js (app Electron)
+* Rust (app Tauri)
+
+### 🖱️ Começando Rapidão
+
+Atualmente a versão recomendada ainda é a app Electron em `apps/stage-tamagotchi/`, enquanto o port pra Tauri tá sendo desenvolvido ativamente em `apps/stage-tauri/`.
+
+🍎🐧🪟 App desktop Electron:
+
+```shell
+pnpm i
+pnpm dev:tamagotchi
+```
+
+🍎🐧 App desktop Tauri:
+
+> [!IMPORTANT]
+> 🚧 Em construção
+
+```shell
+pnpm i
+cd apps/stage-tauri
+./init.sh
+cargo tauri dev
+```
+
+O `./init.sh` verifica o scaffold local do Tauri, a toolchain Rust, a CLI `cargo-tauri` e executa `cargo check`. Se precisar, instala primeiro a CLI do Tauri:
+
+```shell
+cargo install tauri-cli --version '^2.0'
+```
+
+### ❔ Por que Tauri?
+
+O Tauri permite manter o renderer em Vue 3 e toda a experiência da companion AIRI enquanto substitui o processo principal do Electron por um backend Rust muito mais leve. Resultado: menos RAM parada, binários menores, integração muito melhor com desktops Linux e um caminho bem mais limpo pra lançar a AIRI como app nativa no mobile.
+
+Essa migração também é o primeiro passo pra builds nativas da AIRI no Android e iOS nos próximos meses.
+
+<!--
+### ⌨️ Build para Linux (em construção)
+
+```shell
+cd apps/stage-tamagotchi
+./build.sh           # Gera o pacote .deb em dist/
+```
+
+_(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb` em `.zst` para Arch/Manjaro/CachyOS)._
+-->
+
+## ✌🏻 Agradecimentos
+
+* o projeto original [`moeru-ai/airi`](https://github.com/moeru-ai/airi)
+
+  * e seu fork focado em desktop simplesmente brabo! [`dasilva333/airi`](https://github.com/dasilva333/airi)
+* todo mundo que passou por essa página :з <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20my%20little%20clicks%20counter&countColor=%23263759&style=flat" alt="Visitor counter" /></a>
+* comunidade incrível <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20membros&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2" alt="Discord member count"></a>
+
+> [!TIP]
+> ⭐ Dar uma estrela ajuda a espalhar a ideia de um sistema operacional com IA pra desktop/cyberdeck/wearables!
+
+## 🚙 Roadmap
+
+* [x] **Cérebro**
+
+  * [x] *Artistry:* Pipelines nativos de geração de imagem (Replicate, ComfyUI)
+  * [ ] *Proatividade:* Definir gatilhos para interações autônomas da companion (heartbeats)
+  * [ ] *Memória em múltiplas camadas:* [AnimaVault](https://github.com/animaios/animavault)
+
+    * [ ] *Escopo de memória por personagem* funcionando com witnesses (várias personagens compartilhando a tela)
+* [x] **Ouvidos**
+
+  * [x] Reconhecimento de fala local e detecção de quando alguém está falando
+* [x] **Boca**
+
+  * [x] Provedores de voz compatíveis com OpenAI com descoberta automática de vozes
+* [x] **Corpo**
+
+  * [x] Suporte a VRM
+
+    * [ ] Controle de expressões via LLM, auto-blink e auto-look-at
+    * [ ] Emoções e idle-loops gerados por LLM
+  * [x] Suporte a Live2D
+
+    * [ ] Controle de expressões via LLM
+* [x] **Desktop Stage**
+
+  * [ ] Várias personagens compartilhando a tela (KISS: 1 janela por personagem)
+  * [ ] Gerenciamento de cena/background por personagem
+* [ ] **AnimAIOS (WIP)**
+
+  * [x] Integração com bandeja do sistema e captura de tela
+  * [ ] Gerar janelas GTK4 nativas em vez de widgets web
+  * [ ] Integração profunda com [anima-use-desktop](https://github.com/animaios/anima-use-desktop)
+
+    * [ ] Enviar um snapshot do contexto recente a cada heartbeat da AIRI
+  * [ ] O chat da AIRI também funciona como terminal do sistema com detecção de linguagem natural (estilo Warp)
+* [ ] **Extras**
+
+  * [ ] DeepSource zerado (0 issues)
+  * [ ] LCov > 90% → migrar pra TDD
+  * [ ] Adicionar MCP/skills usando prompts em linguagem natural
+  * [ ] Suporte nativo a Wayland usando flags da plataforma Ozone
+
+## 🤖 Provedores de API
+
+* [x] Provedores LLM suportados: tudo que o [xsai](https://github.com/moeru-ai/xsai) suporta
+* [ ] Provedores TTS suportados: Em breve™
+* [ ] Provedores de Embeddings: Em breve™
+* [ ] Sistema gamificado de energia baseado no [AnimaRouter](https://github.com/animaios/animarouter) que vai substituir o provider oficial da AIRI: uma fonte praticamente infinita de tokens grátis e deliciosos pras suas cyber waifus, LLMs e embeddings~ Ou simplesmente faz um clone do AnimaRouter e hospeda você mesmo com BYOK! A UI vai permitir alternar facilmente entre provedores AnimaRouter locais ou hospedados.
 
 # 🌸 AnimAIOS Project Activity プロジェクト活動 项目活动
 
