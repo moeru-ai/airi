@@ -1,22 +1,16 @@
 <div align="center">
-<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/65f2c261-aa10-49cd-93ef-76a94d0a3c92" />
-  <h2>AnimAIOS is an AI driven Linux Desktop/CyberDeck/Wearable OS</h3>
+<img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
 <sub>
-
-💙🐧 AnimAIOS Desktop distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
-
+    <p><h2>
+        AnimAIOS distro based on 
+        <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>, 
+        on your Linux Desktop/Termux/CyberDeck/Wearable this fall.
+    </p>
+    <p>
+        Comes with software pre-optimized for your CPU using 
+        <a href="https://packages.cachyos.org/" target="_blank">CachyOS</a> repositories.</h2>
+    </p>
 </sub>
-</div>
-
-## 🌙 The Vision
-
-- **Always-Present Stage:** Your character lives on your desktop! She can open, close and switch between windows and most importantly read text in those windows through accessibility integration~
-- **System Integration:** Hooks fully into the system, from basic stuff like notifications to fully managing your Linux via terminal in Agentic Mode
-- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she can also assume full desktop control in Agentic Mode
-- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
-
-## 🖥️ Development
-
   <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
@@ -32,8 +26,22 @@
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
+  <img width="1445" height="1088" alt="anima-banner-lightingfix" src="https://github.com/user-attachments/assets/dd289588-6e88-48b5-af86-6f1035bdde95" /> 
+</div>
 
-<img width="1313" height="1198" alt="anima-banner-v2 9" src="https://github.com/user-attachments/assets/3d3d1ca2-6c52-412b-be5f-97f5700f8669" />
+# 🗽 readME ・ en_US 
+
+> [!IMPORTANT]
+> 🚧 Under construction
+
+## 🌙 The Vision
+
+- **Always-Present Stage:** Your character lives on your desktop! She can open, close and switch between windows and most importantly read text in those windows through accessibility integration~
+- **System Integration:** Hooks fully into the system, from basic stuff like notifications to fully managing your Linux via terminal in Agentic Mode
+- **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she can also assume full desktop control in Agentic Mode
+- **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
+
+<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/4751f514-346e-4193-b12b-efc335f02441" />
 
 ### ☕ Prerequisites
 
@@ -85,9 +93,6 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 -->
 
 ## ✌🏻 Acknowledgements
-
-  <img width="1444" height="1089" alt="anima-banner" src="https://github.com/user-attachments/assets/575a8549-d5a5-4b98-af05-0c8be745c611" />
-
 - the original project [`moeru-ai/airi`](https://github.com/moeru-ai/airi)
   - and its awesome desktop-oriented fork! [`dasilva333/airi`](https://github.com/dasilva333/airi)
 - everyone who visited this page :з <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20my%20little%20clicks%20counter&countColor=%23263759&style=flat" alt="Visitor counter" /></a>
@@ -135,6 +140,13 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 - [ ] Supported Embedding providers: TBD
 - [ ] [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system that will replace official AIRI provider, a limitless source of free yummy tokens for all your cyber waifus LLM and Embedding needs~ Or clone AnimaRouter and host it yourself with BYOK! UI will allow easy switching between hosted/local AnimaRouter providers!
 
-## 🌸 Project activity
+# 🌸 リードミー ・ ja_JP 
+
+> [!IMPORTANT]
+> 🚧 アンダー・コンストラクション
+
+<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/20474a2b-9ebb-4d14-a1e7-6767281b9056" />
+
+# 🌸 Project activity
 
 [![Organization Heatmap](https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg)](https://github.com/orgs/animaios/repositories)
