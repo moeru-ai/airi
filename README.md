@@ -19,7 +19,7 @@
     <p><h2>
         AnimAIOS distro based on 
         <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>, 
-        on your Linux Desktop/Termux/CyberDeck/Wearable this fall.
+        on your Linux Desktop / Termux / CyberDeck / Wearable this fall.
     </p>
     <p>
         Comes with software pre-optimized for your CPU using 
