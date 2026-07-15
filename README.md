@@ -10,7 +10,7 @@
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
 </a>
-<img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
+<img width="1387" height="1134" alt="anima-banner-v4 7 1" src="https://github.com/user-attachments/assets/03ccef48-9929-4d43-a7d3-242747dd6e83" />
 </div>
 
 <div align=center>
