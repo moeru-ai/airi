@@ -7,6 +7,9 @@
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-2563eb" alt="한국어 README">
+</a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
 </a>
@@ -165,6 +168,9 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-2563eb" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
@@ -348,7 +354,24 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
 ##### 🎤👘 readme_locale_ko_KR 🇰🇷
 
-
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-2563eb" alt="한국어 README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+</a>
 <img width="1254" height="1254" alt="anima-logo-ko-v1" src="https://github.com/user-attachments/assets/e331e778-d314-4124-9d0e-c78112ea8604" />
 <sub>
   <p>
@@ -529,6 +552,9 @@ _(Arch/Manjaro/CachyOS용 `.deb` → `.zst` 리패키징 옵션 PKGBUILD는 `app
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-2563eb" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
@@ -723,6 +749,9 @@ _(可选 PKGBUILD 位于 `apps/stage-tamagotchi`，用于将 `.deb` Repackage �
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-2563eb" alt="한국어 README">
+</a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
 </a>
@@ -897,6 +926,9 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-2563eb" alt="한국어 README">
+</a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
 </a>
@@ -1048,7 +1080,7 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 - [ ] Fournisseurs d'Embeddings supportés : TBD
 - [ ] Système d'énergie gamifié basé sur [AnimaRouter](https://github.com/animaios/animarouter) qui remplacera le fournisseur officiel AIRI : une source quasi illimitée de délicieux tokens gratuits pour toutes tes cyber waifus, LLM et embeddings~ Ou clone AnimaRouter et héberge-le toi-même avec ton BYOK ! L'UI permettra de switch facilement entre des fournisseurs AnimaRouter hébergés ou locaux.
 
-# 🌸 Project Activity プロジェクト活動 项目活动 Atividade do projeto Activité du projet
+# 🌸 Project Activity プロジェクト活動 프로젝트 활동 项目活动 Atividade do projeto Activité du projet
 
 <a href="https://github.com/orgs/animaios/repositories">
   <img src="https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg" alt="Organization Heatmap">
