@@ -14,6 +14,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+} from './analytics'
 
 function createMockFluxService(flux = 100): FluxService {
   return {
@@ -143,6 +148,7 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
 function createMockProductEventService(): ProductEventService {
   return {
     track: vi.fn(async () => undefined),
+    trackGeneration: vi.fn(async () => undefined),
     countDistinctUsersByFeature: vi.fn(async () => []),
   }
 }
@@ -907,7 +913,7 @@ describe('v1CompletionsRoutes', () => {
       }
     })
 
-    it('records Langfuse chat generation with the router-resolved upstream model', async () => {
+    it('records Langfuse and PostHog generations with authoritative usage and correlation', async () => {
       const llmRouter = createMockLlmRouter({
         route: vi.fn(async (_req, ctx) => {
           if (ctx) {
@@ -924,12 +930,27 @@ describe('v1CompletionsRoutes', () => {
         }) as any,
       })
       const llmTracing = createMockLlmTracing()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter, llmTracing)
+      const productEventService = createMockProductEventService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        llmTracing,
+        productEventService,
+      )
 
       await app.fetch(
         new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            [AIRI_CHAT_SESSION_ID_HEADER]: 'conversation-1',
+            [AIRI_CHAT_ROUND_ID_HEADER]: 'round-1',
+            [AIRI_CHAT_APP_SURFACE_HEADER]: 'electron',
+          },
           body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'hi' }] }),
         }),
         { user: testUser } as any,
@@ -942,6 +963,23 @@ describe('v1CompletionsRoutes', () => {
           userId: 'user-1',
         }),
       )
+      expect(productEventService.trackGeneration).toHaveBeenCalledWith({
+        userId: 'user-1',
+        traceId: 'conversation-1',
+        generationId: 'round-1',
+        model: 'openai/gpt-4o-mini',
+        provider: 'openrouter',
+        providerType: 'official',
+        usageSource: 'reported',
+        inputTokens: 1,
+        outputTokens: 2,
+        totalTokens: 3,
+        conversationId: 'conversation-1',
+        roundId: 'round-1',
+        appSurface: 'electron',
+        latencySeconds: expect.any(Number),
+        stream: false,
+      })
     })
 
     it('should not charge flux when upstream returns error', async () => {

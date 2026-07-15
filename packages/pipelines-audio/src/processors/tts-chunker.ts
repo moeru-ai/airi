@@ -80,8 +80,8 @@ export async function* chunkTtsInput(
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     const kept = keptPunctuations.has(value)
-    let next: IteratorResult<string, any> | undefined
-    let afterNext: IteratorResult<string, any> | undefined
+    let next: IteratorResult<string, void> | undefined
+    let afterNext: IteratorResult<string, void> | undefined
 
     if (flush || special || hard || soft) {
       switch (value) {
@@ -191,9 +191,6 @@ export async function* chunkTtsInput(
     current = next
   }
 
-  // TODO: remove later
-  // eslint-disable-next-line no-console
-  console.debug('while loop ends, chunk/buffer:', chunk, buffer)
   if (chunk.length > 0 || buffer.length > 0) {
     const text = (chunk + buffer).trim()
     yield {
@@ -210,17 +207,15 @@ export async function chunkEmitter(
   options: TtsInputChunkOptions | undefined,
   handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
 ) {
-  const sanitizeChunk = (text: string) => {
-    const cleanedText = text
+  function sanitizeChunk(text: string) {
+    return text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
-
-    return cleanedText.trim()
+      .trim()
   }
 
   try {
     for await (const chunk of chunkTtsInput(reader, options)) {
-      // TODO: remove later
       const cleanedText = sanitizeChunk(chunk.text)
       if (!cleanedText && chunk.reason !== 'special') {
         continue
@@ -228,7 +223,6 @@ export async function chunkEmitter(
 
       if (chunk.reason === 'special') {
         const specialToken = pendingSpecials.shift()
-        // console.debug("special yield:", specialToken)
         await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
       }
       else {
@@ -355,24 +349,32 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
   }
 
   let result = ''
+
+  if (options?.keepNarrativeText) {
+    for (let i = 0; i < text.length; i++) {
+      if (!charsToRemove.has(i))
+        result += text[i]
+    }
+
+    return result
+  }
+
+  rangesToRemove.sort((a, b) => a[0] - b[0])
+  let rangeIndex = 0
+
   for (let i = 0; i < text.length; i++) {
-    if (options?.keepNarrativeText) {
-      if (!charsToRemove.has(i)) {
-        result += text[i]
-      }
+    while (
+      rangeIndex < rangesToRemove.length
+      && i > rangesToRemove[rangeIndex]![1]
+    ) {
+      rangeIndex += 1
     }
-    else {
-      let inRange = false
-      for (const [start, end] of rangesToRemove) {
-        if (i >= start && i <= end) {
-          inRange = true
-          break
-        }
-      }
-      if (!inRange) {
-        result += text[i]
-      }
-    }
+
+    const activeRange = rangesToRemove[rangeIndex]
+    if (activeRange && i >= activeRange[0] && i <= activeRange[1])
+      continue
+
+    result += text[i]
   }
 
   return result
@@ -479,8 +481,8 @@ export function createTtsSegmentStream(
   })()
 
   void (async () => {
+    const reader = byteStream.getReader()
     try {
-      const reader = byteStream.getReader()
       await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
         write({
           turnId: meta.turnId,
@@ -497,6 +499,9 @@ export function createTtsSegmentStream(
     }
     catch (err) {
       error(err)
+    }
+    finally {
+      reader.releaseLock()
     }
   })()
 

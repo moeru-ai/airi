@@ -6,6 +6,11 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+} from '../libs/analytics-headers'
 import { useChatOrchestratorStore } from './chat'
 
 vi.hoisted(() => {
@@ -39,7 +44,27 @@ const ioTracerMocks = vi.hoisted(() => {
 
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
-const trackSecondTurnStartedMock = vi.fn()
+const chatAnalyticsMocks = vi.hoisted(() => ({
+  trackAiGeneration: vi.fn(),
+  trackAssistantResponseRendered: vi.fn(),
+  trackChatActivationFailed: vi.fn(),
+  trackChatActivationStarted: vi.fn(),
+  trackChatActivationSucceeded: vi.fn(),
+  trackLlmFirstToken: vi.fn(),
+  trackLlmRequestStarted: vi.fn(),
+  trackMessageRound: vi.fn(),
+  trackMessageRoundFailed: vi.fn(),
+  trackMessageSendStarted: vi.fn(),
+  trackMessageSent: vi.fn(),
+  trackSecondTurnStarted: vi.fn(),
+}))
+const trackSecondTurnStartedMock = chatAnalyticsMocks.trackSecondTurnStarted
+const redundantChatAnalyticsMocks = vi.hoisted(() => ({
+  trackAssistantResponseCompleted: vi.fn(),
+  trackChatFailed: vi.fn(),
+  trackChatStarted: vi.fn(),
+  trackFeatureUsed: vi.fn(),
+}))
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
@@ -63,21 +88,24 @@ vi.mock('pinia', async () => {
 })
 
 vi.mock('../composables', () => ({
+  getConversationAnalyticsSurface: () => 'web',
   useAnalytics: () => ({
     trackFirstMessage: trackFirstMessageMock,
-    trackChatFailed: vi.fn(),
-    trackChatStarted: vi.fn(),
-    trackMessageSendStarted: vi.fn(),
-    trackMessageSent: vi.fn(),
-    trackLlmRequestStarted: vi.fn(),
-    trackLlmFirstToken: vi.fn(),
-    trackAssistantResponseRendered: vi.fn(),
-    trackAssistantResponseCompleted: vi.fn(),
-    trackMessageRound: vi.fn(),
-    trackFeatureUsed: vi.fn(),
-    trackChatActivationStarted: vi.fn(),
-    trackChatActivationSucceeded: vi.fn(),
-    trackChatActivationFailed: vi.fn(),
+    trackChatFailed: redundantChatAnalyticsMocks.trackChatFailed,
+    trackChatStarted: redundantChatAnalyticsMocks.trackChatStarted,
+    trackMessageSendStarted: chatAnalyticsMocks.trackMessageSendStarted,
+    trackMessageSent: chatAnalyticsMocks.trackMessageSent,
+    trackLlmRequestStarted: chatAnalyticsMocks.trackLlmRequestStarted,
+    trackLlmFirstToken: chatAnalyticsMocks.trackLlmFirstToken,
+    trackAiGeneration: chatAnalyticsMocks.trackAiGeneration,
+    trackAssistantResponseRendered: chatAnalyticsMocks.trackAssistantResponseRendered,
+    trackAssistantResponseCompleted: redundantChatAnalyticsMocks.trackAssistantResponseCompleted,
+    trackMessageRound: chatAnalyticsMocks.trackMessageRound,
+    trackMessageRoundFailed: chatAnalyticsMocks.trackMessageRoundFailed,
+    trackFeatureUsed: redundantChatAnalyticsMocks.trackFeatureUsed,
+    trackChatActivationStarted: chatAnalyticsMocks.trackChatActivationStarted,
+    trackChatActivationSucceeded: chatAnalyticsMocks.trackChatActivationSucceeded,
+    trackChatActivationFailed: chatAnalyticsMocks.trackChatActivationFailed,
     trackSecondTurnStarted: trackSecondTurnStartedMock,
   }),
 }))
@@ -166,7 +194,12 @@ describe('chat orchestrator contract', () => {
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
-    trackSecondTurnStartedMock.mockReset()
+    for (const analyticsMock of Object.values(chatAnalyticsMocks))
+      analyticsMock.mockReset()
+    redundantChatAnalyticsMocks.trackAssistantResponseCompleted.mockReset()
+    redundantChatAnalyticsMocks.trackChatFailed.mockReset()
+    redundantChatAnalyticsMocks.trackChatStarted.mockReset()
+    redundantChatAnalyticsMocks.trackFeatureUsed.mockReset()
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
@@ -190,6 +223,84 @@ describe('chat orchestrator contract', () => {
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
   })
 
+  it('forwards one correlation identity across every PostHog chat milestone', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const messageProperties = chatAnalyticsMocks.trackMessageSent.mock.calls[0]?.[0]
+    expect(messageProperties).toMatchObject({
+      conversation_id: 'session-1',
+      round_id: messageProperties.message_id,
+      turn_index: 1,
+    })
+
+    const correlation = {
+      conversation_id: 'session-1',
+      round_id: messageProperties.round_id,
+      turn_index: 1,
+    }
+    expect(chatAnalyticsMocks.trackMessageSendStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackLlmRequestStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackLlmFirstToken).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackAssistantResponseRendered).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackChatActivationStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackChatActivationSucceeded).toHaveBeenCalledWith(expect.objectContaining(correlation))
+  })
+
+  it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onUsage({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('custom turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
+      round_id: expect.any(String),
+      provider_type: 'custom',
+      provider_id: 'mock-provider',
+      model_id: 'gpt-test',
+      usage_source: 'reported',
+      input_tokens: 12,
+      output_tokens: 8,
+      total_tokens: 20,
+    })
+
+    chatAnalyticsMocks.trackAiGeneration.mockClear()
+    activeProviderRef.value = 'official-provider'
+    await store.ingest('official turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).not.toHaveBeenCalled()
+    expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
+      [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+  })
+
   it('emits second turn analytics from chat sends', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
@@ -210,9 +321,64 @@ describe('chat orchestrator contract', () => {
 
     expect(trackSecondTurnStartedMock).toHaveBeenCalledTimes(1)
     expect(trackSecondTurnStartedMock).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
       provider_id: 'official-provider',
       provider_mode: 'official',
       model_id: 'chat-auto',
+      round_id: expect.any(String),
+      source: 'text',
+      turn_index: 2,
+    })
+  })
+
+  // ROOT CAUSE:
+  //
+  // One successful send emitted both the canonical message/latency events
+  // and four generic aliases, multiplying PostHog volume without adding a
+  // distinct product decision.
+  it('does not emit redundant generic chat aliases for a successful send', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(redundantChatAnalyticsMocks.trackChatStarted).not.toHaveBeenCalled()
+    expect(redundantChatAnalyticsMocks.trackAssistantResponseCompleted).not.toHaveBeenCalled()
+    expect(redundantChatAnalyticsMocks.trackChatFailed).not.toHaveBeenCalled()
+    expect(redundantChatAnalyticsMocks.trackFeatureUsed).not.toHaveBeenCalled()
+  })
+
+  it('forwards later-turn failures to the canonical round failure event', async () => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+    llmStreamMock.mockRejectedValueOnce(new Error('later turn rejected'))
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('first turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    await expect(store.ingest('second turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('later turn rejected')
+
+    expect(chatAnalyticsMocks.trackChatActivationFailed).not.toHaveBeenCalled()
+    expect(chatAnalyticsMocks.trackMessageRoundFailed).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
+      error_code: 'llm_response_failed',
+      failure_stage: 'llm_response',
+      model_id: 'gpt-test',
+      provider_id: 'mock-provider',
+      round_id: expect.any(String),
       source: 'text',
       turn_index: 2,
     })

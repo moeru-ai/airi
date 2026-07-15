@@ -1,6 +1,7 @@
 import type { Database } from '../../libs/db'
 import type { ProductMetrics } from '../../otel'
 import type { ProductEventMetadata } from '../../schemas/product-events'
+import type { PosthogSink } from '../adapters/posthog'
 
 import { useLogger } from '@guiiai/logg'
 import { and, asc, count, gte, lt, sql } from 'drizzle-orm'
@@ -75,6 +76,45 @@ export interface ProductEventAggregateRow {
   distinctUsers: number
 }
 
+export type AiGenerationAppSurface = 'server' | 'web' | 'mobile' | 'electron'
+
+/** Content-free PostHog AI generation fact keyed to the authenticated user. */
+export interface AiGenerationEventInput {
+  userId: string
+  traceId: string
+  generationId: string
+  model: string
+  provider: string
+  providerType: 'official' | 'custom' | 'unknown'
+  usageSource: 'reported' | 'estimated' | 'unavailable'
+  inputTokens?: number
+  outputTokens?: number
+  totalTokens?: number
+  conversationId?: string
+  roundId?: string
+  appSurface: AiGenerationAppSurface
+  latencySeconds?: number
+  stream?: boolean
+}
+
+/**
+ * Server-side actions worth a PostHog copy, mapped to the event name the
+ * client-side funnels expect. Only business facts that terminate or anchor
+ * a funnel are forwarded — per-request LLM/TTS volume stays in Postgres and
+ * Grafana where it belongs (see `docs/ai-context/metrics-ownership.md`).
+ *
+ * `user_signed_up` maps to `signup_completed` because the identified server
+ * hook is the canonical registration fact for every signup method. Anonymous
+ * auth UI progress uses `signup_form_completed` and never reuses this name.
+ */
+const POSTHOG_FORWARDED_ACTIONS: Partial<Record<ProductAction, string>> = {
+  user_signed_up: 'signup_completed',
+  payment_completed: 'payment_completed',
+  subscription_started: 'subscription_started',
+  subscription_renewed: 'subscription_renewed',
+  subscription_cancelled: 'subscription_cancelled',
+}
+
 /**
  * Builds bounded Prometheus labels from product event inputs.
  */
@@ -96,6 +136,11 @@ function metricLabels(input: ProductEventInput): Record<string, string> {
   return attrs
 }
 
+function stringMetadata(input: ProductEventInput, key: string): string | undefined {
+  const value = input.metadata?.[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
 /**
  * Creates AIRI's first-party product analytics event writer.
  *
@@ -113,9 +158,50 @@ function metricLabels(input: ProductEventInput): Record<string, string> {
  * Returns:
  * - Best-effort event writer plus a DB aggregation helper for analytics jobs.
  */
-export function createProductEventService(db: Database, metrics?: ProductMetrics | null) {
+export function createProductEventService(db: Database, metrics?: ProductMetrics | null, posthog?: PosthogSink | null) {
   return {
+    trackGeneration(input: AiGenerationEventInput): void {
+      if (!posthog)
+        return
+
+      const event = {
+        distinctId: input.userId,
+        event: '$ai_generation',
+        properties: {
+          $ai_trace_id: input.traceId,
+          ...(input.conversationId && { $ai_session_id: input.conversationId }),
+          $ai_span_id: input.generationId,
+          $ai_model: input.model,
+          $ai_provider: input.provider,
+          ...(input.inputTokens != null && { $ai_input_tokens: input.inputTokens }),
+          ...(input.outputTokens != null && { $ai_output_tokens: input.outputTokens }),
+          ...(input.totalTokens != null && { $ai_total_tokens: input.totalTokens }),
+          ...(input.latencySeconds != null && { $ai_latency: input.latencySeconds }),
+          ...(input.stream != null && { $ai_stream: input.stream }),
+          $insert_id: `ai-generation:${input.generationId}`,
+          provider_type: input.providerType,
+          usage_source: input.usageSource,
+          ...(input.conversationId && { conversation_id: input.conversationId }),
+          ...(input.roundId && { round_id: input.roundId }),
+          app_surface: input.appSurface,
+        },
+      }
+
+      if (posthog.captureQueued) {
+        posthog.captureQueued(event)
+        return
+      }
+
+      void posthog.capture(event)
+        .catch(err => logger.withError(err).withFields({ generationId: input.generationId }).warn('Failed to capture PostHog AI generation'))
+    },
+
     async track(input: ProductEventInput): Promise<void> {
+      // Postgres is the fact of record, so forwarding is gated both ways:
+      // the DB write comes first (a PostHog outage can't lose the row) and
+      // forwarding only runs when the row actually landed (a DB outage
+      // can't mint PostHog events with no DB backing).
+      let persisted = false
       try {
         await db.insert(schema.productEvents).values({
           userId: input.userId,
@@ -129,6 +215,7 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
           metadata: input.metadata,
           createdAt: input.createdAt,
         })
+        persisted = true
 
         metrics?.events.add(1, metricLabels(input))
       }
@@ -139,6 +226,49 @@ export function createProductEventService(db: Database, metrics?: ProductMetrics
           action: input.action,
           status: input.status,
         }).warn('Failed to write product event; swallowing to protect caller')
+      }
+
+      // PostHog copy so browser funnels (identified by the same Better Auth
+      // user id) get their server-side terminator events.
+      const forwardedEvent = POSTHOG_FORWARDED_ACTIONS[input.action]
+      if (persisted && posthog && forwardedEvent) {
+        try {
+          const posthogDistinctId = stringMetadata(input, 'posthog_distinct_id')
+          const posthogSessionId = stringMetadata(input, 'posthog_session_id')
+          if (posthogDistinctId && posthogDistinctId !== input.userId) {
+            await posthog.capture({
+              distinctId: input.userId,
+              event: '$identify',
+              properties: {
+                $anon_distinct_id: posthogDistinctId,
+                airi_user_id: input.userId,
+                ...(posthogSessionId && { $session_id: posthogSessionId }),
+              },
+            })
+          }
+
+          await posthog.capture({
+            distinctId: input.userId,
+            event: forwardedEvent,
+            properties: {
+              app_surface: 'server',
+              airi_user_id: input.userId,
+              ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
+              ...(posthogSessionId && { $session_id: posthogSessionId }),
+              feature: input.feature,
+              status: input.status,
+              ...(input.source && { source: input.source }),
+              ...(input.reason && { reason: input.reason }),
+              ...input.metadata,
+            },
+          })
+        }
+        catch (err) {
+          // The sink contract already swallows transport errors; this guard
+          // is the last line so a misbehaving sink can never fail the
+          // webhook/auth flow that produced the business fact.
+          logger.withError(err).withFields({ action: input.action }).warn('PostHog forwarding threw; product event already persisted')
+        }
       }
     },
 

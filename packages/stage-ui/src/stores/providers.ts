@@ -132,7 +132,7 @@ function trackModelListLoaded(properties: {
 
   capturePosthogEvent('model_list_loaded', {
     ...properties,
-    surface: analyticsSurface(),
+    app_surface: analyticsSurface(),
   })
 }
 
@@ -150,7 +150,7 @@ function trackModelListFailed(properties: {
 
   capturePosthogEvent('model_list_failed', {
     ...properties,
-    surface: analyticsSurface(),
+    app_surface: analyticsSurface(),
   })
 }
 
