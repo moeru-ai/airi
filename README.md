@@ -1,10 +1,9 @@
-<img width="1314" height="1197" alt="anima-banner-v2" src="https://github.com/user-attachments/assets/58182d60-ecb8-4e12-86e5-e5bff72071cc" />
-
 <div align="center">
-<h3>Anima is an agentic AI desktop OS built around your digital companion</h3>
+<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/715c9a3e-1e2f-4002-bedb-bea3b2e8dcc1" />
+<h3>AI driven desktop/cyberdeck/wearable OS</h3>
 <sub>
 
-💙🐧 AnimAIOS distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
+💙🐧 AnimaDesktop distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
 
 </sub>
 </div>
@@ -19,6 +18,7 @@
 - **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
 
 ## 🖥️ Development
+
   <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
@@ -34,7 +34,7 @@
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
-  <img width="1444" height="1089" alt="anima-banner" src="https://github.com/user-attachments/assets/575a8549-d5a5-4b98-af05-0c8be745c611" />
+  <img width="1314" height="1197" alt="anima-banner-v2" src="https://github.com/user-attachments/assets/58182d60-ecb8-4e12-86e5-e5bff72071cc" />
 
 ### ☕ Prerequisites
 
@@ -87,12 +87,15 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 
 ## ✌🏻 Acknowledgements
 
-<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/715c9a3e-1e2f-4002-bedb-bea3b2e8dcc1" />
+  <img width="1444" height="1089" alt="anima-banner" src="https://github.com/user-attachments/assets/575a8549-d5a5-4b98-af05-0c8be745c611" />
 
-- [`moeru-ai/airi`](https://github.com/moeru-ai/airi) project and [`dasilva333/airi`](https://github.com/dasilva333/airi) fork
+- the original project [`moeru-ai/airi`](https://github.com/moeru-ai/airi)
+  - and its awesome desktop-oriented fork! [`dasilva333/airi`](https://github.com/dasilva333/airi)
 - everyone who visited this page :з <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20my%20little%20clicks%20counter&countColor=%23263759&style=flat" alt="Visitor counter" /></a>
-- starring the repo also helps to promote the idea of character AI driven desktop/cyberdeck/wearable OS!
-- community <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2" alt="Discord member count"></a>
+- awesome community <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2" alt="Discord member count"></a>
+> [!TIP]
+> ⭐ the repo helps to promote the idea of AI driven desktop/cyberdeck/wearable OS!
+
 
 ## 🚙 Roadmap
 
@@ -117,7 +120,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 - [ ] **AnimAIOS (WIP)**
   - [x] System tray & screen capture integration
   - [ ] Generate native GTK3/4 windows instead of web widgets
-  - [ ] [AnimAIOS Linux MCP](https://github.com/animaios/linux-mcp) deep integration
+  - [ ] [anima-use-desktop](https://github.com/animaios/anima-use-desktop) deep integration
     - [ ] Send recent context snapshot with each AIRI heartbeat
   - [ ] AIRI chatbox doubles as a system terminal with natural language detection (similar to Warp terminal)
 - [ ] **Misc**
