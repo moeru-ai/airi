@@ -1,4 +1,4 @@
-<img width="1254" height="972" alt="kawaii anima-chan" src="https://github.com/user-attachments/assets/3d7e78c3-8fb5-4537-b5a3-b0eb38548274" />
+<img width="1314" height="1197" alt="anima-banner-v2" src="https://github.com/user-attachments/assets/58182d60-ecb8-4e12-86e5-e5bff72071cc" />
 
 <div align="center">
 <h3>Anima is an agentic AI desktop OS built around your digital companion</h3>
@@ -19,8 +19,6 @@
 - **Modular Stage Layouts:** GTK3/4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
 
 ## 🖥️ Development
-  <img width="256" height="384" alt="AnimAIOS mascot" src="https://github.com/user-attachments/assets/0d048b16-c5f2-4d9a-8735-ce1417256b22" />
-  <br>
   <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
@@ -36,6 +34,7 @@
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
+  <img width="1444" height="1089" alt="anima-banner" src="https://github.com/user-attachments/assets/575a8549-d5a5-4b98-af05-0c8be745c611" />
 
 ### ☕ Prerequisites
 
