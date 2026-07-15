@@ -4,8 +4,11 @@
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
   <a href="https://animaios.github.io/anima">
-    <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+    <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs"> 
   </a>
+  <a href="https://github.com/animaios/anima#-readme_locale_en_us-">readme</a>
+  <a href="https://github.com/animaios/anima#-%E3%83%AA%E3%83%BC%E3%83%89%E3%83%9F%E3%83%BBlocale_ja_jp-">リードミー</a>
+  <a href="https://github.com/animaios/anima#-%E8%AF%BB%E6%88%91_locale_zh_cn-">读我</a>
   <br>
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
