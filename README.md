@@ -1,3 +1,5 @@
+##### 🗽 readme_locale_en_US 🇺🇸
+
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
@@ -11,10 +13,7 @@
 <img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
 </div>
 
-#### 🗽 readme_locale_en_US 🇺🇸
-
 <div align=center>
-<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/4751f514-346e-4193-b12b-efc335f02441" />
 <sub>
     <p><h2>
         AnimAIOS distro based on 
