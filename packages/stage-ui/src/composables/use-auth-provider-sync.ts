@@ -32,6 +32,9 @@ const STREAMING_SPEECH_PROVIDER_ID = 'official-provider-speech-streaming'
 /**
  * Glue layer: uses auth lifecycle hooks to activate/deactivate
  * official providers. Providers themselves know nothing about auth.
+ *
+ * Call once from each app renderer root so direct sign-in routes and
+ * auxiliary windows do not depend on the transient Stage scene lifecycle.
  */
 export function useAuthProviderSync() {
   initializeAuth()
@@ -44,15 +47,38 @@ export function useAuthProviderSync() {
   const hearingStore = useHearingStore()
   const { trackOfficialProviderSelected } = useAnalytics()
 
-  // Track whether the sync has already fired in this session to avoid
-  // re-running on every page navigation (onAuthenticated fires immediately
-  // if already signed in when the hook is registered).
+  // Track the completed and in-flight work separately. Authentication can be
+  // announced more than once while a catalog request is still pending; those
+  // notifications share one task, while a failed task remains retryable.
   let hasSynced = false
+  let authGeneration = 0
+  let syncInFlight: Promise<void> | undefined
 
   authStore.onAuthenticated(async () => {
     if (hasSynced)
       return
-    hasSynced = true
+
+    if (syncInFlight)
+      return syncInFlight
+
+    const generation = authGeneration
+    const task = syncAuthenticatedProviders(generation)
+    syncInFlight = task
+
+    try {
+      await task
+      if (generation === authGeneration)
+        hasSynced = true
+    }
+    finally {
+      if (syncInFlight === task)
+        syncInFlight = undefined
+    }
+  })
+
+  async function syncAuthenticatedProviders(generation: number) {
+    if (generation !== authGeneration)
+      return
 
     const toActivate = AUTH_ACTIVATED_PROVIDERS.filter(
       p => providersStore.getProviderMetadata(p.id) != null,
@@ -116,8 +142,13 @@ export function useAuthProviderSync() {
       console.error('error loading models for official providers', err)
     }
 
+    // Logout may happen while provider catalogs are loading. The logout hook
+    // owns cleanup, so stale work must not re-enable streaming TTS afterward.
+    if (generation !== authGeneration)
+      return
+
     await syncStreamingSpeechProvider()
-  })
+  }
 
   // Bootstrap the streaming TTS provider from the server's availability signal.
   // Probing populates `getStreamingTtsAvailable()` (and the default model /
@@ -164,6 +195,7 @@ export function useAuthProviderSync() {
   }
 
   authStore.onLogout(() => {
+    authGeneration++
     hasSynced = false
 
     for (const { id } of AUTH_ACTIVATED_PROVIDERS) {

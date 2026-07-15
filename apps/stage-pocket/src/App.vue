@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -19,6 +20,8 @@ import { toast, Toaster } from 'vue-sonner'
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
 
 import { getHostWebSocketConnector } from './modules/websocket-bridge'
+
+useAuthProviderSync()
 
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
