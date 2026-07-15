@@ -1,5 +1,6 @@
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
 
+import { isCapacitorNativePlatform } from './capacitor-runtime'
 import { SERVER_URL } from './server'
 
 // OIDC Authorization Code + PKCE client for all platforms.
@@ -142,30 +143,39 @@ export async function refreshAccessToken(
   return await response.json()
 }
 
-// Session storage keys for PKCE flow state (survives page navigation during OAuth)
+// NOTICE: native shells use localStorage — ASWeb return navigation often drops sessionStorage.
 const FLOW_STATE_KEY = 'auth/v1/oidc-flow-state'
 const FLOW_PARAMS_KEY = 'auth/v1/oidc-flow-params'
+
+function getOidcFlowStorage(): Storage {
+  if (isCapacitorNativePlatform())
+    return localStorage
+
+  return sessionStorage
+}
 
 /**
  * Persist OIDC flow state before navigating to the authorization server.
  */
 export function persistFlowState(flowState: OIDCFlowState, params: OIDCFlowParams): void {
-  sessionStorage.setItem(FLOW_STATE_KEY, JSON.stringify(flowState))
-  sessionStorage.setItem(FLOW_PARAMS_KEY, JSON.stringify(params))
+  const storage = getOidcFlowStorage()
+  storage.setItem(FLOW_STATE_KEY, JSON.stringify(flowState))
+  storage.setItem(FLOW_PARAMS_KEY, JSON.stringify(params))
 }
 
 /**
  * Retrieve and clear persisted OIDC flow state after callback.
  */
 export function consumeFlowState(): { flowState: OIDCFlowState, params: OIDCFlowParams } | null {
-  const flowStateRaw = sessionStorage.getItem(FLOW_STATE_KEY)
-  const paramsRaw = sessionStorage.getItem(FLOW_PARAMS_KEY)
+  const storage = getOidcFlowStorage()
+  const flowStateRaw = storage.getItem(FLOW_STATE_KEY)
+  const paramsRaw = storage.getItem(FLOW_PARAMS_KEY)
 
   if (!flowStateRaw || !paramsRaw)
     return null
 
-  sessionStorage.removeItem(FLOW_STATE_KEY)
-  sessionStorage.removeItem(FLOW_PARAMS_KEY)
+  storage.removeItem(FLOW_STATE_KEY)
+  storage.removeItem(FLOW_PARAMS_KEY)
 
   return {
     flowState: JSON.parse(flowStateRaw),

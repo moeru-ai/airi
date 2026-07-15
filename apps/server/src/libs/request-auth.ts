@@ -81,12 +81,22 @@ function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession
 
 let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
 
+function localJwksUrl(env: Env): URL {
+  const host = env.HOST ?? '0.0.0.0'
+  const lookupHost = host === '0.0.0.0' || host === '127.0.0.1'
+    ? '127.0.0.1'
+    : host === '::'
+      ? '::1'
+      : host
+  const origin = lookupHost.includes(':')
+    ? `http://[${lookupHost}]:${env.PORT}`
+    : `http://${lookupHost}:${env.PORT}`
+  return new URL('/api/auth/jwks', origin)
+}
+
 function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
-  if (!cachedJWKS) {
-    cachedJWKS = createRemoteJWKSet(
-      new URL('/api/auth/jwks', env.API_SERVER_URL),
-    )
-  }
+  if (!cachedJWKS)
+    cachedJWKS = createRemoteJWKSet(localJwksUrl(env))
   return cachedJWKS
 }
 

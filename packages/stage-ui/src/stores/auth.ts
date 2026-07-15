@@ -7,7 +7,6 @@ import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
-import { triggerSignIn } from '../libs/auth'
 import { refreshAccessToken } from '../libs/auth-oidc'
 
 /**
@@ -50,7 +49,16 @@ export const useAuthStore = defineStore('auth', () => {
   whenever(needsLogin, async () => {
     if (isStageTamagotchi())
       return
-    await triggerSignIn()
+    try {
+      const { triggerSignIn } = await import('../libs/auth')
+      await triggerSignIn()
+    }
+    catch {
+      // Native auth sheet cancelled or sign-in failed.
+    }
+    finally {
+      needsLogin.value = false
+    }
   })
 
   // Reset the flag if the viewport class flips, so a stale needsLogin from a
