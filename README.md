@@ -1,6 +1,6 @@
 <div align="center">
 <img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/65f2c261-aa10-49cd-93ef-76a94d0a3c92" />
-  <h3>AI driven desktop/cyberdeck/wearable OS</h3>
+  <h3>AnimAIOS is an AI driven desktop/cyberdeck/wearable OS</h3>
 <sub>
 
 💙🐧 AnimAIOS Desktop distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
