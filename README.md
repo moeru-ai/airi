@@ -34,7 +34,8 @@
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
-  <img width="1314" height="1197" alt="anima-banner-v2" src="https://github.com/user-attachments/assets/58182d60-ecb8-4e12-86e5-e5bff72071cc" />
+
+<img width="1327" height="1185" alt="anima-banner-v2 8" src="https://github.com/user-attachments/assets/0740a556-5b52-46e1-82cd-650affef4169" />
 
 ### ☕ Prerequisites
 
