@@ -168,7 +168,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 </a>
 </div>
 <div align=center>
-<img width="1254" height="1254" alt="anima-logo-ja-v2 1" src="https://github.com/user-attachments/assets/10a77ef0-f322-43e0-bbfe-5d2905297589" />
+<img width="1254" height="1254" alt="anima-logo-ja-v2 2" src="https://github.com/user-attachments/assets/cb958041-4f9c-4801-b8f5-f23a35e36fb6" />
 <sub>
   <p>
     <h2>
