@@ -3,12 +3,10 @@
   <h3>AI driven desktop/cyberdeck/wearable OS</h3>
 <sub>
 
-💙🐧 AnimaDesktop distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
+💙🐧 AnimAIOS Desktop distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
 
 </sub>
 </div>
-
----
 
 ## 🌙 The Vision
 
