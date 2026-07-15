@@ -699,7 +699,7 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 * [ ] Provedores de Embeddings: Em breve™
 * [ ] Sistema gamificado de energia baseado no [AnimaRouter](https://github.com/animaios/animarouter) que vai substituir o provider oficial da AIRI: uma fonte praticamente infinita de tokens grátis e deliciosos pras suas cyber waifus, LLMs e embeddings~ Ou simplesmente faz um clone do AnimaRouter e hospeda você mesmo com BYOK! A UI vai permitir alternar facilmente entre provedores AnimaRouter locais ou hospedados.
 
-# 🌸 AnimAIOS Project Activity プロジェクト活動 项目活动
+# 🌸 AnimAIOS Project Activity プロジェクト活動 项目活动 Atividade do projeto
 
 <a href="https://github.com/orgs/animaios/repositories">
   <img src="https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg" alt="Organization Heatmap">
