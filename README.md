@@ -1,6 +1,6 @@
 <div align="center">
-<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/715c9a3e-1e2f-4002-bedb-bea3b2e8dcc1" />
-<h3>AI driven desktop/cyberdeck/wearable OS</h3>
+<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/65f2c261-aa10-49cd-93ef-76a94d0a3c92" />
+  <h3>AI driven desktop/cyberdeck/wearable OS</h3>
 <sub>
 
 💙🐧 AnimaDesktop distro based on [EndeavourOS](https://endeavouros.com/) coming this fall! with all packages auto-optimized for your CPU using [CachyOS](https://packages.cachyos.org/) repos
@@ -35,7 +35,7 @@
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
   </a>
 
-<img width="1327" height="1185" alt="anima-banner-v2 8" src="https://github.com/user-attachments/assets/0740a556-5b52-46e1-82cd-650affef4169" />
+<img width="1313" height="1198" alt="anima-banner-v2 9" src="https://github.com/user-attachments/assets/3d3d1ca2-6c52-412b-be5f-97f5700f8669" />
 
 ### ☕ Prerequisites
 
