@@ -43,6 +43,8 @@ export function clampLimit(limit?: number): number {
 export function resolveSenderId(role: string, userId: string, characterId?: string | null): string | null {
   if (role === 'user')
     return userId
+  if (role === 'assistant')
+    return characterId ?? userId
   return characterId ?? null
 }
 
@@ -257,7 +259,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           throw createConflictError('Message already belongs to another chat')
 
         // The stored sender identifies the owner; request.role is client-controlled.
-        if (existingMessages.some(message => message.senderId !== null && message.senderId !== userId))
+        if (existingMessages.some(message => message.senderId !== userId))
           throw createForbiddenError()
 
         const existingIds = new Set(existingMessages.map(m => m.id))

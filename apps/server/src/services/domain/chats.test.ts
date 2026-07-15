@@ -15,8 +15,8 @@ describe('resolveSenderId', () => {
   it('returns characterId for non-user role when available', () => {
     expect(resolveSenderId('assistant', 'user-123', 'char-456')).toBe('char-456')
   })
-  it('returns null for non-user role without characterId', () => {
-    expect(resolveSenderId('assistant', 'user-123')).toBeNull()
+  it('returns userId for assistant role without a characterId', () => {
+    expect(resolveSenderId('assistant', 'user-123')).toBe('user-123')
     expect(resolveSenderId('system', 'user-123', null)).toBeNull()
   })
 })
@@ -149,6 +149,35 @@ describe('pushMessages', () => {
     const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
     expect(message?.role).toBe('assistant')
     expect(message?.content).toBe('response')
+    expect(message?.senderId).toBe('member')
+  })
+
+  it('rejects updates to unowned assistant messages', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values([
+      { chatId: 'group', memberType: 'user', userId: 'author' },
+      { chatId: 'group', memberType: 'user', userId: 'member' },
+    ])
+    await db.insert(schema.messages).values({
+      id: 'message',
+      chatId: 'group',
+      senderId: null,
+      role: 'assistant',
+      seq: 1,
+      content: 'original response',
+      mediaIds: [],
+      stickerIds: [],
+    })
+
+    const service = createChatService(db)
+
+    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'assistant', content: 'forged response' }]))
+      .rejects
+      .toMatchObject({ statusCode: 403, errorCode: 'FORBIDDEN', message: 'Forbidden' })
+
+    const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
+    expect(message?.content).toBe('original response')
+    expect(message?.seq).toBe(1)
   })
 
   it('rejects roles that are not part of cloud chat sync', async () => {
