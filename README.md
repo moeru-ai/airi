@@ -167,9 +167,10 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 </a>
 </div>
 <div align=center>
-<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/20474a2b-9ebb-4d14-a1e7-6767281b9056" />
+<img width="1254" height="1254" alt="anima-logo-ja-v2 1" src="https://github.com/user-attachments/assets/10a77ef0-f322-43e0-bbfe-5d2905297589" />
 <sub>
-    <p><h2>
+  <p>
+    <h2>
         <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>
         ベースの AnimAIOS ディストリビューション。
         この秋、あなたの Linux デスクトップ / Termux / サイバーデッキ / ウェアラブルへ。
@@ -178,7 +179,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
         <a href="https://packages.cachyos.org/" target="_blank">CachyOS</a>
         リポジトリによる CPU 最適化済みソフトウェアをプリインストール。
     </h2>
-    </p>
+  </p>
 </sub>
 </div>
 
