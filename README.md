@@ -85,9 +85,14 @@ cd apps/stage-tamagotchi
 _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.deb` into `.zst` for Arch/Manjaro/CachyOS)._
 -->
 
-## 🌸 Project activity
+## ✌🏻 Acknowledgements
 
-[![Organization Heatmap](https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg)](https://github.com/orgs/animaios/repositories)
+<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/715c9a3e-1e2f-4002-bedb-bea3b2e8dcc1" />
+
+- [`moeru-ai/airi`](https://github.com/moeru-ai/airi) project and [`dasilva333/airi`](https://github.com/dasilva333/airi) fork
+- everyone who visited this page :з <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20my%20little%20clicks%20counter&countColor=%23263759&style=flat" alt="Visitor counter" /></a>
+- starring the repo also helps to promote the idea of character AI driven desktop/cyberdeck/wearable OS!
+- community <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2" alt="Discord member count"></a>
 
 ## 🚙 Roadmap
 
@@ -121,16 +126,13 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
   - [ ] Add mcp/skills via natural language prompts
   - [ ] Native Wayland Support using Ozone platform flags
 
-## 🤖 LLM API Providers
+## 🤖 API Providers
 
-- [x] Supported providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
-- [ ] Planned [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system integration that will replace official AIRI provider, a limitless source of free yummy tokens for your cyber waifus~ Or just clone AnimaRouter and host it yourself with BYOK! UI will allow easy switch between hosted/localhost AnimaRouter providers!
+- [x] Supported LLM providers: everything [xsai](https://github.com/moeru-ai/xsai) supports
+- [ ] Supported TTS providers: TBD
+- [ ] Supported Embedding providers: TBD
+- [ ] [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system that will replace official AIRI provider, a limitless source of free yummy tokens for all your cyber waifus LLM and Embedding needs~ Or clone AnimaRouter and host it yourself with BYOK! UI will allow easy switching between hosted/local AnimaRouter providers!
 
----
+## 🌸 Project activity
 
-## 🙏 Acknowledgements
-
-- [`moeru-ai/airi`](https://github.com/moeru-ai/airi) project and [`dasilva333/airi`](https://github.com/dasilva333/airi) fork
-
-  <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/"><img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20my%20little%20clicks%20counter&countColor=%23263759&style=flat" alt="Visitor counter" /></a>
-  <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2" alt="Discord member count"></a>
+[![Organization Heatmap](https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg)](https://github.com/orgs/animaios/repositories)
