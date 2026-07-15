@@ -385,7 +385,7 @@
 <rect x="694" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>1 commits</title></rect>
 <rect x="708" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>1 commits</title></rect>
 <rect x="722" y="112" width="11" height="11" rx="2" ry="2" fill="#7a2d51"><title>2 commits</title></rect>
-<rect x="736" y="112" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"><title>7 commits</title></rect>
+<rect x="736" y="112" width="11" height="11" rx="2" ry="2" fill="#ff6b9d"><title>6 commits</title></rect>
 <rect x="750" y="112" width="11" height="11" rx="2" ry="2" fill="#c63578"><title>4 commits</title></rect>
 <rect x="764" y="112" width="11" height="11" rx="2" ry="2" fill="#161b22"><title>no activity</title></rect>
 <text x="700" y="143" text-anchor="end" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">Less</text>
@@ -401,8 +401,8 @@
 <text x="474" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">5432</text>
 <text x="36" y="201" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animatty</text>
 <rect x="186" y="212" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
-<rect x="186" y="212" width="162" height="10" rx="3" ry="3" fill="#ff6b9d"/>
-<text x="474" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3150</text>
+<rect x="186" y="212" width="164" height="10" rx="3" ry="3" fill="#ff6b9d"/>
+<text x="474" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">3182</text>
 <text x="36" y="221" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">anima</text>
 <rect x="186" y="232" width="280" height="10" rx="3" ry="3" fill="#21262d"/>
 <rect x="186" y="232" width="96" height="10" rx="3" ry="3" fill="#ff6b9d"/>
@@ -444,5 +444,5 @@
 <rect x="186" y="412" width="1" height="10" rx="3" ry="3" fill="#ff6b9d"/>
 <text x="474" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">20</text>
 <text x="36" y="421" fill="#c9d1d9" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11">animadock</text>
-<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 12186 commits across 15 repos · 2026-07-15 · refreshed 4x daily by CI</text>
+<text x="36" y="460" fill="#6e7681" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10">animaios org activity · 12218 commits across 15 repos · 2026-07-15 · refreshed 4x daily by CI</text>
 </svg>
