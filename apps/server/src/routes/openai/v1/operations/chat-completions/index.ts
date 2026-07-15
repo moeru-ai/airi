@@ -22,7 +22,7 @@ export interface ChatCompletionsOperationRequest {
   body: Record<string, unknown>
   sessionId?: string
   roundId?: string
-  appSurface: AiGenerationAppSurface
+  appSurface?: AiGenerationAppSurface
   abortSignal?: AbortSignal
 }
 
@@ -32,7 +32,7 @@ interface GenerationCaptureInput {
   requestId: string
   sessionId?: string
   roundId?: string
-  appSurface: AiGenerationAppSurface
+  appSurface?: AiGenerationAppSurface
   generationModel: string
   routeCtxProvider: string
   usage: UsageInfo
@@ -240,13 +240,14 @@ interface ChatModelAliasPlan {
 
 function captureGeneration(input: GenerationCaptureInput): void {
   const generationId = input.roundId ?? input.requestId
+  const conversationId = input.sessionId ?? input.requestId
   const totalTokens = input.usage.promptTokens != null && input.usage.completionTokens != null
     ? input.usage.promptTokens + input.usage.completionTokens
     : undefined
 
   input.deps.productEventService.trackGeneration({
     userId: input.userId,
-    traceId: input.sessionId ?? input.requestId,
+    traceId: conversationId,
     generationId,
     model: input.generationModel,
     provider: input.routeCtxProvider || 'unknown',
@@ -257,9 +258,12 @@ function captureGeneration(input: GenerationCaptureInput): void {
     inputTokens: input.usage.promptTokens,
     outputTokens: input.usage.completionTokens,
     totalTokens,
-    conversationId: input.sessionId,
+    costUsdSource: 'unavailable',
+    conversationId,
+    conversationIdSource: input.sessionId ? 'client_header' : 'server_request',
     roundId: generationId,
-    appSurface: input.appSurface,
+    ...(input.appSurface && { appSurface: input.appSurface }),
+    captureSurface: 'server',
     latencySeconds: input.durationMs / 1000,
     stream: input.stream,
   })
@@ -356,7 +360,7 @@ function streamChatCompletion(input: {
   userId: string
   sessionId?: string
   roundId?: string
-  appSurface: AiGenerationAppSurface
+  appSurface?: AiGenerationAppSurface
   requestModel: string
   generationModel: string
   routeCtxProvider: string
@@ -579,7 +583,7 @@ async function completeNonStreamingChat(input: {
   userId: string
   sessionId?: string
   roundId?: string
-  appSurface: AiGenerationAppSurface
+  appSurface?: AiGenerationAppSurface
   requestModel: string
   generationModel: string
   routeCtxProvider: string

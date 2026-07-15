@@ -5,6 +5,7 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -71,6 +72,9 @@ const initialWindowRoutePath = resolveInitialChatSyncRoutePath(route.path)
 const chatSyncLifecycle = createChatSyncWindowLifecycle(route.path)
 const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
 const isSettingsWindowRoute = initialWindowRoutePath.startsWith('/settings')
+
+if (!isSpotlightWindowRoute)
+  useAuthProviderSync()
 
 function createFullStageRuntime() {
   const contextBridgeStore = useContextBridgeStore()
