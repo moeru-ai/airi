@@ -3,12 +3,18 @@
   <a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
     <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
-  <a href="https://animaios.github.io/anima">
-    <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs"> 
-  </a>
-  <a href="https://github.com/animaios/anima#-readme_locale_en_us-">readme</a>
-  <a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">リードミー</a>
-  <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">读我</a>
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
+</a>
   <br>
   <a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
     <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
