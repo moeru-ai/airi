@@ -155,6 +155,18 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 
 #### 🌸 readme_locale_ja_JP 🇯🇵
 
+<div align="center">
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
+</a>
+<img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
+</div>
 <div align=center>
 <img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/20474a2b-9ebb-4d14-a1e7-6767281b9056" />
 <sub>
@@ -327,6 +339,18 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
 #### 🏮 readme_locale_zh_CN 🇨🇳
 
+<div align="center">
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
+</a>
+<img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
+</div>
 <div align=center>
 <img width="1254" height="1254" alt="anima-logo-zh-v2" src="https://github.com/user-attachments/assets/f2039dc9-b0c8-4d3b-96c7-da500466e5eb" />
 <sub>
