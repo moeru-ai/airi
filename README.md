@@ -1,10 +1,4 @@
 <div align="center">
-<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
-  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
-</a>
-<a href="https://animaios.github.io/anima">
-  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
-</a>
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English-1e3a8a" alt="English README">
 </a>
@@ -13,15 +7,6 @@
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
   <img src="https://img.shields.io/badge/读我-中文-dc2626" alt="Chinese README">
-</a>
-<br>
-<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
-  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
-<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
-  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
-</a>
-<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
-  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
 </a>
 <img width="1386" height="1135" alt="anima-banner-v4 7" src="https://github.com/user-attachments/assets/ebd86ee7-1dda-4aa9-a762-fe0284d5c7dc" />
 </div>
@@ -49,6 +34,25 @@
 - **System Integration:** Hooks fully into the system, from basic stuff like notifications to fully managing your Linux via terminal in Agentic Mode
 - **Context Awareness:** Your companion observes desktop activity to respond and interact proactively and she can also assume full desktop control in Agentic Mode
 - **Modular Stage Layouts:** GTK4 widgets, interactively generated backgrounds through artistry module, and window layouts composed dynamically by characters
+
+## 🖥️ Development
+
+<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
+</a>
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+<br>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+</div>
 
 ### ☕ Prerequisites
 
@@ -174,6 +178,25 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 - **システム・インテグレーション:** 通知のようなベーシック機能から、エージェンティック・モードで Linux 全体をターミナル経由でフルマネージメントまで完全統合
 - **コンテキスト・アウェアネス:** コンパニオンはデスクトップアクティビティをオブザーブし、プロアクティブにレスポンス＆インタラクション。さらにエージェンティック・モードではデスクトップ完全コントロールも可能
 - **モジュラー・ステージ・レイアウト:** GTK4 ウィジェット、アーティストリーモジュールによるインタラクティブ生成バックグラウンド、そしてキャラクター自身がダイナミック構成するウィンドウレイアウト
+
+## 🖥️ デベロップメント
+
+<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
+</a>
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+<br>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+</div>
 
 ### ☕ プリリクイジット
 
@@ -326,6 +349,25 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 - **System Integration（系统级融合）:** 从基础 Notification 到 Agentic Mode 下通过 Terminal 完整管理你的 Linux，深度 Hook 整个系统
 - **Context Awareness（上下文感知）:** Companion 会观察你的 Desktop Activity，主动响应和交互；在 Agentic Mode 下甚至可以接管完整 Desktop Control
 - **Modular Stage Layouts（模块化舞台布局）:** GTK4 Widgets、通过 Artistry Module 动态生成的 Interactive Background，以及由角色动态组合的 Window Layouts
+
+## 🖥️ 上强度开发
+
+<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
+</a>
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+<br>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+</div>
 
 ### ☕ 环境要求
 
