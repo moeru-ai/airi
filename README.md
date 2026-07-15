@@ -29,10 +29,7 @@
   <img width="1445" height="1088" alt="anima-banner-lightingfix" src="https://github.com/user-attachments/assets/dd289588-6e88-48b5-af86-6f1035bdde95" /> 
 </div>
 
-# 🗽 readME ・ en_US 
-
-> [!IMPORTANT]
-> 🚧 Under construction
+#### 🗽 readme_locale_en_US 🇺🇸
 
 ## 🌙 The Vision
 
@@ -61,6 +58,9 @@ pnpm dev:tamagotchi
 ```
 
 🍎🐧 Tauri desktop app:
+
+> [!IMPORTANT]
+> 🚧 Under construction
 
 ```shell
 pnpm i
@@ -140,12 +140,12 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 - [ ] Supported Embedding providers: TBD
 - [ ] [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system that will replace official AIRI provider, a limitless source of free yummy tokens for all your cyber waifus LLM and Embedding needs~ Or clone AnimaRouter and host it yourself with BYOK! UI will allow easy switching between hosted/local AnimaRouter providers!
 
-# 🌸 リードミー ・ ja_JP 
+#### 🌸 リードミー_locale_ja_JP 🇯🇵
+
+<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/20474a2b-9ebb-4d14-a1e7-6767281b9056" />
 
 > [!IMPORTANT]
 > 🚧 アンダー・コンストラクション
-
-<img width="1254" height="1254" alt="anima-logo-ja-v2" src="https://github.com/user-attachments/assets/20474a2b-9ebb-4d14-a1e7-6767281b9056" />
 
 # 🌸 Project activity
 
