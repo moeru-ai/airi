@@ -153,7 +153,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 - [ ] Supported Embedding providers: TBD
 - [ ] [AnimaRouter](https://github.com/animaios/animarouter)-based gamified energy system that will replace official AIRI provider, a limitless source of free yummy tokens for all your cyber waifus LLM and Embedding needs~ Or clone AnimaRouter and host it yourself with BYOK! UI will allow easy switching between hosted/local AnimaRouter providers!
 
-#### 🌸 readme_locale_ja_JP 🇯🇵
+##### 🌸 readme_locale_ja_JP 🇯🇵
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
@@ -336,7 +336,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
   UI からホスト型 / ローカル AnimaRouter プロバイダーをイージースイッチできます！
 
-#### 🏮 readme_locale_zh_CN 🇨🇳
+##### 🏮 readme_locale_zh_CN 🇨🇳
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
