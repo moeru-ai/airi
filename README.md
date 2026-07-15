@@ -163,7 +163,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
@@ -352,7 +352,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
@@ -545,7 +545,7 @@ _(可选 PKGBUILD 位于 `apps/stage-tamagotchi`，用于将 `.deb` Repackage �
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
@@ -717,7 +717,7 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
   <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_ja_jp-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
   <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
