@@ -11,7 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
@@ -92,6 +92,14 @@ const {
   validationMessage,
   forceValid,
 } = useProviderValidation(providerId)
+
+// Voices come from the remote Fish Audio catalog, so the mount-time load
+// returns nothing until credentials are set. Reload whenever the config
+// (re)validates so the voice picker fills in without leaving the page.
+watch(isValid, async (valid) => {
+  if (valid)
+    await speechStore.loadVoicesForProvider(providerId)
+})
 </script>
 
 <template>
