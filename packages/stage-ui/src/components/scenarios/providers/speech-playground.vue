@@ -35,13 +35,18 @@ const selectedVoice = ref('')
 
 // Watch for changes in available voices. Besides seeding the initial
 // selection, reseed when the current voice drops out of the list (e.g. the
-// page filtered the catalog by model compatibility) so generation can't
-// submit a voice that is no longer offered.
+// page filtered the catalog by model compatibility) and clear it when no
+// voice is offered at all, so generation can't submit a hidden voice.
 watch(
   () => props.availableVoices,
   (newVoices) => {
+    if (newVoices.length === 0) {
+      selectedVoice.value = ''
+      return
+    }
+
     const selectionAvailable = newVoices.some(voice => voice.id === selectedVoice.value)
-    if (newVoices.length > 0 && (!selectedVoice.value || !selectionAvailable)) {
+    if (!selectedVoice.value || !selectionAvailable) {
       selectedVoice.value = newVoices[0]?.id || ''
     }
   },
