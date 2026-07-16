@@ -94,10 +94,12 @@ const {
 } = useProviderValidation(providerId)
 
 // Voices come from the remote Fish Audio catalog, so the mount-time load
-// returns nothing until credentials are set. Reload whenever the config
-// (re)validates so the voice picker fills in without leaving the page.
-watch(isValid, async (valid) => {
-  if (valid)
+// returns nothing until credentials are set. Reload after every completed
+// successful validation (isValidating drains to 0) rather than on isValid
+// transitions: swapping one valid API key or base URL for another keeps
+// isValid true, but the account-specific voice catalog still changes.
+watch([isValidating, isValid], async ([validating, valid], [prevValidating]) => {
+  if (validating === 0 && prevValidating > 0 && valid)
     await speechStore.loadVoicesForProvider(providerId)
 })
 </script>

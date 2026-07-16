@@ -187,6 +187,7 @@ describe('fishAudio voice listing', () => {
       expect(voices?.[0].provider).toBe('fish-audio')
       expect(voices?.[0].previewURL).toBe('https://example.com/sample.mp3')
       expect(voices?.[0].languages).toEqual([{ code: 'en', title: 'English' }])
+      expect(voices?.[0].compatibleModels).toEqual(['s1'])
     }
     finally {
       fetchSpy.mockRestore()

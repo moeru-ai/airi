@@ -162,6 +162,7 @@ export function buildFishAudioProvider(
           description: voice.description,
           previewURL: voice.preview_audio_url,
           languages: voice.languages,
+          compatibleModels: voice.compatible_models,
         } satisfies VoiceInfo))
       },
     },
