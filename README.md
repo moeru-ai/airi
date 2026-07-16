@@ -2436,8 +2436,8 @@ Die Zukunft deines Desktops schreibt sich nicht von allein.
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-pl-v1" src="https://github.com/user-attachments/assets/ec5fa4a0-c6c2-499e-85ed-8e786e2c7723" />
-<sub>
+<img width="1254" height="1254" alt="anima-logo-pl-v1 1" src="https://github.com/user-attachments/assets/ee4c8f28-ce4d-4963-ad6e-66f29a785336" />
+  <sub>
 <h2>
 
 <b>AnimAIOS</b> — dystrybucja nowej generacji oparta na
