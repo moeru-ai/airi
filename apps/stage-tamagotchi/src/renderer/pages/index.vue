@@ -34,10 +34,12 @@ import { toast } from 'vue-sonner'
 
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
+import ScreenAwarenessCaption from '../components/stage-islands/screen-awareness-caption.vue'
 import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useScreenAwareness } from '../composables/use-screen-awareness'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -51,6 +53,9 @@ import {
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const statusIslandRef = ref<InstanceType<typeof StatusIsland>>()
+const screenAwarenessCaptionRef = ref<InstanceType<typeof ScreenAwarenessCaption>>()
+const screenAwarenessCaptionElement = toRef(() => screenAwarenessCaptionRef.value?.rootElement)
+const screenAwarenessVideoRef = ref<HTMLVideoElement | null>(null)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
 const stageCanvas = toRef(() => widgetStageRef.value?.canvasElement())
 const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
@@ -66,8 +71,10 @@ const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 const { isOutside } = useElectronMouseInElement(controlsIslandRef)
 const { isOutside: isOutsideStatusIsland } = useElectronMouseInElement(statusIslandRef)
+const { isOutside: isOutsideScreenAwarenessCaption } = useElectronMouseInElement(screenAwarenessCaptionElement)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
 const isOutsideStatusIslandFor250Ms = refDebounced(isOutsideStatusIsland, 250)
+const isOutsideScreenAwarenessCaptionFor250Ms = refDebounced(isOutsideScreenAwarenessCaption, 250)
 const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
@@ -186,7 +193,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isOutsideScreenAwarenessCaptionFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -204,7 +211,9 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     return
   }
 
-  const insideControls = !isOutsideFor250Ms.value || !isOutsideStatusIslandFor250Ms.value
+  const insideControls = !isOutsideFor250Ms.value
+    || !isOutsideStatusIslandFor250Ms.value
+    || (!!screenAwarenessCaptionRef.value && !isOutsideScreenAwarenessCaptionFor250Ms.value)
   const nearBorder = isAroundWindowBorderFor250Ms.value
 
   if (insideControls || nearBorder) {
@@ -641,6 +650,12 @@ const cursorPosition = computed(() => ({
   x: relativeMouseX.value,
   y: relativeMouseY.value,
 }))
+
+const {
+  snapshot: screenAwarenessSnapshot,
+  responseVisible: screenAwarenessResponseVisible,
+  dismissResponse: dismissScreenAwarenessResponse,
+} = useScreenAwareness(screenAwarenessVideoRef)
 </script>
 
 <template>
@@ -678,6 +693,14 @@ const cursorPosition = computed(() => ({
           :cursor-position="cursorPosition"
           :paused="stagePaused"
         />
+        <ScreenAwarenessCaption
+          v-if="screenAwarenessResponseVisible"
+          ref="screenAwarenessCaptionRef"
+          :response="screenAwarenessSnapshot.lastResponse"
+          :response-key="screenAwarenessSnapshot.lastObservedAt"
+          @close="dismissScreenAwarenessResponse"
+        />
+        <video ref="screenAwarenessVideoRef" :class="['hidden']" muted playsinline />
         <HoloCoupon />
         <ControlsIsland ref="controlsIslandRef" />
       </div>
