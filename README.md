@@ -974,8 +974,8 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
   <img src="https://img.shields.io/badge/прочитай%20меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-fr-v1 1" src="https://github.com/user-attachments/assets/a772a01e-fd49-44b2-8e6b-26c5e88a04aa" />
-<sub>
+<img width="1254" height="1254" alt="anima-logo-fr-v1 2" src="https://github.com/user-attachments/assets/015c859a-37cc-4cac-82f4-42a3d8984a01" />
+  <sub>
     <p>
     <h2>
         Distribution AnimAIOS basée sur
