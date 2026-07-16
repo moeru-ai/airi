@@ -38,6 +38,9 @@
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
 <img width="1387" height="1134" alt="anima-banner-v4 7 1" src="https://github.com/user-attachments/assets/03ccef48-9929-4d43-a7d3-242747dd6e83" />
 <sub>
     <p><h2>
@@ -220,6 +223,9 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ja-v4 1" src="https://github.com/user-attachments/assets/c5f72538-c74b-488e-9351-aa835ec21388" />  
   <sub>
@@ -432,6 +438,9 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ko-v2" src="https://github.com/user-attachments/assets/7e7c977a-9d52-4093-a78f-0c9ff6ff3348" />
   <sub>
@@ -646,6 +655,9 @@ _(Arch/Manjaro/CachyOS용 `.deb` → `.zst` 리패키징 옵션 PKGBUILD는 `app
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-zh-v3" src="https://github.com/user-attachments/assets/16ec33d1-f094-4a85-8a53-b7f766022ad5" />
   <sub>
@@ -864,6 +876,9 @@ _(可选 PKGBUILD 位于 `apps/stage-tamagotchi`，用于将 `.deb` Repackage �
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
 <img width="1254" height="1254" alt="animaios-logo-pt-v2" src="https://github.com/user-attachments/assets/310d321d-1796-43b8-9dde-de712f567c80" />
   <sub>
     <p>
@@ -1064,6 +1079,9 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
 <img width="1254" height="1254" alt="anima-logo-fr-v2" src="https://github.com/user-attachments/assets/cff6754e-8640-4d18-9421-f825348d3d03" />  
   <sub>
     <p>
@@ -1249,6 +1267,9 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ru-v3" src="https://github.com/user-attachments/assets/98b26d05-16c0-4aef-a4d5-5edb4044764d" />  
   <sub>
@@ -1446,6 +1467,9 @@ _(Опциональный PKGBUILD лежит в `apps/stage-tamagotchi` и п�
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ar-v1" src="https://github.com/user-attachments/assets/88dd575a-7c52-46d1-8464-f49a1fdceeca" />
 <sub>
@@ -1681,6 +1705,9 @@ Tauri يسمح لنا بالحفاظ على تجربة Vue 3 ورفيقة AIRI �
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
 <img width="1254" height="1254" alt="anima-logo-fa-v2" src="https://github.com/user-attachments/assets/b377311b-af62-45ba-ae10-cad58dada207" />  
 <sub>
 <h2>
@@ -1903,6 +1930,9 @@ Tauri اجازه می‌دهد تجربه Vue 3 و AIRI حفظ شود، اما �
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-tr-v1" src="https://github.com/user-attachments/assets/2585f3be-0a4c-4634-b6f6-1e32e1daca0f" />
 <sub>
@@ -2154,6 +2184,9 @@ Geleceği sen yaz. >_<
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
 <img width="1254" height="1254" alt="anima-logo-de-v1" src="https://github.com/user-attachments/assets/9a703b3f-7d10-4350-bcba-4e35da7f19c0" />
 <sub>
 <h2>
@@ -2400,6 +2433,9 @@ Die Zukunft deines Desktops schreibt sich nicht von allein.
 <a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
   <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
 </a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
 <img width="1254" height="1254" alt="anima-logo-pl-v1" src="https://github.com/user-attachments/assets/ec5fa4a0-c6c2-499e-85ed-8e786e2c7723" />
 <sub>
 <h2>
@@ -2605,6 +2641,264 @@ Przyszłość pulpitu nie napisze się sama.
 **Pisz kod.**
 **Automatyzuj świat.**
 **Twórz jutro.** 🚀
+
+##### 🌌🐆 readme_locale_kk_KZ 🇰🇿
+
+╭─[animaios@github]─[~/anima] <br>
+╰─➜ AnimAIOS жобасына қош келдің! Тіліңді таңда:
+
+<div align="center">
+
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/read%20me-English%20-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia%20me-Português%20-16a34a" alt="Português README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
+  <img src="https://img.shields.io/badge/lisez%20moi-Français%20-B59410" alt="Français README">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай%20меня-Русский%20-71706E" alt="Русский README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ar_sa-">
+  <img src="https://img.shields.io/badge/اقرأني-العربية%20-8B5CF6" alt="Arabic README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_fa_ir-">
+  <img src="https://img.shields.io/badge/بخونش-فارسی%20-10B981" alt="README فارسی">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
+  <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
+</a>
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
+  <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
+  <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
+  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
+</a>
+
+<img width="1387" height="1134" alt="anima-banner-kazakh" src="https://github.com/user-attachments/assets/YOUR_KAZAKH_BANNER_ID" />
+
+<sub>
+<h2>
+
+<b>AnimAIOS</b> — 
+<a href="https://endeavouros.com/" target="_blank">EndeavourOS</a> негізіндегі
+
+<br>
+
+жаңа буын AI операциялық ортасы.
+
+</h2>
+
+<h3>
+
+Linux Desktop / Termux / CyberDeck / Wearable құрылғыларында
+өзіңнің AI серігіңді іске қос.
+
+<br>
+
+CPU-ға арнайы оңтайландырылған бағдарламалар
+<a href="https://packages.cachyos.org/" target="_blank">CachyOS</a> репозиторийлерімен келеді.
+
+<br>
+
+Код жаз. Автоматтандыр. Болашақты құр. ⚡
+
+</h3>
+</sub>
+
+</div>
+
+
+## 🌙 Идея
+
+- **AI серігің әрқашан қасыңда:**
+
+  Сенің кейіпкерің жұмыс үстелінде өмір сүреді.
+  Терезелерді ашады, жабады, ауыстырады және Accessibility интеграциясы арқылы мәтіндерді оқи алады.
+
+- **Жүйемен толық байланыс:**
+
+  Қарапайым хабарламалардан бастап Linux жүйесін терминал арқылы толық басқаруға дейін Agentic Mode мүмкіндігі.
+
+- **Контексті түсіну:**
+
+  AI серігі жұмыс барысыңды байқайды, жағдайды түсінеді және қажет кезде әрекетті өзі бастайды.
+
+- **Модульдік әлем:**
+
+  GTK4 виджеттері, AI арқылы жасалған фондар және кейіпкерге бейімделетін динамикалық интерфейстер.
+
+
+## 🖥️ Даму
+
+<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
+</a>
+
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+
+
+### ☕ Қажетті құралдар
+
+- pnpm
+- Node.js (Electron қолданбасы)
+- Rust (Tauri қолданбасы)
+
+
+### 🖱️ Жылдам бастау
+
+Қазіргі ұсынылатын desktop нұсқасы:
+
+```
+
+apps/stage-tamagotchi/
+
+```
+
+ішіндегі Electron версиясы.
+
+Tauri нұсқасы белсенді түрде жасалуда:
+
+```
+
+apps/stage-tauri/
+
+````
+
+
+🍎🐧🪟 Electron Desktop:
+
+```shell
+pnpm i
+pnpm dev:tamagotchi
+````
+
+🍎🐧 Tauri Desktop:
+
+> [!IMPORTANT]
+> 🚧 Құрылу үстінде
+
+```shell
+pnpm i
+cd apps/stage-tauri
+./init.sh
+cargo tauri dev
+```
+
+`./init.sh` жергілікті Tauri ортасын, Rust toolchain және `cargo-tauri` CLI тексереді.
+
+Қажет болса:
+
+```shell
+cargo install tauri-cli --version '^2.0'
+```
+
+### ❔ Неге Tauri?
+
+Tauri бізге Vue 3 интерфейсін және AIRI тәжірибесін сақтап, Electron орнына жеңіл Rust backend қолдануға мүмкіндік береді.
+
+Нәтижесі:
+
+* Аз RAM қолдану 🚀
+* Кішірек native жинақтар
+* Linux-пен жақсы интеграция
+* Mobile native нұсқаларға таза жол
+
+Бұл бағыт AIRI-дің Android және iOS нұсқаларына апарады.
+
+## ✌🏻 Алғыс
+
+* Бастапқы жоба:
+
+[`moeru-ai/airi`](https://github.com/moeru-ai/airi)
+
+* Керемет desktop fork:
+
+[`dasilva333/airi`](https://github.com/dasilva333/airi)
+
+* Осы параққа келген әр адамға :3
+
+* Біздің мықты қауымдастық:
+
+<a href="https://discord.gg/TgQ3Cu2F7A">
+<img src="https://img.shields.io/badge/Discord-Қауымдастыққа%20қосыл-5865F2">
+</a>
+
+> [!TIP]
+> ⭐ Бұл жоба AI негізіндегі desktop, CyberDeck және wearable жүйелерінің болашағын дамытуға бағытталған.
+
+## 🚙 Жол картасы
+
+* [x] **Ми 🧠**
+
+  * [x] *Artistry:* AI сурет генерациясы
+  * [ ] *Проактивтілік:* автономды AI әрекеттері
+  * [ ] *Көп деңгейлі жады:* AnimaVault
+
+* [x] **Құлақ 👂**
+
+  * [x] Құрылғы ішіндегі дауыс тану
+
+* [x] **Ауыз 🗣️**
+
+  * [x] OpenAI үйлесімді дауыс жүйелері
+
+* [x] **Дене 🤖**
+
+  * [x] VRM қолдауы
+  * [ ] LLM арқылы эмоция және қозғалыс басқару
+  * [x] Live2D қолдауы
+
+* [x] **Desktop сахна 🖥️**
+
+  * [ ] Бір экрандағы бірнеше кейіпкер
+  * [ ] Сахна және фон басқару
+
+* [ ] **AnimAIOS ⚡**
+
+  * [x] System Tray және Screen Capture
+  * [ ] Native GTK4 терезелері
+  * [ ] anima-use-desktop интеграциясы
+  * [ ] AIRI Chat-ті AI терминалға айналдыру
+
+## 🤖 API провайдерлері
+
+* [x] Қолдайтын LLM провайдерлері:
+  xsai қолдайтын барлық жүйелер
+
+* [ ] TTS провайдерлері: кейін
+
+* [ ] Embedding провайдерлері: кейін
+
+* [ ] [AnimaRouter](https://github.com/animaios/animarouter)
+
+AI серіктерге арналған геймификацияланған энергия жүйесі.
+
+Cyber companion әлеміңе шексіз мүмкіндіктер 🤖✨
+
+Немесе AnimaRouter-ды өзің орналастырып, BYOK қолдан.
+
+Болашақ өздігінен келмейді.
+
+**Код жаз.**
+**Жүйені автоматтандыр.**
+**Болашақты жаса.** 🚀
 
 <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/">
   <img src="https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fvi70x3%2Fairi&label=%F0%9F%92%93%20my%20little%20clicks%20counter&countColor=%23263759&style=flat" alt="Visitor counter"/>
