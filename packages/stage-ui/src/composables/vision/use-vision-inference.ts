@@ -15,6 +15,8 @@ export interface VisionInferenceInput {
   imageDataUrl: string
   workloadId: VisionWorkloadId
   promptOverride?: string
+  /** 是否将原始推理文本保留给 Vision 调试界面，默认为 true */
+  retainResult?: boolean
 }
 
 // TODO: this should be configurable
@@ -104,8 +106,10 @@ export function useVisionInference() {
       clearTimeout(timeoutHandle)
     }
 
-    lastText.value = buffer.trim()
-    return lastText.value
+    const text = buffer.trim()
+    if (input.retainResult !== false)
+      lastText.value = text
+    return text
   }
 
   return {

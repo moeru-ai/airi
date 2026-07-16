@@ -20,12 +20,16 @@ export interface VisionCapturePayload {
   imageDataUrl: string
   /** Vision workload that describes how the frame should be interpreted. */
   workloadId: VisionWorkloadId
+  /** 可选的一次性提示词，用于替换工作负载默认提示词 */
+  promptOverride?: string
   /** Optional source identifier used to keep context updates stable per source. */
   sourceId?: string
   /** Timestamp recorded when the frame was captured. */
   capturedAt?: number
   /** When `true`, publish the inference result into the character context channel. */
   publishContext?: boolean
+  /** 为 false 时不在 Vision 状态或调试界面中保留原始推理文本 */
+  retainResult?: boolean
 }
 
 function getVisionContextId(payload: Pick<VisionCapturePayload, 'workloadId' | 'sourceId'>) {
@@ -71,10 +75,14 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
       const text = await runVisionInference({
         imageDataUrl: payload.imageDataUrl,
         workloadId: payload.workloadId,
+        promptOverride: payload.promptOverride,
+        retainResult: payload.retainResult,
       })
 
-      lastResultText.value = text
-      lastResultAt.value = Date.now()
+      if (payload.retainResult !== false) {
+        lastResultText.value = text
+        lastResultAt.value = Date.now()
+      }
       lastError.value = null
 
       if (payload.publishContext) {

@@ -94,6 +94,40 @@ describe('vision orchestrator', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/issues/2060
+  it('issue #2060 forwards a one-time prompt override to vision inference', async () => {
+    const store = useVisionOrchestratorStore()
+
+    await store.processCapture({
+      imageDataUrl: 'data:image/jpeg;base64,screen',
+      workloadId: 'screen:interpret',
+      promptOverride: 'Describe only non-sensitive screen context',
+    })
+
+    expect(runVisionInference).toHaveBeenCalledWith({
+      imageDataUrl: 'data:image/jpeg;base64,screen',
+      workloadId: 'screen:interpret',
+      promptOverride: 'Describe only non-sensitive screen context',
+      retainResult: undefined,
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2060
+  it('issue #2060 keeps an in-memory screen capture out of server context', async () => {
+    const store = useVisionOrchestratorStore()
+
+    await store.processCapture({
+      imageDataUrl: 'data:image/jpeg;base64,private-screen',
+      workloadId: 'screen:interpret',
+      publishContext: false,
+      retainResult: false,
+    })
+
+    expect(runVisionInference).toHaveBeenCalledOnce()
+    expect(sendContextUpdate).not.toHaveBeenCalled()
+    expect(store.lastResultText).toBe('')
+  })
+
   it('records inference failures on the store before rethrowing', async () => {
     const store = useVisionOrchestratorStore()
     runVisionInference.mockRejectedValueOnce(new Error('Vision inference failed'))
