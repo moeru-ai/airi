@@ -46,13 +46,19 @@ const modelOptions = computed(() => {
   }))
 })
 
-const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
-
 const model = computed({
   get: () => config.value?.model || defaultModel,
   set: (value) => {
     ensureProviderConfig().model = value
   },
+})
+
+// Fish Audio reference voices currently work with every model generation,
+// but honor per-voice compatibility metadata so the picker never offers a
+// voice the selected model can't use if the catalog narrows it later.
+const availableVoices = computed(() => {
+  const voices = speechStore.availableVoices[providerId] || []
+  return voices.filter(voice => !voice.compatibleModels?.length || voice.compatibleModels.includes(model.value))
 })
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
