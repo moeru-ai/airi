@@ -17,6 +17,8 @@ export interface VisionInferenceInput {
   promptOverride?: string
   /** 是否将原始推理文本保留给 Vision 调试界面，默认为 true */
   retainResult?: boolean
+  /** 调用方用于取消当前 Vision 请求的信号 */
+  abortSignal?: AbortSignal
 }
 
 // TODO: this should be configurable
@@ -45,6 +47,7 @@ export function useVisionInference() {
   const lastText = ref('')
 
   async function runVisionInference(input: VisionInferenceInput) {
+    input.abortSignal?.throwIfAborted()
     if (!activeProvider.value || !activeModel.value)
       throw new Error('Vision provider/model not configured')
 
@@ -80,11 +83,23 @@ export function useVisionInference() {
 
     let buffer = ''
     const abortController = new AbortController()
+    /**
+     * 将调用方取消状态转发给实际 LLM 流
+     *
+     * 返回值为 void
+     */
+    const handleCallerAbort = () => {
+      abortController.abort(input.abortSignal?.reason)
+    }
+    input.abortSignal?.addEventListener('abort', handleCallerAbort, { once: true })
+    if (input.abortSignal?.aborted)
+      handleCallerAbort()
     const timeoutHandle = setTimeout(() => {
       abortController.abort(new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`))
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
+      abortController.signal.throwIfAborted()
       await llmStore.stream(activeModel.value, visionProvider, messages, {
         abortSignal: abortController.signal,
         onStreamEvent: (event) => {
@@ -104,6 +119,7 @@ export function useVisionInference() {
     }
     finally {
       clearTimeout(timeoutHandle)
+      input.abortSignal?.removeEventListener('abort', handleCallerAbort)
     }
 
     const text = buffer.trim()

@@ -109,6 +109,7 @@ describe('vision orchestrator', () => {
       workloadId: 'screen:interpret',
       promptOverride: 'Describe only non-sensitive screen context',
       retainResult: undefined,
+      abortSignal: undefined,
     })
   })
 
@@ -126,6 +127,22 @@ describe('vision orchestrator', () => {
     expect(runVisionInference).toHaveBeenCalledOnce()
     expect(sendContextUpdate).not.toHaveBeenCalled()
     expect(store.lastResultText).toBe('')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2060
+  it('issue #2060 does not record caller cancellation as a Vision failure', async () => {
+    const store = useVisionOrchestratorStore()
+    const abortController = new AbortController()
+    abortController.abort(new DOMException('Screen awareness stopped', 'AbortError'))
+    runVisionInference.mockRejectedValueOnce(abortController.signal.reason)
+
+    await expect(store.processCapture({
+      imageDataUrl: 'data:image/jpeg;base64,private-screen',
+      workloadId: 'screen:interpret',
+      abortSignal: abortController.signal,
+    })).rejects.toThrow('Screen awareness stopped')
+
+    expect(store.lastError).toBeNull()
   })
 
   it('records inference failures on the store before rethrowing', async () => {

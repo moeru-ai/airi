@@ -22,6 +22,8 @@ pages:
     privacy:
       title: 隐私优先
       description: 截图仅在内存中处理，绝不会写入磁盘。画面可能包含敏感内容时，AIRI 只会给出通用隐私提醒。
+    permission:
+      description: AIRI 需要获得屏幕录制权限，才能列出或观察显示器。
     capture:
       title: 屏幕捕获
       description: 此处只列出完整显示器，不会提供单独的应用窗口。

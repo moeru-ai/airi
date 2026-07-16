@@ -22,16 +22,18 @@ import { useVisionScreenCapture } from './use-vision-screen-capture'
 const sourcesOptions: SourcesOptions = {
   types: ['screen'],
   fetchWindowIcons: false,
-  thumbnailSize: { width: 1280, height: 720 },
+  thumbnailSize: { width: 0, height: 0 },
 }
 
 /**
  * 等待隐藏视频获得可绘制画面
  *
  * @param video 承载显示器捕获流的隐藏视频元素
+ * @param abortSignal 用于在用户停用屏幕感知时终止等待
  * @returns 视频可绘制时解决的 Promise
  */
-async function waitForVideoFrame(video: HTMLVideoElement) {
+async function waitForVideoFrame(video: HTMLVideoElement, abortSignal: AbortSignal) {
+  abortSignal.throwIfAborted()
   if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0)
     return
 
@@ -50,6 +52,7 @@ async function waitForVideoFrame(video: HTMLVideoElement) {
       clearTimeout(timeout)
       video.removeEventListener('loadeddata', handleLoaded)
       video.removeEventListener('error', handleError)
+      abortSignal.removeEventListener('abort', handleAbort)
     }
 
     /**
@@ -72,8 +75,21 @@ async function waitForVideoFrame(video: HTMLVideoElement) {
       reject(new Error('Screen capture video failed to load'))
     }
 
+    /**
+     * 在观察任务被停用时终止画面等待
+     *
+     * 返回值为 void
+     */
+    function handleAbort() {
+      cleanup()
+      reject(abortSignal.reason)
+    }
+
     video.addEventListener('loadeddata', handleLoaded, { once: true })
     video.addEventListener('error', handleError, { once: true })
+    abortSignal.addEventListener('abort', handleAbort, { once: true })
+    if (abortSignal.aborted)
+      handleAbort()
   })
 }
 
@@ -167,10 +183,13 @@ export function useScreenAwareness(videoRef: Ref<HTMLVideoElement | null>) {
   /**
    * 捕获当前显示器并通过现有 Vision 管线生成隐私安全描述
    *
+   * @param abortSignal 用于在用户停用屏幕感知时终止捕获和 Vision 请求
    * @returns 仅包含安全屏幕上下文的文本
    */
-  async function observeScreen() {
+  async function observeScreen(abortSignal: AbortSignal) {
+    abortSignal.throwIfAborted()
     const selectedSourceId = await ensureSelectedSource()
+    abortSignal.throwIfAborted()
     const video = videoRef.value
     if (!video)
       throw new Error('Screen awareness video element is unavailable')
@@ -178,13 +197,16 @@ export function useScreenAwareness(videoRef: Ref<HTMLVideoElement | null>) {
     let imageDataUrl = ''
     try {
       const stream = await startStream()
+      abortSignal.throwIfAborted()
       video.srcObject = stream
       await video.play()
-      await waitForVideoFrame(video)
+      await waitForVideoFrame(video, abortSignal)
+      abortSignal.throwIfAborted()
 
       imageDataUrl = captureFrame(video) ?? ''
       if (!imageDataUrl)
         throw new Error('Screen capture returned an empty frame')
+      abortSignal.throwIfAborted()
 
       const result = await visionOrchestrator.processCapture({
         imageDataUrl,
@@ -194,6 +216,7 @@ export function useScreenAwareness(videoRef: Ref<HTMLVideoElement | null>) {
         capturedAt: Date.now(),
         publishContext: false,
         retainResult: false,
+        abortSignal,
       })
 
       return protectScreenDescription(result.text)
@@ -210,9 +233,11 @@ export function useScreenAwareness(videoRef: Ref<HTMLVideoElement | null>) {
    * 将屏幕描述交给现有角色主动回应和语音动作管线
    *
    * @param description 已完成隐私保护的屏幕描述
-   * @returns 移除内部标记后的可见角色回应
+   * @param abortSignal 用于在角色请求开始前确认观察任务仍获授权
+   * @returns 包含内部标记的原始角色回应
    */
-  async function respondToScreen(description: string) {
+  async function respondToScreen(description: string, abortSignal: AbortSignal) {
+    abortSignal.throwIfAborted()
     const eventId = crypto.randomUUID()
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
@@ -237,6 +262,7 @@ export function useScreenAwareness(videoRef: Ref<HTMLVideoElement | null>) {
       },
     })
 
+    abortSignal.throwIfAborted()
     return rawResponse
   }
 

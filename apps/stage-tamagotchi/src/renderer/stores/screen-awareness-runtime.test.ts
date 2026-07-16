@@ -15,8 +15,8 @@ import { ScreenAwarenessRuntime } from './screen-awareness-runtime'
  */
 function createRuntimeFixture(optionOverrides: Partial<ScreenAwarenessRuntimeOptions> = {}) {
   const isBusy = vi.fn<() => boolean>(() => false)
-  const observe = vi.fn<() => Promise<string>>(async () => 'screen description')
-  const respond = vi.fn<(description: string) => Promise<string>>(async () => 'character response')
+  const observe = vi.fn<(abortSignal: AbortSignal) => Promise<string>>(async () => 'screen description')
+  const respond = vi.fn<(description: string, abortSignal: AbortSignal) => Promise<string>>(async () => 'character response')
   const onResponse = vi.fn<(response: string) => void>()
   const onStatus = vi.fn<(status: ScreenAwarenessRuntimeStatus) => void>()
 
@@ -109,7 +109,7 @@ describe('screenAwarenessRuntime', () => {
     await Promise.all([firstRequest, secondRequest])
 
     expect(respond).toHaveBeenCalledTimes(1)
-    expect(respond).toHaveBeenCalledWith('shared screen description')
+    expect(respond).toHaveBeenCalledWith('shared screen description', expect.any(AbortSignal))
     expect(onResponse).toHaveBeenCalledTimes(1)
   })
 
@@ -204,6 +204,25 @@ describe('screenAwarenessRuntime', () => {
       trigger: 'manual',
       error: 'stale observation failure',
     })
+  })
+
+  // 回归链接：https://github.com/moeru-ai/airi/issues/2060
+  it('issue #2060 aborts an in-flight observation when screen awareness stops', async () => {
+    const { runtime, observe, respond, onStatus } = createRuntimeFixture()
+    let observationSignal: AbortSignal | undefined
+    observe.mockImplementation((signal: AbortSignal) => new Promise<string>((_, reject) => {
+      observationSignal = signal
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    }))
+
+    runtime.start()
+    const request = runtime.requestNow()
+    runtime.stop()
+    await request
+
+    expect(observationSignal?.aborted).toBe(true)
+    expect(respond).not.toHaveBeenCalled()
+    expect(onStatus).not.toHaveBeenCalledWith(expect.objectContaining({ phase: 'error' }))
   })
 
   // 回归链接：https://github.com/moeru-ai/airi/issues/2060

@@ -30,6 +30,8 @@ export interface VisionCapturePayload {
   publishContext?: boolean
   /** 为 false 时不在 Vision 状态或调试界面中保留原始推理文本 */
   retainResult?: boolean
+  /** 调用方用于取消当前 Vision 请求的信号 */
+  abortSignal?: AbortSignal
 }
 
 function getVisionContextId(payload: Pick<VisionCapturePayload, 'workloadId' | 'sourceId'>) {
@@ -77,6 +79,7 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
         workloadId: payload.workloadId,
         promptOverride: payload.promptOverride,
         retainResult: payload.retainResult,
+        abortSignal: payload.abortSignal,
       })
 
       if (payload.retainResult !== false) {
@@ -118,7 +121,8 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
       return { contextUpdates: 0, text }
     }
     catch (error) {
-      recordError(error)
+      if (!payload.abortSignal?.aborted)
+        recordError(error)
       throw error
     }
   }

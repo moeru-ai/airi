@@ -19,9 +19,9 @@ export interface ScreenAwarenessRuntimeDependencies {
   /** 返回普通聊天、角色回复或语音是否正忙 */
   isBusy: () => boolean
   /** 捕获并解释一次屏幕，返回隐私安全的文本描述 */
-  observe: () => Promise<string>
+  observe: (abortSignal: AbortSignal) => Promise<string>
   /** 根据屏幕描述生成角色回应，返回含内部标记的原始文本 */
-  respond: (description: string) => Promise<string>
+  respond: (description: string, abortSignal: AbortSignal) => Promise<string>
   /** 接收成功生成的原始角色回应 */
   onResponse: (response: string) => void
   /** 接收调度状态变化 */
@@ -65,6 +65,7 @@ export class ScreenAwarenessRuntime {
   private readonly wait: (delayMs: number) => Promise<void>
   private timer: ReturnType<typeof setTimeout> | undefined
   private inFlight: Promise<void> | undefined
+  private inFlightAbortController: AbortController | undefined
   private generation = 0
   private running = false
 
@@ -109,6 +110,7 @@ export class ScreenAwarenessRuntime {
     this.running = false
     this.generation += 1
     this.clearTimer()
+    this.inFlightAbortController?.abort(new DOMException('Screen awareness stopped', 'AbortError'))
     this.dependencies.onStatus({ phase: 'idle' })
   }
 
@@ -170,9 +172,11 @@ export class ScreenAwarenessRuntime {
       return this.inFlight
 
     const generation = this.generation
+    const abortController = new AbortController()
     let nextDelayMs = this.options.getIntervalMs()
+    this.inFlightAbortController = abortController
 
-    this.inFlight = this.execute(trigger, generation)
+    this.inFlight = this.execute(trigger, generation, abortController.signal)
       .then((deferred) => {
         if (deferred) {
           nextDelayMs = this.busyRetryDelayMs
@@ -181,7 +185,7 @@ export class ScreenAwarenessRuntime {
         }
       })
       .catch((error) => {
-        if (generation !== this.generation)
+        if (generation !== this.generation || abortController.signal.aborted)
           return
         this.dependencies.onStatus({
           phase: 'error',
@@ -191,6 +195,8 @@ export class ScreenAwarenessRuntime {
       })
       .finally(() => {
         this.inFlight = undefined
+        if (this.inFlightAbortController === abortController)
+          this.inFlightAbortController = undefined
         if (this.running && generation === this.generation)
           this.schedule(nextDelayMs, generation)
         else if (this.running && !this.timer)
@@ -205,16 +211,18 @@ export class ScreenAwarenessRuntime {
    *
    * @param trigger 本次任务的触发来源
    * @param generation 任务开始时的生命周期代次
+   * @param abortSignal 当前观察生命周期的取消信号
    * @returns 因忙碌而延后时返回 true
    */
-  private async execute(trigger: ScreenAwarenessTrigger, generation: number) {
+  private async execute(trigger: ScreenAwarenessTrigger, generation: number, abortSignal: AbortSignal) {
+    abortSignal.throwIfAborted()
     if (this.dependencies.isBusy()) {
       this.dependencies.onStatus({ phase: 'waiting', trigger })
       return true
     }
 
     this.dependencies.onStatus({ phase: 'observing', trigger })
-    const description = await this.observeWithRetry(generation)
+    const description = await this.observeWithRetry(generation, abortSignal)
     if (generation !== this.generation)
       return false
 
@@ -224,7 +232,7 @@ export class ScreenAwarenessRuntime {
     }
 
     this.dependencies.onStatus({ phase: 'responding', trigger })
-    const response = await this.respondWithRetry(description, generation)
+    const response = await this.respondWithRetry(description, generation, abortSignal)
     if (generation !== this.generation)
       return false
 
@@ -237,14 +245,16 @@ export class ScreenAwarenessRuntime {
    * 在有限次数内获得非空 Vision 描述
    *
    * @param generation 任务开始时的生命周期代次
+   * @param abortSignal 当前观察生命周期的取消信号
    * @returns 去除首尾空白后的屏幕描述
    */
-  private async observeWithRetry(generation: number) {
+  private async observeWithRetry(generation: number, abortSignal: AbortSignal) {
     let lastError: unknown
 
     for (let attempt = 1; attempt <= this.visionMaxAttempts; attempt += 1) {
+      abortSignal.throwIfAborted()
       try {
-        const description = (await this.dependencies.observe()).trim()
+        const description = (await this.dependencies.observe(abortSignal)).trim()
         if (description)
           return description
         lastError = new Error('Vision returned an empty screen description')
@@ -255,8 +265,10 @@ export class ScreenAwarenessRuntime {
 
       if (generation !== this.generation)
         break
-      if (attempt < this.visionMaxAttempts)
+      if (attempt < this.visionMaxAttempts) {
         await this.wait(this.visionRetryBaseDelayMs * attempt)
+        abortSignal.throwIfAborted()
+      }
     }
 
     throw lastError ?? new Error('Vision failed to describe the screen')
@@ -267,11 +279,13 @@ export class ScreenAwarenessRuntime {
    *
    * @param description 隐私安全的屏幕描述
    * @param generation 任务开始时的生命周期代次
+   * @param abortSignal 当前观察生命周期的取消信号
    * @returns 去除首尾空白后的原始角色回应
    */
-  private async respondWithRetry(description: string, generation: number) {
+  private async respondWithRetry(description: string, generation: number, abortSignal: AbortSignal) {
     for (let attempt = 1; attempt <= this.responseMaxAttempts; attempt += 1) {
-      const response = (await this.dependencies.respond(description)).trim()
+      abortSignal.throwIfAborted()
+      const response = (await this.dependencies.respond(description, abortSignal)).trim()
       if (response)
         return response
       if (generation !== this.generation)

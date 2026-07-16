@@ -22,6 +22,8 @@ pages:
     privacy:
       title: Privacy first
       description: Screenshots stay in memory and are never written to disk. When sensitive content may be visible, AIRI is instructed to give only a general privacy reminder.
+    permission:
+      description: Screen Recording permission is required before AIRI can list or observe displays.
     capture:
       title: Display capture
       description: Only full displays are listed. Application windows are not available to this feature.
