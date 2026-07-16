@@ -2187,7 +2187,7 @@ Geleceği sen yaz. >_<
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-de-v2" src="https://github.com/user-attachments/assets/68bd49d1-49a2-457c-b94c-e4ea0abf52ad" />
+<img width="1254" height="1254" alt="anima-logo-de-v3" src="https://github.com/user-attachments/assets/311b23f7-37b6-49e4-95b0-704d21498729" />
 <sub>
 <h2>
 
