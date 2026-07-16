@@ -227,7 +227,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-ja-v4 1" src="https://github.com/user-attachments/assets/c5f72538-c74b-488e-9351-aa835ec21388" />  
+<img width="1254" height="1254" alt="anima-logo-ja-v5" src="https://github.com/user-attachments/assets/1772c996-6e75-4009-822d-df647e254ea4" />  
   <sub>
   <p>
     <h2>
