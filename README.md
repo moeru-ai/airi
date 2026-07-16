@@ -32,7 +32,7 @@
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1387" height="1134" alt="anima-banner-v4 7 1" src="https://github.com/user-attachments/assets/03ccef48-9929-4d43-a7d3-242747dd6e83" />
@@ -212,7 +212,7 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ja-v4 1" src="https://github.com/user-attachments/assets/c5f72538-c74b-488e-9351-aa835ec21388" />  
@@ -421,7 +421,7 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ko-v2" src="https://github.com/user-attachments/assets/7e7c977a-9d52-4093-a78f-0c9ff6ff3348" />
@@ -632,7 +632,7 @@ _(Arch/Manjaro/CachyOS용 `.deb` → `.zst` 리패키징 옵션 PKGBUILD는 `app
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-zh-v3" src="https://github.com/user-attachments/assets/16ec33d1-f094-4a85-8a53-b7f766022ad5" />
@@ -846,7 +846,7 @@ _(可选 PKGBUILD 位于 `apps/stage-tamagotchi`，用于将 `.deb` Repackage �
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="animaios-logo-pt-v2" src="https://github.com/user-attachments/assets/310d321d-1796-43b8-9dde-de712f567c80" />
@@ -1043,7 +1043,7 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-fr-v2" src="https://github.com/user-attachments/assets/cff6754e-8640-4d18-9421-f825348d3d03" />  
@@ -1226,7 +1226,7 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ru-v3" src="https://github.com/user-attachments/assets/98b26d05-16c0-4aef-a4d5-5edb4044764d" />  
@@ -1420,7 +1420,7 @@ _(Опциональный PKGBUILD лежит в `apps/stage-tamagotchi` и п�
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ar-v1" src="https://github.com/user-attachments/assets/88dd575a-7c52-46d1-8464-f49a1fdceeca" />
@@ -1651,7 +1651,7 @@ Tauri يسمح لنا بالحفاظ على تجربة Vue 3 ورفيقة AIRI �
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-fa-v2" src="https://github.com/user-attachments/assets/b377311b-af62-45ba-ae10-cad58dada207" />  
@@ -1871,7 +1871,7 @@ Tauri اجازه می‌دهد تجربه Vue 3 و AIRI حفظ شود، اما �
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-tr-v1" src="https://github.com/user-attachments/assets/2585f3be-0a4c-4634-b6f6-1e32e1daca0f" />
@@ -2118,7 +2118,7 @@ Geleceği sen yaz. >_<
 <a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
   <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
 </a>
-<a href="https://github.com/animaios/anima#-readme_locale_de_de-">
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
   <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-de-v1" src="https://github.com/user-attachments/assets/9a703b3f-7d10-4350-bcba-4e35da7f19c0" />
