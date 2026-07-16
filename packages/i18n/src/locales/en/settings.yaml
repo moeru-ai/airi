@@ -1262,6 +1262,9 @@ pages:
           validation:
             error-missing-api-key: Please enter an API key to test the voice.
         title: ElevenLabs
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       kokoro-local:
         description: Local text-to-speech using Kokoro-82M.
         fields:

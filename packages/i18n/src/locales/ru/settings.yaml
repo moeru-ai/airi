@@ -1209,6 +1209,9 @@ pages:
           validation:
             error-missing-api-key: Введите API-ключ, чтобы протестировать голос.
         title: ElevenLabs
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       kokoro-local:
         description: Локальный синтезатор речи с помощью Kokoro-82M.
         fields:

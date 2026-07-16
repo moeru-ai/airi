@@ -1209,6 +1209,9 @@ pages:
           validation:
             error-missing-api-key: 音声をテストするにはAPIキーを入力してください。
         title: ElevenLabs
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       kokoro-local:
         description: Kokoro-82Mを使用したローカルテキスト読み上げ機能です。
         fields:
