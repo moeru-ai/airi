@@ -3,22 +3,25 @@
 ╰─➜ Welcome to AnimAIOS Project! Please choose your language:
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1387" height="1134" alt="anima-banner-v4 7 1" src="https://github.com/user-attachments/assets/03ccef48-9929-4d43-a7d3-242747dd6e83" />
 <sub>
@@ -168,22 +171,25 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ja-v2 2" src="https://github.com/user-attachments/assets/cb958041-4f9c-4801-b8f5-f23a35e36fb6" />
 <sub>
@@ -360,24 +366,27 @@ _(Arch/Manjaro/CachyOS 用に `.deb` を `.zst` へリパッケージするオ�
 
 ╭─[animaios@github]─[~/anima] <br>
 ╰─➜ AnimAIOS 프로젝트에 오신 걸 환영합니다! 언어를 선택해 주세요:
-
+<div align=center>
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ko-v1" src="https://github.com/user-attachments/assets/e331e778-d314-4124-9d0e-c78112ea8604" />
 <sub>
@@ -558,22 +567,25 @@ _(Arch/Manjaro/CachyOS용 `.deb` → `.zst` 리패키징 옵션 PKGBUILD는 `app
 
 <div align="center">
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-zh-v2 1" src="https://github.com/user-attachments/assets/2a8e25c3-2c8d-45d8-a142-6f6c245da7f9" />  
   <sub>
@@ -757,22 +769,25 @@ _(可选 PKGBUILD 位于 `apps/stage-tamagotchi`，用于将 `.deb` Repackage �
 
 <div align=center>
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1254" height="1254" alt="animaios-logo-pt-v1" src="https://github.com/user-attachments/assets/23676b56-3798-45f4-a3b7-d2fa013847cf" />
 <sub>
@@ -937,22 +952,25 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 
 <div align=center>
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-fr-v1" src="https://github.com/user-attachments/assets/f5f0ae86-59bc-4645-a87c-4e317c48c64c" />
 <sub>
@@ -1103,22 +1121,25 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 
 <div align=center>
 <a href="https://github.com/animaios/anima#-readme_locale_en_us-">
-  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+  <img src="https://img.shields.io/badge/readme-English%20-1e3a8a" alt="English README">
 </a>
 <a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
-  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+  <img src="https://img.shields.io/badge/leia--me-Português%20-16a34a" alt="README em Português do Brasil">
 </a>
 <a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20-0055A4" alt="README en Français">
+</a>
+<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
+  <img src="https://img.shields.io/badge/прочитай--меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ru-v1" src="https://github.com/user-attachments/assets/0d4f723d-a986-4de4-a164-7cb618ad8890" />
 <sub>
