@@ -97,6 +97,12 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
+  // Tracks the latest voice reload per provider. Reloads happen on credential
+  // changes, so a slow superseded request must not overwrite the catalog
+  // fetched with newer credentials, and a failed current reload must not keep
+  // showing the previous credentials' catalog.
+  const voicesRequestGeneration: Record<string, number> = {}
+
   async function loadVoicesForProvider(provider: string, model?: string) {
     if (!provider) {
       return []
@@ -109,11 +115,19 @@ export const useSpeechStore = defineStore('speech', () => {
       return []
     }
 
+    const generation = (voicesRequestGeneration[provider] ?? 0) + 1
+    voicesRequestGeneration[provider] = generation
+
     isLoadingSpeechProviderVoices.value = true
     speechProviderError.value = null
 
     try {
       const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider), model) || []
+      // A newer reload owns the catalog now; drop this superseded response.
+      if (voicesRequestGeneration[provider] !== generation) {
+        return voices
+      }
+
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
@@ -123,7 +137,16 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
+      if (voicesRequestGeneration[provider] === generation) {
+        speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
+        // Clear the stale catalog: keeping voices fetched with previous
+        // credentials would let users pick voices the current credentials
+        // cannot use.
+        availableVoices.value = {
+          ...availableVoices.value,
+          [provider]: [],
+        }
+      }
       return []
     }
     finally {
