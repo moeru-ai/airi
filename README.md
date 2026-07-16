@@ -2081,7 +2081,7 @@ Kodla.
 Otomatikleştir.
 Geleceği sen yaz. >_<
 
-##### ⚙️🐺 readme_locale_de_DE 🇩🇪
+##### ⚙️🎩 readme_locale_de_DE 🇩🇪
 
 ╭─[animaios@github]─[~/anima] <br>
 ╰─➜ Willkommen beim AnimAIOS Projekt! Wähle deine Sprache:
