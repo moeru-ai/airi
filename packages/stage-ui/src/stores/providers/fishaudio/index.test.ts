@@ -184,6 +184,30 @@ describe('fish audio speech provider', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api-fish/model?page_size=20&self=true')
   })
 
+  it('keeps cached voice search results isolated from caller mutations', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({
+        items: [{ _id: 'voice-cached-result', title: 'Cached result' }],
+        total: 1,
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const firstResult = await searchFishAudioVoices({ apiKey: 'isolated-cache-key' })
+    firstResult.items.unshift({ value: 'selected-voice', label: 'Selected voice' })
+
+    const cachedResult = await searchFishAudioVoices({ apiKey: 'isolated-cache-key' })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(cachedResult.items).toEqual([{ value: 'voice-cached-result', label: 'Cached result' }])
+  })
+
   it('caches listVoices calls for identical configurations and search terms', async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
       return new Response(JSON.stringify({

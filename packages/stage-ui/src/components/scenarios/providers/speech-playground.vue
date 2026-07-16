@@ -42,7 +42,7 @@ const ssmlText = ref('')
 watch(
   () => props.availableVoices,
   (newVoices) => {
-    if (newVoices.length > 0 && !selectedVoice.value) {
+    if (!props.hideVoiceSelection && newVoices.length > 0 && !selectedVoice.value) {
       selectedVoice.value = newVoices[0]?.id || ''
     }
   },

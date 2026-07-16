@@ -412,7 +412,10 @@ export async function searchFishAudioVoices(options: FishAudioVoiceQueryOptions 
 
   const cached = voiceSearchCache.get(cacheKey)
   if (cached) {
-    return cached
+    return {
+      ...cached,
+      items: [...cached.items],
+    }
   }
 
   const result = await requestFishAudioModels(options)
@@ -428,7 +431,10 @@ export async function searchFishAudioVoices(options: FishAudioVoiceQueryOptions 
     total: result.total,
   }
   voiceSearchCache.set(cacheKey, searchResult)
-  return searchResult
+  return {
+    ...searchResult,
+    items: [...searchResult.items],
+  }
 }
 
 function extractErrorStatus(error: unknown): number | undefined {
