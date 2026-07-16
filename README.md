@@ -1145,7 +1145,7 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 <a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
   <img src="https://img.shields.io/badge/прочитай%20меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-ru-v2" src="https://github.com/user-attachments/assets/31ed78ee-e0f6-41e5-9b37-a77996cbe1d8" />  
+<img width="1254" height="1254" alt="anima-logo-ru-v3" src="https://github.com/user-attachments/assets/98b26d05-16c0-4aef-a4d5-5edb4044764d" />  
   <sub>
     <p><h2>
         Дистрибутив AnimAIOS на базе 
