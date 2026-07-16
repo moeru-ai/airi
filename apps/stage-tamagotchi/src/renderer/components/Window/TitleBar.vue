@@ -27,6 +27,7 @@ const { platform } = useAppRuntime()
         bg="hover:neutral-200 hover:dark:neutral-800"
         transition="all duration-200 ease-in-out"
         flex cursor-pointer select-none items-center gap-2 rounded-md px-1.5 py-0.5
+        class="[-webkit-app-region:no-drag]"
         @click="emit('titleClick')"
       >
         <div :class="icon" select-none text="neutral-400 dark:neutral-500" whitespace-nowrap />
