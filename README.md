@@ -1082,7 +1082,7 @@ _(Um PKGBUILD opcional fica em `apps/stage-tamagotchi` para reempacotar o `.deb`
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-fr-v2 1" src="https://github.com/user-attachments/assets/0c7643c9-b896-4ed0-a2c0-b83fbbdaf0b0" />
+<img width="1254" height="1254" alt="anima-logo-fr-v3" src="https://github.com/user-attachments/assets/51264398-bebc-4578-9f32-732152884259" />
   <sub>
     <p>
     <h2>
@@ -1271,7 +1271,7 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-ru-v3" src="https://github.com/user-attachments/assets/98b26d05-16c0-4aef-a4d5-5edb4044764d" />  
+<img width="1254" height="1254" alt="anima-logo-ru-v4" src="https://github.com/user-attachments/assets/833e4556-da95-429b-a387-a8fe887816b9" />  
   <sub>
     <p><h2>
         Дистрибутив AnimAIOS на базе 
