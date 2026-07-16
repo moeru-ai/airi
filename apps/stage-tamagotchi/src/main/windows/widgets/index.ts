@@ -15,7 +15,7 @@ import { join, resolve } from 'node:path'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
-import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
+import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
 import { isMacOS } from 'std-env'
 import { number, object, optional } from 'valibot'
@@ -27,7 +27,7 @@ import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/window
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
@@ -242,10 +242,7 @@ function createWidgetsWindow() {
     window.setWindowButtonVisibility(false)
 
   window.on('ready-to-show', () => window.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  protectPrivilegedWindowNavigation(window)
 
   return window
 }
