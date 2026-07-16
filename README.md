@@ -1471,7 +1471,7 @@ _(Опциональный PKGBUILD лежит в `apps/stage-tamagotchi` и п�
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-ar-v1" src="https://github.com/user-attachments/assets/88dd575a-7c52-46d1-8464-f49a1fdceeca" />
+<img width="1254" height="1254" alt="anima-logo-ar-v2" src="https://github.com/user-attachments/assets/3160675c-aeb0-4bf3-93e5-59465acbcc01" />
 <sub>
 <p><h2>
 
@@ -1708,8 +1708,8 @@ Tauri يسمح لنا بالحفاظ على تجربة Vue 3 ورفيقة AIRI �
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-fa-v2" src="https://github.com/user-attachments/assets/b377311b-af62-45ba-ae10-cad58dada207" />  
-<sub>
+<img width="1254" height="1254" alt="anima-logo-fa-v3" src="https://github.com/user-attachments/assets/b7b3e0a9-dee8-40cc-9333-918cb2e4cf1e" />  
+  <sub>
 <h2>
 
 توزیعۀ <b>AnimAIOS</b> ساخته شده بر پایه‌ی 
