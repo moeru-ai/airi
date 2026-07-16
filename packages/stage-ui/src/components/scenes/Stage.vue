@@ -745,6 +745,10 @@ function openTtsSession(): StageTtsSession {
           error: err,
         })
         clearIfActive()
+        // The error path bypasses the playback manager, so its terminal
+        // events never fire and nowSpeaking would stay true, leaving the
+        // mouth open. Reset the speaking state here to close it.
+        resetSpeakingState()
       },
       onDone: () => {
         clearIfActive()

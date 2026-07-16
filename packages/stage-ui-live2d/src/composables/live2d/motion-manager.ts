@@ -462,6 +462,11 @@ export function useMotionUpdatePluginExpression(
  *
  * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
  * gaps between phonemes write 0 directly instead of triggering the release.
+ *
+ * After the release tail elapses, the plugin forces ParamMouthOpenY to 0
+ * instead of writing nothing. This guarantees the mouth closes when an idle
+ * motion curve would otherwise leave ParamMouthOpenY at a non-zero resting
+ * value.
  */
 export function useMotionUpdatePluginLipSync(
   mouthOpenSize: Ref<number>,
@@ -484,8 +489,13 @@ export function useMotionUpdatePluginLipSync(
       return
     }
 
-    if (releaseRemainingMs <= 0)
+    if (releaseRemainingMs <= 0) {
+      // Speech fully ended and the release tail has elapsed. Force the mouth
+      // shut so a stale non-zero resting value (e.g. from an idle motion curve)
+      // cannot keep it open after speaking stops.
+      ctx.model.setParameterValueById('ParamMouthOpenY', 0)
       return
+    }
 
     releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
     const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)
