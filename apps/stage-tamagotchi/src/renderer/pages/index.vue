@@ -216,10 +216,11 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
   }
   else {
     const fadeEnabled = fadeOnHoverEnabled.value
-    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = fadeEnabled
+    // Keep visible model pixels interactive; only transparent pixels should pass clicks through.
+    const shouldIgnoreMouseEvents = fadeEnabled && isTransparent.value
+    isIgnoringMouseEvents.value = shouldIgnoreMouseEvents
     shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
+    setIgnoreMouseEvents([shouldIgnoreMouseEvents, { forward: true }])
     if (fadeEnabled)
       resume()
     else

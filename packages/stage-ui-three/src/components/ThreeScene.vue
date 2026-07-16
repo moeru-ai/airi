@@ -11,6 +11,7 @@ import type { VRM } from '@pixiv/three-vrm'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
+import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
 
@@ -25,12 +26,15 @@ import {
   Euler,
   MathUtils,
   PerspectiveCamera,
+  Raycaster,
+  Vector2,
   Vector3,
 } from 'three'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
+import { getVrmInteractionTargetFromObjectName, isClickLikePointerGesture } from '../composables/vrm/interaction'
 // pinia store
 import { useModelStore } from '../stores/model-store'
 import {
@@ -80,6 +84,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
+  (e: 'vrmInteract', value: VrmInteractionTarget): void
 }>()
 
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
@@ -498,6 +503,9 @@ function onSkyBoxReady(EnvPayload: {
 function onTresReady(context: TresContext) {
   tresContextRef.value = context
   canvasReady.value = true
+  context.renderer.instance.domElement.addEventListener('pointerdown', onCanvasPointerDown)
+  context.renderer.instance.domElement.addEventListener('pointerup', onCanvasPointerUp)
+  context.renderer.instance.domElement.addEventListener('pointercancel', onCanvasPointerCancel)
   emitSceneSubtreeTrace('tresCanvasRef', 'attached')
   setScenePhaseWithTrace(resolveScenePhaseAfterBinding(), 'tres:ready')
 }
@@ -521,6 +529,53 @@ function onTresRender() {
   })
 }
 
+const pickingRaycaster = new Raycaster()
+const pickingMouse = new Vector2()
+let activePointer: { id: number, x: number, y: number } | undefined
+
+function onCanvasPointerDown(event: PointerEvent) {
+  if (!event.isPrimary || event.button !== 0)
+    return
+  activePointer = { id: event.pointerId, x: event.clientX, y: event.clientY }
+}
+
+function onCanvasPointerCancel(event: PointerEvent) {
+  if (activePointer?.id === event.pointerId)
+    activePointer = undefined
+}
+
+function onCanvasPointerUp(event: PointerEvent) {
+  const pointer = activePointer
+  activePointer = undefined
+  if (!pointer || pointer.id !== event.pointerId || !event.isPrimary)
+    return
+  if (!isClickLikePointerGesture(pointer, { x: event.clientX, y: event.clientY }))
+    return
+  handleCanvasInteraction(event)
+}
+
+function handleCanvasInteraction(event: PointerEvent) {
+  const canvasElement = tresContextRef.value?.renderer.instance.domElement
+  if (!canvasElement || !modelRef.value)
+    return
+
+  const rect = canvasElement.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0)
+    return
+
+  pickingMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+  pickingMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+  pickingRaycaster.setFromCamera(pickingMouse, camera.value)
+
+  const activeColliders = modelRef.value.getInteractionColliders?.() ?? []
+  const intersects = pickingRaycaster.intersectObjects([...activeColliders])
+
+  const target = getVrmInteractionTargetFromObjectName(intersects[0]?.object.name ?? '')
+  if (target)
+    emit('vrmInteract', target)
+}
+
 onMounted(() => {
   if (envSelect.value === 'skyBox') {
     skyBoxEnvRef.value?.reload(skyBoxSrc.value)
@@ -528,6 +583,14 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  const canvas = tresContextRef.value?.renderer.instance.domElement
+  if (canvas) {
+    canvas.removeEventListener('pointerdown', onCanvasPointerDown)
+    canvas.removeEventListener('pointerup', onCanvasPointerUp)
+    canvas.removeEventListener('pointercancel', onCanvasPointerCancel)
+  }
+  activePointer = undefined
+
   invalidateBindingRevision()
   if (tresContextRef.value)
     emitSceneSubtreeTrace('tresCanvasRef', 'detached')

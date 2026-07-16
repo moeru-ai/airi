@@ -78,6 +78,12 @@ export function useVRMEmote(vrm: VRMCore) {
       ],
       blendDuration: 0.5,
     }],
+    ['relaxed', {
+      expression: [
+        { name: 'relaxed', value: 0.7 },
+      ],
+      blendDuration: 0.4,
+    }],
   ])
 
   const clearResetTimeout = () => {
@@ -121,7 +127,15 @@ export function useVRMEmote(vrm: VRMCore) {
 
     // Override target values for specified expressions in the emotion state
     for (const expr of emotionState.expression || []) {
-      targetExpressionValues.value.set(expr.name, expr.value * normalizedIntensity)
+      let actualName = expr.name
+      if (vrm.expressionManager) {
+        const modelNames = Object.keys(vrm.expressionManager.expressionMap)
+        const match = modelNames.find(n => n.toLowerCase() === expr.name.toLowerCase())
+        if (match) {
+          actualName = match
+        }
+      }
+      targetExpressionValues.value.set(actualName, expr.value * normalizedIntensity)
     }
   }
 
