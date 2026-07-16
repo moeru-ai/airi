@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { buildFishAudioSpeechProvider, listVoices } from './index'
+import { buildFishAudioSpeechProvider, listVoices, searchFishAudioVoices } from './index'
 
 describe('fish audio speech provider', () => {
   afterEach(() => {
@@ -110,6 +110,78 @@ describe('fish audio speech provider', () => {
         label: 'Voice Two',
       },
     ])
+  })
+
+  it('returns page metadata for remote discovery instead of treating the first page as the catalogue', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({
+        has_more: false,
+        items: [
+          { _id: 'voice-21', title: 'Voice Twenty One' },
+        ],
+        total: 1800000,
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await searchFishAudioVoices({
+      apiKey: 'fish-key',
+      language: 'en',
+      pageNumber: 2,
+      pageSize: 20,
+      searchTerm: 'narrator',
+      sortBy: 'task_count',
+      tag: 'audiobook',
+    })
+
+    const firstCall = fetchMock.mock.calls[0]
+    if (!firstCall) {
+      throw new Error('Expected fetch to be called')
+    }
+
+    const [requestUrl, requestInit] = firstCall
+
+    expect(requestUrl).toBe('/api-fish/model?page_size=20&page_number=2&title=narrator&language=en&tag=audiobook&sort_by=task_count')
+    expect(requestInit).toMatchObject({
+      headers: {
+        Authorization: 'Bearer fish-key',
+      },
+    })
+    expect(result).toEqual({
+      hasMore: true,
+      items: [{ label: 'Voice Twenty One', value: 'voice-21' }],
+      pageNumber: 2,
+      pageSize: 20,
+      total: 1800000,
+    })
+  })
+
+  it('scopes personal voice browsing to the authenticated user', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => {
+      return new Response(JSON.stringify({
+        has_more: false,
+        items: [{ _id: 'my-voice', title: 'My Voice' }],
+        total: 1,
+      }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+    })
+
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchFishAudioVoices({ apiKey: 'personal-key', self: true })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api-fish/model?page_size=20&self=true')
   })
 
   it('caches listVoices calls for identical configurations and search terms', async () => {

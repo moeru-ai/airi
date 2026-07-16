@@ -8,11 +8,12 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { getFishAudioApiKey } from '@proj-airi/stage-ui/stores/providers/fishaudio'
-import { FieldCombobox } from '@proj-airi/ui'
+import { getFishAudioApiKey, searchFishAudioVoices } from '@proj-airi/stage-ui/stores/providers/fishaudio'
+import { Button, FieldCombobox } from '@proj-airi/ui'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 // eslint-disable-next-line no-console
 console.log('--- Script Setup Executing ---')
@@ -27,6 +28,7 @@ interface FishAudioProviderConfig {
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
+const { t } = useI18n()
 
 const providerId = 'fishaudio-speech'
 const defaultModel = 's2-pro'
@@ -61,6 +63,10 @@ const providerModels = computed(() => {
 
 const voiceSearchTerm = ref('')
 const voiceOptions = ref<{ value: string, label: string }[]>([])
+const voiceCatalog = ref<'discover' | 'mine'>('mine')
+const voicePage = ref(1)
+const voiceTotal = ref(0)
+const voiceHasMore = ref(false)
 
 const modelOptions = computed(() => {
   return providerModels.value.map(model => ({
@@ -86,7 +92,16 @@ const apiKeyConfigured = computed(() => {
   return Boolean(providersStore.configuredProviders[providerId]) && Boolean(apiKey.value)
 })
 
-async function loadVoiceOptions(searchTerm: string) {
+function mergeVoiceOptions(current: { value: string, label: string }[], next: { value: string, label: string }[]) {
+  const voicesById = new Map(current.map(voice => [voice.value, voice]))
+  for (const voice of next) {
+    voicesById.set(voice.value, voice)
+  }
+
+  return [...voicesById.values()]
+}
+
+async function loadVoiceOptions(searchTerm: string, loadMore = false) {
   if (!apiKey.value) {
     latestVoiceSearchRequestId += 1
     isLoadingVoices.value = false
@@ -96,23 +111,26 @@ async function loadVoiceOptions(searchTerm: string) {
   }
 
   const requestId = ++latestVoiceSearchRequestId
+  const nextPage = loadMore ? voicePage.value + 1 : 1
   isLoadingVoices.value = true
   voiceSearchError.value = ''
   try {
     const providerConfig = providersStore.getProviderConfig(providerId)
-    const voices = await providerMetadata.value.capabilities.listVoices?.(
-      providerConfig,
-      { searchTerm },
-    ) || []
+    const result = await searchFishAudioVoices({
+      apiKey: providerConfig.apiKey,
+      baseUrl: providerConfig.baseUrl,
+      pageNumber: nextPage,
+      pageSize: 20,
+      searchTerm,
+      self: voiceCatalog.value === 'mine',
+      sortBy: searchTerm ? 'score' : 'task_count',
+    })
 
     if (requestId !== latestVoiceSearchRequestId) {
       return
     }
 
-    const mappedVoices = voices.map(voice => ({
-      value: voice.id,
-      label: voice.name,
-    }))
+    const mappedVoices = result.items
 
     const selectedVoiceId = voice.value
     if (selectedVoiceId && !mappedVoices.some(v => v.value === selectedVoiceId)) {
@@ -137,7 +155,12 @@ async function loadVoiceOptions(searchTerm: string) {
       return
     }
 
-    voiceOptions.value = mappedVoices
+    voiceOptions.value = loadMore
+      ? mergeVoiceOptions(voiceOptions.value, mappedVoices)
+      : mappedVoices
+    voicePage.value = result.pageNumber
+    voiceTotal.value = result.total
+    voiceHasMore.value = result.hasMore
   }
   catch (error) {
     if (requestId !== latestVoiceSearchRequestId) {
@@ -158,6 +181,23 @@ async function loadVoiceOptions(searchTerm: string) {
 const debouncedLoadVoiceOptions = useDebounceFn((searchTerm: string) => {
   void loadVoiceOptions(searchTerm)
 }, 300)
+
+function switchVoiceCatalog(catalog: 'discover' | 'mine') {
+  if (voiceCatalog.value === catalog) {
+    return
+  }
+
+  voiceCatalog.value = catalog
+  void loadVoiceOptions(voiceSearchTerm.value)
+}
+
+function loadMoreVoices() {
+  if (!voiceHasMore.value || isLoadingVoices.value) {
+    return
+  }
+
+  void loadVoiceOptions(voiceSearchTerm.value, true)
+}
 
 function toSearchQuery(value: unknown): string {
   if (typeof value === 'string') {
@@ -195,7 +235,6 @@ async function loadProviderDiscoveryData() {
     return
   }
 
-  await speechStore.loadVoicesForProvider(providerId)
   await providersStore.validateProvider(providerId, { force: true })
 }
 
@@ -231,7 +270,6 @@ watch(apiKey, async (newApiKey, previousApiKey) => {
     return
   }
 
-  await speechStore.loadVoicesForProvider(providerId)
   await providersStore.validateProvider(providerId, { force: true })
   handleVoiceSearch(voiceSearchTerm.value)
 })
@@ -280,11 +318,31 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
         default-text="Hello! This is a test of the Fish Audio speech synthesis."
       >
         <template #before-actions>
+          <div :class="['flex', 'items-center', 'gap-2']">
+            <Button
+              size="sm"
+              :variant="voiceCatalog === 'mine' ? 'primary' : 'secondary-muted'"
+              :disabled="!apiKeyConfigured"
+              @click="switchVoiceCatalog('mine')"
+            >
+              {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.my_voices') }}
+            </Button>
+            <Button
+              size="sm"
+              :variant="voiceCatalog === 'discover' ? 'primary' : 'secondary-muted'"
+              :disabled="!apiKeyConfigured"
+              @click="switchVoiceCatalog('discover')"
+            >
+              {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.discover_voices') }}
+            </Button>
+          </div>
           <FieldCombobox
             v-model="voice"
             v-model:search-term="voiceSearchTerm"
             label="Voice"
-            description="Select the Fish Audio reference voice to use by default"
+            :description="voiceCatalog === 'mine'
+              ? t('settings.pages.providers.provider.fishaudio-speech.voice_browser.mine_description')
+              : t('settings.pages.providers.provider.fishaudio-speech.voice_browser.discover_description')"
             :options="voiceOptions"
             :disabled="!apiKeyConfigured"
             placeholder="Search Fish Audio voices..."
@@ -302,6 +360,23 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
           <p v-if="voiceSearchError" class="text-sm text-red-500">
             {{ voiceSearchError }}
           </p>
+          <div v-else-if="apiKeyConfigured" :class="['flex', 'items-center', 'justify-between', 'gap-3', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+            <span>
+              {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.showing_results', {
+                count: voiceOptions.length,
+                total: voiceTotal,
+              }) }}
+            </span>
+            <Button
+              v-if="voiceHasMore"
+              size="sm"
+              variant="secondary"
+              :disabled="isLoadingVoices"
+              @click="loadMoreVoices"
+            >
+              {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.load_more') }}
+            </Button>
+          </div>
         </template>
       </SpeechPlayground>
     </template>

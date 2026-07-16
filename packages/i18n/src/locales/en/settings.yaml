@@ -1128,6 +1128,13 @@ pages:
       fishaudio-speech:
         description: fish.audio
         title: Fish Audio
+        voice_browser:
+          my_voices: My voices
+          discover_voices: Discover voices
+          mine_description: Search your Fish Audio voices
+          discover_description: Search Fish Audio’s public voice library without downloading the full catalogue
+          showing_results: Showing {count} of {total} voices
+          load_more: Load more
       speech-noop:
         title: None
         description: No speech output.

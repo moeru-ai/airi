@@ -262,6 +262,8 @@ interface FishAudioVoiceItem {
 
 interface FishAudioVoiceListResponse {
   items?: FishAudioVoiceItem[]
+  total?: number
+  has_more?: boolean
 }
 
 export interface FishAudioVoiceOption {
@@ -270,19 +272,37 @@ export interface FishAudioVoiceOption {
 }
 
 const voiceCache = new Map<string, FishAudioVoiceOption[]>()
+const voiceSearchCache = new Map<string, FishAudioVoiceSearchResult>()
 
-interface FishAudioVoiceQueryOptions {
+/** Parameters accepted by Fish Audio's paginated voice-model catalogue. */
+export interface FishAudioVoiceQueryOptions {
   apiKey?: unknown
   baseUrl?: unknown
+  language?: string
   pageSize?: number
+  pageNumber?: number
   query?: string
   searchTerm?: string
+  self?: boolean
+  sortBy?: 'score' | 'task_count' | 'created_at'
+  tag?: string
   id?: string
 }
 
 interface FishAudioModelListResult {
+  hasMore: boolean
   items: FishAudioVoiceItem[]
   status: number
+  total: number
+}
+
+/** A page of Fish Audio voices, preserving the upstream pagination metadata. */
+export interface FishAudioVoiceSearchResult {
+  hasMore: boolean
+  items: FishAudioVoiceOption[]
+  pageNumber: number
+  pageSize: number
+  total: number
 }
 
 function resolveModelsEndpoint(baseUrl: unknown): string {
@@ -293,11 +313,27 @@ function resolveModelsEndpoint(baseUrl: unknown): string {
 
 async function requestFishAudioModels(options: FishAudioVoiceQueryOptions = {}): Promise<FishAudioModelListResult> {
   const searchTerm = normalizeString(options.searchTerm ?? options.query)
+  const pageNumber = options.pageNumber ?? 1
   const searchParams = new URLSearchParams({
     page_size: String(options.pageSize ?? 20),
   })
+  if (pageNumber > 1) {
+    searchParams.set('page_number', String(pageNumber))
+  }
   if (searchTerm) {
     searchParams.set('title', searchTerm)
+  }
+  if (options.self) {
+    searchParams.set('self', 'true')
+  }
+  if (options.language) {
+    searchParams.set('language', options.language)
+  }
+  if (options.tag) {
+    searchParams.set('tag', options.tag)
+  }
+  if (options.sortBy) {
+    searchParams.set('sort_by', options.sortBy)
   }
 
   const apiKey = getFishAudioApiKey(options.apiKey)
@@ -310,10 +346,18 @@ async function requestFishAudioModels(options: FishAudioVoiceQueryOptions = {}):
   }
 
   const payload = await response.json() as FishAudioVoiceListResponse
+  const items = Array.isArray(payload.items) ? payload.items : []
+  const total = typeof payload.total === 'number' ? payload.total : 0
+  const pageSize = options.pageSize ?? 20
 
   return {
-    items: Array.isArray(payload.items) ? payload.items : [],
+    // Fish Audio can report `has_more: false` despite a `total` larger than the
+    // current page. Use the total as a second pagination signal so the browser
+    // never strands users on the first page of a large result set.
+    hasMore: payload.has_more === true || (items.length > 0 && pageNumber * pageSize < total),
+    items,
     status: response.status,
+    total,
   }
 }
 
@@ -337,6 +381,54 @@ async function fetchVoiceOptions(options: FishAudioVoiceQueryOptions = {}): Prom
     value: item._id,
     label: item.title,
   }))
+}
+
+/**
+ * Searches Fish Audio's remote voice catalogue without downloading it in full.
+ *
+ * Before:
+ * - A picker could only receive the first 20 matching models.
+ *
+ * After:
+ * - Callers receive one page plus `total` and `hasMore`, and can request the next page.
+ */
+export async function searchFishAudioVoices(options: FishAudioVoiceQueryOptions = {}): Promise<FishAudioVoiceSearchResult> {
+  const apiKey = getFishAudioApiKey(options.apiKey)
+  const baseUrl = normalizeBaseUrl(options.baseUrl)
+  const searchTerm = normalizeString(options.searchTerm ?? options.query)
+  const pageNumber = options.pageNumber ?? 1
+  const pageSize = options.pageSize ?? 20
+  const cacheKey = [
+    apiKey,
+    baseUrl,
+    searchTerm,
+    pageNumber,
+    pageSize,
+    options.self ? 'self' : 'discover',
+    options.language ?? '',
+    options.tag ?? '',
+    options.sortBy ?? '',
+  ].join(':')
+
+  const cached = voiceSearchCache.get(cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  const result = await requestFishAudioModels(options)
+  const items = result.items.map(item => ({
+    value: item._id,
+    label: item.title,
+  }))
+  const searchResult = {
+    hasMore: result.hasMore,
+    items,
+    pageNumber,
+    pageSize,
+    total: result.total,
+  }
+  voiceSearchCache.set(cacheKey, searchResult)
+  return searchResult
 }
 
 function extractErrorStatus(error: unknown): number | undefined {
