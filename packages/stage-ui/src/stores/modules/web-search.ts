@@ -10,9 +10,10 @@ import { useLlmToolsetPromptsStore } from '../llm-toolset-prompts'
  *
  * Renderer-only: unlike the messaging modules it does not broadcast to a backend
  * service, so there is no configurator channel here. The tool itself is mounted
- * in `stores/llm.ts` gated on {@link configured}; this store owns the paired
- * system-prompt guidance so the "web content is data, not instructions" rule is
- * present exactly when the tool is, and gone when it is not.
+ * by `resolveWebSearchTools` in `stores/llm-tool-resolver.ts`, gated on
+ * {@link configured}; this store owns the paired system-prompt guidance so the
+ * "web content is data, not instructions" rule is present exactly when the tool
+ * is, and gone when it is not.
  */
 export const useWebSearchStore = defineStore('web-search', () => {
   const toolsetPromptsStore = useLlmToolsetPromptsStore()

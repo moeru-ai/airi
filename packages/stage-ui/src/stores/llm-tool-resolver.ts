@@ -4,7 +4,7 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { uniqBy } from 'es-toolkit'
 
-import { createSparkCommandTool, webSearchTools as createWebSearchTools, debug, mcp } from '../tools'
+import { createSparkCommandTool, createWebSearchTools, debug, mcp } from '../tools'
 import { useLlmToolsStore } from './llm-tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
 import { useWebSearchStore } from './modules/web-search'
@@ -126,7 +126,9 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
   if (!webSearchStore.configured)
     return []
 
-  return createWebSearchTools({ apiKey: webSearchStore.apiKey })
+  // Trim the key: `configured` is computed on the trimmed value, so a key pasted
+  // with trailing whitespace/newline reads as ready but would 401 if sent raw.
+  return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
 }
 
 /**
