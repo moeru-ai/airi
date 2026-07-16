@@ -659,7 +659,7 @@ _(Arch/Manjaro/CachyOS용 `.deb` → `.zst` 리패키징 옵션 PKGBUILD는 `app
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-zh-v3" src="https://github.com/user-attachments/assets/16ec33d1-f094-4a85-8a53-b7f766022ad5" />
+<img width="1254" height="1254" alt="anima-logo-zh-v5" src="https://github.com/user-attachments/assets/daca858f-de5e-4b5e-9730-86f6e57940b4" />
   <sub>
     <p><h2>
         基于 <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a> 的 AnimAIOS 发行版，
