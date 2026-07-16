@@ -14,7 +14,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const providerId = 'alibaba-cloud-model-studio'
-const defaultModel = 'cosyvoice-v1'
+// Keep the page fallback aligned with the current provider catalog: v1 no
+// longer has a maintained voice roster, while v2 IDs carry the intended voice.
+const defaultModel = 'cosyvoice-v2'
 
 // Default voice settings specific to ElevenLabs
 const defaultVoiceSettings = {
