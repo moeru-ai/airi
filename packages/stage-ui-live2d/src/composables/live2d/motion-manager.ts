@@ -464,9 +464,10 @@ export function useMotionUpdatePluginExpression(
  * gaps between phonemes write 0 directly instead of triggering the release.
  *
  * After the release tail elapses, the plugin forces ParamMouthOpenY to 0
- * instead of writing nothing. This guarantees the mouth closes when an idle
- * motion curve would otherwise leave ParamMouthOpenY at a non-zero resting
- * value.
+ * exactly once so a stale non-zero resting value (e.g. from an idle motion
+ * curve) cannot keep the mouth open. It then stops owning the parameter and
+ * lets motion/expression plugins drive it again, so idle mouth expressions
+ * keep working.
  */
 export function useMotionUpdatePluginLipSync(
   mouthOpenSize: Ref<number>,
@@ -477,6 +478,10 @@ export function useMotionUpdatePluginLipSync(
 
   let releaseRemainingMs = 0
   let lastForcedValue = 0
+  // Set once the release tail finishes so we close the mouth exactly once and
+  // then hand control back to motion/expression plugins instead of forcing 0
+  // on every idle frame (which would break idle mouth expressions).
+  let releaseClosed = false
 
   // Smoothstep: 3t^2 - 2t^3, eases in/out with zero slope at endpoints.
   const smoothstep = (t: number) => t * t * (3 - 2 * t)
@@ -485,15 +490,19 @@ export function useMotionUpdatePluginLipSync(
     if (nowSpeaking.value) {
       lastForcedValue = mouthOpenSize.value
       releaseRemainingMs = RELEASE_DURATION_MS
+      releaseClosed = false
       ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
       return
     }
 
     if (releaseRemainingMs <= 0) {
-      // Speech fully ended and the release tail has elapsed. Force the mouth
-      // shut so a stale non-zero resting value (e.g. from an idle motion curve)
-      // cannot keep it open after speaking stops.
-      ctx.model.setParameterValueById('ParamMouthOpenY', 0)
+      if (!releaseClosed) {
+        // Speech just ended and the release tail elapsed. Force the mouth shut
+        // once so a stale non-zero resting value (e.g. from an idle motion
+        // curve) cannot keep it open, then stop owning the parameter.
+        ctx.model.setParameterValueById('ParamMouthOpenY', 0)
+        releaseClosed = true
+      }
       return
     }
 
