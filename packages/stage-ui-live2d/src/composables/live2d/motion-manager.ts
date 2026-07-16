@@ -463,11 +463,11 @@ export function useMotionUpdatePluginExpression(
  * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
  * gaps between phonemes write 0 directly instead of triggering the release.
  *
- * After the release tail elapses, the plugin forces ParamMouthOpenY to 0
- * exactly once so a stale non-zero resting value (e.g. from an idle motion
- * curve) cannot keep the mouth open. It then stops owning the parameter and
- * lets motion/expression plugins drive it again, so idle mouth expressions
- * keep working.
+ * After the release tail elapses, the plugin keeps the mouth shut until a
+ * motion/expression plugin drives ParamMouthOpenY to a non-zero value, at
+ * which point control is handed back. This closes the mouth after speech (even
+ * when an idle motion curve leaves a non-zero resting value) without
+ * permanently overriding idle mouth expressions.
  */
 export function useMotionUpdatePluginLipSync(
   mouthOpenSize: Ref<number>,
@@ -497,11 +497,16 @@ export function useMotionUpdatePluginLipSync(
 
     if (releaseRemainingMs <= 0) {
       if (!releaseClosed) {
-        // Speech just ended and the release tail elapsed. Force the mouth shut
-        // once so a stale non-zero resting value (e.g. from an idle motion
-        // curve) cannot keep it open, then stop owning the parameter.
-        ctx.model.setParameterValueById('ParamMouthOpenY', 0)
-        releaseClosed = true
+        // Speech just ended and the release tail elapsed. The motion/expression
+        // plugins already wrote this frame's value. Keep forcing the mouth shut
+        // until a motion/expression plugin actually drives ParamMouthOpenY to a
+        // non-zero value, at which point we hand control back. This prevents an
+        // idle motion curve from reopening the mouth immediately after speech.
+        const motionValue = ctx.model.getParameterValueById('ParamMouthOpenY') as number
+        if (motionValue > 0)
+          releaseClosed = true
+        else
+          ctx.model.setParameterValueById('ParamMouthOpenY', 0)
       }
       return
     }
