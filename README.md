@@ -191,8 +191,8 @@ _(An optional PKGBUILD is located in `apps/stage-tamagotchi` to repackage the `.
 <a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
   <img src="https://img.shields.io/badge/прочитай%20меня-Русский%20-A8A9AD" alt="Русский README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-ja-v2 2" src="https://github.com/user-attachments/assets/cb958041-4f9c-4801-b8f5-f23a35e36fb6" />
-<sub>
+<img width="1254" height="1254" alt="anima-logo-ja-v3" src="https://github.com/user-attachments/assets/41bdaf99-7b75-47ee-bdbb-54392470b13a" />
+  <sub>
   <p>
     <h2>
         <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>
