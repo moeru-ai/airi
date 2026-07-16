@@ -40,10 +40,10 @@ export function rateLimiter(opts: RateLimitOptions) {
       if (userId)
         return userId
 
-      // NOTICE: prefer hono conninfo (uses underlying socket address) over
-      // x-forwarded-for which can be spoofed. Falls back to header then 'anonymous'.
+      // NOTICE: `x-forwarded-for` is client-controlled unless the application
+      // explicitly configures a trusted proxy, so it must never be a limiter key.
       const info = getConnInfo(c)
-      return info.remote?.address ?? c.req.header('x-forwarded-for') ?? 'anonymous'
+      return info.remote?.address ?? 'anonymous'
     })
 
   return createRateLimiter<HonoEnv>({

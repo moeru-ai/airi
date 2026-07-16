@@ -53,7 +53,6 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     .use('/api/auth/*', rateLimiter({
       max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
       windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
-      keyGenerator: c => c.req.header('x-forwarded-for') ?? c.req.header('x-real-ip') ?? 'unknown',
       metrics: deps.rateLimitMetrics,
       routeLabel: 'auth.api',
     }))

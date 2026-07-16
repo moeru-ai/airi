@@ -175,6 +175,19 @@ export async function setupMainWindow(params: {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+  window.webContents.on('will-navigate', (event, navigationUrl) => {
+    event.preventDefault()
+
+    try {
+      const url = new URL(navigationUrl)
+      if (url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:') {
+        void shell.openExternal(url.toString())
+      }
+    }
+    catch {
+      // Ignore malformed navigation targets.
+    }
+  })
 
   await setupMainWindowElectronInvokes({
     window,
