@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
@@ -18,6 +19,7 @@ const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider'
 const providerMetadata = providersStore.getProviderMetadata(providerId)
+const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 function handleLogin() {
   needsLogin.value = true
@@ -62,6 +64,7 @@ function handleLogin() {
               </span>
             </div>
             <button
+              v-if="!fluxPurchaseDisabled"
               type="button"
               class="rounded-full bg-primary-500/10 px-6 py-2 text-sm text-primary-600 font-semibold transition-all dark:bg-primary-400/10 hover:bg-primary-500 dark:text-primary-400 hover:text-white dark:hover:bg-primary-400 dark:hover:text-neutral-900"
               @click="router.push('/settings/flux')"

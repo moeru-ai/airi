@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/unocss-preset-fonts",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "Fonts that are not included by Google Fonts, FontSource but open-source used by Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -26,8 +26,8 @@
     "build": "tsdown"
   },
   "peerDependencies": {
-    "@unocss/core": "catalog:",
-    "@unocss/preset-web-fonts": "catalog:unocss-preset-web-fonts-gte-66"
+    "@unocss/core": ">=66",
+    "@unocss/preset-web-fonts": ">=66"
   },
   "dependencies": {
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",

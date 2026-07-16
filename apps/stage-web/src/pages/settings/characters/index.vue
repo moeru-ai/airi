@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Character } from '@proj-airi/stage-ui/types/character'
 
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -9,6 +10,7 @@ import { computed, onMounted, ref } from 'vue'
 import CharacterDialog from './components/CharacterDialog.vue'
 import CharacterItem from './components/CharacterItem.vue'
 
+const { trackCharacterDeleted } = useAnalytics()
 const characterStore = useCharacterStore()
 const { characters } = storeToRefs(characterStore)
 
@@ -45,7 +47,9 @@ function handleDelete(id: string) {
   // TODO: Remove this
   // eslint-disable-next-line no-alert
   if (confirm('Are you sure you want to delete this character?')) {
-    characterStore.remove(id).catch(console.error)
+    characterStore.remove(id)
+      .then(() => trackCharacterDeleted({ character_id: id }))
+      .catch(console.error)
   }
 }
 

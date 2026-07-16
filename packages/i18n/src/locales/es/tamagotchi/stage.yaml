@@ -15,6 +15,7 @@ docs:
   'open-settings': Abrir configuración
   'open-chat': Abrir Chat
   'refresh': Actualizar
+  'center-main-window': Move to screen center
   'open-hearing-controls': Abrir controles de audición
   'drag-to-move-window': Arrastra para mover la ventana
   'switch-to-light-mode': Cambiar a modo claro

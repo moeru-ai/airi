@@ -177,17 +177,18 @@
 
 Поэтому этот проект, AIRI, предлагает здесь другую возможность: **позволить вам владеть своей цифровой жизнью, кибер-жизнью, легко, везде, в любое время**.
 
-## Журналы разработки, которые мы опубликовали, и последние обновления
+## Недавние DevLog и истории
 
-- [DevLog @ 2026.03.23](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) от 23 марта 2026 г.
-- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) от 14 марта 2026 г.
-- [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) от 16 февраля 2026 г.
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) от 1 января 2026 г.
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) от 20 октября 2025 г.
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) от 5 августа 2025 г.
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) от 1 августа 2025 г.
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) от 18 июля 2025 г.
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) от 16 июня 2025 г.
+- [DevLog @ 2026.03.23: производительность на мобильных устройствах и исследование игровых движков](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 23 марта 2026 г.
+- [DevLog @ 2026.03.14: жизненный цикл VRM-сцены, кеш и наблюдаемость](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 14 марта 2026 г.
+- [DevLog @ 2026.02.16: сбор данных Dome Keeper и пайплайн обучения](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 16 февраля 2026 г.
+- [DevLog @ 2026.01.01: AIRI Pocket и эксперименты с памятью в FlowChat](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 1 января 2026 г.
+- [DevLog @ 2025.10.20: переход на Electron, новые модели и обновления Moeru AI](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 20 октября 2025 г.
+- [DevLog @ 2025.08.26: прогресс pure-vision направления для airi-factorio](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 26 августа 2025 г.
+- [DevLog @ 2025.08.05: главные изменения AIRI v0.7](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 5 августа 2025 г.
+- [DevLog @ 2025.08.01: потоковая текстовая анимация и графемные кластеры](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 1 августа 2025 г.
+- [DevLog @ 2025.07.18: переосмысление airi-factorio через Factorio Learning Environment](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 18 июля 2025 г.
+- [DreamLog 0x1: предыстория Project AIRI](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 16 июня 2025 г.
 - ...больше на [сайте документации](https://airi.moeru.ai/docs)
 
 ## Что такого особенного в этом проекте?
@@ -227,13 +228,15 @@
 >
 > **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам в создании AIRI？](https://github.com/moeru-ai/airi/discussions/33)**
 
-## Текущий прогресс
+## Текущий прогресс и дорожная карта
 
 Способен на
 
 - [x] Мозг
   - [x] Играть в [Minecraft](https://www.minecraft.net)
   - [x] Играть в [Factorio](https://www.factorio.com) (WIP, но [PoC и демо доступны](https://github.com/moeru-ai/airi-factorio))
+  - [x] Играть в [Kerbal Space Program](https://www.kerbalspaceprogram.com/) (анонс будет позже)
+  - [ ] Совместно играть в [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) (WIP)
   - [x] Общаться в [Telegram](https://telegram.org)
   - [x] Общаться в [Discord](https://discord.com)
   - [ ] Память
@@ -246,7 +249,7 @@
   - [x] Распознавание речи на стороне клиента
   - [x] Обнаружение речи на стороне клиента
 - [x] Рот
-  - [x] Синтез голоса [ElevenLabs](https://elevenlabs.io/)
+  - [x] Синтез голоса через несколько провайдеров, включая [ElevenLabs](https://elevenlabs.io/), Microsoft/Azure Speech, OpenAI-совместимый TTS, Alibaba Cloud Model Studio и локальный Kokoro TTS
 - [x] Тело
   - [x] Поддержка VRM
     - [x] Управление моделью VRM
@@ -361,7 +364,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [Zhipu](https://bigmodel.cn)
 - [x] [SiliconFlow](https://cloud.siliconflow.cn/i/rKXmRobW)

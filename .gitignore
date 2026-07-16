@@ -17,12 +17,18 @@ lerna-debug.log*
 .idea
 .temp
 **/temp/
+
+# AI Agents
 .claude/worktrees/
+.superpowers/
 
 # Anything .local, especially for .env.local
 *.local
 # e.g. Claude Code settings.local.json
 *.local.*
+.env
+.env.*
+!.env.example
 
 # Audio binaries
 *.pcm
@@ -146,3 +152,4 @@ USER.md
 .env
 .openclaw/
 memory/
+.playwright-mcp/

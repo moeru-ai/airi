@@ -177,17 +177,18 @@ Peut-être connaissez-vous déjà [Neuro-sama](https://www.youtube.com/@Neurosam
 
 Ainsi, ce projet AIRI offre une autre possibilité : **vous permettre de posséder votre vie digitale, votre cyber-vie, facilement, partout et à tout moment**.
 
-## Journaux de développement et mises à jour récentes
+## DevLogs et histoires récentes
 
-- [DevLog @ 23.03.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) du 23 mars 2026
-- [DevLog @ 14.03.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) du 14 mars 2026
-- [DevLog @ 16.02.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) du 16 février 2026
-- [DevLog @ 01.01.2026](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) du 1er janvier 2026
-- [DevLog @ 20.10.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) du 20 octobre 2025
-- [DevLog @ 05.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) du 5 août 2025
-- [DevLog @ 01.08.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) du 1er août 2025
-- [DevLog @ 18.07.2025](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) du 18 juillet 2025
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) du 16 juin 2025
+- [DevLog @ 2026.03.23 : performances mobiles et exploration des moteurs de jeu](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 23 mars 2026
+- [DevLog @ 2026.03.14 : cycle de vie, cache et observabilité du stage VRM](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 14 mars 2026
+- [DevLog @ 2026.02.16 : collecte de données Dome Keeper et pipeline d'entraînement](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 16 février 2026
+- [DevLog @ 2026.01.01 : AIRI Pocket et expériences de mémoire FlowChat](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 1er janvier 2026
+- [DevLog @ 2025.10.20 : migration vers Electron, nouveaux modèles et mises à jour Moeru AI](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 20 octobre 2025
+- [DevLog @ 2025.08.26 : progrès de la vision pure pour airi-factorio](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 26 août 2025
+- [DevLog @ 2025.08.05 : temps forts de la version AIRI v0.7](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 5 août 2025
+- [DevLog @ 2025.08.01 : animation de texte en streaming et graphèmes composés](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 1er août 2025
+- [DevLog @ 2025.07.18 : repenser airi-factorio avec Factorio Learning Environment](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 18 juillet 2025
+- [DreamLog 0x1 : les origines de Project AIRI](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 16 juin 2025
 - ...plus sur le [site de documentation](https://airi.moeru.ai/docs)
 
 ## Qu’est-ce qui rend ce projet spécial ?
@@ -227,13 +228,15 @@ Cela signifie qu’**アイリ peut fonctionner sur les navigateurs modernes et 
 >
 > **Si vous êtes intéressé, pourquoi ne pas vous présenter ici ? [Voulez-vous rejoindre AIRI ?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## Progrès actuels
+## Progrès actuels et feuille de route
 
 Capacités :
 
 - [x] Cerveau
   - [x] Jouer à [Minecraft](https://www.minecraft.net)
   - [x] Jouer à [Factorio](https://www.factorio.com) (WIP, mais [PoC et démo disponibles](https://github.com/moeru-ai/airi-factorio))
+  - [x] Jouer à [Kerbal Space Program](https://www.kerbalspaceprogram.com/) (annonce à venir)
+  - [ ] Jouer en coopération à [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) (WIP)
   - [x] Chat sur [Telegram](https://telegram.org)
   - [x] Chat sur [Discord](https://discord.com)
   - [ ] Mémoire
@@ -246,7 +249,7 @@ Capacités :
   - [x] Reconnaissance vocale côté client
   - [x] Détection de parole côté client
 - [x] Bouche
-  - [x] Synthèse vocale [ElevenLabs](https://elevenlabs.io/)
+  - [x] Synthèse vocale multi-fournisseurs, dont [ElevenLabs](https://elevenlabs.io/), Microsoft/Azure Speech, TTS compatible OpenAI, Alibaba Cloud Model Studio et Kokoro TTS local
 - [x] Corps
   - [x] Support VRM
     - [x] Contrôle du modèle VRM
@@ -361,7 +364,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [Zhipu](https://bigmodel.cn)
 - [x] [SiliconFlow](https://cloud.siliconflow.cn/i/rKXmRobW)

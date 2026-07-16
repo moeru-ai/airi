@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "A collection of UI components that used by Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -27,13 +27,13 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
-    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/core": "catalog:",
     "floating-vue": "catalog:",
-    "reka-ui": "catalog:reka-ui-2-9-6",
+    "reka-ui": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@vue-macros/volar": "catalog:vue-macros-volar-3-0-0-beta-8",
+    "@vue-macros/volar": "catalog:",
     "vue-tsc": "catalog:"
   }
 }

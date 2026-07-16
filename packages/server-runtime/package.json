@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/server-runtime",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "Server runtime implementation for AIRI running in different environments",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -41,11 +41,13 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/better-ws": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "crossws": "catalog:",
     "h3": "catalog:",
     "nanoid": "catalog:",
     "srvx": "catalog:",
-    "superjson": "catalog:"
+    "superjson": "catalog:",
+    "valibot": "catalog:"
   }
 }

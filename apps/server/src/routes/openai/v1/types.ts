@@ -1,5 +1,3 @@
-import type { PostHog } from 'posthog-node'
-
 import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
@@ -8,7 +6,9 @@ import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { ProductEventService } from '../../../services/domain/product-events'
+import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
+import type { VoicePackService } from '../../../services/domain/voice-packs'
 
 import { startChatGeneration, startTtsGeneration } from '../../../services/domain/llm-tracing'
 
@@ -25,10 +25,11 @@ export interface V1RouteDeps {
   productEventService: ProductEventService
   ttsMeter: FluxMeter
   llmRouter: LlmRouterService
+  voicePackService: VoicePackService
+  providerCatalogService: ProviderCatalogService
   genAi?: GenAiMetrics | null
   revenue?: RevenueMetrics | null
   rateLimitMetrics?: RateLimitMetrics | null
-  posthog?: PostHog | null
   llmTracing: LlmTracingDeps
 }
 

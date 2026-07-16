@@ -1,5 +1,3 @@
-import type { PostHog } from 'posthog-node'
-
 import type { AuthMetrics } from '../otel'
 import type { EmailService } from '../services/adapters/email'
 import type { ProductEventService } from '../services/domain/product-events'
@@ -10,6 +8,7 @@ import type { Env } from './env'
 import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
+import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
@@ -17,12 +16,13 @@ import { deleteSessionCookie } from 'better-auth/cookies'
 import { admin, bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
 
-import { captureSafe } from '../services/adapters/posthog'
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
 
 import * as authSchema from '../schemas/accounts'
+
+const logger = useLogger('auth').useGlobalConfig()
 
 interface TrustedClientSeed {
   clientId: string
@@ -365,7 +365,6 @@ export function createAuth(
   email?: EmailService,
   metrics?: AuthMetrics | null,
   userDeletionService?: UserDeletionService,
-  posthog?: PostHog | null,
   productEventService?: ProductEventService,
 ) {
   return betterAuth({
@@ -424,12 +423,10 @@ export function createAuth(
         },
       }),
       oauthProvider({
-        // Keep loginPage inside the ui-server-auth vue-router base (`/auth/`)
-        // so the OIDC redirect lands on a URL the SPA router actually owns.
-        // Without the prefix the address bar stays on bare `/sign-in`, which
-        // is outside vue-router's history base — SPA-internal `router.push`
-        // later jumps to `/auth/...`, and a refresh of the bare URL would
-        // fall through to the global 404.
+        // Keep loginPage on the server-owned historical `/auth/*` entrypoint.
+        // The server redirects it to standalone ui-server-auth (`/ui/*` in
+        // production), while Better Auth still gets a stable relative path for
+        // oauth-provider's OIDC redirect query construction.
         loginPage: '/auth/sign-in',
         consentPage: '/oauth/authorize',
         scopes: [...OIDC_SCOPES],
@@ -578,12 +575,24 @@ export function createAuth(
     // https://github.com/better-auth/better-auth/issues/5892
     account: {
       skipStateCookieCheck: true,
+      accountLinking: {
+        // Product requirement: signed-in users may attach OAuth identities
+        // whose provider email differs from their AIRI account email.
+        allowDifferentEmails: true,
+      },
     },
 
     socialProviders: {
       google: {
         clientId: env.AUTH_GOOGLE_CLIENT_ID,
         clientSecret: env.AUTH_GOOGLE_CLIENT_SECRET,
+        // Force the provider's authorization page to let users choose an
+        // identity before linking. Without this, an existing provider session
+        // can silently reuse the previously authorized account and immediately
+        // hit account_already_linked_to_different_user.
+        // Source: @better-auth/core/src/oauth2/create-authorization-url.ts
+        // forwards provider `prompt` to the OAuth authorization URL.
+        prompt: 'select_account',
         // NOTICE:
         // Why: better-auth's google provider already maps email_verified
         // through, but a stale Google profile that omits the claim falls
@@ -600,6 +609,13 @@ export function createAuth(
       github: {
         clientId: env.AUTH_GITHUB_CLIENT_ID,
         clientSecret: env.AUTH_GITHUB_CLIENT_SECRET,
+        // Force GitHub's authorization page to let users choose an identity
+        // before linking. Without this, an existing github.com session can
+        // silently reuse the previously authorized account and immediately hit
+        // account_already_linked_to_different_user.
+        // Source: @better-auth/core/src/oauth2/create-authorization-url.ts
+        // forwards provider `prompt` to the OAuth authorization URL.
+        prompt: 'select_account',
         // NOTICE:
         // Why: better-auth derives emailVerified from the GitHub /user/emails
         // response, but `emails.find(e => e.email === profile.email)?.verified`
@@ -665,16 +681,12 @@ export function createAuth(
         create: {
           after: async (user) => {
             metrics?.userRegistered.add(1)
-            await productEventService?.track({
+            void productEventService?.track({
               userId: user.id,
               feature: 'auth',
               action: 'user_signed_up',
               status: 'succeeded',
               source: 'better-auth.user.create',
-            })
-            await captureSafe(posthog ?? null, {
-              event: 'user_signed_up',
-              distinctId: user.id,
             })
           },
         },
@@ -706,20 +718,19 @@ export function createAuth(
           // `after` hook for last-seen / analytics.
           after: async (session) => {
             metrics?.userLogin.add(1)
-            await db
+            // Best-effort analytics: session creation must not fail because
+            // active-user reporting is degraded.
+            void db
               .update(authSchema.user)
               .set({ lastSeenAt: new Date() })
               .where(eq(authSchema.user.id, session.userId))
-            await productEventService?.track({
+              .catch(err => logger.withError(err).withFields({ userId: session.userId }).warn('Failed to update user lastSeenAt; continuing session create'))
+            void productEventService?.track({
               userId: session.userId,
               feature: 'auth',
               action: 'session_started',
               status: 'succeeded',
               source: 'better-auth.session.create',
-            })
-            await captureSafe(posthog ?? null, {
-              event: 'session_started',
-              distinctId: session.userId,
             })
           },
         },

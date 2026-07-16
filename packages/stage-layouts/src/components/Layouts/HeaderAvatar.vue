@@ -20,7 +20,9 @@ const dropdownRef = ref(null)
 // which looks worse than the explicit placeholder we already ship.
 // Reset on URL change so a fixed URL re-attempts loading.
 const avatarLoadError = ref(false)
-watch(userAvatar, () => { avatarLoadError.value = false })
+watch(userAvatar, () => {
+  avatarLoadError.value = false
+})
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
 

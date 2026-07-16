@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/docs",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "private": true,
   "scripts": {
     "build": "vitepress build",
@@ -20,7 +20,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/chromatic": "catalog:",
     "@proj-airi/i18n": "workspace:^",
-    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/core": "catalog:",
     "colorjs.io": "catalog:",
     "date-fns": "catalog:",
     "embla-carousel-vue": "catalog:",
@@ -28,10 +28,10 @@
     "motion-v": "catalog:",
     "pathe": "catalog:",
     "posthog-js": "catalog:",
-    "reka-ui": "catalog:reka-ui-2-9-6",
+    "reka-ui": "catalog:",
     "vue": "catalog:",
     "vue-i18n": "catalog:",
-    "vue-sonner": "catalog:vue-sonner-2-0-9"
+    "vue-sonner": "catalog:"
   },
   "devDependencies": {
     "@iconify-json/lucide": "catalog:",

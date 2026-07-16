@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -248,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: 이 OAuth 계정은 이미 다른 AIRI 계정에 연결되어 있습니다. 다른 제공자 계정을 선택하거나, 먼저 다른 AIRI 계정에서 연결을 해제하세요.
+        oauthCallbackFailed: 이 OAuth 계정을 연결할 수 없습니다. 다시 시도하거나 다른 제공자 계정을 선택하세요.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
@@ -308,6 +310,9 @@ pages:
       provider: 채팅 / 제공자
     consciousness:
       model: 의식 / 모델
+    vision:
+      provider: 비전 / 제공자
+      model: 비전 / 모델
     created_by: 만든이
     creator_notes: 제작자 노트
     delete: 삭제
@@ -385,8 +390,14 @@ pages:
     systemprompt: 시스템 프롬프트
     title: AIRI 카드
     try_different_search: 다른 검색어를 시도해보세요
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 업로드
-    upload_desc: 클릭 또는 파일을 드래그하여 업로드
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 기억이 저장되고 정리된 곳
     title: 메모리
@@ -426,6 +437,7 @@ pages:
       desktop:
         title: 데스크탑 설정 및 상태 초기화
         description: AIRI 데스크탑 설정 및 런타임 상태를 전부 지웁니다.
+        center: Move desktop window to center
         reset: 데스크탑 데이터 지우기
     confirmations:
       tooltip: 정말 진행하실 건가요?
@@ -439,9 +451,10 @@ pages:
       modules_reset: 모듈 설정이 초기화되었습니다.
       providers_reset: 제공자 설정이 초기화되었습니다.
       all_deleted: 로컬 데이터가 초기화되었습니다.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
-    description: Live2D, VRM, 기타 등등.
+    description: Live2D, VRM, Spine, 기타 등등.
     title: 모델
     sections:
       section:
@@ -679,6 +692,12 @@ pages:
             select-voice:
               loading: 모델 로딩 중...
               required: 음성을 선택해 주세요
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: 사용자 지정 모델 이름 입력...
             custom_voice_placeholder: 사용자 지정 음성 ID 입력...
@@ -952,6 +971,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1215,6 +1237,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1639,6 +1664,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: 외형
   variant:
     title: Variant
     current-variant: Active Variant

@@ -1,5 +1,6 @@
 import type { WSEvents } from 'hono/ws'
 
+import type { AudioSpeechSessionAnalytics } from './session'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
 import { useLogger } from '@guiiai/logg'
@@ -22,8 +23,8 @@ export type { AudioSpeechWsHandlersOptions } from './types'
  * Expects:
  * - The route handler has already resolved auth via the `?token=` query
  *   (see app.ts wiring) and passes a verified `userId` in.
- * - `UNSPEECH_UPSTREAM.streaming` configKV subtree is populated with at least
- *   one key; absent config rejects the upgrade with policy-violation close.
+ * - The client sends a `start` control frame first. The session validates the
+ *   requested streaming model and voice before dialing upstream.
  *
  * Returns:
  * - A function that takes `userId` and returns hono `WSEvents`. Each call
@@ -31,15 +32,12 @@ export type { AudioSpeechWsHandlersOptions } from './types'
  *   peer registry because streaming TTS is single-session per connection.
  */
 export function createAudioSpeechWsHandlers(opts: AudioSpeechWsHandlersOptions) {
-  return function setupPeer(userId: string): WSEvents {
-    const sessionState = createSessionState(userId, opts)
+  return function setupPeer(userId: string, analytics?: AudioSpeechSessionAnalytics): WSEvents {
+    const sessionState = createSessionState(userId, opts, analytics)
 
     return {
       onOpen(_event, ws) {
         sessionState.attachClient(ws)
-        // Dial upstream inside the open handler so failure surfaces as a
-        // clean close on the client ws rather than a 500 on the upgrade.
-        void sessionState.dialUpstream()
       },
       onMessage(message, ws) {
         sessionState.handleClientMessage(message, ws)

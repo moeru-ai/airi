@@ -3,7 +3,10 @@ import type { BillingService } from '../../../services/domain/billing/billing-se
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
+import type { ProductEventService } from '../../../services/domain/product-events'
+import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
+import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
@@ -11,6 +14,11 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+} from './analytics'
 
 function createMockFluxService(flux = 100): FluxService {
   return {
@@ -44,6 +52,10 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
     TTS_DEBT_TTL_SECONDS: 86400,
     DEFAULT_CHAT_MODEL: 'openai/gpt-5-mini',
     DEFAULT_TTS_MODEL: 'tts-1',
+    LLM_ROUTER_CONFIG: {
+      llm: { models: { 'openai/gpt-5-mini': { upstreams: [] } } },
+      tts: { models: {} },
+    },
     ...overrides,
   }
   return {
@@ -73,7 +85,12 @@ function createMockRequestLogService(): RequestLogService {
 function createMockTtsMeter(unitsPerFlux = 1000) {
   let debt = 0
   return {
-    assertCanAfford: vi.fn(async () => undefined),
+    assertCanAfford: vi.fn(async (_userId: string, newUnits: number, currentBalance: number) => {
+      const projectedFlux = Math.floor((debt + newUnits) / unitsPerFlux)
+      const required = Math.max(projectedFlux, currentBalance <= 0 ? 1 : 0)
+      if (currentBalance < required)
+        throw new ApiError(402, 'PAYMENT_REQUIRED', 'Insufficient flux')
+    }),
     accumulate: vi.fn(async ({ units, currentBalance }: { units: number, currentBalance: number }) => {
       debt += units
       const fluxDebited = Math.floor(debt / unitsPerFlux)
@@ -128,6 +145,177 @@ function createMockLlmRouter(impl?: Partial<LlmRouterService>): LlmRouterService
   } as LlmRouterService
 }
 
+function createMockProductEventService(): ProductEventService {
+  return {
+    track: vi.fn(async () => undefined),
+    trackGeneration: vi.fn(async () => undefined),
+    countDistinctUsersByFeature: vi.fn(async () => []),
+  }
+}
+
+function createMockVoicePackService(impl?: Partial<VoicePackService>): VoicePackService {
+  return {
+    listEnabled: vi.fn(async () => []),
+    list: vi.fn(async () => []),
+    create: vi.fn(),
+    update: vi.fn(),
+    disable: vi.fn(),
+    findById: vi.fn(async () => null),
+    findEnabledByVoiceId: vi.fn(async () => null),
+    ...impl,
+  } as unknown as VoicePackService
+}
+
+function createMockProviderCatalogService(impl?: Partial<ProviderCatalogService>): ProviderCatalogService {
+  let syncedAliasRoutes: Array<{
+    id: string
+    aliasId: string
+    routerModelId: string
+    pool: 'primary' | 'fallback'
+    enabled: boolean
+    weight: number
+    displayOrder: number
+    createdAt: Date
+    updatedAt: Date
+  }> = []
+  let syncedModels: Awaited<ReturnType<ProviderCatalogService['syncTtsModelsFromRouterConfig']>> = []
+  const syncedVoicesByModel = new Map<string, Awaited<ReturnType<ProviderCatalogService['syncTtsVoices']>>>()
+
+  return {
+    syncAliasesFromRouterConfig: vi.fn(async (input: Parameters<ProviderCatalogService['syncAliasesFromRouterConfig']>[0]) => {
+      const { surface, modelIds } = input
+      syncedAliasRoutes = Array.from(new Set(modelIds)).map((routerModelId, index) => ({
+        id: `alias-route-${index}`,
+        aliasId: 'alias-auto',
+        routerModelId,
+        pool: 'primary',
+        enabled: true,
+        weight: 1,
+        displayOrder: index,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      return [{
+        id: 'alias-auto',
+        surface,
+        aliasId: 'auto',
+        displayName: 'Auto',
+        enabled: true,
+        displayOrder: 0,
+        fallbackEnabled: true,
+        loadBalancingEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }]
+    }),
+    listAliases: vi.fn(async () => []),
+    resolveEnabledAlias: vi.fn(async (surface, aliasId) => ({
+      id: `alias-${aliasId}`,
+      surface,
+      aliasId,
+      displayName: aliasId,
+      enabled: true,
+      displayOrder: 0,
+      fallbackEnabled: true,
+      loadBalancingEnabled: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      routes: aliasId === 'auto'
+        ? (syncedAliasRoutes.length > 0
+            ? syncedAliasRoutes
+            : [{
+                id: 'alias-route-auto',
+                aliasId: 'alias-auto',
+                routerModelId: 'openai/gpt-5-mini',
+                pool: 'primary',
+                enabled: true,
+                weight: 1,
+                displayOrder: 0,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              }])
+        : [{
+            id: `alias-route-${aliasId}`,
+            aliasId: `alias-${aliasId}`,
+            routerModelId: aliasId,
+            pool: 'primary',
+            enabled: true,
+            weight: 1,
+            displayOrder: 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }],
+    })),
+    syncTtsModelsFromRouterConfig: vi.fn(async (input: Parameters<ProviderCatalogService['syncTtsModelsFromRouterConfig']>[0]) => {
+      const { models } = input
+      syncedModels = Object.entries(models).sort(([a], [b]) => a.localeCompare(b)).map(([routerModelId, model], index) => ({
+        id: `tts-model-${index}`,
+        routerModelId,
+        provider: model.provider,
+        displayName: routerModelId,
+        enabled: true,
+        displayOrder: index,
+        lastSyncedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      return syncedModels
+    }),
+    listTtsModels: vi.fn(async () => []),
+    listEnabledTtsModels: vi.fn(async () => syncedModels),
+    assertTtsModelEnabled: vi.fn(async routerModelId => ({
+      id: 'tts-model-1',
+      routerModelId,
+      provider: 'azure',
+      displayName: routerModelId,
+      enabled: true,
+      displayOrder: 0,
+      lastSyncedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+    syncTtsVoices: vi.fn(async (input: Parameters<ProviderCatalogService['syncTtsVoices']>[0]) => {
+      const { routerModelId, voices } = input
+      const syncedVoices = voices.map((voice, index) => ({
+        id: `tts-voice-${index}`,
+        ttsModelId: 'tts-model-1',
+        providerVoiceId: voice.id,
+        displayName: voice.name ?? voice.id,
+        enabled: true,
+        displayOrder: index,
+        languages: voice.languages ?? [],
+        labels: voice.labels ?? {},
+        previewAudioUrl: voice.previewAudioUrl ?? null,
+        source: 'provider-sync' as const,
+        lastSyncedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }))
+      syncedVoicesByModel.set(routerModelId, syncedVoices)
+      return syncedVoices
+    }),
+    listTtsVoices: vi.fn(async () => []),
+    listEnabledTtsVoices: vi.fn(async routerModelId => syncedVoicesByModel.get(routerModelId) ?? []),
+    getTtsVoiceWithModel: vi.fn(async () => null),
+    assertTtsVoiceEnabled: vi.fn(async (_routerModelId, providerVoiceId) => ({
+      id: 'tts-voice-1',
+      ttsModelId: 'tts-model-1',
+      providerVoiceId,
+      displayName: providerVoiceId,
+      enabled: true,
+      displayOrder: 0,
+      languages: [],
+      labels: {},
+      previewAudioUrl: null,
+      source: 'provider-sync',
+      lastSyncedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })),
+    ...impl,
+  } as ProviderCatalogService
+}
+
 function createTestApp(
   fluxService: FluxService,
   configKV: ConfigKVService,
@@ -136,22 +324,23 @@ function createTestApp(
   ttsMeter?: ReturnType<typeof createMockTtsMeter>,
   llmRouter?: LlmRouterService,
   llmTracing = createMockLlmTracing(),
+  productEventService = createMockProductEventService(),
+  voicePackService = createMockVoicePackService(),
+  providerCatalogService = createMockProviderCatalogService(),
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
     billingService: billingService ?? createMockBillingService(),
     configKV,
     requestLogService: requestLogService ?? createMockRequestLogService(),
-    productEventService: {
-      track: vi.fn(async () => undefined),
-      countDistinctUsersByFeature: vi.fn(async () => []),
-    },
+    productEventService,
     ttsMeter: ttsMeter ?? createMockTtsMeter(),
     llmRouter: llmRouter ?? createMockLlmRouter(),
+    voicePackService,
+    providerCatalogService,
     genAi: null,
     revenue: null,
     rateLimitMetrics: null,
-    posthog: null,
     llmTracing,
   })
   const app = new Hono<HonoEnv>()
@@ -400,15 +589,24 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
-    it('should resolve "auto" model to DEFAULT_CHAT_MODEL from config', async () => {
+    it('resolves "auto" model through the capability alias catalog', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{}', {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }))
 
+      const providerCatalogService = createMockProviderCatalogService()
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({ DEFAULT_CHAT_MODEL: 'anthropic/claude-sonnet' }),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
       )
 
       await app.fetch(
@@ -423,12 +621,13 @@ describe('v1CompletionsRoutes', () => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
         'http://mock-gateway/chat/completions',
         expect.objectContaining({
-          body: expect.stringContaining('"model":"anthropic/claude-sonnet"'),
+          body: expect.stringContaining('"model":"openai/gpt-5-mini"'),
         }),
       )
+      expect(providerCatalogService.syncAliasesFromRouterConfig).not.toHaveBeenCalled()
     })
 
-    it('should pass through non-auto model as-is', async () => {
+    it('resolves an enabled non-auto model alias through the provider catalog', async () => {
       globalThis.fetch = vi.fn(async () => new Response('{}', {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -453,7 +652,268 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
-    it('records Langfuse chat generation with the router-resolved upstream model', async () => {
+    it('rejects disabled LLM aliases before upstream routing', async () => {
+      const route = vi.fn(async () => new Response('{}', { status: 200 }))
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => {
+          throw new ApiError(400, 'CAPABILITY_ALIAS_DISABLED', 'Capability alias is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('CAPABILITY_ALIAS_DISABLED')
+      expect(route).not.toHaveBeenCalled()
+    })
+
+    it('rejects missing LLM aliases before upstream routing', async () => {
+      const route = vi.fn(async () => new Response('{}', { status: 200 }))
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => {
+          throw new ApiError(400, 'CAPABILITY_ALIAS_NOT_FOUND', 'Capability alias is not configured')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'deepseek', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('CAPABILITY_ALIAS_NOT_FOUND')
+      expect(route).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the alias fallback pool when every primary route is exhausted', async () => {
+      const route = vi.fn(async ({ modelName }, ctx) => {
+        if (modelName === 'openai/primary')
+          throw new ApiError(502, 'BAD_GATEWAY', 'primary exhausted')
+        if (ctx) {
+          ctx.provider = 'openrouter'
+          ctx.upstreamModel = modelName
+        }
+        return new Response(JSON.stringify({ choices: [], usage: { prompt_tokens: 1, completion_tokens: 1 } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      })
+      const now = new Date()
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: true,
+          loadBalancingEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-primary', aliasId: 'alias-auto', routerModelId: 'openai/primary', pool: 'primary' as const, enabled: true, weight: 1, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-fallback', aliasId: 'alias-auto', routerModelId: 'openai/fallback', pool: 'fallback' as const, enabled: true, weight: 1, displayOrder: 1, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          DEFAULT_CHAT_MODEL: 'openai/primary',
+          LLM_ROUTER_CONFIG: {
+            llm: { models: { 'openai/primary': { upstreams: [] }, 'openai/fallback': { upstreams: [] } } },
+            tts: { models: {} },
+          },
+        }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      expect(route).toHaveBeenCalledTimes(2)
+      expect(route).toHaveBeenNthCalledWith(1, expect.objectContaining({ modelName: 'openai/primary' }), expect.any(Object))
+      expect(route).toHaveBeenNthCalledWith(2, expect.objectContaining({ modelName: 'openai/fallback' }), expect.any(Object))
+    })
+
+    it('does not use the alias fallback pool when fallback is disabled', async () => {
+      const route = vi.fn(async () => {
+        throw new ApiError(502, 'BAD_GATEWAY', 'primary exhausted')
+      })
+      const now = new Date()
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: false,
+          loadBalancingEnabled: false,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-primary', aliasId: 'alias-auto', routerModelId: 'openai/primary', pool: 'primary' as const, enabled: true, weight: 1, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-fallback', aliasId: 'alias-auto', routerModelId: 'openai/fallback', pool: 'fallback' as const, enabled: true, weight: 1, displayOrder: 1, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          DEFAULT_CHAT_MODEL: 'openai/primary',
+          LLM_ROUTER_CONFIG: {
+            llm: { models: { 'openai/primary': { upstreams: [] }, 'openai/fallback': { upstreams: [] } } },
+            tts: { models: {} },
+          },
+        }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(502)
+      expect(route).toHaveBeenCalledTimes(1)
+      expect(route).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'openai/primary' }), expect.any(Object))
+    })
+
+    it('uses weighted primary routing when alias load balancing is enabled', async () => {
+      const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.95)
+      const route = vi.fn(async ({ modelName }, ctx) => {
+        if (ctx) {
+          ctx.provider = 'openrouter'
+          ctx.upstreamModel = modelName
+        }
+        return new Response(JSON.stringify({ choices: [], usage: { prompt_tokens: 1, completion_tokens: 1 } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      })
+      const now = new Date()
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => ({
+          id: 'alias-auto',
+          surface: 'llm' as const,
+          aliasId: 'auto',
+          displayName: 'Auto',
+          enabled: true,
+          displayOrder: 0,
+          fallbackEnabled: false,
+          loadBalancingEnabled: true,
+          createdAt: now,
+          updatedAt: now,
+          routes: [
+            { id: 'route-a', aliasId: 'alias-auto', routerModelId: 'openai/light', pool: 'primary' as const, enabled: true, weight: 1, displayOrder: 0, createdAt: now, updatedAt: now },
+            { id: 'route-b', aliasId: 'alias-auto', routerModelId: 'openai/heavy', pool: 'primary' as const, enabled: true, weight: 9, displayOrder: 1, createdAt: now, updatedAt: now },
+          ],
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({
+          DEFAULT_CHAT_MODEL: 'openai/light',
+          LLM_ROUTER_CONFIG: {
+            llm: { models: { 'openai/light': { upstreams: [] }, 'openai/heavy': { upstreams: [] } } },
+            tts: { models: {} },
+          },
+        }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ route }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      try {
+        const res = await app.fetch(
+          new Request('http://localhost/api/v1/openai/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: 'auto', messages: [] }),
+          }),
+          { user: testUser } as any,
+        )
+
+        expect(res.status).toBe(200)
+        expect(route).toHaveBeenCalledTimes(1)
+        expect(route).toHaveBeenCalledWith(expect.objectContaining({ modelName: 'openai/heavy' }), expect.any(Object))
+      }
+      finally {
+        randomSpy.mockRestore()
+      }
+    })
+
+    it('records Langfuse and PostHog generations with authoritative usage and correlation', async () => {
       const llmRouter = createMockLlmRouter({
         route: vi.fn(async (_req, ctx) => {
           if (ctx) {
@@ -470,12 +930,27 @@ describe('v1CompletionsRoutes', () => {
         }) as any,
       })
       const llmTracing = createMockLlmTracing()
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter, llmTracing)
+      const productEventService = createMockProductEventService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        llmTracing,
+        productEventService,
+      )
 
       await app.fetch(
         new Request('http://localhost/api/v1/openai/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            [AIRI_CHAT_SESSION_ID_HEADER]: 'conversation-1',
+            [AIRI_CHAT_ROUND_ID_HEADER]: 'round-1',
+            [AIRI_CHAT_APP_SURFACE_HEADER]: 'electron',
+          },
           body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'hi' }] }),
         }),
         { user: testUser } as any,
@@ -488,6 +963,88 @@ describe('v1CompletionsRoutes', () => {
           userId: 'user-1',
         }),
       )
+      expect(productEventService.trackGeneration).toHaveBeenCalledWith({
+        userId: 'user-1',
+        traceId: 'conversation-1',
+        generationId: 'round-1',
+        model: 'openai/gpt-4o-mini',
+        provider: 'openrouter',
+        providerType: 'official',
+        usageSource: 'reported',
+        inputTokens: 1,
+        outputTokens: 2,
+        totalTokens: 3,
+        costUsdSource: 'unavailable',
+        conversationId: 'conversation-1',
+        conversationIdSource: 'client_header',
+        roundId: 'round-1',
+        appSurface: 'electron',
+        captureSurface: 'server',
+        latencySeconds: expect.any(Number),
+        stream: false,
+      })
+    })
+
+    it('uses request-level correlation for server-captured generations without chat headers', async () => {
+      const llmRouter = createMockLlmRouter({
+        route: vi.fn(async (_req, ctx) => {
+          if (ctx) {
+            ctx.provider = 'openrouter'
+            ctx.upstreamModel = 'openai/gpt-4o-mini'
+          }
+          return new Response(JSON.stringify({
+            choices: [],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }) as any,
+      })
+      const productEventService = createMockProductEventService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(productEventService.trackGeneration).toHaveBeenCalledWith({
+        userId: 'user-1',
+        traceId: expect.any(String),
+        generationId: expect.any(String),
+        model: 'openai/gpt-4o-mini',
+        provider: 'openrouter',
+        providerType: 'official',
+        usageSource: 'reported',
+        inputTokens: 1,
+        outputTokens: 2,
+        totalTokens: 3,
+        costUsdSource: 'unavailable',
+        conversationId: expect.any(String),
+        conversationIdSource: 'server_request',
+        roundId: expect.any(String),
+        captureSurface: 'server',
+        latencySeconds: expect.any(Number),
+        stream: false,
+      })
+      const generation = vi.mocked(productEventService.trackGeneration).mock.calls[0]?.[0]
+      expect(generation?.traceId).toBe(generation?.conversationId)
+      expect(generation?.roundId).toBe(generation?.generationId)
+      expect(generation).not.toHaveProperty('appSurface')
     })
 
     it('should not charge flux when upstream returns error', async () => {
@@ -514,9 +1071,29 @@ describe('v1CompletionsRoutes', () => {
 
     it('should return 503 when config keys are missing', async () => {
       const configKV = createMockConfigKV()
-      configKV.getOptional = vi.fn(async () => null)
+      configKV.getOrThrow = vi.fn(async (key: string) => {
+        if (key === 'LLM_ROUTER_CONFIG')
+          throw new ApiError(503, 'CONFIG_NOT_SET', 'Service configuration is incomplete')
+        return createMockConfigKV().getOrThrow(key as never)
+      })
+      const providerCatalogService = createMockProviderCatalogService({
+        resolveEnabledAlias: vi.fn(async () => {
+          throw new ApiError(503, 'CONFIG_NOT_SET', 'Service configuration is incomplete')
+        }),
+      })
 
-      const app = createTestApp(createMockFluxService(), configKV)
+      const app = createTestApp(
+        createMockFluxService(),
+        configKV,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/openai/chat/completions', {
@@ -659,6 +1236,149 @@ describe('v1CompletionsRoutes', () => {
       )
     })
 
+    it('rejects disabled provider catalog TTS models before billing or upstream routing', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const ttsMeter = createMockTtsMeter()
+      const providerCatalogService = createMockProviderCatalogService({
+        assertTtsModelEnabled: vi.fn(async () => {
+          throw new ApiError(400, 'PROVIDER_CATALOG_TTS_MODEL_DISABLED', 'Provider catalog TTS model is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        ttsMeter,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('PROVIDER_CATALOG_TTS_MODEL_DISABLED')
+      expect(ttsMeter.assertCanAfford).not.toHaveBeenCalled()
+      expect(routeTts).not.toHaveBeenCalled()
+    })
+
+    it('rejects disabled provider catalog TTS voices before billing or upstream routing', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const ttsMeter = createMockTtsMeter()
+      const providerCatalogService = createMockProviderCatalogService({
+        assertTtsVoiceEnabled: vi.fn(async () => {
+          throw new ApiError(400, 'PROVIDER_CATALOG_TTS_VOICE_DISABLED', 'Provider catalog TTS voice is disabled')
+        }),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        ttsMeter,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'test', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(400)
+      const body = await res.json() as { error?: string }
+      expect(body.error).toBe('PROVIDER_CATALOG_TTS_VOICE_DISABLED')
+      expect(providerCatalogService.assertTtsVoiceEnabled).toHaveBeenCalledWith('microsoft/v1', 'alloy')
+      expect(ttsMeter.assertCanAfford).not.toHaveBeenCalled()
+      expect(routeTts).not.toHaveBeenCalled()
+    })
+
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "model": "voice-pack", "voice": "friendly-azure" }
+     */
+    it('resolves Voice Pack aliases to server-owned model, voice, and params', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService({
+          findEnabledByVoiceId: vi.fn(async () => ({
+            id: 'vp-azure',
+            name: 'Azure',
+            description: null,
+            provider: 'azure',
+            model: 'microsoft/v1',
+            voiceId: 'friendly-azure',
+            upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+            ttsModelId: 'microsoft/v1',
+            params: { pitch: 20, volume: 5, rate: 1.2 },
+            costMultiplier: 1.5,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })),
+        }),
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'voice-pack',
+            input: 'test',
+            voice: 'friendly-azure',
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(routeTts).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelName: 'microsoft/v1',
+          input: expect.objectContaining({
+            text: 'test',
+            voice: 'en-US-AvaMultilingualNeural',
+            speed: 1.2,
+            extraOptions: {
+              pitch: 20,
+              volume: 5,
+            },
+          }),
+        }),
+        expect.any(Object),
+      )
+    })
+
     it('should bill per character with minimum charge', async () => {
       globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
@@ -679,6 +1399,146 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
+    })
+
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "input": "hello", "voice": "alloy" }
+     */
+    it('uses Voice Pack cost multiplier for affordability and billing units', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const ttsMeter = createMockTtsMeter()
+      const voicePackService = createMockVoicePackService({
+        findEnabledByVoiceId: vi.fn(async () => ({
+          id: 'vp-premium',
+          name: 'Premium',
+          description: null,
+          provider: 'azure',
+          model: 'microsoft/v1',
+          voiceId: 'alloy',
+          upstreamVoiceId: 'upstream-alloy',
+          ttsModelId: 'tts-1',
+          params: {},
+          costMultiplier: 2,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        ttsMeter,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        voicePackService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(ttsMeter.assertCanAfford).toHaveBeenCalledWith('user-1', 10, 100)
+      expect(ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
+        units: 10,
+        metadata: expect.objectContaining({
+          costMultiplier: 2,
+        }),
+      }))
+    })
+
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "voice": "alloy" }
+     */
+    it('records TTS voice and Voice Pack metadata in product events', async () => {
+      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+
+      const productEventService = createMockProductEventService()
+      const voicePackService = createMockVoicePackService({
+        findEnabledByVoiceId: vi.fn(async () => ({
+          id: 'vp-premium',
+          name: 'Premium',
+          description: null,
+          provider: 'azure',
+          model: 'microsoft/v1',
+          voiceId: 'alloy',
+          upstreamVoiceId: 'upstream-alloy',
+          ttsModelId: 'tts-1',
+          params: {},
+          costMultiplier: 2,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        productEventService,
+        voicePackService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+            extra_body: {
+              airi_analytics: {
+                source: 'manual_preview',
+                voice_type: 'official_selected',
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_succeeded',
+        source: 'manual_preview',
+        metadata: expect.objectContaining({
+          voice_id: 'alloy',
+          voice_type: 'voice_pack',
+          voice_pack_id: 'vp-premium',
+        }),
+      }))
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_requested',
+        metadata: expect.objectContaining({
+          voice_id: 'alloy',
+          voice_type: 'voice_pack',
+          voice_pack_id: 'vp-premium',
+        }),
+      }))
     })
 
     it('should not charge when routeTts upstream returns error', async () => {
@@ -704,10 +1564,62 @@ describe('v1CompletionsRoutes', () => {
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
-    it('should return 402 when flux is insufficient', async () => {
+    /**
+     * @example
+     * routeTts throws ApiError(429, 'TOO_MANY_REQUESTS', 'Too many requests')
+     */
+    it('records routeTts ApiError status and reason in product events', async () => {
+      const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter({
+        routeTts: vi.fn(async () => {
+          throw new ApiError(429, 'TOO_MANY_REQUESTS', 'Too many requests')
+        }) as any,
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(429)
+      expect(productEventService.track).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'speech_failed',
+          reason: 'TOO_MANY_REQUESTS',
+          metadata: expect.objectContaining({
+            failure_reason: 'TOO_MANY_REQUESTS',
+            http_status: 429,
+          }),
+        }),
+      )
+    })
+
+    it('returns 402 and records blocked event for manual TTS when flux is insufficient', async () => {
+      const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter()
       const app = createTestApp(
         createMockFluxService(0),
         createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
       )
 
       const res = await app.fetch(
@@ -719,6 +1631,67 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
       expect(res.status).toBe(402)
+      expect(llmRouter.routeTts).not.toHaveBeenCalled()
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_blocked',
+        status: 'blocked',
+        source: 'audio.speech',
+        reason: 'insufficient_balance',
+        metadata: expect.objectContaining({
+          trigger: 'manual',
+          block_reason: 'insufficient_balance',
+          balance_state: 'insufficient',
+          flux_balance_bucket: 'zero',
+        }),
+      }))
+    })
+
+    it('returns 204 and records blocked event for auto TTS when flux is insufficient', async () => {
+      const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter()
+      const app = createTestApp(
+        createMockFluxService(0),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        productEventService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'auto',
+            input: 'hello',
+            voice: 'alloy',
+            extra_body: {
+              airi_analytics: {
+                trigger: 'auto',
+                source: 'chat_auto_tts',
+              },
+            },
+          }),
+        }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(204)
+      expect(llmRouter.routeTts).not.toHaveBeenCalled()
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        action: 'speech_blocked',
+        status: 'blocked',
+        source: 'chat_auto_tts',
+        reason: 'insufficient_balance',
+        metadata: expect.objectContaining({
+          trigger: 'auto',
+          block_reason: 'insufficient_balance',
+          balance_state: 'insufficient',
+          flux_balance_bucket: 'zero',
+        }),
+      }))
     })
 
     it('should not charge when input is empty', async () => {
@@ -854,10 +1827,37 @@ describe('v1CompletionsRoutes', () => {
   })
 
   describe('gET /api/v1/audio/models', () => {
-    it('exposes every configured tts model id', async () => {
+    it('exposes Voice Pack beside every configured tts model id', async () => {
+      const providerCatalogService = createMockProviderCatalogService({
+        listEnabledTtsModels: vi.fn(async () => [
+          {
+            id: 'tts-model-aliyun',
+            routerModelId: 'alibaba/cosyvoice-v2',
+            provider: 'dashscope-cosyvoice',
+            displayName: 'alibaba/cosyvoice-v2',
+            enabled: true,
+            displayOrder: 0,
+            lastSyncedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'tts-model-azure',
+            routerModelId: 'microsoft/v1',
+            provider: 'azure',
+            displayName: 'microsoft/v1',
+            enabled: true,
+            displayOrder: 1,
+            lastSyncedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
+      })
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
+          DEFAULT_TTS_MODEL: 'microsoft/v1',
           LLM_ROUTER_CONFIG: {
             llm: { models: {} },
             tts: {
@@ -868,6 +1868,14 @@ describe('v1CompletionsRoutes', () => {
             },
           },
         }),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
       )
 
       const res = await app.fetch(
@@ -876,14 +1884,22 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { models: { id: string, name: string }[] }
+      const data = await res.json() as { models: { id: string, name: string }[], default: string }
       expect(data.models.map(m => m.id)).toEqual([
+        'voice-pack',
         'alibaba/cosyvoice-v2',
         'microsoft/v1',
       ])
+      expect(data.models[0]).toMatchObject({
+        id: 'voice-pack',
+        name: 'Voice Pack',
+        description: 'Server-curated voices',
+      })
+      expect(data.default).toBe('microsoft/v1')
+      expect(providerCatalogService.syncTtsModelsFromRouterConfig).not.toHaveBeenCalled()
     })
 
-    it('returns an empty list when no tts models are configured', async () => {
+    it('keeps the Voice Pack model entry when no tts models are configured', async () => {
       const app = createTestApp(
         createMockFluxService(),
         createMockConfigKV({
@@ -898,7 +1914,11 @@ describe('v1CompletionsRoutes', () => {
 
       expect(res.status).toBe(200)
       const data = await res.json() as { models: { id: string, name: string }[] }
-      expect(data.models).toEqual([])
+      expect(data.models).toEqual([{
+        id: 'voice-pack',
+        name: 'Voice Pack',
+        description: 'Server-curated voices',
+      }])
     })
 
     it('should return 401 when unauthenticated', async () => {
@@ -1018,11 +2038,45 @@ describe('v1CompletionsRoutes', () => {
   describe('gET /api/v1/audio/voices', () => {
     it('returns the recommended bucket scoped to the explicit model id', async () => {
       const voices = [
-        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female' },
+        { id: 'en-US-JennyNeural', name: 'Jenny', provider: 'azure', locale: 'en-US', gender: 'Female', previewAudioUrl: 'https://example.com/jenny.mp3' },
         { id: 'en-US-AvaMultilingualNeural', name: 'Ava', provider: 'azure', locale: 'en-US', gender: 'Female' },
       ]
       const llmRouter = createMockLlmRouter({
         listTtsVoices: vi.fn(async () => voices) as any,
+      })
+      const providerCatalogService = createMockProviderCatalogService({
+        listEnabledTtsVoices: vi.fn(async () => [
+          {
+            id: 'tts-voice-jenny',
+            ttsModelId: 'tts-model-azure',
+            providerVoiceId: 'en-US-JennyNeural',
+            displayName: 'Jenny',
+            enabled: true,
+            displayOrder: 0,
+            languages: [],
+            labels: {},
+            previewAudioUrl: 'https://example.com/jenny.mp3',
+            source: 'provider-sync',
+            lastSyncedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'tts-voice-ava',
+            ttsModelId: 'tts-model-azure',
+            providerVoiceId: 'en-US-AvaMultilingualNeural',
+            displayName: 'Ava',
+            enabled: true,
+            displayOrder: 1,
+            languages: [],
+            labels: {},
+            previewAudioUrl: null,
+            source: 'provider-sync',
+            lastSyncedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
       })
       const configKV = createMockConfigKV({
         DEFAULT_TTS_VOICES: {
@@ -1031,7 +2085,18 @@ describe('v1CompletionsRoutes', () => {
         },
       })
 
-      const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
+      const app = createTestApp(
+        createMockFluxService(),
+        configKV,
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
 
       const res = await app.fetch(
         new Request('http://localhost/api/v1/audio/voices?model=microsoft/v1', { method: 'GET' }),
@@ -1039,10 +2104,198 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(200)
-      const data = await res.json() as { voices: typeof voices, recommended: Record<string, string> }
-      expect(data.voices).toEqual(voices)
+      const data = await res.json() as { voices: Array<Record<string, unknown>>, recommended: Record<string, string> }
+      expect(data.voices[0]).toEqual({
+        id: 'en-US-JennyNeural',
+        name: 'Jenny',
+        languages: [],
+        labels: {},
+        preview_audio_url: 'https://example.com/jenny.mp3',
+      })
+      expect(data.voices[1]).toMatchObject({
+        id: 'en-US-AvaMultilingualNeural',
+        name: 'Ava',
+        languages: [],
+        labels: {},
+      })
+      expect(data.voices[1]).not.toHaveProperty('preview_audio_url')
       expect(data.recommended).toEqual({ 'en-US': 'en-US-AvaMultilingualNeural' })
-      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+    })
+
+    it('lists enabled Voice Packs from the Voice Pack model without upstream details', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => [
+          { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
+        ]) as any,
+      })
+      const voicePackService = createMockVoicePackService({
+        listEnabled: vi.fn(async () => [
+          {
+            id: 'vp-1',
+            name: 'Narrator',
+            description: 'Warm voice',
+            provider: 'azure',
+            model: 'microsoft/v1',
+            voiceId: 'narrator-alias',
+            upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+            ttsModelId: 'microsoft/v1',
+            params: {},
+            costMultiplier: 2,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'vp-other',
+            name: 'Other model pack',
+            description: null,
+            provider: 'alibaba',
+            model: 'cosyvoice-v1',
+            voiceId: 'other-model-alias',
+            upstreamVoiceId: 'longxiaochun',
+            ttsModelId: 'alibaba/cosyvoice-v1',
+            params: {},
+            costMultiplier: 1,
+            enabled: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ]),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_VOICES: { 'microsoft/v1': { 'en-US': 'en-US-AvaMultilingualNeural' } } }),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        voicePackService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=voice-pack', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { voices: Array<Record<string, unknown>> }
+      expect(data.voices[0]).toMatchObject({
+        id: 'narrator-alias',
+        name: 'Narrator',
+        description: 'Warm voice · Flux cost: 2x',
+      })
+      expect(data.voices[0]).not.toHaveProperty('upstreamVoiceId')
+      expect(data.voices[0]).not.toHaveProperty('ttsModelId')
+      expect(data.voices[1]).toMatchObject({ id: 'other-model-alias' })
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+    })
+
+    it('does not mix Voice Packs into concrete model voice catalogs', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => [
+          { id: 'en-US-AvaMultilingualNeural', name: 'Ava', languages: [{ code: 'en-US', title: 'English' }] },
+        ]) as any,
+      })
+      const voicePackService = createMockVoicePackService({
+        listEnabled: vi.fn(async () => [{
+          id: 'vp-1',
+          name: 'Narrator',
+          description: 'Warm voice',
+          provider: 'azure',
+          model: 'microsoft/v1',
+          voiceId: 'narrator-alias',
+          upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+          ttsModelId: 'microsoft/v1',
+          params: {},
+          costMultiplier: 2,
+          enabled: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }]),
+      })
+      const providerCatalogService = createMockProviderCatalogService({
+        listEnabledTtsVoices: vi.fn(async () => [{
+          id: 'tts-voice-ava',
+          ttsModelId: 'tts-model-azure',
+          providerVoiceId: 'en-US-AvaMultilingualNeural',
+          displayName: 'Ava',
+          enabled: true,
+          displayOrder: 0,
+          languages: [{ code: 'en-US', title: 'English' }],
+          labels: {},
+          previewAudioUrl: null,
+          source: 'provider-sync',
+          lastSyncedAt: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }]),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_VOICES: { 'microsoft/v1': { 'en-US': 'en-US-AvaMultilingualNeural' } } }),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        voicePackService,
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=microsoft/v1', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { voices: Array<Record<string, unknown>> }
+      expect(data.voices).toEqual([
+        {
+          id: 'en-US-AvaMultilingualNeural',
+          name: 'Ava',
+          languages: [{ code: 'en-US', title: 'English' }],
+          labels: {},
+        },
+      ])
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+    })
+
+    it('hides provider voices that are not enabled in the provider catalog', async () => {
+      const llmRouter = createMockLlmRouter({
+        listTtsVoices: vi.fn(async () => [
+          { id: 'en-US-AvaMultilingualNeural', name: 'Ava' },
+        ]) as any,
+      })
+      const providerCatalogService = createMockProviderCatalogService({
+        listEnabledTtsVoices: vi.fn(async () => []),
+      })
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices?model=microsoft/v1', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      const data = await res.json() as { voices: Array<Record<string, unknown>> }
+      expect(data.voices).toEqual([])
+      expect(llmRouter.listTtsVoices).not.toHaveBeenCalled()
+      expect(providerCatalogService.syncTtsVoices).not.toHaveBeenCalled()
     })
 
     it('returns an empty recommended map when the resolved model has no bucket', async () => {
@@ -1068,26 +2321,44 @@ describe('v1CompletionsRoutes', () => {
     })
 
     it('uses the explicit ?model= query when provided instead of DEFAULT_TTS_MODEL', async () => {
-      const llmRouter = createMockLlmRouter({
-        listTtsVoices: vi.fn(async (model: string) => [{ id: `${model}-v`, name: model } as any]) as any,
-      })
+      const providerCatalogService = createMockProviderCatalogService()
 
-      const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, undefined, undefined, llmRouter)
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
 
       await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=alibaba/cosyvoice-v1'), { user: testUser } as any)
-      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('alibaba/cosyvoice-v1')
+      expect(providerCatalogService.listEnabledTtsVoices).toHaveBeenCalledWith('alibaba/cosyvoice-v1')
     })
 
     it('resolves `auto` model to configKV DEFAULT_TTS_MODEL', async () => {
-      const llmRouter = createMockLlmRouter({
-        listTtsVoices: vi.fn(async () => []) as any,
-      })
+      const providerCatalogService = createMockProviderCatalogService()
       const configKV = createMockConfigKV({ DEFAULT_TTS_MODEL: 'microsoft/v1' })
 
-      const app = createTestApp(createMockFluxService(), configKV, undefined, undefined, undefined, llmRouter)
+      const app = createTestApp(
+        createMockFluxService(),
+        configKV,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmTracing(),
+        createMockProductEventService(),
+        createMockVoicePackService(),
+        providerCatalogService,
+      )
 
       await app.fetch(new Request('http://localhost/api/v1/audio/voices?model=auto'), { user: testUser } as any)
-      expect(llmRouter.listTtsVoices).toHaveBeenCalledWith('microsoft/v1')
+      expect(providerCatalogService.listEnabledTtsVoices).toHaveBeenCalledWith('microsoft/v1')
     })
 
     it('returns 400 MISSING_MODEL when ?model= is omitted (no implicit fallback)', async () => {

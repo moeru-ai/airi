@@ -1,8 +1,9 @@
+import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 export interface PluginManifestSummary {
-  name: string
+  extensionId: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -27,7 +28,7 @@ export interface PluginCapabilityState {
 
 export interface PluginHostSessionSummary {
   id: string
-  manifestName: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
   moduleId: string
@@ -48,7 +49,7 @@ export interface PluginHostKitSummary {
 export interface PluginHostModuleSummary {
   moduleId: string
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   kitId: string
   kitModuleType: string
   state: 'announced' | 'active' | 'degraded' | 'withdrawn'
@@ -69,11 +70,11 @@ export interface PluginHostDebugSnapshot {
 
 interface PluginHostDebugBridge {
   list: () => Promise<PluginRegistrySnapshot>
-  setEnabled: (payload: { name: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
-  setAutoReload: (payload: { name: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
   loadEnabled: () => Promise<PluginRegistrySnapshot>
-  load: (payload: { name: string }) => Promise<PluginRegistrySnapshot>
-  unload: (payload: { name: string }) => Promise<PluginRegistrySnapshot>
+  load: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
+  unload: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
   inspect: () => Promise<PluginHostDebugSnapshot>
 }
 
@@ -146,7 +147,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
       return await run(bridge.value)
     }
     catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Plugin host debug request failed.'
+      error.value = errorMessageFrom(cause) ?? 'Plugin host debug request failed.'
       throw cause
     }
     finally {
@@ -170,14 +171,14 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return refreshInspection()
   }
 
-  async function setEnabled(payload: { name: string, enabled: boolean, path?: string }) {
+  async function setEnabled(payload: { extensionId: string, enabled: boolean, path?: string }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.setEnabled(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function setAutoReload(payload: { name: string, enabled: boolean }) {
+  async function setAutoReload(payload: { extensionId: string, enabled: boolean }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.setAutoReload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
@@ -191,14 +192,14 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     return nextRegistry
   }
 
-  async function load(payload: { name: string }) {
+  async function load(payload: { extensionId: string }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.load(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function unload(payload: { name: string }) {
+  async function unload(payload: { extensionId: string }) {
     const nextRegistry = await withBridge(activeBridge => activeBridge.unload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()

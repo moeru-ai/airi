@@ -76,6 +76,21 @@ export interface UseLinkedAccountsArgs {
    *          and hash-history routers without further configuration.
    */
   buildCallbackURL?: () => string
+  /**
+   * Analytics hook — fires exactly once per successful unlink, after the
+   * server confirmed the removal. Success is only knowable inside this
+   * composable (errors are swallowed into the `error` ref for the UI), so
+   * callers that need to observe it must hook here instead of inspecting
+   * refs after `unlink()` resolves.
+   */
+  onUnlinked?: (providerId: string) => void
+  /**
+   * Analytics hook — fires right before the OAuth consent redirect
+   * navigates away (or after a synchronous link succeeded). Link
+   * completion happens on the provider's site and is not observable
+   * from this page; treat this as "link attempt handed off".
+   */
+  onLinkStarted?: (providerId: string) => void
 }
 
 /**
@@ -173,6 +188,7 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       if (apiError)
         throw new Error(apiError.message ?? 'unlinkAccount failed')
       message.value = args.messages.unlinked(providerName)
+      args.onUnlinked?.(providerId)
       await refresh()
     }
     catch (err) {
@@ -196,15 +212,18 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       const { data, error: apiError } = await args.client.linkSocial({
         provider: providerId,
         callbackURL,
+        errorCallbackURL: callbackURL,
       })
       if (apiError)
         throw new Error(apiError.message ?? 'linkSocial failed')
       if (data?.url) {
+        args.onLinkStarted?.(providerId)
         window.location.assign(data.url)
         return
       }
       // No URL came back (e.g. provider returned success synchronously) —
       // refresh so the new row shows up without a navigation.
+      args.onLinkStarted?.(providerId)
       await refresh()
     }
     catch (err) {

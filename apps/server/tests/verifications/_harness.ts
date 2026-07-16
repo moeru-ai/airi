@@ -199,7 +199,6 @@ export async function startVerificationContext() {
       route: vi.fn(async () => new Response('{}', { status: 200 })),
       invalidateConfig: vi.fn(),
     } as any,
-    posthog: null,
   })
 
   return {

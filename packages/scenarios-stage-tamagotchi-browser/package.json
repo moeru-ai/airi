@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/scenarios-stage-tamagotchi-browser",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "private": true,
   "description": "Vite/Vue scene app for stage tamagotchi browser captures",
   "author": {
@@ -28,7 +28,7 @@
     "@proj-airi/vishot-runtime": "workspace:^",
     "@vueuse/core": "catalog:",
     "date-fns": "catalog:",
-    "reka-ui": "catalog:reka-ui-2-9-6",
+    "reka-ui": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },

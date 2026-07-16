@@ -177,17 +177,17 @@
 
 因此，这个项目 AIRI，在这里提供了另一种可能性：**让你轻松拥有自己的数字生命、赛博生命，随时随地**。
 
-## 我们发布的 DevLog & 近期更新
+## 近期 DevLog 与故事
 
-- [DevLog @ 2026.03.29](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.03.29/) — 2026 年 3 月 29 日
-- [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.02.16/) — 2026 年 2 月 16 日
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.01.01/) — 2026 年 1 月 1 日
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.10.20/) — 2025 年 10 月 20 日
-- [DevLog @ 2025.08.26](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.26/) — 2025 年 8 月 26 日
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.05/) — 2025 年 8 月 5 日
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.01/) — 2025 年 8 月 1 日
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.07.18/) — 2025 年 7 月 18 日
-- [DreamLog 0x1](https://airi.moeru.ai/docs/zh-Hans/blog/DreamLog-0x1/) — 2025 年 6 月 16 日
+- [DevLog @ 2026.03.29：在 Godot 中嵌入 WebView](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.03.29/) - 2026 年 3 月 29 日
+- [DevLog @ 2026.02.16：Dome Keeper 数据采集与训练流程](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.02.16/) - 2026 年 2 月 16 日
+- [DevLog @ 2026.01.01：AIRI Pocket 与 FlowChat 记忆实验](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2026.01.01/) - 2026 年 1 月 1 日
+- [DevLog @ 2025.10.20：Electron 迁移、新模型与 Moeru AI 更新](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.10.20/) - 2025 年 10 月 20 日
+- [DevLog @ 2025.08.26：airi-factorio 的纯视觉方向进展](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.26/) - 2025 年 8 月 26 日
+- [DevLog @ 2025.08.05：AIRI v0.7 发布亮点](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.05/) - 2025 年 8 月 5 日
+- [DevLog @ 2025.08.01：流式文本动画与字素簇](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.08.01/) - 2025 年 8 月 1 日
+- [DevLog @ 2025.07.18：基于 Factorio Learning Environment 重新思考 airi-factorio](https://airi.moeru.ai/docs/zh-Hans/blog/DevLog-2025.07.18/) - 2025 年 7 月 18 日
+- [DreamLog 0x1：Project AIRI 的起源故事](https://airi.moeru.ai/docs/zh-Hans/blog/DreamLog-0x1/) - 2025 年 6 月 16 日
 - ...更多请见[文档站](https://airi.moeru.ai/docs/zh-Hans/)
 
 ## 这个项目有什么特别？
@@ -227,13 +227,15 @@
 >
 > **如果你已经感兴趣了，为什么不来这里和大家打个招呼呢？[Would like to join part of us to build AIRI?](https://github.com/moeru-ai/airi/discussions/33)**
 
-## 当前进度
+## 当前进度与路线图
 
 目前已经能做到：
 
 - [x] 大脑
   - [x] 玩 [Minecraft](https://www.minecraft.net)
   - [x] 玩 [Factorio](https://www.factorio.com)（进行中，但已提供 [PoC 和 demo](https://github.com/moeru-ai/airi-factorio)）
+  - [x] 玩 [Kerbal Space Program](https://www.kerbalspaceprogram.com/)（公告待定）
+  - [ ] 协作玩 [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/)（进行中）
   - [x] 在 [Telegram](https://telegram.org) 聊天
   - [x] 在 [Discord](https://discord.com) 聊天
   - [ ] 记忆
@@ -246,7 +248,7 @@
   - [x] 客户端语音识别
   - [x] 客户端说话检测
 - [x] 嘴巴
-  - [x] [ElevenLabs](https://elevenlabs.io/) 语音合成
+  - [x] 多提供商语音合成，包括 [ElevenLabs](https://elevenlabs.io/)、Microsoft/Azure Speech、OpenAI 兼容 TTS、阿里云百炼和本地 Kokoro TTS
 - [x] 身体
   - [x] VRM 支持
     - [x] 控制 VRM 模型
@@ -352,7 +354,7 @@ npx bumpp --no-commit --no-tag
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
   - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
 - [x] [Anthropic Claude](https://anthropic.com)
-  - [ ] [AWS Claude](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)（欢迎 PR）
+  - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock)（欢迎 PR）
 - [x] [深度求索 DeepSeek](https://www.deepseek.com/)
 - [x] [通义千问 Qwen](https://help.aliyun.com/document_detail/2400395.html)
 - [x] [Google Gemini](https://developers.generativeai.google)
@@ -361,7 +363,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [智谱](https://bigmodel.cn)
 - [x] [硅基流动](https://cloud.siliconflow.cn/i/rKXmRobW)

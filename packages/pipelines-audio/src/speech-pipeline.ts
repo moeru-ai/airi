@@ -101,7 +101,14 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   function waitForPlayback(item: PlaybackItem<TAudio>) {
     return new Promise<void>((resolve) => {
       playbackWaiters.set(item.id, resolve)
-      options.playback.schedule(item)
+      try {
+        options.playback.schedule(item)
+      }
+      catch (err) {
+        playbackWaiters.delete(item.id)
+        logger.warn('Playback schedule failed:', err)
+        resolve()
+      }
     })
   }
 
@@ -296,9 +303,9 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     }
     finally {
       if (intent.canceled) {
-        context.emit(speechPipelineEventMap.onIntentCancel, { intentId: intent.intentId, reason: intent.controller.signal.reason as string | undefined })
+        context.emit(speechPipelineEventMap.onIntentCancel, { intentId: intent.intentId, reason: intent.controller.signal.reason?.toString() })
         if (intent.turnId)
-          context.emit(speechPipelineEventMap.onTurnCancel, { turnId: intent.turnId, reason: intent.controller.signal.reason as string | undefined })
+          context.emit(speechPipelineEventMap.onTurnCancel, { turnId: intent.turnId, reason: intent.controller.signal.reason?.toString() })
       }
       else {
         context.emit(speechPipelineEventMap.onIntentEnd, intent.intentId)
@@ -461,8 +468,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     interrupt,
     stopAll,
     on<K extends SpeechPipelineEventName>(event: K, listener: SpeechPipelineEvents<TAudio>[K]) {
-      return context.on(speechPipelineEventMap[event] as Eventa<any>, (payload) => {
-        listener(payload?.body ?? payload)
+      const typedListener = listener as (payload: unknown) => void
+
+      return context.on(speechPipelineEventMap[event] as Eventa<{ body?: unknown }>, (payload) => {
+        typedListener(payload?.body ?? payload)
       })
     },
   }

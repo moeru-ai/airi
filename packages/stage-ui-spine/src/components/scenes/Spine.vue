@@ -66,6 +66,7 @@ defineExpose({
         :canvas="canvas"
         :width="width"
         :height="height"
+        :resolution="renderScale"
         :paused="paused"
         :premultiplied-alpha="premultipliedAlpha"
         :default-mix-duration="defaultMixDuration"

@@ -16,10 +16,9 @@ type AuthInstance = ReturnType<typeof createAuth>
 export function sessionMiddleware(auth: AuthInstance, env: Env): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
     // NOTICE: auth routes handle session lookup inside better-auth itself,
-    // and the ui-server-auth SPA bundle (HTML/JS/CSS + SPA routes like
-    // `/auth/sign-in`, `/auth/verify-email`, …) doesn't need a session
-    // attached either. Running the global session middleware on `/api/auth/*`,
-    // `/auth/*`, and the auth discovery endpoints duplicates the same session
+    // and `/auth/*` only redirects to the standalone ui-server-auth deployment.
+    // Running the global session middleware on `/api/auth/*`, `/auth/*`,
+    // and the auth discovery endpoints duplicates the same session
     // read and slows the OIDC login path (`authorize` → `token` →
     // `get-session`) noticeably.
     //

@@ -14,6 +14,8 @@ interface MinecraftStatusSnapshot {
   health: string
   gameMode: string
   otherPlayers: string[]
+  /** The owner's in-game username (from BOT_MASTER_USERNAME), if configured. */
+  masterUsername?: string
 }
 
 const STATUS_CONTEXT_ID = 'minecraft:status'
@@ -34,6 +36,7 @@ function buildStatusText(snapshot: MinecraftStatusSnapshot) {
     `Position: ${snapshot.position}`,
     `Health: ${snapshot.health}/20, Mode: ${snapshot.gameMode}`,
     `Other players online: ${snapshot.otherPlayers.length > 0 ? snapshot.otherPlayers.join(', ') : 'none'}`,
+    ...(snapshot.masterUsername ? [`Master (your owner) in-game username: ${snapshot.masterUsername}`] : []),
   ].join('\n')
 }
 
@@ -57,14 +60,18 @@ export class MinecraftContextService {
   private readonly serverHost: string
   private readonly serverPort: number
 
+  private readonly masterUsername?: string
+
   constructor(private readonly deps: {
     airiBridge: Pick<AiriBridge, 'onModuleAnnounced' | 'sendContextUpdate'>
     serverHost: string
     serverPort: number
+    masterUsername?: string
     refreshIntervalMs?: number
   }) {
     this.serverHost = deps.serverHost
     this.serverPort = deps.serverPort
+    this.masterUsername = deps.masterUsername
   }
 
   init() {
@@ -123,7 +130,10 @@ export class MinecraftContextService {
       contextId: STATUS_CONTEXT_ID,
       lane: STATUS_LANE,
       text,
-      hints: ['status', snapshot.botUsername],
+      hints: [
+        'status',
+        snapshot.botUsername,
+      ],
       strategy: ContextUpdateStrategy.ReplaceSelf,
     }
 
@@ -162,6 +172,7 @@ export class MinecraftContextService {
       health: String(this.runtimeBot.bot.health ?? 20),
       gameMode: this.runtimeBot.bot.game?.gameMode ?? 'unknown',
       otherPlayers,
+      masterUsername: this.masterUsername,
     }
 
     return this.currentSnapshot

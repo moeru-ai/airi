@@ -80,6 +80,38 @@ function createPerceptionEvent() {
   } as any
 }
 
+function createAiriCommandEvent() {
+  return {
+    type: 'perception',
+    payload: {
+      type: 'airi_command',
+      description: 'Directive from AIRI: "continue"',
+      sourceId: 'airi',
+      confidence: 1,
+      timestamp: Date.now(),
+      metadata: { message: 'continue', sparkCommandId: 'spark-1', sparkIntent: 'action' },
+    },
+    source: { type: 'airi', id: 'airi' },
+    timestamp: Date.now(),
+  } as any
+}
+
+function createNonResumingPerceptionEvent() {
+  return {
+    type: 'perception',
+    payload: {
+      type: 'saliency_high',
+      description: 'Distant noise',
+      sourceId: 'world',
+      confidence: 1,
+      timestamp: Date.now(),
+      metadata: { action: 'noise' },
+    },
+    source: { type: 'minecraft', id: 'world' },
+    timestamp: Date.now(),
+  } as any
+}
+
 function createAsyncControlAction(name: string = 'goToPlayer') {
   return {
     name,
@@ -260,6 +292,51 @@ inv;
       default: 3,
       max: 8,
     })
+  })
+
+  it('clears giveUp and proceeds when player chat arrives', async () => {
+    const deps: any = createDeps('await skip()')
+    const brain: any = new Brain(deps)
+    brain.givenUp = true
+    brain.giveUpReason = 'stuck'
+
+    await brain.processEvent({} as any, createPerceptionEvent())
+
+    expect(brain.givenUp).toBe(false)
+    expect(brain.giveUpReason).toBeUndefined()
+    expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
+  })
+
+  it('clears giveUp and proceeds when an AIRI command arrives', async () => {
+    const deps: any = createDeps('await skip()')
+    const brain: any = new Brain(deps)
+    brain.givenUp = true
+    brain.giveUpReason = 'stuck'
+    brain.setNoActionFollowupBudget(0)
+
+    await brain.processEvent({} as any, createAiriCommandEvent())
+
+    expect(brain.givenUp).toBe(false)
+    expect(brain.giveUpReason).toBeUndefined()
+    expect(brain.getNoActionBudgetState()).toEqual({
+      remaining: 3,
+      default: 3,
+      max: 8,
+    })
+    expect(deps.llmAgent.callLLM).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps suppressing non-chat and non-AIRI perceptions while giveUp is active', async () => {
+    const deps: any = createDeps('await skip()')
+    const brain: any = new Brain(deps)
+    brain.givenUp = true
+    brain.giveUpReason = 'stuck'
+
+    await brain.processEvent({} as any, createNonResumingPerceptionEvent())
+
+    expect(brain.givenUp).toBe(true)
+    expect(brain.giveUpReason).toBe('stuck')
+    expect(deps.llmAgent.callLLM).not.toHaveBeenCalled()
   })
 
   it('does not queue follow-up when script uses skip()', async () => {
@@ -453,6 +530,23 @@ describe('brain queue coalescing', () => {
     // Player chat (priority 0) should be first in queue
     expect(brain.queue[0].event.type).toBe('perception')
     expect((brain.queue[0].event.payload as any).type).toBe('chat_message')
+  })
+
+  it('promotes AIRI commands ahead of queued ordinary perceptions', () => {
+    const brain: any = new Brain(createDeps('await skip()'))
+
+    brain.queue = [
+      { event: createNonResumingPerceptionEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: createFeedbackEvent(), resolve: vi.fn(), reject: vi.fn() },
+      { event: createAiriCommandEvent(), resolve: vi.fn(), reject: vi.fn() },
+    ]
+
+    brain.coalesceQueue()
+
+    expect(brain.queue[0].event.type).toBe('perception')
+    expect((brain.queue[0].event.payload as any).type).toBe('airi_command')
+    expect((brain.queue[1].event.payload as any).type).toBe('saliency_high')
+    expect(brain.queue[2].event.type).toBe('feedback')
   })
 
   it('drops no-action follow-ups when player chat is waiting', () => {

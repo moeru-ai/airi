@@ -4,6 +4,8 @@ import LibsamplerateWorkletURL from '@alexanderolsen/libsamplerate-js/dist/libsa
 
 import ProcessorWorkletURL from './processor.worklet?worker&url'
 
+import { errorMessageFromValue } from '../utils/error-message'
+
 let context: AudioContext | undefined
 let sampleRate: number = 48000 // High quality base sample rate
 let isReady: boolean = false
@@ -128,7 +130,7 @@ export async function initializeAudioContext(requestedSampleRate: number = 48000
     return context
   }
   catch (err) {
-    error = err instanceof Error ? err.message : String(err)
+    error = errorMessageFromValue(err)
     isReady = false
     workletLoaded = false
     notifyListeners()

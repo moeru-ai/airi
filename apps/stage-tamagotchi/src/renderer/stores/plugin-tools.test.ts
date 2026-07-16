@@ -10,7 +10,7 @@ const invokeMocks = vi.hoisted(() => ({
   listPluginXsaiTools: vi.fn(async () => ({
     tools: [
       {
-        ownerPluginId: 'plugin-chess',
+        ownerExtensionId: 'plugin-chess',
         name: 'play_chess',
         description: 'Play a chess move.',
         parameters: {
@@ -21,7 +21,7 @@ const invokeMocks = vi.hoisted(() => ({
     ],
     prompts: [
       {
-        ownerPluginId: 'plugin-chess',
+        ownerExtensionId: 'plugin-chess',
         id: 'chess-tools',
         prompt: {
           id: 'airi-plugin-game-chess.prompt',
@@ -84,14 +84,14 @@ describe('useTamagotchiPluginToolsStore', async () => {
     }, toolOptions)
 
     expect(invokeMocks.invokePluginTool).toHaveBeenCalledWith({
-      ownerPluginId: 'plugin-chess',
+      ownerExtensionId: 'plugin-chess',
       name: 'play_chess',
       input: {
         move: 'e2e4',
       },
     })
     expect(executionResult).toEqual({
-      ownerPluginId: 'plugin-chess',
+      ownerExtensionId: 'plugin-chess',
       name: 'play_chess',
       input: {
         move: 'e2e4',

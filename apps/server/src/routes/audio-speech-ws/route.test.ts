@@ -12,6 +12,7 @@ import { createAudioSpeechWsHandlers } from './index'
 
 interface MockUpstream {
   url: string
+  restBaseURL: string
   /** Outgoing JSON frames the server should send after receiving `start`. */
   scriptedResponses: Array<
     | { kind: 'json', payload: Record<string, unknown> }
@@ -24,11 +25,22 @@ interface MockUpstream {
   close: () => Promise<void>
 }
 
-async function startMockUpstream(scriptedResponses: MockUpstream['scriptedResponses']): Promise<MockUpstream> {
+async function startMockUpstream(
+  scriptedResponses: MockUpstream['scriptedResponses'],
+  voices: Array<{ id: string, name?: string }> = [{ id: 'mock', name: 'Mock Voice' }],
+): Promise<MockUpstream> {
   const receivedFrames: MockUpstream['receivedFrames'] = []
   let observedAuth: string | undefined
 
-  const httpServer = createServer()
+  const httpServer = createServer((req, res) => {
+    if (req.url?.startsWith('/api/voices')) {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ voices }))
+      return
+    }
+    res.writeHead(404, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ error: 'not_found' }))
+  })
   const wss = new WebSocketServer({ server: httpServer })
 
   wss.on('connection', (ws, req) => {
@@ -91,6 +103,7 @@ async function startMockUpstream(scriptedResponses: MockUpstream['scriptedRespon
 
   return {
     url: `ws://127.0.0.1:${port}`,
+    restBaseURL: `http://127.0.0.1:${port}`,
     scriptedResponses,
     receivedFrames,
     get observedAuth() {
@@ -148,11 +161,16 @@ function makeMockClientWs(): MockClientWs {
 
 function makeFakeDeps(overrides: {
   upstreamURL: string
+  restBaseURL?: string
   fluxBalance: number
   decryptedKey?: string
+  streamingModels?: Array<{ id: string, name?: string, description?: string }>
 }) {
   const ttsMeter = {
-    assertCanAfford: vi.fn(async () => undefined),
+    assertCanAfford: vi.fn(async (_userId: string, _newUnits: number, currentBalance: number) => {
+      if (currentBalance <= 0)
+        throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
+    }),
     accumulate: vi.fn(async () => ({
       fluxDebited: 1,
       debtAfter: 0,
@@ -168,17 +186,22 @@ function makeFakeDeps(overrides: {
   }
   const productEventService = {
     track: vi.fn(async () => undefined),
+    trackGeneration: vi.fn(async () => undefined),
     countDistinctUsersByFeature: vi.fn(async () => []),
   }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
       if (key === 'UNSPEECH_UPSTREAM') {
         return {
-          restBaseURL: 'http://unspeech.local:5933',
+          restBaseURL: overrides.restBaseURL ?? 'http://unspeech.local:5933',
           streaming: {
             baseURL: overrides.upstreamURL,
             keys: [{ id: 'test-key-1', ciphertext: 'ENCRYPTED_PLACEHOLDER' }],
             adapterParams: {},
+            models: overrides.streamingModels ?? [
+              { id: 'volcengine/seed-tts-1.0', name: 'Seed-TTS 1.0' },
+              { id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0' },
+            ],
           },
         }
       }
@@ -225,9 +248,9 @@ describe('audio-speech-ws route', () => {
       { kind: 'json', payload: { event: 'session.finished', payload: { usage: { text_words: 42 } } } },
     ])
 
-    const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 100 })
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-123')
+    const events = handlers('user-123', { voiceType: 'official_selected' })
     const client = makeMockClientWs()
 
     await driveClientSession(events, client, [
@@ -276,16 +299,29 @@ describe('audio-speech-ws route', () => {
       status: 200,
       fluxConsumed: 1,
     })
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-123',
+      feature: 'tts',
+      action: 'speech_succeeded',
+      status: 'succeeded',
+      model: 'volcengine/seed-tts-2.0',
+      metadata: expect.objectContaining({
+        voice_id: 'mock',
+        voice_type: 'official_selected',
+      }),
+    }))
   })
 
   it('refuses the session with insufficient_flux when the user is broke', async () => {
     upstream = await startMockUpstream([])
-    const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 0 })
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 0 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
-    const events = handlers('user-broke')
+    const events = handlers('user-broke', { trigger: 'auto', source: 'chat_auto_tts' })
     const client = makeMockClientWs()
 
-    await driveClientSession(events, client, [])
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'mock' }),
+    ])
 
     // Upstream should never have been dialed — pre-flight fails first.
     expect(upstream.receivedFrames).toHaveLength(0)
@@ -299,6 +335,20 @@ describe('audio-speech-ws route', () => {
     })
     expect(client.closed).toBe(true)
     expect(client.closeCode).toBe(1008)
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-broke',
+      feature: 'tts',
+      action: 'speech_blocked',
+      status: 'blocked',
+      source: 'chat_auto_tts',
+      reason: 'insufficient_balance',
+      metadata: expect.objectContaining({
+        trigger: 'auto',
+        block_reason: 'insufficient_balance',
+        balance_state: 'insufficient',
+        flux_balance_bucket: 'zero',
+      }),
+    }))
   })
 
   it('refuses with streaming_tts_not_configured when UNSPEECH_UPSTREAM.streaming is empty', async () => {
@@ -309,7 +359,9 @@ describe('audio-speech-ws route', () => {
     const events = handlers('user-noconf')
     const client = makeMockClientWs()
 
-    await driveClientSession(events, client, [])
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'mock' }),
+    ])
 
     const errorFrame = client.sent.find(s => s.kind === 'text')
     expect(errorFrame).toBeDefined()
@@ -318,6 +370,63 @@ describe('audio-speech-ws route', () => {
       code: 'streaming_tts_not_configured',
     })
     expect(client.closed).toBe(true)
+  })
+
+  it('refuses an unconfigured streaming model before dialing upstream', async () => {
+    upstream = await startMockUpstream([])
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      streamingModels: [{ id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0' }],
+    })
+    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const events = handlers('user-disabled-model')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-disabled', voice: 'mock' }),
+      JSON.stringify({ event: 'text', text: 'must not leak upstream' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 100))
+
+    expect(upstream.observedAuth).toBeUndefined()
+    expect(upstream.receivedFrames).toHaveLength(0)
+    const errorFrame = client.sent.find(s => s.kind === 'text')
+    expect(errorFrame).toBeDefined()
+    expect(JSON.parse(errorFrame!.data as string)).toMatchObject({
+      event: 'error',
+      code: 'streaming_tts_model_not_enabled',
+    })
+    expect(client.closed).toBe(true)
+    expect(client.closeCode).toBe(1008)
+  })
+
+  it('refuses an unknown streaming voice before dialing upstream', async () => {
+    upstream = await startMockUpstream([], [{ id: 'enabled-voice', name: 'Enabled Voice' }])
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
+    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const events = handlers('user-disabled-voice')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'disabled-voice' }),
+      JSON.stringify({ event: 'text', text: 'must not leak upstream' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 100))
+
+    expect(upstream.observedAuth).toBeUndefined()
+    expect(upstream.receivedFrames).toHaveLength(0)
+    const errorFrame = client.sent.find(s => s.kind === 'text')
+    expect(errorFrame).toBeDefined()
+    expect(JSON.parse(errorFrame!.data as string)).toMatchObject({
+      event: 'error',
+      code: 'streaming_tts_voice_not_enabled',
+    })
+    expect(client.closed).toBe(true)
+    expect(client.closeCode).toBe(1008)
   })
 
   it('falls back to input-char count for billing when upstream omits usage', async () => {
@@ -329,7 +438,7 @@ describe('audio-speech-ws route', () => {
       { kind: 'json', payload: { event: 'session.finished', payload: {} } },
     ])
 
-    const deps = makeFakeDeps({ upstreamURL: upstream.url, fluxBalance: 100 })
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
     const handlers = createAudioSpeechWsHandlers(deps as any)
     const events = handlers('user-no-usage')
     const client = makeMockClientWs()

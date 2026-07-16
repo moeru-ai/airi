@@ -82,7 +82,7 @@ function createMockStdin() {
   return stdin
 }
 
-function configurePluginServer(plugin: Plugin, server: ReturnType<typeof createMockServer>) {
+async function configurePluginServer(plugin: Plugin, server: ReturnType<typeof createMockServer>) {
   const configureServer = plugin.configureServer
   if (!configureServer) {
     throw new Error('cap-vite plugin is missing configureServer().')
@@ -92,7 +92,7 @@ function configurePluginServer(plugin: Plugin, server: ReturnType<typeof createM
     ? configureServer
     : configureServer.handler
 
-  handler.call({} as any, server as any)
+  await handler.call({} as any, server as any)
 }
 
 const originalStdin = Object.getOwnPropertyDescriptor(process, 'stdin')
@@ -123,15 +123,15 @@ describe('capVitePlugin', () => {
     const { capVitePlugin } = await import('./vite-plugin')
     const server = createMockServer()
 
-    configurePluginServer(capVitePlugin({
-      capArgs: ['ios', '--scheme', 'AIRI'],
+    await configurePluginServer(capVitePlugin({
+      capArgs: ['ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'],
     }), server)
 
     server.httpServer.emit('listening')
 
     expect(emitKeypressEvents).toHaveBeenCalledWith(stdin)
     expect(stdin.setRawMode).toHaveBeenCalledWith(true)
-    expect(x).toHaveBeenNthCalledWith(1, 'cap', ['run', 'ios', '--scheme', 'AIRI'], {
+    expect(x).toHaveBeenNthCalledWith(1, 'cap', ['run', 'ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'], {
       nodeOptions: {
         cwd: '/repo/app',
         env: {
@@ -146,8 +146,8 @@ describe('capVitePlugin', () => {
 
     await vi.waitFor(() => {
       expect(firstRun.kill).toHaveBeenCalledWith('SIGINT')
-      expect(server.config.logger.info).toHaveBeenCalledWith('[cap-vite] manual restart requested. Re-running "cap run ios --scheme AIRI".')
-      expect(x).toHaveBeenNthCalledWith(2, 'cap', ['run', 'ios', '--scheme', 'AIRI'], {
+      expect(server.config.logger.info).toHaveBeenCalledWith('[cap-vite] manual restart requested. Re-running "cap run ios --target iPhone 16 Pro --scheme AIRI".')
+      expect(x).toHaveBeenNthCalledWith(2, 'cap', ['run', 'ios', '--target', 'iPhone 16 Pro', '--scheme', 'AIRI'], {
         nodeOptions: {
           cwd: '/repo/app',
           env: {
@@ -180,8 +180,8 @@ describe('capVitePlugin', () => {
     const { capVitePlugin } = await import('./vite-plugin')
     const server = createMockServer()
 
-    configurePluginServer(capVitePlugin({
-      capArgs: ['android'],
+    await configurePluginServer(capVitePlugin({
+      capArgs: ['android', '--target', 'emulator-5554'],
     }), server)
 
     server.httpServer.emit('listening')

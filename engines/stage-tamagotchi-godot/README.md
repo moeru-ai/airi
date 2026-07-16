@@ -27,6 +27,9 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 - Current sidecar view state starts when the Godot stage process starts and ends
   when that process exits. The retained store code is not wired into the active
   runtime path yet.
+- G1.3 fixed stage presentation baseline: sky background, neutral grid ground,
+  center marker, direct light rig, neutral Godot environment post settings, and
+  avatar-only same-frame glow with the current toon color mapping.
 
 ## Directory Layout
 
@@ -155,6 +158,36 @@ The grid ground is visual-only. It does not move the avatar root away from
 `(0, 0, 0)`, and its shader fades distant grid lines into the horizon color
 without enabling volumetric fog.
 
+The sky is visible as the viewport background, but it is not used as avatar or
+ground ambient/radiance input. `StageVisualPreset` sets ambient light to a fixed
+color, sets sky ambient contribution to `0`, disables reflected light, disables
+Godot Environment Glow, and leaves Godot tonemap/adjustment neutral. The current
+custom color mapping is applied by the stage compositor instead of Godot's
+Environment adjustment controls.
+
+## Avatar Mask, Glow, And Color Mapping
+
+The current avatar presentation path uses stage-owned overlay and compositor
+owners:
+
+1. `StageRenderEffectsRuntime` wires the active camera and loaded avatar into the
+   stage render-effect owners.
+2. `StageMaterialOverlayOwner` records render-effect source claims and assigns
+   the shared avatar mask overlay material to loaded avatar `GeometryInstance3D`
+   nodes.
+3. `StageCompositorOwner` installs the stage post-process compositor effect on
+   the active `Camera3D`.
+4. `StagePostProcessCompositorEffect` runs at `PostTransparent` and applies the
+   ordered scene copy, avatar glow, and final color mapping stages.
+
+This is not Godot Environment Glow and does not use material emission as the
+avatar-style glow source. The color mapping is an independently enabled final
+stage inside the stage post-process compositor. Future avatar-only edge light
+work should establish same-scene visual comparison artifacts before changing the
+pipeline.
+
+Design notes live in [`docs/rendering-effects.md`](docs/rendering-effects.md).
+
 ## Material Rendering Check
 
 G1.3 includes a focused runtime material verification scene for the committed
@@ -172,6 +205,29 @@ runtime material surface covers MToon, alpha/cutout, transparent materials,
 outline passes, and mesh shadow casters. The current A/B fixtures do not contain
 unlit materials, so this check reports `unlit = 0` and does not treat that as a
 failure.
+
+## Visual Observation
+
+Renderer-facing changes should produce comparable render artifacts before they
+are accepted:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages
+```
+
+For rim or edge-light shape checks, prefer the upper-body camera preset:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages:upper-body
+```
+
+The command launches the real `StageRoot` scene through the local WebSocket
+protocol, loads `AvatarSample_A.vrm`, captures the visible Godot window client
+area as the final rendered output, and writes diagnostic render-stage artifacts
+under `artifacts/`.
+
+The Technical Art workflow and acceptance rules live in
+[`docs/technical-art-workflow.md`](docs/technical-art-workflow.md).
 
 ## Live Debugging From The Godot Editor
 

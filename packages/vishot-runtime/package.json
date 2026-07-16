@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/vishot-runtime",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "private": true,
   "description": "Runtime capture contracts and Vue bindings for Vishot",
   "author": {
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@vueuse/core": "catalog:",
-    "reka-ui": "catalog:reka-ui-2-9-6",
+    "reka-ui": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },

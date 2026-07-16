@@ -40,6 +40,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
       default: [
         'w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none',
         'bg-neutral-50 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900',
+        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
         'focus:border-primary-300 dark:focus:border-primary-400/50 border-2 border-solid border-neutral-100 dark:border-neutral-900',
         'text-disabled:neutral-400 dark:text-disabled:neutral-600',
         'shadow-sm',
@@ -51,6 +52,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
       default: [
         'w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none',
         'bg-neutral-50 dark:bg-neutral-950 focus:bg-neutral-50 dark:focus:bg-neutral-900',
+        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
         'focus:border-primary-300 dark:focus:border-primary-400/50 border-2 border-solid border-neutral-100 dark:border-neutral-900',
         'text-disabled:neutral-400 dark:text-disabled:neutral-600',
         'shadow-sm',
@@ -62,6 +64,7 @@ const variantClasses: Record<InputVariant, Record<InputTheme, {
       default: [
         'w-full rounded-lg px-2 py-1 text-nowrap text-sm outline-none',
         'bg-neutral-100 dark:bg-neutral-800 focus:bg-neutral-50 dark:focus:bg-neutral-950',
+        'text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500',
         'focus:border-primary-500/30 dark:focus:border-primary-400/50 border-2 border-solid border-neutral-500/5 dark:border-neutral-700/40',
         'text-disabled:neutral-400 dark:text-disabled:neutral-600',
       ],

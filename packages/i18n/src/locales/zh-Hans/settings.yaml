@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -248,6 +248,8 @@ pages:
         listFailed: 暂时无法加载已关联的帐户
         unlinkFailed: 无法解除此帐户的关联
         linkFailed: 暂时无法开始关联的流程，要之后再试试吗？
+        accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
+        oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
     security:
       tab: 安全
@@ -308,6 +310,9 @@ pages:
       provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
+    vision:
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
@@ -385,8 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 上传
-    upload_desc: 点击或拖拽文件到此处上传
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
@@ -426,6 +437,7 @@ pages:
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
+        center: Move desktop window to center
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
@@ -439,9 +451,10 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 桌面数据重置。
   models:
-    description: 切换角色的 Live2D，VRM 模型
+    description: Live2D, VRM, Spine, etc.
     title: 角色模型
     sections:
       section:
@@ -679,6 +692,12 @@ pages:
             select-voice:
               loading: 正在加载模型……
               required: 请选择声线
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -743,7 +762,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: 填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」
+        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -952,6 +971,9 @@ pages:
       chat:
         title: 聊天
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1218,6 +1240,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1642,6 +1667,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant

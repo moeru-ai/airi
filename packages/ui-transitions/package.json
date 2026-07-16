@@ -27,7 +27,7 @@
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@vueuse/core": "catalog:vueuse-core-14-2-1",
+    "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
     "vue": "catalog:"
   },

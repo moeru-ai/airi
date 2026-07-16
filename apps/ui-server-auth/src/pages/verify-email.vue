@@ -5,6 +5,8 @@ import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
+import { trackEmailVerificationCompleted, trackEmailVerificationFailed } from '../modules/analytics'
+import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 const { t } = useI18n()
@@ -40,7 +42,7 @@ const continueURL = computed(() => {
 // NOTICE:
 // Cross-tab signal between the verification-success tab (the one opened from
 // the email link) and the original "check your inbox" tab. Both tabs live on
-// the same origin (/auth/...), so BroadcastChannel works without setup.
+// the same origin (/ui/...), so BroadcastChannel works without setup.
 //
 // Why not poll /get-session every 2s? An abandoned pending tab would burn
 // 1800 requests/hour for no reason, and the request volume scales with time
@@ -73,7 +75,7 @@ async function resumeIfSessionReady(): Promise<boolean> {
     // Same-tab navigation preserves sessionStorage on the destination origin,
     // so the original PKCE flowState saved by the OIDC client is still
     // available when /auth/callback runs.
-    window.location.href = continueURL.value || `${window.location.origin}/auth/`
+    window.location.href = continueURL.value || buildCurrentOriginAuthUiUrl()
     return true
   }
   catch {
@@ -86,13 +88,16 @@ onMounted(async () => {
   // session cookie has been written, then stay put so the user sees the
   // success message. The pending tab does the OIDC continuation.
   if (verified.value) {
+    trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
     return
   }
 
-  if (error.value)
+  if (error.value) {
+    trackEmailVerificationFailed()
     return
+  }
 
   // Pending tab: cover the case where verification already happened before
   // this tab subscribed (back-button navigation, page reload, etc.). One
