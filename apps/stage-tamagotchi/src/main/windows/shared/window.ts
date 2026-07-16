@@ -67,6 +67,12 @@ export function protectPrivilegedWindowNavigation(window: BrowserWindow): void {
     return { action: 'deny' }
   })
   window.webContents.on('will-navigate', (event, navigationUrl) => {
+    // Renderer-initiated reloads keep the exact current URL in both packaged
+    // (`file:`) and Vite (`http:`) builds. Let those through without widening
+    // navigation to other local files or development-server paths.
+    if (navigationUrl === window.webContents.getURL())
+      return
+
     event.preventDefault()
     openSafeExternalUrl(navigationUrl)
   })
