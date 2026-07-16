@@ -102,6 +102,12 @@ export const useSpeechStore = defineStore('speech', () => {
   // fetched with newer credentials, and a failed current reload must not keep
   // showing the previous credentials' catalog.
   const voicesRequestGeneration: Record<string, number> = {}
+  // Snapshot of the provider config that produced the currently cached
+  // catalog. Failures clear the cache only when the config changed since the
+  // catalog was fetched: a transient outage under unchanged credentials keeps
+  // the still-valid catalog, while a failed reload after a credential swap
+  // must not leave the previous account's voices selectable.
+  const voicesConfigSnapshot: Record<string, string> = {}
 
   async function loadVoicesForProvider(provider: string, model?: string) {
     if (!provider) {
@@ -118,11 +124,14 @@ export const useSpeechStore = defineStore('speech', () => {
     const generation = (voicesRequestGeneration[provider] ?? 0) + 1
     voicesRequestGeneration[provider] = generation
 
+    const config = providersStore.getProviderConfig(provider)
+    const configSnapshot = JSON.stringify(config ?? {})
+
     isLoadingSpeechProviderVoices.value = true
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider), model) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(config, model) || []
       // A newer reload owns the catalog now; drop this superseded response.
       if (voicesRequestGeneration[provider] !== generation) {
         return voices
@@ -133,18 +142,22 @@ export const useSpeechStore = defineStore('speech', () => {
         ...availableVoices.value,
         [provider]: voices,
       }
+      voicesConfigSnapshot[provider] = configSnapshot
       return voices
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
       if (voicesRequestGeneration[provider] === generation) {
         speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
-        // Clear the stale catalog: keeping voices fetched with previous
-        // credentials would let users pick voices the current credentials
-        // cannot use.
-        availableVoices.value = {
-          ...availableVoices.value,
-          [provider]: [],
+        // Clear the stale catalog only when this reload ran with a different
+        // config than the one that produced it: those voices belong to the
+        // previous credentials and must not stay selectable. A failure under
+        // the unchanged config (transient outage) keeps the valid catalog.
+        if (voicesConfigSnapshot[provider] !== configSnapshot) {
+          availableVoices.value = {
+            ...availableVoices.value,
+            [provider]: [],
+          }
         }
       }
       return []
