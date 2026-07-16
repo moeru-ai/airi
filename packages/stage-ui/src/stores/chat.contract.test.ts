@@ -185,6 +185,13 @@ vi.mock('./modules/artistry-autonomous', () => ({
   }),
 }))
 
+// The chat orchestrator instantiates the web-search store for its side effect
+// (registering the web-search toolset prompt); stub it so the contract test does
+// not pull in the real store's toolset-prompt watcher.
+vi.mock('./modules/web-search', () => ({
+  useWebSearchStore: () => ({}),
+}))
+
 const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider

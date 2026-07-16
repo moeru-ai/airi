@@ -28,6 +28,7 @@ import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useWebSearchStore } from './modules/web-search'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -51,6 +52,12 @@ export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } f
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
+  // Instantiate the web-search store eagerly so its `configured` watcher registers
+  // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
+  // tool resolver that would otherwise be the first to create this store runs after
+  // the system prompt is composed, which would expose web_search on the first turn
+  // without its paired prompt-injection defense.
+  useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
