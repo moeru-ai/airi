@@ -41,7 +41,7 @@
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1402" height="1122" alt="anima-banner-v6" src="https://github.com/user-attachments/assets/63d480fc-a66e-426f-9d77-057b31cad7a2" />  
+<img width="1148" height="1370" alt="anima-banner-us-v2 1" src="https://github.com/user-attachments/assets/7215f2f8-b9d3-4ecc-9043-68715256cd8a" />  
   <sub>
     <p><h2>
         AnimAIOS distro based on 
@@ -2908,6 +2908,7 @@ Cyber companion әлеміңе шексіз мүмкіндіктер 🤖✨
 <a href="https://github.com/orgs/animaios/repositories">
   <img src="https://raw.githubusercontent.com/animaios/anima/refs/heads/main/docs/content/public/assets/org-heatmap.svg" alt="Organization Heatmap">
 </a>
+<img width="1402" height="1122" alt="anima-banner-v6" src="https://github.com/user-attachments/assets/63d480fc-a66e-426f-9d77-057b31cad7a2" />  
 <img width="1383" height="1137" alt="anima-banner-v5" src="https://github.com/user-attachments/assets/77a915c5-646c-4628-997a-3b4a1d7c11db" />
 <img width="1387" height="1134" alt="she never asked for this" src="https://github.com/user-attachments/assets/9e33a8ed-9999-418b-b15c-bf47767dff4e" />
 <img width="1445" height="1088" alt="anima-banner-lightingfix" src="https://github.com/user-attachments/assets/dd289588-6e88-48b5-af86-6f1035bdde95" /> 
