@@ -1096,6 +1096,8 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 - [ ] Fournisseurs d'Embeddings supportés : TBD
 - [ ] Système d'énergie gamifié basé sur [AnimaRouter](https://github.com/animaios/animarouter) qui remplacera le fournisseur officiel AIRI : une source quasi illimitée de délicieux tokens gratuits pour toutes tes cyber waifus, LLM et embeddings~ Ou clone AnimaRouter et héberge-le toi-même avec ton BYOK ! L'UI permettra de switch facilement entre des fournisseurs AnimaRouter hébergés ou locaux.
 
+##### 🪆🐻‍❄️ readme_locale_ru_RU 🇷🇺
+
 ╭─[animaios@github]─[~/anima] <br>
 ╰─➜ Добро пожаловать в проект AnimAIOS! Выберите язык:
 
@@ -1119,7 +1121,6 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
   <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
 </a>
 <img width="1254" height="1254" alt="anima-logo-ru-v1" src="https://github.com/user-attachments/assets/0d4f723d-a986-4de4-a164-7cb618ad8890" />
-````html
 <sub>
     <p><h2>
         Дистрибутив AnimAIOS на базе 
