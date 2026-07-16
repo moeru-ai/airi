@@ -42,8 +42,15 @@ export function rateLimiter(opts: RateLimitOptions) {
 
       // NOTICE: `x-forwarded-for` is client-controlled unless the application
       // explicitly configures a trusted proxy, so it must never be a limiter key.
-      const info = getConnInfo(c)
-      return info.remote?.address ?? 'anonymous'
+      // `app.request()` and fetch-style deployments have no Node incoming socket.
+      // Keep those requests in a shared bucket rather than trusting a client header.
+      try {
+        const info = getConnInfo(c)
+        return info.remote?.address ?? 'anonymous'
+      }
+      catch {
+        return 'anonymous'
+      }
     })
 
   return createRateLimiter<HonoEnv>({
