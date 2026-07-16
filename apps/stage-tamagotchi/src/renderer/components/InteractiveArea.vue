@@ -4,7 +4,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
-import { ChatHistory, ChatSessionsDrawer, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,7 +16,7 @@ import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, onMounted, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -44,7 +44,7 @@ const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
-const sessionsDrawerOpen = shallowRef(false)
+const sessionsDrawerOpen = defineModel<boolean>('sessionsDrawerOpen', { default: false })
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
@@ -340,8 +340,6 @@ async function handleCleanupMessages() {
       >
         <div class="i-solar:chat-line-bold-duotone" />
       </button>
-      <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button
