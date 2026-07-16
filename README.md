@@ -1096,6 +1096,183 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 - [ ] Fournisseurs d'Embeddings supportés : TBD
 - [ ] Système d'énergie gamifié basé sur [AnimaRouter](https://github.com/animaios/animarouter) qui remplacera le fournisseur officiel AIRI : une source quasi illimitée de délicieux tokens gratuits pour toutes tes cyber waifus, LLM et embeddings~ Ou clone AnimaRouter et héberge-le toi-même avec ton BYOK ! L'UI permettra de switch facilement entre des fournisseurs AnimaRouter hébergés ou locaux.
 
+╭─[animaios@github]─[~/anima] <br>
+╰─➜ Добро пожаловать в проект AnimAIOS! Выберите язык:
+
+<div align=center>
+<a href="https://github.com/animaios/anima#-readme_locale_en_us-">
+  <img src="https://img.shields.io/badge/readme-English%20(US)-1e3a8a" alt="English README">
+</a>
+<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
+  <img src="https://img.shields.io/badge/リードミー-日本語%20(JP)-db2777" alt="Japanese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
+  <img src="https://img.shields.io/badge/리드미-한국어%20(KR)-a020f0" alt="한국어 README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
+  <img src="https://img.shields.io/badge/读我-中文%20(CN)-dc2626" alt="Chinese README">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_pt_br-">
+  <img src="https://img.shields.io/badge/leia--me-Português%20(BR)-16a34a" alt="README em Português do Brasil">
+</a>
+<a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
+  <img src="https://img.shields.io/badge/lisez--moi-Français%20(FR)-0055A4" alt="README en Français">
+</a>
+<img width="1254" height="1254" alt="anima-logo-ru-v1" src="https://github.com/user-attachments/assets/0d4f723d-a986-4de4-a164-7cb618ad8890" />
+````html
+<sub>
+    <p><h2>
+        Дистрибутив AnimAIOS на базе 
+        <a href="https://endeavouros.com/" target="_blank">EndeavourOS</a>, 
+        <br>
+        залетает на твой Linux Desktop / Termux / CyberDeck / Wearable уже этой осенью.
+    </p>
+    <p>
+        В комплекте софт, заранее затюненный под твой CPU через 
+        <a href="https://packages.cachyos.org/" target="_blank">CachyOS</a> репозитории.</h2>
+    </p>
+</sub>
+</div>
+
+## 🌙 Видение
+
+- **Всегда рядом:** Твой персонаж живёт прямо на рабочем столе! Она может открывать, закрывать и переключать окна, а самое главное — читать текст внутри них через accessibility-интеграцию~
+- **Глубокая интеграция с системой:** Полностью цепляется за систему — от простых штук типа уведомлений до полного управления Linux через терминал в Agentic Mode
+- **Контекстная осознанность:** Компаньонка наблюдает за активностью рабочего стола, чтобы отвечать и взаимодействовать проактивно, а в Agentic Mode может взять полный контроль над десктопом
+- **Модульные сцены:** GTK4-виджеты, интерактивно генерируемые фоны через artistry-модуль и динамически собираемые раскладки окон самими персонажами
+
+## 🖥️ Разработка
+
+<a href="https://github.com/animaios/Anima/actions/workflows/ci.yml">
+  <img src="https://github.com/animaios/Anima/actions/workflows/ci.yml/badge.svg" alt="CI">
+</a>
+<a href="https://animaios.github.io/anima">
+  <img src="https://img.shields.io/badge/docs-animaios.github.io/anima-blue" alt="Docs">
+</a>
+<br>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=code+coverage&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/></a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=active+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+<a href="https://app.deepsource.com/gh/animaios/Anima/" target="_blank">
+  <img alt="DeepSource" title="DeepSource" src="https://app.deepsource.com/gh/animaios/Anima.svg/?label=resolved+issues&show_trend=true&token=yTvvPDBOWhW0W3B7NowDRXo2"/>
+</a>
+</div>
+
+### ☕ Требования
+
+- pnpm
+- Node.js (Electron app)
+- Rust (Tauri app)
+
+### 🖱️ Быстрый старт
+
+Сейчас рекомендуемое desktop-приложение всё ещё Electron-версия в `apps/stage-tamagotchi/`, а порт на Tauri активно пилится в `apps/stage-tauri/`.
+
+🍎🐧🪟 Electron desktop app:
+
+```shell
+pnpm i
+pnpm dev:tamagotchi
+````
+
+🍎🐧 Tauri desktop app:
+
+> [!IMPORTANT]
+> 🚧 В разработке
+
+```shell
+pnpm i
+cd apps/stage-tauri
+./init.sh
+cargo tauri dev
+```
+
+`./init.sh` проверяет локальный Tauri scaffold, Rust toolchain, `cargo-tauri` CLI и запускает `cargo check`. Если надо — сначала ставим Tauri CLI:
+
+```shell
+cargo install tauri-cli --version '^2.0'
+```
+
+### ❔ Почему Tauri
+
+Tauri позволяет оставить Vue 3 renderer и AIRI companion experience, заменив Electron main process на более лёгкий Rust backend. Итог: меньше RAM в простое, меньше нативные бандлы, лучше интеграция с Linux desktop и более чистый путь к релизу AIRI как нативного мобильного приложения.
+
+Эта же миграция — наш путь к нативным Android и iOS сборкам AIRI в ближайшие месяцы.
+
+<!--
+### ⌨️ Сборка под Linux (в разработке)
+
+```shell
+cd apps/stage-tamagotchi
+./build.sh           # Собирает .deb пакет в dist/
+```
+
+_(Опциональный PKGBUILD лежит в `apps/stage-tamagotchi` и позволяет перепаковать `.deb` в `.zst` для Arch/Manjaro/CachyOS)._
+-->
+
+## ✌🏻 Благодарности
+
+* оригинальному проекту [`moeru-ai/airi`](https://github.com/moeru-ai/airi)
+
+  * и его мощному desktop-форку! [`dasilva333/airi`](https://github.com/dasilva333/airi)
+* всем, кто заглянул сюда :з
+* топовому комьюнити <a href="https://discord.gg/TgQ3Cu2F7A"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fdiscord.com%2Fapi%2Finvites%2FTgQ3Cu2F7A%3Fwith_counts%3Dtrue&query=%24.approximate_member_count&suffix=%20members&logo=discord&logoColor=white&label=%20&color=7389D8&labelColor=6A7EC2" alt="Discord member count"></a>
+
+> [!TIP]
+> ⭐ репа двигает идею AI-powered desktop/cyberdeck/wearable OS!
+
+## 🚙 Дорожная карта
+
+* [x] **Мозг**
+
+  * [x] *Artistry:* Нативные пайплайны генерации изображений (Replicate, ComfyUI)
+  * [ ] *Проактивность:* Настройка триггеров для автономных взаимодействий компаньона (heartbeats)
+  * [ ] *Многоуровневая память:* [AnimaVault](https://github.com/animaios/animavault)
+
+    * [ ] *Память на уровне персонажа* с поддержкой witness-системы (несколько персонажей шарят один экран)
+* [x] **Уши**
+
+  * [x] Распознавание речи и детект разговора на стороне клиента
+* [x] **Рот**
+
+  * [x] Совместимые с OpenAI voice-провайдеры с поиском голосов
+* [x] **Тело**
+
+  * [x] Поддержка VRM
+
+    * [ ] Управление выражениями через LLM, auto-blink и auto-look-at
+    * [ ] LLM-эмоции и idle-loop анимации
+  * [x] Поддержка Live2D
+
+    * [ ] Управление выражениями через LLM
+* [x] **Desktop Stage**
+
+  * [ ] Несколько персонажей на одном экране (KISS: одно окно на персонажа)
+  * [ ] Управление сценами/фонами для каждого персонажа
+* [ ] **AnimAIOS (WIP)**
+
+  * [x] System tray и интеграция screen capture
+  * [ ] Генерация нативных GTK4 окон вместо web widgets
+  * [ ] Глубокая интеграция с [anima-use-desktop](https://github.com/animaios/anima-use-desktop)
+
+    * [ ] Отправка свежего snapshot контекста с каждым AIRI heartbeat
+  * [ ] AIRI chatbox превращается в системный терминал с распознаванием естественного языка (как Warp terminal)
+* [ ] **Разное**
+
+  * [ ] DeepSource pass с 0 issues
+  * [ ] LCov > 90% -> переход на TDD
+  * [ ] Добавление mcp/skills через natural language prompts
+  * [ ] Нативный Wayland Support через Ozone platform flags
+
+## 🤖 API Провайдеры
+
+* [x] Поддерживаемые LLM-провайдеры: всё, что поддерживает [xsai](https://github.com/moeru-ai/xsai)
+* [ ] Поддерживаемые TTS-провайдеры: TBD
+* [ ] Поддерживаемые Embedding-провайдеры: TBD
+* [ ] Основанная на [AnimaRouter](https://github.com/animaios/animarouter) геймифицированная energy-система, которая заменит официальный AIRI provider — бесконечный источник бесплатных вкусных токенов для всех твоих cyber waifu LLM и Embedding нужд~ Или просто клонируй AnimaRouter и хости сам через BYOK! UI позволит легко переключаться между hosted/local AnimaRouter провайдерами!
+
 # 🌸 Project Activity プロジェクト活動 프로젝트 활동 项目活动 Atividade do projeto Activité du projet
 
 <a href="https://bafybeigwwctpv37xdcwacqxvekr6e4kaemqsrv34em6glkbiceo3fcy4si.ipfs.inbrowser.link/">
