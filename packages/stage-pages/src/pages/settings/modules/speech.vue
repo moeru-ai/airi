@@ -215,7 +215,7 @@ const compactVoiceOptions = computed(() => {
 })
 
 const fishAudioApiKey = computed(() => {
-  return getFishAudioApiKey(providersStore.getProviderConfig(fishAudioProviderId).apiKey)
+  return getFishAudioApiKey(providersStore.getProviderConfig(fishAudioProviderId)?.apiKey)
 })
 
 const fishAudioApiKeyConfigured = computed(() => {
