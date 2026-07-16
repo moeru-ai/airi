@@ -36,6 +36,7 @@ describe('resolveLlmTools', () => {
       builtInTools: [builtInTool],
       debugTools: [],
       sparkCommandTools: [],
+      webSearchTools: [],
       activeTools: [runtimeTool],
     })
 
@@ -52,10 +53,26 @@ describe('resolveLlmTools', () => {
       builtInTools: [builtInTool],
       debugTools: [],
       sparkCommandTools: [],
+      webSearchTools: [],
       customTools: [customTool],
       activeTools: [runtimeTool],
     })
 
     expect(tools).toEqual([builtInTool, runtimeTool])
+  })
+
+  it('includes injected web-search tools in the resolved list', async () => {
+    const builtInTool = createTool('built_in_tool')
+    const webSearchTool = createTool('web_search')
+
+    const tools = await resolveLlmTools({
+      builtInTools: [builtInTool],
+      debugTools: [],
+      sparkCommandTools: [],
+      webSearchTools: [webSearchTool],
+      activeTools: [],
+    })
+
+    expect(tools).toEqual([builtInTool, webSearchTool])
   })
 })
