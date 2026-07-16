@@ -2688,7 +2688,7 @@ Przyszłość pulpitu nie napisze się sama.
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-kz-v2" src="https://github.com/user-attachments/assets/eed65c65-b2ed-45c7-b78c-d133fe552b3a" />
+<img width="1197" height="1314" alt="anima-logo-kz-v4" src="https://github.com/user-attachments/assets/4d5e0501-cad7-44c8-92a9-b47241c574bc" />
 <sub>
 <h2>
 
