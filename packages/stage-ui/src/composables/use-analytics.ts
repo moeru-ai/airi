@@ -1,3 +1,5 @@
+import type { SpeechOutputStopReason } from '../stores/speech-output-control'
+
 import posthog from 'posthog-js'
 
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
@@ -643,7 +645,7 @@ export function useAnalytics() {
 
   // ─── Conversation action events ─────────────────────────────────────
 
-  function trackTtsStopClicked(properties: { reason: 'manual-chat' }) {
+  function trackTtsStopClicked(properties: { reason: SpeechOutputStopReason }) {
     if (!canCapture())
       return
     posthog.capture('tts_stop_clicked', {
