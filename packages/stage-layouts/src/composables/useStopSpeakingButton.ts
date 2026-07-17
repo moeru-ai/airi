@@ -14,7 +14,7 @@ import { computed } from 'vue'
  * - A Stage instance is mounted and consumes speech output stop requests.
  *
  * Returns:
- * - Visibility state for the button and a click handler for manual chat stops.
+ * - Visibility state for the button and click handlers for manual stops.
  */
 export function useStopSpeakingButton() {
   const { nowSpeaking } = storeToRefs(useSpeakingStore())
@@ -28,8 +28,14 @@ export function useStopSpeakingButton() {
     speechOutputControlStore.requestStopSpeaking('manual-chat')
   }
 
+  function stopAllSpeaking() {
+    trackTtsStopClicked({ reason: 'manual-all' })
+    speechOutputControlStore.requestStopSpeaking('manual-all')
+  }
+
   return {
     showStopSpeakingButton,
     stopSpeakingFromChat,
+    stopAllSpeaking,
   }
 }

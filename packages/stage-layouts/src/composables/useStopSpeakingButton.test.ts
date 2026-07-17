@@ -55,4 +55,18 @@ describe('useStopSpeakingButton', () => {
       reason: 'manual-chat',
     })
   })
+
+  it('requests a manual-all stop without touching chat input state', () => {
+    requestStopSpeakingMock.mockClear()
+    trackTtsStopClickedMock.mockClear()
+
+    const { stopAllSpeaking } = useStopSpeakingButton()
+
+    stopAllSpeaking()
+
+    expect(requestStopSpeakingMock).toHaveBeenCalledWith('manual-all')
+    expect(trackTtsStopClickedMock).toHaveBeenCalledWith({
+      reason: 'manual-all',
+    })
+  })
 })
