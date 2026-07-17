@@ -4,68 +4,34 @@ description: 在 AIRI 中配置 OpenRouter 作为大模型服务商
 is_openai_compatible: true
 ---
 
-本文档介绍了如何在 AIRI 中配置 OpenRouter 作为大模型服务商。OpenRouter 是一个集成式的 API 转发平台。在 AIRI 中，它主要作为聊天和语音模块的动力来源。
+OpenRouter 是一个聚合式 API 服务商。完成本页配置后，AIRI 可以在“意识”中使用 OpenRouter 提供的聊天模型。
 
 ::: info 为什么选择 OpenRouter？
-只需一个 API 密钥即可访问全球 500 多个 LLM 和 TTS 模型（包括 Claude 3.5, Gemini 等），支持自动故障切换和统一计费，极大地简化了多模型管理。
+如果你希望用一个 API Key 在 AIRI 中尝试多个模型，OpenRouter 是一个方便的选择。它将多个模型服务集中到同一套接口和账单中，因此切换模型时通常不必分别配置多个服务商。在中国大陆使用 AIRI 时，可以优先尝试 302.AI；实际可用性仍取决于你的网络环境、支付方式和服务商政策。
 :::
 
 ## 第一步：获取 API 密钥
 
-1. 登录你的 [OpenRouter 管理控制台](https://openrouter.ai/keys)。
-2. 找到 API 密钥菜单并生成你的 API 密钥。
-3. 选择一个你记得住的 API 名称（比如 "AIRI-Default"），并配置其他选项，如过期时间、总额度等。
-4. 点击 **“添加/创建 API 密钥” (Add/Create API Key)**，并点击生成的密钥右侧的复制图标。通常 API 密钥 会以 "sk-" 开头。
+1. 打开 [OpenRouter API Keys](https://openrouter.ai/keys)，创建新的 API Key。
+2. 为密钥设置适当的名称、有效期和额度限制。
+3. 复制密钥并妥善保存。
 
-
-    ::: warning 安全提醒
-
-    **API 密钥** 等同于你的账号密码。请勿告诉他人你的 API 密钥，或在任何公开场合展示，以防额度被他人盗刷。
-    :::
-
-::: info
-确保你的账户里有充值余额，或有开通相关自动扣费服务，否则 API 调用会返回 402 或 429 报错。
+::: warning API Key 安全
+不要将 API Key 提交到仓库、放入截图，或发送给他人。密钥泄露后，请立即在 OpenRouter 控制台撤销它并创建新密钥。
 :::
 
 
-## 第二步：输入 API 信息
+## 第二步：在 AIRI 中配置
 
-请在 AIRI 的 **设置 -> 服务来源 -> OpenRouter** 页面中按以下说明填写：
+1. 打开 **设置 → 服务商 → 聊天 → OpenRouter**。
+2. 将 API Key 粘贴到基础设置。
+3. 保留默认 Base URL：`https://openrouter.ai/api/v1`。
 
-### 1. 基础设置 (Basic)
-* **API 密钥**: 填入你在 OpenRouter 后台生成的 API 令牌。
-    * *提示：点击右侧的刷新图标可以清空输入。*
+### 3. 配置校验
 
-### 2. 高级设置 (Advanced)
-点击 **Advanced** 箭头展开隐藏选项：
-* **Base URL**: `https://openrouter.ai/api/v1`。默认情况下不需要更改。
+1. **Ping API**: 点击此按钮测试网络是否连通以及 API 密钥是否填写正确。
+2. **选择模型**: 测试成功后，点击此处选择你想要使用的具体模型（如 **google/gemini-pro-1.5**）。
 
-### 3. 配置校验 (Validation)
-填写完成后，你会看到底部的蓝色通知栏：
-1.  **Ping API**: 点击此按钮测试网络是否连通以及 API 密钥 是否填写正确。
-2.  **选择模型**: 网络通畅后，点击此处选择你想要使用的具体模型（如 `google/gemini-pro-1.5`）。
+## 排查
 
----
-
-## 开发者快速参考 (Developer Quick-Start)
-
-如果你需要手动测试 OpenRouter 的 API 连通性，可以使用以下 cURL 命令进行调试：
-
-```bash
-curl https://openrouter.ai/api/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $YOUR_API_KEY" \
-  -d '{
-    "model": "google/gemini-pro-1.5",
-    "messages": [
-      {
-        "role": "system",
-        "content": "You are a helpful assistant."
-      },
-      {
-        "role": "user",
-        "content": "Hello!"
-      }
-    ]
-  }'
-```
+如果 Ping API 失败，请检查 API Key、账户额度和网络连接。模型列表无法加载时，可在“意识”页面手动输入 OpenRouter 提供的精确模型 ID。
