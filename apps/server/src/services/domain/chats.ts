@@ -258,8 +258,12 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         if (existingMessages.some(message => message.chatId !== chatId))
           throw createConflictError('Message already belongs to another chat')
 
-        // The stored sender identifies the owner; request.role is client-controlled.
-        if (existingMessages.some(message => message.senderId !== userId))
+        // Stored senders must match the owner resolved for each incoming message.
+        const existingMessagesById = new Map(existingMessages.map(message => [message.id, message]))
+        if (messages.some((message) => {
+          const existingMessage = existingMessagesById.get(message.id)
+          return existingMessage != null && existingMessage.senderId !== resolveSenderId(message.role, userId, characterId)
+        }))
           throw createForbiddenError()
 
         const existingIds = new Set(existingMessages.map(m => m.id))
