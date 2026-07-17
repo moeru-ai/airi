@@ -1441,58 +1441,6 @@ _(Опциональный PKGBUILD лежит в `apps/stage-tamagotchi` и п�
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1254" height="1254" alt="anima-logo-ar-fa-tr-v1" src="https://github.com/user-attachments/assets/abf7244b-9495-4130-889f-5e84af1c795d" />
-<sub>
-<p><h2>
-
-توزيعة <<div align="center">
-
-╭─[animaios@github]─[~/anima] <br>
-╰─➜ Welcome to AnimAIOS! Please select your language / به پروژه AnimAIOS خوش اومدی! زبانت رو انتخاب کن / AnimAIOS Projesine hoş geldin! Lütfen dilini seç:
-
-<a href="https://github.com/animaios/anima#-readme_locale_en_uea">
-  <img src="https://img.shields.io/badge/read%20me-English%20-1e3a8a" alt="English README">
-</a>
-<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_ja_jp-">
-  <img src="https://img.shields.io/badge/リードミー-日本語%20-db2777" alt="Japanese README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_ko_kr-">
-  <img src="https://img.shields.io/badge/리드미-한국어%20-a020f0" alt="한국어 README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_zh_cn-">
-  <img src="https://img.shields.io/badge/读我-中文%20-dc2626" alt="Chinese README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_pt_br_es_419">
-  <img src="https://img.shields.io/badge/leia%20me-Español%20%2F%20Português%20-16a34a" alt="Português README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_fr_fr-">
-  <img src="https://img.shields.io/badge/lisez%20moi-Français%20-B59410" alt="Français README">
-</a>
-<a href="https://github.com/animaios/anima#%E2%80%8D%EF%B8%8F-readme_locale_ru_ru-">
-  <img src="https://img.shields.io/badge/прочитай%20меня-Русский%20-71706E" alt="Русский README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_ar_fa_tr_ga">
-  <img src="https://img.shields.io/badge/%D8%A7%D9%82%D8%B1%D8%A3%D9%86%D9%8A%20%2F%20%D8%A8%D8%AE%D9%88%D9%86%D8%B4%20%2F%20Oku%20Beni-%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9%20%2F%20%D9%81%D8%A7%D8%B1%D8%B3%DB%8C%20%2F%20T%C3%BCrk%C3%A7e-8b5cf6" alt="Arabic README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_fa_ir-">
-  <img src="https://img.shields.io/badge/بخونش-فارسی%20-10B981" alt="README فارسی">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_tr_tr-">
-  <img src="https://img.shields.io/badge/oku%20beni-Türkçe%20-DC2626" alt="Türkçe README">
-</a>
-<a href="https://github.com/animaios/anima#%EF%B8%8F-readme_locale_de_de-">
-  <img src="https://img.shields.io/badge/lesen%20-%20Deutsch%20-FACC15" alt="Deutsches README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_pl_pl-">
-  <img src="https://img.shields.io/badge/czytaj%20mnie-Polski%20-DC143C" alt="Polski README">
-</a>
-<a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
-  <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қاзақша README">
-</a>
-
-<br>
-<img width="1254" height="1254" alt="anima-logo" src="https://github.com/user-attachments/assets/40faab23-ce7e-493d-a293-341d131f58f1" />
-
 <sub>
 <h2>
 <b>AnimAIOS</b> مبنية على 
