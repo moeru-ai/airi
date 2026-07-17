@@ -41,6 +41,7 @@ const providerSourceMetadataById = {
   'anthropic': paidCloud,
   'app-local-audio-speech': freeLocal,
   'app-local-audio-transcription': freeLocal,
+  'atlascloud': paidCloud,
   'azure-ai-foundry': paidCloud,
   'azure-openai': paidCloud,
   'browser-local-audio-speech': freeLocal,
