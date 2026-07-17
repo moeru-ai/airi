@@ -744,6 +744,10 @@ function openTtsSession(): StageTtsSession {
           model: activeSpeechModel.value,
           error: err,
         })
+        // Drop the failed session so no further audio is queued, but let the
+        // playback manager keep draining already-queued audio and emit its own
+        // terminal events. Calling resetSpeakingState() here would force the
+        // mouth shut while audio is still playing.
         clearIfActive()
       },
       onDone: () => {
