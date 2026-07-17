@@ -84,6 +84,16 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   relativeMouseY,
   { regionRadius: 25 },
 )
+const isTransparentByPixelsExact = useCanvasPixelIsTransparentAtPoint(
+  stageCanvas,
+  relativeMouseX,
+  relativeMouseY,
+)
+const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
+  widgetStageRef,
+  relativeMouseX,
+  relativeMouseY,
+)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -108,6 +118,18 @@ const isTransparent = computed(() => {
 
   if (stageModelRenderer.value === 'live2d')
     return isTransparentByPixels.value
+
+  return true
+})
+const isTransparentForMouseEvents = computed(() => {
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
+    return true
+
+  if (stageModelRenderer.value === 'vrm')
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
+
+  if (stageModelRenderer.value === 'live2d')
+    return isTransparentByPixelsExact.value
 
   return true
 })
@@ -216,8 +238,10 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
   }
   else {
     const fadeEnabled = fadeOnHoverEnabled.value
-    // Keep visible model pixels interactive; only transparent pixels should pass clicks through.
-    const shouldIgnoreMouseEvents = fadeEnabled && isTransparent.value
+    // Keep visible model pixels interactive; only the exact transparent pixel under the cursor
+    // should pass clicks through. The fuzzy transparency value above is intentionally reserved
+    // for fade stability near model edges.
+    const shouldIgnoreMouseEvents = fadeEnabled && isTransparentForMouseEvents.value
     isIgnoringMouseEvents.value = shouldIgnoreMouseEvents
     shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
     setIgnoreMouseEvents([shouldIgnoreMouseEvents, { forward: true }])
