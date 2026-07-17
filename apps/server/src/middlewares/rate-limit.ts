@@ -3,6 +3,8 @@ import type { Context } from 'hono'
 import type { RateLimitMetrics } from '../otel'
 import type { HonoEnv } from '../types/hono'
 
+import { isIP } from 'node:net'
+
 import { getConnInfo } from '@hono/node-server/conninfo'
 import { rateLimiter as createRateLimiter } from 'hono-rate-limiter'
 
@@ -13,6 +15,12 @@ interface RateLimitOptions {
   windowSec: number
   /** Key generator: extracts a unique identifier from the request */
   keyGenerator?: (c: Context<HonoEnv>) => string
+  /**
+   * Reverse proxy whose client-address header is safe to use. The caller must
+   * select this only for a deployment that prevents direct public access to
+   * the application process.
+   */
+  trustedProxy?: 'railway'
   /**
    * Optional metrics handle. When provided, blocked requests increment
    * `airi_rate_limit_blocked_total{route, key_type, limit}`.
@@ -40,10 +48,20 @@ export function rateLimiter(opts: RateLimitOptions) {
       if (userId)
         return userId
 
-      // NOTICE: prefer hono conninfo (uses underlying socket address) over
-      // x-forwarded-for which can be spoofed. Falls back to header then 'anonymous'.
-      const info = getConnInfo(c)
-      return info.remote?.address ?? c.req.header('x-forwarded-for') ?? 'anonymous'
+      const trustedProxyAddress = getTrustedProxyClientAddress(c, opts.trustedProxy)
+      if (trustedProxyAddress)
+        return trustedProxyAddress
+
+      // `app.request()` and fetch-style deployments have no Node incoming
+      // socket. Keep those requests in a shared bucket rather than trusting a
+      // client-controlled forwarding header.
+      try {
+        const info = getConnInfo(c)
+        return info.remote?.address ?? 'anonymous'
+      }
+      catch {
+        return 'anonymous'
+      }
     })
 
   return createRateLimiter<HonoEnv>({
@@ -66,4 +84,59 @@ export function rateLimiter(opts: RateLimitOptions) {
       return c.json({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests' }, 429)
     },
   })
+}
+
+/**
+ * Returns Railway's canonical client address only for a request received from
+ * its internal proxy network.
+ *
+ * Before:
+ * - a client could send `X-Forwarded-For: 203.0.113.1` and choose its bucket
+ *
+ * After:
+ * - `X-Real-IP` is used only when Railway's edge marker and an internal socket
+ *   prove the request traversed the configured Railway proxy boundary
+ */
+function getTrustedProxyClientAddress(c: Context<HonoEnv>, trustedProxy: RateLimitOptions['trustedProxy']): string | undefined {
+  if (trustedProxy !== 'railway')
+    return undefined
+
+  try {
+    const remoteAddress = getConnInfo(c).remote?.address
+    const edge = c.req.header('x-railway-edge')
+    const clientAddress = c.req.header('x-real-ip')?.trim()
+    if (!isRailwayInternalAddress(remoteAddress) || !edge?.startsWith('railway/') || !clientAddress || isIP(clientAddress) === 0)
+      return undefined
+
+    return clientAddress
+  }
+  catch {
+    return undefined
+  }
+}
+
+/**
+ * Identifies address ranges Railway documents for internal proxy traffic.
+ *
+ * Before:
+ * - `203.0.113.42`
+ *
+ * After:
+ * - `100.64.0.42`
+ */
+function isRailwayInternalAddress(address: string | undefined): boolean {
+  if (!address)
+    return false
+
+  const normalizedAddress = address.replace(/^::ffff:/i, '')
+  const octets = normalizedAddress.split('.').map(Number)
+  if (octets.length !== 4 || octets.some(octet => !Number.isInteger(octet) || octet < 0 || octet > 255))
+    return false
+
+  const [first, second] = octets
+  return first === 10
+    || first === 100
+    || first === 127
+    || (first === 172 && second >= 16 && second <= 31)
+    || (first === 192 && second === 168)
 }
