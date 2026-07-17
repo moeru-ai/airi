@@ -136,6 +136,33 @@ describe('pushMessages', () => {
     expect(message?.seq).toBe(2)
   })
 
+  it('allows a user to update their character-owned assistant message', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'author' })
+    await db.insert(schema.messages).values({
+      id: 'message',
+      chatId: 'group',
+      senderId: 'character',
+      role: 'assistant',
+      seq: 1,
+      content: 'original response',
+      mediaIds: [],
+      stickerIds: [],
+    })
+
+    const service = createChatService(db)
+
+    await expect(service.pushMessages('author', 'group', [{ id: 'message', role: 'assistant', content: 'updated response' }], 'character'))
+      .resolves
+      .toMatchObject({ seq: 2, fromSeq: 2, toSeq: 2 })
+
+    const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
+    expect(message?.content).toBe('updated response')
+    expect(message?.senderId).toBe('character')
+    expect(message?.role).toBe('assistant')
+    expect(message?.seq).toBe(2)
+  })
+
   it('accepts an assistant message from local-first sync', async () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
