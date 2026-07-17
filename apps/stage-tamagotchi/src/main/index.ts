@@ -33,6 +33,7 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
+import { setupOpenAICompatibleFetchBridge } from './services/airi/openai-compatible-fetch'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
@@ -128,6 +129,8 @@ app.whenReady().then(async () => {
   })
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
+  const { context: appIpcContext } = createContext(ipcMain)
+  setupOpenAICompatibleFetchBridge({ context: appIpcContext })
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
@@ -260,10 +263,9 @@ app.whenReady().then(async () => {
   injeca.invoke({
     dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
-      const { context } = createContext(ipcMain)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
-        context,
+        context: appIpcContext,
         artistryConfig: deps.artistryConfig,
       })
     },
