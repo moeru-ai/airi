@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
@@ -14,12 +14,12 @@ defineProps<{
 
 const { t } = useI18n()
 const { nowSpeaking } = storeToRefs(useSpeakingStore())
-const { requestStopSpeaking } = useSpeechOutputControlStore()
+const { stopAllSpeaking } = useStopSpeakingButton()
 </script>
 
 <template>
   <ControlButtonTooltip side="left">
-    <ControlButton :button-style @click="requestStopSpeaking('manual-all')">
+    <ControlButton :button-style @click="stopAllSpeaking()">
       <Transition name="fade" mode="out-in">
         <div
           v-if="nowSpeaking"

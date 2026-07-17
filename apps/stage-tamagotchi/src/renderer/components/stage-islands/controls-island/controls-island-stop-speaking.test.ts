@@ -5,7 +5,7 @@ import { createApp, h, nextTick } from 'vue'
 import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 
 const nowSpeakingRef = { value: false }
-const requestStopSpeakingMock = vi.fn()
+const stopAllSpeakingMock = vi.fn()
 
 vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
   useSpeakingStore: () => ({
@@ -13,9 +13,11 @@ vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
   }),
 }))
 
-vi.mock('@proj-airi/stage-ui/stores/speech-output-control', () => ({
-  useSpeechOutputControlStore: () => ({
-    requestStopSpeaking: requestStopSpeakingMock,
+vi.mock('@proj-airi/stage-layouts/composables/useStopSpeakingButton', () => ({
+  useStopSpeakingButton: () => ({
+    stopAllSpeaking: stopAllSpeakingMock,
+    showStopSpeakingButton: nowSpeakingRef,
+    stopSpeakingFromChat: vi.fn(),
   }),
 }))
 
@@ -68,15 +70,15 @@ describe('controlsIslandStopSpeaking', () => {
     host.remove()
   })
 
-  it('calls requestStopSpeaking with manual-all on click', async () => {
-    requestStopSpeakingMock.mockClear()
+  it('calls stopAllSpeaking on click', async () => {
+    stopAllSpeakingMock.mockClear()
     nowSpeakingRef.value = false
     const { host, app } = mountComponent()
     await nextTick()
     const button = host.querySelector('button')
     expect(button).toBeTruthy()
     button!.click()
-    expect(requestStopSpeakingMock).toHaveBeenCalledWith('manual-all')
+    expect(stopAllSpeakingMock).toHaveBeenCalledTimes(1)
     app.unmount()
     host.remove()
   })
