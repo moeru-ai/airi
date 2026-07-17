@@ -40,6 +40,7 @@ description: 为 AIRI 的视觉模块选择图像理解服务商和模型
 | Groq | [Groq](./providers/consciousness/groq.md) |
 | LM Studio | [LM Studio](./providers/consciousness/lm-studio.md) |
 | MiniMax | [MiniMax](./providers/consciousness/minimax.md) |
+| MiniMax Global | [MiniMax Global](./providers/consciousness/minimax-global.md) |
 | Mistral | [Mistral](./providers/consciousness/mistral.md) |
 | ModelScope | [ModelScope](./providers/consciousness/modelscope.md) |
 | Moonshot | [月之暗面](./providers/consciousness/moonshot.md) |

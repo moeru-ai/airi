@@ -333,6 +333,7 @@ export default defineConfig<ThemeConfig>({
                       { text: 'Featherless.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/featherless') },
                       { text: 'Groq', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/groq') },
                       { text: 'MiniMax', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/minimax') },
+                      { text: 'MiniMax Global', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/minimax-global') },
                       { text: 'Mistral', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/mistral') },
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/mimo') },
                       { text: 'ModelScope', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/modelscope') },
