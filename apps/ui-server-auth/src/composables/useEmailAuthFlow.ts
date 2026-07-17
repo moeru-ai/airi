@@ -7,6 +7,12 @@ import { reactive, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import {
+  trackLoginFailed,
+  trackLoginStarted,
+  trackLoginSucceeded,
+  trackSignupFormCompleted,
+} from '../modules/analytics'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import { decideEmailStep } from '../modules/email-auth-flow'
 import { checkEmail, describeAuthError, signInWithEmail, signUpWithEmail } from '../modules/email-password'
@@ -82,9 +88,11 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
         provider,
         callbackURL: options.callbackUrl,
       })
+      trackLoginStarted({ method: provider })
       window.location.href = redirectUrl
     }
     catch (error) {
+      trackLoginFailed({ method: provider })
       errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
       pendingProvider.value = null
     }
@@ -138,9 +146,11 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
         })
         return
       }
+      trackLoginSucceeded({ method: 'email' })
       window.location.href = result.redirectURL ?? options.callbackUrl
     }
     catch (error) {
+      trackLoginFailed({ method: 'email' })
       errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
     }
     finally {
@@ -179,6 +189,7 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
         callbackURL: signUpCallbackURL,
       })
       if (result.requiresVerification) {
+        trackSignupFormCompleted({ source: 'email', requires_verification: true })
         await router.push({
           path: '/verify-email',
           query: {
@@ -189,6 +200,7 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
         })
         return
       }
+      trackSignupFormCompleted({ source: 'email', requires_verification: false })
       window.location.href = options.callbackUrl
     }
     catch (error) {
