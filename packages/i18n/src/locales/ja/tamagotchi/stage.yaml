@@ -18,6 +18,8 @@ docs:
   'center-main-window': Move to screen center
   'open-hearing-controls': 聴覚コントロールを開く
   'drag-to-move-window': ウィンドウをドラッグして移動
+  'stop-speaking': 発話停止
+  'speaker-idle': スピーカー
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
   'pin-on-top': ピン留め

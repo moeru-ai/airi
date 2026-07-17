@@ -18,6 +18,8 @@ docs:
   'center-main-window': Move to screen center
   'open-hearing-controls': 듣기 제어 열기
   'drag-to-move-window': 드레그하여 창 이동
+  'stop-speaking': 말하기 중지
+  'speaker-idle': 스피커
   'switch-to-light-mode': 라이트 모드로 전환
   'switch-to-dark-mode': 다크 모드로 전환
   'pin-on-top': 맨 위에 고정

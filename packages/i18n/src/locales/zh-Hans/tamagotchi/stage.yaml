@@ -18,6 +18,8 @@ docs:
   'center-main-window': Move to screen center
   'open-hearing-controls': 打开听力控制
   'drag-to-move-window': 拖动以移动窗口
+  'stop-speaking': 停止说话
+  'speaker-idle': 扬声器
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
   'pin-on-top': 置顶窗口
