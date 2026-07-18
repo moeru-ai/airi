@@ -10,6 +10,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { useChatSyncStore } from '../stores/chat-sync'
 import {
+  buildCompanionModeObservationPrompt,
   buildCompanionModePrompt,
   isCompanionModeSourceAllowedForKind,
   normalizeCompanionModeIntervalMs,
@@ -366,7 +367,10 @@ export function useCompanionModeRuntime() {
         throw new Error('Vision model returned an empty Companion Mode summary')
 
       await chatSyncStore.requestIngest({
-        text: `${promptText}\n\nFactual visual summary:\n${visualSummary.trim()}`,
+        text: buildCompanionModeObservationPrompt({
+          promptText,
+          visualSummary,
+        }),
         hidden: true,
       }, {
         abortSignal: runAbortController.signal,

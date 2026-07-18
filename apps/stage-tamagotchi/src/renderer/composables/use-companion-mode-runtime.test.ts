@@ -219,7 +219,7 @@ describe('useCompanionModeRuntime', async () => {
     }))
     expect(requestIngest).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: expect.stringContaining('The user is viewing a code editor.'),
+        text: expect.stringMatching(/<untrusted_visual_context>\n\{"visualSummary":"The user is viewing a code editor\."\}\n<\/untrusted_visual_context>/),
         hidden: true,
       }),
       { abortSignal: expect.any(AbortSignal) },

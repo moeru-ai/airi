@@ -765,8 +765,10 @@ describe('createChatOrchestratorRuntime', () => {
   it('sends hidden user turns to the provider without appending them to session history', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []
+    let streamOptions: StreamOptions | undefined
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
+      streamOptions = options
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'screen reply' })
       await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
     })
@@ -802,6 +804,7 @@ describe('createChatOrchestratorRuntime', () => {
     })
     expect(harness.userAppended).toEqual([])
     expect(harness.userTurns).toEqual([])
+    expect(streamOptions).not.toHaveProperty('requestCorrelation')
   })
 
   // ROOT CAUSE:
@@ -860,6 +863,12 @@ describe('createChatOrchestratorRuntime', () => {
 
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
       await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onUsage?.({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
     })
 
     await harness.runtime.ingest('hidden screen prompt', {
@@ -877,6 +886,7 @@ describe('createChatOrchestratorRuntime', () => {
       llmRequestStarted: [],
       llmFirstToken: [],
       assistantResponseRendered: [],
+      llmGeneration: [],
       messageRound: [],
       messageRoundFailed: [],
     })
@@ -942,6 +952,7 @@ describe('createChatOrchestratorRuntime', () => {
       llmRequestStarted: [],
       llmFirstToken: [],
       assistantResponseRendered: [],
+      llmGeneration: [],
       messageRound: [],
       messageRoundFailed: [],
     })

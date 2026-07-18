@@ -310,6 +310,59 @@ describe('chat orchestrator contract', () => {
     })
   })
 
+  it('does not emit custom-provider generation telemetry for hidden companion usage', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'hidden reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onUsage({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('internal companion observation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).not.toHaveBeenCalled()
+  })
+
+  it('omits official chat correlation headers for hidden companion sends', async () => {
+    activeProviderRef.value = 'official-provider'
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('internal companion observation', {
+      model: 'chat-auto',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    const hiddenHeaders = llmStreamMock.mock.calls[0]?.[3]?.headers
+    expect(hiddenHeaders).not.toHaveProperty(AIRI_CHAT_SESSION_ID_HEADER)
+    expect(hiddenHeaders).not.toHaveProperty(AIRI_CHAT_ROUND_ID_HEADER)
+    expect(hiddenHeaders).not.toHaveProperty(AIRI_CHAT_APP_SURFACE_HEADER)
+
+    await store.ingest('visible user turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
+      [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+  })
+
   it('emits second turn analytics from chat sends', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {

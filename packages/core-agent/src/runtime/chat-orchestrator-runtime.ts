@@ -748,24 +748,30 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
         abortSignal: options.abortSignal,
         headers,
-        requestCorrelation: {
-          conversationId: correlation.conversationId,
-          roundId: correlation.roundId,
-        },
+        ...(shouldTrackUserChatTelemetry
+          ? {
+              requestCorrelation: {
+                conversationId: correlation.conversationId,
+                roundId: correlation.roundId,
+              },
+            }
+          : {}),
         tools: options.tools,
         waitForTools: true,
         captureToolErrors: true,
         onUsage: (usage) => {
           generationUsage = usage
-          deps.onLlmGeneration?.({
-            ...correlation,
-            model: options.model,
-            provider: activeProvider,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            totalTokens: usage.totalTokens,
-            usageSource: usage.source,
-          })
+          if (shouldTrackUserChatTelemetry) {
+            deps.onLlmGeneration?.({
+              ...correlation,
+              model: options.model,
+              provider: activeProvider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
+              usageSource: usage.source,
+            })
+          }
         },
         onStreamEvent: async (event: StreamEvent) => {
           if (shouldAbort())
