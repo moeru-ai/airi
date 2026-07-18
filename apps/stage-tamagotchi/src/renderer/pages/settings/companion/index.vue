@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 
 import WithScreenCapture from '../../../components/WithScreenCapture.vue'
 
+import { useCompanionModePreviewSnapshot } from '../../../composables/use-companion-mode-preview-snapshot'
 import { useVisionScreenCapture } from '../../../composables/use-vision-screen-capture'
 import {
   getDefaultCompanionModePromptTemplate,
@@ -22,6 +23,7 @@ import {
 const AUTO_SOURCE_VALUE = '__auto__'
 
 const companionModeStore = useCompanionModeStore()
+useCompanionModePreviewSnapshot()
 const settingsGeneralStore = useSettingsGeneral()
 const {
   enabled,
@@ -255,6 +257,11 @@ watch([promptTemplate, language], () => {
 watch(sourceKind, () => {
   if (!isCompanionModeSourceAllowedForKind(sourceId.value, sourceKind.value))
     sourceId.value = ''
+})
+
+watch(logs, (currentLogs) => {
+  if (previewImageDataUrl.value && !currentLogs.some(log => log.type === 'capture' && log.imageDataUrl === previewImageDataUrl.value))
+    closeImagePreview()
 })
 
 onMounted(() => {

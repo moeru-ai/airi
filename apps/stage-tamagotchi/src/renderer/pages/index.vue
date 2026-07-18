@@ -39,6 +39,7 @@ import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useCompanionModePreviewOwner } from '../composables/use-companion-mode-preview-owner'
 import { useCompanionModeRuntime } from '../composables/use-companion-mode-runtime'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
@@ -271,6 +272,7 @@ const voiceTranscriptBuffer = createTranscriptBuffer({
 })
 
 const { videoRef: companionModeVideoRef } = useCompanionModeRuntime()
+useCompanionModePreviewOwner()
 
 function setCompanionModeVideoRef(element: Element | ComponentPublicInstance | null) {
   companionModeVideoRef.value = element instanceof HTMLVideoElement ? element : null

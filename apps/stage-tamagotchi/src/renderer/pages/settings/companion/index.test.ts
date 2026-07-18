@@ -91,6 +91,10 @@ vi.mock('../../../composables/use-vision-screen-capture', () => ({
   },
 }))
 
+vi.mock('../../../composables/use-companion-mode-preview-snapshot', () => ({
+  useCompanionModePreviewSnapshot: vi.fn(),
+}))
+
 vi.mock('../../../stores/companion-mode', () => ({
   getDefaultCompanionModePromptTemplate: () => 'Observe the screen.',
   isCompanionModeScreenSource: (sourceId: string) => sourceId.startsWith('screen:'),

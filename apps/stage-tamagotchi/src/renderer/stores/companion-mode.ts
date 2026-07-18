@@ -1,6 +1,6 @@
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 export const COMPANION_MODE_DEFAULT_INTERVAL_MS = 60_000
 export const COMPANION_MODE_MIN_INTERVAL_MS = 15_000
@@ -343,6 +343,16 @@ export function sanitizeCompanionModePersistedLogs(logs: CompanionModeLogEntry[]
   })
 }
 
+function retainCompanionModeLogImages(
+  images: Record<string, string>,
+  logs: PersistedCompanionModeLogEntry[],
+) {
+  const retainedLogIds = new Set(logs.map(log => log.id))
+  return Object.fromEntries(
+    Object.entries(images).filter(([logId]) => retainedLogIds.has(logId)),
+  )
+}
+
 export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', () => {
   const enabled = useLocalStorage<boolean>('settings/companion-mode/enabled', false)
   const intervalMs = useLocalStorage<number>('settings/companion-mode/interval-ms', COMPANION_MODE_DEFAULT_INTERVAL_MS)
@@ -354,6 +364,17 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
   const logImages = ref<Record<string, string>>({})
 
   persistedLogs.value = sanitizeCompanionModePersistedLogs(persistedLogs.value)
+
+  watch(persistedLogs, (nextLogs) => {
+    const retainedImages = retainCompanionModeLogImages(logImages.value, nextLogs)
+    const retainedEntries = Object.entries(retainedImages)
+    const currentEntries = Object.entries(logImages.value)
+    const isUnchanged = retainedEntries.length === currentEntries.length
+      && retainedEntries.every(([logId, imageDataUrl]) => logImages.value[logId] === imageDataUrl)
+
+    if (!isUnchanged)
+      logImages.value = retainedImages
+  })
 
   const logs = computed<CompanionModeLogEntry[]>(() => persistedLogs.value.map((entry) => {
     if (entry.type !== 'capture')
@@ -409,10 +430,7 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
       ...persistedLogs.value,
     ]).slice(0, COMPANION_MODE_MAX_LOG_ENTRIES)
 
-    const retainedLogIds = new Set(persistedLogs.value.map(log => log.id))
-    logImages.value = Object.fromEntries(
-      Object.entries(logImages.value).filter(([logId]) => retainedLogIds.has(logId)),
-    )
+    logImages.value = retainCompanionModeLogImages(logImages.value, persistedLogs.value)
   }
 
   function publishRuntimeState(patch: Partial<CompanionModeRuntimeSnapshot> = {}, now = Date.now()) {
@@ -470,6 +488,12 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
     logImages.value = {}
   }
 
+  function replaceLogImages(images: Record<string, string>) {
+    logImages.value = Object.fromEntries(
+      Object.entries(images).slice(-COMPANION_MODE_MAX_LOG_ENTRIES),
+    )
+  }
+
   function recordCapture(capturedAt = Date.now(), logInput?: CompanionModeCaptureLogInput) {
     lastCaptureAt.value = capturedAt
     lastError.value = null
@@ -517,6 +541,7 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
     sourceId,
     promptTemplate,
     logs,
+    logImages,
     runtimeSnapshot,
     isRunning,
     isCapturing,
@@ -531,6 +556,7 @@ export const useCompanionModeStore = defineStore('tamagotchi-companion-mode', ()
     setRuntimeNextTickAt,
     setPromptTemplate,
     clearLogs,
+    replaceLogImages,
     recordCapture,
     recordSkip,
     recordError,
