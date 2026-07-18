@@ -1217,7 +1217,7 @@ _(Un PKGBUILD optionnel est disponible dans `apps/stage-tamagotchi` pour recondi
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1205" height="1305" alt="anima-logo-ru-v11" src="https://github.com/user-attachments/assets/cc5eb8c7-0508-45e5-9711-e46c5afb30c4" />  
+<img width="1205" height="1305" alt="anima-logo-ru-v11 1" src="https://github.com/user-attachments/assets/9d730026-1681-4b13-b356-34653d32560d" />
   <sub>
     <p><h2>
         Дистрибутив AnimAIOS на базе 
