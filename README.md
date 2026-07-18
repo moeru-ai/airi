@@ -35,7 +35,7 @@
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1125" height="1398" alt="anima-banner-us-v4 1" src="https://github.com/user-attachments/assets/fb6717c8-1cbe-45b6-80ea-c29744d1620b" />  
+<img width="1122" height="1402" alt="anima-banner-us-v4 2" src="https://github.com/user-attachments/assets/9bde411e-d3a7-46c0-b2de-318e2b90441d" />  
   <sub>
     <p><h2>
         AnimAIOS distro based on 
