@@ -3,7 +3,7 @@
 
 import type { Format, LogLevelString } from '@guiiai/logg'
 import type { MutexInterface } from 'async-mutex'
-import type { BrowserWindow, DesktopCapturerSource, SourcesOptions } from 'electron'
+import type { BrowserWindow, DesktopCapturerSource, SourcesOptions, WebContents } from 'electron'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -94,6 +94,27 @@ export interface GetLoopbackAudioMediaStreamOptions {
 let setSourceMutex: MutexInterface
 let screenCaptureSourceMutexHandle: string | undefined
 let setSourceMutexTimeoutHandle: NodeJS.Timeout | undefined
+let screenCaptureSourceOwnerWebContentsId: number | undefined
+
+/**
+ * Checks whether a renderer currently holds the short-lived selected-source capture lease.
+ *
+ * Use when:
+ * - A permission policy needs to distinguish an Electron desktop-stream fallback
+ *   from a general camera request
+ *
+ * Returns:
+ * - `true` while an in-flight `setSource` request exists. When Electron
+ *   supplies a renderer, it must be the renderer that owns that request.
+ *   Permission checks may omit `webContents`; callers must independently
+ *   validate the requesting origin in that case.
+ */
+export function isScreenCaptureSourceRequestActive(webContents: Pick<WebContents, 'id'> | null | undefined): boolean {
+  if (!screenCaptureSourceMutexHandle || screenCaptureSourceOwnerWebContentsId === undefined)
+    return false
+
+  return !webContents || screenCaptureSourceOwnerWebContentsId === webContents.id
+}
 
 export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
   const {
@@ -142,6 +163,7 @@ function resetScreenCaptureSource() {
   clearTimeout(setSourceMutexTimeoutHandle)
   setSourceMutexTimeoutHandle = undefined
   screenCaptureSourceMutexHandle = undefined
+  screenCaptureSourceOwnerWebContentsId = undefined
 }
 
 const initializedWindows = new WeakSet<BrowserWindow>()
@@ -217,6 +239,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     const handle = nanoid()
     setSourceMutexTimeoutHandle = undefined
     screenCaptureSourceMutexHandle = handle
+    screenCaptureSourceOwnerWebContentsId = window.webContents.id
 
     try {
       session.setDisplayMediaRequestHandler(async (_request, callback) => {

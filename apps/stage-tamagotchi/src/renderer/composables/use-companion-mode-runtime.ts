@@ -228,7 +228,7 @@ export function useCompanionModeRuntime() {
           return fallback
       }
 
-      throw new Error('Captured source did not provide a thumbnail')
+      throw new Error('Captured source did not provide a frame')
     }
 
     return {

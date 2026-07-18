@@ -60,9 +60,9 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * - The caller has already validated the message has an `id`.
  *
  * Returns:
- * - `true` when the message is one of `user` / `assistant`. `tool` / `system`
- *   / `error` roles are filtered out — error messages are local-only since
- *   they describe a per-device runtime failure, not a server-acknowledged turn.
+ * - `true` when the message is a user message or a visible assistant message.
+ *   `tool` / `system` / `error` roles and hidden automated assistant replies
+ *   are local-only.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
@@ -70,6 +70,8 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'system')
     return false
   if (message.role === 'error')
+    return false
+  if (message.role === 'assistant' && message.isHiddenUserMessageResponse)
     return false
   return true
 }

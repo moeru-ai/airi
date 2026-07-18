@@ -18,9 +18,9 @@ export async function setupBeatSync() {
 
   protectPrivilegedWindowNavigation(window)
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
-
   initScreenCaptureForWindow(window)
+
+  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
 
   return window
 }

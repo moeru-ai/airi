@@ -107,10 +107,45 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     })
   }
 
-  async function requestDisplayMediaStream(sourceId: string) {
+  function selectExistingSource(sources: SerializableDesktopCapturerSource[], sourceId: string) {
+    if (!sources.some(source => source.id === sourceId))
+      throw new Error(`Selected capture source "${sourceId}" is no longer available`)
+
+    return sourceId
+  }
+
+  function formatCaptureError(error: unknown) {
+    if (error instanceof Error)
+      return `${error.name}: ${error.message}`
+
+    return String(error)
+  }
+
+  async function requestSelectedSourceStream(sourceId: string) {
     return await selectWithSource(
-      () => sourceId,
-      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
+      sources => selectExistingSource(sources, sourceId),
+      async () => {
+        try {
+          // Companion Mode starts from a timer, without a transient user gesture.
+          // Electron's desktop constraints can capture the already-selected source
+          // directly and do not need the browser display-picker flow.
+          return await requestLegacyDesktopStream(sourceId)
+        }
+        catch (legacyDesktopError) {
+          console.warn('[screen-capture] Electron desktop constraints failed, falling back to getDisplayMedia:', legacyDesktopError)
+
+          try {
+            return await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+          }
+          catch (displayMediaError) {
+            throw new Error(
+              'Selected source capture failed. '
+              + `desktop constraints: ${formatCaptureError(legacyDesktopError)}; `
+              + `getDisplayMedia: ${formatCaptureError(displayMediaError)}`,
+            )
+          }
+        }
+      },
     )
   }
 
@@ -166,14 +201,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
     clearActiveStream()
 
-    let stream: MediaStream
-    try {
-      stream = await requestDisplayMediaStream(sourceId)
-    }
-    catch (error) {
-      console.warn('[screen-capture] getDisplayMedia failed, falling back to Electron desktop constraints:', error)
-      stream = await requestLegacyDesktopStream(sourceId)
-    }
+    const stream = await requestSelectedSourceStream(sourceId)
 
     if (!isActiveStream(stream)) {
       stream.getTracks().forEach(track => track.stop())
@@ -187,6 +215,10 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     return stream
   }
 
+  function stopStream() {
+    clearActiveStream()
+  }
+
   async function captureSourceThumbnail(sourceId = activeSourceId.value) {
     if (!sourceId)
       throw new Error('No active source selected')
@@ -196,10 +228,6 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
       return null
 
     return await bytesToDataUrl(source.thumbnail)
-  }
-
-  function stopStream() {
-    clearActiveStream()
   }
 
   function cleanup() {

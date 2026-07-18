@@ -1,12 +1,14 @@
 import type { Session, WebContents } from 'electron'
 
+import { isScreenCaptureSourceRequestActive } from '@proj-airi/electron-screen-capture/main'
+
 import { isLocalAppURL } from '../../libs/electron/url'
 
 type PermissionCheckHandler = Exclude<Parameters<Session['setPermissionCheckHandler']>[0], null>
 type PermissionRequestHandler = Exclude<Parameters<Session['setPermissionRequestHandler']>[0], null>
 type ElectronPermission = Parameters<PermissionCheckHandler>[1] | Parameters<PermissionRequestHandler>[1]
 type ElectronPermissionDetails = Parameters<PermissionCheckHandler>[3] | Parameters<PermissionRequestHandler>[3]
-type LocalAppWebContents = Pick<WebContents, 'getURL'>
+type LocalAppWebContents = Pick<WebContents, 'getURL'> & Partial<Pick<WebContents, 'id'>>
 
 const LOCAL_APP_PERMISSION_NAMES = new Set<ElectronPermission>([
   'display-capture',
@@ -32,6 +34,20 @@ function isAudioMediaPermission(permission: ElectronPermission, details?: Electr
   }
 
   return 'mediaType' in details && details.mediaType === 'audio'
+}
+
+/**
+ * Checks whether Electron described a video-only media permission operation.
+ */
+function isVideoMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media' || !details)
+    return false
+
+  if ('mediaTypes' in details && details.mediaTypes?.length) {
+    return details.mediaTypes.includes('video') && !details.mediaTypes.includes('audio')
+  }
+
+  return 'mediaType' in details && details.mediaType === 'video'
 }
 
 /**
@@ -80,6 +96,25 @@ export function shouldGrantAudioCapturePermission(
 }
 
 /**
+ * Allows Electron's legacy selected-desktop-stream fallback without granting
+ * general camera access to local renderer pages.
+ */
+export function shouldGrantSelectedDesktopCapturePermission(
+  webContents: LocalAppWebContents | null,
+  permission: ElectronPermission,
+  requestingOrigin?: string,
+  details?: ElectronPermissionDetails,
+): boolean {
+  return isVideoMediaPermission(permission, details)
+    && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+    && isScreenCaptureSourceRequestActive(
+      webContents && typeof webContents.id === 'number'
+        ? webContents as Pick<WebContents, 'id'>
+        : undefined,
+    )
+}
+
+/**
  * Applies AIRI's allowlist to an Electron session permission operation.
  *
  * Use when:
@@ -99,8 +134,10 @@ export function shouldGrantElectronPermission(
   requestingOrigin?: string,
   details?: ElectronPermissionDetails,
 ): boolean {
-  if (permission === 'media')
+  if (permission === 'media') {
     return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+      || shouldGrantSelectedDesktopCapturePermission(webContents, permission, requestingOrigin, details)
+  }
 
   return LOCAL_APP_PERMISSION_NAMES.has(permission)
     && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)

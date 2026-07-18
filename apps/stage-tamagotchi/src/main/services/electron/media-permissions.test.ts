@@ -2,7 +2,19 @@ import type { MediaAccessPermissionRequest, PermissionCheckHandlerHandlerDetails
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { shouldGrantAudioCapturePermission, shouldGrantElectronPermission } from './media-permissions'
+import {
+  shouldGrantAudioCapturePermission,
+  shouldGrantElectronPermission,
+  shouldGrantSelectedDesktopCapturePermission,
+} from './media-permissions'
+
+const { isScreenCaptureSourceRequestActiveMock } = vi.hoisted(() => ({
+  isScreenCaptureSourceRequestActiveMock: vi.fn(),
+}))
+
+vi.mock('@proj-airi/electron-screen-capture/main', () => ({
+  isScreenCaptureSourceRequestActive: isScreenCaptureSourceRequestActiveMock,
+}))
 
 const localWebContents = {
   getURL: () => 'file:///app/index.html',
@@ -36,6 +48,7 @@ function createPermissionCheckDetails(overrides: Partial<PermissionCheckHandlerH
 describe('media permissions', () => {
   beforeEach(() => {
     vi.stubEnv('ELECTRON_RENDERER_URL', 'http://localhost:5173')
+    isScreenCaptureSourceRequestActiveMock.mockReset().mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -59,6 +72,57 @@ describe('media permissions', () => {
       'media',
       undefined,
       createMediaRequestDetails({ mediaTypes: ['video'] }),
+    )).toBe(false)
+  })
+
+  /** @example A selected desktop source can use Electron's scoped legacy stream fallback. */
+  it('grants video only while the local renderer owns a selected source request', () => {
+    const sourceOwner = {
+      id: 42,
+      getURL: () => 'file:///app/index.html',
+    } satisfies Pick<WebContents, 'id' | 'getURL'>
+    isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      sourceOwner,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'] }),
+    )).toBe(true)
+    expect(shouldGrantElectronPermission(
+      sourceOwner,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'] }),
+    )).toBe(true)
+  })
+
+  /** @example Electron may omit webContents during the permission-check phase. */
+  it('grants a local video permission check while a selected source request is active', () => {
+    isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      null,
+      'media',
+      'file:///app/index.html',
+      createPermissionCheckDetails({ mediaType: 'video' }),
+    )).toBe(true)
+    expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenCalledWith(undefined)
+  })
+
+  /** @example A remote frame cannot reuse the local renderer's capture lease. */
+  it('rejects scoped desktop capture from a remote frame', () => {
+    const sourceOwner = {
+      id: 42,
+      getURL: () => 'file:///app/index.html',
+    } satisfies Pick<WebContents, 'id' | 'getURL'>
+    isScreenCaptureSourceRequestActiveMock.mockReturnValue(true)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      sourceOwner,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'], requestingUrl: 'https://example.com/capture.html' }),
     )).toBe(false)
   })
 

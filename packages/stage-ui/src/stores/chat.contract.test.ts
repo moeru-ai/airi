@@ -71,6 +71,7 @@ const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
+const pushMessageToCloudMock = vi.fn()
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -144,7 +145,7 @@ vi.mock('./chat/session-store', () => ({
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
-    pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
+    pushMessageToCloud: pushMessageToCloudMock,
   }),
 }))
 
@@ -215,6 +216,7 @@ describe('chat orchestrator contract', () => {
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
+    pushMessageToCloudMock.mockReset().mockResolvedValue(undefined)
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
@@ -359,6 +361,26 @@ describe('chat orchestrator contract', () => {
     expect(redundantChatAnalyticsMocks.trackAssistantResponseCompleted).not.toHaveBeenCalled()
     expect(redundantChatAnalyticsMocks.trackChatFailed).not.toHaveBeenCalled()
     expect(redundantChatAnalyticsMocks.trackFeatureUsed).not.toHaveBeenCalled()
+  })
+
+  it('keeps hidden companion replies local instead of uploading them to cloud sync', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'I can see the selected screen.' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('internal companion observation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    expect(sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      isHiddenUserMessageResponse: true,
+    })
+    expect(pushMessageToCloudMock).not.toHaveBeenCalled()
   })
 
   it('forwards later-turn failures to the canonical round failure event', async () => {

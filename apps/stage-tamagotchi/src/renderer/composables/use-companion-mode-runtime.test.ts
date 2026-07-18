@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import type { App } from 'vue'
+import type { SourcesOptions } from 'electron'
+import type { App, MaybeRefOrGetter, Ref } from 'vue'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, defineComponent, nextTick, ref } from 'vue'
+import { createApp, defineComponent, nextTick, ref, toValue } from 'vue'
 
 interface Deferred<T> {
   promise: Promise<T>
@@ -24,6 +25,8 @@ function deferred<T>(): Deferred<T> {
 let companionStore: ReturnType<typeof createCompanionStore>
 let screenCapture: ReturnType<typeof createScreenCapture>
 let mountedApp: App<Element> | null = null
+let runtimeVideoRef: Ref<HTMLVideoElement | null> | null = null
+let capturedSourcesOptions: MaybeRefOrGetter<SourcesOptions> | null = null
 
 const requestIngest = vi.fn()
 const runVisionInference = vi.fn()
@@ -111,27 +114,66 @@ vi.mock('../stores/companion-mode', async () => {
 })
 
 vi.mock('./use-vision-screen-capture', () => ({
-  useVisionScreenCapture: () => screenCapture,
+  useVisionScreenCapture: (options: MaybeRefOrGetter<SourcesOptions>) => {
+    capturedSourcesOptions = options
+    return screenCapture
+  },
 }))
 
 describe('useCompanionModeRuntime', async () => {
   const { useCompanionModeRuntime } = await import('./use-companion-mode-runtime')
 
+  function createCaptureVideo() {
+    const video = document.createElement('video')
+    Object.defineProperties(video, {
+      srcObject: {
+        configurable: true,
+        writable: true,
+        value: null,
+      },
+      readyState: {
+        configurable: true,
+        value: HTMLMediaElement.HAVE_CURRENT_DATA,
+      },
+      videoWidth: {
+        configurable: true,
+        value: 1280,
+      },
+      videoHeight: {
+        configurable: true,
+        value: 720,
+      },
+      play: {
+        configurable: true,
+        value: vi.fn().mockResolvedValue(undefined),
+      },
+      pause: {
+        configurable: true,
+        value: vi.fn(),
+      },
+    })
+    return video
+  }
+
   async function mountRuntime() {
     const host = document.createElement('div')
     mountedApp = createApp(defineComponent({
       setup() {
-        useCompanionModeRuntime()
+        const runtime = useCompanionModeRuntime()
+        runtimeVideoRef = runtime.videoRef
         return () => null
       },
     }))
     mountedApp.mount(host)
+    runtimeVideoRef!.value = createCaptureVideo()
     await nextTick()
   }
 
   beforeEach(() => {
     companionStore = createCompanionStore()
     screenCapture = createScreenCapture()
+    runtimeVideoRef = null
+    capturedSourcesOptions = null
     requestIngest.mockReset().mockResolvedValue(undefined)
     runVisionInference.mockReset().mockResolvedValue('The user is viewing a code editor.')
   })
@@ -142,10 +184,24 @@ describe('useCompanionModeRuntime', async () => {
   })
 
   it('routes the frame through vision and sends only its summary to chat', async () => {
+    companionStore.sourceKind.value = 'window'
+    companionStore.sourceId.value = 'window:2:0'
+    screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
+
     await mountRuntime()
 
     await vi.waitFor(() => expect(requestIngest).toHaveBeenCalledTimes(1))
 
+    expect(toValue(capturedSourcesOptions!)).toMatchObject({
+      types: ['screen', 'window'],
+      thumbnailSize: {
+        width: 768,
+        height: 432,
+      },
+    })
+    expect(screenCapture.captureSourceThumbnail).toHaveBeenCalledWith('window:2:0')
+    expect(screenCapture.startStream).not.toHaveBeenCalled()
+    expect(screenCapture.captureFrame).not.toHaveBeenCalled()
     expect(runVisionInference).toHaveBeenCalledWith(expect.objectContaining({
       imageDataUrl: 'data:image/jpeg;base64,frame',
       workloadId: 'screen:interpret',
