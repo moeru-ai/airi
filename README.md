@@ -2031,6 +2031,8 @@ Ta migracja otwiera drogę do przyszłych wersji AIRI dla Androida i iOS.
 
 ## ✌🏻 Podziękowania
 
+<img width="1206" height="1305" alt="anima-logo-pl-v8 1" src="https://github.com/user-attachments/assets/81f62662-90fc-4818-9080-0f90a8f6d6ae" />
+
 * Oryginalny projekt:
 
 [`moeru-ai/airi`](https://github.com/moeru-ai/airi)
