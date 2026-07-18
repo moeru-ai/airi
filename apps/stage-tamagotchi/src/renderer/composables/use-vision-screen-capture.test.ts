@@ -7,6 +7,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const getSourcesMock = vi.fn()
 const selectWithSourceMock = vi.fn()
 
+interface Deferred<T> {
+  promise: Promise<T>
+  resolve: (value: T) => void
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
+
 vi.mock('@proj-airi/electron-screen-capture/vue', () => ({
   useElectronScreenCapture: () => ({
     getSources: getSourcesMock,
@@ -133,6 +146,44 @@ describe('useVisionScreenCapture', async () => {
     expect(screenCapture.activeStream.value).toBeNull()
   })
 
+  it('stops only an old late stream when a newer observation is already active', async () => {
+    const oldAcquisition = deferred<MediaStream>()
+    const newAcquisition = deferred<MediaStream>()
+    const oldStream = createVideoStream()
+    const newStream = createVideoStream()
+    selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
+      expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
+      return await useStream()
+    })
+    getDisplayMediaMock
+      .mockReturnValueOnce(oldAcquisition.promise)
+      .mockReturnValueOnce(newAcquisition.promise)
+
+    const screenCapture = useVisionScreenCapture({
+      types: ['screen'],
+      thumbnailSize: { width: 0, height: 0 },
+    } satisfies SourcesOptions)
+    screenCapture.activeSourceId.value = 'screen:1:0'
+    const oldAbortController = new AbortController()
+
+    const oldStart = screenCapture.startStream(oldAbortController.signal)
+    await vi.waitFor(() => expect(getDisplayMediaMock).toHaveBeenCalledTimes(1))
+    const abortReason = new Error('Old Companion Mode observation stopped')
+    oldAbortController.abort(abortReason)
+
+    const newStart = screenCapture.startStream()
+    await vi.waitFor(() => expect(getDisplayMediaMock).toHaveBeenCalledTimes(2))
+    newAcquisition.resolve(newStream.stream)
+    await expect(newStart).resolves.toBe(newStream.stream)
+
+    oldAcquisition.resolve(oldStream.stream)
+    await expect(oldStart).rejects.toBe(abortReason)
+
+    expect(oldStream.track.stop).toHaveBeenCalledTimes(1)
+    expect(newStream.track.stop).not.toHaveBeenCalled()
+    expect(screenCapture.activeStream.value).toBe(newStream.stream)
+  })
+
   it('falls back to Electron desktop constraints when selected getDisplayMedia fails', async () => {
     const { stream } = createVideoStream()
     selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
@@ -187,6 +238,33 @@ describe('useVisionScreenCapture', async () => {
 
     await expect(start).resolves.toBe(stream)
     expect(getDisplayMediaMock).toHaveBeenCalledTimes(2)
+    expect(getUserMediaMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels the retry wait without starting another capture request', async () => {
+    vi.useFakeTimers()
+    selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
+      expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
+      return await useStream()
+    })
+    getDisplayMediaMock.mockRejectedValue(new DOMException('Could not start video source', 'NotReadableError'))
+    getUserMediaMock.mockRejectedValue(new DOMException('Could not start video source', 'NotReadableError'))
+
+    const screenCapture = useVisionScreenCapture({
+      types: ['screen'],
+      thumbnailSize: { width: 0, height: 0 },
+    } satisfies SourcesOptions)
+    screenCapture.activeSourceId.value = 'screen:1:0'
+    const abortController = new AbortController()
+
+    const start = screenCapture.startStream(abortController.signal)
+    await vi.waitFor(() => expect(getUserMediaMock).toHaveBeenCalledTimes(1))
+    const abortReason = new Error('Companion Mode stopped during retry')
+    abortController.abort(abortReason)
+
+    await expect(start).rejects.toBe(abortReason)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(getDisplayMediaMock).toHaveBeenCalledTimes(1)
     expect(getUserMediaMock).toHaveBeenCalledTimes(1)
   })
 

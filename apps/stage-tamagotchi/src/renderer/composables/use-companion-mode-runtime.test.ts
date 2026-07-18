@@ -251,6 +251,24 @@ describe('useCompanionModeRuntime', async () => {
     expect(companionStore.recordCapture).not.toHaveBeenCalled()
   })
 
+  it('does not acquire a stream after being disabled during source enumeration', async () => {
+    const sourceEnumeration = deferred<void>()
+    screenCapture.hasFetchedOnce.value = false
+    screenCapture.refetchSources.mockReturnValue(sourceEnumeration.promise)
+    await mountRuntime()
+    await vi.waitFor(() => expect(screenCapture.refetchSources).toHaveBeenCalledTimes(1))
+
+    companionStore.enabled.value = false
+    await nextTick()
+    sourceEnumeration.resolve()
+    await nextTick()
+    await Promise.resolve()
+
+    expect(screenCapture.startStream).not.toHaveBeenCalled()
+    expect(runVisionInference).not.toHaveBeenCalled()
+    expect(requestIngest).not.toHaveBeenCalled()
+  })
+
   it('detaches an ended preview stream before reacquiring the selected source', async () => {
     vi.useFakeTimers()
     screenCapture.startStream.mockImplementation(async () => {
@@ -269,6 +287,42 @@ describe('useCompanionModeRuntime', async () => {
     await vi.waitFor(() => expect(screenCapture.startStream).toHaveBeenCalledTimes(1))
 
     expect(video.pause).toHaveBeenCalledTimes(1)
+  })
+
+  it('cleans video readiness listeners and preview state when disabled before metadata arrives', async () => {
+    vi.useFakeTimers()
+    const video = await mountRuntime()
+    Object.defineProperties(video, {
+      readyState: {
+        configurable: true,
+        value: HTMLMediaElement.HAVE_NOTHING,
+      },
+      videoWidth: {
+        configurable: true,
+        value: 0,
+      },
+      videoHeight: {
+        configurable: true,
+        value: 0,
+      },
+    })
+    const removeEventListener = vi.spyOn(video, 'removeEventListener')
+
+    await vi.advanceTimersByTimeAsync(0)
+    expect(video.play).toHaveBeenCalledTimes(1)
+
+    companionStore.enabled.value = false
+    await nextTick()
+    video.dispatchEvent(new Event('loadedmetadata'))
+    await Promise.resolve()
+
+    expect(removeEventListener).toHaveBeenCalledWith('loadeddata', expect.any(Function))
+    expect(removeEventListener).toHaveBeenCalledWith('loadedmetadata', expect.any(Function))
+    expect(video.pause).toHaveBeenCalledTimes(1)
+    expect(video.srcObject).toBeNull()
+    expect(screenCapture.stopStream).toHaveBeenCalled()
+    expect(runVisionInference).not.toHaveBeenCalled()
+    expect(requestIngest).not.toHaveBeenCalled()
   })
 
   it('aborts active vision inference when Companion Mode is disabled', async () => {
