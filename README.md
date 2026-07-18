@@ -1659,7 +1659,7 @@ cargo install tauri-cli --version '^2.0'
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1122" height="1402" alt="anima-logo-de-v5 1" src="https://github.com/user-attachments/assets/4eae76eb-279a-4ce8-919d-28757b2f29d7" />
+<img width="1122" height="1402" alt="anima-logo-de-v5 2" src="https://github.com/user-attachments/assets/e1955f6b-b1af-4eb5-a581-7859be9e1e6b" />
 <sub>
 <h2>
 
