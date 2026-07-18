@@ -6,9 +6,7 @@ export function createStackAnimator(options: CreateAnimatorOptions): Animator {
   return (elements: HTMLElement[]) => {
     if (elements.length === 0) {
       // NO DIV0
-      return () => {
-        /* noop — no elements to animate */
-      }
+      return () => {}
     }
 
     const timeline = createTimeline({ loop: options.loop })
@@ -22,7 +20,7 @@ export function createStackAnimator(options: CreateAnimatorOptions): Animator {
         translateZ: 0,
         opacity: [0, 1],
         ...options,
-        delay: (_, i) => (options.duration / elements.length) * (i + 1),
+        delay: (_, i) => options.duration / elements.length * (i + 1),
       })
 
     return () => {

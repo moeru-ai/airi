@@ -5,14 +5,11 @@ import { ref } from 'vue'
 import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useContextBridgeStore } from './context-bridge'
 
-type SparkNotifyReactionMock = (
-  event: {
-    data?: {
-      id?: string
-    }
-  },
-  options?: unknown,
-) => Promise<string>
+type SparkNotifyReactionMock = (event: {
+  data?: {
+    id?: string
+  }
+}, options?: unknown) => Promise<string>
 
 const handleSparkNotifyWithReaction = vi.fn<SparkNotifyReactionMock>(async () => 'reaction text')
 
@@ -63,7 +60,7 @@ vi.mock('../../providers', () => ({
 
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
-    ensureConnected: vi.fn(() => undefined),
+    ensureConnected: vi.fn(async () => undefined),
     send: vi.fn(),
     onReconnected: vi.fn(() => () => undefined),
     onContextUpdate: vi.fn(() => () => undefined),
@@ -97,7 +94,9 @@ describe('dispatchSparkNotifyPerformance', () => {
           manifest: {
             name: 'plugin.action',
             prompt: 'Run the plugin action when the model is ready.',
-            examples: ['<|CALL ["plugin.action"]|>'],
+            examples: [
+              '<|CALL ["plugin.action"]|>',
+            ],
           },
           handler,
         },
@@ -122,7 +121,9 @@ describe('dispatchSparkNotifyPerformance', () => {
       expect.anything(),
       expect.objectContaining({
         messageOverride: expect.objectContaining({
-          appendSystemInstructions: [expect.stringContaining('<|CALL ["plugin.action"]|>')],
+          appendSystemInstructions: [
+            expect.stringContaining('<|CALL ["plugin.action"]|>'),
+          ],
         }),
       }),
     )
@@ -131,7 +132,7 @@ describe('dispatchSparkNotifyPerformance', () => {
   it('includes the CALL payload in the performance result', async () => {
     const store = useContextBridgeStore()
     store.setSparkNotifyHostRole('main')
-    const handler = vi.fn<(payload?: Record<string, unknown>) => Promise<void>>()
+    const handler = vi.fn()
     const streamingControl = useLlmStreamingControlStore()
 
     const resultPromise = store.dispatchSparkNotifyPerformance({

@@ -52,7 +52,7 @@ describe('useLlmmarkerParser', async () => {
   })
 
   it('should parse escaped specials', async () => {
-    const fullText = "<{'|'}Hello, world!{'|'}>"
+    const fullText = '<{\'|\'}Hello, world!{\'|\'}>'
     const collectedLiterals: string[] = []
     const collectedSpecials: string[] = []
 
@@ -100,7 +100,7 @@ describe('useLlmmarkerParser', async () => {
   })
 
   it('should not include unfinished escaped special', async () => {
-    const fullText = "<{'|'}Hello, world"
+    const fullText = '<{\'|\'}Hello, world'
     const collectedLiterals: string[] = []
     const collectedSpecials: string[] = []
 
@@ -148,7 +148,7 @@ describe('useLlmmarkerParser', async () => {
   })
 
   it('should parse with mixed input, ends with escaped special', async () => {
-    const fullText = "This is sentence 1, <{'|'}HELLO{'|'}> and this is sentence 2.<{'|'}WORLD{'|'}>"
+    const fullText = 'This is sentence 1, <{\'|\'}HELLO{\'|\'}> and this is sentence 2.<{\'|\'}WORLD{\'|\'}>'
     const collectedLiterals: string[] = []
     const collectedSpecials: string[] = []
 
@@ -172,7 +172,7 @@ describe('useLlmmarkerParser', async () => {
   })
 
   it('should parse correctly', async () => {
-    const testCases: { input: string; expectedLiterals: string; expectedSpecials: string[] }[] = [
+    const testCases: { input: string, expectedLiterals: string, expectedSpecials: string[] }[] = [
       {
         input: `<|A|> Wow, hello there!`,
         expectedLiterals: ' Wow, hello there!',
@@ -189,17 +189,17 @@ describe('useLlmmarkerParser', async () => {
         expectedSpecials: ['<|A|>', '<|B|>'],
       },
       {
-        input: "<{'|'}A{'|'}> Wow, hello there!",
+        input: '<{\'|\'}A{\'|\'}> Wow, hello there!',
         expectedLiterals: ' Wow, hello there!',
         expectedSpecials: ['<|A|>'],
       },
       {
-        input: "<{'|'}A{'|'}> Hello!",
+        input: '<{\'|\'}A{\'|\'}> Hello!',
         expectedLiterals: ' Hello!',
         expectedSpecials: ['<|A|>'],
       },
       {
-        input: "<{'|'}A{'|'}> Hello! <{'|'}B{'|'}>",
+        input: '<{\'|\'}A{\'|\'}> Hello! <{\'|\'}B{\'|\'}>',
         expectedLiterals: ' Hello! ',
         expectedSpecials: ['<|A|>', '<|B|>'],
       },
@@ -269,7 +269,7 @@ describe('useLlmmarkerParser', async () => {
   })
 
   it('should call onEnd with full text including escaped specials', async () => {
-    const fullText = "Hello <{'|'}special{'|'}> world!"
+    const fullText = 'Hello <{\'|\'}special{\'|\'}> world!'
     let endText = ''
 
     const parser = useLlmmarkerParser({

@@ -1,7 +1,5 @@
 const BASE64_PLUS = /\+/g
-
 const BASE64_SLASH = /\//g
-
 const BASE64_TRAILING_EQ = /=+$/
 
 /**
@@ -10,9 +8,13 @@ const BASE64_TRAILING_EQ = /=+$/
  */
 export function base64UrlEncode(buffer: Uint8Array): string {
   let binary = ''
-  for (const byte of buffer) binary += String.fromCharCode(byte)
+  for (const byte of buffer)
+    binary += String.fromCharCode(byte)
 
-  return btoa(binary).replace(BASE64_PLUS, '-').replace(BASE64_SLASH, '_').replace(BASE64_TRAILING_EQ, '')
+  return btoa(binary)
+    .replace(BASE64_PLUS, '-')
+    .replace(BASE64_SLASH, '_')
+    .replace(BASE64_TRAILING_EQ, '')
 }
 
 /**

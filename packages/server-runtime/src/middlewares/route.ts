@@ -4,11 +4,14 @@ import type { AuthenticatedPeer } from '../types'
 
 import { matchesDestinations, matchesLabelSelectors } from './route/match-expression'
 
-export type RouteDecision = { type: 'drop' } | { type: 'broadcast' } | { type: 'targets'; targetIds: Set<string> }
+export type RouteDecision
+  = | { type: 'drop' }
+    | { type: 'broadcast' }
+    | { type: 'targets', targetIds: Set<string> }
 
 export interface RoutingPolicy {
-  allowPlugins?: string[]
-  denyPlugins?: string[]
+  allowExtensions?: string[]
+  denyExtensions?: string[]
   allowLabels?: string[]
   denyLabels?: string[]
 }
@@ -26,7 +29,7 @@ type DestinationList = Array<string | RouteTargetExpression>
 
 function getPeerLabels(peer: AuthenticatedPeer) {
   return {
-    ...peer.identity?.plugin?.labels,
+    ...peer.extensionIdentity?.labels,
     ...peer.identity?.labels,
   }
 }
@@ -47,8 +50,7 @@ function getPeerLabels(peer: AuthenticatedPeer) {
 export function isDevtoolsPeer(peer: AuthenticatedPeer) {
   const devtoolsLabel = getPeerLabels(peer).devtools
   const isDevtoolsLabel = devtoolsLabel === 'true' || devtoolsLabel === '1'
-  const hasDevtoolsInName = peer.name.includes('devtools')
-  return Boolean(isDevtoolsLabel || hasDevtoolsInName)
+  return Boolean(isDevtoolsLabel || peer.name.includes('devtools'))
 }
 
 /**
@@ -69,13 +71,13 @@ export function peerMatchesPolicy(peer: AuthenticatedPeer, policy: RoutingPolicy
     return false
   }
 
-  const pluginId = peer.identity?.plugin?.id ?? ''
+  const extensionId = peer.identity?.extension.id ?? peer.extensionIdentity?.id ?? ''
 
-  if (policy.allowPlugins?.length && !policy.allowPlugins.includes(pluginId)) {
+  if (policy.allowExtensions?.length && !policy.allowExtensions.includes(extensionId)) {
     return false
   }
 
-  if (policy.denyPlugins?.length && policy.denyPlugins.includes(pluginId)) {
+  if (policy.denyExtensions?.length && policy.denyExtensions.includes(extensionId)) {
     return false
   }
 
@@ -139,11 +141,9 @@ export function collectDestinations(
     return event.route.destinations
   }
 
-  const data = event.data as Record<string, unknown>
-  const isDataObject = data !== null && typeof data === 'object'
-  const hasDestinations = isDataObject && 'destinations' in data && Array.isArray(data.destinations)
-  if (hasDestinations) {
-    return data.destinations as DestinationList
+  const data = event.data as unknown
+  if (typeof data === 'object' && data !== null && 'destinations' in data && Array.isArray(data.destinations)) {
+    return data.destinations
   }
 
   return undefined

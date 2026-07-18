@@ -42,15 +42,15 @@ export interface Message {
 /**
  * Structured content segment used inside a projected message.
  */
-export type MessageSegment =
-  | SegmentText
-  | SegmentInstruction
-  | SegmentTaggedText
-  | SegmentDomainEvent
-  | SegmentStateSnapshot
-  | SegmentHistoryBlock
-  | SegmentSummary
-  | SegmentReference
+export type MessageSegment
+  = SegmentText
+    | SegmentInstruction
+    | SegmentTaggedText
+    | SegmentDomainEvent
+    | SegmentStateSnapshot
+    | SegmentHistoryBlock
+    | SegmentSummary
+    | SegmentReference
 
 /**
  * Plain text segment for projected message rendering.
@@ -140,11 +140,11 @@ export interface HistoryTurn {
 /**
  * Structured action stored on a turn history item.
  */
-export type HistoryTurnAction =
-  | HistoryTurnMoveAction
-  | HistoryTurnTextAction
-  | HistoryTurnEventAction
-  | HistoryTurnGenericAction
+export type HistoryTurnAction
+  = HistoryTurnMoveAction
+    | HistoryTurnTextAction
+    | HistoryTurnEventAction
+    | HistoryTurnGenericAction
 
 /**
  * Chess-style move action stored on a turn.
@@ -191,7 +191,11 @@ export interface HistoryTurnGenericAction {
 /**
  * Structured item stored inside a history block.
  */
-export type HistoryItem = HistorySummary | HistoryReaction | HistoryItemDomainEvent | HistoryTurn
+export type HistoryItem
+  = HistorySummary
+    | HistoryReaction
+    | HistoryItemDomainEvent
+    | HistoryTurn
 
 /**
  * History domain event item used to preserve structured event provenance.

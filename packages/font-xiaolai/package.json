@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-xiaolai",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.2",
   "description": "Essential CSS for font, Xiaolai (小赖字体 / 小賴字體 / シャオライ / Xiaolai Font), used by Project AIRI",
   "author": {
     "name": "ʟxɢᴡ",
@@ -16,21 +16,11 @@
     "directory": "packages/font-xiaolai"
   },
   "exports": {
-    ".": {
-      "default": "./dist/index.css"
-    },
-    "./index.css": {
-      "default": "./dist/index.css"
-    },
-    "./files/*": {
-      "default": "./dist/files/*"
-    },
-    "./files/*.ttf": {
-      "default": "./dist/files/*.ttf"
-    },
-    "./*": {
-      "default": "./*.css"
-    }
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
+    "./*": { "default": "./*.css" }
   },
   "main": "./dist/index.css",
   "scripts": {

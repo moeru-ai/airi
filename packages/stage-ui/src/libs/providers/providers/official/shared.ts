@@ -1,7 +1,7 @@
-import { resilientFetch } from '@proj-airi/resilience'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { getActivePinia } from 'pinia'
 
+import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../../libs/analytics-headers'
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
@@ -16,15 +16,19 @@ export function withCredentials() {
       headers.set('Authorization', `Bearer ${token}`)
     }
     const chatSession = getActivePinia() ? useChatSessionStore() : null
-    if (chatSession?.activeSessionId) headers.set('x-airi-session-id', chatSession.activeSessionId)
-    // resilientFetch accepts string | URL. If a Request object is passed
-    // (consumers can call this with a RequestInfo), forward its URL.
-    const fetchInput = typeof input === 'string' || input instanceof URL ? input : input.url
-    return resilientFetch(fetchInput, {
+    if (chatSession?.activeSessionId)
+      headers.set(AIRI_CHAT_SESSION_ID_HEADER, chatSession.activeSessionId)
+
+    const requestInit = {
       ...init,
       headers,
       credentials: 'omit',
-    })
+    } as RequestInit & { duplex?: 'half' }
+
+    if (init?.body instanceof ReadableStream)
+      requestInit.duplex = 'half'
+
+    return globalThis.fetch(input, requestInit)
   }
 }
 

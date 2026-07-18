@@ -1,3 +1,4 @@
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 /**
  * Unified inference worker message protocol.
  *
@@ -47,14 +48,14 @@ export interface ProgressPayload {
 // Errors
 // ---------------------------------------------------------------------------
 
-export type InferenceErrorCode =
-  | 'OOM'
-  | 'TIMEOUT'
-  | 'DEVICE_LOST'
-  | 'LOAD_FAILED'
-  | 'INFERENCE_FAILED'
-  | 'CANCELLED'
-  | 'UNKNOWN'
+export type InferenceErrorCode
+  = | 'OOM'
+    | 'TIMEOUT'
+    | 'DEVICE_LOST'
+    | 'LOAD_FAILED'
+    | 'INFERENCE_FAILED'
+    | 'CANCELLED'
+    | 'UNKNOWN'
 
 export interface ErrorPayload {
   code: InferenceErrorCode
@@ -108,11 +109,11 @@ export interface CancelRequest {
   targetRequestId: string
 }
 
-export type WorkerInboundMessage<TInput = unknown> =
-  | LoadModelRequest
-  | RunInferenceRequest<TInput>
-  | UnloadModelRequest
-  | CancelRequest
+export type WorkerInboundMessage<TInput = unknown>
+  = | LoadModelRequest
+    | RunInferenceRequest<TInput>
+    | UnloadModelRequest
+    | CancelRequest
 
 // ---------------------------------------------------------------------------
 // Worker → Main responses
@@ -152,12 +153,12 @@ export interface ModelUnloadedResponse {
   requestId: string
 }
 
-export type WorkerOutboundMessage<TOutput = unknown> =
-  | ModelReadyResponse
-  | InferenceResultResponse<TOutput>
-  | ProgressResponse
-  | ErrorResponse
-  | ModelUnloadedResponse
+export type WorkerOutboundMessage<TOutput = unknown>
+  = | ModelReadyResponse
+    | InferenceResultResponse<TOutput>
+    | ProgressResponse
+    | ErrorResponse
+    | ModelUnloadedResponse
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -199,15 +200,20 @@ const DEVICE_LOSS_PATTERNS = [
  * determines whether the code is `LOAD_FAILED` or `INFERENCE_FAILED`.
  */
 export function classifyError(error: unknown, phase?: 'load' | 'inference'): InferenceErrorCode {
-  const msg = error instanceof Error ? error.message : String(error)
+  const msg = errorMessageFromValue(error)
   const lower = msg.toLowerCase()
 
-  if (lower.includes('out of memory') || lower.includes('allocation failed')) return 'OOM'
-  if (DEVICE_LOSS_PATTERNS.some((p) => lower.includes(p))) return 'DEVICE_LOST'
-  if (lower.includes('timeout')) return 'TIMEOUT'
+  if (lower.includes('out of memory') || lower.includes('allocation failed'))
+    return 'OOM'
+  if (DEVICE_LOSS_PATTERNS.some(p => lower.includes(p)))
+    return 'DEVICE_LOST'
+  if (lower.includes('timeout'))
+    return 'TIMEOUT'
 
-  if (phase === 'load') return 'LOAD_FAILED'
-  if (phase === 'inference') return 'INFERENCE_FAILED'
+  if (phase === 'load')
+    return 'LOAD_FAILED'
+  if (phase === 'inference')
+    return 'INFERENCE_FAILED'
 
   return 'UNKNOWN'
 }
@@ -225,13 +231,15 @@ export function classifyDeviceLossReason(error: unknown): DeviceLossReason {
   // Prefer structured info when available (some browsers attach GPUDeviceLostInfo)
   if (error && typeof error === 'object' && 'reason' in error) {
     const reason = (error as { reason?: unknown }).reason
-    if (reason === 'destroyed') return 'destroyed'
+    if (reason === 'destroyed')
+      return 'destroyed'
     return 'unknown'
   }
 
-  const msg = error instanceof Error ? error.message : String(error)
+  const msg = errorMessageFromValue(error)
   const lower = msg.toLowerCase()
-  if (lower.includes('destroyed')) return 'destroyed'
+  if (lower.includes('destroyed'))
+    return 'destroyed'
   return 'unknown'
 }
 
@@ -262,7 +270,8 @@ export class InferenceAbortError extends Error {
 export function throwIfAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) {
     const reason = signal.reason
-    if (reason instanceof Error) throw reason
+    if (reason instanceof Error)
+      throw reason
     throw new InferenceAbortError(typeof reason === 'string' ? reason : undefined)
   }
 }

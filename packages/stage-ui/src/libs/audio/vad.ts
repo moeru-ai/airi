@@ -23,11 +23,11 @@ export interface VADEvents {
   // Emitted when speech has ended
   'speech-end': void
   // Emitted when a complete speech segment is ready for transcription
-  'speech-ready': { buffer: Float32Array; duration: number }
+  'speech-ready': { buffer: Float32Array, duration: number }
   // Emitted for status updates and errors
-  status: { type: string; message: string }
+  'status': { type: string, message: string }
   // Debug info
-  debug: { message: string; data?: unknown }
+  'debug': { message: string, data?: any }
 }
 
 export type VADEventCallback<K extends keyof VADEvents> = (event: VADEvents[K]) => void
@@ -60,6 +60,7 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
   let audioWorkletNode: AudioWorkletNode | null
   let mediaStream: MediaStream | null
   let sourceNode: MediaStreamAudioSourceNode | null
+  let silentGainNode: GainNode | null
   let workletInitialized: boolean
 
   const {
@@ -89,9 +90,24 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
           await vad.processAudio(new Float32Array(buffer))
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to initialize audio worklet:', error)
       throw error
+    }
+  }
+
+  /**
+   * Disconnects caller-owned microphone graph nodes before rebuilding the input graph.
+   */
+  function disconnectInputGraph() {
+    if (sourceNode) {
+      sourceNode.disconnect()
+      sourceNode = null
+    }
+    if (silentGainNode) {
+      silentGainNode.disconnect()
+      silentGainNode = null
     }
   }
 
@@ -106,6 +122,7 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
       }
 
       // Request microphone access
+      disconnectInputGraph()
       mediaStream = stream
 
       // Create source node and connect to worklet
@@ -114,11 +131,12 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
 
       // Connect worklet to a silent destination (to keep the audio graph active)
       // Using a GainNode with gain=0 to ensure no sound is output
-      const silentGain = audioContext.createGain()
-      silentGain.gain.value = 0
-      audioWorkletNode.connect(silentGain)
-      silentGain.connect(audioContext.destination)
-    } catch (error) {
+      silentGainNode = audioContext.createGain()
+      silentGainNode.gain.value = 0
+      audioWorkletNode.connect(silentGainNode)
+      silentGainNode.connect(audioContext.destination)
+    }
+    catch (error) {
       console.error('Failed to start microphone:', error)
       throw error
     }
@@ -131,18 +149,14 @@ export function createVADStates(vad: BaseVAD, vadAudioWorkletUrl: string, option
   }
 
   function dispose() {
-    if (sourceNode) {
-      sourceNode.disconnect()
-      sourceNode = null
-    }
+    disconnectInputGraph()
     if (audioWorkletNode) {
       audioWorkletNode.disconnect()
       audioWorkletNode = null
     }
-    if (mediaStream) {
-      mediaStream.getTracks().forEach((track) => track.stop())
-      mediaStream = null
-    }
+    // The MediaStream is owned by the caller (settings audio device store). VAD only borrows it
+    // to build an AudioNode graph, so disposing VAD must not stop the microphone device itself.
+    mediaStream = null
     if (audioContext && audioContext.state !== 'closed') {
       audioContext.close()
     }

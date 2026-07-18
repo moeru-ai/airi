@@ -1,14 +1,19 @@
 <script setup lang="ts">
 /*
- * - Extend OrbitControls from three
- * - Define camera behavior
- */
+  * - Extend OrbitControls from three
+  * - Define camera behavior
+*/
 
 import type { Vec3 } from '../../stores/model-store'
 
 import { extend, useTres } from '@tresjs/core'
 import { until } from '@vueuse/core'
-import { MOUSE, PerspectiveCamera, TOUCH, Vector3 } from 'three'
+import {
+  MOUSE,
+  PerspectiveCamera,
+  TOUCH,
+  Vector3,
+} from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 // From stage-ui-three package
 import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
@@ -16,32 +21,33 @@ import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
 import { useThreeCamera } from '../../stores/camera'
 
 /*
- * Props:
- * - model size
- * - camera target: camera looking at target
- */
+  * Props:
+  * - model size
+  * - camera target: camera looking at target
+*/
 const props = defineProps<{
   controlEnable: boolean
   modelSize: Vec3
   cameraTarget: Vec3
 }>()
 /*
- * Emits:
- * - camera changed: orbit controls can receive user input and change camera's position
- * - ready
- */
+  * Emits:
+  * - camera changed: orbit controls can receive user input and change camera's position
+  * - ready
+*/
 const emit = defineEmits<{
-  (
-    e: 'orbitControlsCameraChanged',
-    value: {
-      newCameraPosition: Vec3
-      newCameraDistance: number
-    },
-  ): void
+  (e: 'orbitControlsCameraChanged', value: {
+    newCameraPosition: Vec3
+    newCameraDistance: number
+  }): void
   (e: 'orbitControlsReady'): void
 }>()
 
-const { controlEnable, modelSize, cameraTarget } = toRefs(props)
+const {
+  controlEnable,
+  modelSize,
+  cameraTarget,
+} = toRefs(props)
 
 extend({ OrbitControls })
 
@@ -62,7 +68,8 @@ const MIN_MODEL_DEPTH_FOR_DISTANCE_BOUNDS = 1e-6
 function resolveModelDistanceBounds(modelSize: Vec3): OrbitDistanceBounds | undefined {
   const modelDepth = modelSize.z
 
-  if (!Number.isFinite(modelDepth) || modelDepth <= MIN_MODEL_DEPTH_FOR_DISTANCE_BOUNDS) return undefined
+  if (!Number.isFinite(modelDepth) || modelDepth <= MIN_MODEL_DEPTH_FOR_DISTANCE_BOUNDS)
+    return undefined
 
   return {
     maxDistance: modelDepth * 20,
@@ -73,92 +80,91 @@ function resolveModelDistanceBounds(modelSize: Vec3): OrbitDistanceBounds | unde
 // Initialisation on onMounted
 function registerInfoFlow() {
   /*
-   * Downward info flow
-   * - Pinia store value updated => command take effect
-   */
+    * Downward info flow
+    * - Pinia store value updated => command take effect
+  */
   // Get mode size => update min/max camera distance
-  watch(
-    modelSize,
-    (newSize) => {
-      if (!controls.value) return
-      const distanceBounds = resolveModelDistanceBounds(newSize)
-      if (!distanceBounds) return
+  watch(modelSize, (newSize) => {
+    if (!controls.value)
+      return
+    const distanceBounds = resolveModelDistanceBounds(newSize)
+    if (!distanceBounds)
+      return
 
-      controls.value.minDistance = distanceBounds.minDistance
-      controls.value.maxDistance = distanceBounds.maxDistance
-      controls.value.update()
-    },
-    { immediate: true, deep: true },
-  )
+    controls.value.minDistance = distanceBounds.minDistance
+    controls.value.maxDistance = distanceBounds.maxDistance
+    controls.value.update()
+  }, { immediate: true, deep: true })
   // Get camera position => update position
-  watch(
-    cameraPosition,
-    (newPosition) => {
-      if (!camera.value || !controls.value) return
-      camera.value.position.set(newPosition.x, newPosition.y, newPosition.z)
-      camera.value.updateProjectionMatrix()
-      controls.value.update()
-    },
-    { immediate: true, deep: true },
-  )
+  watch(cameraPosition, (newPosition) => {
+    if (!camera.value || !controls.value)
+      return
+    camera.value.position.set(
+      newPosition.x,
+      newPosition.y,
+      newPosition.z,
+    )
+    camera.value.updateProjectionMatrix()
+    controls.value.update()
+  }, { immediate: true, deep: true })
   // Get camera target => update target (actually the model center)
-  watch(
-    cameraTarget,
-    (newTarget) => {
-      if (!controls.value) return
-      controls.value.target.set(newTarget.x, newTarget.y, newTarget.z)
-      controls.value.update()
-    },
-    { immediate: true, deep: true },
-  )
+  watch(cameraTarget, (newTarget) => {
+    if (!controls.value)
+      return
+    controls.value.target.set(newTarget.x, newTarget.y, newTarget.z)
+    controls.value.update()
+  }, { immediate: true, deep: true })
   // Get fov => update camera fov
-  watch(
-    cameraFOV,
-    (newFOV) => {
-      if (!camera.value || !controls.value) return
-      camera.value.fov = newFOV
-      camera.value.updateProjectionMatrix()
-      controls.value.update()
-    },
-    { immediate: true },
-  )
+  watch(cameraFOV, (newFOV) => {
+    if (!camera.value || !controls.value)
+      return
+    camera.value.fov = newFOV
+    camera.value.updateProjectionMatrix()
+    controls.value.update()
+  }, { immediate: true })
   // Get camera distance => update camera distance
   watch(cameraDistance, (newDistance) => {
-    if (!camera.value || !controls.value) return
+    if (!camera.value || !controls.value)
+      return
     const newPosition = new Vector3()
     const target = controls.value.target
     const direction = new Vector3().subVectors(camera.value.position, target).normalize()
     newPosition.copy(target).addScaledVector(direction, newDistance)
-    camera.value.position.set(newPosition.x, newPosition.y, newPosition.z)
+    camera.value.position.set(
+      newPosition.x,
+      newPosition.y,
+      newPosition.z,
+    )
     camera.value.updateProjectionMatrix()
     controls.value.update()
   })
-  watch(
-    controlEnable,
-    (newEnable) => {
-      if (!camera.value || !controls.value) return
-      controls.value.enableRotate = newEnable
-      controls.value.enableZoom = newEnable
-    },
-    { immediate: true },
-  )
+  watch(controlEnable, (newEnable) => {
+    if (!camera.value || !controls.value)
+      return
+    controls.value.enableRotate = newEnable
+    controls.value.enableZoom = newEnable
+  }, { immediate: true })
 
   /*
-   * Upward info flow
-   * - Emit info => update pinia store
-   */
+    * Upward info flow
+    * - Emit info => update pinia store
+  */
   // send camera update info
   const onChange = () => {
-    if (!controlEnable.value || !camera.value || !controls.value) return
+    if (!controlEnable.value || !camera.value || !controls.value)
+      return
 
-    emit('orbitControlsCameraChanged', {
-      newCameraPosition: {
-        x: camera.value.position.x,
-        y: camera.value.position.y,
-        z: camera.value.position.z,
+    emit(
+      'orbitControlsCameraChanged',
+      {
+        newCameraPosition: {
+          x: camera.value.position.x,
+          y: camera.value.position.y,
+          z: camera.value.position.z,
+        },
+        newCameraDistance: controls.value.getDistance(),
       },
-      newCameraDistance: controls.value.getDistance(),
-    })
+    )
   }
 
   disposeControlsChange?.()
@@ -214,7 +220,7 @@ defineExpose({
   controls,
   getDistance: () => controls.value?.getDistance(),
   update: () => controls.value?.update(),
-  setTarget: (target: { x: number; y: number; z: number }) => {
+  setTarget: (target: { x: number, y: number, z: number }) => {
     if (controls.value) {
       controls.value.target.set(target.x, target.y, target.z)
       controls.value.update()

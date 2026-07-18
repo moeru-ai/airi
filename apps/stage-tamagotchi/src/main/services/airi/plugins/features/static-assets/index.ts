@@ -6,26 +6,26 @@ import { createStaticAssetService } from '../../../http-server/static-assets'
 import { buildMountedStaticAssetPath } from '../../../http-server/static-assets/paths'
 
 /**
- * Describes one plugin asset session creation request.
+ * Describes one extension asset session creation request.
  *
  * Use when:
- * - A plugin-owned asset URL must be mounted behind the local loopback server with cookie auth
- * - Snapshot builders need a transport-agnostic way to authorize one plugin asset route before iframe load
+ * - An extension-owned asset URL must be mounted behind the local loopback server with cookie auth
+ * - Snapshot builders need a transport-agnostic way to authorize one extension asset route before iframe load
  *
  * Expects:
- * - `pluginId` matches a manifest entry registered in the asset host
+ * - `extensionId` matches a manifest entry registered in the asset host
  * - `routeAssetPath` identifies the iframe entry asset relative to the mounted `/ui` route
  * - `pathPrefix` is scoped to the mounted route prefix accepted by the session store
  *
  * Returns:
  * - N/A
  */
-export interface PluginAssetSessionInput {
-  /** Plugin id that owns the static asset root. */
-  pluginId: string
-  /** Plugin version expected by the server-side session validator. */
+export interface ExtensionAssetSessionInput {
+  /** Extension manifest id that owns the static asset root. */
+  extensionId: string
+  /** Extension/plugin version expected by the server-side session validator. */
   version: string
-  /** Parent plugin session id used for owner-scoped revocation. */
+  /** Parent extension session id used for owner-scoped revocation. */
   ownerSessionId: string
   /** Asset path to mount in the returned renderer-facing URL. */
   routeAssetPath: string
@@ -36,7 +36,7 @@ export interface PluginAssetSessionInput {
 }
 
 /**
- * Describes the cookie material Electron must apply before loading a plugin asset URL.
+ * Describes the cookie material Electron must apply before loading an extension asset URL.
  *
  * Use when:
  * - Main process bridges server-side asset sessions into Electron's cookie jar
@@ -49,7 +49,7 @@ export interface PluginAssetSessionInput {
  * Returns:
  * - N/A
  */
-export interface PluginAssetCookie {
+export interface ExtensionAssetCookie {
   /** Cookie name generated for the asset session. */
   name: string
   /** Opaque cookie value required by the static asset route. */
@@ -63,7 +63,7 @@ export interface PluginAssetCookie {
 }
 
 /**
- * Applies and removes plugin asset cookies from the Electron host.
+ * Applies and removes extension asset cookies from the Electron host.
  *
  * Use when:
  * - Asset sessions must exist in Electron's cookie jar before an iframe navigates to its URL
@@ -76,13 +76,13 @@ export interface PluginAssetCookie {
  * Returns:
  * - N/A
  */
-export interface PluginAssetCookieAdapter {
-  setCookie: (cookie: PluginAssetCookie) => Promise<void>
-  removeCookie: (cookie: PluginAssetCookie) => Promise<void>
+export interface ExtensionAssetCookieAdapter {
+  setCookie: (cookie: ExtensionAssetCookie) => Promise<void>
+  removeCookie: (cookie: ExtensionAssetCookie) => Promise<void>
 }
 
 /**
- * Describes the plugin asset methods needed while building renderer-facing snapshots.
+ * Describes the extension asset methods needed while building renderer-facing snapshots.
  *
  * Use when:
  * - Snapshot builders must request route-scoped asset sessions without depending on HTTP server internals
@@ -95,13 +95,13 @@ export interface PluginAssetCookieAdapter {
  * Returns:
  * - A mounted asset URL and cookie-backed session metadata
  */
-export interface PluginAssetSnapshotService {
+export interface ExtensionAssetSnapshotService {
   getBaseUrl: () => string | undefined
-  createAssetSession: (input: Omit<PluginAssetSessionInput, 'ttlMs'>) => Promise<PluginAssetSession>
+  createAssetSession: (input: Omit<ExtensionAssetSessionInput, 'ttlMs'>) => Promise<ExtensionAssetSession>
 }
 
 /**
- * Describes a plugin asset session prepared for renderer iframe navigation.
+ * Describes an extension asset session prepared for renderer iframe navigation.
  *
  * Use when:
  * - A plugin iframe needs a mounted static asset URL and pre-applied cookie state
@@ -113,40 +113,40 @@ export interface PluginAssetSnapshotService {
  * Returns:
  * - Renderer-facing URL plus server and cookie metadata
  */
-export interface PluginAssetSession {
+export interface ExtensionAssetSession {
   /** Absolute mounted asset URL safe to hand to a renderer iframe after cookie setup. */
   url: string
   /** Opaque server-side asset session id embedded in mounted asset routes. */
   assetSessionId: string
   /** Cookie data that was applied through the host adapter. */
-  cookie: PluginAssetCookie
+  cookie: ExtensionAssetCookie
   /** Unix timestamp in milliseconds when the cookie-backed asset session expires. */
   expiresAt: number
 }
 
 /**
- * Defines the plugin-owned asset hosting service used by the plugin host.
+ * Defines the extension-owned asset hosting service used by the extension host.
  *
  * Use when:
  * - Plugin snapshots need mounted asset URLs without depending on the H3 server shape
- * - Host teardown must revoke plugin asset access independently from widget/gamelet logic
+ * - Host teardown must revoke extension asset access independently from widget/gamelet logic
  *
  * Expects:
  * - Implementations own the underlying transport, cookie, and session lifecycle
  *
  * Returns:
- * - A startable/stoppable asset-hosting service with generic plugin-facing methods
+ * - A startable/stoppable asset-hosting service with generic extension-facing methods
  */
-export interface PluginAssetService extends ServerManager {
+export interface ExtensionAssetService extends ServerManager {
   getBaseUrl: () => string | undefined
-  createAssetSession: (input: PluginAssetSessionInput) => Promise<PluginAssetSession>
+  createAssetSession: (input: ExtensionAssetSessionInput) => Promise<ExtensionAssetSession>
   revokeSession: (assetSessionId: string) => Promise<void>
   revokeByOwnerSessionId: (ownerSessionId: string) => Promise<void>
-  revokeByPluginId: (pluginId: string) => Promise<void>
+  revokeByExtensionId: (extensionId: string) => Promise<void>
   revokeAll: () => Promise<void>
 }
 
-function createPluginAssetCookie(baseUrl: string, session: StaticAssetSession): PluginAssetCookie {
+function createExtensionAssetCookie(baseUrl: string, session: StaticAssetSession): ExtensionAssetCookie {
   return {
     name: session.cookieName,
     value: session.cookieValue,
@@ -156,43 +156,25 @@ function createPluginAssetCookie(baseUrl: string, session: StaticAssetSession): 
   }
 }
 
-function requireBaseUrl(baseUrl: string | undefined) {
-  if (!baseUrl) {
-    throw new Error(
-      'Plugin asset server base URL is unavailable; start the asset server before creating asset sessions',
-    )
-  }
-
-  return baseUrl
-}
-
-async function removeCookies(
-  cookieAdapter: PluginAssetCookieAdapter,
-  baseUrl: string,
-  sessions: readonly StaticAssetSession[],
-) {
-  await Promise.all(sessions.map((session) => cookieAdapter.removeCookie(createPluginAssetCookie(baseUrl, session))))
-}
-
 /**
- * Creates the plugin asset host service backed by the extension static asset server.
+ * Creates the extension asset host service backed by the extension static asset server.
  *
  * Use when:
- * - The plugin host needs to expose mounted asset URLs to renderer snapshots
- * - Asset session lifecycle should stay inside the plugin domain instead of the HTTP server layer
+ * - The extension host needs to expose mounted asset URLs to renderer snapshots
+ * - Asset session lifecycle should stay inside the extension domain instead of the HTTP server layer
  *
  * Expects:
- * - `getManifestEntryByName` returns the latest plugin root/version map
+ * - `getManifestEntryByExtensionId` returns the latest extension root/version map
  * - `cookieAdapter` writes and removes cookies in the Electron host session used by plugin iframes
  *
  * Returns:
- * - A plugin-facing asset host service with generic plugin asset methods
+ * - An extension-facing asset host service with generic extension asset methods
  */
-export function createPluginAssetService(options: {
-  getManifestEntryByName: () => Map<string, StaticAssetManifestEntry>
-  cookieAdapter: PluginAssetCookieAdapter
-}): PluginAssetService {
-  const server = createStaticAssetService({ getManifestEntryByName: options.getManifestEntryByName })
+export function createExtensionAssetService(options: {
+  getManifestEntryByExtensionId: () => Map<string, StaticAssetManifestEntry>
+  cookieAdapter: ExtensionAssetCookieAdapter
+}): ExtensionAssetService {
+  const server = createStaticAssetService({ getManifestEntryByExtensionId: options.getManifestEntryByExtensionId })
   let lastBaseUrl: string | undefined
 
   const readBaseUrl = () => {
@@ -207,11 +189,13 @@ export function createPluginAssetService(options: {
       return
     }
 
-    await removeCookies(options.cookieAdapter, baseUrl, sessions)
+    await Promise.all(
+      sessions.map(session => options.cookieAdapter.removeCookie(createExtensionAssetCookie(baseUrl, session))),
+    )
   }
 
   return {
-    key: 'plugin-assets',
+    key: 'extension-assets',
     async start() {
       await server.start()
     },
@@ -224,7 +208,7 @@ export function createPluginAssetService(options: {
     },
     async createAssetSession(input) {
       const session = server.createSession({
-        extensionId: input.pluginId,
+        extensionId: input.extensionId,
         version: input.version,
         ownerSessionId: input.ownerSessionId,
         pathPrefix: input.pathPrefix,
@@ -232,18 +216,22 @@ export function createPluginAssetService(options: {
       })
 
       try {
-        const baseUrl = requireBaseUrl(readBaseUrl())
+        const baseUrl = readBaseUrl()
+        if (!baseUrl) {
+          throw new Error('Extension asset server base URL is unavailable; start the asset server before creating asset sessions')
+        }
+
         const mountedPath = buildMountedStaticAssetPath({
-          extensionId: input.pluginId,
+          extensionId: input.extensionId,
           assetSessionId: session.assetSessionId,
           assetPath: input.routeAssetPath,
         })
 
         if (!mountedPath) {
-          throw new RangeError('Plugin asset session routeAssetPath must be a safe plugin asset path')
+          throw new RangeError('Extension asset session routeAssetPath must be a safe extension asset path')
         }
 
-        const cookie = createPluginAssetCookie(baseUrl, session)
+        const cookie = createExtensionAssetCookie(baseUrl, session)
         await options.cookieAdapter.setCookie(cookie)
 
         return {
@@ -252,7 +240,8 @@ export function createPluginAssetService(options: {
           cookie,
           expiresAt: session.expiresAt,
         }
-      } catch (error) {
+      }
+      catch (error) {
         server.revokeSession(session.assetSessionId)
         throw error
       }
@@ -268,8 +257,8 @@ export function createPluginAssetService(options: {
     async revokeByOwnerSessionId(ownerSessionId) {
       await revokeSessions(server.revokeByOwnerSessionId(ownerSessionId))
     },
-    async revokeByPluginId(pluginId) {
-      await revokeSessions(server.revokeByExtensionId(pluginId))
+    async revokeByExtensionId(extensionId) {
+      await revokeSessions(server.revokeByExtensionId(extensionId))
     },
     async revokeAll() {
       await revokeSessions(server.revokeAll())

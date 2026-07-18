@@ -51,13 +51,13 @@ export const useCharacterStore = defineStore('character', () => {
     })
 
     const parser = parserFactory({
-      onLiteral: (literal) => {
-        if (literal) intent.writeLiteral(literal)
-        return Promise.resolve()
+      onLiteral: async (literal) => {
+        if (literal)
+          intent.writeLiteral(literal)
       },
-      onSpecial: (special) => {
-        if (special) intent.writeSpecial(special)
-        return Promise.resolve()
+      onSpecial: async (special) => {
+        if (special)
+          intent.writeSpecial(special)
       },
     })
 
@@ -68,11 +68,7 @@ export const useCharacterStore = defineStore('character', () => {
     intent.end()
   }
 
-  function onSparkNotifyReactionStreamEvent(
-    sparkEventId: string,
-    chunk: string,
-    options?: { metadata?: Record<string, unknown> },
-  ) {
+  function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown> }) {
     if (!streamingReactions.value.has(sparkEventId)) {
       const newReaction = reactive({
         id: nanoid(),
@@ -91,13 +87,13 @@ export const useCharacterStore = defineStore('character', () => {
       })
 
       const parser = parserFactory({
-        onLiteral: (literal) => {
-          if (literal) intent.writeLiteral(literal)
-          return Promise.resolve()
+        onLiteral: async (literal) => {
+          if (literal)
+            intent.writeLiteral(literal)
         },
-        onSpecial: (special) => {
-          if (special) intent.writeSpecial(special)
-          return Promise.resolve()
+        onSpecial: async (special) => {
+          if (special)
+            intent.writeSpecial(special)
         },
       })
 
@@ -109,13 +105,10 @@ export const useCharacterStore = defineStore('character', () => {
     void state.parser.consume(chunk)
   }
 
-  function onSparkNotifyReactionStreamEnd(
-    sparkEventId: string,
-    fullText: string,
-    options?: { metadata?: Record<string, unknown> },
-  ) {
+  function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
     const state = streamingReactions.value.get(sparkEventId)
-    if (!state) return
+    if (!state)
+      return
 
     state.reaction.message = fullText
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
@@ -127,11 +120,7 @@ export const useCharacterStore = defineStore('character', () => {
     })
   }
 
-  function recordSparkNotifyReaction(
-    sparkEventId: string,
-    message: string,
-    options?: { metadata?: Record<string, unknown> },
-  ) {
+  function recordSparkNotifyReaction(sparkEventId: string, message: string, options?: { metadata?: Record<string, unknown> }) {
     const newReaction = {
       id: nanoid(),
       message,

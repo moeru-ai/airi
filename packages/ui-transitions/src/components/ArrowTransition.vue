@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    stageTransition?: {
-      primaryColor?: string
-      secondaryColor?: string
-      zIndex?: number
-    }
-  }>(),
-  {
-    stageTransition: () => ({
-      primaryColor: '#666',
-      secondaryColor: '#ccc',
-    }),
-  },
-)
+const props = withDefaults(defineProps<{
+  stageTransition?: {
+    primaryColor?: string
+    secondaryColor?: string
+    zIndex?: number
+  }
+}>(), {
+  stageTransition: () => ({
+    primaryColor: '#666',
+    secondaryColor: '#ccc',
+  }),
+})
 
 const stageTransition = computed(() => props.stageTransition)
 const overlayColor1 = computed(() => stageTransition.value.primaryColor || '#666')

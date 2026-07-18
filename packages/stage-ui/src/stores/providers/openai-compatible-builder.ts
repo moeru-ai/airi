@@ -6,7 +6,7 @@ import { message } from '@xsai/utils-chat'
 
 import { ProviderValidationCheck } from '../../libs/providers'
 
-type ProviderCreator = (apiKey: string, baseUrl: string) => { model: (...args: unknown[]) => unknown }
+type ProviderCreator = (apiKey: string, baseUrl: string) => any
 
 // Lightweight normalization utilities and conditional logging
 function normalizeString(value: unknown): string {
@@ -15,46 +15,44 @@ function normalizeString(value: unknown): string {
 
 function normalizeBaseUrl(value: unknown): string {
   let base = normalizeString(value)
-  if (base && !base.endsWith('/')) base += '/'
+  if (base && !base.endsWith('/'))
+    base += '/'
   return base
-}
-
-/**
- * In dev mode, rewrite localhost:3001/v1/ base URLs to /v1/ so the Vite
- * proxy (configured in electron.vite.config.ts) intercepts the request.
- * This avoids CORS errors when the renderer runs on the Vite dev server.
- * In production (packaged Electron), the renderer runs in Electron's webview
- * where CORS doesn't apply, so we keep the original baseUrl.
- */
-function rewriteBaseUrlForDev(baseUrl: string): string {
-  if (!import.meta.env.DEV) return baseUrl
-  try {
-    const url = new URL(baseUrl)
-    // Rewrite localhost:3001/v1/* to /v1/*
-    if (url.hostname === 'localhost' && url.port === '3001' && url.pathname.startsWith('/v1/')) {
-      return '/v1/'
-    }
-    // Also handle 127.0.0.1
-    if (url.hostname === '127.0.0.1' && url.port === '3001' && url.pathname.startsWith('/v1/')) {
-      return '/v1/'
-    }
-  } catch {
-    // Invalid URL, return as-is
-  }
-  return baseUrl
 }
 
 function shouldLog(): boolean {
   try {
     // Opt-in via localStorage to minimize I/O in production
     return typeof localStorage !== 'undefined' && localStorage.getItem('airi:debug') === '1'
-  } catch {
+  }
+  catch {
     return false
   }
 }
 
 function logWarn(...args: unknown[]) {
-  if (shouldLog()) console.warn(...args)
+  if (shouldLog())
+    console.warn(...args)
+}
+
+/**
+ * Wraps transcription providers so OpenAI audio options like `language` and `prompt` are preserved.
+ */
+function withTranscriptionExtraOptions(provider: unknown) {
+  if (!provider || typeof provider !== 'object' || !('transcription' in provider))
+    return provider
+
+  const transcription = (provider as { transcription?: unknown }).transcription
+  if (typeof transcription !== 'function')
+    return provider
+
+  return {
+    ...provider,
+    transcription: (model: string, extraOptions?: Record<string, unknown>) => ({
+      ...transcription(model),
+      ...extraOptions,
+    }),
+  }
 }
 
 export function buildOpenAICompatibleProvider(
@@ -99,7 +97,8 @@ export function buildOpenAICompatibleProvider(
     listModels: async (config: Record<string, unknown>) => {
       // Safer casting of apiKey/baseUrl (prevents .trim() crash if not a string)
       const apiKey = normalizeString(config.apiKey)
-      const baseUrl = rewriteBaseUrlForDev(normalizeBaseUrl(config.baseUrl))
+      const baseUrl = normalizeBaseUrl(config.baseUrl)
+
       // If not configured yet, avoid remote calls and return empty
       if (!apiKey || !baseUrl) {
         return []
@@ -118,24 +117,16 @@ export function buildOpenAICompatibleProvider(
         headers: additionalHeaders,
       })
 
-      return models.map(
-        (model: {
-          id: string
-          name?: string
-          display_name?: string
-          description?: string
-          context_length?: number
-        }) => {
-          return {
-            id: model.id,
-            name: model.name || model.display_name || model.id,
-            provider: id,
-            description: model.description || '',
-            contextLength: model.context_length || 0,
-            deprecated: false,
-          } satisfies ModelInfo
-        },
-      )
+      return models.map((model: any) => {
+        return {
+          id: model.id,
+          name: model.name || model.display_name || model.id,
+          provider: id,
+          description: model.description || '',
+          contextLength: model.context_length || 0,
+          deprecated: false,
+        } satisfies ModelInfo
+      })
     },
   }
 
@@ -148,8 +139,8 @@ export function buildOpenAICompatibleProvider(
     chatPingCheckAvailable: false,
     validateProviderConfig: async (config: Record<string, unknown>) => {
       const errors: Error[] = []
-      const apiKey = normalizeString(config.apiKey)
       let baseUrl = normalizeString(config.baseUrl)
+      const apiKey = normalizeString(config.apiKey)
 
       if (!apiKey) {
         errors.push(new Error('API Key is required'))
@@ -163,17 +154,18 @@ export function buildOpenAICompatibleProvider(
         if (new URL(baseUrl).host.length === 0) {
           errors.push(new Error('Base URL is not absolute. Check your input.'))
         }
-      } catch {
+      }
+      catch {
         errors.push(new Error('Base URL is invalid. It must be an absolute URL.'))
       }
 
       // normalize trailing slash instead of rejecting
-      baseUrl = rewriteBaseUrlForDev(normalizeBaseUrl(baseUrl))
+      baseUrl = normalizeBaseUrl(baseUrl)
 
       if (errors.length > 0) {
         return {
           errors,
-          reason: errors.map((e) => e.message).join(', '),
+          reason: errors.map(e => e.message).join(', '),
           valid: false,
         }
       }
@@ -183,17 +175,25 @@ export function buildOpenAICompatibleProvider(
       // Prepare model auto-detection promise for checks that need it
       const modelPromise = (async () => {
         let detected = 'test'
-        if (!hasApiKey) return detected
+        if (!hasApiKey)
+          return detected
         try {
           const models = await listModels({
             apiKey,
             baseURL: baseUrl,
             headers: additionalHeaders,
-          }).then((models) =>
-            models.filter((model) => ['embed', 'tts', 'models/gemini-2.5-pro'].every((str) => !model.id.includes(str))),
-          )
-          if (models.length > 0) detected = models[0].id
-        } catch (e) {
+          })
+            .then(models => models.filter(model =>
+              [
+                'embed',
+                'tts',
+                'models/gemini-2.5-pro',
+              ].every(str => !model.id.includes(str)),
+            ))
+          if (models.length > 0)
+            detected = models[0].id
+        }
+        catch (e) {
           logWarn(`Model auto-detection failed: ${(e as Error).message}`)
           logWarn('Falling back to default test model for validation checks.')
           try {
@@ -204,7 +204,8 @@ export function buildOpenAICompatibleProvider(
               }
               return models[0].id
             }
-          } catch (e) {
+          }
+          catch (e) {
             logWarn(`Model auto-detection via capabilities.listModels also failed: ${(e as Error).message}`)
           }
         }
@@ -214,59 +215,59 @@ export function buildOpenAICompatibleProvider(
       // Health check = try generating text (was: fetch(`${baseUrl}chat/completions`))
       const asyncChecks: Promise<Error | null>[] = []
       if (validationChecks.includes(ProviderValidationCheck.Health) && hasApiKey) {
-        asyncChecks.push(
-          (async () => {
-            try {
-              const model = await modelPromise
-              await generateText({
-                apiKey,
-                baseURL: baseUrl,
-                headers: additionalHeaders,
-                model,
-                messages: message.messages(message.user('ping')),
-                max_tokens: 1,
-              })
-              return null
-            } catch (e) {
-              return new Error(`Health check failed: ${(e as Error).message}`)
-            }
-          })(),
-        )
+        asyncChecks.push((async () => {
+          try {
+            const model = await modelPromise
+            await generateText({
+              apiKey,
+              baseURL: baseUrl,
+              headers: additionalHeaders,
+              model,
+              messages: message.messages(message.user('ping')),
+              max_tokens: 1,
+            })
+            return null
+          }
+          catch (e) {
+            return new Error(`Health check failed: ${(e as Error).message}`)
+          }
+        })())
       }
 
       // Model list validation (was: fetch(`${baseUrl}models`))
       if (validationChecks.includes(ProviderValidationCheck.ModelList) && hasApiKey) {
-        asyncChecks.push(
-          (async () => {
-            try {
-              const models = await listModels({
-                apiKey,
-                baseURL: baseUrl,
-                headers: additionalHeaders,
-              })
-              if (!models || models.length === 0) {
-                return new Error('Model list check failed: no models found')
-              }
-              return null
-            } catch (e) {
-              return new Error(`Model list check failed: ${(e as Error).message}`)
+        asyncChecks.push((async () => {
+          try {
+            const models = await listModels({
+              apiKey,
+              baseURL: baseUrl,
+              headers: additionalHeaders,
+            })
+            if (!models || models.length === 0) {
+              return new Error('Model list check failed: no models found')
             }
-          })(),
-        )
+            return null
+          }
+          catch (e) {
+            return new Error(`Model list check failed: ${(e as Error).message}`)
+          }
+        })())
       }
 
       if (asyncChecks.length > 0) {
         const results = await Promise.allSettled(asyncChecks)
         for (const r of results) {
-          if (r.status === 'fulfilled' && r.value) errors.push(r.value)
-          else if (r.status === 'rejected') errors.push(new Error(String(r.reason)))
+          if (r.status === 'fulfilled' && r.value)
+            errors.push(r.value)
+          else if (r.status === 'rejected')
+            errors.push(new Error(String(r.reason)))
         }
       }
 
       return {
         errors,
         // Consistent reason string (empty when no errors)
-        reason: errors.length > 0 ? errors.map((e) => e.message).join(', ') : '',
+        reason: errors.length > 0 ? errors.map(e => e.message).join(', ') : '',
         valid: errors.length === 0,
       }
     },
@@ -286,10 +287,14 @@ export function buildOpenAICompatibleProvider(
     defaultOptions: () => ({
       baseUrl: defaultBaseUrl || '',
     }),
-    createProvider: (config: { apiKey: string; baseUrl: string }) => {
+    createProvider: async (config: { apiKey: string, baseUrl: string }) => {
       const apiKey = normalizeString(config.apiKey)
-      const baseUrl = rewriteBaseUrlForDev(normalizeBaseUrl(config.baseUrl))
-      return Promise.resolve(creator(apiKey, baseUrl))
+      const baseUrl = normalizeBaseUrl(config.baseUrl)
+      const provider = await creator(apiKey, baseUrl)
+      if (resolvedCategory === 'transcription')
+        return withTranscriptionExtraOptions(provider)
+
+      return provider
     },
     capabilities: finalCapabilities,
     validators: finalValidators,

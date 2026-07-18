@@ -16,20 +16,14 @@ import { computed } from 'vue'
 
 const providerId = 'cloudflare-workers-ai'
 const providersStore = useProvidersStore()
-
-interface CloudflareWorkersAIConfig {
-  apiKey?: string
-  accountId?: string
-}
-const { providers } = storeToRefs(providersStore) as {
-  providers: RemovableRef<Record<string, CloudflareWorkersAIConfig>>
-}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Define computed properties for credentials
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -37,7 +31,8 @@ const apiKey = computed({
 const accountId = computed({
   get: () => providers.value[providerId]?.accountId || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].accountId = value
   },
 })
@@ -82,12 +77,8 @@ const {
         <ProviderAccountIdInput
           v-model="accountId"
           :label="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.label')"
-          :description="
-            t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description')
-          "
-          :placeholder="
-            t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder')
-          "
+          :description="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description')"
+          :placeholder="t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder')"
         />
       </ProviderBasicSettings>
 

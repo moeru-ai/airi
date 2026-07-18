@@ -7,8 +7,12 @@ import { useI18n } from 'vue-i18n'
 const artistryStore = useArtistryStore()
 const { t } = useI18n()
 
-const { replicateApiKey, replicateDefaultModel, replicateAspectRatio, replicateInferenceSteps } =
-  storeToRefs(artistryStore)
+const {
+  replicateApiKey,
+  replicateDefaultModel,
+  replicateAspectRatio,
+  replicateInferenceSteps,
+} = storeToRefs(artistryStore)
 </script>
 
 <template>

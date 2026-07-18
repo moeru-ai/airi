@@ -1,16 +1,16 @@
 <script setup lang="ts">
-withDefaults(
-  defineProps<{
-    id: string
-    name: string
-    value: string
-    title: string
-    description?: string
-  }>(),
-  {
-    description: '',
-  },
-)
+defineProps<{
+  id: string
+  name: string
+  value: string
+  title: string
+  description?: string
+}>()
+
+defineSlots<{
+  topRight?: any
+  bottomRight?: any
+}>()
 
 const modelValue = defineModel<string>({ required: true })
 </script>
@@ -25,17 +25,12 @@ const modelValue = defineModel<string>({ required: true })
       modelValue === value
         ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
         : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
-      modelValue === value ? 'form_radio-card-simple-active' : '',
+      modelValue === value
+        ? 'form_radio-card-simple-active'
+        : '',
     ]"
     flex="~ col"
-    block
-    min-w-50
-    w-fit
-    cursor-pointer
-    items-start
-    rounded-xl
-    p-4
-    text-left
+    block min-w-50 w-fit cursor-pointer items-start rounded-xl p-4 text-left
   >
     <input
       v-model="modelValue"
@@ -44,7 +39,7 @@ const modelValue = defineModel<string>({ required: true })
       :name="name"
       :value="value"
       class="absolute opacity-0 [&:checked+div]:border-primary-500 [&:checked+div_.radio-dot]:opacity-100 dark:[&:checked+div]:border-primary-400"
-    />
+    >
     <div
       class="radio-circle absolute left-2 top-2 size-5 rounded-full"
       border="2 solid neutral-300 dark:neutral-600"
@@ -61,7 +56,9 @@ const modelValue = defineModel<string>({ required: true })
         class="radio-item-name font-normal"
         text="md"
         :class="[
-          modelValue === value ? 'text-neutral-700 dark:text-neutral-300' : 'text-neutral-500 dark:text-neutral-500',
+          modelValue === value
+            ? 'text-neutral-700 dark:text-neutral-300'
+            : 'text-neutral-500 dark:text-neutral-500',
         ]"
         transition="all duration-200 ease-in-out"
       >
@@ -72,7 +69,9 @@ const modelValue = defineModel<string>({ required: true })
         class="radio-item-description line-clamp-2"
         text="xs"
         :class="[
-          modelValue === value ? 'text-neutral-600 dark:text-neutral-400' : 'text-neutral-400 dark:text-neutral-600',
+          modelValue === value
+            ? 'text-neutral-600 dark:text-neutral-400'
+            : 'text-neutral-400 dark:text-neutral-600',
         ]"
         transition="all duration-200 ease-in-out"
         :title="description"
@@ -82,10 +81,8 @@ const modelValue = defineModel<string>({ required: true })
     </div>
     <div
       class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50 [input:checked~&]:bg-dotted-primary-300/50 dark:[input:checked~&]:bg-dotted-primary-200/20"
-      absolute
-      inset-0
-      z--1
-      style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%)"
+      absolute inset-0 z--1
+      style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
     />
 
     <div v-if="$slots.topRight" class="absolute right-2 top-2 z-10">

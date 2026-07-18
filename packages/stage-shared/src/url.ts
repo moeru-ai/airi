@@ -9,9 +9,9 @@ export function withBase(url: string) {
     return url
   }
 
-  const isAbsolute = url.startsWith('/')
-  const isRelative = url.startsWith('./')
-  if (isAbsolute) return `.${url}`
-  if (isRelative) return url
-  return `./${url}`
+  return url.startsWith('/')
+    ? `.${url}`
+    : url.startsWith('./')
+      ? url
+      : `./${url}`
 }

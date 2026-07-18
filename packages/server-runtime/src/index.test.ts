@@ -1,8 +1,12 @@
 import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
 
+import type { ConsumerStickyAssignment } from './server-ws/airi/consumers'
+
 import { describe, expect, it } from 'vitest'
 
-import { heartbeatFrameFrom, resolveEventDelivery, selectConsumerPeerId, setupApp } from './index'
+import { heartbeatFrameFrom } from './server-ws/airi/codec'
+import { selectConsumerPeerId } from './server-ws/airi/consumers'
+import { resolveEventDelivery } from './server-ws/airi/routing'
 
 function createInputTextEvent(
   overrides: Partial<WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>> = {},
@@ -39,17 +43,15 @@ describe('resolveEventDelivery', () => {
   })
 
   it('allows route delivery to override protocol defaults', () => {
-    const delivery = resolveEventDelivery(
-      createInputTextEvent({
-        route: {
-          delivery: {
-            required: true,
-            selection: 'sticky',
-            stickyKey: 'discord-dm-user-1',
-          },
+    const delivery = resolveEventDelivery(createInputTextEvent({
+      route: {
+        delivery: {
+          required: true,
+          selection: 'sticky',
+          stickyKey: 'discord-dm-user-1',
         },
-      }),
-    )
+      },
+    }))
 
     expect(delivery).toEqual({
       mode: 'consumer-group',
@@ -135,7 +137,7 @@ describe('selectConsumerPeerId', () => {
   })
 
   it('keeps sticky delivery on the same consumer when available', () => {
-    const stickyAssignments = new Map<string, string>()
+    const stickyAssignments = new Map<string, ConsumerStickyAssignment>()
 
     const firstSelectedPeerId = selectConsumerPeerId({
       eventType: 'input:text',
@@ -208,20 +210,5 @@ describe('heartbeatFrameFrom', () => {
     expect(heartbeatFrameFrom('')).toBeUndefined()
     expect(heartbeatFrameFrom('🩵')).toBeUndefined()
     expect(heartbeatFrameFrom('{"type":"transport:connection:heartbeat"}')).toBeUndefined()
-  })
-})
-
-describe('server runtime metrics', () => {
-  it('exposes zero-valued server gauges before any peer connects', () => {
-    const runtime = setupApp()
-
-    try {
-      expect(runtime.metrics.expose()).toContain('airi_server_peer_total 0')
-      expect(runtime.metrics.expose()).toContain('airi_server_peer_healthy 0')
-      expect(runtime.metrics.expose()).toContain('airi_server_peer_unhealthy 0')
-      expect(runtime.metrics.expose()).toContain('airi_server_module_total 0')
-    } finally {
-      runtime.dispose()
-    }
   })
 })

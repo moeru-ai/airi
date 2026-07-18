@@ -51,5 +51,5 @@ export const VISION_WORKLOADS: VisionWorkloadConfig[] = [
 ]
 
 export function getVisionWorkload(id: VisionWorkloadId) {
-  return VISION_WORKLOADS.find((workload) => workload.id === id) || VISION_WORKLOADS[0]
+  return VISION_WORKLOADS.find(workload => workload.id === id) || VISION_WORKLOADS[0]
 }

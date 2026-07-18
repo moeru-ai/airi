@@ -11,10 +11,14 @@ import { activeTurnSpan, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../co
 
 const MAX_TURNS = 50
 
-function attrsToMeta(attrs: Attributes): Record<string, unknown> {
-  const meta: Record<string, unknown> = {}
+function attrsToMeta(attrs: Attributes): Record<string, any> {
+  const meta: Record<string, any> = {}
   for (const [key, value] of Object.entries(attrs)) {
-    const shortKey = key === IOAttributes.TooltipKeys ? 'tooltipKeys' : key.includes('.') ? key.split('.').at(-1)! : key
+    const shortKey = key === IOAttributes.TooltipKeys
+      ? 'tooltipKeys'
+      : key.includes('.')
+        ? key.split('.').at(-1)!
+        : key
     meta[shortKey] = value
   }
   return meta
@@ -37,25 +41,32 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   const activeTurn = computed(() => {
-    if (turns.value.length === 0) return undefined
+    if (turns.value.length === 0)
+      return undefined
     const last = turns.value.at(-1)
     return last?.endTs == null ? last : undefined
   })
 
   const selectedSpan = computed(() => {
-    if (!selectedSpanId.value) return undefined
+    if (!selectedSpanId.value)
+      return undefined
     for (const turn of turns.value) {
-      const span = turn.spans.find((s) => s.id === selectedSpanId.value)
-      if (span) return { span, turn }
+      const span = turn.spans.find(s => s.id === selectedSpanId.value)
+      if (span)
+        return { span, turn }
     }
     return undefined
   })
 
   function formatOtlpValue(value: unknown): Record<string, unknown> {
-    if (typeof value === 'string') return { stringValue: value }
-    if (typeof value === 'number') return Number.isInteger(value) ? { intValue: String(value) } : { doubleValue: value }
-    if (typeof value === 'boolean') return { boolValue: value }
-    if (Array.isArray(value)) return { arrayValue: { values: value.map((v) => formatOtlpValue(v)) } }
+    if (typeof value === 'string')
+      return { stringValue: value }
+    if (typeof value === 'number')
+      return Number.isInteger(value) ? { intValue: String(value) } : { doubleValue: value }
+    if (typeof value === 'boolean')
+      return { boolValue: value }
+    if (Array.isArray(value))
+      return { arrayValue: { values: value.map(v => formatOtlpValue(v)) } }
     return { stringValue: String(value) }
   }
 
@@ -82,7 +93,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
 
         while (turns.value.length > MAX_TURNS) {
           const evicted = turns.value.shift()
-          if (evicted) turnsByTraceId.delete(evicted.id)
+          if (evicted)
+            turnsByTraceId.delete(evicted.id)
         }
       }
       return turn
@@ -90,9 +102,11 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
 
     if (readable.name === IOSpanNames.InteractionTurn) {
       const turn = getOrCreateTurn()
-      if (endMs) turn.endTs = endMs
+      if (endMs)
+        turn.endTs = endMs
       const text = readable.attributes[IOAttributes.ASRText]
-      if (typeof text === 'string') turn.inputText = text
+      if (typeof text === 'string')
+        turn.inputText = text
 
       notifyUpdate()
       return
@@ -108,12 +122,13 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     if (readable.name === IOSpanNames.TTSSynthesis) {
       const turn = getOrCreateTurn()
       const text = readable.attributes[IOAttributes.TTSText]
-      if (typeof text === 'string' && !turn.outputText) turn.outputText = text
+      if (typeof text === 'string' && !turn.outputText)
+        turn.outputText = text
     }
 
     const turn = getOrCreateTurn()
     const meta = attrsToMeta(readable.attributes)
-    const events = readable.events.map((event) => ({
+    const events = readable.events.map(event => ({
       name: event.name,
       timeTs: hrTimeToMilliseconds(event.time),
       meta: attrsToMeta(event.attributes ?? {}),
@@ -155,7 +170,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   function startRecording() {
-    if (isRecording.value) return
+    if (isRecording.value)
+      return
 
     initIOTracer()
     onIOSpan(handleSpan)
@@ -167,7 +183,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   function stopRecording() {
-    if (!isRecording.value) return
+    if (!isRecording.value)
+      return
 
     activeTurnSpan.value?.end()
     activeTurnSpan.value = undefined
@@ -192,7 +209,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   function exportOTLP() {
-    if (rawSpans.length === 0) return
+    if (rawSpans.length === 0)
+      return
 
     const spans = rawSpans.map((span) => {
       const ctx = span.spanContext()
@@ -210,7 +228,7 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
           key,
           value: formatOtlpValue(value),
         })),
-        events: span.events.map((event) => ({
+        events: span.events.map(event => ({
           timeUnixNano: String(hrTimeToNanoseconds(event.time)),
           name: event.name,
           attributes: Object.entries(event.attributes ?? {}).map(([key, value]) => ({
@@ -226,19 +244,17 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     })
 
     const otlpPayload = {
-      resourceSpans: [
-        {
-          resource: {
-            attributes: [{ key: 'service.name', value: { stringValue: 'airi-io' } }],
-          },
-          scopeSpans: [
-            {
-              scope: { name: 'io' },
-              spans,
-            },
+      resourceSpans: [{
+        resource: {
+          attributes: [
+            { key: 'service.name', value: { stringValue: 'airi-io' } },
           ],
         },
-      ],
+        scopeSpans: [{
+          scope: { name: 'io' },
+          spans,
+        }],
+      }],
     }
 
     const json = JSON.stringify(otlpPayload, null, 2)

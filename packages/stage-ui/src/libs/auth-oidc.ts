@@ -31,7 +31,7 @@ export interface OIDCFlowState {
  */
 export async function buildAuthorizationURL(
   params: OIDCFlowParams,
-): Promise<{ url: string; flowState: OIDCFlowState }> {
+): Promise<{ url: string, flowState: OIDCFlowState }> {
   const codeVerifier = generateCodeVerifier()
   const codeChallenge = await generateCodeChallenge(codeVerifier)
   const state = generateState()
@@ -48,7 +48,8 @@ export async function buildAuthorizationURL(
   url.searchParams.set('code_challenge_method', 'S256')
   url.searchParams.set('resource', SERVER_URL)
 
-  if (params.provider) url.searchParams.set('provider', params.provider)
+  if (params.provider)
+    url.searchParams.set('provider', params.provider)
 
   return {
     url: url.toString(),
@@ -76,7 +77,8 @@ export async function exchangeCodeForTokens(
   params: OIDCFlowParams,
   returnedState: string,
 ): Promise<TokenResponse> {
-  if (returnedState !== flowState.state) throw new Error('OIDC state mismatch — possible CSRF attack')
+  if (returnedState !== flowState.state)
+    throw new Error('OIDC state mismatch — possible CSRF attack')
 
   const bodyParams: Record<string, string> = {
     grant_type: 'authorization_code',
@@ -88,7 +90,8 @@ export async function exchangeCodeForTokens(
   }
 
   // Confidential clients must send the secret during token exchange.
-  if (params.clientSecret) bodyParams.client_secret = params.clientSecret
+  if (params.clientSecret)
+    bodyParams.client_secret = params.clientSecret
 
   const body = new URLSearchParams(bodyParams)
 
@@ -122,7 +125,8 @@ export async function refreshAccessToken(
     resource: SERVER_URL,
   }
 
-  if (clientSecret) params.client_secret = clientSecret
+  if (clientSecret)
+    params.client_secret = clientSecret
 
   const body = new URLSearchParams(params)
 
@@ -132,7 +136,8 @@ export async function refreshAccessToken(
     body,
   })
 
-  if (!response.ok) throw new Error(`Token refresh failed: ${response.status}`)
+  if (!response.ok)
+    throw new Error(`Token refresh failed: ${response.status}`)
 
   return await response.json()
 }
@@ -152,11 +157,12 @@ export function persistFlowState(flowState: OIDCFlowState, params: OIDCFlowParam
 /**
  * Retrieve and clear persisted OIDC flow state after callback.
  */
-export function consumeFlowState(): { flowState: OIDCFlowState; params: OIDCFlowParams } | null {
+export function consumeFlowState(): { flowState: OIDCFlowState, params: OIDCFlowParams } | null {
   const flowStateRaw = sessionStorage.getItem(FLOW_STATE_KEY)
   const paramsRaw = sessionStorage.getItem(FLOW_PARAMS_KEY)
 
-  if (!flowStateRaw || !paramsRaw) return null
+  if (!flowStateRaw || !paramsRaw)
+    return null
 
   sessionStorage.removeItem(FLOW_STATE_KEY)
   sessionStorage.removeItem(FLOW_PARAMS_KEY)

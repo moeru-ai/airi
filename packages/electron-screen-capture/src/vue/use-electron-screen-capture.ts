@@ -20,7 +20,7 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
   const checkMacOSPermission = defineInvoke(context, screenCapture.checkMacOSPermission)
   const requestMacOSPermission = defineInvoke(context, screenCapture.requestMacOSPermission)
 
-  function getSources() {
+  async function getSources() {
     return invokeGetSources(toRaw(toValue(sourcesOptions)))
   }
 
@@ -40,7 +40,8 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
         timeout: request?.timeout,
       })
       return await useFn()
-    } finally {
+    }
+    finally {
       if (handle) {
         await resetSource(handle)
       }

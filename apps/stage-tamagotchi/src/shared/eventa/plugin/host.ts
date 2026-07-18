@@ -40,8 +40,8 @@ export interface PluginModuleWidgetPayload {
   moduleId: string
   title?: string
   widgetComponent?: string
-  componentProps?: Record<string, unknown>
-  payload?: Record<string, unknown>
+  componentProps?: Record<string, any>
+  payload?: Record<string, any>
   windowSize?: PluginModuleWidgetWindowSize
 }
 
@@ -58,7 +58,7 @@ export interface PluginModuleWidgetPayload {
  * - N/A
  */
 export interface PluginManifestSummary {
-  name: string
+  extensionId: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -84,17 +84,6 @@ export interface PluginRegistrySnapshot {
   plugins: PluginManifestSummary[]
 }
 
-export type PluginHostSidecarState = 'stopped' | 'booting' | 'ready' | 'degraded'
-
-export interface PluginHostSidecarStatus {
-  state: PluginHostSidecarState
-  pid: number | null
-  endpoint?: string
-  executablePath?: string
-  lastError?: string
-  updatedAt: number
-}
-
 /**
  * Active plugin session summary.
  *
@@ -109,7 +98,7 @@ export interface PluginHostSidecarStatus {
  */
 export interface PluginHostSessionSummary {
   id: string
-  manifestName: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
   moduleId: string
@@ -166,7 +155,7 @@ export interface PluginHostKitSummary {
 export interface PluginHostModuleSummary {
   moduleId: string
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   kitId: string
   kitModuleType: string
   state: 'announced' | 'active' | 'degraded' | 'withdrawn'
@@ -193,29 +182,14 @@ export interface PluginHostDebugSnapshot {
   sessions: PluginHostSessionSummary[]
   kits: PluginHostKitSummary[]
   modules: PluginHostModuleSummary[]
-  sidecar: PluginHostSidecarStatus
   capabilities: PluginCapabilityState[]
   refreshedAt: number
 }
 
 export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
-export const electronPluginSetEnabled = defineInvokeEventa<
-  PluginRegistrySnapshot,
-  { name: string; enabled: boolean; path?: string }
->('eventa:invoke:electron:plugins:set-enabled')
-export const electronPluginSetAutoReload = defineInvokeEventa<
-  PluginRegistrySnapshot,
-  { name: string; enabled: boolean }
->('eventa:invoke:electron:plugins:set-auto-reload')
-export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>(
-  'eventa:invoke:electron:plugins:load-enabled',
-)
-export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>(
-  'eventa:invoke:electron:plugins:load',
-)
-export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { name: string }>(
-  'eventa:invoke:electron:plugins:unload',
-)
-export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>(
-  'eventa:invoke:electron:plugins:inspect',
-)
+export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
+export const electronPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean }>('eventa:invoke:electron:plugins:set-auto-reload')
+export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
+export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:load')
+export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:unload')
+export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')

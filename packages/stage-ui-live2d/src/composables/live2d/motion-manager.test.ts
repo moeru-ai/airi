@@ -3,7 +3,10 @@ import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './moti
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { useMotionUpdatePluginAutoEyeBlink, useMotionUpdatePluginIdleDisable } from './motion-manager'
+import {
+  useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginIdleDisable,
+} from './motion-manager'
 
 vi.mock('./animation', () => ({
   useLive2DIdleEyeFocus: () => ({ update: vi.fn() }),
@@ -138,7 +141,9 @@ describe('live2d motion manager plugins', () => {
    * expect(context.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
    */
   it('opens force blink over a randomized 150ms to 300ms duration', () => {
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValueOnce(0).mockReturnValueOnce(0.5)
+    const randomSpy = vi.spyOn(Math, 'random')
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0.5)
 
     const context = createContext({
       live2dAutoBlinkEnabled: ref(true),

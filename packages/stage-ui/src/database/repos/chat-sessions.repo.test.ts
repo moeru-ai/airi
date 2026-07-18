@@ -1,6 +1,6 @@
-import { createStorage } from 'unstorage'
-
 import memoryDriver from 'unstorage/drivers/memory'
+
+import { createStorage } from 'unstorage'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Replace the IDB-backed storage with an in-memory driver for tests; the
@@ -63,9 +63,7 @@ describe('chatSessionsRepo.tombstones', () => {
 })
 
 describe('chatSessionsRepo.outbox', () => {
-  function makeEntry(
-    partial: Partial<Parameters<typeof chatSessionsRepo.enqueueOutbox>[1]> & { messageId: string },
-  ): Parameters<typeof chatSessionsRepo.enqueueOutbox>[1] {
+  function makeEntry(partial: Partial<Parameters<typeof chatSessionsRepo.enqueueOutbox>[1]> & { messageId: string }): Parameters<typeof chatSessionsRepo.enqueueOutbox>[1] {
     return {
       messageId: partial.messageId,
       sessionId: partial.sessionId ?? 'session-1',
@@ -94,7 +92,7 @@ describe('chatSessionsRepo.outbox', () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', queuedAt: 1 }))
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm2', queuedAt: 2 }))
     const entries = await chatSessionsRepo.getOutbox('user-1')
-    expect(entries.map((e) => e.messageId)).toEqual(['m1', 'm2'])
+    expect(entries.map(e => e.messageId)).toEqual(['m1', 'm2'])
   })
 
   /**
@@ -121,7 +119,7 @@ describe('chatSessionsRepo.outbox', () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm3' }))
     await chatSessionsRepo.dequeueOutbox('user-1', ['m1', 'm3'])
     const entries = await chatSessionsRepo.getOutbox('user-1')
-    expect(entries.map((e) => e.messageId)).toEqual(['m2'])
+    expect(entries.map(e => e.messageId)).toEqual(['m2'])
   })
 
   /**
@@ -151,7 +149,7 @@ describe('chatSessionsRepo.outbox', () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm3', sessionId: 's2' }))
     await chatSessionsRepo.dropOutboxForSession('user-1', 's1')
     const entries = await chatSessionsRepo.getOutbox('user-1')
-    expect(entries.map((e) => e.messageId)).toEqual(['m3'])
+    expect(entries.map(e => e.messageId)).toEqual(['m3'])
   })
 
   /**
@@ -175,26 +173,11 @@ describe('chatSessionsRepo.clear', () => {
   it('removes index + sessions + tombstones + outbox for the user', async () => {
     await chatSessionsRepo.saveIndex({
       userId: 'user-1',
-      characters: {
-        'char-a': {
-          activeSessionId: 's1',
-          sessions: { s1: { sessionId: 's1', userId: 'user-1', characterId: 'char-a', createdAt: 0, updatedAt: 0 } },
-        },
-      },
+      characters: { 'char-a': { activeSessionId: 's1', sessions: { s1: { sessionId: 's1', userId: 'user-1', characterId: 'char-a', createdAt: 0, updatedAt: 0 } } } },
     })
-    await chatSessionsRepo.saveSession('s1', {
-      meta: { sessionId: 's1', userId: 'user-1', characterId: 'char-a', createdAt: 0, updatedAt: 0 },
-      messages: [],
-    })
+    await chatSessionsRepo.saveSession('s1', { meta: { sessionId: 's1', userId: 'user-1', characterId: 'char-a', createdAt: 0, updatedAt: 0 }, messages: [] })
     await chatSessionsRepo.addTombstone('user-1', 'cloud-a')
-    await chatSessionsRepo.enqueueOutbox('user-1', {
-      messageId: 'm1',
-      sessionId: 's1',
-      role: 'user',
-      content: 'hi',
-      attempts: 0,
-      queuedAt: 0,
-    })
+    await chatSessionsRepo.enqueueOutbox('user-1', { messageId: 'm1', sessionId: 's1', role: 'user', content: 'hi', attempts: 0, queuedAt: 0 })
 
     await chatSessionsRepo.clear('user-1')
 

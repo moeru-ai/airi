@@ -23,12 +23,7 @@ export async function setupAboutWindowElectronInvokes(params: {
 
   const { context } = createContext(ipcMain, params.window)
 
-  await setupBaseWindowElectronInvokes({
-    context,
-    window: params.window,
-    i18n: params.i18n,
-    serverChannel: params.serverChannel,
-  })
+  await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
 
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
 }

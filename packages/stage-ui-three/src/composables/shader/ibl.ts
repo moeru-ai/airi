@@ -1,4 +1,3 @@
-import type { WebGLProgramParametersWithUniforms } from 'three/src/renderers/webgl/WebGLPrograms.js'
 // stage-ui/composables/shader/ibl.ts
 import * as THREE from 'three'
 
@@ -61,39 +60,23 @@ if (uNprEnvMode == 2) {
 // ===== Utility tools =====
 export type EnvMode = 'off' | 'skyBox' | 'hemisphere'
 
-export function isShaderMat(m: unknown): m is THREE.ShaderMaterial {
-  return (
-    typeof m === 'object' &&
-    m !== null &&
-    'isShaderMaterial' in m &&
-    Boolean((m as THREE.ShaderMaterial).isShaderMaterial)
-  )
-}
-export function isRawShader(m: unknown): m is THREE.RawShaderMaterial {
-  return (
-    typeof m === 'object' &&
-    m !== null &&
-    'isRawShaderMaterial' in m &&
-    Boolean((m as THREE.RawShaderMaterial).isRawShaderMaterial)
-  )
-}
+export const isShaderMat = (m: any): m is THREE.ShaderMaterial => !!m?.isShaderMaterial
+export const isRawShader = (m: any): m is THREE.RawShaderMaterial => !!m?.isRawShaderMaterial
 
 export function normalizeEnvMode(v?: string | null): EnvMode {
-  if (v === 'skyBox') return 'skyBox'
-  if (v === 'hemisphere') return 'hemisphere'
+  if (v === 'skyBox')
+    return 'skyBox'
+  if (v === 'hemisphere')
+    return 'hemisphere'
   return 'off'
 }
 
-interface IblShaderUniforms {
-  uNprEnvMode: { value: number }
-  uEnvIntensity: { value: number }
-  uSHCoeffs: { value: THREE.Vector3[] }
-}
-
 // Turn SphericalHarmonics3 to vec3[9] uniforms
-function assignSHUniform(u: IblShaderUniforms, sh: THREE.SphericalHarmonics3 | null | undefined) {
-  if (!u?.uSHCoeffs?.value || !Array.isArray(u.uSHCoeffs.value)) return
-  if (!sh) return
+function assignSHUniform(u: any, sh: THREE.SphericalHarmonics3 | null | undefined) {
+  if (!u?.uSHCoeffs || !u.uSHCoeffs.value || !Array.isArray(u.uSHCoeffs.value))
+    return
+  if (!sh)
+    return
   for (let i = 0; i < 9; i++) {
     u.uSHCoeffs.value[i] ||= new THREE.Vector3()
     u.uSHCoeffs.value[i].copy(sh.coefficients[i])
@@ -106,17 +89,15 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
   mat.customProgramCacheKey = () => `${baseKey}|airi-diffuse-ibl`
 
   const prev = mat.onBeforeCompile
-  mat.onBeforeCompile = (shader: WebGLProgramParametersWithUniforms, renderer: THREE.WebGLRenderer) => {
+  mat.onBeforeCompile = (shader: any, renderer: any) => {
     prev?.(shader, renderer)
 
     // vertex shader declare & apply
     if (!shader.vertexShader.includes('AIRI_DIFFUSE_VS_DECL')) {
       shader.vertexShader = `${VS_DECL}\n${shader.vertexShader}`
     }
-    if (
-      shader.vertexShader.includes('#include <defaultnormal_vertex>') &&
-      !shader.vertexShader.includes('AIRI_DIFFUSE_VS_APPLY')
-    ) {
+    if (shader.vertexShader.includes('#include <defaultnormal_vertex>')
+      && !shader.vertexShader.includes('AIRI_DIFFUSE_VS_APPLY')) {
       shader.vertexShader = shader.vertexShader.replace(
         '#include <defaultnormal_vertex>',
         `#include <defaultnormal_vertex>\n${VS_APPLY}`,
@@ -125,7 +106,10 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
 
     // fragement shader common
     if (!shader.fragmentShader.includes('AIRI_DIFFUSE_COMMON')) {
-      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${FS_COMMON}`)
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `#include <common>\n${FS_COMMON}`,
+      )
     }
 
     // fragement shader apply
@@ -140,27 +124,29 @@ export function injectDiffuseIBL(mat: THREE.ShaderMaterial) {
     const emptySH = Array.from({ length: 9 }).fill(new THREE.Vector3())
     shader.uniforms.uNprEnvMode ||= { value: 0 }
     shader.uniforms.uEnvIntensity ||= { value: 0.0 }
-    shader.uniforms.uSHCoeffs ||= { value: emptySH }
-    ;(mat.userData ||= {}).__airiIbl = shader.uniforms
+    shader.uniforms.uSHCoeffs ||= { value: emptySH };
+    (mat.userData ||= {}).__airiIbl = shader.uniforms
   }
 
-  if ('toneMapped' in mat) mat.toneMapped = false
+  if ('toneMapped' in mat)
+    (mat as any).toneMapped = false
   mat.needsUpdate = true
 }
 
 // update shader settings
 export function updateNprShaderSetting(
   root: THREE.Object3D,
-  opts: { mode: EnvMode; intensity: number; sh?: THREE.SphericalHarmonics3 | null },
+  opts: { mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null },
 ) {
   const shaderMode = opts.mode === 'skyBox' ? 2 : 0
   root.traverse((o) => {
     const mesh = o as THREE.Mesh
-    const raw = mesh.material
-    const mats: THREE.Material[] = raw ? (Array.isArray(raw) ? raw : [raw]) : []
+    const raw = (mesh as any).material
+    const mats: any[] = raw ? (Array.isArray(raw) ? raw : [raw]) : []
     mats.forEach((m) => {
-      const u = (m.userData as Record<string, unknown>)?.__airiIbl as IblShaderUniforms | undefined
-      if (!u) return
+      const u = m?.userData?.__airiIbl
+      if (!u)
+        return
       u.uNprEnvMode.value = shaderMode
       u.uEnvIntensity.value = opts.intensity
       assignSHUniform(u, opts.sh ?? null)
@@ -175,8 +161,9 @@ export function createIblProbeController(scene: THREE.Scene) {
   scene.add(probe)
 
   function update(mode: EnvMode, intensity: number, sh?: THREE.SphericalHarmonics3 | null) {
-    probe.intensity = mode === 'skyBox' ? intensity : 0
-    if (sh) probe.sh.copy(sh)
+    probe.intensity = (mode === 'skyBox') ? intensity : 0
+    if (sh)
+      probe.sh.copy(sh)
   }
   function dispose() {
     probe.parent?.remove(probe)

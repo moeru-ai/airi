@@ -8,7 +8,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 defineProps<{
-  artistryProviderOptions: { value: string; label: string }[]
+  artistryProviderOptions: { value: string, label: string }[]
   defaultArtistryProviderPlaceholder: string
 }>()
 
@@ -17,12 +17,8 @@ const selectedArtistryModel = defineModel<string>('selectedArtistryModel', { req
 const selectedArtistryPromptPrefix = defineModel<string>('selectedArtistryPromptPrefix', { required: true })
 const selectedArtistryWidgetInstruction = defineModel<string>('selectedArtistryWidgetInstruction', { required: true })
 const selectedArtistryAutonomousEnabled = defineModel<boolean>('selectedArtistryAutonomousEnabled', { required: true })
-const selectedArtistryAutonomousThreshold = defineModel<number>('selectedArtistryAutonomousThreshold', {
-  required: true,
-})
-const selectedArtistrySpawnMode = defineModel<'bg' | 'widget' | 'inline' | 'bg_widget'>('selectedArtistrySpawnMode', {
-  required: true,
-})
+const selectedArtistryAutonomousThreshold = defineModel<number>('selectedArtistryAutonomousThreshold', { required: true })
+const selectedArtistrySpawnMode = defineModel<'bg' | 'widget' | 'inline' | 'bg_widget'>('selectedArtistrySpawnMode', { required: true })
 const selectedArtistryConfigStr = defineModel<string>('selectedArtistryConfigStr', { required: true })
 
 const { t } = useI18n()
@@ -88,18 +84,21 @@ ${fieldsStr}
 }
 
 function applyRecommendedInstructions() {
-  if (!pendingInstructionWf.value) return
+  if (!pendingInstructionWf.value)
+    return
   selectedArtistryWidgetInstruction.value = generateAgentInstructions(pendingInstructionWf.value)
   pendingInstructionWf.value = null
 }
 
 function getExposedFieldsCount(wf: ComfyUIWorkflowTemplate) {
-  if (!wf.exposedFields) return 0
+  if (!wf.exposedFields)
+    return 0
   return Object.values(wf.exposedFields).reduce((n: number, arr) => n + (arr?.length || 0), 0)
 }
 
 function openReplicateModel() {
-  if (!selectedArtistryModel.value) return
+  if (!selectedArtistryModel.value)
+    return
   window.open(`https://replicate.com/${selectedArtistryModel.value}`, '_blank')
 }
 </script>
@@ -123,32 +122,25 @@ function openReplicateModel() {
         {{ t('settings.pages.modules.artistry.autonomous.description') }}
       </p>
 
-      <div
-        v-if="selectedArtistryAutonomousEnabled"
-        :class="['space-y-4', 'animate-in', 'fade-in', 'slide-in-from-top-2']"
-      >
+      <div v-if="selectedArtistryAutonomousEnabled" :class="['space-y-4', 'animate-in', 'fade-in', 'slide-in-from-top-2']">
         <FieldRange
           v-model="selectedArtistryAutonomousThreshold"
           :label="t('settings.pages.modules.artistry.autonomous.threshold')"
-          :description="
-            t('settings.pages.modules.artistry.autonomous.threshold_description', {
-              min: t('settings.pages.modules.artistry.autonomous.threshold_min'),
-              max: t('settings.pages.modules.artistry.autonomous.threshold_max'),
-            })
-          "
+          :description="t('settings.pages.modules.artistry.autonomous.threshold_description', {
+            min: t('settings.pages.modules.artistry.autonomous.threshold_min'),
+            max: t('settings.pages.modules.artistry.autonomous.threshold_max'),
+          })"
           :min="0"
           :max="100"
           :step="1"
-          :format-value="(value) => `${value}%`"
+          :format-value="value => `${value}%`"
         />
       </div>
     </div>
 
     <div :class="['grid', 'grid-cols-1', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
       <div :class="['flex', 'flex-col', 'gap-2']">
-        <label
-          :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']"
-        >
+        <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
           <div i-lucide:image />
           {{ t('settings.pages.modules.artistry.provider') }}
         </label>
@@ -161,13 +153,15 @@ function openReplicateModel() {
       </div>
 
       <div :class="['flex', 'flex-col', 'gap-2']">
-        <label
-          :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']"
-        >
+        <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
           <div i-solar:route-bold-duotone />
           {{ t('settings.pages.modules.artistry.spawn_mode.label') }}
         </label>
-        <Select v-model="selectedArtistrySpawnMode" :options="spawnModeOptions" class="w-full" />
+        <Select
+          v-model="selectedArtistrySpawnMode"
+          :options="spawnModeOptions"
+          class="w-full"
+        />
         <p :class="['text-[10px]', 'text-neutral-400', 'px-1']">
           {{ t('settings.pages.modules.artistry.spawn_mode.description') }}
         </p>
@@ -191,12 +185,13 @@ function openReplicateModel() {
         </Button>
       </div>
 
-      <div v-if="selectedArtistryProvider === 'comfyui'" class="mb-2 flex flex-col gap-3">
+      <div
+        v-if="selectedArtistryProvider === 'comfyui'"
+        class="mb-2 flex flex-col gap-3"
+      >
         <div
           v-if="comfyuiWorkflows.length === 0"
-          :class="[
-            'flex flex-row items-center gap-3 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400',
-          ]"
+          :class="['flex flex-row items-center gap-3 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400']"
         >
           <div i-solar:info-circle-bold-duotone class="shrink-0 text-lg" />
           <p>
@@ -217,9 +212,7 @@ function openReplicateModel() {
             @click="handleComfyWorkflowSelect(wf)"
           >
             <span class="text-xs font-bold">{{ wf.name }}</span>
-            <span class="mt-1 text-[10px] opacity-60">
-              {{ t('settings.pages.modules.artistry.card.exposed_fields', { count: getExposedFieldsCount(wf) }) }}
-            </span>
+            <span class="mt-1 text-[10px] opacity-60">{{ t('settings.pages.modules.artistry.card.exposed_fields', { count: getExposedFieldsCount(wf) }) }}</span>
           </Button>
         </div>
       </div>
@@ -237,7 +230,9 @@ function openReplicateModel() {
             variant="ghost"
             size="sm"
             shape="square"
-            :class="['absolute right-3 top-9']"
+            :class="[
+              'absolute right-3 top-9',
+            ]"
             :title="t('settings.pages.modules.artistry.card.open_on_replicate')"
             @click="openReplicateModel"
           >
@@ -254,17 +249,21 @@ function openReplicateModel() {
             {{ t('settings.pages.modules.artistry.card.instruction_sync.title') }}
           </div>
           <p class="text-xs text-neutral-600 dark:text-neutral-400">
-            {{
-              t('settings.pages.modules.artistry.card.instruction_sync.description', {
-                workflowName: pendingInstructionWf.name,
-              })
-            }}
+            {{ t('settings.pages.modules.artistry.card.instruction_sync.description', { workflowName: pendingInstructionWf.name }) }}
           </p>
           <div class="flex items-center gap-2">
-            <Button variant="primary" size="sm" @click="applyRecommendedInstructions">
+            <Button
+              variant="primary"
+              size="sm"
+              @click="applyRecommendedInstructions"
+            >
               {{ t('settings.pages.modules.artistry.card.instruction_sync.apply') }}
             </Button>
-            <Button variant="secondary" size="sm" @click="pendingInstructionWf = null">
+            <Button
+              variant="secondary"
+              size="sm"
+              @click="pendingInstructionWf = null"
+            >
               {{ t('settings.pages.modules.artistry.card.instruction_sync.keep') }}
             </Button>
           </div>

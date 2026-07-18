@@ -1,6 +1,6 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { errorMessageFrom } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -94,12 +94,12 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
   return [
     tool({
       name: 'builtIn_mcpListTools',
-      description:
-        'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
+      description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
       execute: async () => {
         try {
           return await runtime.listTools()
-        } catch (error) {
+        }
+        catch (error) {
           console.warn('[builtIn_mcpListTools] failed to list tools:', error)
           return ''
         }
@@ -113,43 +113,31 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
         try {
           const args = argsJson ? JSON.parse(argsJson) : {}
           return await runtime.callTool({ name, arguments: args })
-        } catch (error) {
-          const reason = errorMessageFrom(error) ?? String(error)
+        }
+        catch (error) {
           return {
             isError: true,
-            content: [
-              {
-                type: 'text',
-                text: [
-                  `MCP tool call failed for "${name}".`,
-                  reason,
-                  'Action required: call builtIn_mcpListTools now to refresh the catalog of available tools.',
-                  'Then retry with a tool from that refreshed list, adapting arguments to its schema.',
-                ].join(' '),
-              },
-            ],
+            content: [{ type: 'text', text: errorMessageFromValue(error) }],
           }
         }
       },
       // NOTICE: `arguments` is z.string() (JSON) because z.unknown() produces `{}` (no `type` key)
       // and z.record() emits `propertyNames`, both rejected by OpenAI.
-      parameters: z
-        .object({
-          name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
-          arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
-        })
-        .strict(),
+      parameters: z.object({
+        name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
+        arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
+      }).strict(),
     }),
   ]
 }
 
 function createUnavailableMcpToolRuntime(): McpToolRuntime {
   return {
-    listTools() {
-      return Promise.reject(new Error('MCP tools are not available in this runtime.'))
+    async listTools() {
+      throw new Error('MCP tools are not available in this runtime.')
     },
-    callTool() {
-      return Promise.reject(new Error('MCP tools are not available in this runtime.'))
+    async callTool() {
+      throw new Error('MCP tools are not available in this runtime.')
     },
   }
 }

@@ -41,17 +41,26 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
 </script>
 
 <template>
-  <Story title="Threshold Meter" group="gadgets" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Threshold Meter"
+    group="gadgets"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="basic-examples" title="Basic Examples">
+    <Variant
+      id="basic-examples"
+      title="Basic Examples"
+    >
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- Detection Confidence -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Detection Confidence</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Detection Confidence
+            </h3>
             <ThresholdMeter
               :value="probability"
               :threshold="0.5"
@@ -64,7 +73,9 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
 
           <!-- Quality Check -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Quality Threshold</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Quality Threshold
+            </h3>
             <ThresholdMeter
               :value="0.85"
               :threshold="0.7"
@@ -77,7 +88,9 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
 
           <!-- Real-time Monitoring -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Real-time Monitoring</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Real-time Monitoring
+            </h3>
             <ThresholdMeter
               :value="animatedValue"
               :threshold="0.6"
@@ -92,12 +105,17 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       </div>
     </Variant>
 
-    <Variant id="ai-ml-applications" title="AI/ML Applications">
+    <Variant
+      id="ai-ml-applications"
+      title="AI/ML Applications"
+    >
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Model Confidence -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">ML Model Confidence</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              ML Model Confidence
+            </h3>
             <ThresholdMeter
               :value="confidence"
               :threshold="0.8"
@@ -113,7 +131,9 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
 
           <!-- Anomaly Detection -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Anomaly Detection</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Anomaly Detection
+            </h3>
             <ThresholdMeter
               :value="0.25"
               :threshold="0.3"
@@ -130,12 +150,17 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       </div>
     </Variant>
 
-    <Variant id="performance-metrics" title="Performance Metrics">
+    <Variant
+      id="performance-metrics"
+      title="Performance Metrics"
+    >
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
           <!-- Response Time -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Response Time</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Response Time
+            </h3>
             <ThresholdMeter
               :value="0.6"
               :threshold="0.8"
@@ -151,7 +176,9 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
 
           <!-- Success Rate -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Success Rate</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Success Rate
+            </h3>
             <ThresholdMeter
               :value="0.94"
               :threshold="0.95"
@@ -165,7 +192,9 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
 
           <!-- Load Factor -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Load Factor</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Load Factor
+            </h3>
             <ThresholdMeter
               :value="0.45"
               :threshold="0.75"
@@ -181,19 +210,34 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       </div>
     </Variant>
 
-    <Variant id="configuration-options" title="Configuration Options">
+    <Variant
+      id="configuration-options"
+      title="Configuration Options"
+    >
       <div class="p-2 space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- No Legend -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Minimal Display</h3>
-            <ThresholdMeter :value="0.75" :threshold="0.5" :show-legend="false" :show-header="false" :height="20" />
-            <p class="mt-2 text-sm text-neutral-500">No header or legend</p>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Minimal Display
+            </h3>
+            <ThresholdMeter
+              :value="0.75"
+              :threshold="0.5"
+              :show-legend="false"
+              :show-header="false"
+              :height="20"
+            />
+            <p class="mt-2 text-sm text-neutral-500">
+              No header or legend
+            </p>
           </div>
 
           <!-- High Resolution -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">High Precision</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              High Precision
+            </h3>
             <ThresholdMeter
               :value="0.73"
               :threshold="0.75"
@@ -202,12 +246,16 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
               :precision="2"
               :height="28"
             />
-            <p class="mt-2 text-sm text-neutral-500">50 bars, 2 decimal places</p>
+            <p class="mt-2 text-sm text-neutral-500">
+              50 bars, 2 decimal places
+            </p>
           </div>
 
           <!-- Custom Range -->
           <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Custom Range</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Custom Range
+            </h3>
             <ThresholdMeter
               :value="3.2"
               :threshold="4.0"
@@ -217,16 +265,23 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
               unit=" stars"
               :precision="1"
             />
-            <p class="mt-2 text-sm text-neutral-500">0-5 scale with custom unit</p>
+            <p class="mt-2 text-sm text-neutral-500">
+              0-5 scale with custom unit
+            </p>
           </div>
         </div>
       </div>
     </Variant>
 
-    <Variant id="interactive-demo" title="Interactive Demo">
+    <Variant
+      id="interactive-demo"
+      title="Interactive Demo"
+    >
       <div class="p-2 space-y-6">
         <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-          <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Adjustable Parameters</h3>
+          <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+            Adjustable Parameters
+          </h3>
 
           <div class="p-2 space-y-6">
             <ThresholdMeter
@@ -251,7 +306,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
                   max="1"
                   step="0.01"
                   class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-neutral-200 dark:bg-neutral-700"
-                />
+                >
               </div>
 
               <div>
@@ -265,7 +320,7 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
                   max="1"
                   step="0.01"
                   class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-neutral-200 dark:bg-neutral-700"
-                />
+                >
               </div>
             </div>
           </div>
@@ -273,10 +328,15 @@ const formatScore = (value: number) => `${value.toFixed(3)}`
       </div>
     </Variant>
 
-    <Variant id="dashboard-example" title="Dashboard Example">
+    <Variant
+      id="dashboard-example"
+      title="Dashboard Example"
+    >
       <div class="p-2 space-y-6">
         <div class="rounded-xl bg-white px-3 py-2 shadow-md dark:bg-neutral-800">
-          <h3 class="mb-6 text-lg text-neutral-700 font-medium dark:text-neutral-300">System Health Dashboard</h3>
+          <h3 class="mb-6 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+            System Health Dashboard
+          </h3>
 
           <div class="grid grid-cols-1 gap-6 lg:grid-cols-4 md:grid-cols-2">
             <div>

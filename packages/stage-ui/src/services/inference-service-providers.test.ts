@@ -1,6 +1,6 @@
-import type { InferenceServiceProvidersRemoteClient } from './inference-service-providers'
-
 import { describe, expect, it, vi } from 'vitest'
+
+import { ATLASCLOUD_DEFAULT_BASE_URL, providerAtlasCloud } from '../libs/providers/providers/atlascloud'
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
 import { inferenceServiceProvidersService } from './inference-service-providers'
 
@@ -26,12 +26,31 @@ describe('services inference-service-providers', () => {
 
   /**
    * @example
+   * const provider = inferenceServiceProvidersService.buildLocal('atlascloud', { apiKey: '...' })
+   */
+  it('lists Atlas Cloud as a built-in OpenAI-compatible provider', () => {
+    const definitions = inferenceServiceProvidersService.listDefinitions()
+    const definition = definitions.find(definition => definition.id === providerAtlasCloud.id)
+    const schema = providerAtlasCloud.createProviderConfig({ t: ((key: string) => key) as any })
+
+    expect(definition?.name).toBe('Atlas Cloud')
+    expect(schema.parse({ apiKey: 'test-key' })).toEqual({
+      apiKey: 'test-key',
+      baseUrl: ATLASCLOUD_DEFAULT_BASE_URL,
+    })
+    expect(inferenceServiceProvidersService.buildLocal(providerAtlasCloud.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
+      definitionId: providerAtlasCloud.id,
+      name: 'Atlas Cloud',
+      config: { apiKey: 'test-key' },
+    }))
+  })
+
+  /**
+   * @example
    * expect(() => inferenceServiceProvidersService.buildLocal('missing')).toThrow()
    */
   it('rejects unknown provider definitions', () => {
-    expect(() => inferenceServiceProvidersService.buildLocal('missing-definition', {})).toThrow(
-      'Provider definition with id "missing-definition" not found.',
-    )
+    expect(() => inferenceServiceProvidersService.buildLocal('missing-definition', {})).toThrow('Provider definition with id "missing-definition" not found.')
   })
 
   /**
@@ -43,20 +62,18 @@ describe('services inference-service-providers', () => {
       api: {
         v1: {
           providers: {
-            $get: vi.fn(() => ({
+            '$get': vi.fn(async () => ({
               ok: true,
-              json: async () => [
-                {
-                  id: 'provider-1',
-                  definitionId: providerOpenAICompatible.id,
-                  name: 'OpenAI Compatible',
-                  config: { baseUrl: 'https://example.com/v1/' },
-                  validated: true,
-                  validationBypassed: false,
-                },
-              ],
+              json: async () => [{
+                id: 'provider-1',
+                definitionId: providerOpenAICompatible.id,
+                name: 'OpenAI Compatible',
+                config: { baseUrl: 'https://example.com/v1/' },
+                validated: true,
+                validationBypassed: false,
+              }],
             })),
-            $post: vi.fn(() => ({
+            '$post': vi.fn(async () => ({
               ok: true,
               json: async () => ({
                 id: 'provider-1',
@@ -68,8 +85,8 @@ describe('services inference-service-providers', () => {
               }),
             })),
             ':id': {
-              $delete: vi.fn(() => ({ ok: true })),
-              $patch: vi.fn(() => ({
+              $delete: vi.fn(async () => ({ ok: true })),
+              $patch: vi.fn(async () => ({
                 ok: true,
                 json: async () => ({
                   id: 'provider-1',
@@ -84,7 +101,7 @@ describe('services inference-service-providers', () => {
           },
         },
       },
-    } as unknown as InferenceServiceProvidersRemoteClient // complex mock client
+    }
 
     await expect(inferenceServiceProvidersService.fetchRemote(client)).resolves.toEqual({
       'provider-1': expect.objectContaining({
@@ -106,8 +123,8 @@ describe('services inference-service-providers', () => {
       api: {
         v1: {
           providers: {
-            $get: vi.fn(),
-            $post: vi.fn(),
+            '$get': vi.fn(),
+            '$post': vi.fn(),
             ':id': {
               $delete: vi.fn(),
               $patch: vi.fn(),
@@ -117,8 +134,6 @@ describe('services inference-service-providers', () => {
       },
     }
 
-    await expect(
-      inferenceServiceProvidersService.fetchRemote(client, { abortSignal: controller.signal }),
-    ).rejects.toThrow()
+    await expect(inferenceServiceProvidersService.fetchRemote(client, { abortSignal: controller.signal })).rejects.toThrow()
   })
 })

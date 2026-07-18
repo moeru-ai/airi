@@ -31,20 +31,17 @@ interface ComboboxOptionGroupItem<T extends AcceptableValue> {
   children?: ComboboxOptionItem<T>[]
 }
 
-const props = withDefaults(
-  defineProps<{
-    options: ComboboxOptionItem<T>[] | ComboboxOptionGroupItem<T>[]
-    placeholder?: string
-    disabled?: boolean
-    openOnClick?: boolean
-    contentMinWidth?: string | number
-    contentWidth?: string | number
-  }>(),
-  {
-    disabled: false,
-    openOnClick: true,
-  },
-)
+const props = withDefaults(defineProps<{
+  options: ComboboxOptionItem<T>[] | ComboboxOptionGroupItem<T>[]
+  placeholder?: string
+  disabled?: boolean
+  openOnClick?: boolean
+  contentMinWidth?: string | number
+  contentWidth?: string | number
+}>(), {
+  disabled: false,
+  openOnClick: true,
+})
 
 const modelValue = defineModel<T>({ required: false })
 
@@ -67,11 +64,11 @@ const normalizedOptions = computed<ComboboxOptionGroupItem<T>[]>(() => {
 })
 
 const flattenedOptions = computed<ComboboxOptionItem<T>[]>(() =>
-  normalizedOptions.value.flatMap((group) => group.children ?? []),
+  normalizedOptions.value.flatMap(group => group.children ?? []),
 )
 
 function toDisplayValue(value: T): string {
-  const option = flattenedOptions.value.find((option) => option.value === value)
+  const option = flattenedOptions.value.find(option => option.value === value)
   return option?.label ?? props.placeholder ?? ''
 }
 
@@ -115,7 +112,11 @@ function toCssSize(value?: string | number): string | undefined {
       <ComboboxTrigger>
         <div
           i-solar:alt-arrow-down-linear
-          :class="['h-4 w-4', 'text-neutral-700 dark:text-neutral-200', 'transition-colors duration-200 ease-in-out']"
+          :class="[
+            'h-4 w-4',
+            'text-neutral-700 dark:text-neutral-200',
+            'transition-colors duration-200 ease-in-out',
+          ]"
         />
       </ComboboxTrigger>
     </ComboboxAnchor>
@@ -154,9 +155,15 @@ function toCssSize(value?: string | number): string | undefined {
             <slot name="empty" />
           </ComboboxEmpty>
 
-          <template v-for="(group, groupIndex) in normalizedOptions" :key="group.groupLabel || `group-${groupIndex}`">
+          <template
+            v-for="(group, groupIndex) in normalizedOptions"
+            :key="group.groupLabel || `group-${groupIndex}`"
+          >
             <ComboboxGroup :class="['overflow-x-hidden']">
-              <ComboboxSeparator v-if="groupIndex !== 0" :class="['m-[5px]', 'h-[1px]', 'bg-neutral-400']" />
+              <ComboboxSeparator
+                v-if="groupIndex !== 0"
+                :class="['m-[5px]', 'h-[1px]', 'bg-neutral-400']"
+              />
 
               <ComboboxLabel
                 v-if="group.groupLabel"
@@ -196,17 +203,38 @@ function toCssSize(value?: string | number): string | undefined {
                 </ComboboxItemIndicator>
 
                 <div :class="['col-start-2', 'min-w-0', 'flex', 'items-center', 'gap-2', 'py-1']">
-                  <slot name="option" v-bind="{ option }">
-                    <span v-if="option.icon" :class="['size-4 shrink-0', 'text-current', option.icon]" />
+                  <slot
+                    name="option"
+                    v-bind="{ option }"
+                  >
+                    <span
+                      v-if="option.icon"
+                      :class="[
+                        'size-4 shrink-0',
+                        'text-current',
+                        option.icon,
+                      ]"
+                    />
 
                     <div :class="['min-w-0', 'flex', 'flex-1', 'flex-col']">
-                      <span :class="['line-clamp-1', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']">
+                      <span
+                        :class="[
+                          'line-clamp-1',
+                          'overflow-hidden',
+                          'text-ellipsis',
+                          'whitespace-nowrap',
+                        ]"
+                      >
                         {{ option.label }}
                       </span>
 
                       <span
                         v-if="option.description"
-                        :class="['line-clamp-2', 'text-xs', 'text-neutral-500 dark:text-neutral-400']"
+                        :class="[
+                          'line-clamp-2',
+                          'text-xs',
+                          'text-neutral-500 dark:text-neutral-400',
+                        ]"
                       >
                         {{ option.description }}
                       </span>

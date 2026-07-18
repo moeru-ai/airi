@@ -25,25 +25,29 @@ function handlePopToast() {
 </script>
 
 <template>
-  <Story title="Toaster PWA Update Ready" group="widgets" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Toaster PWA Update Ready"
+    group="widgets"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="default" title="Default">
+    <Variant
+      id="default"
+      title="Default"
+    >
       <div class="flex flex-col gap-4">
         <div class="border-1 border-red">
-          <ToasterRoot @close="(id) => toast.dismiss(id)">
+          <ToasterRoot @close="id => toast.dismiss(id)">
             <ToasterPWAUpdateReady />
             <Toaster />
           </ToasterRoot>
         </div>
 
         <div>
-          <button
-            class="border-2 border-neutral-200 rounded-lg border-solid px-2 py-1 text-nowrap dark:border-neutral-700"
-            @click="handlePopToast"
-          >
+          <button class="border-2 border-neutral-200 rounded-lg border-solid px-2 py-1 text-nowrap dark:border-neutral-700" @click="handlePopToast">
             Pop one
           </button>
         </div>

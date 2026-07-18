@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import { Checkbox } from '../checkbox'
 
-const props = withDefaults(
-  defineProps<{
-    label?: string
-    description?: string
-    disabled?: boolean
-    /** Controls whether the switch is placed on the left or right side of the label. */
-    placement?: 'left' | 'right'
-  }>(),
-  {
-    placement: 'right',
-  },
-)
+const props = withDefaults(defineProps<{
+  label?: string
+  description?: string
+  disabled?: boolean
+  /** Controls whether the switch is placed on the left or right side of the label. */
+  placement?: 'left' | 'right'
+}>(), {
+  placement: 'right',
+})
 
 const modelValue = defineModel<boolean>({ required: true })
 </script>

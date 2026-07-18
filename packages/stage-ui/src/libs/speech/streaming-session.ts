@@ -1,8 +1,5 @@
-import type { TtsSource, TtsTrigger } from './tts-analytics'
 import { getAuthToken } from '../auth'
-
 import { SERVER_URL } from '../server'
-import { buildStreamingTtsUrl } from './tts-analytics'
 
 /**
  * One control event over the bidirectional streaming TTS protocol
@@ -12,7 +9,13 @@ import { buildStreamingTtsUrl } from './tts-analytics'
  * envelope.
  */
 export interface StreamingTtsServerEvent {
-  event: 'session.started' | 'sentence.start' | 'sentence.end' | 'subtitle' | 'session.finished' | 'error'
+  event:
+    | 'session.started'
+    | 'sentence.start'
+    | 'sentence.end'
+    | 'subtitle'
+    | 'session.finished'
+    | 'error'
   text?: string
   code?: string
   message?: string
@@ -27,7 +30,7 @@ export interface StreamingTtsServerEvent {
 export interface StreamingTtsSessionResult {
   audio: ArrayBuffer
   /** Sentence-level events received from the gateway, in arrival order. */
-  sentences: Array<{ kind: 'start' | 'end' | 'subtitle'; payload?: Record<string, unknown> }>
+  sentences: Array<{ kind: 'start' | 'end' | 'subtitle', payload?: Record<string, unknown> }>
   /** Total bytes accumulated across all binary audio frames. */
   byteLength: number
 }
@@ -52,9 +55,11 @@ export interface StreamingTtsSessionOptions {
    */
   extraBody?: Record<string, unknown>
   /** Business trigger hint sent to server-side product analytics. */
-  ttsTrigger?: TtsTrigger
+  ttsTrigger?: 'auto' | 'manual'
   /** Low-cardinality source hint sent to server-side product analytics. */
-  ttsSource?: TtsSource
+  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  /** Low-cardinality voice bucket sent to server-side product analytics. */
+  ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
   /** Caller-side abort signal. Closes the ws and rejects with `AbortError`. */
   signal?: AbortSignal
 }
@@ -80,14 +85,16 @@ const DEFAULT_RESPONSE_FORMAT = 'mp3' as const
  * - Rejects with the upstream `error.message` on a server error event.
  * - Rejects with the abort reason on signal abort.
  */
-export function streamingSynthesize(options: StreamingTtsSessionOptions): Promise<StreamingTtsSessionResult> {
+export async function streamingSynthesize(options: StreamingTtsSessionOptions): Promise<StreamingTtsSessionResult> {
   const token = options.token ?? getAuthToken()
-  if (!token) throw new Error('streaming-tts: not authenticated')
+  if (!token)
+    throw new Error('streaming-tts: not authenticated')
 
   const baseUrl = options.serverUrl ?? SERVER_URL
-  const wsUrl = buildStreamingTtsUrl(baseUrl, '/api/v1/audio/speech/ws', token, {
+  const wsUrl = toWebSocketUrl(baseUrl, '/api/v1/audio/speech/ws', token, {
     ttsTrigger: options.ttsTrigger ?? 'manual',
     ttsSource: options.ttsSource ?? 'manual_preview',
+    ttsVoiceType: options.ttsVoiceType ?? 'unknown',
   })
 
   const audioChunks: ArrayBuffer[] = []
@@ -100,17 +107,20 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
 
     let settled = false
     function settle(action: () => void) {
-      if (settled) return
+      if (settled)
+        return
       settled = true
       try {
         action()
-      } finally {
+      }
+      finally {
         try {
-          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close()
-        } catch {
-          // noop
+          if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
+            ws.close()
         }
-        if (options.signal != null) options.signal.removeEventListener('abort', onAbort)
+        catch {}
+        if (options.signal != null)
+          options.signal.removeEventListener('abort', onAbort)
       }
     }
 
@@ -118,9 +128,8 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
       settle(() => {
         try {
           ws.send(JSON.stringify({ event: 'cancel' }))
-        } catch {
-          // noop
         }
+        catch {}
         reject(options.signal?.reason ?? new DOMException('aborted', 'AbortError'))
       })
     }
@@ -160,7 +169,8 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
         let evt: StreamingTtsServerEvent
         try {
           evt = JSON.parse(e.data) as StreamingTtsServerEvent
-        } catch {
+        }
+        catch {
           return
         }
 
@@ -188,8 +198,6 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
             settle(() => reject(new Error(`${code}: ${message}`)))
             break
           }
-          default:
-            break
         }
         return
       }
@@ -227,9 +235,30 @@ export function streamingSynthesize(options: StreamingTtsSessionOptions): Promis
   })
 }
 
+function toWebSocketUrl(
+  httpBase: string,
+  path: string,
+  token: string,
+  analytics: {
+    ttsTrigger: 'auto' | 'manual'
+    ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+    ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+  },
+): string {
+  const u = new URL(path, httpBase)
+  u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
+  u.searchParams.set('token', token)
+  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
+  u.searchParams.set('tts_source', analytics.ttsSource)
+  u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
+  return u.toString()
+}
+
 function concatArrayBuffers(parts: ArrayBuffer[]): ArrayBuffer {
-  if (parts.length === 0) return new ArrayBuffer(0)
-  if (parts.length === 1) return parts[0]
+  if (parts.length === 0)
+    return new ArrayBuffer(0)
+  if (parts.length === 1)
+    return parts[0]
   const total = parts.reduce((acc, p) => acc + p.byteLength, 0)
   const out = new Uint8Array(total)
   let offset = 0

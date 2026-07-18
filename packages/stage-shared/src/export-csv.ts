@@ -3,11 +3,14 @@ function quoteField(field: unknown): string {
 }
 
 function toCsv(rows: Array<Array<unknown>>): string {
-  return rows.map((row) => row.map(quoteField).join(',')).join('\n')
+  return rows
+    .map(row => row.map(quoteField).join(','))
+    .join('\n')
 }
 
 export function exportCsv(rows: Array<Array<unknown>>, basename: string) {
-  if (!rows.length) return
+  if (!rows.length)
+    return
 
   if (typeof Blob === 'undefined' || typeof document === 'undefined' || typeof URL === 'undefined') {
     console.warn('[CSV] Export is only supported in browser environments')

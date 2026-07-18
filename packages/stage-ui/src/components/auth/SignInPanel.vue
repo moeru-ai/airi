@@ -7,21 +7,18 @@ import { computed } from 'vue'
 
 import Alert from '../misc/alert.vue'
 
-const props = withDefaults(
-  defineProps<{
-    title?: string
-    subtitle?: string
-    providers: readonly SignInProviderDefinition[]
-    pendingProvider?: OAuthProvider | null
-    error?: string | null
-  }>(),
-  {
-    title: 'Sign in to AIRI',
-    subtitle: 'Choose a provider to continue your authorization flow.',
-    pendingProvider: null,
-    error: null,
-  },
-)
+const props = withDefaults(defineProps<{
+  title?: string
+  subtitle?: string
+  providers: readonly SignInProviderDefinition[]
+  pendingProvider?: OAuthProvider | null
+  error?: string | null
+}>(), {
+  title: 'Sign in to AIRI',
+  subtitle: 'Choose a provider to continue your authorization flow.',
+  pendingProvider: null,
+  error: null,
+})
 
 const emit = defineEmits<{
   select: [provider: OAuthProvider]
@@ -33,7 +30,8 @@ const privacyHref = 'https://airi.moeru.ai/docs/en/about/privacy'
 const hasProviders = computed(() => props.providers.length > 0)
 
 function handleSelect(provider: OAuthProvider) {
-  if (props.pendingProvider) return
+  if (props.pendingProvider)
+    return
 
   emit('select', provider)
 }
@@ -48,7 +46,7 @@ function handleSelect(provider: OAuthProvider) {
   >
     <div
       :class="[
-        'pointer-events-none absolute inset-x-0 top-0 h-36 bg-linear-to-br from-primary-300/35 via-sky-200/20 to-transparent blur-2xl',
+        'pointer-events-none absolute inset-x-0 top-0 h-36 bg-gradient-to-br from-primary-300/35 via-sky-200/20 to-transparent blur-2xl',
         'dark:from-primary-500/15 dark:via-cyan-500/12',
       ]"
     />
@@ -60,12 +58,7 @@ function handleSelect(provider: OAuthProvider) {
         </Callout>
 
         <div :class="['space-y-3']">
-          <div
-            :class="[
-              'inline-flex h-13 w-13 items-center justify-center rounded-2xl bg-neutral-950 text-xl text-white shadow-lg',
-              'dark:bg-white dark:text-neutral-950',
-            ]"
-          >
+          <div :class="['inline-flex h-13 w-13 items-center justify-center rounded-2xl bg-neutral-950 text-xl text-white shadow-lg', 'dark:bg-white dark:text-neutral-950']">
             Ai
           </div>
 
@@ -81,7 +74,9 @@ function handleSelect(provider: OAuthProvider) {
       </div>
 
       <Alert v-if="error" type="error">
-        <template #title>Sign-in failed</template>
+        <template #title>
+          Sign-in failed
+        </template>
         <template #content>
           {{ error }}
         </template>
@@ -98,7 +93,7 @@ function handleSelect(provider: OAuthProvider) {
           :loading="pendingProvider === provider.id"
           :disabled="Boolean(pendingProvider)"
           :class="[
-            'justify-start! rounded-2xl px-5 py-4 text-base font-medium',
+            '!justify-start rounded-2xl px-5 py-4 text-base font-medium',
             'shadow-[0_12px_30px_-24px_rgba(15,23,42,0.6)]',
           ]"
           @click="handleSelect(provider.id)"
@@ -108,23 +103,21 @@ function handleSelect(provider: OAuthProvider) {
       </div>
 
       <Alert v-else type="warning">
-        <template #title>No providers available</template>
-        <template #content>The sign-in page is not configured with any providers yet.</template>
+        <template #title>
+          No providers available
+        </template>
+        <template #content>
+          The sign-in page is not configured with any providers yet.
+        </template>
       </Alert>
 
       <footer :class="['text-xs leading-5 text-neutral-500 dark:text-neutral-400']">
         By continuing, you agree to our
-        <a
-          :href="termsHref"
-          :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']"
-        >
+        <a :href="termsHref" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
           Terms
         </a>
         and
-        <a
-          :href="privacyHref"
-          :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']"
-        >
+        <a :href="privacyHref" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
           Privacy Policy
         </a>
         .

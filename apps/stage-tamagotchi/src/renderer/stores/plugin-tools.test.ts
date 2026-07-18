@@ -6,33 +6,31 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const invokeMocks = vi.hoisted(() => ({
-  invokePluginTool: vi.fn((payload: unknown) => payload),
-  listPluginXsaiTools: vi.fn(() =>
-    Promise.resolve({
-      tools: [
-        {
-          ownerPluginId: 'plugin-chess',
-          name: 'play_chess',
-          description: 'Play a chess move.',
-          parameters: {
-            type: 'object',
-            properties: {},
-          },
+  invokePluginTool: vi.fn(async (payload: unknown) => payload),
+  listPluginXsaiTools: vi.fn(async () => ({
+    tools: [
+      {
+        ownerExtensionId: 'plugin-chess',
+        name: 'play_chess',
+        description: 'Play a chess move.',
+        parameters: {
+          type: 'object',
+          properties: {},
         },
-      ],
-      prompts: [
-        {
-          ownerPluginId: 'plugin-chess',
-          id: 'chess-tools',
-          prompt: {
-            id: 'airi-plugin-game-chess.prompt',
-            title: 'Chess Plugin Guidance',
-            content: 'Do not pass fen or pgn when mode is "new".',
-          },
+      },
+    ],
+    prompts: [
+      {
+        ownerExtensionId: 'plugin-chess',
+        id: 'chess-tools',
+        prompt: {
+          id: 'airi-plugin-game-chess.prompt',
+          title: 'Chess Plugin Guidance',
+          content: 'Do not pass fen or pgn when mode is "new".',
         },
-      ],
-    }),
-  ),
+      },
+    ],
+  })),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
@@ -74,29 +72,26 @@ describe('useTamagotchiPluginToolsStore', async () => {
     await store.refresh()
 
     const pluginTools = llmToolsStore.toolsByProvider['plugin-tools']
-    const playChessTool = pluginTools?.find((tool) => tool.function.name === 'play_chess')
+    const playChessTool = pluginTools?.find(tool => tool.function.name === 'play_chess')
 
     expect(pluginTools).toEqual([
       expect.objectContaining({ function: expect.objectContaining({ name: 'play_chess' }) }),
     ])
     expect(llmToolsetPromptsStore.activeToolsetPrompt).toContain('Do not pass fen or pgn when mode is "new".')
 
-    const executionResult = await playChessTool?.execute(
-      {
-        move: 'e2e4',
-      },
-      toolOptions,
-    )
+    const executionResult = await playChessTool?.execute({
+      move: 'e2e4',
+    }, toolOptions)
 
     expect(invokeMocks.invokePluginTool).toHaveBeenCalledWith({
-      ownerPluginId: 'plugin-chess',
+      ownerExtensionId: 'plugin-chess',
       name: 'play_chess',
       input: {
         move: 'e2e4',
       },
     })
     expect(executionResult).toEqual({
-      ownerPluginId: 'plugin-chess',
+      ownerExtensionId: 'plugin-chess',
       name: 'play_chess',
       input: {
         move: 'e2e4',
@@ -117,21 +112,12 @@ describe('useTamagotchiPluginToolsStore', async () => {
    */
   it('falls back to empty plugin tools when listing xsai tools never resolves during cold start', async () => {
     vi.useFakeTimers()
-    vi.spyOn(console, 'warn').mockImplementation(() => {
-      /* stub — intentionally empty */
-    })
-    invokeMocks.listPluginXsaiTools.mockImplementationOnce(
-      (_req?: undefined, options?: { signal?: AbortSignal }) =>
-        new Promise((_, reject) => {
-          options?.signal?.addEventListener(
-            'abort',
-            () => {
-              reject(options.signal?.reason)
-            },
-            { once: true },
-          )
-        }) as never,
-    )
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    invokeMocks.listPluginXsaiTools.mockImplementationOnce((_req?: undefined, options?: { signal?: AbortSignal }) => new Promise((_, reject) => {
+      options?.signal?.addEventListener('abort', () => {
+        reject(options.signal?.reason)
+      }, { once: true })
+    }))
 
     const llmToolsStore = useLlmToolsStore()
     const store = useTamagotchiPluginToolsStore()

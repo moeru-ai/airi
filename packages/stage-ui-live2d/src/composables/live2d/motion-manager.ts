@@ -7,7 +7,7 @@ import type { useExpressionController } from './expression-controller'
 import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
-export type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
+type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
 export type PixiLive2DInternalModel = InternalModel & {
   eyeBlink?: CubismEyeBlink
@@ -26,7 +26,7 @@ export interface MotionManagerUpdateContext {
 export type MotionManagerPluginContext = MotionManagerUpdateContext & {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
-  modelParameters: Ref<Record<string, number>>
+  modelParameters: Ref<any>
   live2dEyeTrackingEnabled: Ref<boolean>
   live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
@@ -43,7 +43,7 @@ export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
-  modelParameters: Ref<Record<string, number>>
+  modelParameters: Ref<any>
   live2dEyeTrackingEnabled: Ref<boolean>
   live2dEyeFocusSourceActive: Ref<boolean>
   live2dIdleAnimationEnabled: Ref<boolean>
@@ -72,14 +72,18 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   const finalPlugins: MotionManagerPlugin[] = []
 
   function register(plugin: MotionManagerPlugin, stage: 'pre' | 'post' | 'final' = 'pre') {
-    if (stage === 'pre') prePlugins.push(plugin)
-    else if (stage === 'final') finalPlugins.push(plugin)
-    else postPlugins.push(plugin)
+    if (stage === 'pre')
+      prePlugins.push(plugin)
+    else if (stage === 'final')
+      finalPlugins.push(plugin)
+    else
+      postPlugins.push(plugin)
   }
 
   function runPlugins(plugins: MotionManagerPlugin[], ctx: MotionManagerPluginContext) {
     for (const plugin of plugins) {
-      if (ctx.handled) break
+      if (ctx.handled)
+        break
       plugin(ctx)
     }
   }
@@ -87,10 +91,9 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   function hookUpdate(model: CubismModel, now: number, hookedUpdate?: (model: CubismModel, now: number) => boolean) {
     const timeDelta = lastUpdateTime.value ? now - lastUpdateTime.value : 0
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
-    const isIdleMotion =
-      !motionManager.state.currentGroup ||
-      motionManager.state.currentGroup === motionManager.groups.idle ||
-      (Boolean(selectedMotionGroup) && motionManager.state.currentGroup === selectedMotionGroup)
+    const isIdleMotion = !motionManager.state.currentGroup
+      || motionManager.state.currentGroup === motionManager.groups.idle
+      || (!!selectedMotionGroup && motionManager.state.currentGroup === selectedMotionGroup)
 
     const ctx: MotionManagerPluginContext = {
       model,
@@ -117,7 +120,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
     if (!ctx.handled && ctx.hookedUpdate) {
       const result = ctx.hookedUpdate.call(motionManager, model, now)
-      if (result) ctx.handled = true
+      if (result)
+        ctx.handled = true
     }
 
     runPlugins(postPlugins, ctx)
@@ -207,18 +211,15 @@ export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): Mot
 
 export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
   return (ctx) => {
-    if (ctx.handled) return
+    if (ctx.handled)
+      return
 
     // Stop idle motions if they're disabled
     if (!ctx.live2dIdleAnimationEnabled.value && ctx.isIdleMotion) {
       ctx.motionManager.stopAllMotions()
 
-      if (
-        ctx.live2dForceIdleEyeAnimation.value &&
-        (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value)
-      ) {
+      if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
         idleEyeFocus.update(ctx.internalModel, ctx.now)
-      }
       if (ctx.internalModel.eyeBlink != null) {
         ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
       }
@@ -234,15 +235,20 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
 
 export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
   return (ctx) => {
-    if (!ctx.isIdleMotion || ctx.handled) return
-    if (!ctx.live2dForceIdleEyeAnimation.value) return
-    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value) return
+    if (!ctx.isIdleMotion || ctx.handled)
+      return
+    if (!ctx.live2dForceIdleEyeAnimation.value)
+      return
+    if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
+      return
 
     idleEyeFocus.update(ctx.internalModel, ctx.now)
   }
 }
 
-export function useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled?: Ref<boolean>): MotionManagerPlugin {
+export function useMotionUpdatePluginAutoEyeBlink(
+  live2dExpressionEnabled?: Ref<boolean>,
+): MotionManagerPlugin {
   const blinkState = {
     phase: 'idle' as 'idle' | 'closing' | 'opening',
     progress: 0,
@@ -264,8 +270,7 @@ export function useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled?: Ref<
   const maxDelay = 8000
 
   const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
-  const randomBlinkOpenDuration = () =>
-    minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
+  const randomBlinkOpenDuration = () => minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
 
   function resetBlinkState() {
     blinkState.phase = 'idle'
@@ -330,7 +335,8 @@ export function useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled?: Ref<
     // logic from main so that hookUpdate returns the same handled state and
     // the SDK eyeBlink/motion pipeline is not disrupted.
     if (!live2dExpressionEnabled?.value) {
-      if (!ctx.isIdleMotion || ctx.handled) return
+      if (!ctx.isIdleMotion || ctx.handled)
+        return
 
       const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
       const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
@@ -366,7 +372,8 @@ export function useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled?: Ref<
 
     // ===== EXPRESSION ON: MULTIPLY-MODULATE BEHAVIOR =====
     // Run during idle motion only (non-idle motions control eyes via curves).
-    if (!ctx.isIdleMotion) return
+    if (!ctx.isIdleMotion)
+      return
 
     const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
     const baseRight = clamp01(ctx.modelParameters.value.rightEyeOpen)
@@ -423,7 +430,8 @@ export function useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled?: Ref<
     }
 
     // Idle: don't write (avoids feedback-loop decay).
-    if (blinkState.phase === 'idle') return
+    if (blinkState.phase === 'idle')
+      return
 
     // Active blink: saved pre-blink values × blinkFactor.
     ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(preBlinkLeft * blinkFactorL * baseLeft))
@@ -454,6 +462,13 @@ export function useMotionUpdatePluginExpression(
  *
  * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
  * gaps between phonemes write 0 directly instead of triggering the release.
+ *
+ * After the release tail elapses, the plugin keeps forcing ParamMouthOpenY to 0
+ * for a short handoff hold (HANDOFF_HOLD_MS) before handing control back to
+ * motion/expression plugins. This reliably closes the mouth after speech even
+ * when an idle motion curve leaves a non-zero resting value, while still
+ * letting idle mouth expressions take over shortly after speech ends (rather
+ * than overriding them forever).
  */
 export function useMotionUpdatePluginLipSync(
   mouthOpenSize: Ref<number>,
@@ -461,8 +476,14 @@ export function useMotionUpdatePluginLipSync(
 ): MotionManagerPlugin {
   // 200 ms covers a typical phoneme tail without lagging behind the next utterance.
   const RELEASE_DURATION_MS = 200
+  // After the release tail, keep forcing the mouth shut for this long before
+  // handing control back to motion/expression plugins. This guarantees the
+  // mouth actually closes even on the first idle frame, where a non-zero
+  // resting motion curve would otherwise reopen it immediately.
+  const HANDOFF_HOLD_MS = 500
 
   let releaseRemainingMs = 0
+  let handoffRemainingMs = 0
   let lastForcedValue = 0
 
   // Smoothstep: 3t^2 - 2t^3, eases in/out with zero slope at endpoints.
@@ -472,11 +493,22 @@ export function useMotionUpdatePluginLipSync(
     if (nowSpeaking.value) {
       lastForcedValue = mouthOpenSize.value
       releaseRemainingMs = RELEASE_DURATION_MS
+      handoffRemainingMs = HANDOFF_HOLD_MS
       ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
       return
     }
 
-    if (releaseRemainingMs <= 0) return
+    if (releaseRemainingMs <= 0) {
+      if (handoffRemainingMs > 0) {
+        // Release tail elapsed. Keep forcing the mouth shut through the handoff
+        // hold so a non-zero idle motion curve cannot reopen it on the first
+        // idle frame. After the hold we stop owning the parameter and let
+        // motion/expression plugins drive it again.
+        handoffRemainingMs = Math.max(0, handoffRemainingMs - ctx.timeDelta * 1000)
+        ctx.model.setParameterValueById('ParamMouthOpenY', 0)
+      }
+      return
+    }
 
     releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
     const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)

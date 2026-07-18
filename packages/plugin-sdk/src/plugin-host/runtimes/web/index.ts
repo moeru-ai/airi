@@ -1,6 +1,7 @@
-import type { ChannelHost } from '../../../channels/shared'
+import type { EventContext } from '@moeru/eventa'
 
 import type { PluginTransport } from '../../transports'
+
 import { createContext } from '@moeru/eventa'
 
 export * from '../../core'
@@ -8,10 +9,10 @@ export * from '../../shared'
 export * from '../../transports'
 
 /**
- * Creates the Eventa context used by web-side plugin host sessions.
+ * Creates the Eventa context used by web-side extension host sessions.
  *
  * Use when:
- * - Bootstrapping a web runtime plugin session
+ * - Bootstrapping a web runtime extension session
  *
  * Expects:
  * - `transport` describes a transport supported by the web runtime
@@ -19,7 +20,7 @@ export * from '../../transports'
  * Returns:
  * - A web-compatible Eventa context, or throws if the transport is not implemented
  */
-export function createPluginContext(transport: PluginTransport): ChannelHost {
+export function createPluginContext(transport: PluginTransport): EventContext<any, any> {
   switch (transport.kind) {
     case 'in-memory':
       return createContext()

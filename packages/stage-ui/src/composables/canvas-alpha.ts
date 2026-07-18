@@ -27,18 +27,22 @@ export function isCanvasRegionTransparent({
   radius,
   threshold,
 }: CircleHitTestInput) {
-  if (!width || !height) return true
+  if (!width || !height)
+    return true
 
-  if (gl.drawingBufferWidth <= 0 || gl.drawingBufferHeight <= 0) return true
+  if (gl.drawingBufferWidth <= 0 || gl.drawingBufferHeight <= 0)
+    return true
 
   const xIn = clientX - left
   const yIn = clientY - top
   const inCanvas = xIn >= 0 && yIn >= 0 && xIn < width && yIn < height
-  if (!inCanvas) return true
+  if (!inCanvas)
+    return true
 
   const scaleX = gl.drawingBufferWidth / width
   const scaleY = gl.drawingBufferHeight / height
-  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY)) return true
+  if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY))
+    return true
 
   // Translate client-space coords into WebGL buffer space (respecting DPI scaling and flipped Y),
   // then read a bounding box that fully contains the desired radius circle. Later we re-check
@@ -60,7 +64,8 @@ export function isCanvasRegionTransparent({
 
   try {
     gl.readPixels(startX, startY, readWidth, readHeight, gl.RGBA, gl.UNSIGNED_BYTE, data)
-  } catch {
+  }
+  catch {
     return true
   }
 
@@ -74,11 +79,13 @@ export function isCanvasRegionTransparent({
     for (let x = 0; x < readWidth; x += 1) {
       const gx = startX + x
       const dx = (gx - centerX) / scaleX
-      if (dx * dx + dySq > radiusSq) continue
+      if (dx * dx + dySq > radiusSq)
+        continue
 
       const index = (y * readWidth + x) * 4
       const alpha = data[index + 3]
-      if (alpha >= threshold) return false
+      if (alpha >= threshold)
+        return false
     }
   }
 
@@ -106,20 +113,17 @@ export function useCanvasPixelAtPoint(
 
     const xIn = xRef.value - left.value
     const yIn = yRef.value - top.value
-    const isWithinHorizontalBounds = xIn >= 0 && xIn < width.value
-    const isWithinVerticalBounds = yIn >= 0 && yIn < height.value
-    return isWithinHorizontalBounds && isWithinVerticalBounds
+    return xIn >= 0 && yIn >= 0 && xIn < width.value && yIn < height.value
   })
 
   const pixel = computed(() => {
     const el = unrefElement(canvasRef)
-    if (!el || !inCanvas.value) return new Uint8Array([0, 0, 0, 0])
+    if (!el || !inCanvas.value)
+      return new Uint8Array([0, 0, 0, 0])
 
-    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as
-      | WebGL2RenderingContext
-      | WebGLRenderingContext
-      | null
-    if (!gl) return new Uint8Array([0, 0, 0, 0])
+    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as WebGL2RenderingContext | WebGLRenderingContext | null
+    if (!gl)
+      return new Uint8Array([0, 0, 0, 0])
 
     const xIn = xRef.value - left.value
     const yIn = yRef.value - top.value
@@ -133,7 +137,8 @@ export function useCanvasPixelAtPoint(
     const data = new Uint8Array(4)
     try {
       gl.readPixels(pixelX, pixelY, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, data)
-    } catch {
+    }
+    catch {
       return new Uint8Array([0, 0, 0, 0])
     }
 
@@ -146,7 +151,10 @@ export function useCanvasPixelAtPoint(
   }
 }
 
-export function useCanvasPixelIsTransparent(pixel: Ref<Uint8Array | number[]>, threshold = 10): Ref<boolean> {
+export function useCanvasPixelIsTransparent(
+  pixel: Ref<Uint8Array | number[]>,
+  threshold = 10,
+): Ref<boolean> {
   return computed(() => pixel.value[3] < threshold)
 }
 
@@ -154,10 +162,11 @@ export function useCanvasPixelIsTransparentAtPoint(
   canvas: MaybeRefOrGetter<HTMLCanvasElement | undefined>,
   pointX: MaybeRefOrGetter<number>,
   pointY: MaybeRefOrGetter<number>,
-  optionsOrThreshold: number | { threshold?: number; regionRadius?: number } = 10,
+  optionsOrThreshold: number | { threshold?: number, regionRadius?: number } = 10,
 ): Ref<boolean> {
-  const options =
-    typeof optionsOrThreshold === 'number' ? { threshold: optionsOrThreshold, regionRadius: 0 } : optionsOrThreshold
+  const options = typeof optionsOrThreshold === 'number'
+    ? { threshold: optionsOrThreshold, regionRadius: 0 }
+    : optionsOrThreshold
 
   const threshold = options?.threshold ?? 10
   const radius = Math.max(0, options?.regionRadius ?? 0)
@@ -174,13 +183,12 @@ export function useCanvasPixelIsTransparentAtPoint(
 
   return computed(() => {
     const el = unrefElement(canvasRef)
-    if (!el) return true
+    if (!el)
+      return true
 
-    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as
-      | WebGL2RenderingContext
-      | WebGLRenderingContext
-      | null
-    if (!gl) return true
+    const gl = (el.getContext('webgl2') || el.getContext('webgl')) as WebGL2RenderingContext | WebGLRenderingContext | null
+    if (!gl)
+      return true
 
     return isCanvasRegionTransparent({
       gl,

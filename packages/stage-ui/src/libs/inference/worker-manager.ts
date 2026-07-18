@@ -12,7 +12,6 @@
 
 import type {
   ErrorPayload,
-  ErrorResponse,
   LoadModelRequest,
   ModelReadyResponse,
   ProgressPayload,
@@ -25,14 +24,17 @@ import { Mutex } from 'async-mutex'
 
 import { createRequestId } from './protocol'
 
-/** Placeholder to ensure all imports are used */
-void errorMessageFrom
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type WorkerManagerState = 'idle' | 'loading' | 'ready' | 'running' | 'error' | 'terminated'
+export type WorkerManagerState
+  = | 'idle'
+    | 'loading'
+    | 'ready'
+    | 'running'
+    | 'error'
+    | 'terminated'
 
 export interface WorkerManagerOptions {
   /** Factory that creates a fresh Worker instance */
@@ -61,7 +63,10 @@ export interface InferenceWorkerManager {
    * Run inference with the currently loaded model.
    * `TInput` / `TOutput` are opaque to the manager — the adapter defines them.
    */
-  run: <TInput, TOutput>(input: TInput, onProgress?: (p: ProgressPayload) => void) => Promise<TOutput>
+  run: <TInput, TOutput>(
+    input: TInput,
+    onProgress?: (p: ProgressPayload) => void,
+  ) => Promise<TOutput>
 
   /** Unload the current model but keep the worker alive */
   unload: () => Promise<void>
@@ -100,15 +105,19 @@ function waitForWorkerMessage<T extends WorkerOutboundMessage>(
 
     const handler = (event: MessageEvent<WorkerOutboundMessage>) => {
       if (predicate(event.data)) {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
+        if (timeoutId !== undefined)
+          clearTimeout(timeoutId)
         worker.removeEventListener('message', handler)
         resolve(event.data)
-      } else if (event.data.type === 'error') {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
+      }
+      else if (event.data.type === 'error') {
+        if (timeoutId !== undefined)
+          clearTimeout(timeoutId)
         worker.removeEventListener('message', handler)
-        const payload = (event.data as ErrorResponse).payload
+        const payload = (event.data as any).payload
         reject(new Error(payload?.message ?? 'Worker error'))
-      } else {
+      }
+      else {
         onOther?.(event.data)
       }
     }
@@ -133,7 +142,9 @@ const DEFAULT_INFERENCE_TIMEOUT = 120_000
 const DEFAULT_MAX_RESTARTS = 3
 const DEFAULT_RESTART_DELAY_MS = 1_000
 
-export function createInferenceWorkerManager(options: WorkerManagerOptions): InferenceWorkerManager {
+export function createInferenceWorkerManager(
+  options: WorkerManagerOptions,
+): InferenceWorkerManager {
   const {
     createWorker,
     loadTimeout = DEFAULT_LOAD_TIMEOUT,
@@ -158,7 +169,7 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
   }
 
   function handleWorkerError(event: ErrorEvent | Error): void {
-    const message = event instanceof Error ? event.message : ((event as ErrorEvent).message ?? 'Unknown worker error')
+    const message = errorMessageFrom(event) ?? 'Unknown worker error'
 
     lastError = {
       code: 'UNKNOWN',
@@ -184,14 +195,19 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
 
   function scheduleRestart(): void {
     if (restartAttempts >= maxRestarts) {
-      console.error(`[InferenceWorkerManager] Max restart attempts (${maxRestarts}) reached. Giving up.`)
+      console.error(
+        `[InferenceWorkerManager] Max restart attempts (${maxRestarts}) reached. Giving up.`,
+      )
       return
     }
 
     restartAttempts++
     const delay = restartDelayMs * restartAttempts
 
-    console.warn(`[InferenceWorkerManager] Restarting worker in ${delay}ms (attempt ${restartAttempts}/${maxRestarts})`)
+    console.warn(
+      `[InferenceWorkerManager] Restarting worker in ${delay}ms `
+      + `(attempt ${restartAttempts}/${maxRestarts})`,
+    )
 
     setTimeout(() => {
       ensureStarted().catch((err) => {
@@ -226,9 +242,11 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
       const requestId = createRequestId()
 
       const resultPromise = waitForWorkerMessage<ModelReadyResponse>(worker!, {
-        predicate: (msg): msg is ModelReadyResponse => msg.type === 'model-ready' && msg.requestId === requestId,
+        predicate: (msg): msg is ModelReadyResponse =>
+          msg.type === 'model-ready' && msg.requestId === requestId,
         onOther: (msg) => {
-          if (msg.type === 'progress' && msg.requestId === requestId && onProgress) onProgress(msg.payload)
+          if (msg.type === 'progress' && msg.requestId === requestId && onProgress)
+            onProgress(msg.payload)
         },
         timeout: loadTimeout,
       })
@@ -245,7 +263,8 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
         state = 'ready'
         onSuccessfulOperation()
         return result
-      } catch (error) {
+      }
+      catch (error) {
         state = 'error'
         handleWorkerError(error instanceof Error ? error : new Error(errorMessageFrom(error)))
         throw error
@@ -253,19 +272,25 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
     })
   }
 
-  async function run<TInput, TOutput>(input: TInput, onProgress?: (p: ProgressPayload) => void): Promise<TOutput> {
+  async function run<TInput, TOutput>(
+    input: TInput,
+    onProgress?: (p: ProgressPayload) => void,
+  ): Promise<TOutput> {
     return operationMutex.runExclusive(async () => {
-      if (!worker) throw new Error('Worker not initialized. Call loadModel() first.')
+      if (!worker)
+        throw new Error('Worker not initialized. Call loadModel() first.')
 
       state = 'running'
       const requestId = createRequestId()
 
-      type ResultMsg = WorkerOutboundMessage & { type: 'inference-result'; requestId: string }
+      type ResultMsg = WorkerOutboundMessage & { type: 'inference-result', requestId: string }
 
       const resultPromise = waitForWorkerMessage<ResultMsg>(worker, {
-        predicate: (msg): msg is ResultMsg => msg.type === 'inference-result' && msg.requestId === requestId,
+        predicate: (msg): msg is ResultMsg =>
+          msg.type === 'inference-result' && msg.requestId === requestId,
         onOther: (msg) => {
-          if (msg.type === 'progress' && msg.requestId === requestId && onProgress) onProgress(msg.payload)
+          if (msg.type === 'progress' && msg.requestId === requestId && onProgress)
+            onProgress(msg.payload)
         },
         timeout: inferenceTimeout,
       })
@@ -282,7 +307,8 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
         state = 'ready'
         onSuccessfulOperation()
         return result.output as TOutput
-      } catch (error) {
+      }
+      catch (error) {
         state = 'error'
         handleWorkerError(error instanceof Error ? error : new Error(errorMessageFrom(error)))
         throw error
@@ -292,14 +318,16 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
 
   async function unloadModel(): Promise<void> {
     return operationMutex.runExclusive(async () => {
-      if (!worker) return
+      if (!worker)
+        return
 
       const requestId = createRequestId()
 
-      type UnloadedMsg = WorkerOutboundMessage & { type: 'model-unloaded'; requestId: string }
+      type UnloadedMsg = WorkerOutboundMessage & { type: 'model-unloaded', requestId: string }
 
       const resultPromise = waitForWorkerMessage<UnloadedMsg>(worker, {
-        predicate: (msg): msg is UnloadedMsg => msg.type === 'model-unloaded' && msg.requestId === requestId,
+        predicate: (msg): msg is UnloadedMsg =>
+          msg.type === 'model-unloaded' && msg.requestId === requestId,
         timeout: 10_000,
       })
 
@@ -321,11 +349,7 @@ export function createInferenceWorkerManager(options: WorkerManagerOptions): Inf
     run,
     unload: unloadModel,
     terminate: terminateManager,
-    get state() {
-      return state
-    },
-    get lastError() {
-      return lastError
-    },
+    get state() { return state },
+    get lastError() { return lastError },
   }
 }

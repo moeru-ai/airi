@@ -2,9 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { classifyDeviceLossReason, classifyError, InferenceAbortError, isRecoverable, throwIfAborted } from './protocol'
 
-/** Placeholder to ensure all imports are used */
-void isRecoverable
-
 describe('classifyError', () => {
   it('should classify OOM errors', () => {
     expect(classifyError(new Error('out of memory'))).toBe('OOM')
@@ -130,7 +127,7 @@ describe('throwIfAborted', () => {
     expect(() => throwIfAborted(controller.signal)).toThrow()
   })
 
-  it("should throw the signal's reason if it is an Error", () => {
+  it('should throw the signal\'s reason if it is an Error', () => {
     const controller = new AbortController()
     const reason = new Error('custom reason')
     controller.abort(reason)
@@ -142,7 +139,8 @@ describe('throwIfAborted', () => {
     controller.abort('cancelled by string')
     try {
       throwIfAborted(controller.signal)
-    } catch (err) {
+    }
+    catch (err) {
       expect((err as Error).name).toBe('AbortError')
       expect((err as Error).message).toBe('cancelled by string')
       return

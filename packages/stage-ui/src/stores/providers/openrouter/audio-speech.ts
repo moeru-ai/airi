@@ -30,8 +30,10 @@ const OPENAI_VOICES = [
 
 function normalizeBaseUrl(value: unknown): string {
   let base = typeof value === 'string' ? value.trim() : ''
-  if (!base) base = DEFAULT_BASE_URL
-  if (!base.endsWith('/')) base += '/'
+  if (!base)
+    base = DEFAULT_BASE_URL
+  if (!base.endsWith('/'))
+    base += '/'
   return base
 }
 
@@ -52,14 +54,16 @@ async function collectAudioChunksFromSSE(body: ReadableStream<Uint8Array>): Prom
   let done = false
   while (!done) {
     const result = await reader.read()
-    if (result.done) break
+    if (result.done)
+      break
 
     buffer += decoder.decode(result.value, { stream: true })
     const lines = buffer.split('\n')
     buffer = lines.pop()!
 
     for (const line of lines) {
-      if (!line.startsWith('data: ')) continue
+      if (!line.startsWith('data: '))
+        continue
       const data = line.slice('data: '.length).trim()
       if (data === '[DONE]') {
         done = true
@@ -69,8 +73,10 @@ async function collectAudioChunksFromSSE(body: ReadableStream<Uint8Array>): Prom
       try {
         const chunk = JSON.parse(data)
         const audio = chunk.choices?.[0]?.delta?.audio
-        if (audio?.data) audioDataChunks.push(audio.data)
-      } catch (e) {
+        if (audio?.data)
+          audioDataChunks.push(audio.data)
+      }
+      catch (e) {
         console.warn('Skipping malformed SSE chunk from OpenRouter audio stream:', data, e)
       }
     }
@@ -83,7 +89,8 @@ async function collectAudioChunksFromSSE(body: ReadableStream<Uint8Array>): Prom
 function decodeBase64PCM(chunks: string[]): Uint8Array {
   const binaryString = atob(chunks.join(''))
   const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i)
+  for (let i = 0; i < binaryString.length; i++)
+    bytes[i] = binaryString.charCodeAt(i)
   return bytes
 }
 
@@ -97,7 +104,8 @@ function wrapPCM16InWAV(pcmBytes: Uint8Array, sampleRate = 24000): Uint8Array {
   const view = new DataView(header)
 
   const writeStr = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i))
+    for (let i = 0; i < str.length; i++)
+      view.setUint8(offset + i, str.charCodeAt(i))
   }
 
   writeStr(0, 'RIFF')
@@ -129,20 +137,23 @@ function wrapPCM16InWAV(pcmBytes: Uint8Array, sampleRate = 24000): Uint8Array {
  */
 function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
   return async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    if (!init?.body || typeof init.body !== 'string') throw new Error('Invalid request body')
+    if (!init?.body || typeof init.body !== 'string')
+      throw new Error('Invalid request body')
 
     const body = JSON.parse(init.body)
 
     const sseResponse = await globalThis.fetch(new URL('chat/completions', baseUrl), {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         ...OPENROUTER_ATTRIBUTION_HEADERS,
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: 'user', content: TTS_PROMPT_TEMPLATE(body.input) }],
+        messages: [
+          { role: 'user', content: TTS_PROMPT_TEMPLATE(body.input) },
+        ],
         modalities: ['text', 'audio'],
         audio: { voice: body.voice, format: 'pcm16' },
         stream: true,
@@ -182,37 +193,32 @@ async function listModels(baseUrl: string): Promise<ModelInfo[]> {
   const res = await fetch(`${baseUrl}models?output_modality=audio`, {
     headers: OPENROUTER_ATTRIBUTION_HEADERS,
   })
-  if (!res.ok) return []
+  if (!res.ok)
+    return []
 
   const json = await res.json()
   const models = json.data || []
-  return models.map(
-    (m: { id: string; name?: string; description?: string; context_length?: number }) =>
-      ({
-        id: m.id,
-        name: m.name || m.id,
-        provider: PROVIDER_ID,
-        description: m.description || '',
-        contextLength: m.context_length || 0,
-        deprecated: false,
-      }) satisfies ModelInfo,
-  )
+  return models.map((m: { id: string, name?: string, description?: string, context_length?: number }) => ({
+    id: m.id,
+    name: m.name || m.id,
+    provider: PROVIDER_ID,
+    description: m.description || '',
+    contextLength: m.context_length || 0,
+    deprecated: false,
+  } satisfies ModelInfo))
 }
 
 function listVoices(): VoiceInfo[] {
-  return OPENAI_VOICES.map(
-    (id) =>
-      ({
-        id,
-        name: id.charAt(0).toUpperCase() + id.slice(1),
-        provider: PROVIDER_ID,
-        languages: [],
-      }) satisfies VoiceInfo,
-  )
+  return OPENAI_VOICES.map(id => ({
+    id,
+    name: id.charAt(0).toUpperCase() + id.slice(1),
+    provider: PROVIDER_ID,
+    languages: [],
+  } satisfies VoiceInfo))
 }
 
 export function buildOpenRouterAudioSpeechProvider(
-  baseUrlValidator: (baseUrl: unknown) => { errors: unknown[]; reason: string; valid: boolean } | null | undefined,
+  baseUrlValidator: (baseUrl: unknown) => { errors: unknown[], reason: string, valid: boolean } | null | undefined,
 ): ProviderMetadata {
   return {
     id: PROVIDER_ID,
@@ -226,33 +232,39 @@ export function buildOpenRouterAudioSpeechProvider(
     defaultOptions: () => ({
       baseUrl: DEFAULT_BASE_URL,
     }),
-    createProvider: (config) => {
+    createProvider: async (config) => {
       const apiKey = normalizeApiKey(config.apiKey)
       const baseUrl = normalizeBaseUrl(config.baseUrl)
       return createSpeechProvider(apiKey, baseUrl)
     },
     capabilities: {
-      listModels: (config: Record<string, unknown>) =>
-        listModels(normalizeBaseUrl(config.baseUrl)).catch((error) => {
+      listModels: async (config: Record<string, unknown>) => {
+        try {
+          return await listModels(normalizeBaseUrl(config.baseUrl))
+        }
+        catch (error) {
           console.error('Failed to fetch OpenRouter audio models:', error)
           return []
-        }),
-      listVoices: () => Promise.resolve(listVoices()),
+        }
+      },
+      listVoices: async () => listVoices(),
     },
     validators: {
       chatPingCheckAvailable: false,
       validateProviderConfig: (config) => {
         const errors: Error[] = []
-        if (!config.apiKey) errors.push(new Error('API Key is required.'))
+        if (!config.apiKey)
+          errors.push(new Error('API Key is required.'))
 
         if (config.baseUrl) {
           const res = baseUrlValidator(config.baseUrl)
-          if (res) return res
+          if (res)
+            return res
         }
 
         return {
           errors,
-          reason: errors.map((e) => e.message).join(', '),
+          reason: errors.map(e => e.message).join(', '),
           valid: errors.length === 0,
         }
       },

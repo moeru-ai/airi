@@ -1,7 +1,11 @@
 <script setup lang="ts" generic="T extends AcceptableValue">
 import type { AcceptableValue } from 'reka-ui'
 
-import { SelectItem, SelectItemIndicator, SelectItemText } from 'reka-ui'
+import {
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+} from 'reka-ui'
 
 interface SelectOptionItem<T extends AcceptableValue> {
   label: string
@@ -47,16 +51,34 @@ const props = defineProps<{
 
     <div :class="['col-start-2', 'min-w-0', 'flex', 'items-center', 'gap-2', 'py-1']">
       <slot v-bind="{ option: props.option }">
-        <span v-if="props.option.icon" :class="['size-4 shrink-0', 'text-current', props.option.icon]" />
+        <span
+          v-if="props.option.icon"
+          :class="[
+            'size-4 shrink-0',
+            'text-current',
+            props.option.icon,
+          ]"
+        />
 
         <div :class="['min-w-0 flex flex-1 flex-col']">
-          <span :class="['line-clamp-1', 'overflow-hidden', 'text-ellipsis', 'whitespace-nowrap']">
+          <span
+            :class="[
+              'line-clamp-1',
+              'overflow-hidden',
+              'text-ellipsis',
+              'whitespace-nowrap',
+            ]"
+          >
             {{ props.option.label }}
           </span>
 
           <span
             v-if="props.option.description"
-            :class="['line-clamp-2', 'text-xs', 'text-neutral-500 dark:text-neutral-400']"
+            :class="[
+              'line-clamp-2',
+              'text-xs',
+              'text-neutral-500 dark:text-neutral-400',
+            ]"
           >
             {{ props.option.description }}
           </span>

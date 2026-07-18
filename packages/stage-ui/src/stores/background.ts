@@ -1,6 +1,6 @@
-import { useBroadcastChannel } from '@vueuse/core'
-
 import localforage from 'localforage'
+
+import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
@@ -20,15 +20,6 @@ export interface BackgroundEntry {
   prompt?: string // only for journal
   remixId?: string // only for ComfyUI journal entries
   createdAt: number
-}
-
-/** Legacy background entry shape from the old `image-journal-*` store format */
-interface LegacyBackgroundEntry {
-  characterId?: string | null
-  title?: string
-  blob: Blob
-  prompt?: string
-  createdAt?: number
 }
 
 const BUILTIN_BACKGROUNDS = [
@@ -60,16 +51,19 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   const loading = ref(true)
 
   // Track object URLs to prevent leaks
+  const blobRefs = new Map<string, any>()
   const backgroundUrls = reactive<Record<string, string | null>>({})
 
   function ensureObjectUrl(id: string, blob: Blob) {
-    if (backgroundUrls[id]) return backgroundUrls[id]
+    if (backgroundUrls[id])
+      return backgroundUrls[id]
 
     try {
       const url = URL.createObjectURL(blob)
       backgroundUrls[id] = url
       return url
-    } catch (e) {
+    }
+    catch (e) {
       console.error(`[BackgroundStore] Failed to create ObjectURL for ${id}`, e)
       return null
     }
@@ -77,10 +71,10 @@ export const useBackgroundStore = defineStore('background-entries', () => {
 
   onScopeDispose(() => {
     Object.values(backgroundUrls).forEach((url) => {
-      if (url) URL.revokeObjectURL(url)
+      if (url)
+        URL.revokeObjectURL(url)
     })
-    for (const key of Object.keys(backgroundUrls)) {
-      // eslint-disable-next-line ts/no-dynamic-delete
+    for (const key in backgroundUrls) {
       delete backgroundUrls[key]
     }
   })
@@ -92,7 +86,8 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   }
 
   async function initializeStore() {
-    if (loading.value && entries.value.size > 0) return // Already initializing
+    if (loading.value && entries.value.size > 0)
+      return // Already initializing
 
     loading.value = true
     try {
@@ -114,17 +109,16 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       const legacyEntriesToMigrate: BackgroundEntry[] = []
       const legacyKeysToDelete: string[] = []
 
-      await localforage.iterate<LegacyBackgroundEntry, void>((val, key) => {
+      await localforage.iterate<any, void>((val, key) => {
         if (key.startsWith(legacyPrefix)) {
           legacyKeysToDelete.push(key)
-          if (!val || !(val.blob instanceof Blob)) return
           const newId = key.replace(legacyPrefix, STORAGE_PREFIX)
 
           if (!loadedEntries.has(newId)) {
             const migrated: BackgroundEntry = {
               id: newId,
               type: 'journal',
-              characterId: val.characterId ?? null,
+              characterId: val.characterId,
               title: val.title || 'Migrated Journal Image',
               blob: val.blob,
               prompt: val.prompt,
@@ -165,7 +159,8 @@ export const useBackgroundStore = defineStore('background-entries', () => {
             ensureObjectUrl(entry.id, blob)
             await localforage.setItem(entry.id, entry)
             loadedEntries.set(entry.id, entry)
-          } catch (e) {
+          }
+          catch (e) {
             console.error('[BackgroundStore] Failed to seed builtin:', builtin.id, e)
           }
         }
@@ -180,13 +175,14 @@ export const useBackgroundStore = defineStore('background-entries', () => {
           if (url) {
             URL.revokeObjectURL(url)
           }
-          // eslint-disable-next-line ts/no-dynamic-delete
           delete backgroundUrls[id]
         }
       })
-    } catch (error) {
+    }
+    catch (error) {
       console.error('[BackgroundStore] Initialization failed:', error)
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
@@ -198,7 +194,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
     initializeStore()
   })
 
-  function sync() {
+  async function sync() {
     broadcastSync(Date.now())
   }
 
@@ -208,7 +204,8 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   // Find the active background URL for the current character
   const activeBackgroundUrl = computed(() => {
     const airiCardStore = useAiriCardStore()
-    if (!airiCardStore.activeCard) return null
+    if (!airiCardStore.activeCard)
+      return null
     const bgId = airiCardStore.activeCard.extensions?.airi?.modules?.activeBackgroundId
     if (!bgId || bgId === 'none') {
       return null
@@ -242,18 +239,12 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   const getCharacterBackgrounds = computed(() => (characterId?: string) => {
     const list = Array.from(entries.value.values()).filter((e) => {
       // Shared (builtin/scene) or Journal/Selfie for specific character
-      return (
-        e.type === 'scene' ||
-        e.type === 'builtin' ||
-        ((e.type === 'journal' || e.type === 'selfie') && characterId && e.characterId === characterId)
-      )
+      return e.type === 'scene' || e.type === 'builtin' || ((e.type === 'journal' || e.type === 'selfie') && characterId && e.characterId === characterId)
     })
-    return list
-      .map((e) => ({
-        ...e,
-        url: backgroundUrls[e.id] ?? null,
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt)
+    return list.map(e => ({
+      ...e,
+      url: backgroundUrls[e.id] ?? null,
+    })).sort((a, b) => b.createdAt - a.createdAt)
   })
 
   // List of available backgrounds for the current character
@@ -263,17 +254,12 @@ export const useBackgroundStore = defineStore('background-entries', () => {
   })
 
   const getCharacterJournalEntries = computed(() => (characterId?: string) => {
-    return Array.from(entries.value.values())
-      .filter((e) => {
-        const isJournalOrSelfie = e.type === 'journal' || e.type === 'selfie'
-        const matchesCharacter = characterId && e.characterId === characterId
-        return isJournalOrSelfie && matchesCharacter
-      })
-      .map((e) => ({
-        ...e,
-        url: backgroundUrls[e.id] ?? null,
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt)
+    return Array.from(entries.value.values()).filter((e) => {
+      return (e.type === 'journal' || e.type === 'selfie') && characterId && e.characterId === characterId
+    }).map(e => ({
+      ...e,
+      url: backgroundUrls[e.id] ?? null,
+    })).sort((a, b) => b.createdAt - a.createdAt)
   })
 
   // The 'journal' store functionality needs to access just the journal entries for the active char
@@ -288,18 +274,15 @@ export const useBackgroundStore = defineStore('background-entries', () => {
     title: string,
     prompt?: string,
     characterId?: string | null,
-    _remixId?: string,
+    remixId?: string,
   ) {
     const airiCardStore = useAiriCardStore()
     const id = `${STORAGE_PREFIX}${nanoid()}`
 
     // Default to active card if journal and no charId provided
-    const resolvedCharacterId =
-      characterId !== undefined
-        ? characterId
-        : type === 'journal' || type === 'selfie'
-          ? airiCardStore.activeCardId
-          : null
+    const resolvedCharacterId = characterId !== undefined
+      ? characterId
+      : ((type === 'journal' || type === 'selfie') ? airiCardStore.activeCardId : null)
 
     const entry: BackgroundEntry = {
       id,
@@ -308,6 +291,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       title: title.trim() || 'Untitled Background',
       blob,
       prompt,
+      remixId,
       createdAt: Date.now(),
     }
 
@@ -322,7 +306,8 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       initializeStore()
       await sync()
       return id
-    } catch (error) {
+    }
+    catch (error) {
       console.error('[BackgroundStore] Failed to save entry:', error)
       throw error
     }
@@ -336,14 +321,18 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       nextEntries.delete(id)
       entries.value = nextEntries
 
+      const blobRef = blobRefs.get(id)
+      if (blobRef)
+        blobRef.value = undefined
+      blobRefs.delete(id)
       const url = backgroundUrls[id]
       if (url) {
         URL.revokeObjectURL(url)
       }
-      // eslint-disable-next-line ts/no-dynamic-delete
       delete backgroundUrls[id]
       broadcastSync(Date.now())
-    } catch (error) {
+    }
+    catch (error) {
       console.error('[BackgroundStore] Failed to remove entry:', error)
       throw error
     }

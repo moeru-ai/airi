@@ -64,8 +64,8 @@ dialogs:
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
-    title: バク報告　(´;ω;`)ヾ(･∀･`)
-    subtitle: "予期せぬエラーが発生しました　\n何が起こったか報告してくれませんか？"
+    title: バク報告(´;ω;`)ヾ(･∀･`)
+    subtitle: "予期せぬエラーが発生しました\n何が起こったか報告してくれませんか？"
     trigger-label: バグを報告
     submit-label: バグ報告を送信
     triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -137,7 +137,7 @@ live2d:
     title: スケールと位置
     scale: スケール
     x: X
-    y: Y
+    'y': 'Y'
   switch-to-vrm:
     title: 3Dアバターに切り替えますか？
     change-to-vrm: 3Dアバター設定 (VRM) に切り替えるにはここをクリック
@@ -182,7 +182,7 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: ∞
+        unlimited: '∞'
     shadow: Drop shadow
     reset-parameters: デフォルトのパラメータにリセット
   clear-model-cache: Clear model cache
@@ -248,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーアカウントを選ぶか、先に別の AIRI アカウントから連携を解除してください。
+        oauthCallbackFailed: この OAuth アカウントを連携できませんでした。もう一度試すか、別のプロバイダーアカウントを選んでください。
         lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
     security:
       tab: セキュリティ
@@ -308,6 +310,9 @@ pages:
       provider: チャット / プロバイダー
     consciousness:
       model: 意識 / モデル
+    vision:
+      provider: ビジョン / プロバイダー
+      model: ビジョン / モデル
     created_by: 作成者
     creator_notes: 作成者のメモ
     delete: 削除
@@ -385,8 +390,14 @@ pages:
     systemprompt: システムプロンプト
     title: AIRIカード
     try_different_search: 別の検索ワードを試してください
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: アップロード
-    upload_desc: ファイルをアップロードするにはクリックまたはドラッグ
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 記憶が保存され、整理される場所
     title: 記憶
@@ -426,10 +437,11 @@ pages:
       desktop:
         title: デスクトップの設定と状態をリセット
         description: AIRIデスクトップの設定と実行時の状態を消去します。
+        center: Move desktop window to center
         reset: デスクトップのデータをリセット
     confirmations:
       tooltip: 本当によろしいですか？
-      yes: はい
+      'yes': 'はい'
     status:
       exported: チャットセッションをエクスポートしました。
       imported: チャットセッションをインポートしました。
@@ -439,9 +451,10 @@ pages:
       modules_reset: モジュールの設定をリセットしました。
       providers_reset: プロバイダーの設定をリセットしました。
       all_deleted: すべてのローカルデータを削除しました。
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D、VRMなど。
+    description: Live2D、VRM、Spine、など。
     title: モデル
     sections:
       section:
@@ -568,7 +581,7 @@ pages:
           provider-model-selection:
             collapse: 折りたたむ
             custom_model_placeholder: カスタムモデル名を入力…
-            current_model_label: 現在のモデル：
+            current_model_label: '現在のモデル：'
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
             health_check_failed: ヘルスチェックに失敗しました
@@ -679,6 +692,12 @@ pages:
             select-voice:
               loading: モデルを読み込み中…
               required: 音声を選択してください
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: カスタムモデル名を入力…
             custom_voice_placeholder: カスタム音声IDを入力…
@@ -743,7 +762,7 @@ pages:
         empty: Nothing here yet. Add one below!
       add:
         title: New
-        description: 'Fill in a new server, then click "Save and restart" — it''ll move into "Configured" above.'
+        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
         pending-badge: Unsaved
       status:
         unknown: not loaded
@@ -952,6 +971,9 @@ pages:
       chat:
         title: チャット
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1215,6 +1237,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1602,7 +1627,7 @@ vrm:
       座標軸が視覚化されます。
     scale: スケール
     x: Xオフセット
-    y: Yオフセット
+    'y': Yオフセット
     z: Zオフセット
     fov: FOV (度)
     rotation-y: 回転 (Y軸)
@@ -1629,7 +1654,7 @@ spine:
     title: Scale And Position
     scale: Scale
     x: X
-    y: Y
+    'y': 'Y'
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
@@ -1639,6 +1664,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: 外観
   variant:
     title: Variant
     current-variant: Active Variant

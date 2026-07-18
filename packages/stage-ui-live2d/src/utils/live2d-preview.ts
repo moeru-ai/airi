@@ -8,7 +8,6 @@ import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
-
 export async function loadLive2DModelPreview(file: File) {
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
@@ -50,7 +49,8 @@ export async function loadLive2DModelPreview(file: File) {
 
   const cleanup = () => {
     app.destroy()
-    if (offscreenCanvas.isConnected) document.body.removeChild(offscreenCanvas)
+    if (offscreenCanvas.isConnected)
+      document.body.removeChild(offscreenCanvas)
     URL.revokeObjectURL(objUrl)
   }
 
@@ -65,31 +65,25 @@ export async function loadLive2DModelPreview(file: File) {
     modelInstance.scale.set(0.1, 0.1)
     modelInstance.anchor.set(0.5, 0.5)
 
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise(resolve => setTimeout(resolve, 500))
     app.renderer.render(app.stage)
 
     const croppedCanvas = cropImg(offscreenCanvas)
 
     // padding to 12:16
     const paddingCanvas = document.createElement('canvas')
-    paddingCanvas.width =
-      croppedCanvas.width > (croppedCanvas.height / 16) * 12 ? croppedCanvas.width : (croppedCanvas.height / 16) * 12
-    paddingCanvas.height = (paddingCanvas.width / 12) * 16
+    paddingCanvas.width = croppedCanvas.width > croppedCanvas.height / 16 * 12 ? croppedCanvas.width : croppedCanvas.height / 16 * 12
+    paddingCanvas.height = paddingCanvas.width / 12 * 16
     const paddingCanvasCtx = paddingCanvas.getContext('2d')!
 
-    paddingCanvasCtx.drawImage(
-      croppedCanvas,
-      (paddingCanvas.width - croppedCanvas.width) / 2,
-      (paddingCanvas.height - croppedCanvas.height) / 2,
-      croppedCanvas.width,
-      croppedCanvas.height,
-    )
+    paddingCanvasCtx.drawImage(croppedCanvas, (paddingCanvas.width - croppedCanvas.width) / 2, (paddingCanvas.height - croppedCanvas.height) / 2, croppedCanvas.width, croppedCanvas.height)
     const paddingDataUrl = paddingCanvas.toDataURL()
 
     cleanup()
 
     return paddingDataUrl
-  } catch (error) {
+  }
+  catch (error) {
     console.error(error)
     cleanup()
   }

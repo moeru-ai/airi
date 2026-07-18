@@ -1,16 +1,9 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, FieldCombobox, FieldInput, FieldTextArea } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldTextArea } from '@proj-airi/ui'
 import { computed, reactive, ref } from 'vue'
 
-import {
-  widgetsAdd,
-  widgetsClear,
-  widgetsOpenWindow,
-  widgetsPrepareWindow,
-  widgetsRemove,
-  widgetsUpdate,
-} from '../../../shared/eventa'
+import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../shared/eventa'
 
 type SizePreset = 's' | 'm' | 'l' | 'custom'
 
@@ -20,6 +13,7 @@ interface FormState {
   sizePreset: SizePreset
   customCols: string
   customRows: string
+  alwaysOnTop: boolean
   ttlSeconds: string
   componentProps: string
 }
@@ -75,6 +69,7 @@ const form = reactive<FormState>({
   sizePreset: 'm',
   customCols: '2',
   customRows: '1',
+  alwaysOnTop: false,
   ttlSeconds: '',
   componentProps: JSON.stringify(defaultWeatherProps, null, 2),
 })
@@ -83,7 +78,7 @@ const busy = ref(false)
 const lastAction = ref('')
 const lastError = ref('')
 
-const sizePresetOptions: Array<{ label: string; value: SizePreset }> = [
+const sizePresetOptions: Array<{ label: string, value: SizePreset }> = [
   { label: 'Small (s)', value: 's' },
   { label: 'Medium (m)', value: 'm' },
   { label: 'Large (l)', value: 'l' },
@@ -91,7 +86,8 @@ const sizePresetOptions: Array<{ label: string; value: SizePreset }> = [
 ]
 
 const resolvedSize = computed(() => {
-  if (form.sizePreset !== 'custom') return form.sizePreset
+  if (form.sizePreset !== 'custom')
+    return form.sizePreset
 
   const parsedCols = Number.parseInt(form.customCols, 10)
   const parsedRows = Number.parseInt(form.customRows, 10)
@@ -109,16 +105,19 @@ function resetFeedback() {
 function parseProps() {
   try {
     return JSON.parse(form.componentProps || '{}')
-  } catch (error) {
+  }
+  catch (error) {
     throw new Error(`Invalid JSON in component props: ${(error as Error).message}`)
   }
 }
 
 function parseTtl() {
-  if (!form.ttlSeconds) return 0
+  if (!form.ttlSeconds)
+    return 0
 
   const ttl = Number(form.ttlSeconds)
-  if (Number.isNaN(ttl) || ttl < 0) throw new Error('TTL must be a positive number of seconds.')
+  if (Number.isNaN(ttl) || ttl < 0)
+    throw new Error('TTL must be a positive number of seconds.')
 
   return Math.floor(ttl * 1000)
 }
@@ -128,7 +127,8 @@ async function prepareAndOpenWindow(targetId?: string) {
     const id = await prepareWindow(targetId ? { id: targetId } : {})
     await openWidgets({ id })
     return id
-  } catch (error) {
+  }
+  catch (error) {
     console.warn('Failed to prepare widget window', error)
     throw error
   }
@@ -152,17 +152,21 @@ async function handleAdd() {
       id: preparedId,
       componentName: form.componentName.trim(),
       componentProps,
+      alwaysOnTop: form.alwaysOnTop,
       size: resolvedSize.value,
       ttlMs,
     })
 
     const resolvedId = createdId || preparedId
-    if (!form.id && resolvedId) form.id = resolvedId
+    if (!form.id && resolvedId)
+      form.id = resolvedId
 
     lastAction.value = `Spawned widget${resolvedId ? ` (${resolvedId})` : ''}.`
-  } catch (error) {
+  }
+  catch (error) {
     lastError.value = (error as Error).message || 'Failed to spawn widget.'
-  } finally {
+  }
+  finally {
     busy.value = false
   }
 }
@@ -181,11 +185,14 @@ async function handleUpdate() {
     await updateWidget({
       id: form.id,
       componentProps,
+      alwaysOnTop: form.alwaysOnTop,
     })
     lastAction.value = `Updated widget (${form.id}).`
-  } catch (error) {
+  }
+  catch (error) {
     lastError.value = (error as Error).message || 'Failed to update widget.'
-  } finally {
+  }
+  finally {
     busy.value = false
   }
 }
@@ -202,9 +209,11 @@ async function handleRemove() {
   try {
     await removeWidget({ id: form.id })
     lastAction.value = `Removed widget (${form.id}).`
-  } catch (error) {
+  }
+  catch (error) {
     lastError.value = (error as Error).message || 'Failed to remove widget.'
-  } finally {
+  }
+  finally {
     busy.value = false
   }
 }
@@ -216,9 +225,11 @@ async function handleClear() {
   try {
     await clearWidgets()
     lastAction.value = 'Cleared all widgets.'
-  } catch (error) {
+  }
+  catch (error) {
     lastError.value = (error as Error).message || 'Failed to clear widgets.'
-  } finally {
+  }
+  finally {
     busy.value = false
   }
 }
@@ -229,6 +240,7 @@ function applyWeatherPreset() {
   form.customCols = '2'
   form.customRows = '1'
   form.componentProps = JSON.stringify(defaultWeatherProps, null, 2)
+  form.alwaysOnTop = false
   form.ttlSeconds = ''
   resetFeedback()
 }
@@ -239,6 +251,7 @@ function applyMapPreset() {
   form.customCols = '3'
   form.customRows = '2'
   form.componentProps = JSON.stringify(defaultMapProps, null, 2)
+  form.alwaysOnTop = false
   form.ttlSeconds = ''
   resetFeedback()
 }
@@ -249,6 +262,7 @@ function applyExtensionUiPreset() {
   form.customCols = '4'
   form.customRows = '3'
   form.componentProps = JSON.stringify({}, null, 2)
+  form.alwaysOnTop = false
   form.ttlSeconds = ''
   resetFeedback()
 }
@@ -266,17 +280,60 @@ function applyExtensionUiPreset() {
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
-        <Button variant="secondary" :disabled="busy" @click="applyWeatherPreset">Weather Preset</Button>
-        <Button variant="secondary" :disabled="busy" @click="applyMapPreset">Map Preset</Button>
-        <Button variant="secondary" :disabled="busy" @click="applyExtensionUiPreset">Extension UI Preset</Button>
+        <Button
+          variant="secondary"
+          :disabled="busy"
+          @click="applyWeatherPreset"
+        >
+          Weather Preset
+        </Button>
+        <Button
+          variant="secondary"
+          :disabled="busy"
+          @click="applyMapPreset"
+        >
+          Map Preset
+        </Button>
+        <Button
+          variant="secondary"
+          :disabled="busy"
+          @click="applyExtensionUiPreset"
+        >
+          Extension UI Preset
+        </Button>
       </div>
     </div>
 
     <div class="flex flex-wrap gap-3">
-      <Button variant="primary" :disabled="busy" @click="handleAdd">Spawn / Replace</Button>
-      <Button variant="secondary" :disabled="busy" @click="handleUpdate">Update Props</Button>
-      <Button variant="secondary" :disabled="busy" @click="handleRemove">Remove Widget</Button>
-      <Button class="ml-auto" variant="danger" :disabled="busy" @click="handleClear">Clear All</Button>
+      <Button
+        variant="primary"
+        :disabled="busy"
+        @click="handleAdd"
+      >
+        Spawn / Replace
+      </Button>
+      <Button
+        variant="secondary"
+        :disabled="busy"
+        @click="handleUpdate"
+      >
+        Update Props
+      </Button>
+      <Button
+        variant="secondary"
+        :disabled="busy"
+        @click="handleRemove"
+      >
+        Remove Widget
+      </Button>
+      <Button
+        class="ml-auto"
+        variant="danger"
+        :disabled="busy"
+        @click="handleClear"
+      >
+        Clear All
+      </Button>
     </div>
 
     <div class="grid gap-4 md:grid-cols-2">
@@ -329,6 +386,12 @@ function applyExtensionUiPreset() {
       min="0"
       placeholder="0"
       :required="false"
+    />
+
+    <FieldCheckbox
+      v-model="form.alwaysOnTop"
+      label="Pin on top"
+      description="Keep this widget window above other windows after spawning or updating."
     />
 
     <FieldTextArea

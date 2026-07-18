@@ -1,7 +1,16 @@
 import type { VRM } from '@pixiv/three-vrm'
-import type { AnimationMixer, WebGLRenderer } from 'three'
+import type { WebGLRenderer } from 'three'
 
-import { Bone, BoxGeometry, Mesh, MeshStandardMaterial, Scene, Skeleton, SkinnedMesh, Texture } from 'three'
+import {
+  Bone,
+  BoxGeometry,
+  Mesh,
+  MeshStandardMaterial,
+  Scene,
+  Skeleton,
+  SkinnedMesh,
+  Texture,
+} from 'three'
 import { describe, expect, it } from 'vitest'
 
 import { createThreeRendererMemorySnapshot, createVrmSceneSummarySnapshot } from './snapshots'
@@ -63,10 +72,10 @@ describe('stage three runtime snapshots', () => {
     scene.add(mesh)
     scene.add(skinnedMesh)
 
-    const summary = createVrmSceneSummarySnapshot(
-      { scene } as unknown as VRM,
-      { _actions: [1, 2, 3] } as unknown as AnimationMixer,
-    )
+    const summary = createVrmSceneSummarySnapshot({
+      mixer: { _actions: [1, 2, 3] } as any,
+      vrm: { scene } as unknown as VRM,
+    })
 
     expect(summary.sceneChildCount).toBe(2)
     expect(summary.meshCount).toBe(2)

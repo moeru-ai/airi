@@ -1,4 +1,4 @@
-import type { ChannelHost } from '../../../../../channels/shared'
+import type { EventContext } from '@moeru/eventa'
 
 import { defineInvoke } from '@moeru/eventa'
 
@@ -17,7 +17,7 @@ import { protocolListProviders, protocolListProvidersEventName } from '../../../
  * Returns:
  * - A client with `listProviders()` that waits for capability readiness before invoking
  */
-export function createProviders(ctx: ChannelHost) {
+export function createProviders(ctx: EventContext<any, any>) {
   return {
     async listProviders() {
       const waitForCapability = defineInvoke(ctx, protocolCapabilityWait)

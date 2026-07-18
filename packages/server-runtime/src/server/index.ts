@@ -1,3 +1,5 @@
+import type { H3CrossWsApp, H3CrossWsResponse } from '@proj-airi/better-ws/server/h3'
+
 import type { AppOptions } from '..'
 
 import { isIP } from 'node:net'
@@ -5,7 +7,7 @@ import { networkInterfaces } from 'node:os'
 
 import { useLogg } from '@guiiai/logg'
 import { merge } from '@moeru/std'
-import { plugin as ws } from 'crossws/server'
+import { createH3CrossWsPlugin } from '@proj-airi/better-ws/server/h3'
 import { serve } from 'h3'
 
 import { normalizeLoggerConfig, setupApp } from '..'
@@ -33,12 +35,10 @@ export interface Server {
 }
 
 function isAddressInUseError(error: unknown) {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
-  )
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
 }
 
 /**
@@ -58,19 +58,34 @@ export function getLocalIPs(): string[] {
   const interfaces = networkInterfaces()
   const addresses = new Set<string>()
 
-  const VIRTUAL_INTERFACE_PREFIXES = ['vboxnet', 'vmnet', 'docker', 'br-', 'veth', 'utun', 'wg', 'tap', 'tun']
-  const isVirtualInterface = (name: string) => VIRTUAL_INTERFACE_PREFIXES.some((prefix) => name.startsWith(prefix))
+  const VIRTUAL_INTERFACE_PREFIXES = [
+    'vboxnet',
+    'vmnet',
+    'docker',
+    'br-',
+    'veth',
+    'utun',
+    'wg',
+    'tap',
+    'tun',
+  ]
+  const isVirtualInterface = (name: string) =>
+    VIRTUAL_INTERFACE_PREFIXES.some(prefix => name.startsWith(prefix))
 
   for (const [name, entries] of Object.entries(interfaces)) {
-    if (!entries) continue
-    if (isVirtualInterface(name)) continue
+    if (!entries)
+      continue
+    if (isVirtualInterface(name))
+      continue
 
     for (const entry of entries) {
       const rawAddress = entry.address
-      if (!rawAddress) continue
+      if (!rawAddress)
+        continue
 
       const address = rawAddress.includes('%') ? rawAddress.split('%')[0] : rawAddress
-      if (isIP(address)) addresses.add(address)
+      if (isIP(address))
+        addresses.add(address)
     }
   }
 
@@ -98,7 +113,7 @@ export function createServer(opts?: ServerOptions): Server {
   let serverInstance: ServerInstance | null = null
   let startTask: Promise<void> | null = null
 
-  log.withFields({ hasTlsConfig: Boolean(options?.tlsConfig) }).log('creating server channel')
+  log.withFields({ hasTlsConfig: !!options?.tlsConfig }).log('creating server channel')
 
   async function closeServer(closeActiveConnections = false) {
     if (!serverInstance || typeof serverInstance.close !== 'function') {
@@ -113,14 +128,16 @@ export function createServer(opts?: ServerOptions): Server {
       if (closeActiveConnections) {
         log.log('existing server instance closed')
       }
-    } catch (error) {
+    }
+    catch (error) {
       const nodejsError = error as NodeJS.ErrnoException
       if ('code' in nodejsError && nodejsError.code === 'ERR_SERVER_NOT_RUNNING') {
         return
       }
 
       log.withError(error).error('Error closing WebSocket server')
-    } finally {
+    }
+    finally {
       serverInstance = null
     }
   }
@@ -136,13 +153,15 @@ export function createServer(opts?: ServerOptions): Server {
     startTask = (async () => {
       const secureEnabled = options?.tlsConfig != null
       const h3App = setupApp(options)
+      const crossWsApp = {
+        fetch: async request => await h3App.app.fetch(request) as H3CrossWsResponse,
+      } satisfies H3CrossWsApp
 
       const port = options.port
       const hostname = options.hostname
 
       const instance = serve(h3App.app, {
-        // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async (req) => (await h3App.app.fetch(req)).crossws })],
+        plugins: [createH3CrossWsPlugin(crossWsApp)],
         port,
         hostname,
         tls: options?.tlsConfig || undefined,
@@ -169,18 +188,18 @@ export function createServer(opts?: ServerOptions): Server {
 
         const protocol = secureEnabled ? 'wss' : 'ws'
         if (hostname === '0.0.0.0') {
-          const ips = getLocalIPs().filter((ip) => ip !== '127.0.0.1' && ip !== '::1')
+          const ips = getLocalIPs().filter(ip => ip !== '127.0.0.1' && ip !== '::1')
           const targets = ips.length > 0 ? ips.join(', ') : 'localhost'
           log.log(`@proj-airi/server-runtime started on ${protocol}://0.0.0.0:${port} (reachable via: ${targets})`)
-        } else {
+        }
+        else {
           log.log(`@proj-airi/server-runtime started on ${protocol}://${hostname}:${port}`)
         }
-      } catch (error) {
+      }
+      catch (error) {
         serverInstance = null
         h3App.dispose()
-        await instance.close(true).catch(() => {
-          /* noop — best-effort close */
-        })
+        await instance.close(true).catch(() => {})
         if (isAddressInUseError(error)) {
           log.withError(error).warn('WebSocket server port already in use, assuming an existing listener is available')
           return

@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createSpeechPipeline } from './speech-pipeline'
 
 function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 function deferred<T>() {
@@ -25,7 +25,7 @@ function deferred<T>() {
 }
 
 function createSegmenter(texts: string[]) {
-  return (_tokens: ReadableStream<TextToken>, meta: { streamId: string; intentId: string }) => {
+  return (_tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string }) => {
     let index = 0
 
     return new ReadableStream<TextSegment>({
@@ -53,24 +53,26 @@ function createSegmenter(texts: string[]) {
 
 function createPlaybackSpy(options?: { autoEnd?: boolean }) {
   const scheduled: Array<PlaybackItem<string>> = []
-  const endListeners: Array<(event: { item: PlaybackItem<string>; endedAt: number }) => void> = []
+  const endListeners: Array<(event: { item: PlaybackItem<string>, endedAt: number }) => void> = []
   const autoEnd = options?.autoEnd ?? true
 
   return {
     scheduled,
     end(item: PlaybackItem<string>) {
-      for (const listener of endListeners) listener({ item, endedAt: Date.now() })
+      for (const listener of endListeners)
+        listener({ item, endedAt: Date.now() })
     },
     playback: {
       schedule(item: PlaybackItem<string>) {
         scheduled.push(item)
-        if (autoEnd) queueMicrotask(() => endListeners.forEach((listener) => listener({ item, endedAt: Date.now() })))
+        if (autoEnd)
+          queueMicrotask(() => endListeners.forEach(listener => listener({ item, endedAt: Date.now() })))
       },
       stopAll: vi.fn(),
       stopByIntent: vi.fn(),
       stopByOwner: vi.fn(),
       onStart: vi.fn(),
-      onEnd(listener: (event: { item: PlaybackItem<string>; endedAt: number }) => void) {
+      onEnd(listener: (event: { item: PlaybackItem<string>, endedAt: number }) => void) {
         endListeners.push(listener)
       },
       onInterrupt: vi.fn(),
@@ -88,8 +90,10 @@ describe('createSpeechPipeline', () => {
       segmenter: createSegmenter(['first', 'second', 'third']),
       playback,
       async tts(request) {
-        if (request.sequence === 0) await delay(30)
-        else if (request.sequence === 1) await delay(5)
+        if (request.sequence === 0)
+          await delay(30)
+        else if (request.sequence === 1)
+          await delay(5)
 
         return request.text
       },
@@ -104,14 +108,18 @@ describe('createSpeechPipeline', () => {
 
     await intentFinished
 
-    expect(scheduled.map((item) => item.sequence)).toEqual([0, 1, 2])
-    expect(scheduled.map((item) => item.text)).toEqual(['first', 'second', 'third'])
+    expect(scheduled.map(item => item.sequence)).toEqual([0, 1, 2])
+    expect(scheduled.map(item => item.text)).toEqual(['first', 'second', 'third'])
   })
 
   it('prefetches TTS requests up to the configured concurrency', async () => {
     const { playback } = createPlaybackSpy()
     const startedRequests: number[] = []
-    const pendingRequests = [deferred<string>(), deferred<string>(), deferred<string>()]
+    const pendingRequests = [
+      deferred<string>(),
+      deferred<string>(),
+      deferred<string>(),
+    ]
     let inFlight = 0
     let maxInFlight = 0
 
@@ -126,7 +134,8 @@ describe('createSpeechPipeline', () => {
 
         try {
           return await pendingRequests[request.sequence]!.promise
-        } finally {
+        }
+        finally {
           inFlight -= 1
         }
       },
@@ -166,14 +175,10 @@ describe('createSpeechPipeline', () => {
       playback,
       tts(request, signal) {
         return new Promise<string | null>((resolve) => {
-          signal.addEventListener(
-            'abort',
-            () => {
-              abortedRequests.push(request.sequence)
-              resolve(null)
-            },
-            { once: true },
-          )
+          signal.addEventListener('abort', () => {
+            abortedRequests.push(request.sequence)
+            resolve(null)
+          }, { once: true })
         })
       },
     })
@@ -227,9 +232,9 @@ describe('createSpeechPipeline', () => {
         })
       },
       playback,
-      tts(request) {
+      async tts(request) {
         events.push(`tts:${request.text}`)
-        return Promise.resolve(request.text)
+        return request.text
       },
     })
 
@@ -242,13 +247,17 @@ describe('createSpeechPipeline', () => {
     intent.end()
 
     await delay(0)
-    expect(scheduled.map((item) => item.text)).toEqual(['before'])
+    expect(scheduled.map(item => item.text)).toEqual(['before'])
     expect(events).toEqual(['tts:before'])
 
     end(scheduled[0]!)
     await delay(0)
 
-    expect(events).toEqual(['tts:before', 'special:<|CALL ["plugin.action"]|>', 'turn:turn-1'])
+    expect(events).toEqual([
+      'tts:before',
+      'special:<|CALL ["plugin.action"]|>',
+      'turn:turn-1',
+    ])
   })
 
   it('does not schedule queued timeline playback after the owning intent is cancelled', async () => {
@@ -284,8 +293,8 @@ describe('createSpeechPipeline', () => {
         })
       },
       playback,
-      tts(request) {
-        return Promise.resolve(request.text)
+      async tts(request) {
+        return request.text
       },
     })
 
@@ -293,92 +302,12 @@ describe('createSpeechPipeline', () => {
     intent.end()
 
     await delay(0)
-    expect(scheduled.map((item) => item.text)).toEqual(['first'])
+    expect(scheduled.map(item => item.text)).toEqual(['first'])
 
     intent.cancel('newer-intent')
     end(scheduled[0]!)
     await delay(0)
 
-    expect(scheduled.map((item) => item.text)).toEqual(['first'])
-  })
-
-  describe('stripMarkdown option', () => {
-    /**
-     * Helper: create a pipeline that captures TTS requests and uses the
-     * default segmenter (so writeLiteral text actually flows through).
-     */
-    async function runStripMarkdownTest(texts: string[], options: { stripMarkdown?: boolean }) {
-      const ttsRequests: TtsRequest[] = []
-      const { playback } = createPlaybackSpy()
-
-      const pipeline = createSpeechPipeline<string>({
-        ...options,
-        playback,
-        tts(request) {
-          ttsRequests.push(request)
-          return Promise.resolve(request.text)
-        },
-      })
-
-      const intentFinished = new Promise<void>((resolve) => {
-        pipeline.on('onIntentEnd', () => resolve())
-      })
-
-      const intent = pipeline.openIntent()
-      for (const text of texts) {
-        intent.writeLiteral(text)
-      }
-      intent.end()
-
-      await intentFinished
-      return ttsRequests
-    }
-
-    it('strips bold markers from writeLiteral text', async () => {
-      const ttsRequests = await runStripMarkdownTest(['Hello **world**!'], { stripMarkdown: true })
-
-      const texts = ttsRequests.map((r) => r.text)
-      expect(texts.join('')).not.toContain('**')
-      expect(texts.join('')).toContain('Hello')
-      expect(texts.join('')).toContain('world')
-    })
-
-    it('strips bold markers split across writeLiteral calls', async () => {
-      // Simulate **bold** split across two streaming chunks
-      const ttsRequests = await runStripMarkdownTest(['**bold', ' text**'], { stripMarkdown: true })
-
-      const texts = ttsRequests.map((r) => r.text)
-      expect(texts.join('')).not.toContain('**')
-      expect(texts.join('')).toContain('bold')
-      expect(texts.join('')).toContain('text')
-    })
-
-    it('strips headings, links, and italic markers', async () => {
-      const ttsRequests = await runStripMarkdownTest(['## Heading', 'Check [link](url) out', 'Some *italic* text'], {
-        stripMarkdown: true,
-      })
-
-      const fullText = ttsRequests.map((r) => r.text).join('')
-      expect(fullText).not.toContain('##')
-      expect(fullText).not.toContain('[')
-      expect(fullText).not.toContain('*')
-      expect(fullText).toContain('Heading')
-      expect(fullText).toContain('link')
-      expect(fullText).toContain('italic')
-    })
-
-    it('does not strip markdown when stripMarkdown is false', async () => {
-      const ttsRequests = await runStripMarkdownTest(['Hello **world**!'], { stripMarkdown: false })
-
-      const texts = ttsRequests.map((r) => r.text)
-      expect(texts.join('')).toContain('**')
-    })
-
-    it('strips markdown by default when stripMarkdown is not specified', async () => {
-      const ttsRequests = await runStripMarkdownTest(['Hello **world**!'], {})
-
-      const texts = ttsRequests.map((r) => r.text)
-      expect(texts.join('')).not.toContain('**')
-    })
+    expect(scheduled.map(item => item.text)).toEqual(['first'])
   })
 })

@@ -9,16 +9,11 @@ interface TestOption {
   value: string
 }
 
-const props = withDefaults(
-  defineProps<{
-    options: TestOption[]
-    result?: ElectronMcpStdioTestResult
-    running: boolean
-  }>(),
-  {
-    result: undefined,
-  },
-)
+const props = defineProps<{
+  options: TestOption[]
+  result?: ElectronMcpStdioTestResult
+  running: boolean
+}>()
 
 const emit = defineEmits<{
   test: []
@@ -27,11 +22,9 @@ const emit = defineEmits<{
 const selectedRowId = defineModel<string>({ required: true })
 
 const { t } = useI18n()
-const tn = (key: string, params?: Record<string, unknown>) =>
-  t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
+const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
-const PANEL =
-  'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
+const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 </script>
 
 <template>
@@ -69,11 +62,9 @@ const PANEL =
     <Callout
       v-if="props.result"
       :theme="props.result.ok ? 'lime' : 'orange'"
-      :label="
-        props.result.ok
-          ? tn('test.success', { count: props.result.tools?.length ?? 0, ms: props.result.durationMs })
-          : tn('test.failure', { ms: props.result.durationMs })
-      "
+      :label="props.result.ok
+        ? tn('test.success', { count: props.result.tools?.length ?? 0, ms: props.result.durationMs })
+        : tn('test.failure', { ms: props.result.durationMs })"
     >
       <div v-if="!props.result.ok && props.result.error" class="break-all text-xs">
         {{ props.result.error }}

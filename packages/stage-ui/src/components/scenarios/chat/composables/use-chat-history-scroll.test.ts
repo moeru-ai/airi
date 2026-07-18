@@ -34,14 +34,11 @@ function setContainerScrollTo(container: HTMLElement, handler: (options?: Scroll
   })
 }
 
-function defineScrollMetrics(
-  element: HTMLElement,
-  metrics: {
-    clientHeight?: number
-    scrollHeight?: number
-    scrollTop?: number
-  },
-) {
+function defineScrollMetrics(element: HTMLElement, metrics: {
+  clientHeight?: number
+  scrollHeight?: number
+  scrollTop?: number
+}) {
   let scrollTop = metrics.scrollTop ?? 0
 
   Object.defineProperty(element, 'clientHeight', {
@@ -71,10 +68,12 @@ async function flushDom() {
 function createRequestAnimationFrameController() {
   const callbacks: FrameRequestCallback[] = []
 
-  const stub = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
-    callbacks.push(callback)
-    return callbacks.length
-  })
+  const stub = vi
+    .spyOn(window, 'requestAnimationFrame')
+    .mockImplementation((callback: FrameRequestCallback) => {
+      callbacks.push(callback)
+      return callbacks.length
+    })
 
   function runNextFrame() {
     const callback = callbacks.shift()
@@ -82,7 +81,8 @@ function createRequestAnimationFrameController() {
   }
 
   function runAllFrames() {
-    while (callbacks.length > 0) runNextFrame()
+    while (callbacks.length > 0)
+      runNextFrame()
   }
 
   return {
@@ -121,7 +121,10 @@ describe('useChatHistoryScroll', () => {
       scrollTop: 240,
     })
 
-    const initialMessages = [createUserMessage('user-1', 'hello', 1), createAssistantMessage('assistant-1', 'hi', 2)]
+    const initialMessages = [
+      createUserMessage('user-1', 'hello', 1),
+      createAssistantMessage('assistant-1', 'hi', 2),
+    ]
 
     const messageList = ref<ChatHistoryItem[]>(initialMessages)
     renderMessages(container, messageList.value)
@@ -140,7 +143,7 @@ describe('useChatHistoryScroll', () => {
       useChatHistoryScroll({
         containerRef: ref(container),
         messages: messageList,
-        getKey: (message) => message.id!,
+        getKey: message => message.id!,
       })
     })
 
@@ -194,7 +197,7 @@ describe('useChatHistoryScroll', () => {
       useChatHistoryScroll({
         containerRef: ref(container),
         messages: messageList,
-        getKey: (message) => message.id!,
+        getKey: message => message.id!,
       })
     })
 
@@ -240,7 +243,7 @@ describe('useChatHistoryScroll', () => {
       return useChatHistoryScroll({
         containerRef: ref(container),
         messages: messageList,
-        getKey: (message) => message.id!,
+        getKey: message => message.id!,
       })
     })
 
@@ -249,7 +252,8 @@ describe('useChatHistoryScroll', () => {
 
     const firstNode = container.querySelector('[data-chat-message-key="user-1"]')
     expect(firstNode).not.toBeNull()
-    if (!firstNode) throw new Error('Expected first chat node to exist.')
+    if (!firstNode)
+      throw new Error('Expected first chat node to exist.')
     firstNode.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
     await flushDom()
 
@@ -274,12 +278,16 @@ describe('useChatHistoryScroll', () => {
       scrollTop: 240,
     })
 
-    const messageList = ref<ChatHistoryItem[]>([createAssistantMessage('assistant-1', 'hello', 1)])
+    const messageList = ref<ChatHistoryItem[]>([
+      createAssistantMessage('assistant-1', 'hello', 1),
+    ])
     renderMessages(container, messageList.value)
 
     const scrollIntoView = vi.fn(function (this: HTMLElement) {
-      if (this.dataset.chatMessageKey === 'user-1') container.scrollTop = 180
-      else if (this.dataset.chatMessageKey === 'assistant-2') container.scrollTop = 260
+      if (this.dataset.chatMessageKey === 'user-1')
+        container.scrollTop = 180
+      else if (this.dataset.chatMessageKey === 'assistant-2')
+        container.scrollTop = 260
     })
     HTMLElement.prototype.scrollIntoView = scrollIntoView
     setContainerScrollTo(container, vi.fn())
@@ -290,7 +298,7 @@ describe('useChatHistoryScroll', () => {
       useChatHistoryScroll({
         containerRef: ref(container),
         messages: messageList,
-        getKey: (message) => message.id!,
+        getKey: message => message.id!,
       })
     })
 
@@ -335,7 +343,9 @@ describe('useChatHistoryScroll', () => {
       scrollTop: 240,
     })
 
-    const messageList = ref<ChatHistoryItem[]>([createAssistantMessage('assistant-1', 'hello', 1)])
+    const messageList = ref<ChatHistoryItem[]>([
+      createAssistantMessage('assistant-1', 'hello', 1),
+    ])
     renderMessages(container, messageList.value)
 
     const scrollIntoView = vi.fn()
@@ -348,7 +358,7 @@ describe('useChatHistoryScroll', () => {
       useChatHistoryScroll({
         containerRef: ref(container),
         messages: messageList,
-        getKey: (message) => message.id!,
+        getKey: message => message.id!,
       })
     })
 
@@ -397,7 +407,7 @@ describe('useChatHistoryScroll', () => {
       useChatHistoryScroll({
         containerRef: ref(container),
         messages: messageList,
-        getKey: (message) => message.id!,
+        getKey: message => message.id!,
       })
     })
 

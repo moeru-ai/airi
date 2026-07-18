@@ -9,7 +9,10 @@ import { H3 } from 'h3'
 
 import { HttpError } from '../errors'
 import { createH3Server } from '../server'
-import { normalizeStaticAssetPath, resolveStaticAssetFilePath } from './paths'
+import {
+  normalizeStaticAssetPath,
+  resolveStaticAssetFilePath,
+} from './paths'
 import { createStaticAssetRoute } from './route'
 import { createStaticAssetSessionStore } from './session-store'
 
@@ -36,13 +39,13 @@ export interface StaticAssetService extends ServerManager {
  * - A higher-level plugin asset service needs an HTTP transport adapter
  *
  * Expects:
- * - `getManifestEntryByName` returns up-to-date plugin root/version map
+ * - `getManifestEntryByExtensionId` returns up-to-date extension root/version map
  *
  * Returns:
  * - Lifecycle service with session create/revoke APIs and local base URL getter
  */
 export function createStaticAssetService(options: {
-  getManifestEntryByName: () => Map<string, StaticAssetManifestEntry>
+  getManifestEntryByExtensionId: () => Map<string, StaticAssetManifestEntry>
   host?: string
   sessionStore?: StaticAssetSessionStore
   getType?: (ext: string) => string | undefined
@@ -57,11 +60,11 @@ export function createStaticAssetService(options: {
   const getManifestEntryForRequest = (extensionId: string) => {
     const cache = manifestEntryRequestCache.getStore()
     if (!cache) {
-      return options.getManifestEntryByName().get(extensionId)
+      return options.getManifestEntryByExtensionId().get(extensionId)
     }
 
     if (!cache.has(extensionId)) {
-      cache.set(extensionId, options.getManifestEntryByName().get(extensionId))
+      cache.set(extensionId, options.getManifestEntryByExtensionId().get(extensionId))
     }
 
     return cache.get(extensionId)
@@ -69,10 +72,10 @@ export function createStaticAssetService(options: {
 
   const staticAssetRoute = createStaticAssetRoute({
     getType,
-    authorize: ({ extensionId, assetSessionId, assetPath, cookieValue }) => {
+    authorize: async ({ extensionId, assetSessionId, assetPath, cookieValue }) => {
       const entry = getManifestEntryForRequest(extensionId)
       if (!entry) {
-        return Promise.resolve({
+        return {
           ok: false,
           error: new HttpError({
             status: 401,
@@ -80,18 +83,16 @@ export function createStaticAssetService(options: {
             message: 'Unauthorized',
             reason: 'extension manifest entry does not exist for requested extensionId',
           }),
-        })
+        }
       }
 
-      return Promise.resolve(
-        sessionStore.validateRequest({
-          extensionId,
-          version: entry.version,
-          assetSessionId,
-          assetPath,
-          cookieValue,
-        }),
-      )
+      return sessionStore.validateRequest({
+        extensionId,
+        version: entry.version,
+        assetSessionId,
+        assetPath,
+        cookieValue,
+      })
     },
     refreshSession: sessionStore.refreshSession,
     resolveAsset: async ({ extensionId, assetPath }) => {
@@ -128,7 +129,8 @@ export function createStaticAssetService(options: {
       if (!filePath) {
         try {
           await stat(candidatePath)
-        } catch {
+        }
+        catch {
           return {
             ok: false,
             error: new HttpError({
@@ -171,7 +173,8 @@ export function createStaticAssetService(options: {
           size: fileStats.size,
           mtime: fileStats.mtimeMs,
         }
-      } catch {
+      }
+      catch {
         return {
           ok: false,
           error: new HttpError({
@@ -185,7 +188,7 @@ export function createStaticAssetService(options: {
     },
   })
 
-  app.use('/_airi/extensions/**', (event) => manifestEntryRequestCache.run(new Map(), () => staticAssetRoute(event)))
+  app.use('/_airi/extensions/**', event => manifestEntryRequestCache.run(new Map(), () => staticAssetRoute(event)))
 
   return {
     key: 'static-assets',

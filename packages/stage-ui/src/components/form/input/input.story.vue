@@ -11,60 +11,121 @@ const urlValue = ref('https://example.com')
 </script>
 
 <template>
-  <Story title="Input" group="form" :layout="{ type: 'grid', width: 300 }">
+  <Story
+    title="Input"
+    group="form"
+    :layout="{ type: 'grid', width: 300 }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="text-empty" title="Text Input (Empty)">
+    <Variant
+      id="text-empty"
+      title="Text Input (Empty)"
+    >
       <div>
-        <Input v-model="textValue" placeholder="Enter text..." />
+        <Input
+          v-model="textValue"
+          placeholder="Enter text..."
+        />
       </div>
     </Variant>
 
-    <Variant id="text-filled" title="Text Input (Filled)">
+    <Variant
+      id="text-filled"
+      title="Text Input (Filled)"
+    >
       <div>
-        <Input v-model="filledTextValue" placeholder="Enter text..." />
+        <Input
+          v-model="filledTextValue"
+          placeholder="Enter text..."
+        />
       </div>
     </Variant>
 
-    <Variant id="password" title="Password Input">
+    <Variant
+      id="password"
+      title="Password Input"
+    >
       <div>
-        <Input v-model="passwordValue" type="password" placeholder="Enter password..." />
+        <Input
+          v-model="passwordValue"
+          type="password"
+          placeholder="Enter password..."
+        />
       </div>
     </Variant>
 
-    <Variant id="email" title="Email Input">
+    <Variant
+      id="email"
+      title="Email Input"
+    >
       <div>
-        <Input v-model="emailValue" type="email" placeholder="Enter email..." />
+        <Input
+          v-model="emailValue"
+          type="email"
+          placeholder="Enter email..."
+        />
       </div>
     </Variant>
 
-    <Variant id="number" title="Number Input">
+    <Variant
+      id="number"
+      title="Number Input"
+    >
       <div>
-        <Input v-model="numberValue" type="number" placeholder="Enter number..." />
+        <Input
+          v-model="numberValue"
+          type="number"
+          placeholder="Enter number..."
+        />
       </div>
     </Variant>
 
-    <Variant id="url" title="URL Input">
+    <Variant
+      id="url"
+      title="URL Input"
+    >
       <div>
-        <Input v-model="urlValue" type="url" placeholder="Enter URL..." />
+        <Input
+          v-model="urlValue"
+          type="url"
+          placeholder="Enter URL..."
+        />
       </div>
     </Variant>
 
-    <Variant id="disabled" title="Disabled Input">
+    <Variant
+      id="disabled"
+      title="Disabled Input"
+    >
       <div>
-        <Input v-model="filledTextValue" placeholder="This input is disabled" disabled />
+        <Input
+          v-model="filledTextValue"
+          placeholder="This input is disabled"
+          disabled
+        />
       </div>
     </Variant>
 
-    <Variant id="readonly" title="Readonly Input">
+    <Variant
+      id="readonly"
+      title="Readonly Input"
+    >
       <div>
-        <Input v-model="filledTextValue" placeholder="This input is readonly" readonly />
+        <Input
+          v-model="filledTextValue"
+          placeholder="This input is readonly"
+          readonly
+        />
       </div>
     </Variant>
 
-    <Variant id="with-classes" title="With Custom Classes">
+    <Variant
+      id="with-classes"
+      title="With Custom Classes"
+    >
       <div>
         <Input
           v-model="textValue"
@@ -74,9 +135,16 @@ const urlValue = ref('https://example.com')
       </div>
     </Variant>
 
-    <Variant id="with-autofocus" title="With Autofocus">
+    <Variant
+      id="with-autofocus"
+      title="With Autofocus"
+    >
       <div>
-        <Input v-model="textValue" placeholder="This input has autofocus" autofocus />
+        <Input
+          v-model="textValue"
+          placeholder="This input has autofocus"
+          autofocus
+        />
       </div>
     </Variant>
   </Story>

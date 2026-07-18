@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onErrorCaptured, ref } from 'vue'
+import { onErrorCaptured, ref } from 'vue'
 
 import ContainerError from './container-error.vue'
 
@@ -72,9 +72,7 @@ function retry() {
   emit('retry')
 }
 
-const hasError = computed(() => capturedError.value != null)
-
-defineExpose({ retry, hasError })
+defineExpose({ retry, hasError: () => capturedError.value != null })
 </script>
 
 <template>
@@ -82,7 +80,12 @@ defineExpose({ retry, hasError })
     <slot :key="renderKey" />
   </template>
   <template v-else>
-    <slot name="fallback" :error="capturedError" :info="capturedInfo" :retry="retry">
+    <slot
+      name="fallback"
+      :error="capturedError"
+      :info="capturedInfo"
+      :retry="retry"
+    >
       <div :class="['flex flex-col gap-3 p-4 max-w-2xl mx-auto']">
         <div v-if="props.title" :class="['text-base font-semibold text-red-700 dark:text-red-300']">
           {{ props.title }}
@@ -90,7 +93,10 @@ defineExpose({ retry, hasError })
         <div v-if="capturedInfo" :class="['text-xs text-neutral-500 dark:text-neutral-400']">
           During: {{ capturedInfo }}
         </div>
-        <ContainerError :error="capturedError" height-preset="lg" />
+        <ContainerError
+          :error="capturedError"
+          height-preset="lg"
+        />
         <div v-if="props.retryable" :class="['flex justify-end']">
           <button
             type="button"

@@ -3,12 +3,19 @@ import { Skeleton } from '@proj-airi/ui'
 </script>
 
 <template>
-  <Story title="Skeleton" group="misc" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Skeleton"
+    group="misc"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="basic" title="Basic Skeleton">
+    <Variant
+      id="basic"
+      title="Basic Skeleton"
+    >
       <div class="space-y-4">
         <Skeleton class="h-6 w-full rounded-lg" />
         <Skeleton class="h-6 w-3/4 rounded-lg" />
@@ -16,7 +23,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="pulse-animation" title="Pulse Animation">
+    <Variant
+      id="pulse-animation"
+      title="Pulse Animation"
+    >
       <div class="space-y-4">
         <Skeleton animation="pulse" class="h-6 w-full rounded-lg" />
         <Skeleton animation="pulse" class="h-6 w-3/4 rounded-lg" />
@@ -24,7 +34,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="wave-animation" title="Wave Animation">
+    <Variant
+      id="wave-animation"
+      title="Wave Animation"
+    >
       <div class="space-y-4">
         <Skeleton animation="wave" class="h-6 w-full rounded-lg" />
         <Skeleton animation="wave" class="h-6 w-3/4 rounded-lg" />
@@ -32,7 +45,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="no-animation" title="No Animation">
+    <Variant
+      id="no-animation"
+      title="No Animation"
+    >
       <div class="space-y-4">
         <Skeleton animation="none" class="h-6 w-full rounded-lg" />
         <Skeleton animation="none" class="h-6 w-3/4 rounded-lg" />
@@ -40,7 +56,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="card-loading" title="Card Loading State">
+    <Variant
+      id="card-loading"
+      title="Card Loading State"
+    >
       <div class="border border-neutral-200 rounded-xl p-4 space-y-4 dark:border-neutral-800">
         <Skeleton class="h-40 w-full rounded-lg" />
         <Skeleton class="h-5 w-3/4 rounded-md" />
@@ -52,7 +71,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="profile-loading" title="Profile Loading State">
+    <Variant
+      id="profile-loading"
+      title="Profile Loading State"
+    >
       <div class="flex items-center gap-4">
         <Skeleton class="h-16 w-16 rounded-full" />
         <div class="flex-1 space-y-2">
@@ -63,7 +85,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="form-loading" title="Form Loading State">
+    <Variant
+      id="form-loading"
+      title="Form Loading State"
+    >
       <div class="space-y-6">
         <div class="space-y-1">
           <Skeleton class="h-5 w-24 rounded-md" />
@@ -87,7 +112,10 @@ import { Skeleton } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="table-loading" title="Table Loading State">
+    <Variant
+      id="table-loading"
+      title="Table Loading State"
+    >
       <div class="overflow-hidden border border-neutral-200 rounded-lg dark:border-neutral-800">
         <div class="flex border-b border-neutral-200 bg-neutral-100 p-4 dark:border-neutral-800 dark:bg-neutral-900">
           <Skeleton class="h-6 w-1/4 rounded-md" />

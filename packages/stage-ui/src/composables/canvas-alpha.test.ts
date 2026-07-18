@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { isCanvasRegionTransparent } from './canvas-alpha'
 
 interface GlMockOptions {
-  hotPixel?: { x: number; y: number; alpha?: number }
+  hotPixel?: { x: number, y: number, alpha?: number }
   width?: number
   height?: number
 }
@@ -32,12 +32,14 @@ function createGlMock(options: GlMockOptions = {}) {
     ) => {
       data.fill(0)
 
-      if (!hotPixel) return
+      if (!hotPixel)
+        return
 
       const { x, y, alpha = 255 } = hotPixel
       const withinX = x >= startX && x < startX + readWidth
       const withinY = y >= startY && y < startY + readHeight
-      if (!withinX || !withinY) return
+      if (!withinX || !withinY)
+        return
 
       const relX = x - startX
       const relY = y - startY

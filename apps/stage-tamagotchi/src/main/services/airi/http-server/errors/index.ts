@@ -64,10 +64,15 @@ export function toH3HttpError(error: HttpError, options: H3HttpErrorOptions = {}
 }
 
 function defaultHttpMessage(status: number) {
-  if (status === 400) return 'Bad Request'
-  if (status === 401) return 'Unauthorized'
-  if (status === 403) return 'Forbidden'
-  if (status === 404) return 'Not Found'
-  if (status >= 500) return 'Internal Server Error'
+  if (status === 400)
+    return 'Bad Request'
+  if (status === 401)
+    return 'Unauthorized'
+  if (status === 403)
+    return 'Forbidden'
+  if (status === 404)
+    return 'Not Found'
+  if (status >= 500)
+    return 'Internal Server Error'
   return 'Request Failed'
 }

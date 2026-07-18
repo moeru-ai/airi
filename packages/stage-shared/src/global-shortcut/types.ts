@@ -9,7 +9,13 @@
  * - `shift`       — Shift.
  * - `super`       — Super / Win / Meta key.
  */
-export type ShortcutModifier = 'cmd-or-ctrl' | 'cmd' | 'ctrl' | 'alt' | 'shift' | 'super'
+export type ShortcutModifier
+  = | 'cmd-or-ctrl'
+    | 'cmd'
+    | 'ctrl'
+    | 'alt'
+    | 'shift'
+    | 'super'
 
 /**
  * Key identifier following the W3C `KeyboardEvent.code` convention.
@@ -102,9 +108,11 @@ export const ShortcutFailureReasons = {
    * presses).
    */
   Unsupported: 'unsupported',
+  /** The requested binding is well-formed but unsafe or not accepted by policy. */
+  Invalid: 'invalid',
 } as const
 
-export type ShortcutFailureReason = (typeof ShortcutFailureReasons)[keyof typeof ShortcutFailureReasons]
+export type ShortcutFailureReason = typeof ShortcutFailureReasons[keyof typeof ShortcutFailureReasons]
 
 /**
  * Outcome of a registration request.
@@ -113,10 +121,10 @@ export type ShortcutFailureReason = (typeof ShortcutFailureReasons)[keyof typeof
  * `actualAccelerator` is populated when the host had to substitute the
  * requested accelerator (e.g. user choice via a Wayland portal dialog).
  */
-export type ShortcutRegistrationResult = { id: string } & (
-  | { ok: true; actualAccelerator?: ShortcutAccelerator }
-  | { ok: false; reason: ShortcutFailureReason }
-)
+export type ShortcutRegistrationResult
+  = { id: string }
+    & ({ ok: true, actualAccelerator?: ShortcutAccelerator }
+      | { ok: false, reason: ShortcutFailureReason })
 
 /**
  * In-memory shortcut config. Bump `version` on any breaking schema

@@ -1,14 +1,11 @@
 <script setup lang="ts">
-const props = withDefaults(
-  defineProps<{
-    frequencies: number[]
-    barsClass?: string
-    scale?: 'linear' | 'logarithm'
-  }>(),
-  {
-    scale: 'logarithm',
-  },
-)
+const props = withDefaults(defineProps<{
+  frequencies: number[]
+  barsClass?: string
+  scale?: 'linear' | 'logarithm'
+}>(), {
+  scale: 'logarithm',
+})
 
 const AMPLIFICATION = 5
 
@@ -22,22 +19,25 @@ function getHeightBounds(totalBars: number) {
   // Fewer bars get a slightly higher floor; more bars get a lower floor
   const dynamicMin = 2 + 12 / Math.max(1, Math.sqrt(totalBars || 1))
   const minHeight = Math.min(18, dynamicMin)
-  const maxHeight = Math.max(minHeight + 8, 100 - minHeight * 0.15)
+  const maxHeight = Math.max(minHeight + 8, 100 - (minHeight * 0.15))
 
   return { minHeight, maxHeight }
 }
 
 function toLogScale(normalized: number) {
   const logMax = Math.log1p(AMPLIFICATION)
-  return logMax === 0 ? 0 : Math.log1p(Math.max(0, normalized) * AMPLIFICATION) / logMax
+  return logMax === 0
+    ? 0
+    : Math.log1p(Math.max(0, normalized) * AMPLIFICATION) / logMax
 }
 
 function getBarHeight(frequency: number, index: number) {
   const reductionFactor = getReductionFactor(index, props.frequencies.length)
   const { minHeight, maxHeight } = getHeightBounds(props.frequencies.length)
   const normalizedFrequency = Math.min(1, Math.max(0, frequency)) * reductionFactor
-  const normalized =
-    props.scale === 'linear' ? Math.min(1, normalizedFrequency * AMPLIFICATION) : toLogScale(normalizedFrequency)
+  const normalized = props.scale === 'linear'
+    ? Math.min(1, normalizedFrequency * AMPLIFICATION)
+    : toLogScale(normalizedFrequency)
 
   const scaled = normalized * 100
   return Math.min(maxHeight, Math.max(minHeight, scaled))
@@ -48,12 +48,7 @@ function getBarHeight(frequency: number, index: number) {
   <div h-full flex items-center gap-1>
     <div v-for="(frequency, index) in frequencies" :key="index" h-full flex flex-1 items-end>
       <div
-        transition="all 100 ease-in-out"
-        mx-auto
-        my-0
-        w-full
-        rounded-full
-        :class="barsClass"
+        transition="all 100 ease-in-out" mx-auto my-0 w-full rounded-full :class="barsClass"
         :style="{ height: `${getBarHeight(frequency, index)}%` }"
       />
     </div>

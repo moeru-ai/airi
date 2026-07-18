@@ -42,11 +42,11 @@ function animate() {
 
   // Update activity data (sudden spikes)
   let activityBase = 0.1
-  if (frameCount % 30 === 0) {
-    // Spike every 30 frames
+  if (frameCount % 30 === 0) { // Spike every 30 frames
     activityBase = 0.8 + Math.random() * 0.2
   }
-  currentActivity.value = Math.max(0, Math.min(1, currentActivity.value * 0.9 + activityBase * 0.1))
+  currentActivity.value = Math.max(0, Math.min(1, currentActivity.value * 0.9 + activityBase * 0.1,
+  ))
   activityHistory.value.push(currentActivity.value)
   if (activityHistory.value.length > maxHistoryLength) {
     activityHistory.value.shift()
@@ -85,9 +85,7 @@ onUnmounted(() => {
 // Static data for examples
 const staticData1 = [0.2, 0.3, 0.5, 0.7, 0.6, 0.8, 0.9, 0.7, 0.5, 0.4, 0.6, 0.8, 0.9, 0.8, 0.6, 0.4, 0.3, 0.5, 0.7, 0.9]
 const staticData2 = [0.1, 0.2, 0.1, 0.9, 0.8, 0.2, 0.1, 0.3, 0.2, 0.1, 0.8, 0.9, 0.2, 0.1, 0.4, 0.3, 0.2, 0.8, 0.9, 0.3]
-const staticData3 = [
-  0.5, 0.52, 0.48, 0.51, 0.49, 0.53, 0.47, 0.52, 0.48, 0.51, 0.49, 0.53, 0.47, 0.52, 0.48, 0.51, 0.49, 0.53, 0.47, 0.52,
-]
+const staticData3 = [0.5, 0.52, 0.48, 0.51, 0.49, 0.53, 0.47, 0.52, 0.48, 0.51, 0.49, 0.53, 0.47, 0.52, 0.48, 0.51, 0.49, 0.53, 0.47, 0.52]
 
 // Custom formatters
 const formatPercentage = (value: number) => `${(value * 100).toFixed(0)}%`
@@ -96,12 +94,19 @@ const formatDecimal = (value: number) => value.toFixed(3)
 </script>
 
 <template>
-  <Story title="Time Series Chart" group="gadgets" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Time Series Chart"
+    group="gadgets"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="real-time-monitoring" title="Real-time Monitoring">
+    <Variant
+      id="real-time-monitoring"
+      title="Real-time Monitoring"
+    >
       <div class="space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Performance Monitoring -->
@@ -144,7 +149,10 @@ const formatDecimal = (value: number) => value.toFixed(3)
       </div>
     </Variant>
 
-    <Variant id="activity-detection" title="Activity Detection">
+    <Variant
+      id="activity-detection"
+      title="Activity Detection"
+    >
       <div class="space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Event Detection -->
@@ -185,7 +193,10 @@ const formatDecimal = (value: number) => value.toFixed(3)
       </div>
     </Variant>
 
-    <Variant id="static-examples" title="Static Data Examples">
+    <Variant
+      id="static-examples"
+      title="Static Data Examples"
+    >
       <div class="space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
           <!-- Success Rate -->
@@ -238,12 +249,17 @@ const formatDecimal = (value: number) => value.toFixed(3)
       </div>
     </Variant>
 
-    <Variant id="configuration-options" title="Configuration Options">
+    <Variant
+      id="configuration-options"
+      title="Configuration Options"
+    >
       <div class="space-y-6">
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 md:grid-cols-2">
           <!-- Minimal Display -->
           <div class="rounded-xl px-3 py-2 shadow-md">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Minimal Chart</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Minimal Chart
+            </h3>
             <TimeSeriesChart
               :history="staticData1"
               :current-value="0.7"
@@ -256,12 +272,16 @@ const formatDecimal = (value: number) => value.toFixed(3)
               :show-legend="false"
               :height="50"
             />
-            <p class="mt-2 text-sm text-neutral-500">Clean, minimal visualization</p>
+            <p class="mt-2 text-sm text-neutral-500">
+              Clean, minimal visualization
+            </p>
           </div>
 
           <!-- No Area Fill -->
           <div class="rounded-xl px-3 py-2 shadow-md">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Line Only</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Line Only
+            </h3>
             <TimeSeriesChart
               :history="staticData2"
               :current-value="0.3"
@@ -272,12 +292,16 @@ const formatDecimal = (value: number) => value.toFixed(3)
               title="Line Chart"
               :height="60"
             />
-            <p class="mt-2 text-sm text-neutral-500">Line without fill areas</p>
+            <p class="mt-2 text-sm text-neutral-500">
+              Line without fill areas
+            </p>
           </div>
 
           <!-- Custom Styling -->
           <div class="rounded-xl px-3 py-2 shadow-md">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Custom Style</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Custom Style
+            </h3>
             <TimeSeriesChart
               :history="staticData1"
               :current-value="0.8"
@@ -289,21 +313,30 @@ const formatDecimal = (value: number) => value.toFixed(3)
               :active-indicator-size="6"
               :height="60"
             />
-            <p class="mt-2 text-sm text-neutral-500">Purple theme with thick line</p>
+            <p class="mt-2 text-sm text-neutral-500">
+              Purple theme with thick line
+            </p>
           </div>
         </div>
       </div>
     </Variant>
 
-    <Variant id="dashboard-layout" title="Dashboard Layout">
+    <Variant
+      id="dashboard-layout"
+      title="Dashboard Layout"
+    >
       <div class="space-y-6">
         <div class="rounded-xl px-3 py-2 shadow-md">
-          <h3 class="mb-6 text-lg text-neutral-700 font-medium dark:text-neutral-300">System Monitoring Dashboard</h3>
+          <h3 class="mb-6 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+            System Monitoring Dashboard
+          </h3>
 
           <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <!-- Primary Metrics -->
             <div class="space-y-4">
-              <h4 class="text-sm text-neutral-600 font-medium dark:text-neutral-400">Primary Metrics</h4>
+              <h4 class="text-sm text-neutral-600 font-medium dark:text-neutral-400">
+                Primary Metrics
+              </h4>
 
               <TimeSeriesChart
                 :history="performanceHistory"
@@ -335,7 +368,9 @@ const formatDecimal = (value: number) => value.toFixed(3)
 
             <!-- Secondary Metrics -->
             <div class="space-y-4">
-              <h4 class="text-sm text-neutral-600 font-medium dark:text-neutral-400">Secondary Metrics</h4>
+              <h4 class="text-sm text-neutral-600 font-medium dark:text-neutral-400">
+                Secondary Metrics
+              </h4>
 
               <TimeSeriesChart
                 :history="activityHistory"
@@ -370,12 +405,17 @@ const formatDecimal = (value: number) => value.toFixed(3)
       </div>
     </Variant>
 
-    <Variant id="special-applications" title="Special Applications">
+    <Variant
+      id="special-applications"
+      title="Special Applications"
+    >
       <div class="space-y-6">
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
           <!-- Audio/Voice Activity -->
           <div class="rounded-xl px-3 py-2 shadow-md">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Voice Activity Detection</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Voice Activity Detection
+            </h3>
             <TimeSeriesChart
               :history="activityHistory"
               :current-value="currentActivity"
@@ -394,7 +434,9 @@ const formatDecimal = (value: number) => value.toFixed(3)
 
           <!-- Anomaly Detection -->
           <div class="rounded-xl px-3 py-2 shadow-md">
-            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">Anomaly Detection</h3>
+            <h3 class="mb-4 text-lg text-neutral-700 font-medium dark:text-neutral-300">
+              Anomaly Detection
+            </h3>
             <TimeSeriesChart
               :history="staticData2"
               :current-value="0.3"

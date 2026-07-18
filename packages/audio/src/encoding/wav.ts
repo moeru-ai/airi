@@ -39,7 +39,7 @@ export function toWav(buffer: ArrayBufferLike, sampleRate: number, channel = 1) 
   const offset = 44
   for (let i = 0; i < numSamples; i++) {
     const sample = Math.max(-1, Math.min(1, samples[i]))
-    const value = sample < 0 ? sample * 0x8000 : sample * 0x7fff
+    const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF
     dataView.setInt16(offset + i * 2, value, true)
   }
 

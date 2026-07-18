@@ -1,42 +1,46 @@
-import type { ContextInit } from '../../plugin/shared'
+import type { KitRef } from '../../kit'
+
+import { defineExtension } from '../../extension'
 
 /**
- * Exercises host-injected plugin APIs during initialization.
+ * Exercises host-injected extension kit APIs during setup.
  *
  * Use when:
- * - Verifying that a plugin can consume injected kit and binding APIs
- * - Testing end-to-end plugin host bindings from a real plugin entrypoint
+ * - Verifying that an extension can consume injected kit APIs
+ * - Testing end-to-end extension host bindings from a real extension entrypoint
  *
  * Expects:
- * - The host exposes `kit.widget` to the plugin runtime
- * - The manifest grants the plugin read and write permissions for the relevant resources
+ * - The host exposes `kit.widget.test` to the extension runtime
+ * - The manifest grants the extension permission to use the kit
  *
  * Returns:
- * - Resolves after persisting the observed host state into a dynamic module config
+ * - Resolves after persisting the observed host state into a dynamic binding config
  */
-export async function init({ apis }: ContextInit): Promise<void> {
-  const kits = await apis.kits.list()
-  const widgetCapabilities = await apis.kits.getCapabilities('kit.widget')
-
-  await apis.bindings.announce({
-    moduleId: 'test-injected-host-apis-module',
-    kitId: 'kit.widget',
-    kitModuleType: 'window',
-    config: {
-      route: '/widgets/injected-host-apis',
-    },
-  })
-
-  await apis.bindings.activate({
-    moduleId: 'test-injected-host-apis-module',
-  })
-
-  await apis.bindings.update({
-    moduleId: 'test-injected-host-apis-module',
-    config: {
-      route: '/widgets/injected-host-apis',
-      observedKitIds: kits.map((kit) => kit.kitId),
-      observedCapabilityKeys: widgetCapabilities.map((capability) => capability.key).sort(),
-    },
-  })
+interface TestWidgetKitClient {
+  mount: () => void
 }
+
+export const testWidgetKit = {
+  id: 'kit.widget.test',
+  version: '1.0.0',
+  createClient() {
+    return {
+      mount() {},
+    }
+  },
+} satisfies KitRef<TestWidgetKitClient>
+
+export default defineExtension({
+  id: 'test-plugin-injected-host-apis',
+  async setup(ctx) {
+    const module = await ctx.modules.register({
+      id: 'test-injected-host-apis-module',
+      permissions: {
+        apis: [{ key: testWidgetKit.id, actions: ['invoke'] }],
+      },
+    })
+
+    const widgets = await module.kits.use(testWidgetKit)
+    widgets.mount()
+  },
+})

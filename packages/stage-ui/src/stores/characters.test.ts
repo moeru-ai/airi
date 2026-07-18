@@ -48,7 +48,8 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
     async mutateAsync(vars: TVars) {
       try {
         return await mutation(vars)
-      } catch (error) {
+      }
+      catch (error) {
         this.error.value = error as Error
         throw error
       }
@@ -58,44 +59,38 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 
 function setupController() {
   const model: CharactersModel = {
-    list: vi.fn(() => Promise.resolve([] as Character[])),
-    saveAll: vi.fn(() => Promise.resolve()),
-    upsert: vi.fn(() => Promise.resolve()),
-    remove: vi.fn(() => Promise.resolve()),
+    list: vi.fn(async () => []),
+    saveAll: vi.fn(async () => {}),
+    upsert: vi.fn(async () => {}),
+    remove: vi.fn(async () => {}),
   }
   const service: CharactersService = {
     buildLocal: vi.fn(() => ({ ...character, id: 'local-character' })),
-    fetchRemote: vi.fn(() => Promise.resolve([] as Character[])),
-    fetchRemoteById: vi.fn(() => Promise.resolve(character)),
-    createRemote: vi.fn(() => Promise.resolve(character)),
-    updateRemote: vi.fn(() => Promise.resolve(character)),
-    removeRemote: vi.fn(() => Promise.resolve()),
-    likeRemote: vi.fn(() => Promise.resolve({ ...character, likesCount: 1 })),
-    bookmarkRemote: vi.fn(() => Promise.resolve({ ...character, bookmarksCount: 1 })),
+    fetchRemote: vi.fn(async () => []),
+    fetchRemoteById: vi.fn(async () => character),
+    createRemote: vi.fn(async () => character),
+    updateRemote: vi.fn(async () => character),
+    removeRemote: vi.fn(async () => {}),
+    likeRemote: vi.fn(async () => ({ ...character, likesCount: 1 })),
+    bookmarkRemote: vi.fn(async () => ({ ...character, bookmarksCount: 1 })),
   }
   const listQuery = {
     error: ref<Error | null>(null),
     isLoading: ref(false),
-    refetch: vi.fn(() => Promise.resolve({ data: [{ ...character, id: 'remote-character' }] })),
+    refetch: vi.fn(async () => ({ data: [{ ...character, id: 'remote-character' }] })),
   }
   const controller = createCharacterStoreController({
     auth: { userId: 'user-1' },
-    bookmarkMutation: createMutation<string, Character>((id) =>
-      service.bookmarkRemote({} as CharactersRemoteClient, id),
-    ),
+    bookmarkMutation: createMutation<string, Character>(id => service.bookmarkRemote({} as CharactersRemoteClient, id)),
     characters: ref<Map<string, Character>>(new Map()),
-    createMutation: createMutation<CreateCharacterPayload, Character>((nextPayload) =>
-      service.createRemote({} as CharactersRemoteClient, nextPayload),
-    ),
-    likeMutation: createMutation<string, Character>((id) => service.likeRemote({} as CharactersRemoteClient, id)),
+    createMutation: createMutation<CreateCharacterPayload, Character>(nextPayload => service.createRemote({} as CharactersRemoteClient, nextPayload)),
+    likeMutation: createMutation<string, Character>(id => service.likeRemote({} as CharactersRemoteClient, id)),
     listAll: ref(false),
     listQuery,
     model,
-    removeMutation: createMutation<string, void>((id) => service.removeRemote({} as CharactersRemoteClient, id)),
+    removeMutation: createMutation<string, void>(id => service.removeRemote({} as CharactersRemoteClient, id)),
     service,
-    updateMutation: createMutation<{ id: string; data: UpdateCharacterPayload }, Character>((vars) =>
-      service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data),
-    ),
+    updateMutation: createMutation<{ id: string, data: UpdateCharacterPayload }, Character>(vars => service.updateRemote({} as CharactersRemoteClient, vars.id, vars.data)),
   })
 
   return { controller, listQuery, model, service }
@@ -162,7 +157,7 @@ describe('store characters controller', () => {
    */
   it('passes Pinia Colada query abort signal to the character service', async () => {
     const service = {
-      fetchRemote: vi.fn(() => Promise.resolve([] as Character[])),
+      fetchRemote: vi.fn(async () => [] as Character[]),
     }
     const listAll = ref(true)
     const controller = new AbortController()

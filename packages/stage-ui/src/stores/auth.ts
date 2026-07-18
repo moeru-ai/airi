@@ -30,7 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
   // what lets the OIDC provider locate the server-side session row to delete
   // — without this we'd be back to relying on cross-site session cookies.
   const idToken = useLocalStorage<string | null>('auth/v1/oidc-id-token', null)
-  const isAuthenticated = computed(() => Boolean(user.value) && Boolean(session.value))
+  const isAuthenticated = computed(() => !!user.value && !!session.value)
   const userId = computed(() => user.value?.id ?? 'local')
 
   // --- OIDC token refresh state ---
@@ -48,13 +48,19 @@ export const useAuthStore = defineStore('auth', () => {
   const { isMobile } = useBreakpoints()
 
   whenever(needsLogin, async () => {
-    if (isStageTamagotchi()) return
+    if (isStageTamagotchi())
+      return
+
+    // Consume the request before opening an external browser. Pocket stays
+    // mounted when the user cancels there, so leaving this true would make
+    // the next button click a no-op instead of starting a new OIDC flow.
+    needsLogin.value = false
     await triggerSignIn()
   })
 
   // Reset the flag if the viewport class flips, so a stale needsLogin from a
   // previous breakpoint does not surface again on resize.
-  watch(isMobile, () => (needsLogin.value = false))
+  watch(isMobile, () => needsLogin.value = false)
 
   // --- Lifecycle hooks ---
   type AuthHook = () => void | Promise<void>
@@ -70,7 +76,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
     return () => {
       const idx = authenticatedHooks.indexOf(hook)
-      if (idx >= 0) authenticatedHooks.splice(idx, 1)
+      if (idx >= 0)
+        authenticatedHooks.splice(idx, 1)
     }
   }
 
@@ -78,7 +85,8 @@ export const useAuthStore = defineStore('auth', () => {
     logoutHooks.push(hook)
     return () => {
       const idx = logoutHooks.indexOf(hook)
-      if (idx >= 0) logoutHooks.splice(idx, 1)
+      if (idx >= 0)
+        logoutHooks.splice(idx, 1)
     }
   }
 
@@ -88,7 +96,8 @@ export const useAuthStore = defineStore('auth', () => {
       for (const hook of authenticatedHooks) {
         try {
           await hook()
-        } catch (e) {
+        }
+        catch (e) {
           console.error('auth hook error', e)
         }
       }
@@ -97,7 +106,8 @@ export const useAuthStore = defineStore('auth', () => {
       for (const hook of logoutHooks) {
         try {
           await hook()
-        } catch (e) {
+        }
+        catch (e) {
           console.error('logout hook error', e)
         }
       }
@@ -117,15 +127,18 @@ export const useAuthStore = defineStore('auth', () => {
   let inflightRefresh: Promise<string | null> | null = null
 
   async function refreshTokenNow(): Promise<string | null> {
-    if (inflightRefresh) return inflightRefresh
+    if (inflightRefresh)
+      return inflightRefresh
 
-    if (!refreshToken.value || !oidcClientId.value) return null
+    if (!refreshToken.value || !oidcClientId.value)
+      return null
 
     inflightRefresh = (async () => {
       try {
         const tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
         token.value = tokens.access_token
-        if (tokens.refresh_token) refreshToken.value = tokens.refresh_token
+        if (tokens.refresh_token)
+          refreshToken.value = tokens.refresh_token
         if (tokens.expires_in) {
           tokenExpiry.value = Date.now() + tokens.expires_in * 1000
           scheduleTokenRefresh(tokens.expires_in)
@@ -134,16 +147,19 @@ export const useAuthStore = defineStore('auth', () => {
         for (const hook of tokenRefreshedHooks) {
           try {
             await hook(tokens.access_token)
-          } catch (e) {
+          }
+          catch (e) {
             console.error('token refresh hook error', e)
           }
         }
 
         return tokens.access_token
-      } catch {
+      }
+      catch {
         clearAllAuthState()
         return null
-      } finally {
+      }
+      finally {
         inflightRefresh = null
       }
     })()
@@ -152,9 +168,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
-    () => {
-      refreshTokenNow()
-    },
+    () => { refreshTokenNow() },
     refreshDelayMs,
     { immediate: false },
   )
@@ -164,7 +178,8 @@ export const useAuthStore = defineStore('auth', () => {
     // Guard against missing/invalid lifetimes (e.g. token response omitted
     // expires_in). useTimeoutFn with NaN/<=0 delay would fire immediately
     // and spin a refresh loop — skip scheduling instead.
-    if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) return
+    if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0)
+      return
     // Refresh at 80% of lifetime
     refreshDelayMs.value = expiresInSeconds * 0.8 * 1000
     startRefreshTimer()
@@ -177,7 +192,8 @@ export const useAuthStore = defineStore('auth', () => {
    * racing `fetchSession()` against a stale Bearer token.
    */
   async function restoreRefreshSchedule(): Promise<void> {
-    if (!refreshToken.value || !oidcClientId.value) return
+    if (!refreshToken.value || !oidcClientId.value)
+      return
 
     if (tokenExpiry.value) {
       const remainingMs = tokenExpiry.value - Date.now()
@@ -195,7 +211,8 @@ export const useAuthStore = defineStore('auth', () => {
     tokenRefreshedHooks.push(hook)
     return () => {
       const idx = tokenRefreshedHooks.indexOf(hook)
-      if (idx >= 0) tokenRefreshedHooks.splice(idx, 1)
+      if (idx >= 0)
+        tokenRefreshedHooks.splice(idx, 1)
     }
   }
 
@@ -222,7 +239,8 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const updateCredits = async () => {
-    if (!isAuthenticated.value) return
+    if (!isAuthenticated.value)
+      return
     const res = await client.api.v1.flux.$get()
     if (res.ok) {
       const data = await res.json()
@@ -230,19 +248,16 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  watch(
-    isAuthenticated,
-    (val) => {
-      if (val) {
-        updateCredits()
+  watch(isAuthenticated, async (val) => {
+    if (val) {
+      updateCredits()
 
-        needsLogin.value = false
-      } else {
-        credits.value = 0
-      }
-    },
-    { immediate: true },
-  )
+      needsLogin.value = false
+    }
+    else {
+      credits.value = 0
+    }
+  }, { immediate: true })
 
   return {
     user,

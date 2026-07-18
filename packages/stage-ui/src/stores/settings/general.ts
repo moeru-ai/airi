@@ -1,6 +1,6 @@
-import { resolveSupportedLocale } from '@proj-airi/i18n'
-
 import messages from '@proj-airi/i18n/locales'
+
+import { resolveSupportedLocale } from '@proj-airi/i18n'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { onMounted } from 'vue'
@@ -14,10 +14,12 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
   const websocketSecureEnabled = useLocalStorageManualReset<boolean>('settings/websocket/secure-enabled', false)
 
   function getLanguage() {
-    const storedLanguage = localStorage.getItem('settings/language')
+    let language = localStorage.getItem('settings/language')
 
-    // Fallback to browser language if no stored preference
-    const language = storedLanguage || navigator.language || 'en'
+    if (!language) {
+      // Fallback to browser language
+      language = navigator.language || 'en'
+    }
 
     return resolveSupportedLocale(language, Object.keys(messages!))
   }
@@ -29,7 +31,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
     websocketSecureEnabled.reset()
   }
 
-  onMounted(() => (language.value = getLanguage()))
+  onMounted(() => language.value = getLanguage())
 
   return {
     language,

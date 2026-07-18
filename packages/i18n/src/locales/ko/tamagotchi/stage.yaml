@@ -8,27 +8,28 @@ docs:
     navbar:
       appearance:
         title: 스타일 및 모양
-controls-island:
-  fade-on-hover:
+'controls-island':
+  'fade-on-hover':
     enable: 자동 숨기기
     disable: 항상 표시
-  open-settings: 설정 열기
-  open-chat: 채팅 열기
-  refresh: 새로고침
-  open-hearing-controls: 듣기 제어 열기
-  drag-to-move-window: 드레그하여 창 이동
-  switch-to-light-mode: 라이트 모드로 전환
-  switch-to-dark-mode: 다크 모드로 전환
-  pin-on-top: 맨 위에 고정
-  unpin-from-top: 맨 위 고정 해제
-  switch-profile: 프로필 전환
-  close: 닫기
-  expand: 확장
-  collapse: 접기
-  login: 가입하기
-  logging-in: 로그인 중...
-  account: 계정
-  logout: 로그아웃
+  'open-settings': 설정 열기
+  'open-chat': 채팅 열기
+  'refresh': 새로고침
+  'center-main-window': Move to screen center
+  'open-hearing-controls': 듣기 제어 열기
+  'drag-to-move-window': 드레그하여 창 이동
+  'switch-to-light-mode': 라이트 모드로 전환
+  'switch-to-dark-mode': 다크 모드로 전환
+  'pin-on-top': 맨 위에 고정
+  'unpin-from-top': 맨 위 고정 해제
+  'switch-profile': 프로필 전환
+  'close': 닫기
+  'expand': 확장
+  'collapse': 접기
+  'login': 가입하기
+  'logging-in': 로그인 중...
+  'account': 계정
+  'logout': 로그아웃
 widgets:
   close: Close widget
   empty:
@@ -37,7 +38,7 @@ widgets:
   loading: Loading widget…
   waiting: Waiting for widget data for "{id}"…
 notice:
-  fade-on-hover:
+  'fade-on-hover':
     title: 호버 시 페이드
     intro: 커서가 근처를 돌아다니면 캐릭터가 자동으로 페이드됩니다. 캐릭터가 눈에 띄게 유지되면서 방해 요소를 줄이는 데 도움이 됩니다.
     opacity: 전원을 켜면 커서가 가까이 있을 때 두 {targets} 모두에 대해 불투명도가 {value}으로 떨어집니다.

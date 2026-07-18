@@ -3,10 +3,10 @@ import type { AnimationState, Skeleton, TrackEntry } from '@esotericsoftware/spi
 import { SPINE_EMOTION_TRACK, SPINE_IDLE_TRACK } from '../../constants/emotions'
 
 export interface SpineAnimationManager {
-  /** Set the looping idle animation on track 0. */
-  setIdle: (name: string) => TrackEntry | null
+  /** Set the looping idle animation on track 0. `loop` defaults to true. */
+  setIdle: (name: string, loop?: boolean) => TrackEntry | null
   /** Play a one-shot emotion animation on track 1. */
-  playEmotion: (name: string, options?: { loop?: boolean; mixDuration?: number }) => TrackEntry | null
+  playEmotion: (name: string, options?: { loop?: boolean, mixDuration?: number, alpha?: number }) => TrackEntry | null
   /** Stop the emotion track and re-empty back to the idle state. */
   clearEmotion: (mixDuration?: number) => void
   /** Resolve the closest matching animation name. Case-insensitive substring match. */
@@ -27,6 +27,9 @@ export interface SpineAnimationManager {
  * Expects:
  * - `animationState` and `skeleton` are already initialized for a model
  *   that the caller mounted via `loadSpineZip()` or a URL source.
+ * - `defaults` is read on every call, not captured once. Callers that own
+ *   reactive settings (mix duration, idle toggle) should pass a stable
+ *   object and mutate its fields in place so changes take effect live.
  *
  * Returns:
  * - A handle that mutates the underlying `AnimationState` directly.
@@ -34,53 +37,64 @@ export interface SpineAnimationManager {
 export function useSpineAnimationManager(
   animationState: AnimationState,
   skeleton: Skeleton,
-  defaults: { mixDuration: number; idleAnimationEnabled: boolean },
+  defaults: { mixDuration: number, idleAnimationEnabled: boolean },
 ): SpineAnimationManager {
   function listAnimations() {
-    return skeleton.data.animations.map((animation) => animation.name)
+    return skeleton.data.animations.map(animation => animation.name)
   }
 
   function resolveAnimation(preferred: string) {
     const animations = listAnimations()
-    if (animations.length === 0) return undefined
+    if (animations.length === 0)
+      return undefined
 
     // 1. exact match
-    const exact = animations.find((name) => name === preferred)
-    if (exact) return exact
+    const exact = animations.find(name => name === preferred)
+    if (exact)
+      return exact
 
     // 2. case-insensitive exact match
-    const ci = animations.find((name) => name.toLowerCase() === preferred.toLowerCase())
-    if (ci) return ci
+    const ci = animations.find(name => name.toLowerCase() === preferred.toLowerCase())
+    if (ci)
+      return ci
 
     // 3. substring contains preferred
-    const contains = animations.find((name) => name.toLowerCase().includes(preferred.toLowerCase()))
-    if (contains) return contains
+    const contains = animations.find(name => name.toLowerCase().includes(preferred.toLowerCase()))
+    if (contains)
+      return contains
 
     // 4. preferred contains animation name
-    const reverse = animations.find((name) => preferred.toLowerCase().includes(name.toLowerCase()))
-    if (reverse) return reverse
+    const reverse = animations.find(name => preferred.toLowerCase().includes(name.toLowerCase()))
+    if (reverse)
+      return reverse
 
     return undefined
   }
 
-  function setIdle(name: string): TrackEntry | null {
+  function setIdle(name: string, loop: boolean = true): TrackEntry | null {
     if (!defaults.idleAnimationEnabled) {
       animationState.setEmptyAnimation(SPINE_IDLE_TRACK, defaults.mixDuration)
       return null
     }
 
     const resolved = resolveAnimation(name) ?? listAnimations()[0]
-    if (!resolved) return null
+    if (!resolved)
+      return null
 
-    return animationState.setAnimation(SPINE_IDLE_TRACK, resolved, true)
+    return animationState.setAnimation(SPINE_IDLE_TRACK, resolved, loop)
   }
 
-  function playEmotion(name: string, options?: { loop?: boolean; mixDuration?: number }): TrackEntry | null {
+  function playEmotion(name: string, options?: { loop?: boolean, mixDuration?: number, alpha?: number }): TrackEntry | null {
     const resolved = resolveAnimation(name)
-    if (!resolved) return null
+    if (!resolved)
+      return null
 
     const entry = animationState.setAnimation(SPINE_EMOTION_TRACK, resolved, options?.loop ?? false)
     entry.mixDuration = options?.mixDuration ?? defaults.mixDuration
+    // Track alpha scales how strongly the emotion overrides the idle pose
+    // underneath. Callers pass emotion intensity here; default is full weight.
+    if (options?.alpha != null)
+      entry.alpha = options.alpha
     // Auto-clear after the one-shot animation completes; the listener fires
     // on `complete` for non-looping tracks, restoring the idle state.
     if (!entry.loop) {
@@ -89,7 +103,8 @@ export function useSpineAnimationManager(
           if (completed === entry) {
             try {
               animationState.setEmptyAnimation(SPINE_EMOTION_TRACK, defaults.mixDuration)
-            } finally {
+            }
+            finally {
               animationState.removeListener(listener)
             }
           }

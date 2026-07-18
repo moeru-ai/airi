@@ -16,6 +16,7 @@ import type {
 } from '../../libs/inference/protocol'
 import type { VoiceKey, Voices } from './types'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { KokoroTTS } from 'kokoro-js'
 
 import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
@@ -102,7 +103,7 @@ function clearCancelled(requestId: string): void {
 }
 
 function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessageFromValue(error)
   const code = classifyError(error, phase)
   const msg: ErrorResponse = {
     type: 'error',
@@ -139,43 +140,45 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
     }
 
     // Map webgpu variants to their base dtype (e.g., 'fp16-webgpu' → 'fp16', 'fp32-webgpu' → 'fp32')
-    const modelQuantization = quantization.endsWith('-webgpu') ? quantization.slice(0, -'-webgpu'.length) : quantization
+    const modelQuantization = quantization.endsWith('-webgpu')
+      ? quantization.slice(0, -'-webgpu'.length)
+      : quantization
 
     // Build ordered list of (dtype, device) pairs to attempt
-    const attempts: Array<{ dtype: string; device: string }> = [{ dtype: modelQuantization, device }]
-    for (const fallbackDtype of DTYPE_FALLBACK[modelQuantization] ?? []) attempts.push({ dtype: fallbackDtype, device })
-    for (const fallbackDevice of DEVICE_FALLBACK[device] ?? [])
+    const attempts: Array<{ dtype: string, device: string }> = [
+      { dtype: modelQuantization, device },
+    ]
+    for (const fallbackDtype of (DTYPE_FALLBACK[modelQuantization] ?? []))
+      attempts.push({ dtype: fallbackDtype, device })
+    for (const fallbackDevice of (DEVICE_FALLBACK[device] ?? []))
       attempts.push({ dtype: modelQuantization, device: fallbackDevice })
 
     let lastError: unknown
     for (const attempt of attempts) {
       try {
-        ttsModel = await KokoroTTS.from_pretrained(MODEL_IDS.KOKORO, {
-          dtype: attempt.dtype as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
-          device: attempt.device as 'wasm' | 'webgpu' | 'cpu',
-          progress_callback: (progress: {
-            progress?: number
-            status?: string
-            file?: string
-            loaded?: number
-            total?: number
-          }) => {
-            const msg: ProgressResponse = {
-              type: 'progress',
-              requestId,
-              payload: {
-                phase: 'download',
-                // NOTICE: raw.progress from kokoro-js/@huggingface/transformers is already 0-100
-                percent: progress?.progress ?? -1,
-                message: progress?.status,
-                file: progress?.file,
-                loaded: progress?.loaded,
-                total: progress?.total,
-              },
-            }
-            globalThis.postMessage(msg)
+        ttsModel = await KokoroTTS.from_pretrained(
+          MODEL_IDS.KOKORO,
+          {
+            dtype: attempt.dtype as 'fp32' | 'fp16' | 'q8' | 'q4' | 'q4f16',
+            device: attempt.device as 'wasm' | 'webgpu' | 'cpu',
+            progress_callback: (progress: any) => {
+              const msg: ProgressResponse = {
+                type: 'progress',
+                requestId,
+                payload: {
+                  phase: 'download',
+                  // NOTICE: raw.progress from kokoro-js/@huggingface/transformers is already 0-100
+                  percent: progress?.progress ?? -1,
+                  message: progress?.status,
+                  file: progress?.file,
+                  loaded: progress?.loaded,
+                  total: progress?.total,
+                },
+              }
+              globalThis.postMessage(msg)
+            },
           },
-        })
+        )
 
         currentQuantization = quantization
         currentDevice = attempt.device
@@ -197,21 +200,27 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         }
         globalThis.postMessage(ready)
         return
-      } catch (error) {
+      }
+      catch (error) {
         lastError = error
         console.warn(
           `[Kokoro Worker] Failed with dtype=${attempt.dtype} device=${attempt.device}, trying next fallback...`,
-          error instanceof Error ? error.message : error,
+          errorMessageFromValue(error),
         )
       }
     }
 
     // All attempts exhausted
-    if (isCancelled(requestId)) clearCancelled(requestId)
-    else sendError(requestId, lastError ?? new Error('All dtype/device combinations failed'), 'load')
-  } catch (error) {
-    if (isCancelled(requestId)) clearCancelled(requestId)
-    else sendError(requestId, error, 'load')
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, lastError ?? new Error('All dtype/device combinations failed'), 'load')
+  }
+  catch (error) {
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'load')
   }
 }
 
@@ -220,7 +229,8 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
 
   try {
     if (input.action === 'getVoices') {
-      if (!ttsModel) throw new Error('Model not loaded. Send load-model first.')
+      if (!ttsModel)
+        throw new Error('Model not loaded. Send load-model first.')
 
       if (isCancelled(requestId)) {
         clearCancelled(requestId)
@@ -237,7 +247,8 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
     }
 
     // action === 'generate'
-    if (!ttsModel) throw new Error('Kokoro TTS generation failed: No model loaded.')
+    if (!ttsModel)
+      throw new Error('Kokoro TTS generation failed: No model loaded.')
 
     const { text, voice } = input
     const audioResult = await ttsModel.generate(text, { voice })
@@ -254,11 +265,13 @@ async function runInference(request: RunInferenceRequest<KokoroInferenceInput>):
       requestId,
       output: { action: 'generate', samples, samplingRate: audioResult.sampling_rate },
     }
-    // JS-0339: use Worker interface instead of `as any` cast
-    ;(globalThis as unknown as Worker).postMessage(result, [samples.buffer])
-  } catch (error) {
-    if (isCancelled(requestId)) clearCancelled(requestId)
-    else sendError(requestId, error, 'inference')
+    ;(globalThis as any).postMessage(result, [samples.buffer])
+  }
+  catch (error) {
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'inference')
   }
 }
 
@@ -286,6 +299,6 @@ globalThis.addEventListener('message', async (event: MessageEvent<WorkerInboundM
       markCancelled(message.targetRequestId)
       break
     default:
-      console.warn('[Kokoro Worker] Unknown message type:', (message as { type?: string }).type)
+      console.warn('[Kokoro Worker] Unknown message type:', (message as any).type)
   }
 })

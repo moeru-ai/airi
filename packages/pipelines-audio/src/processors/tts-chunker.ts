@@ -5,12 +5,11 @@ import type { TextSegment, TextToken } from '../types'
 import { readGraphemeClusters } from 'clustr'
 
 import { createPushStream } from '../stream'
-import { stripMarkdownFromText } from '../strip-markdown'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
-const regexpAnySingleDigit = /\d/u
+const regexpAnySingleDigit = /\d/
 
 const keptPunctuations = new Set('?？!！')
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
@@ -27,7 +26,6 @@ export interface TtsInputChunkOptions {
   minimumWords?: number
   maximumWords?: number
   stripNarrative?: boolean
-  stripMarkdown?: boolean
   keepNarrativeText?: boolean
 }
 
@@ -41,7 +39,11 @@ export async function* chunkTtsInput(
   input: string | ReaderLike,
   options?: TtsInputChunkOptions,
 ): AsyncGenerator<TtsInputChunk, void, unknown> {
-  const { boost = 2, minimumWords = 4, maximumWords = 12 } = options ?? {}
+  const {
+    boost = 2,
+    minimumWords = 4,
+    maximumWords = 12,
+  } = options ?? {}
 
   const iterator = readGraphemeClusters(
     typeof input === 'string'
@@ -84,7 +86,7 @@ export async function* chunkTtsInput(
     if (flush || special || hard || soft) {
       switch (value) {
         case '.':
-        case ',':
+        case ',': {
           if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
             next = await iterator.next()
             if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
@@ -93,7 +95,8 @@ export async function* chunkTtsInput(
               next = undefined
               continue
             }
-          } else if (value === '.') {
+          }
+          else if (value === '.') {
             next = await iterator.next()
             if (!next.done && next.value && next.value === '.') {
               afterNext = await iterator.next()
@@ -104,9 +107,7 @@ export async function* chunkTtsInput(
               }
             }
           }
-          break
-        default:
-          break
+        }
       }
 
       if (buffer.length === 0) {
@@ -125,7 +126,7 @@ export async function* chunkTtsInput(
         continue
       }
 
-      const words = [...segmenter.segment(buffer)].filter((w) => w.isWordLike)
+      const words = [...segmenter.segment(buffer)].filter(w => w.isWordLike)
 
       if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords) {
         const text = kept ? chunk.trim() + value : chunk.trim()
@@ -153,20 +154,17 @@ export async function* chunkTtsInput(
         yieldCount++
         chunk = ''
         chunkWordsCount = 0
-      } else {
-        const overMaxWords = chunkWordsCount > maximumWords
-        const needsBoost = yieldCount < boost
-        if (flush || hard || overMaxWords || needsBoost) {
-          const text = chunk.trim()
-          yield {
-            text,
-            words: chunkWordsCount,
-            reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
-          }
-          yieldCount++
-          chunk = ''
-          chunkWordsCount = 0
+      }
+      else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+        const text = chunk.trim()
+        yield {
+          text,
+          words: chunkWordsCount,
+          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
         }
+        yieldCount++
+        chunk = ''
+        chunkWordsCount = 0
       }
 
       previousValue = value
@@ -175,11 +173,13 @@ export async function* chunkTtsInput(
           current = afterNext
           next = undefined
           afterNext = undefined
-        } else {
+        }
+        else {
           current = next
           next = undefined
         }
-      } else {
+      }
+      else {
         current = await iterator.next()
       }
       continue
@@ -195,7 +195,7 @@ export async function* chunkTtsInput(
     const text = (chunk + buffer).trim()
     yield {
       text,
-      words: chunkWordsCount + [...segmenter.segment(buffer)].filter((w) => w.isWordLike).length,
+      words: chunkWordsCount + [...segmenter.segment(buffer)].filter(w => w.isWordLike).length,
       reason: 'flush',
     }
   }
@@ -207,10 +207,11 @@ export async function chunkEmitter(
   options: TtsInputChunkOptions | undefined,
   handler: (ttsSegment: TtsChunkItem) => Promise<void> | void,
 ) {
-  const sanitizeChunk = (text: string) => {
-    const cleanedText = text.replaceAll(TTS_SPECIAL_TOKEN, '').replaceAll(TTS_FLUSH_INSTRUCTION, '')
-
-    return cleanedText.trim()
+  function sanitizeChunk(text: string) {
+    return text
+      .replaceAll(TTS_SPECIAL_TOKEN, '')
+      .replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      .trim()
   }
 
   try {
@@ -223,12 +224,14 @@ export async function chunkEmitter(
       if (chunk.reason === 'special') {
         const specialToken = pendingSpecials.shift()
         await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
-      } else {
+      }
+      else {
         await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
       }
     }
-  } catch {
-    // intentionally empty — errors propagate via stream error
+  }
+  catch (e) {
+    console.error('Error chunking stream to TTS queue:', e)
   }
 }
 
@@ -244,48 +247,61 @@ const OPENERS = Object.keys(BRACKET_MAP)
 const CLOSERS = Object.values(BRACKET_MAP)
 const isUnicodeLetter = (char: string) => /\p{L}/u.test(char)
 
-const NARRATIVE_KEYWORDS = ['laugh', 'sigh', 'action', 'note', 'breath', 'giggle', 'whisper', 'cry', 'smile', 'thought']
+const NARRATIVE_KEYWORDS = [
+  'laugh',
+  'sigh',
+  'action',
+  'note',
+  'breath',
+  'giggle',
+  'whisper',
+  'cry',
+  'smile',
+  'thought',
+]
 
 export function isProbablyAngleTag(index: number, text: string): boolean {
-  if (text[index] !== '<') return false
+  if (text[index] !== '<')
+    return false
 
-  if (text[index + 1] === '/') return true
+  if (text[index + 1] === '/')
+    return true
 
   const remainder = text.slice(index + 1).toLowerCase()
   const nextChar = remainder[0]
   const prevChar = index > 0 ? text[index - 1] : ''
 
   // 1. 闭合标签 </... 永远判定为标签
-  if (nextChar === '/') return true
+  if (nextChar === '/')
+    return true
 
   // Lookahead: if followed by num, space or equals, not a label
-  const isNextCharSep = nextChar && /[0-9\s=]/.test(nextChar)
-  if (isNextCharSep) return false
+  if (nextChar && /[0-9\s=]/.test(nextChar))
+    return false
 
-  const isPrevCharLetterOrDigit = prevChar && (isUnicodeLetter(prevChar) || /\d/u.test(prevChar))
-  if (isPrevCharLetterOrDigit) {
+  if (prevChar && (isUnicodeLetter(prevChar) || /\d/.test(prevChar))) {
     // fix: check whether remainder is piefix with any keywords, or contains the whole keyword
-    const isLikelyNarrative = NARRATIVE_KEYWORDS.some((kw) => {
-      const isPrefixMatch = remainder.length > 1 && kw.startsWith(remainder)
-      return isPrefixMatch || remainder.startsWith(kw)
-    })
+    const isLikelyNarrative = NARRATIVE_KEYWORDS.some(kw =>
+      (remainder.length > 1 && kw.startsWith(remainder)) || remainder.startsWith(kw),
+    )
     return isLikelyNarrative
   }
 
   // Lookbehind: if before is non-empty/non-bracket character, then determine as code or any instead of a label
-  const hasNonLabelPrevChar = prevChar ? /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/u.test(prevChar) : false
-  if (hasNonLabelPrevChar) return false
+  if (prevChar && /[^\s([{（【<\])}>）】.,!?;:，。！？；：'"\-_]/.test(prevChar))
+    return false
 
   return true
 }
 
 export function processNarrative(text: string, options?: TtsInputChunkOptions): string {
-  if (!options?.stripNarrative) return text
+  if (!options?.stripNarrative)
+    return text
 
   const rangesToRemove: [number, number][] = []
   const charsToRemove = new Set<number>()
 
-  const stack: { char: string; index: number }[] = []
+  const stack: { char: string, index: number }[] = []
   let starOpenIndex = -1
 
   for (let i = 0; i < text.length; i++) {
@@ -296,12 +312,14 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
         if (options?.keepNarrativeText) {
           charsToRemove.add(starOpenIndex)
           charsToRemove.add(i)
-        } else {
+        }
+        else {
           rangesToRemove.push([starOpenIndex, i])
         }
         starOpenIndex = -1
-      } else {
-        if (!/\s/u.test(text[i + 1] || '')) {
+      }
+      else {
+        if (!/\s/.test(text[i + 1] || '')) {
           starOpenIndex = i
         }
       }
@@ -309,7 +327,8 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
     }
 
     if (OPENERS.includes(char)) {
-      if (char === '<' && !isProbablyAngleTag(i, text)) continue
+      if (char === '<' && !isProbablyAngleTag(i, text))
+        continue
       stack.push({ char, index: i })
       continue
     }
@@ -321,7 +340,8 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
         if (options?.keepNarrativeText) {
           charsToRemove.add(last.index)
           charsToRemove.add(i)
-        } else {
+        }
+        else {
           rangesToRemove.push([last.index, i])
         }
       }
@@ -329,23 +349,32 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
   }
 
   let result = ''
-  for (let i = 0; i < text.length; i++) {
-    if (options?.keepNarrativeText) {
-      if (!charsToRemove.has(i)) {
+
+  if (options?.keepNarrativeText) {
+    for (let i = 0; i < text.length; i++) {
+      if (!charsToRemove.has(i))
         result += text[i]
-      }
-    } else {
-      let inRange = false
-      for (const [start, end] of rangesToRemove) {
-        if (i >= start && i <= end) {
-          inRange = true
-          break
-        }
-      }
-      if (!inRange) {
-        result += text[i]
-      }
     }
+
+    return result
+  }
+
+  rangesToRemove.sort((a, b) => a[0] - b[0])
+  let rangeIndex = 0
+
+  for (let i = 0; i < text.length; i++) {
+    while (
+      rangeIndex < rangesToRemove.length
+      && i > rangesToRemove[rangeIndex]![1]
+    ) {
+      rangeIndex += 1
+    }
+
+    const activeRange = rangesToRemove[rangeIndex]
+    if (activeRange && i >= activeRange[0] && i <= activeRange[1])
+      continue
+
+    result += text[i]
   }
 
   return result
@@ -357,7 +386,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
-  meta: { streamId: string; intentId: string; turnId?: string },
+  meta: { streamId: string, intentId: string, turnId?: string },
   options?: TtsInputChunkOptions,
 ) {
   const { stream, write, close, error } = createPushStream<TextSegment>()
@@ -372,13 +401,14 @@ export function createTtsSegmentStream(
     try {
       while (true) {
         const { value, done } = await reader.read()
-        if (done) break
-        if (!value) continue
+        if (done)
+          break
+        if (!value)
+          continue
 
         if (value.type === 'literal') {
           if (value.value) {
-            // When neither stripNarrative nor stripMarkdown is set, write directly
-            if (!options?.stripNarrative && !options?.stripMarkdown) {
+            if (!options?.stripNarrative) {
               writeBytes(encoder.encode(value.value))
               continue
             }
@@ -393,7 +423,8 @@ export function createTtsSegmentStream(
                   continue
                 }
                 stack.push(char)
-              } else if (CLOSERS.includes(char)) {
+              }
+              else if (CLOSERS.includes(char)) {
                 const lastOpen = stack[stack.length - 1]
                 if (lastOpen && BRACKET_MAP[lastOpen] === char) {
                   stack.pop()
@@ -403,27 +434,22 @@ export function createTtsSegmentStream(
 
             const bracketsUnclosed = stack.length > 0
             const starMatch = pendingText.match(/\*([^*]*)$/)
-            const oddStarCount = (pendingText.match(/\*/g) || []).length % 2 !== 0
-            const italicUnclosed = oddStarCount && starMatch !== null && !starMatch[1].startsWith(' ')
-            // Detect unclosed ** (bold): count ** occurrences — odd means unclosed bold
-            const boldDoubleCount = (pendingText.match(/\*\*/g) || []).length
-            const boldUnclosed = boldDoubleCount % 2 !== 0
-            const starsUnclosed = italicUnclosed || boldUnclosed
+            const starsUnclosed = (pendingText.match(/\*/g) || []).length % 2 !== 0
+              && starMatch !== null && !starMatch[1].startsWith(' ')
             const hasUnclosed = bracketsUnclosed || starsUnclosed
-            const hasNarrativeUnclosed = stack.some((char) => ['[', '【', '<', '（'].includes(char))
-            const fallbackLimit = options?.stripNarrative && hasNarrativeUnclosed ? 800 : 200
+            const hasNarrativeUnclosed = stack.some(char => ['[', '【', '<', '（'].includes(char))
+            const fallbackLimit = (options?.stripNarrative && hasNarrativeUnclosed) ? 800 : 200
 
             if (!hasUnclosed || pendingText.length > fallbackLimit) {
-              let textToEmit = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
-              if (options?.stripNarrative) textToEmit = processNarrative(textToEmit, options)
+              const textToEmit = processNarrative(pendingText, options)
               writeBytes(encoder.encode(textToEmit))
               pendingText = ''
             }
           }
-        } else if (value.type === 'special' || value.type === 'flush') {
+        }
+        else if (value.type === 'special' || value.type === 'flush') {
           if (pendingText) {
-            let textToEmit = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
-            if (options?.stripNarrative) textToEmit = processNarrative(textToEmit, options)
+            const textToEmit = processNarrative(pendingText, options)
             writeBytes(encoder.encode(textToEmit))
             pendingText = ''
           }
@@ -431,29 +457,32 @@ export function createTtsSegmentStream(
           if (value.type === 'special') {
             pendingSpecials.push(value.value ?? '')
             writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
-          } else if (value.type === 'flush') {
+          }
+          else if (value.type === 'flush') {
             writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
           }
         }
       }
       if (pendingText) {
-        let finalPunt = options?.stripMarkdown ? stripMarkdownFromText(pendingText) : pendingText
+        let finalPunt = pendingText
         if (options?.stripNarrative) {
           finalPunt = processNarrative(finalPunt, options)
         }
         writeBytes(encoder.encode(finalPunt))
       }
       closeBytes()
-    } catch (err) {
+    }
+    catch (err) {
       errorBytes(err)
-    } finally {
+    }
+    finally {
       reader.releaseLock()
     }
   })()
 
   void (async () => {
+    const reader = byteStream.getReader()
     try {
-      const reader = byteStream.getReader()
       await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
         write({
           turnId: meta.turnId,
@@ -467,8 +496,12 @@ export function createTtsSegmentStream(
         })
       })
       close()
-    } catch (err) {
+    }
+    catch (err) {
       error(err)
+    }
+    finally {
+      reader.releaseLock()
     }
   })()
 

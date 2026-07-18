@@ -2,18 +2,18 @@ import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
 
-import { dirname } from 'node:path'
-
 import process, { env, platform } from 'node:process'
+
+import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import messages from '@proj-airi/i18n/locales'
 
+import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import messages from '@proj-airi/i18n/locales'
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
@@ -28,17 +28,16 @@ import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
-import { captureError, setupSentry } from './libs/sentry'
-import { setupSentryBreadcrumbsFromLogg } from './libs/sentry/breadcrumbs'
 import { createWindowAuthManagerService } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
-import { setupPluginHost } from './services/airi/plugins'
+import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
+import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -50,6 +49,7 @@ import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
+import { setupSpotlightWindowManager } from './windows/spotlight'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -61,7 +61,6 @@ setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
-setupSentry()
 
 const log = useLogg('main').useGlobalConfig()
 
@@ -111,224 +110,180 @@ if (shouldStartMainProcess) {
 let fileLogger: FileLoggerHandle = nullFileLoggerHandle
 let skipFileLogging = false
 
-app
-  .whenReady()
-  .then(async () => {
-    if (!shouldStartMainProcess) {
+app.whenReady().then(async () => {
+  if (!shouldStartMainProcess) {
+    return
+  }
+
+  setupMediaPermissionHandlers(session.defaultSession)
+
+  // Initialize file logger and register the hook
+  fileLogger = await setupFileLogger()
+
+  // Register the global hook for file logging
+  setGlobalHookPostLog((_, formatted) => {
+    if (skipFileLogging || fileLogger.logFileFd === null)
       return
-    }
+    void fileLogger.appendLog(formatted)
+  })
 
-    // Initialize file logger and register the hook
-    fileLogger = await setupFileLogger()
+  injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
-    // Register the global hook for file logging
-    setGlobalHookPostLog((_, formatted) => {
-      if (skipFileLogging || fileLogger.logFileFd === null) return
-      void fileLogger.appendLog(formatted)
-    })
-
-    // Chain Sentry breadcrumbs hook AFTER file logger so both work together.
-    setupSentryBreadcrumbsFromLogg()
-
-    injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
-
-    const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
-    const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
-    const electronApp = injeca.provide('host:electron:app', () => app)
-    const autoUpdater = injeca.provide('services:auto-updater', {
-      dependsOn: { appConfig },
-      build: ({ dependsOn }) =>
-        setupAutoUpdater({
-          getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
-          setStoredUpdateLane: (lane) => {
-            const currentConfig = dependsOn.appConfig.get()
-            dependsOn.appConfig.update({
-              language: currentConfig?.language ?? 'en',
-              updateChannel: lane,
-            })
-          },
-        }),
-    })
-
-    const i18n = injeca.provide('libs:i18n', {
-      dependsOn: { appConfig },
-      build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
-    })
-
-    const serverChannel = injeca.provide('modules:channel-server', {
-      dependsOn: { app: electronApp, lifecycle },
-      build: async ({ dependsOn }) => setupServerChannel(dependsOn),
-    })
-
-    const airiHttpServer = injeca.provide('modules:airi-http-server', {
-      build: async () => setupBuiltInServer({ servers: [] }),
-    })
-
-    const godotStageManager = injeca.provide('modules:godot-stage-manager', {
-      build: async () => setupGodotStageManager(),
-    })
-
-    const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
-      build: async () => setupMcpStdioManager(),
-    })
-
-    const widgetsManager = injeca.provide('windows:widgets', {
-      dependsOn: { serverChannel, i18n },
-      build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
-    })
-
-    const pluginHost = injeca.provide('modules:plugin-host', {
-      dependsOn: { serverChannel, widgetsManager },
-      build: ({ dependsOn }) => setupPluginHost(dependsOn),
-    })
-
-    const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
-
-    const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
-
-    // BeatSync will create a background window to capture and process audio.
-    const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
-
-    const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
-
-    const onboardingWindowManager = injeca.provide('windows:onboarding', {
-      dependsOn: { serverChannel, i18n, windowAuthManager },
-      build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
-    })
-
-    const noticeWindow = injeca.provide('windows:notice', {
-      dependsOn: { i18n, serverChannel },
-      build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
-    })
-
-    const aboutWindow = injeca.provide('windows:about', {
-      dependsOn: { autoUpdater, i18n, serverChannel },
-      build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
-    })
-
-    const chatWindow = injeca.provide('windows:chat', {
-      dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
-      build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
-    })
-
-    const settingsWindow = injeca.provide('windows:settings', {
-      dependsOn: {
-        widgetsManager,
-        beatSync,
-        autoUpdater,
-        devtoolsWindow: devtoolsMarkdownStressWindow,
-        serverChannel,
-        godotStageManager,
-        mcpStdioManager,
-        i18n,
-        windowAuthManager,
-        globalShortcut,
-      },
-      build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
-    })
-
-    const mainWindow = injeca.provide('windows:main', {
-      dependsOn: {
-        settingsWindow,
-        chatWindow,
-        widgetsManager,
-        noticeWindow,
-        beatSync,
-        autoUpdater,
-        serverChannel,
-        godotStageManager,
-        mcpStdioManager,
-        i18n,
-        onboardingWindowManager,
-        windowAuthManager,
-      },
-      build: async ({ dependsOn }) =>
-        setupMainWindow({
-          ...dependsOn,
-          onWindowCreated: (window) => {
-            userFacingMainWindow = window
-          },
-        }),
-    })
-
-    const captionWindow = injeca.provide('windows:caption', {
-      dependsOn: { mainWindow, serverChannel, i18n },
-      build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
-    })
-
-    const tray = injeca.provide('app:tray', {
-      dependsOn: {
-        mainWindow,
-        settingsWindow,
-        captionWindow,
-        widgetsWindow: widgetsManager,
-        serverChannel,
-        beatSyncBgWindow: beatSync,
-        aboutWindow,
-        i18n,
-      },
-      build: async ({ dependsOn }) => setupTray(dependsOn),
-    })
-
-    // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
-    if (isDesktopOverlayEnabled()) {
-      const desktopOverlay = injeca.provide('windows:desktop-overlay', {
-        dependsOn: { mcpStdioManager, serverChannel, i18n },
-        build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
-      })
-
-      // NOTICE: Separate invoke ensures the overlay is eagerly built.
-      // Without this, injeca.start() would skip it because no other
-      // provider depends on 'windows:desktop-overlay'.
-      injeca.invoke({
-        dependsOn: { desktopOverlay },
-        callback: noop,
-      })
-    }
-
-    injeca.invoke({
-      dependsOn: {
-        mainWindow,
-        tray,
-        serverChannel,
-        airiHttpServer,
-        godotStageManager,
-        pluginHost,
-        mcpStdioManager,
-        onboardingWindow: onboardingWindowManager,
-        widgetsWindow: widgetsManager,
-        artistryConfig,
-      },
-      callback: async (deps) => {
-        const { context } = createContext(ipcMain)
-        await setupArtistryBridge({
-          widgetsManager: deps.widgetsWindow,
-          context,
-          artistryConfig: deps.artistryConfig,
+  const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
+  const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
+  const electronApp = injeca.provide('host:electron:app', () => app)
+  const autoUpdater = injeca.provide('services:auto-updater', {
+    dependsOn: { appConfig },
+    build: ({ dependsOn }) => setupAutoUpdater({
+      getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
+      setStoredUpdateLane: (lane) => {
+        const currentConfig = dependsOn.appConfig.get()
+        dependsOn.appConfig.update({
+          language: currentConfig?.language ?? 'en',
+          updateChannel: lane,
         })
       },
+    }),
+  })
+
+  const i18n = injeca.provide('libs:i18n', {
+    dependsOn: { appConfig },
+    build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language }),
+  })
+
+  const serverChannel = injeca.provide('modules:channel-server', {
+    dependsOn: { app: electronApp, lifecycle },
+    build: async ({ dependsOn }) => setupServerChannel(dependsOn),
+  })
+
+  const airiHttpServer = injeca.provide('modules:airi-http-server', {
+    build: async () => setupBuiltInServer({ servers: [] }),
+  })
+
+  const godotStageManager = injeca.provide('modules:godot-stage-manager', {
+    build: async () => setupGodotStageManager(),
+  })
+
+  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
+    build: async () => setupMcpStdioManager(),
+  })
+
+  const widgetsManager = injeca.provide('windows:widgets', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
+  })
+
+  const pluginHost = injeca.provide('modules:plugin-host', {
+    dependsOn: { serverChannel, widgetsManager },
+    build: ({ dependsOn }) => setupExtensionHost(dependsOn),
+  })
+
+  const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
+
+  const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
+
+  // BeatSync will create a background window to capture and process audio.
+  const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
+
+  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
+
+  const onboardingWindowManager = injeca.provide('windows:onboarding', {
+    dependsOn: { serverChannel, i18n, windowAuthManager },
+    build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
+  })
+
+  const noticeWindow = injeca.provide('windows:notice', {
+    dependsOn: { i18n, serverChannel },
+    build: ({ dependsOn }) => setupNoticeWindowManager(dependsOn),
+  })
+
+  const aboutWindow = injeca.provide('windows:about', {
+    dependsOn: { autoUpdater, i18n, serverChannel },
+    build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
+  })
+
+  const chatWindow = injeca.provide('windows:chat', {
+    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
+    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
+  })
+
+  const spotlightWindow = injeca.provide('windows:spotlight', {
+    dependsOn: { serverChannel, i18n, chatWindow, globalShortcut, appConfig },
+    build: ({ dependsOn }) => setupSpotlightWindowManager(dependsOn),
+  })
+
+  const settingsWindow = injeca.provide('windows:settings', {
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, spotlightWindow },
+    build: async ({ dependsOn }) =>
+      setupSettingsWindowReusableFunc({
+        ...dependsOn,
+        getMainWindow: () => userFacingMainWindow,
+      }),
+  })
+
+  const mainWindow = injeca.provide('windows:main', {
+    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    build: async ({ dependsOn }) => setupMainWindow({
+      ...dependsOn,
+      onWindowCreated: (window) => {
+        userFacingMainWindow = window
+      },
+    }),
+  })
+
+  const captionWindow = injeca.provide('windows:caption', {
+    dependsOn: { mainWindow, serverChannel, i18n },
+    build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
+  })
+
+  const tray = injeca.provide('app:tray', {
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
+    build: async ({ dependsOn }) => setupTray(dependsOn),
+  })
+
+  // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+  if (isDesktopOverlayEnabled()) {
+    const desktopOverlay = injeca.provide('windows:desktop-overlay', {
+      dependsOn: { mcpStdioManager, serverChannel, i18n },
+      build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
     })
 
-    injeca.start().catch((err) => {
-      log.withError(err).error('Failed to start injeca lifecycle')
-      captureError(err)
+    // NOTICE: Separate invoke ensures the overlay is eagerly built.
+    // Without this, injeca.start() would skip it because no other
+    // provider depends on 'windows:desktop-overlay'.
+    injeca.invoke({
+      dependsOn: { desktopOverlay },
+      callback: noop,
     })
+  }
 
-    // Lifecycle
-    emitAppReady()
-
-    // Extra
-    openDebugger()
-
-    // Default open or close DevTools by F12 in development
-    // and ignore CommandOrControl + R in production.
-    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-    app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+  injeca.invoke({
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
+    callback: async (deps) => {
+      const { context } = createContext(ipcMain)
+      await setupArtistryBridge({
+        widgetsManager: deps.widgetsWindow,
+        context,
+        artistryConfig: deps.artistryConfig,
+      })
+    },
   })
-  .catch((err) => {
-    log.withError(err).error('Error during app initialization')
-    captureError(err)
-  })
+
+  injeca.start().catch(err => console.error(err))
+
+  // Lifecycle
+  emitAppReady()
+
+  // Extra
+  openDebugger()
+
+  // Default open or close DevTools by F12 in development
+  // and ignore CommandOrControl + R in production.
+  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+}).catch((err) => {
+  log.withError(err).error('Error during app initialization')
+})
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -345,7 +300,8 @@ let appExiting = false
 
 // Clean up server and intervals when app quits
 async function handleAppExit() {
-  if (appExiting) return
+  if (appExiting)
+    return
 
   appExiting = true
 
@@ -362,7 +318,8 @@ async function handleAppExit() {
   async function logIfError(operation: string, fn: () => unknown): Promise<void> {
     try {
       await fn()
-    } catch (error) {
+    }
+    catch (error) {
       exitedNormally = false
       log.withError(error).error(`[app-exit] Failed to ${operation}:`)
     }
@@ -378,24 +335,20 @@ async function handleAppExit() {
   skipFileLogging = true
   await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
 
-  app.exit(exitedNormally ? 0 : 1)
+  if (!exitedNormally) {
+    app.exit(1)
+  }
+  else {
+    app.quit()
+  }
 }
 
 process.on('SIGINT', () => handleAppExit())
 
 app.on('before-quit', (event) => {
+  if (appExiting)
+    return
+
   event.preventDefault()
   handleAppExit()
-})
-
-// Last-ditch error capture — ensure any uncaught top-level errors
-// before Sentry is initialized still have a path to be reported once ready.
-process.on('uncaughtException', (error) => {
-  log.withError(error).error('Uncaught exception')
-  captureError(error)
-})
-
-process.on('unhandledRejection', (reason) => {
-  log.withError(reason instanceof Error ? reason : new Error(String(reason))).error('Unhandled rejection')
-  captureError(reason)
 })

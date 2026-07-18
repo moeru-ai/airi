@@ -1,4 +1,7 @@
-import type { ElectronMcpStdioConfigFile, ElectronMcpStdioServerConfig } from '../../../../shared/eventa'
+import type {
+  ElectronMcpStdioConfigFile,
+  ElectronMcpStdioServerConfig,
+} from '../../../../shared/eventa'
 
 type TranslateMcpMessage = (key: string, params?: Record<string, unknown>) => string
 
@@ -8,7 +11,7 @@ export interface ServerForm {
   identifier: string
   command: string
   argsText: string
-  envEntries: { key: string; value: string }[]
+  envEntries: { key: string, value: string }[]
   cwd: string
   enabled: boolean
 }
@@ -20,33 +23,20 @@ export interface LoadedServerForms {
   selectedRowId: string
 }
 
-export const SERENA_SERVER_IDENTIFIER = 'serena'
-export const SERENA_SETUP_URL = 'https://github.com/oraios/serena'
-export const SERENA_SERVER_ARGS = [
-  '--from',
-  'git+https://github.com/oraios/serena',
-  'serena',
-  'start-mcp-server',
-  '--context',
-  'ide-assistant',
-]
-
 function makeRowId() {
   return `mcp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
 function splitArgsText(argsText: string) {
-  return argsText
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
+  return argsText.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
 }
 
-function envToObject(entries: { key: string; value: string }[]) {
+function envToObject(entries: { key: string, value: string }[]) {
   const out: Record<string, string> = {}
   for (const { key, value } of entries) {
     const normalizedKey = key.trim()
-    if (normalizedKey) out[normalizedKey] = value
+    if (normalizedKey)
+      out[normalizedKey] = value
   }
   return out
 }
@@ -64,41 +54,9 @@ export function createServerForm(): ServerForm {
   }
 }
 
-/** Creates the predefined Serena MCP server row. */
-export function createSerenaServerForm(): ServerForm {
-  return {
-    rowId: makeRowId(),
-    identifier: SERENA_SERVER_IDENTIFIER,
-    command: 'uvx',
-    argsText: SERENA_SERVER_ARGS.join('\n'),
-    envEntries: [],
-    cwd: '',
-    enabled: true,
-  }
-}
-
-/** Inserts Serena once, returning the existing row when already configured. */
-export function insertSerenaServerForm(servers: ServerForm[]) {
-  const existing = servers.find((server) => server.identifier.trim() === SERENA_SERVER_IDENTIFIER)
-  if (existing) {
-    return {
-      servers,
-      server: existing,
-      inserted: false,
-    }
-  }
-
-  const server = createSerenaServerForm()
-  return {
-    servers: [...servers, server],
-    server,
-    inserted: true,
-  }
-}
-
 /** Resolves the persisted server identifier for a selected row. */
 export function findServerIdentifierByRowId(servers: ServerForm[], rowId: string) {
-  return servers.find((server) => server.rowId === rowId)?.identifier.trim() || undefined
+  return servers.find(server => server.rowId === rowId)?.identifier.trim() || undefined
 }
 
 /** Converts one editable server row into persisted MCP server config. */
@@ -108,14 +66,18 @@ export function buildServerConfig(server: ServerForm): ElectronMcpStdioServerCon
   }
 
   const args = splitArgsText(server.argsText)
-  if (args.length) config.args = args
+  if (args.length)
+    config.args = args
 
   const env = envToObject(server.envEntries)
-  if (Object.keys(env).length) config.env = env
+  if (Object.keys(env).length)
+    config.env = env
 
-  if (server.cwd.trim()) config.cwd = server.cwd.trim()
+  if (server.cwd.trim())
+    config.cwd = server.cwd.trim()
 
-  if (!server.enabled) config.enabled = false
+  if (!server.enabled)
+    config.enabled = false
 
   return config
 }
@@ -130,12 +92,14 @@ export function buildConfigFile(
 
   for (const [index, server] of servers.entries()) {
     const identifier = server.identifier.trim()
-    if (!identifier) throw new Error(translateMessage('errors.empty-identifier', { index: index + 1 }))
+    if (!identifier)
+      throw new Error(translateMessage('errors.empty-identifier', { index: index + 1 }))
 
     if (seenIdentifiers.has(identifier))
       throw new Error(translateMessage('errors.duplicate-identifier', { name: identifier }))
 
-    if (!server.command.trim()) throw new Error(translateMessage('errors.empty-command', { name: identifier }))
+    if (!server.command.trim())
+      throw new Error(translateMessage('errors.empty-command', { name: identifier }))
 
     seenIdentifiers.add(identifier)
     config.mcpServers[identifier] = buildServerConfig(server)
@@ -156,7 +120,8 @@ export function syncJsonDraftFromServers(
       draft: `${JSON.stringify(buildConfigFile(servers, translateMessage), null, 2)}\n`,
       error: '',
     }
-  } catch (error) {
+  }
+  catch (error) {
     return {
       draft: previousDraft,
       error: formatError(error),
@@ -180,12 +145,12 @@ export function loadServerForms(
   }))
 
   const selectedRowId = options.selectedIdentifier
-    ? (servers.find((server) => server.identifier === options.selectedIdentifier)?.rowId ?? servers[0]?.rowId ?? '')
+    ? (servers.find(server => server.identifier === options.selectedIdentifier)?.rowId ?? servers[0]?.rowId ?? '')
     : (servers[0]?.rowId ?? '')
 
   return {
     servers,
-    savedIds: new Set(servers.map((server) => server.rowId)),
+    savedIds: new Set(servers.map(server => server.rowId)),
     selectedRowId,
   }
 }

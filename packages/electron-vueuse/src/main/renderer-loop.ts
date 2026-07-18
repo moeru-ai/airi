@@ -19,11 +19,7 @@ export function safeClose(window?: BrowserWindow | null): boolean {
 }
 
 export function isRendererUnavailable(window: BrowserWindow) {
-  const isWindowDestroyed = window.isDestroyed()
-  const isWebContentsDestroyed = window?.webContents?.isDestroyed()
-  const isWebContentsCrashed = window?.webContents?.isCrashed()
-  const isWebContentsUnhealthy = isWebContentsDestroyed || isWebContentsCrashed
-  return isWindowDestroyed || isWebContentsUnhealthy
+  return window.isDestroyed() || window?.webContents?.isDestroyed() || window?.webContents?.isCrashed()
 }
 
 export function shouldStopForRendererError(error: unknown) {
@@ -49,38 +45,30 @@ function ensureRendererIsAvailable(window: BrowserWindow, stop: () => void) {
   return true
 }
 
-export function createRendererLoop(params: {
-  window: BrowserWindow
-  run: () => Promise<void> | void
-  interval?: number
-  autoStart?: boolean
-}) {
-  const { start, stop } = useLoop(
-    async () => {
-      if (!ensureRendererIsAvailable(params.window, stop)) {
-        return
-      }
+export function createRendererLoop(params: { window: BrowserWindow, run: () => Promise<void> | void, interval?: number, autoStart?: boolean }) {
+  const { start, stop } = useLoop(async () => {
+    if (!ensureRendererIsAvailable(params.window, stop)) {
+      return
+    }
 
-      const [error] = await attemptAsync(async () => {
-        await params.run()
-      })
+    const [error] = await attemptAsync(async () => {
+      await params.run()
+    })
 
-      if (!error) {
-        return
-      }
+    if (!error) {
+      return
+    }
 
-      if (shouldStopForRendererError(error)) {
-        stop()
-        return
-      }
+    if (shouldStopForRendererError(error)) {
+      stop()
+      return
+    }
 
-      throw error
-    },
-    {
-      autoStart: params.autoStart ?? false,
-      interval: params.interval,
-    },
-  )
+    throw error
+  }, {
+    autoStart: params.autoStart ?? false,
+    interval: params.interval,
+  })
 
   stopLoopWhenRendererIsGone(params.window, stop)
 

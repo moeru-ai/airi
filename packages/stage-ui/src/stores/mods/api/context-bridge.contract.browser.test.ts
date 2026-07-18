@@ -6,7 +6,7 @@ import { ref } from 'vue'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 
 type HookCallback = (...args: unknown[]) => Promise<void> | void
-type UseContextBridgeStore = (typeof import('./context-bridge'))['useContextBridgeStore']
+type UseContextBridgeStore = typeof import('./context-bridge')['useContextBridgeStore']
 
 const contextUpdateHooks: HookCallback[] = []
 const serverEventHooks = new Map<string, HookCallback[]>()
@@ -18,9 +18,7 @@ const finalizeStreamMock = vi.fn()
 const resetStreamMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
-const onReconnectedMock = vi.fn(() => () => {
-  /* stub */
-})
+const onReconnectedMock = vi.fn(() => () => {})
 const onContextUpdateMock = vi.fn((callback: HookCallback) => registerHook(contextUpdateHooks, callback))
 const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registerServerEventHook(eventName, callback))
 const getProviderInstanceMock = vi.fn()
@@ -49,7 +47,8 @@ function registerHook(target: HookCallback[], callback: HookCallback) {
   target.push(callback)
   return () => {
     const index = target.indexOf(callback)
-    if (index >= 0) target.splice(index, 1)
+    if (index >= 0)
+      target.splice(index, 1)
   }
 }
 
@@ -82,7 +81,7 @@ function closeTestChannels() {
 }
 
 async function waitForBroadcastDelivery() {
-  await new Promise((resolve) => setTimeout(resolve, 50))
+  await new Promise(resolve => setTimeout(resolve, 50))
 }
 
 async function emitHooks(target: HookCallback[], ...args: unknown[]) {
@@ -99,28 +98,18 @@ async function emitServerEvent(eventName: string, event: unknown) {
   await emitHooks(serverEventHooks.get(eventName) ?? [], event)
 }
 
-function createMetadata(pluginId: string, instanceId: string) {
+function createMetadata(extensionId: string, moduleId: string) {
   return {
     source: {
-      id: instanceId,
-      kind: 'plugin',
-      plugin: {
-        id: pluginId,
+      id: moduleId,
+      extension: {
+        id: extensionId,
       },
     },
   }
 }
 
-interface ContextMessage {
-  id: string
-  contextId: string
-  strategy: ContextUpdateStrategy
-  text: string
-  createdAt: number
-  metadata?: Record<string, unknown>
-}
-
-function createContextMessage(overrides: Record<string, unknown> = {}): ContextMessage {
+function createContextMessage(overrides: Record<string, unknown> = {}) {
   const id = typeof overrides.id === 'string' ? overrides.id : 'context-1'
 
   return {
@@ -133,24 +122,12 @@ function createContextMessage(overrides: Record<string, unknown> = {}): ContextM
   }
 }
 
-interface ContextUpdateEvent {
-  type: 'context:update'
-  source: string
-  metadata: ReturnType<typeof createMetadata>
-  data: {
-    id: string
-    contextId: string
-    strategy: ContextUpdateStrategy
-    text: string
-  }
-}
-
-function createContextUpdateEvent(overrides: Record<string, unknown> = {}): ContextUpdateEvent {
+function createContextUpdateEvent(overrides: Record<string, unknown> = {}) {
   const id = typeof overrides.id === 'string' ? overrides.id : 'context-1'
 
   return {
     type: 'context:update',
-    source: 'plugin-module-host',
+    source: 'extension-module-host',
     metadata: createMetadata('weather', 'station-1'),
     data: {
       id,
@@ -209,13 +186,8 @@ vi.mock('es-toolkit', async (importOriginal) => {
   return {
     ...actual,
     Mutex: class {
-      async acquire() {
-        /* stub */
-      }
-
-      release() {
-        /* stub */
-      }
+      async acquire() {}
+      release() {}
     },
   }
 })
@@ -228,7 +200,7 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('../../character', () => ({
   useCharacterOrchestratorStore: () => ({
-    handleSparkNotifyWithReaction: vi.fn((_event: unknown, options: { fallbackText: string }) => options.fallbackText),
+    handleSparkNotifyWithReaction: vi.fn(async (_event: unknown, options: { fallbackText: string }) => options.fallbackText),
   }),
 }))
 
@@ -353,28 +325,24 @@ describe('context bridge contract', () => {
     await store.initialize()
     const contextSender = createTestChannel(CONTEXT_CHANNEL_NAME)
 
-    contextSender.postMessage(
-      createContextMessage({
-        id: 'broadcast-context',
-        metadata: createMetadata('weather', 'station-1'),
-        text: 'broadcast weather',
-      }),
-    )
+    contextSender.postMessage(createContextMessage({
+      id: 'broadcast-context',
+      metadata: createMetadata('weather', 'station-1'),
+      text: 'broadcast weather',
+    }))
 
     await vi.waitFor(() => {
       expect(chatContextIngestMock).toHaveBeenCalledTimes(1)
     })
-    expect(recordLifecycleMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'store-ingested',
-        channel: 'broadcast',
-        sourceKey: 'weather:station-1',
-        mutation: 'append',
-        details: expect.objectContaining({
-          entryCount: 2,
-        }),
+    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'store-ingested',
+      channel: 'broadcast',
+      sourceKey: 'weather:station-1',
+      mutation: 'append',
+      details: expect.objectContaining({
+        entryCount: 2,
       }),
-    )
+    }))
 
     await store.dispose()
   })
@@ -392,33 +360,27 @@ describe('context bridge contract', () => {
     const store = useContextBridgeStore()
     await store.initialize()
 
-    await emitContextUpdate(
-      createContextUpdateEvent({
-        id: 'server-context',
-        strategy: ContextUpdateStrategy.ReplaceSelf,
-        text: 'server weather',
-      }),
-    )
+    await emitContextUpdate(createContextUpdateEvent({
+      id: 'server-context',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: 'server weather',
+    }))
 
     expect(chatContextIngestMock).toHaveBeenCalledTimes(1)
-    expect(recordLifecycleMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'store-ingested',
-        channel: 'server',
-        sourceKey: 'weather:station-1',
-        mutation: 'replace',
-        details: expect.objectContaining({
-          entryCount: 1,
-        }),
+    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'store-ingested',
+      channel: 'server',
+      sourceKey: 'weather:station-1',
+      mutation: 'replace',
+      details: expect.objectContaining({
+        entryCount: 1,
       }),
-    )
-    expect(recordLifecycleMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'broadcast-posted',
-        channel: 'broadcast',
-        contextId: 'server-context',
-      }),
-    )
+    }))
+    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'broadcast-posted',
+      channel: 'broadcast',
+      contextId: 'server-context',
+    }))
 
     await store.dispose()
   })
@@ -441,7 +403,7 @@ describe('context bridge contract', () => {
 
     await emitServerEvent('input:text', {
       type: 'input:text',
-      source: 'plugin-module-host',
+      source: 'extension-module-host',
       metadata: createMetadata('weather', 'station-1'),
       data: {
         text: 'hello',
@@ -455,18 +417,16 @@ describe('context bridge contract', () => {
     })
 
     expect(chatContextIngestMock).toHaveBeenCalledTimes(1)
-    expect(recordLifecycleMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'store-ingested',
-        channel: 'input',
-        sourceKey: 'weather:station-1',
-        mutation: 'append',
-        details: expect.objectContaining({
-          entryCount: 1,
-          inputType: 'input:text',
-        }),
+    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'store-ingested',
+      channel: 'input',
+      sourceKey: 'weather:station-1',
+      mutation: 'append',
+      details: expect.objectContaining({
+        entryCount: 1,
+        inputType: 'input:text',
       }),
-    )
+    }))
     expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1)
     expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]?.input?.data.contextUpdates).toEqual([
       expect.objectContaining({
@@ -491,25 +451,21 @@ describe('context bridge contract', () => {
     await store.initialize()
     const contextSender = createTestChannel(CONTEXT_CHANNEL_NAME)
 
-    contextSender.postMessage(
-      createContextMessage({
-        id: 'bad-broadcast-context',
-        metadata: createMetadata('weather', 'station-1'),
-        text: 'bad broadcast weather',
-      }),
-    )
+    contextSender.postMessage(createContextMessage({
+      id: 'bad-broadcast-context',
+      metadata: createMetadata('weather', 'station-1'),
+      text: 'bad broadcast weather',
+    }))
 
     await vi.waitFor(() => {
-      expect(recordLifecycleMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          phase: 'store-ingest-rejected',
-          channel: 'broadcast',
-          contextId: 'bad-broadcast-context',
-          details: expect.objectContaining({
-            errorMessage: 'Cannot clone broadcast context',
-          }),
+      expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+        phase: 'store-ingest-rejected',
+        channel: 'broadcast',
+        contextId: 'bad-broadcast-context',
+        details: expect.objectContaining({
+          errorMessage: 'Cannot clone broadcast context',
         }),
-      )
+      }))
     })
 
     await store.dispose()
@@ -527,30 +483,24 @@ describe('context bridge contract', () => {
     const store = useContextBridgeStore()
     await store.initialize()
 
-    await emitContextUpdate(
-      createContextUpdateEvent({
-        id: 'bad-server-context',
-        text: 'bad server weather',
-      }),
-    )
+    await emitContextUpdate(createContextUpdateEvent({
+      id: 'bad-server-context',
+      text: 'bad server weather',
+    }))
     await waitForBroadcastDelivery()
 
-    expect(recordLifecycleMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'store-ingest-rejected',
-        channel: 'server',
-        contextId: 'bad-server-context',
-        details: expect.objectContaining({
-          errorMessage: 'Cannot clone server context',
-        }),
+    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'store-ingest-rejected',
+      channel: 'server',
+      contextId: 'bad-server-context',
+      details: expect.objectContaining({
+        errorMessage: 'Cannot clone server context',
       }),
-    )
-    expect(recordLifecycleMock).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'broadcast-posted',
-        contextId: 'bad-server-context',
-      }),
-    )
+    }))
+    expect(recordLifecycleMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'broadcast-posted',
+      contextId: 'bad-server-context',
+    }))
     expect(postedContexts).toHaveLength(0)
 
     await store.dispose()
@@ -572,7 +522,7 @@ describe('context bridge contract', () => {
 
     await emitServerEvent('input:text', {
       type: 'input:text',
-      source: 'plugin-module-host',
+      source: 'extension-module-host',
       metadata: createMetadata('weather', 'station-1'),
       data: {
         text: 'hello',
@@ -585,15 +535,13 @@ describe('context bridge contract', () => {
       },
     })
 
-    expect(recordLifecycleMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        phase: 'store-ingest-rejected',
-        channel: 'input',
-        details: expect.objectContaining({
-          errorMessage: 'Cannot clone input context',
-        }),
+    expect(recordLifecycleMock).toHaveBeenCalledWith(expect.objectContaining({
+      phase: 'store-ingest-rejected',
+      channel: 'input',
+      details: expect.objectContaining({
+        errorMessage: 'Cannot clone input context',
       }),
-    )
+    }))
     expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1)
     expect(chatOrchestratorMock.ingest.mock.calls[0]?.[1]?.input?.data.contextUpdates).toEqual([])
 
@@ -655,7 +603,7 @@ describe('context bridge contract', () => {
     streamSender.postMessage({ type: 'token-special', special: 'remote-special', sessionId: 'remote-session', context })
     await waitForBroadcastDelivery()
 
-    expect(outgoingStreamMessages.filter((message) => message.sessionId === 'session-1')).toHaveLength(1)
+    expect(outgoingStreamMessages.filter(message => message.sessionId === 'session-1')).toHaveLength(1)
 
     await store.dispose()
   })

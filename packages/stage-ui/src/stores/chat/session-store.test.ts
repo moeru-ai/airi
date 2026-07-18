@@ -15,7 +15,7 @@ const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
 const getSessionMock = vi.fn<(id: string) => Promise<ChatSessionRecord | null>>()
 const saveSessionMock = vi.fn<(id: string, rec: ChatSessionRecord) => Promise<void>>()
 const deleteSessionRepoMock = vi.fn<(id: string) => Promise<void>>()
-const getOutboxMock = vi.fn<(uid: string) => Promise<unknown[]>>()
+const getOutboxMock = vi.fn<(uid: string) => Promise<any[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
 const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>>()
@@ -24,7 +24,7 @@ vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
   return {
     ...actual,
-    storeToRefs: (store: unknown) => store,
+    storeToRefs: (store: any) => store,
   }
 })
 
@@ -86,14 +86,10 @@ vi.mock('../../libs/chat-sync', () => ({
     destroy: vi.fn(),
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
     pullMessages: vi.fn().mockResolvedValue({ messages: [], maxSeq: 0 }),
-    onNewMessages: () => () => {
-      /* stub */
-    },
-    onStatusChange: () => () => {
-      /* stub */
-    },
+    onNewMessages: () => () => {},
+    onStatusChange: () => () => {},
   }),
-  extractMessageText: (m: { content?: unknown }) => (typeof m?.content === 'string' ? m.content : ''),
+  extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: () => false,
   mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
 }))
@@ -118,7 +114,8 @@ beforeEach(() => {
 })
 
 async function flushMicrotasks(rounds = 8) {
-  for (let i = 0; i < rounds; i++) await Promise.resolve()
+  for (let i = 0; i < rounds; i++)
+    await Promise.resolve()
 }
 
 describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
@@ -179,8 +176,10 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
 
     let resolveASessionGet: ((rec: ChatSessionRecord | null) => void) | undefined
     getIndexMock.mockImplementation((uid: string) => {
-      if (uid === 'A') return Promise.resolve(aIndex)
-      if (uid === 'B') return Promise.resolve(bIndex)
+      if (uid === 'A')
+        return Promise.resolve(aIndex)
+      if (uid === 'B')
+        return Promise.resolve(bIndex)
       return Promise.resolve(null)
     })
     getSessionMock.mockImplementation((id: string) => {
@@ -191,7 +190,8 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
           resolveASessionGet = resolve
         })
       }
-      if (id === 'sess-B') return Promise.resolve({ meta: bSessionMeta, messages: [] })
+      if (id === 'sess-B')
+        return Promise.resolve({ meta: bSessionMeta, messages: [] })
       return Promise.resolve(null)
     })
 
@@ -215,7 +215,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
     // Resolve A's IDB read AFTER the swap. With the bug, A's IIFE writes
     // sess-A back into the cleared sessionMetas.
     resolveASessionGet!({ meta: aSessionMeta, messages: [] })
-    await initPromise.catch((err) => console.warn('[test] initPromise rejected (expected in user-swap scenario):', err))
+    await initPromise.catch(() => {})
     await flushMicrotasks()
 
     // B's hydrate must have fired — without the fix, the [userId, activeCardId]
@@ -286,10 +286,7 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     expect(store.sessionMetas['sess-1']).toBeUndefined()
 
     // Resolve getSession with the stale stored record.
-    resolveGet!({
-      meta,
-      messages: [{ role: 'user', content: 'hi', id: 'm1' } as ChatSessionRecord['messages'][number]],
-    })
+    resolveGet!({ meta, messages: [{ role: 'user', content: 'hi', id: 'm1' } as any] })
     await loadPromise
     await flushMicrotasks()
 

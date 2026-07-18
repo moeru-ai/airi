@@ -6,18 +6,28 @@ import TestDummyMarker from './test-dummy-marker.vue'
 </script>
 
 <template>
-  <Story title="Test Dummy Marker" group="gadgets" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Test Dummy Marker"
+    group="gadgets"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="flat" title="Flat Version">
+    <Variant
+      id="flat"
+      title="Flat Version"
+    >
       <div class="h-40 flex items-center justify-center">
         <TestDummyMarkerFlat :size="40" />
       </div>
     </Variant>
 
-    <Variant id="3d-basic" title="3D Basic">
+    <Variant
+      id="3d-basic"
+      title="3D Basic"
+    >
       <div class="h-40 flex items-center justify-center">
         <Volumed :perspective="800">
           <TestDummyMarkerFlat :size="40" />
@@ -25,18 +35,35 @@ import TestDummyMarker from './test-dummy-marker.vue'
       </div>
     </Variant>
 
-    <Variant id="3d-tilted" title="3D Tilted">
+    <Variant
+      id="3d-tilted"
+      title="3D Tilted"
+    >
       <div class="h-40 flex items-center justify-center">
-        <Volumed :perspective="800" transform="rotateX(45deg)">
+        <Volumed
+          :perspective="800"
+          transform="rotateX(45deg)"
+        >
           <TestDummyMarkerFlat :size="40" />
         </Volumed>
       </div>
     </Variant>
 
-    <Variant id="with-momentum" title="With Cursor Momentum">
+    <Variant
+      id="with-momentum"
+      title="With Cursor Momentum"
+    >
       <div class="h-40 flex items-center justify-center">
-        <CursorMomentum v-slot="{ currentValue }" :base-speed="0.1" :friction="0.95" :momentum-factor="0.005">
-          <Volumed :perspective="800" transform="rotateX(45deg)">
+        <CursorMomentum
+          v-slot="{ currentValue }"
+          :base-speed="0.1"
+          :friction="0.95"
+          :momentum-factor="0.005"
+        >
+          <Volumed
+            :perspective="800"
+            transform="rotateX(45deg)"
+          >
             <TestDummyMarkerFlat
               :size="40"
               :style="{
@@ -48,7 +75,10 @@ import TestDummyMarker from './test-dummy-marker.vue'
       </div>
     </Variant>
 
-    <Variant id="original" title="Original Implementation">
+    <Variant
+      id="original"
+      title="Original Implementation"
+    >
       <div class="h-40 flex items-center justify-center">
         <TestDummyMarker />
       </div>

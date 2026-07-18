@@ -32,7 +32,8 @@ export interface ChatDataStore {
 export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
   function ensureGeneration(sessionId: string) {
     const generations = access.getGenerations()
-    if (generations[sessionId] === undefined) access.setGenerations({ ...generations, [sessionId]: 0 })
+    if (generations[sessionId] === undefined)
+      access.setGenerations({ ...generations, [sessionId]: 0 })
   }
 
   function getSessionGeneration(sessionId: string) {
@@ -91,7 +92,8 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
     for (const [sessionId, history] of Object.entries(sessions)) {
       if (history.length > 0 && history[0].role === 'system') {
         nextSessions[sessionId] = [createInitialMessage(), ...history.slice(1)]
-      } else {
+      }
+      else {
         nextSessions[sessionId] = history
       }
     }
@@ -101,10 +103,11 @@ export function createChatDataStore(access: ChatDataAccess): ChatDataStore {
 
   function replaceSessions(sessions: Record<string, ChatHistoryItem[]>, createInitialMessage: () => SystemMessage) {
     access.setSessions(sessions)
-    access.setGenerations(Object.fromEntries(Object.keys(sessions).map((sessionId) => [sessionId, 0])))
+    access.setGenerations(Object.fromEntries(Object.keys(sessions).map(sessionId => [sessionId, 0])))
 
     const [firstSessionId] = Object.keys(sessions)
-    if (!sessions[access.getActiveSessionId()] && firstSessionId) access.setActiveSessionId(firstSessionId)
+    if (!sessions[access.getActiveSessionId()] && firstSessionId)
+      access.setActiveSessionId(firstSessionId)
 
     ensureSession(access.getActiveSessionId(), createInitialMessage)
   }

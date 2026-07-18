@@ -1,12 +1,12 @@
-import type { ComposerTranslation } from 'vue-i18n'
-import type { ProviderDefinition } from '../../libs/providers/types'
 import { describe, expect, it, vi } from 'vitest'
-
 import { z } from 'zod'
+
 import { convertProviderDefinitionToMetadata } from './converters'
 
 vi.mock('@xsai/model', () => ({
-  listModels: vi.fn(() => [{ id: 'test-model', name: 'Test Model', context_length: 8192 }]),
+  listModels: vi.fn(async () => [
+    { id: 'test-model', name: 'Test Model', context_length: 8192 },
+  ]),
 }))
 
 describe('providers converters', () => {
@@ -18,15 +18,14 @@ describe('providers converters', () => {
       nameLocalize: ({ t }: { t: (input: string) => string }) => t('name.key'),
       description: 'test',
       descriptionLocalize: ({ t }: { t: (input: string) => string }) => t('description.key'),
-      createProviderConfig: () =>
-        z.object({
-          apiKey: z.string(),
-          baseUrl: z.string().optional().default('https://example.com/v1/'),
-        }),
-      createProvider: () => ({}),
-    } as unknown as ProviderDefinition<{ apiKey: string; baseUrl?: string }>
+      createProviderConfig: () => z.object({
+        apiKey: z.string(),
+        baseUrl: z.string().optional().default('https://example.com/v1/'),
+      }),
+      createProvider: () => ({}) as any,
+    } as any
 
-    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as ComposerTranslation)
+    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
 
     expect(metadata.defaultOptions?.()).toMatchObject({
       baseUrl: 'https://example.com/v1/',
@@ -41,11 +40,10 @@ describe('providers converters', () => {
       nameLocalize: ({ t }: { t: (input: string) => string }) => t('name.key'),
       description: 'test',
       descriptionLocalize: ({ t }: { t: (input: string) => string }) => t('description.key'),
-      createProviderConfig: () =>
-        z.object({
-          apiKey: z.string(),
-          baseUrl: z.string().optional().default('https://example.com/v1/'),
-        }),
+      createProviderConfig: () => z.object({
+        apiKey: z.string(),
+        baseUrl: z.string().optional().default('https://example.com/v1/'),
+      }),
       createProvider: () => ({
         model: () => ({ baseURL: 'https://example.com/v1/', apiKey: 'k' }),
       }),
@@ -54,14 +52,14 @@ describe('providers converters', () => {
           () => ({
             id: 'openai-compatible:check-config',
             name: 'config',
-            validator: () => ({ errors: [], reason: '', reasonKey: '', valid: true }),
+            validator: async () => ({ errors: [], reason: '', reasonKey: '', valid: true }),
           }),
         ],
       },
       validationRequiredWhen: () => true,
-    } as unknown as ProviderDefinition<{ apiKey: string; baseUrl?: string }>
+    } as any
 
-    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as ComposerTranslation)
+    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
     const models = await metadata.capabilities.listModels?.({ apiKey: 'k', baseUrl: 'https://example.com/v1/' })
 
     expect(models).toMatchObject([
@@ -81,11 +79,10 @@ describe('providers converters', () => {
       nameLocalize: ({ t }: { t: (input: string) => string }) => t('name.key'),
       description: 'test',
       descriptionLocalize: ({ t }: { t: (input: string) => string }) => t('description.key'),
-      createProviderConfig: () =>
-        z.object({
-          apiKey: z.string(),
-          baseUrl: z.string().optional().default('https://example.com/v1/'),
-        }),
+      createProviderConfig: () => z.object({
+        apiKey: z.string(),
+        baseUrl: z.string().optional().default('https://example.com/v1/'),
+      }),
       createProvider: () => ({
         model: () => ({ baseURL: 'https://example.com/v1/', apiKey: 'k' }),
       }),
@@ -94,19 +91,14 @@ describe('providers converters', () => {
           () => ({
             id: 'openai-compatible:check-config',
             name: 'config',
-            validator: async () => ({
-              errors: [{ error: new Error('Base URL is required.') }],
-              reason: 'Base URL is required.',
-              reasonKey: '',
-              valid: false,
-            }),
+            validator: async () => ({ errors: [{ error: new Error('Base URL is required.') }], reason: 'Base URL is required.', reasonKey: '', valid: false }),
           }),
         ],
       },
       validationRequiredWhen: () => true,
-    } as unknown as ProviderDefinition<{ apiKey: string; baseUrl?: string }>
+    } as any
 
-    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as ComposerTranslation)
+    const metadata = convertProviderDefinitionToMetadata(definition, ((key: string) => key) as any)
     const result = await metadata.validators.validateProviderConfig({ apiKey: 'k' }, { skipChatPingCheck: true })
 
     expect(result.valid).toBe(false)

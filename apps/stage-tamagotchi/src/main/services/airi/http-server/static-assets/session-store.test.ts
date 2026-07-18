@@ -7,7 +7,8 @@ import { createStaticAssetSessionStore } from './session-store'
 function tryMutateCookieValue(session: StaticAssetSession, cookieValue: string) {
   try {
     Object.assign(session, { cookieValue })
-  } catch {
+  }
+  catch {
     // Frozen snapshots reject mutation; the assertion that follows verifies store state.
   }
 }
@@ -35,15 +36,13 @@ describe('createStaticAssetSessionStore', () => {
     expect(session.assetSessionId).toBeTruthy()
     expect(session.cookieName).toContain(session.assetSessionId)
     expect(session.cookieValue).toBeTruthy()
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: session.cookieValue,
-      }).ok,
-    ).toBe(true)
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: session.cookieValue,
+    }).ok).toBe(true)
   })
 
   /**
@@ -61,15 +60,13 @@ describe('createStaticAssetSessionStore', () => {
       ttlMs: 30_000,
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'other-plugin',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'index.html',
-        cookieValue: session.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'other-plugin',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'index.html',
+      cookieValue: session.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -78,15 +75,13 @@ describe('createStaticAssetSessionStore', () => {
     })
 
     expect(store.revokeByOwnerSessionId('plugin-session-1')).toHaveLength(1)
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'index.html',
-        cookieValue: session.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'index.html',
+      cookieValue: session.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -110,15 +105,13 @@ describe('createStaticAssetSessionStore', () => {
       ttlMs: 30_000,
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: undefined,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: undefined,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -126,15 +119,13 @@ describe('createStaticAssetSessionStore', () => {
       },
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: 'wrong-cookie',
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: 'wrong-cookie',
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -142,15 +133,13 @@ describe('createStaticAssetSessionStore', () => {
       },
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.2.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: session.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.2.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: session.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -158,15 +147,13 @@ describe('createStaticAssetSessionStore', () => {
       },
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: '',
-        cookieValue: session.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: '',
+      cookieValue: session.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -174,15 +161,13 @@ describe('createStaticAssetSessionStore', () => {
       },
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'other/index.js',
-        cookieValue: session.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'other/index.js',
+      cookieValue: session.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -192,15 +177,13 @@ describe('createStaticAssetSessionStore', () => {
 
     now.mockReturnValue(31_001)
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: session.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: session.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: session.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: session.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,
@@ -344,12 +327,10 @@ describe('createStaticAssetSessionStore', () => {
     }
 
     for (const ttlMs of [Number.NaN, Number.POSITIVE_INFINITY, 0, -1]) {
-      expect(() =>
-        store.createSession({
-          ...input,
-          ttlMs,
-        }),
-      ).toThrow(RangeError)
+      expect(() => store.createSession({
+        ...input,
+        ttlMs,
+      })).toThrow(RangeError)
     }
   })
 
@@ -367,16 +348,18 @@ describe('createStaticAssetSessionStore', () => {
       ttlMs: 30_000,
     })
 
-    for (const assetPath of ['assets/../secret.js', 'assets\\..\\secret.js', 'assets%2Fsecret.js']) {
-      expect(
-        store.validateRequest({
-          extensionId: 'airi-plugin-game-chess',
-          version: '0.1.0',
-          assetSessionId: session.assetSessionId,
-          assetPath,
-          cookieValue: session.cookieValue,
-        }),
-      ).toMatchObject({
+    for (const assetPath of [
+      'assets/../secret.js',
+      'assets\\..\\secret.js',
+      'assets%2Fsecret.js',
+    ]) {
+      expect(store.validateRequest({
+        extensionId: 'airi-plugin-game-chess',
+        version: '0.1.0',
+        assetSessionId: session.assetSessionId,
+        assetPath,
+        cookieValue: session.cookieValue,
+      })).toMatchObject({
         ok: false,
         error: {
           status: 401,
@@ -385,15 +368,13 @@ describe('createStaticAssetSessionStore', () => {
       })
     }
 
-    expect(() =>
-      store.createSession({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        ownerSessionId: 'plugin-session-1',
-        pathPrefix: '../',
-        ttlMs: 30_000,
-      }),
-    ).toThrow(RangeError)
+    expect(() => store.createSession({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      ownerSessionId: 'plugin-session-1',
+      pathPrefix: '../',
+      ttlMs: 30_000,
+    })).toThrow(RangeError)
   })
 
   /**
@@ -417,35 +398,29 @@ describe('createStaticAssetSessionStore', () => {
       ttlMs: 30_000,
     })
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: directorySession.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: directorySession.cookieValue,
-      }).ok,
-    ).toBe(true)
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: directorySession.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: directorySession.cookieValue,
+    }).ok).toBe(true)
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: exactSession.assetSessionId,
-        assetPath: 'assets',
-        cookieValue: exactSession.cookieValue,
-      }).ok,
-    ).toBe(true)
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: exactSession.assetSessionId,
+      assetPath: 'assets',
+      cookieValue: exactSession.cookieValue,
+    }).ok).toBe(true)
 
-    expect(
-      store.validateRequest({
-        extensionId: 'airi-plugin-game-chess',
-        version: '0.1.0',
-        assetSessionId: exactSession.assetSessionId,
-        assetPath: 'assets/index.js',
-        cookieValue: exactSession.cookieValue,
-      }),
-    ).toMatchObject({
+    expect(store.validateRequest({
+      extensionId: 'airi-plugin-game-chess',
+      version: '0.1.0',
+      assetSessionId: exactSession.assetSessionId,
+      assetPath: 'assets/index.js',
+      cookieValue: exactSession.cookieValue,
+    })).toMatchObject({
       ok: false,
       error: {
         status: 401,

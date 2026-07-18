@@ -1,4 +1,7 @@
-import type { ElectronMcpStdioConfigFile, ElectronMcpStdioServerConfig } from './eventa'
+import type {
+  ElectronMcpStdioConfigFile,
+  ElectronMcpStdioServerConfig,
+} from './eventa'
 
 import { z } from 'zod'
 
@@ -24,15 +27,13 @@ function stringifyError(error: unknown) {
  * Returns:
  * - A strict Zod schema matching the persisted MCP server shape
  */
-export const electronMcpStdioServerConfigSchema = z
-  .object({
-    command: z.string().min(1),
-    args: z.array(z.string()).optional(),
-    env: z.record(z.string(), z.string()).optional(),
-    cwd: z.string().optional(),
-    enabled: z.boolean().optional(),
-  })
-  .strict() satisfies z.ZodType<ElectronMcpStdioServerConfig>
+export const electronMcpStdioServerConfigSchema = z.object({
+  command: z.string().min(1),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
+  cwd: z.string().optional(),
+  enabled: z.boolean().optional(),
+}).strict() satisfies z.ZodType<ElectronMcpStdioServerConfig>
 
 /**
  * Shared runtime-safe schema for the persisted MCP config file.
@@ -48,11 +49,9 @@ export const electronMcpStdioServerConfigSchema = z
  * Returns:
  * - A strict Zod schema for the full MCP config file
  */
-export const electronMcpConfigSchema = z
-  .object({
-    mcpServers: z.record(z.string(), electronMcpStdioServerConfigSchema),
-  })
-  .strict() satisfies z.ZodType<ElectronMcpStdioConfigFile>
+export const electronMcpConfigSchema = z.object({
+  mcpServers: z.record(z.string(), electronMcpStdioServerConfigSchema),
+}).strict() satisfies z.ZodType<ElectronMcpStdioConfigFile>
 
 /**
  * Formats schema validation issues into one user-facing error string.
@@ -73,7 +72,7 @@ export const electronMcpConfigSchema = z
  * - A semicolon-delimited message preserving issue paths
  */
 export function formatElectronMcpConfigIssues(issues: z.ZodIssue[]) {
-  return issues.map((issue) => `${issue.path.join('.') || '<root>'}: ${issue.message}`).join('; ')
+  return issues.map(issue => `${issue.path.join('.') || '<root>'}: ${issue.message}`).join('; ')
 }
 
 /**
@@ -116,7 +115,8 @@ export function parseElectronMcpConfigText(text: string): ElectronMcpStdioConfig
 
   try {
     parsed = JSON.parse(text)
-  } catch (error) {
+  }
+  catch (error) {
     throw new Error(`invalid JSON: ${stringifyError(error)}`)
   }
 

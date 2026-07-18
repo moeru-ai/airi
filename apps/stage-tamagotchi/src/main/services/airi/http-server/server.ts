@@ -36,27 +36,26 @@ export function createH3Server(options: {
   let address: BuiltInServerAddress | undefined
 
   return {
-    start(): Promise<BuiltInServerAddress> {
-      return lifecycleMutex.runExclusive(() => {
+    async start(): Promise<BuiltInServerAddress> {
+      return await lifecycleMutex.runExclusive(async () => {
         if (address) {
-          return Promise.resolve(address)
+          return address
         }
 
-        return getRandomPort(host).then((port) => {
-          server = serve(options.app, { hostname: host, port, silent })
+        const port = options.port ?? await getRandomPort(host)
+        server = serve(options.app, { hostname: host, port, silent })
 
-          address = {
-            host,
-            port,
-            baseUrl: `http://${host}:${port}`,
-          }
+        address = {
+          host,
+          port,
+          baseUrl: `http://${host}:${port}`,
+        }
 
-          return address
-        })
+        return address
       })
     },
-    stop(): Promise<void> {
-      return lifecycleMutex.runExclusive(() => {
+    async stop(): Promise<void> {
+      await lifecycleMutex.runExclusive(async () => {
         address = undefined
         if (!server) {
           return
@@ -64,9 +63,7 @@ export function createH3Server(options: {
 
         const activeServer = server
         server = undefined
-        return activeServer.close().catch(() => {
-          /* noop — ignore close errors */
-        })
+        await activeServer.close().catch(() => {})
       })
     },
     getAddress() {

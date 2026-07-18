@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
 export const DEFAULT_THEME_COLORS_HUE = 220.44
 
 const convert = converter('oklch')
-const getHueFrom = (color?: string) => (color ? convert(color)?.h : DEFAULT_THEME_COLORS_HUE)
+const getHueFrom = (color?: string) => color ? convert(color)?.h : DEFAULT_THEME_COLORS_HUE
 
 export const useSettingsTheme = defineStore('settings-theme', () => {
   const themeColorsHue = useLocalStorageManualReset<number>('settings/theme/colors/hue', DEFAULT_THEME_COLORS_HUE)
@@ -27,11 +27,13 @@ export const useSettingsTheme = defineStore('settings-theme', () => {
    */
   function isColorSelectedForPrimary(hexColor?: string) {
     // If dynamic coloring is enabled, no preset color is manually selected
-    if (themeColorsHueDynamic.value) return false
+    if (themeColorsHueDynamic.value)
+      return false
 
     // Convert hex color to OKLCH
     const h = getHueFrom(hexColor)
-    if (!h) return false
+    if (!h)
+      return false
 
     // Compare hue values with a small tolerance for floating point comparison
     const hueDifference = Math.abs(h - themeColorsHue.value)

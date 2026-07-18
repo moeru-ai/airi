@@ -8,24 +8,26 @@ export function useAsyncState<T>(
 ) {
   const { immediate = false } = options ?? {}
 
-  const state = ref<T | undefined>(undefined) as { value: T | undefined }
-  const isLoading = ref(false) as { value: boolean }
-  const error = ref<unknown>(null) as { value: unknown }
+  const state = ref<T | undefined>(undefined)
+  const isLoading = ref(false)
+  const error = ref<unknown>(null)
 
-  const execute = async (): Promise<void> => {
+  const execute = async () => {
     isLoading.value = true
     error.value = null
     try {
       state.value = await fn()
-    } catch (err) {
+    }
+    catch (err) {
       error.value = err
-    } finally {
+    }
+    finally {
       isLoading.value = false
     }
   }
 
   if (immediate) {
-    void execute()
+    execute()
   }
 
   return {

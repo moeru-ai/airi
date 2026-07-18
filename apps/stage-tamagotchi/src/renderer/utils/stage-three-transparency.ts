@@ -8,10 +8,8 @@ export function shouldSampleStageTransparency(params: {
   stageModelRenderer: StageModelRenderer
   stagePaused: boolean
 }) {
-  return (
-    params.fadeOnHoverEnabled &&
-    !params.stagePaused &&
-    params.componentState === 'mounted' &&
-    params.stageModelRenderer === 'vrm'
-  )
+  return params.fadeOnHoverEnabled
+    && !params.stagePaused
+    && params.componentState === 'mounted'
+    && params.stageModelRenderer === 'vrm'
 }

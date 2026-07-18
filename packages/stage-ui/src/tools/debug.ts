@@ -5,7 +5,7 @@ const tools = [
   tool({
     name: 'builtIn_debugRandomNumber',
     description: 'Generate a random number between 0 and 1',
-    execute: () => {
+    execute: async () => {
       return new Promise((resolve) => {
         setTimeout(() => {
           resolve(Math.random().toString())
@@ -16,4 +16,4 @@ const tools = [
   }),
 ]
 
-export const debug = () => Promise.all(tools)
+export const debug = async () => Promise.all(tools)

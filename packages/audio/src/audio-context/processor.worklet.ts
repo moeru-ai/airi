@@ -4,6 +4,8 @@ import type { ConverterTypeValue } from '@alexanderolsen/libsamplerate-js/dist/c
 
 import { ConverterType, create } from '@alexanderolsen/libsamplerate-js'
 
+import { errorMessageFromValue } from '../utils/error-message'
+
 interface ProcessorOptions {
   inputSampleRate: number
   outputSampleRate: number
@@ -61,23 +63,24 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
       )
       this.isInitialized = true
       this.port.postMessage({ type: 'initialized', success: true })
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to initialize sample rate converter:', error)
 
       this.port.postMessage({
         type: 'initialized',
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFromValue(error),
       })
     }
   }
 
   private async updateOptions(newOptions: Partial<ProcessorOptions>) {
-    const needsReinitialize =
-      newOptions.inputSampleRate !== this.options.inputSampleRate ||
-      newOptions.outputSampleRate !== this.options.outputSampleRate ||
-      newOptions.channels !== this.options.channels ||
-      newOptions.converterType !== this.options.converterType
+    const needsReinitialize
+      = newOptions.inputSampleRate !== this.options.inputSampleRate
+        || newOptions.outputSampleRate !== this.options.outputSampleRate
+        || newOptions.channels !== this.options.channels
+        || newOptions.converterType !== this.options.converterType
 
     Object.assign(this.options, newOptions)
 
@@ -135,12 +138,13 @@ class ResamplingAudioWorkletProcessor extends AudioWorkletProcessor {
           }
         }
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Resampling error in worklet:', error)
 
       this.port.postMessage({
         type: 'error',
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessageFromValue(error),
       })
 
       // Pass through original data on error

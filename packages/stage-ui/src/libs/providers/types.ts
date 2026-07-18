@@ -15,22 +15,24 @@ import type { MaybePromise } from 'clustr'
 import type { ComposerTranslation } from 'vue-i18n'
 import type { $ZodType } from 'zod/v4/core'
 
-export type ProviderInstance =
-  | ChatProvider
-  | ChatProviderWithExtraOptions
-  | EmbedProvider
-  | EmbedProviderWithExtraOptions
-  | SpeechProvider
-  | SpeechProviderWithExtraOptions
-  | TranscriptionProvider
-  | TranscriptionProviderWithExtraOptions
-  | ModelProvider
-  | ModelProviderWithExtraOptions
+export type ProviderInstance
+  = | ChatProvider
+    | ChatProviderWithExtraOptions
+    | EmbedProvider
+    | EmbedProviderWithExtraOptions
+    | SpeechProvider
+    | SpeechProviderWithExtraOptions
+    | TranscriptionProvider
+    | TranscriptionProviderWithExtraOptions
+    | ModelProvider
+    | ModelProviderWithExtraOptions
 
-export function isModelProvider(
-  providerInstance: ProviderInstance,
-): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
-  return 'model' in providerInstance && typeof providerInstance.model === 'function'
+export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
+  if ('model' in providerInstance && typeof providerInstance.model === 'function') {
+    return true
+  }
+
+  return false
 }
 
 export interface ProviderOnboardingField {
@@ -51,15 +53,11 @@ export interface ProviderExtraMethods<TConfig> {
    * narrow the result. Providers with a single catalogue ignore it.
    */
   listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
-  loadModel?: (
-    config: TConfig,
-    provider: ProviderInstance,
-    hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void },
-  ) => Promise<void>
+  loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
 export interface ProviderValidationResult {
-  errors: Array<{ error: unknown; errorKey?: string }>
+  errors: Array<{ error: unknown, errorKey?: string }>
   reason: string
   reasonKey: string
   valid: boolean
@@ -103,12 +101,7 @@ export interface ProviderConfigValidator<TConfig> {
 export interface ProviderRuntimeValidator<TConfig> {
   id: string
   name: string
-  validator: (
-    config: TConfig,
-    provider: ProviderInstance,
-    providerExtra: ProviderExtraMethods<TConfig>,
-    contextOptions: { t: ComposerTranslation },
-  ) => MaybePromise<ProviderValidationResult>
+  validator: (config: TConfig, provider: ProviderInstance, providerExtra: ProviderExtraMethods<TConfig>, contextOptions: { t: ComposerTranslation }) => MaybePromise<ProviderValidationResult>
   schedule?: ProviderValidatorSchedule
 }
 
@@ -137,9 +130,8 @@ export interface VoiceInfo {
   }[]
 }
 
-// NOTICE: TConfig uses Record<string, unknown> as default for safe property access.
-// Typed provider defs (e.g. ProviderDefinition<{ apiKey: string }>) override this.
-export interface ProviderDefinition<TConfig = Record<string, unknown>> {
+// eslint-disable-next-line ts/no-unnecessary-type-constraint
+export interface ProviderDefinition<TConfig extends any = any> {
   id: string
   order?: number
   tasks: string[]

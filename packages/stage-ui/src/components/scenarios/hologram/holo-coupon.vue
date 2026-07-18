@@ -30,7 +30,7 @@ function translateBannerItem(key: PromoBannerItemKey): PromoBannerItem {
 }
 
 const items = computed<(PromoBannerItem & PromoBannerVisual)[]>(() =>
-  promoBannerVisuals.map((item) => ({
+  promoBannerVisuals.map(item => ({
     ...item,
     ...translateBannerItem(item.key),
   })),
@@ -55,35 +55,31 @@ function startAutoplay() {
   }, 5000)
 }
 
-watch(
-  emblaApi,
-  (api, _, onCleanup) => {
-    if (!api) {
-      return
-    }
+watch(emblaApi, (api, _, onCleanup) => {
+  if (!api) {
+    return
+  }
 
-    const syncIndex = () => {
-      currentIndex.value = api.selectedSnap()
-    }
+  const syncIndex = () => {
+    currentIndex.value = api.selectedSnap()
+  }
 
-    syncIndex()
-    api.on('select', syncIndex)
+  syncIndex()
+  api.on('select', syncIndex)
 
-    const rootNode = api.rootNode()
-    rootNode.addEventListener('mouseenter', stopAutoplay)
-    rootNode.addEventListener('mouseleave', startAutoplay)
+  const rootNode = api.rootNode()
+  rootNode.addEventListener('mouseenter', stopAutoplay)
+  rootNode.addEventListener('mouseleave', startAutoplay)
 
-    startAutoplay()
+  startAutoplay()
 
-    onCleanup(() => {
-      api.off?.('select', syncIndex)
-      rootNode.removeEventListener('mouseenter', stopAutoplay)
-      rootNode.removeEventListener('mouseleave', startAutoplay)
-      stopAutoplay()
-    })
-  },
-  { immediate: true },
-)
+  onCleanup(() => {
+    api.off?.('select', syncIndex)
+    rootNode.removeEventListener('mouseenter', stopAutoplay)
+    rootNode.removeEventListener('mouseleave', startAutoplay)
+    stopAutoplay()
+  })
+}, { immediate: true })
 
 function scrollTo(index: number) {
   if (emblaApi.value) {
@@ -114,7 +110,13 @@ function open() {
 }
 
 const activeItem = computed(() => items.value[currentIndex.value] ?? items.value[0])
-const { buttonClass, descriptionClass, metaClass, titleClass, watermarkClass } = usePromoBannerLayout(locale)
+const {
+  buttonClass,
+  descriptionClass,
+  metaClass,
+  titleClass,
+  watermarkClass,
+} = usePromoBannerLayout(locale)
 
 onBeforeUnmount(() => {
   stopAutoplay()
@@ -122,7 +124,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="false" class="fixed bottom-10 left-6 z-50 <md:hidden">
+  <div
+    v-if="false"
+    class="fixed bottom-10 left-6 z-50 <md:hidden"
+  >
     <button
       v-if="!isVisible"
       :class="[
@@ -140,12 +145,7 @@ onBeforeUnmount(() => {
     </button>
 
     <div v-else class="pointer-events-auto relative flex flex-col items-start">
-      <div
-        :class="[
-          'relative h-60 w-108 overflow-hidden rounded-3xl border border-white/8 bg-neutral-900/86 shadow-2xl backdrop-blur-xl',
-          'ring-1 ring-black/10',
-        ]"
-      >
+      <div :class="['relative h-60 w-108 overflow-hidden rounded-3xl border border-white/8 bg-neutral-900/86 shadow-2xl backdrop-blur-xl', 'ring-1 ring-black/10']">
         <button
           :class="[
             'absolute right-3 top-3 z-30 h-8 w-8 flex items-center justify-center rounded-full',
@@ -157,12 +157,21 @@ onBeforeUnmount(() => {
           <div class="i-lucide-x h-5 w-5" />
         </button>
 
-        <div :class="['pointer-events-none absolute inset-0 bg-gradient-to-br', activeItem.accentClass]" />
+        <div
+          :class="[
+            'pointer-events-none absolute inset-0 bg-gradient-to-br',
+            activeItem.accentClass,
+          ]"
+        />
         <div class="pointer-events-none absolute inset-y-0 right-28 w-px bg-white/8" />
 
         <div ref="_emblaRef" class="embla h-full w-full">
           <div class="embla__container h-full">
-            <div v-for="(item, index) in items" :key="index" class="embla__slide relative h-full min-w-0">
+            <div
+              v-for="(item, index) in items"
+              :key="index"
+              class="embla__slide relative h-full min-w-0"
+            >
               <div class="absolute inset-y-0 left-0 w-78 px-4 py-4">
                 <div class="absolute left-5 top-4 z-0 select-none">
                   <span :class="['block text-white/8 leading-none uppercase', watermarkClass]">
@@ -205,35 +214,32 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div
-                class="absolute inset-y-3 right-3 w-23 overflow-hidden border border-white/10 rounded-2xl bg-white/5"
-              >
-                <img v-if="item.image" :src="item.image" :alt="item.title" class="h-full w-full object-cover" />
-                <div v-else :class="['relative h-full w-full overflow-hidden bg-gradient-to-br', item.fallbackClass]">
+              <div class="absolute inset-y-3 right-3 w-23 overflow-hidden border border-white/10 rounded-2xl bg-white/5">
+                <img
+                  v-if="item.image"
+                  :src="item.image"
+                  :alt="item.title"
+                  class="h-full w-full object-cover"
+                >
+                <div
+                  v-else
+                  :class="[
+                    'relative h-full w-full overflow-hidden bg-gradient-to-br',
+                    item.fallbackClass,
+                  ]"
+                >
                   <div class="absolute left-4 top-4 h-10 w-10 rounded-2xl bg-white/12 blur-sm" />
                   <div class="absolute right-3 top-3 h-14 w-14 rounded-full bg-amber-300/22 blur-md" />
-                  <div
-                    class="absolute inset-x-4 bottom-4 h-18 border border-white/12 rounded-[1.4rem] bg-black/18 backdrop-blur-sm"
-                  />
+                  <div class="absolute inset-x-4 bottom-4 h-18 border border-white/12 rounded-[1.4rem] bg-black/18 backdrop-blur-sm" />
                   <div :class="[item.fallbackIcon, item.fallbackIconClass, 'absolute left-5 top-5 text-2xl']" />
-                  <div
-                    :class="[
-                      item.fallbackIcon,
-                      item.fallbackIconClass,
-                      'absolute bottom-7 right-4 text-4xl opacity-90',
-                    ]"
-                  />
+                  <div :class="[item.fallbackIcon, item.fallbackIconClass, 'absolute bottom-7 right-4 text-4xl opacity-90']" />
                   <div class="absolute bottom-5 left-4 text-[10px] text-white/70 font-700 tracking-[0.3em] uppercase">
                     {{ t(getPromoBannerFallbackLabelKey(item.key)) }}
                   </div>
                 </div>
 
-                <div
-                  class="pointer-events-none absolute inset-0 from-neutral-950/55 via-transparent to-white/8 bg-gradient-to-t"
-                />
-                <div
-                  class="pointer-events-none absolute bottom-0 left-0 right-0 h-18 from-neutral-950/88 to-transparent bg-gradient-to-t"
-                />
+                <div class="pointer-events-none absolute inset-0 from-neutral-950/55 via-transparent to-white/8 bg-gradient-to-t" />
+                <div class="pointer-events-none absolute bottom-0 left-0 right-0 h-18 from-neutral-950/88 to-transparent bg-gradient-to-t" />
               </div>
             </div>
           </div>

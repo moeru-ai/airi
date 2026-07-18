@@ -7,12 +7,6 @@ import { hrTimeToNanoseconds } from '@opentelemetry/core'
 import { BasicTracerProvider, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { shallowRef } from 'vue'
 
-// Minimal Resource interface to avoid dependency on @opentelemetry/resources
-interface Resource {
-  attributes: Record<string, unknown>
-  merge?: (other: Resource) => Resource
-}
-
 export type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
 
 const TRACER_NAME = 'ai.moeru.airi.io-tracer'
@@ -27,8 +21,8 @@ export interface SerializedSpan {
   startTimeNano: string
   endTimeNano: string
   attributes: Record<string, unknown>
-  events: { name: string; timeNano: string; attributes: Record<string, unknown> }[]
-  status: { code: number; message: string }
+  events: { name: string, timeNano: string, attributes: Record<string, unknown> }[]
+  status: { code: number, message: string }
   ended: boolean
 }
 
@@ -69,11 +63,6 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     ? { traceId: s.traceId, spanId: s.parentSpanId, traceFlags: 1, isRemote: false }
     : undefined
 
-  const resource = {
-    attributes: {},
-    merge: () => ({ attributes: {} }),
-  } as Resource
-
   return {
     name: s.name,
     kind: s.kind,
@@ -84,7 +73,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     status: { code: s.status.code as SpanStatusCode, message: s.status.message },
     attributes: s.attributes as Record<string, string | number | boolean>,
     links: [],
-    events: s.events.map((e) => ({
+    events: s.events.map(e => ({
       name: e.name,
       time: nanoToHr(e.timeNano),
       attributes: e.attributes as Record<string, string | number | boolean>,
@@ -92,7 +81,7 @@ export function deserializeSpan(s: SerializedSpan): ReadableSpan {
     })),
     duration: nanoToHr(String(Number(s.endTimeNano) - Number(s.startTimeNano))),
     ended: s.ended,
-    resource: resource as unknown as ReadableSpan['resource'],
+    resource: { attributes: {}, merge: () => ({ attributes: {} }) } as any,
     instrumentationScope: { name: TRACER_NAME },
     droppedAttributesCount: 0,
     droppedEventsCount: 0,
@@ -125,9 +114,11 @@ export function createCallbackSpanExporter(): SpanExporter {
 }
 
 export function initIOTracer() {
-  if (!broadcastChannel) broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL)
+  if (!broadcastChannel)
+    broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL)
 
-  if (provider) return
+  if (provider)
+    return
 
   provider = new BasicTracerProvider({
     spanProcessors: [new SimpleSpanProcessor(createCallbackSpanExporter())],
@@ -136,7 +127,8 @@ export function initIOTracer() {
 }
 
 export function getIOTracer() {
-  if (provider) return provider.getTracer(TRACER_NAME)
+  if (provider)
+    return provider.getTracer(TRACER_NAME)
   return trace.getTracer(TRACER_NAME)
 }
 

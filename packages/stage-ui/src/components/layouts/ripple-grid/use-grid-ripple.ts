@@ -14,7 +14,7 @@ export function useGridRipple(options: UseGridRippleOptions) {
 
   // to property propagate the ripple, we need to know the layout of the grid and map each item onto a coordinate
   const sectionLayout = computed(() => {
-    const layout: { startLinearIndex: number; startRow: number; itemCount: number }[] = []
+    const layout: { startLinearIndex: number, startRow: number, itemCount: number }[] = []
     let currentLinearIndex = 0
     let currentRow = 0
     const numCols = toValue(cols)
@@ -37,7 +37,7 @@ export function useGridRipple(options: UseGridRippleOptions) {
 
   // precompute the coordinates
   const coordinateMap = computed(() => {
-    const map = new Map<number, { row: number; col: number }>()
+    const map = new Map<number, { row: number, col: number }>()
     const numCols = toValue(cols)
 
     for (const meta of sectionLayout.value) {

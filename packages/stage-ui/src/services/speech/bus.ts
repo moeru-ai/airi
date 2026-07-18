@@ -48,11 +48,13 @@ let context: ReturnType<typeof createBroadcastChannelContext>['context'] | undef
 let channel: BroadcastChannel | undefined
 
 function getChannel() {
-  if (!channel) channel = new BroadcastChannel(BUS_CHANNEL_NAME)
+  if (!channel)
+    channel = new BroadcastChannel(BUS_CHANNEL_NAME)
   return channel
 }
 
 export function getSpeechBusContext() {
-  if (!context) context = createBroadcastChannelContext(getChannel()).context
+  if (!context)
+    context = createBroadcastChannelContext(getChannel()).context
   return context
 }

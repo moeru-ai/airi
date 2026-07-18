@@ -1,3 +1,1 @@
-export function exportToMD() {
-  // noop
-}
+export function exportToMD() {}

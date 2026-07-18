@@ -1,8 +1,8 @@
 import type { Character } from '../types/character'
 
-import { createStorage } from 'unstorage'
-
 import memoryDriver from 'unstorage/drivers/memory'
+
+import { createStorage } from 'unstorage'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { createCharactersModel } from './characters'

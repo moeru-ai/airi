@@ -22,8 +22,9 @@ const { t } = useI18n()
 const selectedProviderIdModel = computed({
   get: () => props.selectedProviderId,
   set: (providerId: string) => {
-    const provider = props.popularProviders.find((item) => item.id === providerId)
-    if (provider) props.onSelectProvider(provider)
+    const provider = props.popularProviders.find(item => item.id === providerId)
+    if (provider)
+      props.onSelectProvider(provider)
   },
 })
 </script>
@@ -34,9 +35,7 @@ const selectedProviderIdModel = computed({
       <button outline-none @click="props.onPrevious">
         <div class="i-solar:alt-arrow-left-line-duotone h-5 w-5" />
       </button>
-      <h2
-        class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100"
-      >
+      <h2 class="flex-1 text-center text-xl text-neutral-800 font-semibold md:text-left md:text-2xl dark:text-neutral-100">
         {{ t('settings.dialogs.onboarding.selectProvider') }}
       </h2>
       <div class="h-5 w-5" />
@@ -56,6 +55,10 @@ const selectedProviderIdModel = computed({
         />
       </div>
     </div>
-    <Button :label="t('settings.dialogs.onboarding.next')" :disabled="!selectedProviderIdModel" @click="props.onNext" />
+    <Button
+      :label="t('settings.dialogs.onboarding.next')"
+      :disabled="!selectedProviderIdModel"
+      @click="props.onNext"
+    />
   </div>
 </template>

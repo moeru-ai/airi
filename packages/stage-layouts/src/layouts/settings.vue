@@ -15,29 +15,29 @@ const route = useRoute()
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
 const providersStore = useProvidersStore()
-const routeMeta = computed(
-  () =>
-    route.meta as {
-      titleKey?: string
-      subtitleKey?: string
-      title?: string
-      subtitle?: string
-      disableBackButton?: boolean
-    },
-)
+const routeMeta = computed(() => route.meta as {
+  titleKey?: string
+  subtitleKey?: string
+  title?: string
+  subtitle?: string
+  disableBackButton?: boolean
+})
 
 const providerTitle = computed(() => {
-  if (!route.path.startsWith('/settings/providers/')) return undefined
+  if (!route.path.startsWith('/settings/providers/'))
+    return undefined
 
   const segments = route.path.split('/').filter(Boolean)
   const providerId = segments[3]
 
-  if (!providerId) return undefined
+  if (!providerId)
+    return undefined
 
   try {
     const metadata = providersStore.getProviderMetadata(providerId)
     return t(metadata.nameKey)
-  } catch {
+  }
+  catch {
     return undefined
   }
 })
@@ -92,9 +92,7 @@ onMounted(() => updateThemeColor())
     <div
       :class="[
         'px-3 py-0 2xl:max-w-screen-2xl md:py-0 xl:px-4',
-        isStageTamagotchi()
-          ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]'
-          : 'sm:max-h-[calc(100%-56px)] max-h-[calc(100%-40px)]',
+        isStageTamagotchi() ? 'sm:max-h-[calc(100%)] max-h-[calc(100%)]' : 'sm:max-h-[calc(100%-56px)] max-h-[calc(100%-40px)]',
         'mx-auto flex min-h-0 w-full flex-1 flex-col',
       ]"
     >
@@ -103,10 +101,7 @@ onMounted(() => updateThemeColor())
         :subtitle="routeHeaderMetadata?.subtitle"
         :disable-back-button="routeMeta.disableBackButton || (isStageTamagotchi() && route.path === '/settings')"
       />
-      <div
-        id="settings-scroll-container"
-        :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']"
-      >
+      <div id="settings-scroll-container" :class="['relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none']">
         <RouterView />
       </div>
     </div>

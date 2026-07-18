@@ -26,9 +26,7 @@ export const useTwitterStore = defineStore('twitter', () => {
   }
 
   const configured = computed(() => {
-    return Boolean(
-      apiKey.value.trim() && apiSecret.value.trim() && accessToken.value.trim() && accessTokenSecret.value.trim(),
-    )
+    return !!(apiKey.value.trim() && apiSecret.value.trim() && accessToken.value.trim() && accessTokenSecret.value.trim())
   })
 
   function resetState() {

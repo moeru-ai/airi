@@ -22,24 +22,24 @@ const route = useRoute()
 const providerId = route.params.providerId as string
 const providersStore = useProvidersStore()
 const consciousnessStore = useConsciousnessStore()
-const { providers } = storeToRefs(providersStore) as {
-  providers: RemovableRef<Record<string, Record<string, unknown>>>
-}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
 
 // Define computed properties for credentials
 const apiKey = computed({
-  get: () => (providers.value[providerId]?.apiKey as string) || '',
+  get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => (providers.value[providerId]?.baseUrl as string) || '',
+  get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
@@ -63,14 +63,14 @@ const {
 
 const apiKeyPlaceholder = computed(() => {
   const definition = getDefinedProvider(providerId)
-  if (!definition?.createProviderConfig) return 'sk-...'
+  if (!definition?.createProviderConfig)
+    return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as
-    | { shape?: () => Record<string, { meta?: () => { placeholderLocalized?: string } }> }
-    | undefined
+  const schema = definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
-  if (!apiKeySchema) return 'sk-...'
+  if (!apiKeySchema)
+    return 'sk-...'
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
@@ -105,10 +105,7 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="
-            ((providerMetadata?.defaultOptions?.() as Record<string, unknown>)?.baseUrl as string | undefined) ??
-            'Base URL of your provider'
-          "
+          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'Base URL of your provider'"
         />
       </ProviderAdvancedSettings>
 

@@ -39,7 +39,7 @@ function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<obje
   seen.add(raw)
 
   if (Array.isArray(raw)) {
-    const arrayValue = raw.map((item) => toWidgetsIframePostMessageValue(item, seen))
+    const arrayValue = raw.map(item => toWidgetsIframePostMessageValue(item, seen))
     seen.delete(raw)
     return arrayValue
   }
@@ -69,8 +69,9 @@ function toWidgetsIframePostMessageValue(value: unknown, seen = new WeakSet<obje
  */
 export function toWidgetsIframePostMessageRecord(value: unknown): Record<string, unknown> {
   const normalized = toWidgetsIframePostMessageValue(value)
-  const isNormalizedObject = normalized && typeof normalized === 'object' && !Array.isArray(normalized)
-  return isNormalizedObject ? (normalized as Record<string, unknown>) : {}
+  return normalized && typeof normalized === 'object' && !Array.isArray(normalized)
+    ? normalized as Record<string, unknown>
+    : {}
 }
 
 /**
@@ -101,6 +102,7 @@ export function useIframeMessagePort(
   },
 ) {
   const iframeLoadError = shallowRef<string>()
+  const iframeReady = shallowRef(false)
 
   const iframeRuntime = createContext({
     channel: widgetsIframeChannel,
@@ -128,7 +130,8 @@ export function useIframeMessagePort(
   function emitInitPayload() {
     try {
       iframeRuntime.context.emit(widgetsIframeInitEvent, createInitPayload())
-    } catch (error) {
+    }
+    catch (error) {
       const message = errorMessageFrom(error) ?? 'Failed to send extension UI iframe init payload.'
       iframeLoadError.value = message
       console.error('[extension-ui] Failed to emit iframe init payload', {
@@ -140,15 +143,24 @@ export function useIframeMessagePort(
   }
 
   function onIframeLoad() {
+    // NOTICE:
+    // A host component can mount after an already-loaded iframe during dev HMR
+    // or renderer remounts, which means the iframe's one-shot ready event may
+    // have already been emitted. Treat load as the point where invokes may be
+    // attempted; Eventa still owns request timeout/error handling if the iframe
+    // has not registered its handler yet.
+    iframeReady.value = true
     iframeLoadError.value = undefined
     emitInitPayload()
   }
 
   function onIframeError() {
+    iframeReady.value = false
     iframeLoadError.value = 'Failed to load extension UI iframe source.'
   }
 
   iframeRuntime.context.on(widgetsIframeReadyEvent, () => {
+    iframeReady.value = true
     emitInitPayload()
   })
 
@@ -160,13 +172,10 @@ export function useIframeMessagePort(
     void options.onPublish?.(event.body as Record<string, unknown>)
   })
 
-  watch(
-    options.moduleId,
-    () => {
-      emitInitPayload()
-    },
-    { immediate: true },
-  )
+  watch(options.moduleId, () => {
+    iframeReady.value = false
+    emitInitPayload()
+  }, { immediate: true })
 
   watch(options.propsPayload, () => {
     emitInitPayload()
@@ -182,6 +191,7 @@ export function useIframeMessagePort(
 
   return {
     context: iframeRuntime.context,
+    iframeReady,
     iframeLoadError,
     onIframeLoad,
     onIframeError,

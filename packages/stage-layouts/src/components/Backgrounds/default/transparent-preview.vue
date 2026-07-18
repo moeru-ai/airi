@@ -1,6 +1,8 @@
 <template>
   <div class="transparent-preview">
-    <div class="transparent-preview__label">Transparent</div>
+    <div class="transparent-preview__label">
+      Transparent
+    </div>
   </div>
 </template>
 

@@ -1,30 +1,40 @@
-import type { PluginHostDebugSnapshot, PluginRegistrySnapshot } from '../../../../../shared/eventa/plugin/host'
-import type { PluginAssetCookie, PluginAssetSession, PluginAssetSnapshotService } from '../features/static-assets'
-import type { PluginHostService, SetupPluginHostOptions } from '../types'
+import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
+
+import type {
+  PluginHostDebugSnapshot,
+  PluginRegistrySnapshot,
+} from '../../../../../shared/eventa/plugin/host'
+import type {
+  ExtensionAssetCookie,
+  ExtensionAssetSession,
+  ExtensionAssetSnapshotService,
+} from '../features/static-assets'
+import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 
 import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
-import { PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
+import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { app, session as electronSession } from 'electron'
 
-import { createPluginAutoReloadFeature } from '../features/auto-reload'
-import { createPluginAssetService } from '../features/static-assets'
-import { createBuiltInPluginKitRuntime } from '../kits'
-import { createPluginHostConfigStore } from './config'
+import { createExtensionAutoReloadFeature } from '../features/auto-reload'
+import { createExtensionAssetService } from '../features/static-assets'
+import { createBuiltInExtensionKitRuntime } from '../kits'
+import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
 import {
   buildPluginRegistrySnapshot,
+  createExtensionHostRegistry,
   createManifestForLoad,
-  createPluginHostRegistry,
+  manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
-function createElectronPluginAssetCookieAdapter() {
+function createElectronExtensionAssetCookieAdapter() {
   return {
-    async setCookie(cookie: PluginAssetCookie) {
+    async setCookie(cookie: ExtensionAssetCookie) {
       await electronSession.defaultSession.cookies.set({
         url: cookie.url,
         name: cookie.name,
@@ -36,14 +46,14 @@ function createElectronPluginAssetCookieAdapter() {
         expirationDate: Math.floor(cookie.expiresAt / 1000),
       })
     },
-    async removeCookie(cookie: PluginAssetCookie) {
+    async removeCookie(cookie: ExtensionAssetCookie) {
       await electronSession.defaultSession.cookies.remove(cookie.url, cookie.name)
     },
   }
 }
 
 /**
- * Internal plugin host bootstrap service used by the public `setupPluginHost(...)` facade.
+ * Internal extension host bootstrap service used by the public `setupExtensionHost(...)` facade.
  *
  * Use when:
  * - `plugins/index.ts` needs a smaller orchestration layer with the same caller-facing API
@@ -54,11 +64,14 @@ function createElectronPluginAssetCookieAdapter() {
  * - `widgetsManager` is ready before startup begins
  *
  * Returns:
- * - The plain `PluginHostService` fields plus internal helpers for list/load/unload/inspect/dispose
+ * - The plain `ExtensionHostService` fields plus internal helpers for list/load/unload/inspect/dispose
  */
-export interface PluginHostHostService extends PluginHostService {
+export interface ExtensionHostServiceInternal extends ExtensionHostService {
+  /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
+  tools: TamagotchiToolRegistry
+
   /**
-   * Lists the current plugin registry snapshot.
+   * Lists the current extension registry snapshot.
    *
    * Use when:
    * - IPC callers need the latest discovered plugin entries and enablement state
@@ -68,7 +81,7 @@ export interface PluginHostHostService extends PluginHostService {
    * - Manifest discovery can be refreshed before the snapshot is built
    *
    * Returns:
-   * - The latest plugin registry snapshot for renderer consumption
+   * - The latest extension registry snapshot for renderer consumption
    */
   list: () => Promise<PluginRegistrySnapshot>
 
@@ -80,13 +93,13 @@ export interface PluginHostHostService extends PluginHostService {
    * - Host state must remember a known manifest path for a plugin name
    *
    * Expects:
-   * - `payload.name` matches a discovered or previously known plugin
+   * - `payload.extensionId` matches a discovered or previously known extension
    * - `payload.path` is only needed when the manifest is not currently discoverable
    *
    * Returns:
-   * - The updated plugin registry snapshot after persistence
+   * - The updated extension registry snapshot after persistence
    */
-  setEnabled: (payload: { name: string; enabled: boolean; path?: string }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Persists whether one loaded plugin should use auto-reload.
@@ -96,12 +109,12 @@ export interface PluginHostHostService extends PluginHostService {
    * - Host features need to resync optional watcher state after config changes
    *
    * Expects:
-   * - `payload.name` matches one plugin entry in config or discovery state
+   * - `payload.extensionId` matches one extension entry in config or discovery state
    *
    * Returns:
-   * - The updated plugin registry snapshot after persistence
+   * - The updated extension registry snapshot after persistence
    */
-  setAutoReload: (payload: { name: string; enabled: boolean }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
 
   /**
    * Loads every plugin currently marked as enabled.
@@ -114,49 +127,49 @@ export interface PluginHostHostService extends PluginHostService {
    * - Discovery state is current before load begins
    *
    * Returns:
-   * - The plugin registry snapshot after load attempts finish
+   * - The extension registry snapshot after load attempts finish
    */
   loadEnabled: () => Promise<PluginRegistrySnapshot>
 
   /**
-   * Loads one plugin by manifest name.
+   * Loads one extension by manifest id.
    *
    * Use when:
    * - Renderer explicitly requests one plugin to start
    * - Host features need to restart a plugin after manifest or entrypoint changes
    *
    * Expects:
-   * - `name` resolves to a manifest entry in the current registry
+   * - `extensionId` resolves to a manifest entry in the current registry
    *
    * Returns:
-   * - The plugin registry snapshot after the load completes
+   * - The extension registry snapshot after the load completes
    */
-  load: (name: string) => Promise<PluginRegistrySnapshot>
+  load: (extensionId: string) => Promise<PluginRegistrySnapshot>
 
   /**
-   * Stops one loaded plugin by manifest name.
+   * Stops one loaded extension by manifest id.
    *
    * Use when:
    * - Renderer explicitly requests one plugin to stop
    * - Host features need to stop a plugin before reload or disposal
    *
    * Expects:
-   * - `name` identifies a plugin that may or may not currently be loaded
+   * - `extensionId` identifies an extension that may or may not currently be loaded
    *
    * Returns:
-   * - The plugin registry snapshot after unload bookkeeping completes
+   * - The extension registry snapshot after unload bookkeeping completes
    */
-  unload: (name: string) => Promise<PluginRegistrySnapshot>
+  unload: (extensionId: string) => Promise<PluginRegistrySnapshot>
 
   /**
-   * Builds the full plugin host debug snapshot.
+   * Builds the full extension host debug snapshot.
    *
    * Use when:
    * - Devtools need sessions, kits, bindings, capabilities, and rewritten asset URLs
    * - Host debugging needs a fresh runtime snapshot after registry refresh
    *
    * Expects:
-   * - The host and plugin asset service are both initialized
+   * - The host and extension asset service are both initialized
    *
    * Returns:
    * - The full debug snapshot exposed through plugin inspection IPC
@@ -171,10 +184,10 @@ export interface PluginHostHostService extends PluginHostService {
    * - Snapshot consumers need the current loopback asset mount base
    *
    * Expects:
-   * - The plugin asset service may be started before this is called
+   * - The extension asset service may be started before this is called
    *
    * Returns:
-   * - The current plugin asset base URL, or an empty string when unavailable
+   * - The current extension asset base URL, or an empty string when unavailable
    */
   getAssetBaseUrl: () => string
 
@@ -182,7 +195,7 @@ export interface PluginHostHostService extends PluginHostService {
    * Disposes optional host features and asset hosting resources.
    *
    * Use when:
-   * - Electron shutdown needs to stop plugin-owned background work
+   * - Electron shutdown needs to stop extension-owned background work
    * - Tests need to release watchers and local asset servers deterministically
    *
    * Expects:
@@ -195,58 +208,58 @@ export interface PluginHostHostService extends PluginHostService {
 }
 
 /**
- * Builds the extracted Electron plugin host bootstrap used by the public facade.
+ * Builds the extracted Electron extension host bootstrap used by the public facade.
  *
  * Use when:
- * - The public plugin service wants one internal bootstrap entrypoint
+ * - The public extension service wants one internal bootstrap entrypoint
  * - Tests need direct access to the internal host bootstrap helper
  *
  * Expects:
  * - Electron `app.getPath('userData')` is available
- * - Plugin manifests live under `<userData>/plugins/v1`
+ * - Extension manifests live under `<userData>/extensions/v1`
  *
  * Returns:
- * - The internal bootstrap service that powers the public plugin-host IPC facade
+ * - The internal bootstrap service that powers the public extension-host IPC facade
  */
-export async function setupPluginHostHostService(options: SetupPluginHostOptions): Promise<PluginHostHostService> {
-  const log = useLogg('main/plugin-host').useGlobalConfig()
-  const pluginsRoot = join(app.getPath('userData'), 'plugins', 'v1')
+export async function setupExtensionHostServiceInternal(
+  options: SetupExtensionHostOptions,
+): Promise<ExtensionHostServiceInternal> {
+  const log = useLogg('main/extension-host').useGlobalConfig()
+  const extensionsRoot = join(app.getPath('userData'), 'extensions', 'v1')
 
   // Config
-  const pluginConfig = createPluginHostConfigStore()
-  pluginConfig.setup()
+  const extensionConfig = createExtensionHostConfigStore()
+  extensionConfig.setup()
 
   // Kit API, Host
-  const builtInKitRuntime = createBuiltInPluginKitRuntime(options)
-  const host = new PluginHost({ runtime: 'electron', contributions: builtInKitRuntime.contributions })
-  builtInKitRuntime.attachHost(host) // reverse dependency injection
-  log.withFields({ pluginsRoot }).log('loading plugin manifests')
-  // Once kit injected the host, then apply kits
+  const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
+  const host = new ExtensionHost({ runtime: 'electron' })
+  log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
 
-  // plugin registry
-  const pluginRegistry = createPluginHostRegistry({ pluginsRoot, log })
+  // extension registry
+  const extensionRegistry = createExtensionHostRegistry({ extensionsRoot, log })
 
-  await pluginRegistry.refresh()
-  log.withFields({ count: pluginRegistry.listEntries().length }).log('plugin manifests loaded')
-  for (const entry of pluginRegistry.listEntries()) {
-    log.withFields({ name: entry.manifest.name, path: entry.path }).log('plugin manifest found')
+  await extensionRegistry.refresh()
+  log.withFields({ count: extensionRegistry.listEntries().length }).log('extension manifests loaded')
+  for (const entry of extensionRegistry.listEntries()) {
+    log.withFields({ name: manifestIdOf(entry.manifest), path: entry.path }).log('extension manifest found')
   }
 
-  // Plugin feature: Static Assets serving
-  const pluginAssetService = createPluginAssetService({
-    getManifestEntryByName: () => pluginRegistry.getManifestEntryByName(),
-    cookieAdapter: createElectronPluginAssetCookieAdapter(),
+  // Extension feature: Static Assets serving
+  const extensionAssetService = createExtensionAssetService({
+    getManifestEntryByExtensionId: () => extensionRegistry.getManifestEntryByExtensionId(),
+    cookieAdapter: createElectronExtensionAssetCookieAdapter(),
   })
-  await pluginAssetService.start()
+  await extensionAssetService.start()
 
   const loaded = new Set<string>()
   const loadedSessionIds = new Map<string, string>()
-  const moduleAssetSessionCache = new Map<string, PluginAssetSession>()
+  const moduleAssetSessionCache = new Map<string, ExtensionAssetSession>()
 
-  const clearModuleAssetSessionCacheByPluginId = (pluginId: string) => {
+  const clearModuleAssetSessionCacheByExtensionId = (extensionId: string) => {
     for (const key of moduleAssetSessionCache.keys()) {
-      if (key.startsWith(`${pluginId}:`)) {
+      if (key.startsWith(`${extensionId}:`)) {
         moduleAssetSessionCache.delete(key)
       }
     }
@@ -262,36 +275,36 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
   }
 
   const refreshManifests = async () => {
-    await pluginRegistry.refresh()
+    await extensionRegistry.refresh()
   }
 
-  const getConfig = () => pluginConfig.get()
+  const getConfig = () => extensionConfig.get()
 
   const listSnapshot = (): PluginRegistrySnapshot => {
     return buildPluginRegistrySnapshot({
-      pluginsRoot,
-      entries: pluginRegistry.listEntries(),
+      extensionsRoot,
+      entries: extensionRegistry.listEntries(),
       config: getConfig(),
       loaded,
     })
   }
 
   const createModuleAssetSession = async (input: {
-    pluginId: string
+    extensionId: string
     version: string
     ownerSessionId: string
     routeAssetPath: string
     pathPrefix: string
   }) => {
-    const { pluginId, version, ownerSessionId, routeAssetPath, pathPrefix } = input
-    const cacheKey = `${pluginId}:${version}:${ownerSessionId}:${routeAssetPath}:${pathPrefix}`
+    const { extensionId, version, ownerSessionId, routeAssetPath, pathPrefix } = input
+    const cacheKey = `${extensionId}:${version}:${ownerSessionId}:${routeAssetPath}:${pathPrefix}`
     const cachedSession = moduleAssetSessionCache.get(cacheKey)
     if (cachedSession) {
       return cachedSession
     }
 
-    const session = await pluginAssetService.createAssetSession({
-      pluginId,
+    const session = await extensionAssetService.createAssetSession({
+      extensionId,
       version,
       ownerSessionId,
       routeAssetPath,
@@ -302,11 +315,11 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
     return session
   }
 
-  const pluginAssetSnapshotService: PluginAssetSnapshotService = {
-    getBaseUrl: pluginAssetService.getBaseUrl,
-    createAssetSession: ({ pluginId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
+  const extensionAssetSnapshotService: ExtensionAssetSnapshotService = {
+    getBaseUrl: extensionAssetService.getBaseUrl,
+    createAssetSession: ({ extensionId, version, ownerSessionId, routeAssetPath, pathPrefix }) => {
       return createModuleAssetSession({
-        pluginId,
+        extensionId,
         version,
         ownerSessionId,
         routeAssetPath,
@@ -318,51 +331,54 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
   const inspectSnapshot = async (): Promise<PluginHostDebugSnapshot> => {
     return await buildPluginHostDebugSnapshot({
       host,
-      pluginsRoot,
-      entries: pluginRegistry.listEntries(),
+      extensionsRoot,
+      entries: extensionRegistry.listEntries(),
       config: getConfig(),
       loaded,
-      manifestEntryByName: pluginRegistry.getManifestEntryByName(),
-      pluginAssetService: pluginAssetSnapshotService,
+      manifestEntryByExtensionId: extensionRegistry.getManifestEntryByExtensionId(),
+      extensionAssetService: extensionAssetSnapshotService,
     })
   }
 
-  const loadPluginByName = async (name: string, loadOptions: { cacheBustKey?: string } = {}) => {
-    if (loaded.has(name)) {
+  const loadExtensionById = async (
+    extensionId: string,
+    loadOptions: { cacheBustKey?: string } = {},
+  ) => {
+    if (loaded.has(extensionId)) {
       return
     }
 
-    const entry = pluginRegistry.findManifestEntry(name)
+    const entry = extensionRegistry.findManifestEntry(extensionId)
     if (!entry) {
-      throw new Error(`Plugin manifest not found: ${name}`)
+      throw new Error(`Extension manifest not found: ${extensionId}`)
     }
 
     const manifestForLoad = createManifestForLoad(entry, loadOptions)
     const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
-    loaded.add(name)
-    loadedSessionIds.set(name, session.id)
-    log.log('plugin loaded', { plugin: name, sessionId: session.id })
+    loaded.add(extensionId)
+    loadedSessionIds.set(extensionId, session.id)
+    log.withFields({ extensionId, sessionId: session.id }).log('extension loaded')
   }
 
-  const stopLoadedPluginByName = async (name: string) => {
-    const sessionId = loadedSessionIds.get(name)
+  const stopLoadedExtensionById = async (extensionId: string) => {
+    const sessionId = loadedSessionIds.get(extensionId)
     if (!sessionId) {
-      loaded.delete(name)
+      loaded.delete(extensionId)
       return
     }
 
-    host.stop(sessionId)
-    loadedSessionIds.delete(name)
-    loaded.delete(name)
+    await host.stop(sessionId)
+    loadedSessionIds.delete(extensionId)
+    loaded.delete(extensionId)
 
     clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
-    await pluginAssetService.revokeByOwnerSessionId(sessionId)
+    await extensionAssetService.revokeByOwnerSessionId(sessionId)
 
-    log.log('plugin unloaded', { plugin: name, sessionId })
+    log.withFields({ extensionId, sessionId }).log('extension unloaded')
   }
 
-  const resolveAutoReloadWatchPaths = (name: string) => {
-    const entry = pluginRegistry.findManifestEntry(name)
+  const resolveAutoReloadWatchPaths = (extensionId: string) => {
+    const entry = extensionRegistry.findManifestEntry(extensionId)
     if (!entry) {
       return []
     }
@@ -371,40 +387,41 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
     return [...new Set([entry.path, entrypointPath].filter((path): path is string => Boolean(path)))]
   }
 
-  // Plugin feature: Auto-reload for plugins
-  const autoReloadFeature = createPluginAutoReloadFeature({
+  // Extension feature: Auto-reload for plugins
+  const autoReloadFeature = createExtensionAutoReloadFeature({
     log,
     getConfig,
-    listEntries: () => pluginRegistry.listEntries(),
-    isLoaded: (name) => loaded.has(name),
+    listEntries: () => extensionRegistry.listEntries(),
+    isLoaded: extensionId => loaded.has(extensionId),
     resolveWatchPaths: resolveAutoReloadWatchPaths,
-    reload: async (name) => {
-      await stopLoadedPluginByName(name)
+    reload: async (extensionId) => {
+      await stopLoadedExtensionById(extensionId)
       await refreshManifests()
-      await loadPluginByName(name, { cacheBustKey: `auto-reload-${Date.now()}` })
+      await loadExtensionById(extensionId, { cacheBustKey: `auto-reload-${Date.now()}` })
     },
   })
 
-  const unloadPluginByName = async (name: string) => {
-    autoReloadFeature.clearPlugin(name)
-    await stopLoadedPluginByName(name)
+  const unloadExtensionById = async (extensionId: string) => {
+    autoReloadFeature.clearExtension(extensionId)
+    await stopLoadedExtensionById(extensionId)
   }
 
-  const loadEnabledPlugins = async () => {
+  const loadEnabledExtensions = async () => {
     const config = getConfig()
-    for (const entry of pluginRegistry.listEntries()) {
-      const name = entry.manifest.name
-      if (!config.enabled.includes(name)) {
+    for (const entry of extensionRegistry.listEntries()) {
+      const extensionId = manifestIdOf(entry.manifest)
+      if (!config.enabled.includes(extensionId)) {
         continue
       }
-      if (loaded.has(name)) {
+      if (loaded.has(extensionId)) {
         continue
       }
 
       try {
-        await loadPluginByName(name)
-      } catch (error) {
-        log.withError(error).withFields({ plugin: name }).error('plugin failed to start')
+        await loadExtensionById(extensionId)
+      }
+      catch (error) {
+        log.withError(error).withFields({ extensionId }).error('extension failed to start')
       }
     }
 
@@ -412,12 +429,16 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
   }
 
   await refreshManifests()
-  await loadEnabledPlugins()
+  await loadEnabledExtensions()
   autoReloadFeature.sync()
 
   return {
     host,
-    manifests: pluginRegistry.listManifests(),
+    // REVIEW: Tool registry ownership is currently hidden inside the built-in kit runtime even though
+    // the host service also exposes it for IPC listing/invocation. Consider moving registry ownership
+    // to this host service and passing it into kit registration as a dependency.
+    tools: builtInKitRuntime.tools,
+    manifests: extensionRegistry.listManifests(),
     async list() {
       await refreshManifests()
       autoReloadFeature.sync()
@@ -429,21 +450,22 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
       const config = getConfig()
       const enabled = new Set(config.enabled)
       if (payload.enabled) {
-        enabled.add(payload.name)
-      } else {
-        enabled.delete(payload.name)
-        clearModuleAssetSessionCacheByPluginId(payload.name)
-        await pluginAssetService.revokeByPluginId(payload.name)
+        enabled.add(payload.extensionId)
+      }
+      else {
+        enabled.delete(payload.extensionId)
+        clearModuleAssetSessionCacheByExtensionId(payload.extensionId)
+        await extensionAssetService.revokeByExtensionId(payload.extensionId)
       }
 
-      const entry = pluginRegistry.findManifestEntry(payload.name)
+      const entry = extensionRegistry.findManifestEntry(payload.extensionId)
       const manifestPath = entry?.path ?? payload.path ?? ''
-      pluginConfig.update({
+      extensionConfig.update({
         enabled: [...enabled],
         autoReload: config.autoReload,
         known: {
           ...config.known,
-          [payload.name]: { path: manifestPath },
+          [payload.extensionId]: { path: manifestPath },
         },
       })
 
@@ -456,12 +478,13 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
       const config = getConfig()
       const autoReload = new Set(config.autoReload)
       if (payload.enabled) {
-        autoReload.add(payload.name)
-      } else {
-        autoReload.delete(payload.name)
+        autoReload.add(payload.extensionId)
+      }
+      else {
+        autoReload.delete(payload.extensionId)
       }
 
-      pluginConfig.update({
+      extensionConfig.update({
         ...config,
         autoReload: [...autoReload],
       })
@@ -471,18 +494,18 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
     },
     async loadEnabled() {
       await refreshManifests()
-      await loadEnabledPlugins()
+      await loadEnabledExtensions()
       autoReloadFeature.sync()
       return listSnapshot()
     },
-    async load(name) {
+    async load(extensionId) {
       await refreshManifests()
-      await loadPluginByName(name)
+      await loadExtensionById(extensionId)
       autoReloadFeature.sync()
       return listSnapshot()
     },
-    async unload(name) {
-      await unloadPluginByName(name)
+    async unload(extensionId) {
+      await unloadExtensionById(extensionId)
       autoReloadFeature.sync()
       return listSnapshot()
     },
@@ -492,14 +515,15 @@ export async function setupPluginHostHostService(options: SetupPluginHostOptions
       return await inspectSnapshot()
     },
     getAssetBaseUrl() {
-      return pluginAssetService.getBaseUrl() ?? ''
+      return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
       autoReloadFeature.dispose()
+      builtInKitRuntime.dispose()
 
       moduleAssetSessionCache.clear()
-      await pluginAssetService.revokeAll()
-      await pluginAssetService.stop()
+      await extensionAssetService.revokeAll()
+      await extensionAssetService.stop()
     },
   }
 }

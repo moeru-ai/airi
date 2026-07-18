@@ -6,16 +6,7 @@ import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { colorToString } from '@unocss/preset-mini/utils'
-import {
-  defineConfig,
-  mergeConfigs,
-  presetAttributify,
-  presetIcons,
-  presetTypography,
-  presetWind3,
-  transformerDirectives,
-  transformerVariantGroup,
-} from 'unocss'
+import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypography, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 import { presetScrollbar } from 'unocss-preset-scrollbar'
 import { parseColor } from 'unocss/preset-mini'
 
@@ -66,17 +57,30 @@ export function presetStoryMockHover(): PresetOrFactoryAwaitable {
 }
 
 export function safelistAllPrimaryBackgrounds(): string[] {
-  return [undefined, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
-    .map((shade) => {
-      const prefix = shade ? `bg-primary-${shade}` : 'bg-primary'
-      return [prefix, ...[5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(opacity => `${prefix}/${opacity}`)]
-    })
-    .flat()
+  return [undefined, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((shade) => {
+    const prefix = shade ? `bg-primary-${shade}` : `bg-primary`
+    return [
+      prefix,
+      ...[5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(opacity => `${prefix}/${opacity}`),
+    ]
+  }).flat()
 }
 
-export function presetWebFontsFonts(
-  provider: 'fontsource' | 'none',
-): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
+export function safelistSettingsEntryIcons(): string[] {
+  return [
+    'i-solar:emoji-funny-square-bold-duotone',
+    'i-solar:people-nearby-bold-duotone',
+    'i-solar:leaf-bold-duotone',
+    'i-solar:armchair-2-bold-duotone',
+    'i-solar:database-bold-duotone',
+    'i-solar:wi-fi-router-bold-duotone',
+    'i-solar:layers-bold-duotone',
+    'i-solar:box-minimalistic-bold-duotone',
+    'i-solar:filters-bold-duotone',
+  ]
+}
+
+export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
   return {
     'sans': {
       name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
@@ -162,7 +166,11 @@ export function sharedUnoConfig() {
       }),
       transformerVariantGroup(),
     ],
-    safelist: [...'prose prose-sm m-auto text-left'.split(' '), ...safelistAllPrimaryBackgrounds()],
+    safelist: [
+      ...'prose prose-sm m-auto text-left'.split(' '),
+      ...safelistAllPrimaryBackgrounds(),
+      ...safelistSettingsEntryIcons(),
+    ],
     // hyoban/unocss-preset-shadcn: Use shadcn ui with UnoCSS
     // https://github.com/hyoban/unocss-preset-shadcn
     //
@@ -185,24 +193,23 @@ export function sharedUnoConfig() {
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
         ],
         exclude: [
+
           /\/node_modules\//, // DO NOT SCAN THE BLACK HOLE
         ],
       },
     },
     rules: [
+
       [/^mask-\[(.*)\]$/, ([, suffix]) => ({ '-webkit-mask-image': suffix.replace(/_/g, ' ') })],
 
-      [
-        /^bg-dotted-\[(.*)\]$/,
-        ([, color], { theme }) => {
-          const parsedColor = parseColor(color, theme)
-          // Util usage: https://github.com/unocss/unocss/blob/f57ef6ae50006a92f444738e50f3601c0d1121f2/packages-presets/preset-mini/src/_utils/utilities.ts#L186
-          return {
-            'background-image': `radial-gradient(circle at 1px 1px, ${colorToString(parsedColor?.cssColor ?? parsedColor?.color ?? color, 'var(--un-background-opacity)')} 1px, transparent 0)`,
-            '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
-          }
-        },
-      ],
+      [/^bg-dotted-\[(.*)\]$/, ([, color], { theme }) => {
+        const parsedColor = parseColor(color, theme)
+        // Util usage: https://github.com/unocss/unocss/blob/f57ef6ae50006a92f444738e50f3601c0d1121f2/packages-presets/preset-mini/src/_utils/utilities.ts#L186
+        return {
+          'background-image': `radial-gradient(circle at 1px 1px, ${colorToString(parsedColor?.cssColor ?? parsedColor?.color ?? color, 'var(--un-background-opacity)')} 1px, transparent 0)`,
+          '--un-background-opacity': parsedColor?.cssColor?.alpha ?? parsedColor?.alpha ?? 1,
+        }
+      }],
 
       [/drag-region/, () => ({ 'app-region': 'drag' })],
     ],
@@ -222,10 +229,8 @@ export function sharedUnoConfig() {
         keyframes: {
           overlayShow: '{from{opacity:0;}to{opacity:1;}}',
           overlayHide: '{from{opacity:1;}to{opacity:0;}}',
-          contentShow:
-            '{from:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}to:{opacity:1;transform:translate(-50%,-50%) scale(1);}}',
-          contentHide:
-            '{from:{opacity:1;transform:translate(-50%,-50%) scale(1);}to:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}}',
+          contentShow: '{from:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}to:{opacity:1;transform:translate(-50%,-50%) scale(1);}}',
+          contentHide: '{from:{opacity:1;transform:translate(-50%,-50%) scale(1);}to:{opacity:0;transform:translate(-50%,-48%) scale(0.96);}}',
           slideUpAndFade: '{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}',
           slideRightAndFade: '{from{opacity:0;transform:translateX(-2px)}to{opacity:1;transform:translateX(0)}}',
           slideDownAndFade: '{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}',
@@ -264,8 +269,13 @@ export function sharedUnoConfig() {
 
 export function histoireUnoConfig() {
   return defineConfig({
-    presets: [presetStoryMockHover()],
+    presets: [
+      presetStoryMockHover(),
+    ],
   })
 }
 
-export default mergeConfigs([sharedUnoConfig(), histoireUnoConfig()])
+export default mergeConfigs([
+  sharedUnoConfig(),
+  histoireUnoConfig(),
+])

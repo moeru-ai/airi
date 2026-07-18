@@ -20,7 +20,8 @@ const sparklePositionY = ref('50%')
 const sparkleOpacity = ref(0.5)
 
 function handleMouseMove(event: MouseEvent) {
-  if (!cardRef.value) return
+  if (!cardRef.value)
+    return
 
   const card = cardRef.value
   const rect = card.getBoundingClientRect()
@@ -32,22 +33,22 @@ function handleMouseMove(event: MouseEvent) {
   const cardHeight = card.offsetHeight
 
   // Calculate percentages and effect values
-  const xPercent = Math.abs(Math.floor((100 / cardWidth) * x) - 100)
-  const yPercent = Math.abs(Math.floor((100 / cardHeight) * y) - 100)
+  const xPercent = Math.abs(Math.floor(100 / cardWidth * x) - 100)
+  const yPercent = Math.abs(Math.floor(100 / cardHeight * y) - 100)
 
   // Calculate positions for gradient and sparkle effects
-  const leftPos = 50 + (xPercent - 50) / 1.5
-  const topPos = 50 + (yPercent - 50) / 1.5
-  const sparkleX = 50 + (xPercent - 50) / 7
-  const sparkleY = 50 + (yPercent - 50) / 7
+  const leftPos = (50 + (xPercent - 50) / 1.5)
+  const topPos = (50 + (yPercent - 50) / 1.5)
+  const sparkleX = (50 + (xPercent - 50) / 7)
+  const sparkleY = (50 + (yPercent - 50) / 7)
 
   // Calculate 3D rotation angles - intensity controlled by prop
   const rotateY = ((leftPos - 50) / 1.5) * 0.2 * props.intensity
   const rotateX = ((topPos - 50) / 2) * -1 * 0.2 * props.intensity
 
   // Calculate sparkle opacity with intensity control
-  const pAngle = 50 - xPercent + (50 - yPercent)
-  const opacity = 0.5 + Math.abs(pAngle) * 0.008 * props.intensity
+  const pAngle = (50 - xPercent) + (50 - yPercent)
+  const opacity = 0.5 + (Math.abs(pAngle) * 0.008 * props.intensity)
 
   // Update style values
   transformStyle.value = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(${1 + 0.015 * props.intensity}, ${1 + 0.015 * props.intensity}, ${1 + 0.015 * props.intensity})`
@@ -78,7 +79,7 @@ onMounted(() => {
     ref="cardRef"
     class="card-hover-effect"
     :style="{
-      transform: transformStyle,
+      'transform': transformStyle,
       '--effect-intensity': intensity,
       '--card-position-x': cardPositionX,
       '--card-position-y': cardPositionY,

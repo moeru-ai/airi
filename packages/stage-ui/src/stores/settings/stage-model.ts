@@ -14,8 +14,9 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
   let stageModelUpdateSequence = 0
   const stageModelStorageKey = 'settings/stage/model'
+  const defaultStageModelId = 'preset-live2d-1'
 
-  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, 'preset-live2d-1')
+  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, defaultStageModelId)
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -30,11 +31,13 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
   function revokeStageModelUrl(url?: string) {
-    if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+    if (url?.startsWith('blob:'))
+      URL.revokeObjectURL(url)
   }
 
   function replaceStageModelUrl(nextUrl?: string) {
-    if (stageModelSelectedUrl.value === nextUrl) return
+    if (stageModelSelectedUrl.value === nextUrl)
+      return
 
     revokeStageModelUrl(stageModelSelectedUrl.value)
     stageModelSelectedUrl.value = nextUrl
@@ -65,24 +68,34 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
-      if (stageModelRenderer.value !== 'godot') stageModelRenderer.value = 'disabled'
+      if (stageModelRenderer.value !== 'godot')
+        stageModelRenderer.value = 'disabled'
       return
     }
 
     const model = await displayModelsStore.getDisplayModel(selectedModelId)
-    if (requestId !== stageModelUpdateSequence) return
+    if (requestId !== stageModelUpdateSequence)
+      return
 
     if (!model) {
+      if (selectedModelId !== defaultStageModelId) {
+        stageModelSelectedState.value = defaultStageModelId
+        await updateStageModel()
+        return
+      }
+
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
-      if (stageModelRenderer.value !== 'godot') stageModelRenderer.value = 'disabled'
+      if (stageModelRenderer.value !== 'godot')
+        stageModelRenderer.value = 'disabled'
       return
     }
 
     const builtInRenderer = resolveBuiltInStageModelRenderer(model)
     stageModelBuiltInRenderer.value = builtInRenderer
-    if (stageModelRenderer.value !== 'godot') stageModelRenderer.value = builtInRenderer
+    if (stageModelRenderer.value !== 'godot')
+      stageModelRenderer.value = builtInRenderer
 
     if (model.type === 'file') {
       const nextUrl = URL.createObjectURL(model.file)
@@ -92,7 +105,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       }
 
       replaceStageModelUrl(nextUrl)
-    } else {
+    }
+    else {
       replaceStageModelUrl(model.url)
     }
 

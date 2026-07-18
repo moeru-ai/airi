@@ -5,10 +5,10 @@ import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
 
 vi.mock('localforage', () => ({
   default: {
-    getItem: vi.fn(() => undefined),
-    iterate: vi.fn(() => undefined),
-    removeItem: vi.fn(() => undefined),
-    setItem: vi.fn((_key: string, value: unknown) => Promise.resolve(value)),
+    getItem: vi.fn(async () => undefined),
+    iterate: vi.fn(async () => undefined),
+    removeItem: vi.fn(async () => undefined),
+    setItem: vi.fn(async (_key: string, value: unknown) => value),
   },
 }))
 
@@ -23,7 +23,7 @@ describe('display models store', () => {
 
   /**
    * @example
-   * it('resolves newly imported display models from memory before IndexedDB', () => {})
+   * it('resolves newly imported display models from memory before IndexedDB', async () => {})
    */
   it('resolves newly imported display models from memory before IndexedDB', async () => {
     const store = useDisplayModelsStore()

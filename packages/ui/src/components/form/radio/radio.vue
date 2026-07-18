@@ -1,16 +1,13 @@
 <script setup lang="ts">
-withDefaults(
-  defineProps<{
-    id: string
-    name: string
-    value: string
-    title: string
-    deprecated?: boolean
-  }>(),
-  {
-    deprecated: false,
-  },
-)
+withDefaults(defineProps<{
+  id: string
+  name: string
+  value: string
+  title: string
+  deprecated?: boolean
+}>(), {
+  deprecated: false,
+})
 
 const modelValue = defineModel<string>({ required: true })
 </script>
@@ -25,7 +22,9 @@ const modelValue = defineModel<string>({ required: true })
       modelValue === value
         ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
         : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
-      modelValue === value ? 'form_radio-active' : '',
+      modelValue === value
+        ? 'form_radio-active'
+        : '',
       deprecated ? 'opacity-60' : '',
     ]"
   >
@@ -36,7 +35,7 @@ const modelValue = defineModel<string>({ required: true })
       :name="name"
       :value="value"
       :class="['absolute opacity-0']"
-    />
+    >
     <div :class="['relative mr-3 mt-0.5 flex-shrink-0']">
       <div
         :class="[
@@ -49,7 +48,9 @@ const modelValue = defineModel<string>({ required: true })
         <div
           :class="[
             'absolute left-1/2 top-1/2 size-3 rounded-full transition-opacity duration-200 -translate-x-1/2 -translate-y-1/2',
-            modelValue === value ? 'opacity-100 bg-primary-500 dark:bg-primary-400' : 'opacity-0',
+            modelValue === value
+              ? 'opacity-100 bg-primary-500 dark:bg-primary-400'
+              : 'opacity-0',
           ]"
         />
       </div>
@@ -59,7 +60,9 @@ const modelValue = defineModel<string>({ required: true })
         <span
           :class="[
             'line-clamp-1 font-medium',
-            modelValue === value ? 'text-neutral-700 dark:text-neutral-300' : 'text-neutral-700 dark:text-neutral-400',
+            modelValue === value
+              ? 'text-neutral-700 dark:text-neutral-300'
+              : 'text-neutral-700 dark:text-neutral-400',
           ]"
         >
           {{ title }}

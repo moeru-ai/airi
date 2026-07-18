@@ -18,10 +18,12 @@ export function expose() {
     try {
       contextBridge.exposeInMainWorld('electron', electronAPI)
       contextBridge.exposeInMainWorld('platform', platform)
-    } catch (error) {
+    }
+    catch (error) {
       console.error(error)
     }
-  } else {
+  }
+  else {
     window.electron = electronAPI
     window.platform = platform
   }
@@ -36,10 +38,12 @@ export function exposeWithCustomAPI<CustomAPI>(customAPI: CustomAPI) {
   if (contextIsolated) {
     try {
       contextBridge.exposeInMainWorld('api', customAPI)
-    } catch (error) {
+    }
+    catch (error) {
       console.error(error)
     }
-  } else {
-    ;(window as ElectronWindow<CustomAPI>).api = customAPI
+  }
+  else {
+    (window as ElectronWindow<CustomAPI>).api = customAPI
   }
 }

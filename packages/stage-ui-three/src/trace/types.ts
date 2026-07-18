@@ -52,29 +52,29 @@ export interface VrmUpdateFrameTracePayload extends StageThreeRuntimeTraceBasePa
 export type ThreeSceneTracePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
 export type ThreeSceneTraceModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
 export type ThreeSceneTraceComponentState = 'pending' | 'loading' | 'mounted'
-export type ThreeSceneTracePhaseCause =
-  | 'binding:complete'
-  | 'binding:start'
-  | 'component:unmount'
-  | 'controls-ready'
-  | 'controls-ref:detached'
-  | 'model-ref:detached'
-  | 'props:model-src'
-  | 'tres:ready'
-  | 'vrm:error'
-  | 'vrm:load-start'
-  | 'vrm:loaded'
+export type ThreeSceneTracePhaseCause
+  = | 'binding:complete'
+    | 'binding:start'
+    | 'component:unmount'
+    | 'controls-ready'
+    | 'controls-ref:detached'
+    | 'model-ref:detached'
+    | 'props:model-src'
+    | 'tres:ready'
+    | 'vrm:error'
+    | 'vrm:load-start'
+    | 'vrm:loaded'
 export type ThreeSceneTraceSubtreeKey = 'controlsRef' | 'dirLightRef' | 'modelRef' | 'tresCanvasRef'
 export type ThreeSceneTraceSubtreeAction = 'attached' | 'detached'
 export type ThreeSceneTraceTransactionAction = 'begin' | 'end' | 'reset'
-export type ThreeSceneTraceTransactionReason =
-  | 'component-unmount'
-  | 'initial-load'
-  | 'model-reload'
-  | 'model-switch'
-  | 'no-model'
-  | 'subtree-remount'
-  | 'unknown'
+export type ThreeSceneTraceTransactionReason
+  = | 'component-unmount'
+    | 'initial-load'
+    | 'model-reload'
+    | 'model-switch'
+    | 'no-model'
+    | 'subtree-remount'
+    | 'unknown'
 
 export interface ThreeScenePhaseTracePayload extends StageThreeRuntimeTraceBasePayload {
   cause: ThreeSceneTracePhaseCause
@@ -123,12 +123,12 @@ export interface VrmSceneSummarySnapshot {
   textureRefCount: number
 }
 
-export type VrmLifecycleReason =
-  | 'component-unmount'
-  | 'initial-load'
-  | 'manual-reload'
-  | 'model-reload'
-  | 'model-switch'
+export type VrmLifecycleReason
+  = | 'component-unmount'
+    | 'initial-load'
+    | 'manual-reload'
+    | 'model-reload'
+    | 'model-switch'
 
 export interface VrmLifecycleTracePayload extends StageThreeRuntimeTraceBasePayload {
   durationMs?: number

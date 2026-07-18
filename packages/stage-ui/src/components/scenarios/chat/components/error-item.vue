@@ -9,26 +9,23 @@ import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
 
-const props = withDefaults(
-  defineProps<{
-    message: ErrorMessage
-    label: string
-    retryLabel?: string
-    canRetry?: boolean
-    showPlaceholder?: boolean
-    variant?: 'desktop' | 'mobile'
-  }>(),
-  {
-    canRetry: false,
-    showPlaceholder: false,
-    variant: 'desktop',
-  },
-)
+const props = withDefaults(defineProps<{
+  message: ErrorMessage
+  label: string
+  retryLabel?: string
+  canRetry?: boolean
+  showPlaceholder?: boolean
+  variant?: 'desktop' | 'mobile'
+}>(), {
+  canRetry: false,
+  showPlaceholder: false,
+  variant: 'desktop',
+})
 
 const emit = defineEmits<{
-  copy: []
-  retry: []
-  delete: []
+  (e: 'copy'): void
+  (e: 'retry'): void
+  (e: 'delete'): void
 }>()
 
 const boxClasses = computed(() => [
@@ -40,7 +37,12 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div :class="['flex flex-col', variant === 'mobile' ? 'mr-0' : 'mr-12']">
+  <div
+    :class="[
+      'flex flex-col',
+      variant === 'mobile' ? 'mr-0' : 'mr-12',
+    ]"
+  >
     <ChatActionMenu
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
@@ -78,7 +80,12 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
         </div>
       </template>
     </ChatActionMenu>
-    <div v-if="canRetry && !showPlaceholder" :class="['self-end mt-1 w-fit']">
+    <div
+      v-if="canRetry && !showPlaceholder"
+      :class="[
+        'self-end mt-1 w-fit',
+      ]"
+    >
       <Button
         size="sm"
         variant="ghost"

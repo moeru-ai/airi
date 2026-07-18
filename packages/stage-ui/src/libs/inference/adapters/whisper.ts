@@ -7,7 +7,7 @@
  */
 
 import type { AllocationToken } from '../gpu-resource-coordinator'
-import type { InferenceResultResponse, ModelReadyResponse, ProgressPayload, WorkerOutboundMessage } from '../protocol'
+import type { ProgressPayload } from '../protocol'
 
 import { defaultPerfTracer } from '@proj-airi/stage-shared'
 import { Mutex } from 'async-mutex'
@@ -16,22 +16,19 @@ import { removeInferenceStatus, updateInferenceStatus } from '../../../composabl
 import { DEVICE_LOSS_WASM_THRESHOLD, MAX_RESTARTS, MODEL_NAMES, RESTART_DELAY_MS, TIMEOUTS } from '../constants'
 import { getGPUCoordinator, getLoadQueue, MODEL_VRAM_ESTIMATES } from '../coordinator'
 import { LOAD_PRIORITY } from '../load-queue'
-import {
-  classifyDeviceLossReason,
-  classifyError,
-  createRequestId,
-  InferenceAbortError,
-  throwIfAborted,
-} from '../protocol'
-
-/** Placeholder to ensure all imports are used */
-void LOAD_PRIORITY
+import { classifyDeviceLossReason, classifyError, createRequestId, InferenceAbortError, throwIfAborted } from '../protocol'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type WhisperState = 'idle' | 'loading' | 'ready' | 'transcribing' | 'error' | 'terminated'
+export type WhisperState
+  = | 'idle'
+    | 'loading'
+    | 'ready'
+    | 'transcribing'
+    | 'error'
+    | 'terminated'
 
 export interface WhisperTranscribeInput {
   audio?: string
@@ -43,24 +40,30 @@ export interface WhisperTranscribeInput {
  * Unified message events for Whisper, based on protocol.ts types.
  * These replace the old status-based MessageEvents.
  */
-export type WhisperEvent =
-  | { type: 'progress'; payload: ProgressPayload & Record<string, unknown> }
-  | { type: 'model-ready' }
-  | { type: 'inference-result'; output: { text: string[] } }
-  | { type: 'error'; payload: { code: string; message: string } }
+export type WhisperEvent
+  = | { type: 'progress', payload: ProgressPayload & Record<string, unknown> }
+    | { type: 'model-ready' }
+    | { type: 'inference-result', output: { text: string[] } }
+    | { type: 'error', payload: { code: string, message: string } }
 
 export interface WhisperAdapter {
   /**
    * Load the Whisper model.
    * Pass `options.signal` to cancel the load; rejects with `InferenceAbortError`.
    */
-  load: (onProgress?: (p: ProgressPayload) => void, options?: { signal?: AbortSignal }) => Promise<void>
+  load: (
+    onProgress?: (p: ProgressPayload) => void,
+    options?: { signal?: AbortSignal },
+  ) => Promise<void>
 
   /**
    * Transcribe audio, returning the text result.
    * Pass `options.signal` to cancel; rejects with `InferenceAbortError`.
    */
-  transcribe: (input: WhisperTranscribeInput, options?: { signal?: AbortSignal }) => Promise<string>
+  transcribe: (
+    input: WhisperTranscribeInput,
+    options?: { signal?: AbortSignal },
+  ) => Promise<string>
 
   /** Terminate the worker */
   terminate: () => void
@@ -114,12 +117,12 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     state = 'error'
     operationMutex.cancel()
 
-    const code = classifyError(event instanceof Error ? event : ((event as ErrorEvent).error ?? event))
+    const code = classifyError(event instanceof Error ? event : (event as ErrorEvent).error ?? event)
     if (code === 'DEVICE_LOST') {
       deviceLossCount++
       getGPUCoordinator().recordDeviceLoss({
         modelId: MODEL_NAMES.WHISPER,
-        reason: classifyDeviceLossReason(event instanceof Error ? event : ((event as ErrorEvent).error ?? event)),
+        reason: classifyDeviceLossReason(event instanceof Error ? event : (event as ErrorEvent).error ?? event),
         occurredAt: Date.now(),
       })
     }
@@ -130,8 +133,10 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   function destroyWorker(): void {
     if (worker) {
-      if (messageListener) worker.removeEventListener('message', messageListener)
-      if (errorListener) worker.removeEventListener('error', errorListener)
+      if (messageListener)
+        worker.removeEventListener('message', messageListener)
+      if (errorListener)
+        worker.removeEventListener('error', errorListener)
       messageListener = null
       errorListener = null
       worker.terminate()
@@ -150,7 +155,6 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
     restartAttempts++
     const delay = RESTART_DELAY_MS * restartAttempts
-
     console.warn(`[WhisperAdapter] Restarting in ${delay}ms (attempt ${restartAttempts}/${MAX_RESTARTS})`)
 
     setTimeout(() => {
@@ -171,13 +175,16 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
         if (data.type === 'progress') {
           const evt: WhisperEvent = { type: 'progress', payload: data.payload }
           for (const handler of messageHandlers) handler(evt)
-        } else if (data.type === 'model-ready') {
+        }
+        else if (data.type === 'model-ready') {
           const evt: WhisperEvent = { type: 'model-ready' }
           for (const handler of messageHandlers) handler(evt)
-        } else if (data.type === 'inference-result') {
+        }
+        else if (data.type === 'inference-result') {
           const evt: WhisperEvent = { type: 'inference-result', output: data.output }
           for (const handler of messageHandlers) handler(evt)
-        } else if (data.type === 'error') {
+        }
+        else if (data.type === 'error') {
           const evt: WhisperEvent = { type: 'error', payload: data.payload }
           for (const handler of messageHandlers) handler(evt)
         }
@@ -196,17 +203,46 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
    * If `signal` is provided and aborts, sends a `cancel` message to the
    * worker and rejects with `InferenceAbortError`.
    */
-  function waitForMessage<T = WorkerOutboundMessage>(
+  function waitForMessage<T = any>(
     w: Worker,
     requestId: string,
     targetType: string,
     timeout: number,
-    onOther?: (data: WorkerOutboundMessage) => void,
+    onOther?: (data: any) => void,
     signal?: AbortSignal,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
       let abortListener: (() => void) | null = null
+
+      function cleanup(): void {
+        if (timeoutId !== undefined)
+          clearTimeout(timeoutId)
+        w.removeEventListener('message', handler)
+        if (abortListener && signal)
+          signal.removeEventListener('abort', abortListener)
+      }
+
+      function handler(event: MessageEvent): void {
+        if (event.data.requestId !== requestId)
+          return
+
+        if (event.data.type === targetType) {
+          cleanup()
+          resolve(event.data as T)
+        }
+        else if (event.data.type === 'error') {
+          cleanup()
+          const code = event.data.payload?.code
+          if (code === 'CANCELLED')
+            reject(new InferenceAbortError(event.data.payload?.message))
+          else
+            reject(new Error(event.data.payload?.message ?? 'Worker error'))
+        }
+        else {
+          onOther?.(event.data)
+        }
+      }
 
       w.addEventListener('message', handler)
 
@@ -214,28 +250,6 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
         cleanup()
         reject(new Error(`Whisper: timeout after ${timeout}ms waiting for '${targetType}'`))
       }, timeout)
-
-      function handler(event: MessageEvent): void {
-        if (event.data.requestId !== requestId) return
-
-        if (event.data.type === targetType) {
-          cleanup()
-          resolve(event.data as T)
-        } else if (event.data.type === 'error') {
-          cleanup()
-          const code = event.data.payload?.code
-          if (code === 'CANCELLED') reject(new InferenceAbortError(event.data.payload?.message))
-          else reject(new Error(event.data.payload?.message ?? 'Worker error'))
-        } else {
-          onOther?.(event.data)
-        }
-      }
-
-      function cleanup(): void {
-        if (timeoutId !== undefined) clearTimeout(timeoutId)
-        w.removeEventListener('message', handler)
-        if (abortListener && signal) signal.removeEventListener('abort', abortListener)
-      }
 
       if (signal) {
         if (signal.aborted) {
@@ -248,135 +262,127 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
           cleanup()
           w.postMessage({ type: 'cancel', requestId: createRequestId(), targetRequestId: requestId })
           const reason = signal.reason
-          reject(
-            reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined),
-          )
+          reject(reason instanceof Error ? reason : new InferenceAbortError(typeof reason === 'string' ? reason : undefined))
         }
         signal.addEventListener('abort', abortListener)
       }
     })
   }
 
-  function load(onProgress?: (p: ProgressPayload) => void, options?: { signal?: AbortSignal }): Promise<void> {
+  async function load(
+    onProgress?: (p: ProgressPayload) => void,
+    options?: { signal?: AbortSignal },
+  ): Promise<void> {
     // NOTICE: Proactive WASM promotion after repeated device-loss events.
     // See kokoro.ts for rationale. Whisper always requests 'webgpu' from the
     // caller today, so we only check the promotion threshold.
     const requestedDevice = deviceLossCount >= DEVICE_LOSS_WASM_THRESHOLD ? 'wasm' : 'webgpu'
     if (requestedDevice === 'wasm') {
       console.warn(
-        `[WhisperAdapter] ${deviceLossCount} device-loss events recorded, promoting load from webgpu to wasm.`,
+        `[WhisperAdapter] ${deviceLossCount} device-loss events recorded, `
+        + `promoting load from webgpu to wasm.`,
       )
     }
     throwIfAborted(options?.signal)
-    return operationMutex.runExclusive(() => {
+    return operationMutex.runExclusive(async () => {
       throwIfAborted(options?.signal)
       state = 'loading'
-      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice })
+      updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'downloading', device: requestedDevice as any })
 
-      return getLoadQueue().enqueue(
-        MODEL_NAMES.WHISPER,
-        LOAD_PRIORITY.ASR,
-        () => {
-          throwIfAborted(options?.signal)
-          const w = ensureWorker()
-          const requestId = createRequestId()
+      return getLoadQueue().enqueue(MODEL_NAMES.WHISPER, LOAD_PRIORITY.ASR, async () => {
+        throwIfAborted(options?.signal)
+        const w = ensureWorker()
+        const requestId = createRequestId()
 
-          const readyPromise = waitForMessage<ModelReadyResponse>(
-            w,
-            requestId,
-            'model-ready',
-            LOAD_TIMEOUT,
-            (data) => {
-              if (data.type === 'progress' && onProgress) {
-                const payload = data.payload
-                onProgress({
-                  phase: payload.phase ?? 'download',
-                  percent: payload.percent ?? -1,
-                  message: payload.message,
-                  file: payload.file,
-                  loaded: payload.loaded,
-                  total: payload.total,
-                })
-              }
-            },
-            options?.signal,
-          )
-
-          w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
-
-          return readyPromise
-            .then((readyResponse) => {
-              // Capture actual device reported by the worker (may fall back to WASM)
-              const actualDevice = readyResponse?.device ?? requestedDevice
-
-              // Track GPU memory allocation
-              const coordinator = getGPUCoordinator()
-              if (allocationToken) coordinator.release(allocationToken)
-              allocationToken = coordinator.requestAllocation(
-                MODEL_NAMES.WHISPER,
-                MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
-              )
-
-              lastManifest = { device: actualDevice }
-              state = 'ready'
-              updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
-              onSuccess()
+        const readyPromise = waitForMessage(w, requestId, 'model-ready', LOAD_TIMEOUT, (data) => {
+          if (data.type === 'progress' && onProgress) {
+            const payload = data.payload
+            onProgress({
+              phase: payload.phase ?? 'download',
+              percent: payload.percent ?? -1,
+              message: payload.message,
+              file: payload.file,
+              loaded: payload.loaded,
+              total: payload.total,
             })
-            .catch((error) => {
-              state = 'error'
-              updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'error' })
-              throw error
-            })
-        },
-        { signal: options?.signal },
-      )
+          }
+        }, options?.signal)
+
+        w.postMessage({ type: 'load-model', requestId, modelId: MODEL_NAMES.WHISPER, device: requestedDevice })
+
+        let readyResponse: any
+        try {
+          readyResponse = await readyPromise
+        }
+        catch (error) {
+          state = 'error'
+          updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'error' })
+          throw error
+        }
+
+        // Capture actual device reported by the worker (may fall back to WASM)
+        const actualDevice = readyResponse?.device ?? requestedDevice
+
+        // Track GPU memory allocation
+        const coordinator = getGPUCoordinator()
+        if (allocationToken)
+          coordinator.release(allocationToken)
+        allocationToken = coordinator.requestAllocation(
+          MODEL_NAMES.WHISPER,
+          MODEL_VRAM_ESTIMATES[MODEL_NAMES.WHISPER] ?? 800 * 1024 * 1024,
+        )
+
+        lastManifest = { device: actualDevice }
+        state = 'ready'
+        updateInferenceStatus(MODEL_NAMES.WHISPER, { state: 'ready', device: actualDevice })
+        onSuccess()
+      }, { signal: options?.signal })
     })
   }
 
-  function transcribe(input: WhisperTranscribeInput, options?: { signal?: AbortSignal }): Promise<string> {
+  async function transcribe(
+    input: WhisperTranscribeInput,
+    options?: { signal?: AbortSignal },
+  ): Promise<string> {
     throwIfAborted(options?.signal)
-    return defaultPerfTracer.withMeasure(
-      'inference',
-      'whisper-transcribe',
-      () =>
-        operationMutex.runExclusive(async () => {
-          throwIfAborted(options?.signal)
-          if (!worker || state !== 'ready') throw new Error('Model not loaded. Call load() first.')
+    return defaultPerfTracer.withMeasure('inference', 'whisper-transcribe', () => operationMutex.runExclusive(async () => {
+      throwIfAborted(options?.signal)
+      if (!worker || state !== 'ready')
+        throw new Error('Model not loaded. Call load() first.')
 
-          state = 'transcribing'
-          const requestId = createRequestId()
+      state = 'transcribing'
+      const requestId = createRequestId()
 
-          const resultPromise = waitForMessage<InferenceResultResponse<{ text: string[] }>>(
-            worker,
-            requestId,
-            'inference-result',
-            TRANSCRIBE_TIMEOUT,
-            undefined,
-            options?.signal,
-          )
+      const resultPromise = waitForMessage<any>(
+        worker,
+        requestId,
+        'inference-result',
+        TRANSCRIBE_TIMEOUT,
+        undefined,
+        options?.signal,
+      )
 
-          worker.postMessage({
-            type: 'run-inference',
-            requestId,
-            input: {
-              audio: input.audio,
-              audioFloat32: input.audioFloat32,
-              language: input.language,
-            },
-          })
+      worker.postMessage({
+        type: 'run-inference',
+        requestId,
+        input: {
+          audio: input.audio,
+          audioFloat32: input.audioFloat32,
+          language: input.language,
+        },
+      })
 
-          try {
-            const result = await resultPromise
-            state = 'ready'
-            onSuccess()
-            return result.output?.text?.[0] ?? ''
-          } catch (error) {
-            state = 'error'
-            throw error
-          }
-        }),
-      { language: input.language },
-    )
+      try {
+        const result = await resultPromise
+        state = 'ready'
+        onSuccess()
+        return result.output?.text?.[0] ?? ''
+      }
+      catch (error) {
+        state = 'error'
+        throw error
+      }
+    }), { language: input.language })
   }
 
   function terminateAdapter(): void {
@@ -401,14 +407,8 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     transcribe,
     terminate: terminateAdapter,
     onMessage,
-    get state() {
-      return state
-    },
-    get manifest() {
-      return lastManifest
-    },
-    get deviceLossCount() {
-      return deviceLossCount
-    },
+    get state() { return state },
+    get manifest() { return lastManifest },
+    get deviceLossCount() { return deviceLossCount },
   }
 }

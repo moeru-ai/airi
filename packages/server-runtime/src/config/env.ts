@@ -1,10 +1,6 @@
 import { env } from 'node:process'
 
-export function fromEnv<T extends string>(
-  envKey: string,
-  envDefault?: T,
-  options?: { validator?: (value: string) => value is T },
-): T | undefined {
+export function fromEnv<T extends string>(envKey: string, envDefault?: T, options?: { validator?: (value: string) => value is T }): T | undefined {
   const value = env[envKey] ?? envDefault
   if (value === undefined) {
     return undefined
@@ -13,7 +9,8 @@ export function fromEnv<T extends string>(
   if (options?.validator) {
     if (options.validator(value)) {
       return value
-    } else {
+    }
+    else {
       return undefined
     }
   }

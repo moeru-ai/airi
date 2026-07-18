@@ -8,12 +8,19 @@ const emailValue = ref('user@example.com')
 </script>
 
 <template>
-  <Story title="Field Input" group="form" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Field Input"
+    group="form"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="text-empty" title="Text Input (Empty)">
+    <Variant
+      id="text-empty"
+      title="Text Input (Empty)"
+    >
       <div>
         <FieldInput
           v-model="textValue"
@@ -24,7 +31,10 @@ const emailValue = ref('user@example.com')
       </div>
     </Variant>
 
-    <Variant id="password" title="Password Input">
+    <Variant
+      id="password"
+      title="Password Input"
+    >
       <div>
         <FieldInput
           v-model="passwordValue"
@@ -36,7 +46,10 @@ const emailValue = ref('user@example.com')
       </div>
     </Variant>
 
-    <Variant id="email" title="Email Input">
+    <Variant
+      id="email"
+      title="Email Input"
+    >
       <div>
         <FieldInput
           v-model="emailValue"
@@ -48,7 +61,10 @@ const emailValue = ref('user@example.com')
       </div>
     </Variant>
 
-    <Variant id="required" title="Required Input">
+    <Variant
+      id="required"
+      title="Required Input"
+    >
       <div>
         <FieldInput
           v-model="textValue"
@@ -60,7 +76,10 @@ const emailValue = ref('user@example.com')
       </div>
     </Variant>
 
-    <Variant id="not-required" title="Optional Input">
+    <Variant
+      id="not-required"
+      title="Optional Input"
+    >
       <div>
         <FieldInput
           v-model="textValue"

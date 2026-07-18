@@ -22,6 +22,7 @@ import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { setupInlayWindow } from '../windows/inlay'
+import { computeResizedBoundsAnchoredToDominantDisplay, findDominantDisplayArea } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
 
 const RECOMMENDED_WIDTH = 450
@@ -35,28 +36,24 @@ function applyWindowSize(window: BrowserWindow, width: number, height: number, x
 
   window.setResizable(true)
 
-  const bounds = {
-    width: Math.round(width),
-    height: Math.round(height),
-  } as Electron.Rectangle
-
-  if (x !== undefined && y !== undefined) {
-    bounds.x = Math.round(x)
-    bounds.y = Math.round(y)
-  }
+  const bounds = x !== undefined && y !== undefined
+    ? {
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height),
+      }
+    : computeResizedBoundsAnchoredToDominantDisplay({
+        currentBounds: window.getBounds(),
+        targetSize: { width, height },
+        displays: screen.getAllDisplays(),
+      })
 
   window.setBounds(bounds)
-  if (x === undefined || y === undefined) {
-    window.center()
-  }
-
   window.show()
 }
 
-function alignWindow(
-  window: BrowserWindow,
-  position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
-): void {
+function alignWindow(window: BrowserWindow, position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void {
   const { width: windowWidth, height: windowHeight } = window.getBounds()
   const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
 
@@ -112,8 +109,10 @@ export function setupTray(params: {
         return
       }
 
-      const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
-      const { width: windowWidth, height: windowHeight } = params.mainWindow.getBounds()
+      const mainWindowBounds = params.mainWindow.getBounds()
+      const currentDisplay = findDominantDisplayArea(mainWindowBounds, screen.getAllDisplays()) ?? screen.getDisplayMatching(mainWindowBounds)
+      const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = currentDisplay.workArea
+      const { width: windowWidth, height: windowHeight } = mainWindowBounds
 
       const fullHeightTarget = areaHeight
       const fullWidthTarget = Math.floor(areaHeight * ASPECT_RATIO)
@@ -121,10 +120,7 @@ export function setupTray(params: {
       const halfWidthTarget = Math.floor(halfHeightTarget * ASPECT_RATIO)
 
       const contextMenu = Menu.buildFromTemplate([
-        {
-          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.show'),
-          click: () => toggleWindowShow(params.mainWindow),
-        },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.show'), click: () => toggleWindowShow(params.mainWindow) },
         { type: 'separator' },
         {
           label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.adjust_sizes'),
@@ -161,11 +157,7 @@ export function setupTray(params: {
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.center'),
               type: 'checkbox',
-              checked: isPositionMatch(
-                params.mainWindow,
-                areaX + Math.floor((areaWidth - windowWidth) / 2),
-                areaY + Math.floor((areaHeight - windowHeight) / 2),
-              ),
+              checked: isPositionMatch(params.mainWindow, areaX + Math.floor((areaWidth - windowWidth) / 2), areaY + Math.floor((areaHeight - windowHeight) / 2)),
               click: () => alignWindow(params.mainWindow, 'center'),
             },
             { type: 'separator' },
@@ -190,39 +182,21 @@ export function setupTray(params: {
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.bottom_right'),
               type: 'checkbox',
-              checked: isPositionMatch(
-                params.mainWindow,
-                areaX + areaWidth - windowWidth,
-                areaY + areaHeight - windowHeight,
-              ),
+              checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight),
               click: () => alignWindow(params.mainWindow, 'bottom-right'),
             },
           ],
         },
         { type: 'separator' },
-        {
-          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'),
-          click: () => void params.settingsWindow.openWindow('/settings'),
-        },
-        {
-          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.about'),
-          click: () => params.aboutWindow().then((window) => toggleWindowShow(window)),
-        },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'), click: () => void params.settingsWindow.openWindow('/settings') },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.about'), click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
         { type: 'separator' },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'), click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
         {
-          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'),
-          click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }),
-        },
-        {
-          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'),
-          click: () => params.widgetsWindow.getWindow().then((window) => toggleWindowShow(window)),
-        },
-        {
-          label: params.i18n.t(
-            params.captionWindow.isVisible()
-              ? 'tamagotchi.electron.tray.menu.labels.label.close_caption'
-              : 'tamagotchi.electron.tray.menu.labels.label.open_caption',
-          ),
+          label: params.i18n.t(params.captionWindow.isVisible()
+            ? 'tamagotchi.electron.tray.menu.labels.label.close_caption'
+            : 'tamagotchi.electron.tray.menu.labels.label.open_caption'),
           click: () => {
             void params.captionWindow.toggleVisibility().then(() => rebuildContextMenu())
           },
@@ -231,29 +205,18 @@ export function setupTray(params: {
           type: 'submenu',
           label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.caption_overlay'),
           submenu: Menu.buildFromTemplate([
-            {
-              type: 'checkbox',
-              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.follow_window'),
-              checked: params.captionWindow.getIsFollowingWindow(),
-              click: async (menuItem) => await params.captionWindow.setFollowWindow(Boolean(menuItem.checked)),
-            },
-            {
-              label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.reset_position'),
-              click: async () => await params.captionWindow.resetToSide(),
-            },
+            { type: 'checkbox', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.follow_window'), checked: params.captionWindow.getIsFollowingWindow(), click: async menuItem => await params.captionWindow.setFollowWindow(Boolean(menuItem.checked)) },
+            { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.reset_position'), click: async () => await params.captionWindow.resetToSide() },
           ]),
         },
         { type: 'separator' },
-        ...(is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
-          ? ([
+        ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
+          ? [
               { type: 'header', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.devtools') },
-              {
-                label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'),
-                click: () => params.beatSyncBgWindow.webContents.openDevTools({ mode: 'detach' }),
-              },
+              { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => params.beatSyncBgWindow.webContents.openDevTools({ mode: 'detach' }) },
               { type: 'separator' },
-            ] as const)
-          : []),
+            ] as const
+          : [],
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.quit'), click: () => app.quit() },
       ])
 
@@ -267,7 +230,7 @@ export function setupTray(params: {
     rebuildContextMenu()
 
     effect(() => {
-      const locale = params.i18n.locale as () => string | LocaleDetector<unknown[]> | undefined
+      const locale = params.i18n.locale as (() => string | LocaleDetector<any[]> | undefined)
       locale()
       rebuildContextMenu()
     })

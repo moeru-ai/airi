@@ -3,17 +3,20 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { join, resolve } from 'node:path'
 
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { spotlightLikeWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig } from '../shared/window'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
 
-export async function setupInlayWindow(params: { serverChannel: ServerChannel; i18n: I18n }) {
+export async function setupInlayWindow(params: {
+  serverChannel: ServerChannel
+  i18n: I18n
+}) {
   const window = new BrowserWindow({
     title: 'Inlay',
     width: 450,
@@ -48,18 +51,18 @@ export async function setupInlayWindow(params: { serverChannel: ServerChannel; i
     width,
     height: width / 4,
     x: displayBounds.x + (displayBounds.width - width) / 2, // Center horizontally
-    y: mapForBreakpoints(displayBounds.height, {
-      sm: (displayBounds.height / 4) * 3 - height, // Bottom quarter, minus window height
-      md: (displayBounds.height / 5) * 4 - height, // Center vertically
-      lg: (displayBounds.height / 6) * 5 - height, // Top quarter, minus half window height
-    }),
+    y: mapForBreakpoints(
+      displayBounds.height,
+      {
+        sm: displayBounds.height / 4 * 3 - height, // Bottom quarter, minus window height
+        md: displayBounds.height / 5 * 4 - height, // Center vertically
+        lg: displayBounds.height / 6 * 5 - height, // Top quarter, minus half window height
+      },
+    ),
   })
 
   window.on('ready-to-show', () => window.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  protectPrivilegedWindowNavigation(window)
 
   await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
 

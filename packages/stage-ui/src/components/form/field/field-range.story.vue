@@ -13,30 +13,58 @@ function formatPercentage(value: number): string {
 </script>
 
 <template>
-  <Story title="Field Range" group="form" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Field Range"
+    group="form"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="default-min" title="Default (min)">
+    <Variant
+      id="default-min"
+      title="Default (min)"
+    >
       <div>
-        <FieldRange v-model="minValue" label="Minimum Value" description="Slider at minimum value" />
+        <FieldRange
+          v-model="minValue"
+          label="Minimum Value"
+          description="Slider at minimum value"
+        />
       </div>
     </Variant>
 
-    <Variant id="default-mid" title="Default (mid)">
+    <Variant
+      id="default-mid"
+      title="Default (mid)"
+    >
       <div>
-        <FieldRange v-model="midValue" label="Medium Value" description="Slider at medium value" />
+        <FieldRange
+          v-model="midValue"
+          label="Medium Value"
+          description="Slider at medium value"
+        />
       </div>
     </Variant>
 
-    <Variant id="default-max" title="Default (max)">
+    <Variant
+      id="default-max"
+      title="Default (max)"
+    >
       <div>
-        <FieldRange v-model="maxValue" label="Maximum Value" description="Slider at maximum value" />
+        <FieldRange
+          v-model="maxValue"
+          label="Maximum Value"
+          description="Slider at maximum value"
+        />
       </div>
     </Variant>
 
-    <Variant id="custom-range" title="Custom Range">
+    <Variant
+      id="custom-range"
+      title="Custom Range"
+    >
       <div>
         <FieldRange
           v-model="customValue"
@@ -49,7 +77,10 @@ function formatPercentage(value: number): string {
       </div>
     </Variant>
 
-    <Variant id="formatted-value" title="Formatted Value">
+    <Variant
+      id="formatted-value"
+      title="Formatted Value"
+    >
       <div>
         <FieldRange
           v-model="midValue"

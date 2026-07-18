@@ -3,15 +3,8 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
-import type {
-  ChatAssistantMessage,
-  ChatHistoryItem,
-  ChatSlices,
-  ChatStreamEventContext,
-  ContextMessage,
-  StreamingAssistantMessage,
-} from '../types/chat'
-import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
@@ -20,17 +13,18 @@ import { formatTimePrefix } from '../messages/datetime-prefix'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
-import { stripUnreadableSymbols } from './unreadable-symbols-stripper'
 
 const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
 
 function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
   const content = msg.content
-  if (content === undefined) return { ...msg, content: text }
-  if (typeof content === 'string') return { ...msg, content: `${text}${content}` }
+  if (content === undefined)
+    return { ...msg, content: text }
+  if (typeof content === 'string')
+    return { ...msg, content: `${text}${content}` }
 
   if (Array.isArray(content)) {
-    const first = content[0] as { type?: string; text?: string } | undefined
+    const first = content[0] as { type?: string, text?: string } | undefined
     if (first && first.type === 'text' && typeof first.text === 'string') {
       const next = [{ ...first, text: `${text}${first.text}` }, ...content.slice(1)]
       return { ...msg, content: next }
@@ -44,7 +38,8 @@ function prependTextToContent<T extends { content?: unknown }>(msg: T, text: str
 function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAssistantMessage {
   try {
     return structuredClone(message)
-  } catch {
+  }
+  catch {
     return JSON.parse(JSON.stringify(message)) as StreamingAssistantMessage
   }
 }
@@ -60,7 +55,7 @@ export interface ChatOrchestratorSendOptions {
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
   /** Image attachments appended to the user message content parts. */
-  attachments?: { type: 'image'; data: string; mimeType: string }[]
+  attachments?: { type: 'image', data: string, mimeType: string }[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
@@ -161,6 +156,16 @@ export interface ChatOrchestratorRuntimeState {
   pendingQueuedSendCount: number
 }
 
+/** Correlation keys shared by every analytics milestone from one user-to-assistant round. */
+interface ChatRoundCorrelation {
+  /** Application conversation that owns the round. */
+  conversationId: string
+  /** Stable round key; the runtime reuses the persisted user-message ID. */
+  roundId: string
+  /** One-based user turn position within the conversation. */
+  turnIndex: number
+}
+
 /**
  * Dependency surface used by the platform-agnostic chat orchestrator runtime.
  */
@@ -195,16 +200,75 @@ export interface ChatOrchestratorRuntimeDeps {
   onSendSettled?: (event: { sessionId: string }) => void
   /** Called when a send starts and the first assistant placeholder is created. */
   onTrackFirstMessage?: () => void
+  /** Called for attempts made before the conversation has its first assistant response. */
+  onChatActivationStarted?: (event: ChatRoundCorrelation & {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+  }) => void
+  /** Called when the conversation reaches its first successful assistant response. */
+  onChatActivationSucceeded?: (event: ChatRoundCorrelation & {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    durationMs: number
+  }) => void
+  /** Called when a pre-activation attempt fails before assistant completion. */
+  onChatActivationFailed?: (event: ChatRoundCorrelation & {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    failureStage: 'llm_response'
+    errorCode: 'llm_response_failed'
+  }) => void
   /** Called when a user message send begins. */
-  onMessageSendStarted?: (event: { source: 'text' | 'voice'; model: string }) => void
+  onMessageSendStarted?: (event: ChatRoundCorrelation & {
+    source: 'text' | 'voice'
+    model: string
+  }) => void
   /** Called immediately before the provider LLM request starts. */
-  onLlmRequestStarted?: (event: { model: string; provider: string; hasVoice: boolean }) => void
+  onLlmRequestStarted?: (event: ChatRoundCorrelation & {
+    model: string
+    provider: string
+    hasVoice: boolean
+  }) => void
   /** Called when the first text token arrives from the provider stream. */
-  onLlmFirstToken?: (event: { model: string; ttfbMs: number }) => void
+  onLlmFirstToken?: (event: ChatRoundCorrelation & {
+    model: string
+    ttfbMs: number
+  }) => void
   /** Called after the assistant stream is parsed and rendered into runtime state. */
-  onAssistantResponseRendered?: (event: { model: string; latencyMs: number }) => void
+  onAssistantResponseRendered?: (event: ChatRoundCorrelation & {
+    model: string
+    latencyMs: number
+  }) => void
+  /** Called once per completed provider generation with content-free usage metadata. */
+  onLlmGeneration?: (event: ChatRoundCorrelation & {
+    model: string
+    provider: string
+    inputTokens?: number
+    outputTokens?: number
+    totalTokens?: number
+    usageSource: LlmUsage['source']
+  }) => void
   /** Called after one user-to-assistant message round completes successfully. */
-  onMessageRound?: (event: { durationMs: number; hasVoice: boolean; model: string }) => void
+  onMessageRound?: (event: ChatRoundCorrelation & {
+    durationMs: number
+    hasVoice: boolean
+    model: string
+    inputTokens?: number
+    outputTokens?: number
+    totalTokens?: number
+    usageSource: LlmUsage['source']
+  }) => void
+  /** Called whenever a user-to-assistant round fails before completion. */
+  onMessageRoundFailed?: (event: ChatRoundCorrelation & {
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    failureStage: 'llm_response'
+    errorCode: 'llm_response_failed'
+  }) => void
   /** Called for context/prompt lifecycle observability. */
   onLifecycle?: (record: ChatOrchestratorLifecycleRecord) => void
   /** Called with the final provider prompt projection. */
@@ -214,6 +278,11 @@ export interface ChatOrchestratorRuntimeDeps {
     sessionId: string
     message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }
     messageText: string
+    source: 'text' | 'voice'
+    model: string
+    provider: string
+    roundId: string
+    turnIndex: number
   }) => void
   /** Called after the assistant message has been finalized into session history. */
   onAssistantMessageAppended?: (event: {
@@ -222,9 +291,15 @@ export interface ChatOrchestratorRuntimeDeps {
     messageText: string
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
-  onUserTurnReady?: (event: { messageText: string; sessionMessages: ChatHistoryItem[] }) => void
+  onUserTurnReady?: (event: {
+    messageText: string
+    sessionMessages: ChatHistoryItem[]
+  }) => void
   /** Called after assistant streaming and hook finalization. */
-  onAssistantTurnReady?: (event: { messageText: string; sessionMessages: ChatHistoryItem[] }) => void
+  onAssistantTurnReady?: (event: {
+    messageText: string
+    sessionMessages: ChatHistoryItem[]
+  }) => void
 }
 
 /**
@@ -283,7 +358,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function setSending(next: boolean) {
-    if (sending === next) return
+    if (sending === next)
+      return
     sending = next
     emitStateChange()
   }
@@ -293,17 +369,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function patchForegroundStream(sessionId: string, message: StreamingAssistantMessage) {
-    if (isForegroundSession(sessionId)) deps.foregroundStream.patch(cloneStreamingMessage(message))
+    if (isForegroundSession(sessionId))
+      deps.foregroundStream.patch(cloneStreamingMessage(message))
   }
 
   function resetForegroundStream(sessionId: string) {
-    if (isForegroundSession(sessionId)) deps.foregroundStream.reset()
+    if (isForegroundSession(sessionId))
+      deps.foregroundStream.reset()
   }
 
   function ingestRuntimeContexts() {
     for (const provider of deps.runtimeContextProviders ?? []) {
       const contextMessage = provider()
-      if (contextMessage) deps.context.ingest(contextMessage)
+      if (contextMessage)
+        deps.context.ingest(contextMessage)
     }
   }
 
@@ -319,12 +398,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       if (rawMessage.role === 'assistant') {
-        const {
-          slices: _slices,
-          tool_results: _toolResults,
-          categorization: _categorization,
-          ...rest
-        } = rawMessage as ChatAssistantMessage
+        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
         return unwrapMessage(rest)
       }
 
@@ -338,9 +412,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     generation: number,
     sessionId: string,
   ) {
-    if (!sendingMessage && !options.attachments?.length) return
+    if (!sendingMessage && !options.attachments?.length)
+      return
 
     deps.session.ensureSession(sessionId)
+
+    const existingSessionMessages = deps.session.getSessionMessages(sessionId)
+    const turnIndex = existingSessionMessages.filter(message => message.role === 'user').length + 1
+
+    // Activation measures whether a conversation reaches its first assistant
+    // response. Later turns still emit message and latency telemetry, but they
+    // must not inflate the one-time activation milestones.
+    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -369,7 +452,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     const isStaleGeneration = () => deps.session.getSessionGeneration(sessionId) !== generation
     const shouldAbort = () => isStaleGeneration()
-    if (shouldAbort()) return
+    if (shouldAbort())
+      return
 
     setSending(true)
 
@@ -382,9 +466,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: createId(),
     }
     patchForegroundStream(sessionId, buildingMessage)
+    const sendSource = options.input ? 'voice' : 'text'
+    const activeProvider = deps.getActiveProvider?.() ?? ''
+    // The user message is the durable start of a round, so its ID also serves
+    // as the correlation key for every telemetry milestone emitted by it.
+    const roundId = createId()
+    const correlation: ChatRoundCorrelation = {
+      conversationId: sessionId,
+      roundId,
+      turnIndex,
+    }
     deps.onTrackFirstMessage?.()
+    if (isActivationAttempt) {
+      deps.onChatActivationStarted?.({
+        ...correlation,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+      })
+    }
     deps.onMessageSendStarted?.({
-      source: options.input ? 'voice' : 'text',
+      ...correlation,
+      source: sendSource,
       model: options.model,
     })
     const roundStartedAt = monotonicNow()
@@ -417,14 +520,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
       }
 
-      if (shouldAbort()) return
+      if (shouldAbort())
+        return
 
-      const userMessageId = createId()
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
         createdAt: sendingCreatedAt,
-        id: userMessageId,
+        id: roundId,
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
 
@@ -434,6 +537,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionId,
         message: userMessage,
         messageText: sendingMessage,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+        roundId,
+        turnIndex,
       })
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
@@ -447,12 +555,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
-          if (shouldAbort()) return
+          if (shouldAbort())
+            return
 
           categorizer.consume(literal)
 
-          const filtered = categorizer.filterToSpeech(literal, streamPosition)
-          const speechOnly = stripUnreadableSymbols(filtered)
+          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
           if (speechOnly.trim()) {
@@ -463,7 +571,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             const lastSlice = buildingMessage.slices.at(-1)
             if (lastSlice?.type === 'text') {
               lastSlice.text += speechOnly
-            } else {
+            }
+            else {
               buildingMessage.slices.push({
                 type: 'text',
                 text: speechOnly,
@@ -473,18 +582,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           }
         },
         onSpecial: async (special) => {
-          if (shouldAbort()) return
+          if (shouldAbort())
+            return
 
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
-        onEnd: (fullText) => {
-          if (isStaleGeneration()) return
+        onEnd: async (fullText) => {
+          if (isStaleGeneration())
+            return
 
           const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
-            speech: stripUnreadableSymbols(finalCategorization.speech),
+            speech: finalCategorization.speech,
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
           patchForegroundStream(sessionId, buildingMessage)
@@ -494,20 +605,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const toolCallQueue = createQueue<ChatSlices>({
         handlers: [
-          (ctx) => {
-            if (shouldAbort()) return Promise.resolve()
+          async (ctx) => {
+            if (shouldAbort())
+              return
             if (ctx.data.type === 'tool-call') {
               buildingMessage.slices.push(ctx.data)
               patchForegroundStream(sessionId, buildingMessage)
-              return Promise.resolve()
+              return
             }
 
             if (ctx.data.type === 'tool-call-result') {
               buildingMessage.tool_results.push(ctx.data)
               patchForegroundStream(sessionId, buildingMessage)
             }
-
-            return Promise.resolve()
           },
         ],
       })
@@ -515,10 +625,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const newMessages = buildProviderMessages(sessionMessagesForSend)
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
-        const systemMessage = newMessages.find((message) => message.role === 'system')
+        const systemMessage = newMessages.find(message => message.role === 'system')
         if (systemMessage) {
           systemMessage.content = `${systemMessage.content}\n\n${systemPromptSupplement}`
-        } else {
+        }
+        else {
           newMessages.unshift({
             role: 'system',
             content: systemPromptSupplement,
@@ -531,12 +642,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (contextPromptText) {
         const lastMessage = newMessages.at(-1)
         if (lastMessage && lastMessage.role === 'user') {
-          const existingParts =
-            typeof lastMessage.content === 'string'
-              ? [{ type: 'text' as const, text: lastMessage.content }]
-              : lastMessage.content
+          const existingParts = typeof lastMessage.content === 'string'
+            ? [{ type: 'text' as const, text: lastMessage.content }]
+            : lastMessage.content
 
-          lastMessage.content = [...existingParts, { type: 'text' as const, text: `\n${contextPromptText}` }]
+          lastMessage.content = [
+            ...existingParts,
+            { type: 'text' as const, text: `\n${contextPromptText}` },
+          ]
         }
 
         deps.onLifecycle?.({
@@ -574,21 +687,40 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
-      if (shouldAbort()) return
+      if (shouldAbort())
+        return
 
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
+      let generationUsage: LlmUsage = { source: 'unavailable' }
       deps.onLlmRequestStarted?.({
+        ...correlation,
         model: options.model,
         provider: deps.getActiveProvider() || 'unknown',
-        hasVoice: Boolean(options.input),
+        hasVoice: !!options.input,
       })
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
         headers,
+        requestCorrelation: {
+          conversationId: correlation.conversationId,
+          roundId: correlation.roundId,
+        },
         tools: options.tools,
         waitForTools: true,
         captureToolErrors: true,
+        onUsage: (usage) => {
+          generationUsage = usage
+          deps.onLlmGeneration?.({
+            ...correlation,
+            model: options.model,
+            provider: activeProvider,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens,
+            usageSource: usage.source,
+          })
+        },
         onStreamEvent: async (event: StreamEvent) => {
           switch (event.type) {
             case 'tool-call':
@@ -619,6 +751,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               if (!llmFirstTokenEmitted) {
                 llmFirstTokenEmitted = true
                 deps.onLlmFirstToken?.({
+                  ...correlation,
                   model: options.model,
                   ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
                 })
@@ -627,7 +760,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               await parser.consume(event.text)
               break
             case 'reasoning-delta': {
-              if (shouldAbort()) return
+              if (shouldAbort())
+                return
 
               const { reasoning = '' } = buildingMessage.categorization ?? {}
               const nextReasoning = reasoning + event.text
@@ -635,10 +769,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
                 reasoning: nextReasoning,
               }
-              const crossesBoundary =
-                Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE) >
-                Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
-              if (!reasoning || crossesBoundary) patchForegroundStream(sessionId, buildingMessage)
+              const crossesBoundary
+                = Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                  > Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+              if (!reasoning || crossesBoundary)
+                patchForegroundStream(sessionId, buildingMessage)
               break
             }
             case 'finish':
@@ -651,6 +786,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       await parser.end()
       deps.onAssistantResponseRendered?.({
+        ...correlation,
         model: options.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
@@ -670,14 +806,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
       await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
-      await hooks.emitChatTurnCompleteHooks(
-        {
-          output: { ...buildingMessage },
-          outputText: fullText,
-          toolCalls: sessionMessagesForSend.filter((msg) => msg.role === 'tool') as ToolMessage[],
-        },
-        streamingMessageContext,
-      )
+      await hooks.emitChatTurnCompleteHooks({
+        output: { ...buildingMessage },
+        outputText: fullText,
+        toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
+      }, streamingMessageContext)
 
       deps.onAssistantTurnReady?.({
         messageText: fullText,
@@ -685,12 +818,50 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       resetForegroundStream(sessionId)
+      const durationMs = Math.round(monotonicNow() - roundStartedAt)
       deps.onMessageRound?.({
-        durationMs: Math.round(monotonicNow() - roundStartedAt),
-        hasVoice: Boolean(options.input),
+        ...correlation,
+        durationMs,
+        hasVoice: !!options.input,
         model: options.model,
+        inputTokens: generationUsage.inputTokens,
+        outputTokens: generationUsage.outputTokens,
+        totalTokens: generationUsage.totalTokens,
+        usageSource: generationUsage.source,
       })
-    } finally {
+      if (isActivationAttempt) {
+        deps.onChatActivationSucceeded?.({
+          ...correlation,
+          durationMs,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+        })
+      }
+    }
+    catch (error) {
+      console.error('Error sending message:', error)
+      deps.onMessageRoundFailed?.({
+        ...correlation,
+        source: sendSource,
+        model: options.model,
+        provider: activeProvider,
+        failureStage: 'llm_response',
+        errorCode: 'llm_response_failed',
+      })
+      if (isActivationAttempt) {
+        deps.onChatActivationFailed?.({
+          ...correlation,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          failureStage: 'llm_response',
+          errorCode: 'llm_response_failed',
+        })
+      }
+      throw error
+    }
+    finally {
       setSending(false)
       deps.onSendSettled?.({ sessionId })
     }
@@ -701,7 +872,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       async ({ data }) => {
         const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
 
-        if (cancelled) return
+        if (cancelled)
+          return
 
         if (deps.session.getSessionGeneration(sessionId) !== generation) {
           deferred.reject(new Error('Chat session was reset before send could start'))
@@ -711,7 +883,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         try {
           await performSend(sendingMessage, options, generation, sessionId)
           deferred.resolve()
-        } catch (error) {
+        }
+        catch (error) {
           deferred.reject(error)
         }
       },
@@ -724,11 +897,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   })
 
   sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter((item) => item !== queuedSend)
+    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
     emitStateChange()
   })
 
-  function ingest(sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) {
+  function ingest(
+    sendingMessage: string,
+    options: ChatOrchestratorSendOptions,
+    targetSessionId?: string,
+  ) {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
 
@@ -745,28 +922,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   function cancelPendingSends(sessionId?: string) {
     for (const queued of pendingQueuedSends) {
-      if (sessionId && queued.sessionId !== sessionId) continue
+      if (sessionId && queued.sessionId !== sessionId)
+        continue
 
       queued.cancelled = true
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
 
-    pendingQueuedSends = sessionId ? pendingQueuedSends.filter((item) => item.sessionId !== sessionId) : []
+    pendingQueuedSends = sessionId
+      ? pendingQueuedSends.filter(item => item.sessionId !== sessionId)
+      : []
     emitStateChange()
   }
 
   function getPendingQueuedSendSnapshot() {
-    return pendingQueuedSends.map(
-      (queued) =>
-        ({
-          sessionId: queued.sessionId,
-          generation: queued.generation,
-          cancelled: Boolean(queued.cancelled),
-          messagePreview: queued.sendingMessage.slice(0, 120),
-          hasAttachments: Boolean(queued.options.attachments?.length),
-          inputType: queued.options.input?.type,
-        }) satisfies QueuedSendSnapshot,
-    )
+    return pendingQueuedSends.map(queued => ({
+      sessionId: queued.sessionId,
+      generation: queued.generation,
+      cancelled: !!queued.cancelled,
+      messagePreview: queued.sendingMessage.slice(0, 120),
+      hasAttachments: !!queued.options.attachments?.length,
+      inputType: queued.options.input?.type,
+    } satisfies QueuedSendSnapshot))
   }
 
   return {

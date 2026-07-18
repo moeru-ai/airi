@@ -3,15 +3,7 @@ import type { BugReportPageContext } from './bug-report-payload'
 import type { BugReportDialogSubmitPayload } from './types'
 
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
-import {
-  DialogContent,
-  DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-  VisuallyHidden,
-} from 'reka-ui'
+import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -21,30 +13,27 @@ import BugReportForm from './bug-report-form.vue'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 import { buildBugReportPayload, createBugReportPageContext } from './bug-report-payload'
 
-const props = withDefaults(
-  defineProps<{
-    sending?: boolean
-    submitError?: unknown
-    title?: string
-    subtitle?: string
-    submitLabel?: string
-    triageContextSummary?: string
-    pageContext?: BugReportPageContext | null
-    screenshotAttached?: boolean
-  }>(),
-  {
-    sending: false,
-    submitError: undefined,
-    triageContextSummary: '',
-    pageContext: null,
-    screenshotAttached: false,
-  },
-)
+const props = withDefaults(defineProps<{
+  sending?: boolean
+  submitError?: unknown
+  title?: string
+  subtitle?: string
+  submitLabel?: string
+  triageContextSummary?: string
+  pageContext?: BugReportPageContext | null
+  screenshotAttached?: boolean
+}>(), {
+  sending: false,
+  submitError: undefined,
+  triageContextSummary: '',
+  pageContext: null,
+  screenshotAttached: false,
+})
 
 const emit = defineEmits<{
-  submit: [payload: BugReportDialogSubmitPayload]
-  requestTriageContext: []
-  feedback: []
+  (e: 'submit', payload: BugReportDialogSubmitPayload): void
+  (e: 'requestTriageContext'): void
+  (e: 'feedback'): void
 }>()
 
 const showDialog = defineModel<boolean>({ default: false, required: false })
@@ -61,7 +50,8 @@ useResizeObserver(document.documentElement, () => screenSafeArea.update())
 onMounted(() => screenSafeArea.update())
 
 const effectiveTriageSummary = computed(() => {
-  if (props.triageContextSummary) return props.triageContextSummary
+  if (props.triageContextSummary)
+    return props.triageContextSummary
 
   return t('settings.dialogs.bug-report.triage-description')
 })
@@ -72,11 +62,14 @@ const resolvedSubmitLabel = computed(() => props.submitLabel || t('settings.dial
 
 function onSubmit() {
   const trimmedDescription = description.value.trim()
-  if (!trimmedDescription) return
+  if (!trimmedDescription)
+    return
 
   const includeContext = includeTriageContext.value
   const selectedScreenshotFiles = screenshotFiles.value ?? []
-  const context = includeContext ? (props.pageContext ?? createBugReportPageContext()) : null
+  const context = includeContext
+    ? (props.pageContext ?? createBugReportPageContext())
+    : null
   const screenshotAttached = includeContext && (props.screenshotAttached || selectedScreenshotFiles.length > 0)
   const formattedReport = buildBugReportPayload({
     description: trimmedDescription,
@@ -102,7 +95,7 @@ function onRequestTriageContext() {
 </script>
 
 <template>
-  <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="(value) => (showDialog = value)">
+  <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
     <DialogPortal>
       <DialogOverlay
         :class="[
@@ -119,11 +112,23 @@ function onRequestTriageContext() {
           'dark:bg-neutral-900',
         ]"
       >
-        <div :class="['mb-4 flex flex-col gap-1']">
-          <DialogTitle :class="['text-lg font-semibold text-neutral-900 dark:text-neutral-100']">
+        <div
+          :class="[
+            'mb-4 flex flex-col gap-1',
+          ]"
+        >
+          <DialogTitle
+            :class="[
+              'text-lg font-semibold text-neutral-900 dark:text-neutral-100',
+            ]"
+          >
             {{ resolvedTitle }}
           </DialogTitle>
-          <DialogDescription :class="['text-sm text-neutral-600 dark:text-neutral-300']">
+          <DialogDescription
+            :class="[
+              'text-sm text-neutral-600 dark:text-neutral-300',
+            ]"
+          >
             {{ resolvedSubtitle }}
           </DialogDescription>
         </div>
@@ -145,29 +150,47 @@ function onRequestTriageContext() {
     </DialogPortal>
   </DialogRoot>
 
-  <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="(value) => (showDialog = value)">
+  <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="value => showDialog = value">
     <DrawerPortal>
-      <DrawerOverlay :class="['fixed inset-0 z-1000 bg-black/35 backdrop-blur-sm']" />
+      <DrawerOverlay
+        :class="[
+          'fixed inset-0 z-1000 bg-black/35 backdrop-blur-sm',
+        ]"
+      />
       <DrawerContent
         :class="[
           'fixed bottom-0 left-0 right-0 z-1000 mt-20 h-full max-h-[90%]',
           'flex flex-col rounded-t-[32px] bg-neutral-50/95 px-4 pt-4 outline-none',
           'backdrop-blur-md dark:bg-neutral-900/95',
         ]"
-        :style="{
-          paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px`,
-        }"
+        :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
       >
         <VisuallyHidden>
           <DialogTitle>{{ resolvedTitle }}</DialogTitle>
         </VisuallyHidden>
-        <DrawerHandle :class="['[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600']" />
+        <DrawerHandle
+          :class="[
+            '[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600',
+          ]"
+        />
 
-        <div :class="['mb-4 mt-2 flex flex-col gap-1']">
-          <div :class="['text-lg font-semibold text-neutral-900 dark:text-neutral-100']">
+        <div
+          :class="[
+            'mb-4 mt-2 flex flex-col gap-1',
+          ]"
+        >
+          <div
+            :class="[
+              'text-lg font-semibold text-neutral-900 dark:text-neutral-100',
+            ]"
+          >
             {{ resolvedTitle }}
           </div>
-          <div :class="['text-sm text-neutral-600 dark:text-neutral-300']">
+          <div
+            :class="[
+              'text-sm text-neutral-600 dark:text-neutral-300',
+            ]"
+          >
             {{ resolvedSubtitle }}
           </div>
         </div>

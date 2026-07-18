@@ -7,7 +7,7 @@ function normalizeKitDescriptor(kit: KitDescriptor) {
     version: kit.version,
     runtimes: [...new Set(kit.runtimes)].sort(),
     capabilities: kit.capabilities
-      .map((capability) => ({
+      .map(capability => ({
         key: capability.key,
         actions: [...new Set(capability.actions)].sort(),
       }))
@@ -76,6 +76,6 @@ export class KitRegistryService<TKit extends KitDescriptor = KitDescriptor> {
   }
 
   listByRuntime(runtime: PluginRuntime) {
-    return this.list().filter((kit) => kit.runtimes.includes(runtime))
+    return this.list().filter(kit => kit.runtimes.includes(runtime))
   }
 }

@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -16,7 +16,7 @@ import { electronOnboardingClose } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { createAuthService } from '../../services/airi/auth'
-import { toggleWindowShow } from '../shared'
+import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupBaseWindowElectronInvokes } from '../shared/window'
 
 export interface OnboardingWindowManager {
@@ -60,10 +60,7 @@ export function setupOnboardingWindowManager(params: {
     })
 
     newWindow.on('ready-to-show', () => newWindow.show())
-    newWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
-      return { action: 'deny' }
-    })
+    protectPrivilegedWindowNavigation(newWindow)
 
     // TODO: once we refactored eventa to support window-namespaced contexts,
     // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -76,12 +73,7 @@ export function setupOnboardingWindowManager(params: {
       safeClose(newWindow)
     })
 
-    await setupBaseWindowElectronInvokes({
-      context,
-      window: newWindow,
-      i18n: params.i18n,
-      serverChannel: params.serverChannel,
-    })
+    await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
     createAuthService({ context, window: newWindow, windowAuthManager: params.windowAuthManager })
 
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
@@ -90,9 +82,8 @@ export function setupOnboardingWindowManager(params: {
       for (const cb of closeCallbacks) {
         try {
           cb()
-        } catch {
-          /* noop */
         }
+        catch { /* noop */ }
       }
     })
 

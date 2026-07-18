@@ -2,11 +2,7 @@ import type { Ref } from 'vue'
 
 import { computed, ref } from 'vue'
 
-export interface BeatBaseAngles {
-  x: number
-  y: number
-  z: number
-}
+export interface BeatBaseAngles { x: number, y: number, z: number }
 
 export interface BeatSyncController {
   targetX: Ref<number>
@@ -106,7 +102,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
   }
 
   function easeOutCubic(t: number) {
-    return 1 - (1 - t) ** 3
+    return 1 - ((1 - t) ** 3)
   }
 
   function getStyleConfig(): BeatStyleConfig {
@@ -116,10 +112,10 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
   function getTopPose(side: 'left' | 'right') {
     const { topYaw, topRoll, swingLift, pattern } = getStyleConfig()
     const direction = side === 'left' ? -1 : 1
-    const zOffset = pattern === 'swing' || pattern === 'sway' ? (swingLift ?? topRoll) : topRoll
+    const zOffset = (pattern === 'swing' || pattern === 'sway') ? (swingLift ?? topRoll) : topRoll
     const z = baseAngles.value.z + (pattern === 'swing' || pattern === 'sway' ? zOffset : direction * zOffset)
     return {
-      y: baseAngles.value.y + direction * topYaw,
+      y: baseAngles.value.y + (direction * topYaw),
       z,
     }
   }
@@ -167,7 +163,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     }
 
     const lastBeat = lastBeatTimestamp.value
-    const timeSinceBeat = primed.value && lastBeat != null ? now - lastBeat : Infinity
+    const timeSinceBeat = primed.value && lastBeat != null ? (now - lastBeat) : Infinity
     const shouldRelease = primed.value && !segments.value.length && timeSinceBeat > releaseDelayMs
 
     if (shouldRelease) {
@@ -187,12 +183,9 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
   }
 
   function scheduleBeat(timestamp?: number | null) {
-    const now =
-      timestamp != null && Number.isFinite(timestamp)
-        ? Number(timestamp)
-        : typeof performance !== 'undefined'
-          ? performance.now()
-          : Date.now()
+    const now = timestamp != null && Number.isFinite(timestamp)
+      ? Number(timestamp)
+      : (typeof performance !== 'undefined' ? performance.now() : Date.now())
     updateTargets(now)
 
     if (!primed.value) {
@@ -201,17 +194,15 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
       return
     }
 
-    const interval = Math.min(
-      2000,
-      Math.max(220, lastBeatTimestamp.value != null ? now - lastBeatTimestamp.value : defaultIntervalMs),
-    )
+    const interval = Math.min(2000, Math.max(220, lastBeatTimestamp.value != null ? (now - lastBeatTimestamp.value) : defaultIntervalMs))
     lastBeatTimestamp.value = now
     lastInterval.value = interval
-    avgInterval.value = avgInterval.value == null ? interval : avgInterval.value * 0.7 + interval * 0.3
+    avgInterval.value = avgInterval.value == null ? interval : (avgInterval.value * 0.7 + interval * 0.3)
     if (autoShift.value && avgInterval.value) {
       const bpm = 60000 / avgInterval.value
       const targetStyle: BeatSyncStyleName = bpm < 120 ? 'swing-lr' : bpm < 180 ? 'balanced-v' : 'punchy-v'
-      if (targetStyle !== style.value) style.value = targetStyle
+      if (targetStyle !== style.value)
+        style.value = targetStyle
     }
     const halfDuration = Math.max(80, interval / 2)
     const startPose = { y: targetY.value, z: targetZ.value }
@@ -258,7 +249,9 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
       })
 
       currentTopSide.value = nextSide
-    } else if (styleConfig.pattern === 'swing') {
+    }
+
+    else if (styleConfig.pattern === 'swing') {
       // swing-lr pattern: beat pulls to current side, then cross to the other side within the interval (A-shape)
       const currentSide = currentTopSide.value
       const sidePose = getTopPose(currentSide)
@@ -286,7 +279,8 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
 
       patternStarted.value = true
       currentTopSide.value = nextSide
-    } else if (styleConfig.pattern === 'sway') {
+    }
+    else if (styleConfig.pattern === 'sway') {
       // sway pattern: side A -> lifted mid-arc -> side B (downward parabola / A-shape)
       const currentSide = currentTopSide.value
       const sidePose = getTopPose(currentSide)
@@ -348,13 +342,9 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     velocityZ,
     updateTargets,
     scheduleBeat,
-    setStyle: (s: BeatSyncStyleName) => {
-      style.value = s
-    },
+    setStyle: (s: BeatSyncStyleName) => { style.value = s },
     getStyle: () => style.value,
-    setAutoStyleShift: (enabled: boolean) => {
-      autoShift.value = enabled
-    },
+    setAutoStyleShift: (enabled: boolean) => { autoShift.value = enabled },
     debugState: () => ({
       primed: primed.value,
       patternStarted: patternStarted.value,

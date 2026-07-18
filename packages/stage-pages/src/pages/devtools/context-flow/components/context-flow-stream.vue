@@ -17,7 +17,8 @@ const streamContainer = ref<HTMLDivElement>()
 
 async function scrollToTop() {
   await nextTick()
-  if (streamContainer.value) streamContainer.value.scrollTop = 0
+  if (streamContainer.value)
+    streamContainer.value.scrollTop = 0
 }
 
 watch(() => props.entries.length, scrollToTop)
@@ -27,7 +28,10 @@ watch(() => filterText.value, scrollToTop)
 <template>
   <div :class="['flex', 'flex-col', 'gap-2']">
     <div :class="['flex']">
-      <Input v-model="filterText" placeholder="Search type, source, text..." />
+      <Input
+        v-model="filterText"
+        placeholder="Search type, source, text..."
+      />
     </div>
     <div
       ref="streamContainer"
@@ -43,16 +47,7 @@ watch(() => filterText.value, scrollToTop)
     >
       <div
         v-if="!entries.length"
-        :class="[
-          'h-full',
-          'w-full',
-          'flex',
-          'items-center',
-          'justify-center',
-          'text-sm',
-          'text-neutral-500',
-          'dark:text-neutral-400',
-        ]"
+        :class="['h-full', 'w-full', 'flex', 'items-center', 'justify-center', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']"
       >
         No data yet. Trigger a chat, send a context update, or enable broadcast capture.
       </div>

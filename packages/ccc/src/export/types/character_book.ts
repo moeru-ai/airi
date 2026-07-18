@@ -38,12 +38,6 @@ export interface CharacterBookEntry {
   selective?: boolean
 }
 
-export interface CharacterBookExtensions extends Record<string, unknown> {
-  /** Placeholder for future extension properties */
-  readonly _brand?: 'CharacterBookExtensions'
-}
+export interface CharacterBookExtensions extends Record<string, unknown> {}
 
-export interface CharacterBookEntryExtensions extends Record<string, unknown> {
-  /** Placeholder for future extension properties */
-  readonly _brand?: 'CharacterBookEntryExtensions'
-}
+export interface CharacterBookEntryExtensions extends Record<string, unknown> {}

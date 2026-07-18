@@ -74,7 +74,7 @@ function formatVoiceAttributes(voice: Voice): string[] {
 
   // Add languages if available
   if (voice.languages && voice.languages.length > 0) {
-    const languageNames = voice.languages.map((lang) => lang.name).join(', ')
+    const languageNames = voice.languages.map(lang => lang.name).join(', ')
     attributes.push(languageNames)
   }
 
@@ -95,7 +95,9 @@ function togglePlayback() {
       voiceId === props.voice.id
         ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
         : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
-      voiceId === props.voice.id ? 'form_voice-card-active' : '',
+      voiceId === props.voice.id
+        ? 'form_voice-card-active'
+        : '',
     ]"
   >
     <!-- Voice info section -->
@@ -109,7 +111,7 @@ function togglePlayback() {
           :name="name"
           :value="props.voice.id"
           class="absolute cursor-pointer opacity-0"
-        />
+        >
         <div class="relative mr-3 mt-0.5 flex-shrink-0">
           <div
             class="size-5 border-2 rounded-full transition-colors duration-200"
@@ -121,7 +123,11 @@ function togglePlayback() {
           >
             <div
               class="absolute left-1/2 top-1/2 size-3 rounded-full transition-opacity duration-200 -translate-x-1/2 -translate-y-1/2"
-              :class="[voiceId === props.voice.id ? 'opacity-100 bg-primary-500 dark:bg-primary-400' : 'opacity-0']"
+              :class="[
+                voiceId === props.voice.id
+                  ? 'opacity-100 bg-primary-500 dark:bg-primary-400'
+                  : 'opacity-0',
+              ]"
             />
           </div>
         </div>
@@ -129,18 +135,16 @@ function togglePlayback() {
         <!-- Audio preview button -->
         <button
           v-if="getPreviewUrl(voice)"
-          absolute
-          right-0
-          top="0"
-          z-3
+          absolute right-0 top="0" z-3
           class="translate-x-[-50%] translate-y-[50%]"
-          :class="[currentlyPlayingId === voice.id ? 'text-white dark:text-white' : '']"
+          :class="[
+            currentlyPlayingId === voice.id
+              ? 'text-white dark:text-white'
+              : '',
+          ]"
           @click="togglePlayback"
         >
-          <div
-            v-if="currentlyPlayingId === voice.id"
-            class="i-solar:pause-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500"
-          />
+          <div v-if="currentlyPlayingId === voice.id" class="i-solar:pause-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500" />
           <div v-else class="i-solar:play-circle-bold-duotone text-xl text-neutral-400 dark:text-neutral-500" />
         </button>
 
@@ -187,8 +191,7 @@ function togglePlayback() {
 
           <!-- Voice description -->
           <div
-            v-if="voice.description"
-            class="line-clamp-2 mt-1 text-xs"
+            v-if="voice.description" class="line-clamp-2 mt-1 text-xs"
             :class="[
               voiceId === voice.id
                 ? 'text-neutral-600 dark:text-neutral-400'
@@ -204,13 +207,22 @@ function togglePlayback() {
     <!-- Audio visualizer section -->
     <div relative>
       <TransitionVertical>
-        <div v-if="showVisualizer && currentlyPlayingId === voice.id && audioStream" class="h-16 px-3 pb-2">
-          <AudioSpectrum v-slot="{ frequencies }" :stream="audioStream" :bars="24" :min-freq="60" :max-freq="4000">
+        <div
+          v-if="showVisualizer && currentlyPlayingId === voice.id && audioStream"
+          class="h-16 px-3 pb-2"
+        >
+          <AudioSpectrum
+            v-slot="{ frequencies }"
+            :stream="audioStream"
+            :bars="24"
+            :min-freq="60"
+            :max-freq="4000"
+          >
             <AudioSpectrumVisualizer
               :frequencies="frequencies"
-              :bars-class="
-                voiceId === voice.id ? 'bg-primary-500 dark:bg-primary-400' : 'bg-neutral-400 dark:bg-neutral-600'
-              "
+              :bars-class="voiceId === voice.id
+                ? 'bg-primary-500 dark:bg-primary-400'
+                : 'bg-neutral-400 dark:bg-neutral-600'"
             />
           </AudioSpectrum>
         </div>

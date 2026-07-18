@@ -2,7 +2,10 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -36,7 +39,7 @@ const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Get available voices for ElevenLabs
 const availableVoices = computed(() => {
@@ -45,10 +48,7 @@ const availableVoices = computed(() => {
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
-    string,
-    UnElevenLabsOptions
-  >
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
@@ -57,12 +57,11 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = (providerConfig.model as string | undefined) || defaultModel
+  const model = providerConfig.model as string | undefined || defaultModel
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
-
   return await speechStore.speech(
-    provider as unknown as SpeechProviderWithExtraOptions<string, Record<string, unknown>>,
+    provider,
     model,
     input,
     voiceId,
@@ -78,61 +77,59 @@ onMounted(async () => {
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
     await speechStore.loadVoicesForProvider(providerId)
-  } else {
+  }
+  else {
     console.error('Failed to validate provider config', providerConfig)
   }
 })
 
-watch(pitch, () => {
+watch(pitch, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.pitch = pitch.value
 })
 
-watch(speed, () => {
+watch(speed, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
 
-watch(volume, () => {
+watch(volume, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.volume = volume.value
 })
 
-watch(style, () => {
+watch(style, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.style = style.value
 })
 
-watch(stability, () => {
+watch(stability, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.stability = stability.value
 })
 
-watch(similarityBoost, () => {
+watch(similarityBoost, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.similarityBoost = similarityBoost.value
 })
 
-watch(useSpeakerBoost, () => {
+watch(useSpeakerBoost, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.useSpeakerBoost = useSpeakerBoost.value
 })
 
-watch(
-  providers,
-  async () => {
-    const providerConfig = providersStore.getProviderConfig(providerId)
-    const providerMetadata = providersStore.getProviderMetadata(providerId)
-    if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-      await speechStore.loadVoicesForProvider(providerId)
-    } else {
-      console.error('Failed to validate provider config', providerConfig)
-    }
-  },
-  {
-    immediate: true,
-  },
-)
+watch(providers, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerMetadata = providersStore.getProviderMetadata(providerId)
+  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+    await speechStore.loadVoicesForProvider(providerId)
+  }
+  else {
+    console.error('Failed to validate provider config', providerConfig)
+  }
+}, {
+  immediate: true,
+})
 </script>
 
 <template>
@@ -150,9 +147,7 @@ watch(
           :label="t('settings.pages.providers.provider.common.fields.field.pitch.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.pitch.description')"
           :min="-100"
-          :max="100"
-          :step="1"
-          :format-value="(value) => `${value}%`"
+          :max="100" :step="1" :format-value="value => `${value}%`"
         />
 
         <!-- Speed control - common to most providers -->
@@ -161,8 +156,7 @@ watch(
           :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
           :min="0.5"
-          :max="2.0"
-          :step="0.01"
+          :max="2.0" :step="0.01"
         />
 
         <!-- Volume control - available in some providers -->
@@ -171,9 +165,7 @@ watch(
           :label="t('settings.pages.providers.provider.common.fields.field.volume.label')"
           :description="t('settings.pages.providers.provider.common.fields.field.volume.description')"
           :min="-100"
-          :max="100"
-          :step="1"
-          :format-value="(value) => `${value}%`"
+          :max="100" :step="1" :format-value="value => `${value}%`"
         />
 
         <!-- Style control - specific to ElevenLabs -->
@@ -182,8 +174,7 @@ watch(
           :label="t('settings.pages.providers.provider.elevenlabs.fields.field.style.label')"
           :description="t('settings.pages.providers.provider.elevenlabs.fields.field.style.description')"
           :min="0"
-          :max="1"
-          :step="0.01"
+          :max="1" :step="0.01"
         />
 
         <!-- Stability control - specific to ElevenLabs -->
@@ -192,8 +183,7 @@ watch(
           :label="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.label')"
           :description="t('settings.pages.providers.provider.elevenlabs.fields.field.stability.description')"
           :min="0"
-          :max="1"
-          :step="0.01"
+          :max="1" :step="0.01"
         />
 
         <!-- Similarity Boost control - specific to ElevenLabs -->
@@ -202,8 +192,7 @@ watch(
           :label="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.label')"
           :description="t('settings.pages.providers.provider.elevenlabs.fields.field.simularity-boost.description')"
           :min="0"
-          :max="1"
-          :step="0.01"
+          :max="1" :step="0.01"
         />
 
         <!-- Speaker Boost checkbox - specific to ElevenLabs -->
@@ -227,8 +216,8 @@ watch(
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

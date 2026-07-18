@@ -43,7 +43,8 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   let state: PerfTracerState = 'idle'
 
   function enableLocal(token = BRIDGE_TOKEN) {
-    if (release) return
+    if (release)
+      return
     release = defaultPerfTracer.acquire(token)
   }
 
@@ -53,22 +54,22 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   }
 
   function startForwarding() {
-    if (unsubscribe) return
-    unsubscribe = defaultPerfTracer.subscribeSafe(
-      (event) => {
-        if (!FORWARDED_TRACERS.has(event.tracerId)) return
-        if (event.meta?.[RELAY_META_KEY]) return
-        post({
-          type: 'event',
-          event: {
-            ...event,
-            meta: { ...event.meta, [RELAY_META_KEY]: instanceId },
-          },
-          origin: instanceId,
-        })
-      },
-      { label: 'perf-bridge' },
-    )
+    if (unsubscribe)
+      return
+    unsubscribe = defaultPerfTracer.subscribeSafe((event) => {
+      if (!FORWARDED_TRACERS.has(event.tracerId))
+        return
+      if (event.meta?.[RELAY_META_KEY])
+        return
+      post({
+        type: 'event',
+        event: {
+          ...event,
+          meta: { ...event.meta, [RELAY_META_KEY]: instanceId },
+        },
+        origin: instanceId,
+      })
+    }, { label: 'perf-bridge' })
   }
 
   function stopForwarding() {
@@ -77,14 +78,17 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   }
 
   function transition(next: PerfTracerState, token = BRIDGE_TOKEN) {
-    if (state === next) return
+    if (state === next)
+      return
     if (next === 'idle') {
       stopForwarding()
       disableLocal()
-    } else if (next === 'receive') {
+    }
+    else if (next === 'receive') {
       enableLocal(token)
       stopForwarding()
-    } else if (next === 'forward') {
+    }
+    else if (next === 'forward') {
       enableLocal(token)
       startForwarding()
     }
@@ -92,17 +96,22 @@ export const usePerfTracerBridgeStore = defineStore('perfTracerBridge', () => {
   }
 
   watch(data, (message) => {
-    if (!message) return
-    if (message.origin === instanceId) return
+    if (!message)
+      return
+    if (message.origin === instanceId)
+      return
 
     if (message.type === 'enable') {
       const mode: PerfTracerMode = message.mode ?? 'forward'
       const token = message.token ?? BRIDGE_TOKEN
       transition(mode, token)
-    } else if (message.type === 'disable') {
+    }
+    else if (message.type === 'disable') {
       transition('idle')
-    } else if (message.type === 'event') {
-      if (state === 'idle') return
+    }
+    else if (message.type === 'event') {
+      if (state === 'idle')
+        return
       // Replay remote events into the local tracer; requires tracer enabled to pass through.
       const relayedFrom = message.event.meta?.[RELAY_META_KEY] ?? message.origin
       defaultPerfTracer.emit({

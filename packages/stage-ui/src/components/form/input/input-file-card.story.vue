@@ -6,7 +6,11 @@ const files = ref<File[]>([])
 </script>
 
 <template>
-  <Story title="Input File Card" group="form" :layout="{ type: 'grid', width: 300 }">
+  <Story
+    title="Input File Card"
+    group="form"
+    :layout="{ type: 'grid', width: 300 }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
@@ -15,10 +19,14 @@ const files = ref<File[]>([])
       <InputFileCard v-model="files" />
 
       <div p-2>
-        <div>File List</div>
+        <div>
+          File List
+        </div>
         <ul>
           <li v-for="file in files" :key="file.name">
-            <p>{{ file.name }}, {{ file.size }} bytes, {{ file.type }}</p>
+            <p>
+              {{ file.name }}, {{ file.size }} bytes, {{ file.type }}
+            </p>
           </li>
         </ul>
       </div>

@@ -23,6 +23,6 @@ describe('withHashRoute', () => {
 
   it('should use file url construct URL with hash route correctly', () => {
     const result = withHashRoute({ url: 'file:////home/workspace/project/index.html' }, '/test/inner-test')
-    expect(result).toEqual({ url: 'file:////home/workspace/project/index.html#/test/inner-test' })
+    expect(result).toEqual({ url: `file:////home/workspace/project/index.html#/test/inner-test` })
   })
 })

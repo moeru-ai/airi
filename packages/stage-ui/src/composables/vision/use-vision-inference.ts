@@ -21,7 +21,8 @@ export interface VisionInferenceInput {
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
 
 function parseDataUrl(dataUrl: string) {
-  if (!dataUrl.startsWith('data:')) return { mimeType: 'image/png', base64: dataUrl, url: dataUrl }
+  if (!dataUrl.startsWith('data:'))
+    return { mimeType: 'image/png', base64: dataUrl, url: dataUrl }
 
   const [, meta, data] = dataUrl.match(/^data:([^,]+),(.*)$/) || []
   const mimeType = meta?.split(';')[0] || 'image/png'
@@ -42,24 +43,24 @@ export function useVisionInference() {
   const lastText = ref('')
 
   async function runVisionInference(input: VisionInferenceInput) {
-    if (!activeProvider.value || !activeModel.value) throw new Error('Vision provider/model not configured')
+    if (!activeProvider.value || !activeModel.value)
+      throw new Error('Vision provider/model not configured')
 
     const provider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider =
-      activeProvider.value === 'ollama'
-        ? ({
-            ...provider,
-            chat(model: string) {
-              return {
-                ...provider.chat(model),
-                think: ollamaThinkingEnabled.value,
-              }
-            },
-          } satisfies ChatProvider)
-        : provider
+    const visionProvider = activeProvider.value === 'vision-ollama'
+      ? {
+        ...provider,
+        chat(model: string) {
+          return {
+            ...provider.chat(model),
+            think: ollamaThinkingEnabled.value,
+          }
+        },
+      } satisfies ChatProvider
+      : provider
 
     const contentParts: CommonContentPart[] = [
       { type: 'text', text: prompt },
@@ -71,7 +72,9 @@ export function useVisionInference() {
       },
     ]
 
-    const messages: Message[] = [{ role: 'user', content: contentParts }]
+    const messages: Message[] = [
+      { role: 'user', content: contentParts },
+    ]
 
     let buffer = ''
     const abortController = new AbortController()
@@ -88,14 +91,16 @@ export function useVisionInference() {
           }
         },
       })
-    } catch (error) {
+    }
+    catch (error) {
       if (abortController.signal.aborted) {
         throw abortController.signal.reason instanceof Error
           ? abortController.signal.reason
           : new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`)
       }
       throw error
-    } finally {
+    }
+    finally {
       clearTimeout(timeoutHandle)
     }
 

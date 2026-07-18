@@ -15,7 +15,7 @@ export type MessageRole = WireMessage['role']
 
 export interface SendMessagesRequest {
   chatId: string
-  messages: { id: string; role: string; content: string }[]
+  messages: { id: string, role: string, content: string }[]
 }
 
 export interface SendMessagesResponse {

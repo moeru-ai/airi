@@ -18,6 +18,7 @@ import type { DesktopOverlayReadiness } from './contracts'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { ipcMain } from 'electron'
 
 import { getDesktopOverlayReadinessContract } from '../../../../shared/eventa'
@@ -44,18 +45,14 @@ export async function setupDesktopOverlayElectronInvokes(params: {
   })
 
   try {
-    await setupBaseWindowElectronInvokes({
-      context,
-      window: params.window,
-      i18n: params.i18n,
-      serverChannel: params.serverChannel,
-    })
+    await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
     createMcpServersService({ context, manager: params.mcpStdioManager })
     readiness = { state: 'ready' }
-  } catch (error) {
+  }
+  catch (error) {
     readiness = {
       state: 'degraded',
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessageFromValue(error),
     }
     // We intentionally don't throw here so the window still opens and
     // the renderer gracefully detects the degraded state via polling.

@@ -10,4 +10,7 @@ import 'uno.css'
 
 const router = createRouter({ routes, history: createWebHashHistory() })
 
-createApp(App).use(MotionPlugin).use(router).mount('#app')
+createApp(App)
+  .use(MotionPlugin)
+  .use(router)
+  .mount('#app')

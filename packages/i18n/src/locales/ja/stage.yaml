@@ -32,14 +32,14 @@ viewers:
   debug-menu:
     emotions: 感情
     emotions-btn:
-      angry: 😠 怒り
-      awkward: 😳 戸惑い
-      happy: 😄 喜び
-      neutral: 🙂 ふつう
-      question: 🤔 疑問
-      sad: 😫 悲しい
-      surprised: 🤯 驚き
-      think: 🤨 思考中
+      angry: '😠 怒り'
+      awkward: '😳 戸惑い'
+      happy: '😄 喜び'
+      neutral: '🙂 ふつう'
+      question: '🤔 疑問'
+      sad: '😫 悲しい'
+      surprised: '🤯 驚き'
+      think: '🤨 思考中'
     vrm:
       camera: カメラ
       model:
@@ -94,6 +94,6 @@ promo-banner:
       cta: テーマを表示
 waiting: 待機中
 websocket-status:
-  connected: Connected
-  disconnected: No connection
-  open-settings: Open connection settings
+  connected: 接続済み
+  disconnected: 未接続
+  open-settings: 接続設定を開く

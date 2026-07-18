@@ -5,8 +5,6 @@ import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
 
-const _logger = (..._a: unknown[]) => void 0
-
 let electronMainDirname: string = ''
 
 export function setElectronMainDirname(dirname: string) {
@@ -29,15 +27,13 @@ export function baseUrl(parentOfIndexHtml: string, filename?: string) {
     paths.push(filename)
     url.pathname = paths.join('/')
     return { url: url.toString() }
-  } else {
+  }
+  else {
     return { file: join(parentOfIndexHtml, filename ?? 'index.html') }
   }
 }
 
-export async function load(
-  window: BrowserWindow,
-  url: string | { url: string; options?: LoadURLOptions } | { file: string; options?: LoadFileOptions },
-) {
+export async function load(window: BrowserWindow, url: string | { url: string, options?: LoadURLOptions } | { file: string, options?: LoadFileOptions }) {
   try {
     if (typeof url === 'object' && 'url' in url) {
       return await window.loadURL(url.url, url.options)
@@ -47,7 +43,8 @@ export async function load(
     }
 
     return await window.loadURL(url)
-  } catch (error) {
+  }
+  catch (error) {
     if (!(error instanceof Error)) {
       throw error
     }
@@ -80,15 +77,16 @@ export async function load(
           //
           // https://github.com/electron/electron/issues/17526
           // https://github.com/electron/electron/blob/8d05285a1f39c759985b17c89a449e4a6b3960df/lib/browser/api/web-contents.ts#L370-L387
-          _logger('Electron navigation error with hash route, ignoring:', error, 'url:', url.url)
+          console.warn('Electron navigation error with hash route, ignoring:', error, 'url:', url.url)
 
-          return undefined
+          return
         }
       }
     }
 
     throw error
-  } finally {
+  }
+  finally {
     window.webContents.removeAllListeners('did-start-navigation')
   }
 }
@@ -107,13 +105,10 @@ export function withHashRoute(baseUrl: string | { url: string } | { file: string
 
     baseURLinURL.hash = hashRoute
 
-    return { url: baseURLinURL.toString() } satisfies { url: string; options?: LoadURLOptions }
+    return { url: baseURLinURL.toString() } satisfies { url: string, options?: LoadURLOptions }
   }
   if (typeof baseUrl === 'object' && 'file' in baseUrl) {
-    return { file: `${baseUrl.file}`, options: { hash: hashRoute } } satisfies {
-      file: string
-      options?: LoadFileOptions
-    }
+    return { file: `${baseUrl.file}`, options: { hash: hashRoute } } satisfies { file: string, options?: LoadFileOptions }
   }
 
   // trim `/` suffix
@@ -125,5 +120,5 @@ export function withHashRoute(baseUrl: string | { url: string } | { file: string
 
   baseURLinURL.hash = hashRoute
 
-  return { url: baseURLinURL.toString() } satisfies { url: string; options?: LoadURLOptions }
+  return { url: baseURLinURL.toString() } satisfies { url: string, options?: LoadURLOptions }
 }

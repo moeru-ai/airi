@@ -1,10 +1,10 @@
 import type { StaticAssetService } from '../../../http-server/static-assets'
 import type { StaticAssetSession } from '../../../http-server/static-assets/types'
-import type { PluginAssetCookie, PluginAssetCookieAdapter } from './index'
+import type { ExtensionAssetCookie, ExtensionAssetCookieAdapter } from './index'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createPluginAssetService } from './index'
+import { createExtensionAssetService } from './index'
 
 const mockState = vi.hoisted(() => ({
   createStaticAssetService: vi.fn(),
@@ -24,19 +24,17 @@ function createSession(assetSessionId: string, extensionId = 'airi-plugin-game-c
   }
 }
 
-function createFakeServer(
-  options: {
-    baseUrl?: string
-    createSessionResult?: StaticAssetSession
-    revokeByOwnerSessionIdResult?: StaticAssetSession[]
-    revokeByExtensionIdResult?: StaticAssetSession[]
-    revokeAllResult?: StaticAssetSession[]
-  } = {},
-) {
+function createFakeServer(options: {
+  baseUrl?: string
+  createSessionResult?: StaticAssetSession
+  revokeByOwnerSessionIdResult?: StaticAssetSession[]
+  revokeByExtensionIdResult?: StaticAssetSession[]
+  revokeAllResult?: StaticAssetSession[]
+} = {}) {
   return {
     key: 'static-assets',
-    start: vi.fn(() => Promise.resolve()),
-    stop: vi.fn(() => Promise.resolve()),
+    start: vi.fn(async () => {}),
+    stop: vi.fn(async () => {}),
     getBaseUrl: vi.fn(() => options.baseUrl),
     createSession: vi.fn(() => options.createSessionResult ?? createSession('asset-session-1')),
     revokeSession: vi.fn((assetSessionId: string) => createSession(assetSessionId)),
@@ -47,26 +45,24 @@ function createFakeServer(
 }
 
 function createFakeCookieAdapter() {
-  const setCookies: PluginAssetCookie[] = []
-  const removedCookies: PluginAssetCookie[] = []
+  const setCookies: ExtensionAssetCookie[] = []
+  const removedCookies: ExtensionAssetCookie[] = []
 
   return {
     adapter: {
-      setCookie: vi.fn((cookie) => {
+      setCookie: vi.fn(async (cookie) => {
         setCookies.push(cookie)
-        return Promise.resolve()
       }),
-      removeCookie: vi.fn((cookie) => {
+      removeCookie: vi.fn(async (cookie) => {
         removedCookies.push(cookie)
-        return Promise.resolve()
       }),
-    } satisfies PluginAssetCookieAdapter,
+    } satisfies ExtensionAssetCookieAdapter,
     removedCookies,
     setCookies,
   }
 }
 
-describe('createPluginAssetService', () => {
+describe('createExtensionAssetService', () => {
   beforeEach(() => {
     mockState.createStaticAssetService.mockReset()
   })
@@ -79,13 +75,13 @@ describe('createPluginAssetService', () => {
     const { adapter, setCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
-      getManifestEntryByName: () => new Map(),
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
     const result = await service.createAssetSession({
-      pluginId: 'airi-plugin-game-chess',
+      extensionId: 'airi-plugin-game-chess',
       version: '1.0.0',
       ownerSessionId: 'owner-session-1',
       routeAssetPath: 'assets/app.js',
@@ -126,21 +122,19 @@ describe('createPluginAssetService', () => {
     const { adapter, setCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
-      getManifestEntryByName: () => new Map(),
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
-    await expect(
-      service.createAssetSession({
-        pluginId: 'airi-plugin-game-chess',
-        version: '1.0.0',
-        ownerSessionId: 'owner-session-1',
-        routeAssetPath: 'assets/app.js',
-        pathPrefix: 'assets/',
-        ttlMs: 60_000,
-      }),
-    ).rejects.toThrow('Plugin asset server base URL is unavailable')
+    await expect(service.createAssetSession({
+      extensionId: 'airi-plugin-game-chess',
+      version: '1.0.0',
+      ownerSessionId: 'owner-session-1',
+      routeAssetPath: 'assets/app.js',
+      pathPrefix: 'assets/',
+      ttlMs: 60_000,
+    })).rejects.toThrow('Extension asset server base URL is unavailable')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-2')
     expect(adapter.setCookie).not.toHaveBeenCalled()
@@ -154,21 +148,19 @@ describe('createPluginAssetService', () => {
     })
     const { adapter } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
-    const service = createPluginAssetService({
-      getManifestEntryByName: () => new Map(),
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
-    await expect(
-      service.createAssetSession({
-        pluginId: 'airi-plugin-game-chess',
-        version: '1.0.0',
-        ownerSessionId: 'owner-session-1',
-        routeAssetPath: '../secret.txt',
-        pathPrefix: '',
-        ttlMs: 60_000,
-      }),
-    ).rejects.toThrow('Plugin asset session routeAssetPath must be a safe plugin asset path')
+    await expect(service.createAssetSession({
+      extensionId: 'airi-plugin-game-chess',
+      version: '1.0.0',
+      ownerSessionId: 'owner-session-1',
+      routeAssetPath: '../secret.txt',
+      pathPrefix: '',
+      ttlMs: 60_000,
+    })).rejects.toThrow('Extension asset session routeAssetPath must be a safe extension asset path')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-3')
     expect(adapter.setCookie).not.toHaveBeenCalled()
@@ -176,16 +168,14 @@ describe('createPluginAssetService', () => {
     server.createSession.mockReturnValue(createSession('asset-session-4'))
     adapter.setCookie.mockRejectedValueOnce(new Error('cookie jar unavailable'))
 
-    await expect(
-      service.createAssetSession({
-        pluginId: 'airi-plugin-game-chess',
-        version: '1.0.0',
-        ownerSessionId: 'owner-session-1',
-        routeAssetPath: 'assets/app.js',
-        pathPrefix: 'assets/',
-        ttlMs: 60_000,
-      }),
-    ).rejects.toThrow('cookie jar unavailable')
+    await expect(service.createAssetSession({
+      extensionId: 'airi-plugin-game-chess',
+      version: '1.0.0',
+      ownerSessionId: 'owner-session-1',
+      routeAssetPath: 'assets/app.js',
+      pathPrefix: 'assets/',
+      ttlMs: 60_000,
+    })).rejects.toThrow('cookie jar unavailable')
 
     expect(server.revokeSession).toHaveBeenCalledWith('asset-session-4')
   })
@@ -205,14 +195,14 @@ describe('createPluginAssetService', () => {
     const { adapter, removedCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
-      getManifestEntryByName: () => new Map(),
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 
     await service.revokeSession('direct-asset-session')
     await service.revokeByOwnerSessionId('owner-session-1')
-    await service.revokeByPluginId('airi-plugin-game-chess')
+    await service.revokeByExtensionId('airi-plugin-game-chess')
     await service.revokeAll()
 
     expect(server.revokeSession).toHaveBeenCalledWith('direct-asset-session')
@@ -261,8 +251,8 @@ describe('createPluginAssetService', () => {
     const { adapter, removedCookies } = createFakeCookieAdapter()
     mockState.createStaticAssetService.mockReturnValue(server)
 
-    const service = createPluginAssetService({
-      getManifestEntryByName: () => new Map(),
+    const service = createExtensionAssetService({
+      getManifestEntryByExtensionId: () => new Map(),
       cookieAdapter: adapter,
     })
 

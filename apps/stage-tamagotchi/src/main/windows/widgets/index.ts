@@ -1,7 +1,12 @@
 import type { BrowserWindow, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
-import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../shared/eventa'
+import type {
+  WidgetsAddPayload,
+  WidgetsIframeRequestResultPayload,
+  WidgetSnapshot,
+  WidgetsUpdatePayload,
+} from '../../../shared/eventa'
 import type { PluginModuleWidgetPayload } from '../../../shared/eventa/plugin/host'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
@@ -10,19 +15,20 @@ import { join, resolve } from 'node:path'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
-import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
+import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
 import { isMacOS } from 'std-env'
 import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
+import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
 /**
@@ -135,7 +141,37 @@ export interface WidgetsWindowManager {
    */
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
   publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
-  onWidgetEvent: (listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => void
+  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
+  /**
+   * Sends a correlated request to a mounted widget iframe through the widgets renderer.
+   *
+   * Use when:
+   * - Main-process gamelet orchestration needs a response from iframe code
+   *
+   * Expects:
+   * - `id` references an open widget with a mounted iframe relay
+   *
+   * Returns:
+   * - Resolves with the iframe response record, or rejects on timeout, close, or iframe error
+   */
+  requestWidgetIframe: <TResponse extends Record<string, unknown> = Record<string, unknown>>(
+    id: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number },
+  ) => Promise<TResponse>
+  /**
+   * Publishes a renderer-to-main iframe request result into the pending request coordinator.
+   *
+   * Use when:
+   * - The widgets renderer reports a completed iframe request
+   *
+   * Expects:
+   * - `result.requestId` matches a request previously emitted by {@link WidgetsWindowManager.requestWidgetIframe}
+   *
+   * Returns:
+   * - Nothing; unknown or mismatched results are ignored
+   */
+  publishWidgetIframeRequestResult: (result: WidgetsIframeRequestResultPayload) => void
   /**
    * Reserves a widget id before content is pushed into the widgets window.
    *
@@ -152,14 +188,12 @@ export interface WidgetsWindowManager {
 }
 
 const widgetsWindowConfigSchema = object({
-  bounds: optional(
-    object({
-      x: number(),
-      y: number(),
-      width: number(),
-      height: number(),
-    }),
-  ),
+  bounds: optional(object({
+    x: number(),
+    y: number(),
+    width: number(),
+    height: number(),
+  })),
 })
 
 type WidgetsWindowConfig = InferOutput<typeof widgetsWindowConfigSchema>
@@ -173,13 +207,13 @@ function computeDefaultBounds(): Rectangle {
   return { x, y, width, height }
 }
 
-function resolveWindowSizeFromPayload(
-  payload: Pick<WidgetsAddPayload, 'componentName' | 'componentProps' | 'windowSize'>,
-) {
+function resolveWindowSizeFromPayload(payload: Pick<WidgetsAddPayload, 'componentName' | 'componentProps' | 'windowSize'>) {
   const explicitWindowSize = normalizeWidgetWindowSize(payload.windowSize)
-  if (explicitWindowSize) return explicitWindowSize
+  if (explicitWindowSize)
+    return explicitWindowSize
 
-  if (payload.componentName?.trim().toLowerCase() !== 'plugin-module') return undefined
+  if (payload.componentName?.trim().toLowerCase() !== 'plugin-module')
+    return undefined
 
   const pluginModulePayload = payload.componentProps as PluginModuleWidgetPayload | undefined
   return normalizeWidgetWindowSize(pluginModulePayload?.windowSize)
@@ -202,19 +236,24 @@ function createWidgetsWindow() {
     ...spotlightLikeWindowConfig(),
   })
 
-  // Keep on top like caption/main overlays
-  window.setAlwaysOnTop(true, 'screen-saver', 1)
   window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
-  if (isMacOS) window.setWindowButtonVisibility(false)
+  if (isMacOS)
+    window.setWindowButtonVisibility(false)
 
   window.on('ready-to-show', () => window.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  protectPrivilegedWindowNavigation(window)
 
   return window
+}
+
+function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
+  if (enabled) {
+    window.setAlwaysOnTop(true, 'screen-saver', 1)
+    return
+  }
+
+  window.setAlwaysOnTop(false)
 }
 
 interface WidgetRecord extends WidgetSnapshot {
@@ -248,12 +287,11 @@ interface WidgetWindowContext {
  *     -> {@link setupWidgetsWindowInvokes}
  *       -> {@link createContext}
  */
-export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel; i18n: I18n }): WidgetsWindowManager {
-  const {
-    setup,
-    get: getConfigRaw,
-    update,
-  } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
+export function setupWidgetsWindowManager(params: {
+  serverChannel: ServerChannel
+  i18n: I18n
+}): WidgetsWindowManager {
+  const { setup, get: getConfigRaw, update } = createConfig('windows-widgets', 'config.json', widgetsWindowConfigSchema, {
     default: {},
     autoHeal: true,
   })
@@ -262,8 +300,13 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
 
   let eventaContext: ReturnType<typeof createContext>['context'] | undefined
   const widgetRecords = new Map<string, WidgetRecord>()
-  const widgetEventListeners = new Set<(event: { id: string; event: Record<string, unknown> }) => void>()
+  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
+  const iframeRequests = createWidgetIframeRequestCoordinator({
+    hasWidget: id => widgetRecords.has(id),
+    hasRelay: () => Boolean(eventaContext),
+    emitRequest: payload => eventaContext?.emit(widgetsIframeRequestEvent, payload),
+  })
 
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/widgets'
@@ -296,12 +339,14 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
         height: Math.min(saved.height, work.height),
       }
       window.setBounds(clamped)
-    } else {
+    }
+    else {
       window.setBounds(computeDefaultBounds())
     }
 
     const persist = () => {
-      if (!persistWindowBounds) return
+      if (!persistWindowBounds)
+        return
       update({ bounds: window.getBounds() })
     }
     window.on('resize', persist)
@@ -320,11 +365,14 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
     pendingRoute = undefined
 
     window.on('closed', () => {
+      iframeRequests.rejectAllPendingWidgetIframeRequests()
       eventaContext = undefined
       currentRoute = undefined
-      if (activeWidgetsWindow === window) activeWidgetsWindow = undefined
+      if (activeWidgetsWindow === window)
+        activeWidgetsWindow = undefined
       windowContexts.forEach((context) => {
-        if (context.window === window) context.window = undefined
+        if (context.window === window)
+          context.window = undefined
       })
     })
     return window
@@ -362,7 +410,8 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
 
   function upsertRecord(snapshot: WidgetSnapshot) {
     const existing = widgetRecords.get(snapshot.id)
-    if (existing?.timer) clearTimeout(existing.timer)
+    if (existing?.timer)
+      clearTimeout(existing.timer)
 
     const record: WidgetRecord = { ...snapshot }
 
@@ -375,12 +424,15 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
 
   function removeWidgetInternal(id: string, emitEvent = true) {
     const existing = widgetRecords.get(id)
-    if (!existing) return
+    if (!existing)
+      return
 
-    if (existing.timer) clearTimeout(existing.timer)
+    if (existing.timer)
+      clearTimeout(existing.timer)
 
     widgetRecords.delete(id)
     windowContexts.delete(id)
+    iframeRequests.rejectPendingWidgetIframeRequests(id)
 
     if (emitEvent) {
       eventaContext?.emit(widgetsRemoveEvent, { id })
@@ -444,25 +496,26 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
   }
 
   async function getWindowFromContext(context?: WidgetWindowContext): Promise<BrowserWindow> {
-    if (!context) return getWindow()
-    if (context.window && !context.window.isDestroyed()) return context.window
+    if (!context)
+      return getWindow()
+    if (context.window && !context.window.isDestroyed())
+      return context.window
     const resolved = await context.windowBuilder()
     context.window = resolved
     return resolved
   }
 
-  async function showWindowWithRoute(
-    route: string,
-    context?: WidgetWindowContext,
-    snapshot?: Pick<WidgetSnapshot, 'windowSize'>,
-  ) {
+  async function showWindowWithRoute(route: string, context?: WidgetWindowContext, snapshot?: Pick<WidgetSnapshot, 'alwaysOnTop' | 'windowSize'>) {
     pendingRoute = route
     const window = await getWindowFromContext(context)
     pendingRoute = undefined
     applyWindowLayout(window, snapshot)
-    if (currentRoute !== route) await loadWithRoute(window, route)
+    applyAlwaysOnTop(window, snapshot?.alwaysOnTop ?? false)
+    if (currentRoute !== route)
+      await loadWithRoute(window, route)
     window.show()
-    if (context) context.window = window
+    if (context)
+      context.window = window
     return window
   }
 
@@ -478,7 +531,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - The widgets {@link BrowserWindow}
    */
-  function getWindow(): Promise<BrowserWindow> {
+  async function getWindow(): Promise<BrowserWindow> {
     return reusable.getWindow()
   }
 
@@ -520,6 +573,7 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
       id,
       componentName: payload.componentName,
       componentProps: payload.componentProps ?? {},
+      alwaysOnTop: payload.alwaysOnTop ?? false,
       size: payload.size ?? 'm',
       windowSize: resolveWindowSizeFromPayload(payload),
       ttlMs: payload.ttlMs ?? 0,
@@ -544,15 +598,18 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after internal state and renderer events have been updated
    */
-  function updateWidget(payload: WidgetsUpdatePayload): Promise<void> {
-    if (!payload?.id) return Promise.resolve()
+  async function updateWidget(payload: WidgetsUpdatePayload) {
+    if (!payload?.id)
+      return
 
     const existing = widgetRecords.get(payload.id)
-    if (!existing) return Promise.resolve()
+    if (!existing)
+      return
 
     const nextSnapshot: WidgetSnapshot = {
       ...toSnapshot(existing),
       componentProps: payload.componentProps ?? existing.componentProps,
+      alwaysOnTop: payload.alwaysOnTop ?? existing.alwaysOnTop,
       size: payload.size ?? existing.size,
       windowSize: normalizeWidgetWindowSize(payload.windowSize) ?? existing.windowSize,
       ttlMs: payload.ttlMs ?? existing.ttlMs,
@@ -562,16 +619,19 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
 
     const context = windowContexts.get(payload.id)
     const window = context?.window
-    if (window && !window.isDestroyed()) applyWindowLayout(window, nextSnapshot)
+    if (window && !window.isDestroyed()) {
+      applyWindowLayout(window, nextSnapshot)
+      applyAlwaysOnTop(window, nextSnapshot.alwaysOnTop)
+    }
 
     eventaContext?.emit(widgetsUpdateEvent, {
       id: nextSnapshot.id,
       componentProps: nextSnapshot.componentProps,
+      alwaysOnTop: nextSnapshot.alwaysOnTop,
       size: nextSnapshot.size,
       windowSize: nextSnapshot.windowSize,
       ttlMs: nextSnapshot.ttlMs,
     })
-    return Promise.resolve()
   }
 
   /**
@@ -586,11 +646,11 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after the widget has been removed from memory and renderer state
    */
-  function removeWidget(id: string): Promise<void> {
-    if (!id) return Promise.resolve()
+  async function removeWidget(id: string) {
+    if (!id)
+      return
     removeWidgetInternal(id, false)
     eventaContext?.emit(widgetsRemoveEvent, { id })
-    return Promise.resolve()
   }
 
   /**
@@ -605,23 +665,26 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    * Returns:
    * - Resolves after state, renderer events, and windows have been cleared
    */
-  function clearWidgets(): Promise<void> {
+  async function clearWidgets() {
     const ids = [...widgetRecords.keys()]
-    for (const id of ids) removeWidgetInternal(id, false)
+    for (const id of ids)
+      removeWidgetInternal(id, false)
 
     eventaContext?.emit(widgetsClearEvent, undefined)
 
     const windowsToClose = new Set<BrowserWindow>()
-    if (activeWidgetsWindow && !activeWidgetsWindow.isDestroyed()) windowsToClose.add(activeWidgetsWindow)
+    if (activeWidgetsWindow && !activeWidgetsWindow.isDestroyed())
+      windowsToClose.add(activeWidgetsWindow)
 
     windowContexts.forEach((context) => {
-      if (context.window && !context.window.isDestroyed()) windowsToClose.add(context.window)
+      if (context.window && !context.window.isDestroyed())
+        windowsToClose.add(context.window)
     })
 
-    for (const window of windowsToClose) safeClose(window)
+    for (const window of windowsToClose)
+      safeClose(window)
 
     windowContexts.clear()
-    return Promise.resolve()
   }
 
   /**
@@ -638,7 +701,8 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
    */
   function getWidgetSnapshot(id: string) {
     const record = widgetRecords.get(id)
-    if (!record) return undefined
+    if (!record)
+      return undefined
 
     return toSnapshot(record)
   }
@@ -649,19 +713,31 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
     }
   }
 
-  function onWidgetEvent(listener: (event: { id: string; event: Record<string, unknown> }) => void) {
+  function onWidgetEvent(listener: (event: { id: string, event: Record<string, unknown> }) => void) {
     widgetEventListeners.add(listener)
     return () => {
       widgetEventListeners.delete(listener)
     }
   }
 
-  function hideWindow(params?: { id?: string }): Promise<void> {
+  function requestWidgetIframe<TResponse extends Record<string, unknown> = Record<string, unknown>>(
+    id: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number },
+  ) {
+    return iframeRequests.requestWidgetIframe<TResponse>(id, payload, options)
+  }
+
+  function publishWidgetIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
+    iframeRequests.publishWidgetIframeRequestResult(result)
+  }
+
+  async function hideWindow(params?: { id?: string }) {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
     const window = context?.window || activeWidgetsWindow
-    if (window && !window.isDestroyed()) window.hide()
-    return Promise.resolve()
+    if (window && !window.isDestroyed())
+      window.hide()
   }
 
   widgetsManager = {
@@ -675,6 +751,8 @@ export function setupWidgetsWindowManager(params: { serverChannel: ServerChannel
     getWidgetSnapshot,
     publishWidgetEvent,
     onWidgetEvent,
+    requestWidgetIframe,
+    publishWidgetIframeRequestResult,
     prepareWidgetWindow,
   }
 

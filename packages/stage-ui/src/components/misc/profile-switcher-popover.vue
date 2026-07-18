@@ -8,7 +8,9 @@ import { useI18n } from 'vue-i18n'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 withDefaults(defineProps<Props>(), { placement: 'down' })
-const emit = defineEmits<{ manage: [] }>()
+const emit = defineEmits<{
+  (e: 'manage'): void
+}>()
 const CREATE_PROFILE_ACTION = '__create-profile__'
 const MANAGE_PROFILE_ACTION = '__manage-profile__'
 
@@ -29,21 +31,25 @@ const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
 
-const cardsList = computed(() => Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })))
+const cardsList = computed(() =>
+  Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })),
+)
 const selectedProfile = ref<ProfileSelectValue | undefined>(activeCardId.value)
 
 const isDuplicateName = computed(() => {
   const name = newProfileName.value.trim()
-  return name !== '' && Array.from(cards.value.values()).some((card) => card.name === name)
+  return name !== '' && Array.from(cards.value.values()).some(card => card.name === name)
 })
 
 const selectOptions = computed(() => [
   {
     groupLabel: cardsList.value.length ? undefined : t('stage.profile-switcher.no-profiles'),
-    children: cardsList.value.map((card) => ({
+    children: cardsList.value.map(card => ({
       label: card.name,
       value: card.id,
-      icon: card.id === activeCardId.value ? 'i-solar:check-circle-bold-duotone' : 'i-solar:emoji-funny-square-broken',
+      icon: card.id === activeCardId.value
+        ? 'i-solar:check-circle-bold-duotone'
+        : 'i-solar:emoji-funny-square-broken',
     })),
   },
   {
@@ -69,13 +75,9 @@ watch(open, (isOpen) => {
   }
 })
 
-watch(
-  activeCardId,
-  (value) => {
-    selectedProfile.value = value
-  },
-  { immediate: true },
-)
+watch(activeCardId, (value) => {
+  selectedProfile.value = value
+}, { immediate: true })
 
 watch(selectedProfile, (value, previousValue) => {
   if (!value || value === previousValue) {
@@ -125,7 +127,7 @@ function confirmCreate() {
   const newId = cardStore.addCard({
     ...structuredClone(toRaw(current)),
     name,
-  })
+  }, 'duplicate')
 
   activeCardId.value = newId
   cancelCreate()
@@ -150,7 +152,10 @@ function toggleOpen() {
 <template>
   <div ref="containerRef" :class="['relative inline-flex flex-col items-end gap-2']">
     <!-- Electron -->
-    <div v-if="$slots.default" :class="['profile-switcher-select-overlay', 'relative inline-flex']">
+    <div
+      v-if="$slots.default"
+      :class="['profile-switcher-select-overlay', 'relative inline-flex']"
+    >
       <slot :open="open" :toggle="toggleOpen" :active-card="activeCard" />
 
       <Select
@@ -165,9 +170,7 @@ function toggleOpen() {
             <div
               :class="[
                 'size-6 shrink-0',
-                option?.value === activeCardId
-                  ? 'i-solar:check-circle-bold-duotone text-primary-500'
-                  : (option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400'),
+                option?.value === activeCardId ? 'i-solar:check-circle-bold-duotone text-primary-500' : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
               ]"
             />
             <span
@@ -224,9 +227,7 @@ function toggleOpen() {
           <div
             :class="[
               'size-6 shrink-0',
-              option?.value === activeCardId
-                ? 'i-solar:check-circle-bold-duotone text-primary-500'
-                : (option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400'),
+              option?.value === activeCardId ? 'i-solar:check-circle-bold-duotone text-primary-500' : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
             ]"
           />
           <span
@@ -298,13 +299,13 @@ function toggleOpen() {
             ]"
             @keydown.enter="confirmCreate"
             @keydown.escape="cancelCreate"
-          />
+          >
 
           <button
             :class="[
               'shrink-0 p-1.5 transition',
               'text-primary-500 hover:text-primary-600 dark:hover:text-primary-400',
-              newProfileName.trim() && !isDuplicateName ? '' : 'pointer-events-none opacity-30',
+              (newProfileName.trim() && !isDuplicateName) ? '' : 'pointer-events-none opacity-30',
             ]"
             type="button"
             @click="confirmCreate"

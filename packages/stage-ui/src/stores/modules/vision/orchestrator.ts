@@ -29,7 +29,9 @@ export interface VisionCapturePayload {
 }
 
 function getVisionContextId(payload: Pick<VisionCapturePayload, 'workloadId' | 'sourceId'>) {
-  return payload.sourceId ? `vision:${payload.workloadId}:${payload.sourceId}` : `vision:${payload.workloadId}`
+  return payload.sourceId
+    ? `vision:${payload.workloadId}:${payload.sourceId}`
+    : `vision:${payload.workloadId}`
 }
 
 /**
@@ -106,7 +108,8 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
       }
 
       return { contextUpdates: 0, text }
-    } catch (error) {
+    }
+    catch (error) {
       recordError(error)
       throw error
     }

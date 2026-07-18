@@ -1,23 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
 
-interface WindowWithWebkitAudioContext extends Window {
-  webkitAudioContext?: typeof AudioContext
-}
-
-const props = withDefaults(
-  defineProps<{
-    stream?: MediaStream
-    bars?: number
-    minFreq?: number // Minimum frequency in Hz
-    maxFreq?: number // Maximum frequency in Hz
-  }>(),
-  {
-    bars: 32,
-    minFreq: 60, // Default human voice lower bound (~85Hz)
-    maxFreq: 4000, // Default human voice upper bound (~255Hz)
-  },
-)
+const props = withDefaults(defineProps<{
+  stream?: MediaStream
+  bars?: number
+  minFreq?: number // Minimum frequency in Hz
+  maxFreq?: number // Maximum frequency in Hz
+}>(), {
+  bars: 32,
+  minFreq: 60, // Default human voice lower bound (~85Hz)
+  maxFreq: 4000, // Default human voice upper bound (~255Hz)
+})
 
 const frequencies = ref<number[]>(Array.from<number>({ length: props.bars }).fill(0))
 
@@ -32,8 +25,7 @@ function handleAnalyze() {
     return
   }
 
-  const windowWithWebkit = window as WindowWithWebkitAudioContext
-  const audioContext = new (window.AudioContext || windowWithWebkit.webkitAudioContext!)()
+  const audioContext = new (window.AudioContext || (window as unknown as any).webkitAudioContext)()
   const source = audioContext.createMediaStreamSource(props.stream)
   const analyser = audioContext.createAnalyser()
 
@@ -64,12 +56,11 @@ function handleAnalyze() {
 
       for (let i = 0; i < props.bars; i++) {
         let sum = 0
-        const startBin = minBin + i * binsPerBar
+        const startBin = minBin + (i * binsPerBar)
 
         for (let j = 0; j < binsPerBar; j++) {
           const binIndex = startBin + j
-          if (binIndex < maxBin)
-            // Ensure we don't exceed max frequency
+          if (binIndex < maxBin) // Ensure we don't exceed max frequency
             sum += dataArray[binIndex]
         }
 
@@ -77,7 +68,8 @@ function handleAnalyze() {
       }
 
       frequencies.value = bars
-    } catch (err) {
+    }
+    catch (err) {
       console.error(err)
     }
   }

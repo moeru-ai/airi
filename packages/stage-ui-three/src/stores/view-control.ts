@@ -4,14 +4,8 @@ import { ref } from 'vue'
 import { DEFAULT_CAMERA_DISTANCE, DEFAULT_CAMERA_FOV, useThreeCamera } from './camera'
 
 export const supportedControl = ['x', 'y', 'z', 'cameraDistance', 'cameraFOV'] as const
-export type SupportedControl = (typeof supportedControl)[number]
-interface ControlConfig {
-  min: number
-  max: number
-  step: number
-  default: number
-  buttonText: string
-}
+export type SupportedControl = typeof supportedControl[number]
+interface ControlConfig { min: number, max: number, step: number, default: number, buttonText: string }
 
 const formatMetersD2 = (val: number) => `${val.toFixed(2)}m`
 
@@ -66,11 +60,7 @@ const clampMinMax = (value: number, min: number, max: number) => Math.min(Math.m
 const { cameraDistance, cameraFOV } = useThreeCamera()
 const controlConfig = ref(defaultControlConfig)
 /** model position from the scene origin, in meters. */
-const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', {
-  x: defaultControlConfig.x.default,
-  y: defaultControlConfig.y.default,
-  z: defaultControlConfig.z.default,
-})
+const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: defaultControlConfig.x.default, y: defaultControlConfig.y.default, z: defaultControlConfig.z.default })
 /**
  * show or hide the control element(slider) on HUD.
  *  also enable/disable camera panning.
@@ -85,9 +75,7 @@ const viewControlMode = ref<SupportedControl>('cameraDistance')
  *  @param value optional, will reset the value to its default if not provided
  */
 function set(key: SupportedControl, value?: number) {
-  const clamped =
-    value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
-
+  const clamped = value !== undefined ? clampMinMax(value, defaultControlConfig[key].min, defaultControlConfig[key].max) : undefined
   switch (key) {
     case 'x':
       modelOffset.value.x = clamped ?? defaultControlConfig.x.default

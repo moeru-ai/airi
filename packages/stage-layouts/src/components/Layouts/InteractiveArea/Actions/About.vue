@@ -12,11 +12,7 @@ const buildInfo = useBuildInfo()
 
 const aboutLinks = [
   { label: 'Home', href: 'https://airi.moeru.ai/docs/', icon: 'i-solar:home-smile-outline' },
-  {
-    label: 'Documentations',
-    href: 'https://airi.moeru.ai/docs/en/docs/overview/',
-    icon: 'i-solar:document-add-outline',
-  },
+  { label: 'Documentations', href: 'https://airi.moeru.ai/docs/en/docs/overview/', icon: 'i-solar:document-add-outline' },
   { label: 'GitHub', href: 'https://github.com/moeru-ai/airi', icon: 'i-simple-icons:github' },
 ]
 

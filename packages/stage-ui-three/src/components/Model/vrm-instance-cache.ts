@@ -23,15 +23,12 @@ const hotData = import.meta.hot?.data as { managedVrmCacheState?: ManagedVrmCach
 
 const managedVrmCacheState = hotData?.managedVrmCacheState ?? { detachedByScope: {} }
 
-if (import.meta.hot) import.meta.hot.data.managedVrmCacheState = managedVrmCacheState
+if (import.meta.hot)
+  import.meta.hot.data.managedVrmCacheState = managedVrmCacheState
 
-function emitCacheTrace(
-  action: 'clear' | 'stash' | 'take',
-  scopeKey: string,
-  result: 'empty' | 'evicted' | 'hit' | 'miss' | 'stored',
-  modelSrc?: string,
-) {
-  if (!isStageThreeRuntimeTraceEnabled()) return
+function emitCacheTrace(action: 'clear' | 'stash' | 'take', scopeKey: string, result: 'empty' | 'evicted' | 'hit' | 'miss' | 'stored', modelSrc?: string) {
+  if (!isStageThreeRuntimeTraceEnabled())
+    return
   getStageThreeRuntimeTraceContext().emit(stageThreeTraceVrmCacheEvent, {
     action,
     modelSrc,
@@ -48,7 +45,6 @@ export function takeManagedVrmInstance(scopeKey: string, modelSrc: string) {
     return undefined
   }
 
-  // eslint-disable-next-line ts/no-dynamic-delete
   delete managedVrmCacheState.detachedByScope[scopeKey]
   emitCacheTrace('take', scopeKey, 'hit', modelSrc)
   return cached
@@ -74,7 +70,6 @@ export function stashManagedVrmInstance(instance: ManagedVrmInstance) {
 
 export function clearManagedVrmInstance(scopeKey: string) {
   const cached = managedVrmCacheState.detachedByScope[scopeKey]
-  // eslint-disable-next-line ts/no-dynamic-delete
   delete managedVrmCacheState.detachedByScope[scopeKey]
 
   if (cached) {

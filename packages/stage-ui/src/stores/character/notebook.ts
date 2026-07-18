@@ -34,14 +34,10 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
   const entries = ref<NotebookEntry[]>([])
   const tasks = ref<ScheduledTask[]>([])
 
-  const partitionDiary = computed(() => entries.value.filter((entry) => entry.kind === 'diary'))
-  const partitionFocus = computed(() => entries.value.filter((entry) => entry.kind === 'focus'))
+  const partitionDiary = computed(() => entries.value.filter(entry => entry.kind === 'diary'))
+  const partitionFocus = computed(() => entries.value.filter(entry => entry.kind === 'focus'))
 
-  function addEntry(
-    kind: NotebookEntryKind,
-    text: string,
-    options?: { tags?: string[]; metadata?: Record<string, unknown> },
-  ) {
+  function addEntry(kind: NotebookEntryKind, text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     const entry: NotebookEntry = {
       id: nanoid(),
       kind,
@@ -55,15 +51,15 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
     return entry
   }
 
-  function addNote(text: string, options?: { tags?: string[]; metadata?: Record<string, unknown> }) {
+  function addNote(text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     return addEntry('note', text, options)
   }
 
-  function addDiaryEntry(text: string, options?: { tags?: string[]; metadata?: Record<string, unknown> }) {
+  function addDiaryEntry(text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     return addEntry('diary', text, options)
   }
 
-  function addFocusEntry(text: string, options?: { tags?: string[]; metadata?: Record<string, unknown> }) {
+  function addFocusEntry(text: string, options?: { tags?: string[], metadata?: Record<string, unknown> }) {
     return addEntry('focus', text, options)
   }
 
@@ -92,16 +88,18 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
   }
 
   function markTaskDone(taskId: string) {
-    const task = tasks.value.find((item) => item.id === taskId)
-    if (!task) return
+    const task = tasks.value.find(item => item.id === taskId)
+    if (!task)
+      return
 
     task.status = 'done'
     task.updatedAt = Date.now()
   }
 
-  function requeueTask(taskId: string, options?: { dueAt?: number; reason?: string }) {
-    const task = tasks.value.find((item) => item.id === taskId)
-    if (!task) return
+  function requeueTask(taskId: string, options?: { dueAt?: number, reason?: string }) {
+    const task = tasks.value.find(item => item.id === taskId)
+    if (!task)
+      return
 
     task.status = 'queued'
     task.dueAt = options?.dueAt
@@ -113,8 +111,9 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
   }
 
   function markTaskNotified(taskId: string, nextNotifyAt?: number) {
-    const task = tasks.value.find((item) => item.id === taskId)
-    if (!task) return
+    const task = tasks.value.find(item => item.id === taskId)
+    if (!task)
+      return
 
     task.lastNotifiedAt = Date.now()
     task.nextNotifyAt = nextNotifyAt
@@ -123,11 +122,13 @@ export const useCharacterNotebookStore = defineStore('character-notebook', () =>
 
   function getDueTasks(now: number, windowMs: number) {
     return tasks.value.filter((task) => {
-      const isCompletedTask = task.status === 'done' || task.status === 'dropped'
-      if (isCompletedTask) return false
+      if (task.status === 'done' || task.status === 'dropped')
+        return false
       const dueAt = task.dueAt ?? now
-      if (dueAt > now + windowMs) return false
-      if (typeof task.nextNotifyAt === 'number' && task.nextNotifyAt > now) return false
+      if (dueAt > now + windowMs)
+        return false
+      if (typeof task.nextNotifyAt === 'number' && task.nextNotifyAt > now)
+        return false
       return true
     })
   }

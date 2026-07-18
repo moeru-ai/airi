@@ -22,35 +22,36 @@ import { computed, onMounted } from 'vue'
 const providerId = 'mimo-audio-transcription'
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as {
-  providers: RemovableRef<Record<string, Record<string, unknown>>>
-}
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 const apiKey = computed({
-  get: () => (providers.value[providerId]?.apiKey as string) || '',
+  get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
 
 const baseUrl = computed({
-  get: () => (providers.value[providerId]?.baseUrl as string) || '',
+  get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
 
 const model = computed({
-  get: () => (providers.value[providerId]?.model as string) || 'mimo-v2-omni',
+  get: () => providers.value[providerId]?.model || 'mimo-v2-omni',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
 
-const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 
@@ -62,17 +63,29 @@ onMounted(async () => {
 })
 
 async function handleGenerateTranscription(file: File) {
-  const provider =
-    await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(
-      providerId,
-    )
-  if (!provider) throw new Error('Failed to initialize transcription provider')
+  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+  if (!provider)
+    throw new Error('Failed to initialize transcription provider')
 
-  return await hearingStore.transcription(providerId, provider, model.value, file, 'json')
+  return await hearingStore.transcription(
+    providerId,
+    provider,
+    model.value,
+    file,
+    'json',
+  )
 }
 
-const { t, router, providerMetadata, isValidating, isValid, validationMessage, handleResetSettings, forceValid } =
-  useProviderValidation(providerId)
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+  forceValid,
+} = useProviderValidation(providerId)
 </script>
 
 <template>
@@ -95,7 +108,7 @@ const { t, router, providerMetadata, isValidating, isValid, validationMessage, h
         <FieldCombobox
           v-model="model"
           :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_name')"
-          :options="providerModels.map((m) => ({ value: m.id, label: m.name }))"
+          :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
           :disabled="isLoadingModels || providerModels.length === 0"
           placeholder="Select a model..."
         />
@@ -104,10 +117,7 @@ const { t, router, providerMetadata, isValidating, isValid, validationMessage, h
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="
-            ((providerMetadata?.defaultOptions?.() as Record<string, unknown>)?.baseUrl as string | undefined) ??
-            'https://api.xiaomimimo.com/v1/'
-          "
+          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'https://api.xiaomimimo.com/v1/'"
         />
       </ProviderAdvancedSettings>
 

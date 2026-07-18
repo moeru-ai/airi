@@ -45,7 +45,7 @@ export const protocolCapabilityWaitEventName = 'proj-airi:plugin-sdk:apis:protoc
  * Returns:
  * - A typed Eventa invoke descriptor for waiting on one capability
  */
-export const protocolCapabilityWait = defineInvokeEventa<CapabilityDescriptor, { key: string; timeoutMs?: number }>(
+export const protocolCapabilityWait = defineInvokeEventa<CapabilityDescriptor, { key: string, timeoutMs?: number }>(
   protocolCapabilityWaitEventName,
 )
 

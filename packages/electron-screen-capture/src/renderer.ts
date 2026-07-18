@@ -5,13 +5,7 @@ import type { ScreenCaptureSetSourceRequest, SerializableDesktopCapturerSource }
 
 import { defineInvoke } from '@moeru/eventa'
 
-import {
-  screenCaptureCheckMacOSPermission,
-  screenCaptureGetSources,
-  screenCaptureRequestMacOSPermission,
-  screenCaptureResetSource,
-  screenCaptureSetSourceEx,
-} from '.'
+import { screenCaptureCheckMacOSPermission, screenCaptureGetSources, screenCaptureRequestMacOSPermission, screenCaptureResetSource, screenCaptureSetSourceEx } from '.'
 
 export interface SourceOptionsWithRequest {
   sourcesOptions: SourcesOptions
@@ -26,7 +20,7 @@ export function setupElectronScreenCapture(context: ReturnType<typeof createCont
   const checkMacOSPermission = defineInvoke(context, screenCaptureCheckMacOSPermission)
   const requestMacOSPermission = defineInvoke(context, screenCaptureRequestMacOSPermission)
 
-  function getSources(sourcesOptions: SourcesOptions) {
+  async function getSources(sourcesOptions: SourcesOptions) {
     return invokeGetSources(sourcesOptions)
   }
 
@@ -46,7 +40,8 @@ export function setupElectronScreenCapture(context: ReturnType<typeof createCont
         timeout: options.request?.timeout,
       })
       return await useFn()
-    } finally {
+    }
+    finally {
       if (handle) {
         await resetSource(handle)
       }

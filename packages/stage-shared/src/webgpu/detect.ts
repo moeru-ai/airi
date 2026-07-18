@@ -118,7 +118,8 @@ async function extractAdapterInfo(adapter: GPUAdapterLike): Promise<WebGPUAdapte
         description: legacyInfo.description ?? '',
       }
     }
-  } catch {
+  }
+  catch {
     // Fall through to null — adapter info is best-effort, not required
   }
   return null
@@ -133,9 +134,11 @@ function computeHeuristicVRAM(adapter: GPUAdapterLike): number {
 }
 
 /** Decide the VRAM estimate based on override > heuristic > none. */
-function resolveVRAM(heuristic: number): { bytes: number; source: VRAMSource } {
-  if (vramOverride !== null && vramOverride > 0) return { bytes: vramOverride, source: 'override' }
-  if (heuristic > 0) return { bytes: heuristic, source: 'max-buffer-heuristic' }
+function resolveVRAM(heuristic: number): { bytes: number, source: VRAMSource } {
+  if (vramOverride !== null && vramOverride > 0)
+    return { bytes: vramOverride, source: 'override' }
+  if (heuristic > 0)
+    return { bytes: heuristic, source: 'max-buffer-heuristic' }
   return { bytes: 0, source: 'none' }
 }
 
@@ -144,10 +147,12 @@ function resolveVRAM(heuristic: number): { bytes: number; source: VRAMSource } {
  * after the first successful call -- safe to call repeatedly.
  */
 export async function detectWebGPU(): Promise<WebGPUCapabilities> {
-  if (cachedResult) return cachedResult
+  if (cachedResult)
+    return cachedResult
 
   // Deduplicate concurrent calls
-  if (pendingDetection) return pendingDetection
+  if (pendingDetection)
+    return pendingDetection
 
   pendingDetection = (async (): Promise<WebGPUCapabilities> => {
     try {
@@ -171,7 +176,8 @@ export async function detectWebGPU(): Promise<WebGPUCapabilities> {
         adapterInfo,
         reason: result.reason ?? '',
       }
-    } catch {
+    }
+    catch {
       cachedHeuristicVRAM = 0
       cachedResult = {
         supported: false,
@@ -202,7 +208,7 @@ export function getCachedWebGPUCapabilities(): WebGPUCapabilities | null {
  * Simple boolean helper that matches the old `isWebGPUSupported()` API.
  * Prefer `detectWebGPU()` when you need more detail.
  */
-export function isWebGPUSupported(): Promise<boolean> {
+export async function isWebGPUSupported(): Promise<boolean> {
   // Fast-path: if gpuu's lightweight check is enough
   return gpuuIsSupported()
 }

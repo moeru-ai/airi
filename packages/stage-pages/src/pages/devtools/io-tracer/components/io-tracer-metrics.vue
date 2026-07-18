@@ -18,21 +18,25 @@ interface SubsystemMetric {
 }
 
 function fmtMs(ms: number): string {
-  if (ms < 0.01) return '—'
-  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`
-  if (ms < 1000) return `${ms.toFixed(ms < 10 ? 1 : 0)}ms`
+  if (ms < 0.01)
+    return '—'
+  if (ms < 1)
+    return `${(ms * 1000).toFixed(0)}µs`
+  if (ms < 1000)
+    return `${ms.toFixed(ms < 10 ? 1 : 0)}ms`
   return `${(ms / 1000).toFixed(2)}s`
 }
 
 const metrics = computed(() => {
-  if (props.turns.length === 0) return null
+  if (props.turns.length === 0)
+    return null
 
   let e2eTotal = 0
   let e2eCount = 0
   let ttftTotal = 0
   let ttftCount = 0
 
-  const subsystemAccum = new Map<IOSubsystem, { totalMs: number; count: number }>()
+  const subsystemAccum = new Map<IOSubsystem, { totalMs: number, count: number }>()
 
   for (const turn of props.turns) {
     if (turn.endTs) {
@@ -41,8 +45,8 @@ const metrics = computed(() => {
     }
 
     for (const span of turn.spans) {
-      if (span.meta.ttftMs as number) {
-        ttftTotal += span.meta.ttftMs as number
+      if (span.meta.ttftMs) {
+        ttftTotal += span.meta.ttftMs
         ttftCount++
       }
       if (span.endTs) {
@@ -60,7 +64,8 @@ const metrics = computed(() => {
     const config = SUBSYSTEM_CONFIG_MAP.get(subsystem)
     if (config) {
       const avg = acc.totalMs / acc.count
-      if (avg > maxMs) maxMs = avg
+      if (avg > maxMs)
+        maxMs = avg
       subsystems.push({
         subsystem,
         label: config.label,
@@ -71,10 +76,7 @@ const metrics = computed(() => {
     }
   }
 
-  const bottleneckSubsystem = subsystems.reduce<SubsystemMetric | null>(
-    (max, l) => (!max || l.totalMs > max.totalMs ? l : max),
-    null,
-  )
+  const bottleneckSubsystem = subsystems.reduce<SubsystemMetric | null>((max, l) => (!max || l.totalMs > max.totalMs) ? l : max, null)
 
   return {
     e2eAvg: e2eCount > 0 ? e2eTotal / e2eCount : null,
@@ -107,7 +109,10 @@ const metrics = computed(() => {
     </div>
 
     <!-- TTFT -->
-    <div v-if="metrics.ttftAvg !== null" :class="['flex items-center gap-1.5']">
+    <div
+      v-if="metrics.ttftAvg !== null"
+      :class="['flex items-center gap-1.5']"
+    >
       <span :class="['text-purple-500']">TTFT</span>
       <span :class="['font-mono font-medium text-purple-600 dark:text-purple-400']">
         {{ fmtMs(metrics.ttftAvg) }}
@@ -117,13 +122,30 @@ const metrics = computed(() => {
     <div :class="['w-px h-4 bg-neutral-200 dark:bg-neutral-700']" />
 
     <!-- Per-Subsystem Averages -->
-    <div v-for="ss in metrics.subsystems" :key="ss.subsystem" :class="['flex items-center gap-1']">
-      <div :class="['w-2 h-2 rounded-sm']" :style="{ backgroundColor: ss.color }" />
+    <div
+      v-for="ss in metrics.subsystems"
+      :key="ss.subsystem"
+      :class="['flex items-center gap-1']"
+    >
+      <div
+        :class="['w-2 h-2 rounded-sm']"
+        :style="{ backgroundColor: ss.color }"
+      />
       <span :class="['text-neutral-400']">{{ ss.label }}</span>
-      <span :class="['font-mono', ss.subsystem === metrics.bottleneckSubsystem ? 'font-medium text-red-500' : '']">
+      <span
+        :class="[
+          'font-mono',
+          ss.subsystem === metrics.bottleneckSubsystem ? 'font-medium text-red-500' : '',
+        ]"
+      >
         {{ fmtMs(ss.totalMs) }}
       </span>
-      <span v-if="ss.subsystem === metrics.bottleneckSubsystem" :class="['text-2.5 text-red-400']">bottleneck</span>
+      <span
+        v-if="ss.subsystem === metrics.bottleneckSubsystem"
+        :class="['text-2.5 text-red-400']"
+      >
+        bottleneck
+      </span>
     </div>
   </div>
 </template>

@@ -25,12 +25,11 @@ vi.mock('../../stores/providers', () => ({
 }))
 
 vi.mock('../../stores/modules/vision', () => ({
-  useVisionStore: () =>
-    reactive({
-      activeProvider: 'mock-provider',
-      activeModel: 'mock-model',
-      ollamaThinkingEnabled: false,
-    }),
+  useVisionStore: () => reactive({
+    activeProvider: 'mock-provider',
+    activeModel: 'mock-model',
+    ollamaThinkingEnabled: false,
+  }),
 }))
 
 vi.mock('./use-vision-workloads', () => ({
@@ -65,27 +64,18 @@ describe('useVisionInference', () => {
     const { useVisionInference } = await import('./use-vision-inference')
     const { runVisionInference } = useVisionInference()
 
-    await expect(
-      runVisionInference({
-        imageDataUrl: 'data:image/png;base64,Zm9v',
-        workloadId: 'screen:interpret',
-      }),
-    ).resolves.toBe('Frame summary')
+    await expect(runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+    })).resolves.toBe('Frame summary')
   })
 
   it('aborts vision inference when the stream never settles', async () => {
-    stream.mockImplementation(
-      (_model, _provider, _messages, options) =>
-        new Promise((_, reject) => {
-          options?.abortSignal?.addEventListener(
-            'abort',
-            () => {
-              reject(options.abortSignal?.reason)
-            },
-            { once: true },
-          )
-        }),
-    )
+    stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
+      options?.abortSignal?.addEventListener('abort', () => {
+        reject(options.abortSignal?.reason)
+      }, { once: true })
+    }))
 
     const { useVisionInference } = await import('./use-vision-inference')
     const { runVisionInference } = useVisionInference()

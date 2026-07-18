@@ -3,34 +3,46 @@ import Section from './section.vue'
 </script>
 
 <template>
-  <Story title="Section" group="common" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Section"
+    group="common"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="basic" title="Basic Section">
+    <Variant
+      id="basic"
+      title="Basic Section"
+    >
       <Section title="Basic Section" icon="i-solar:settings-line-duotone">
         <div>This is the content of a basic section</div>
       </Section>
     </Variant>
 
-    <Variant id="collapsed" title="Initially Collapsed">
+    <Variant
+      id="collapsed"
+      title="Initially Collapsed"
+    >
       <Section title="Collapsed Section" icon="i-solar:folder-line-duotone" :expand="false">
         <div>This content is initially hidden</div>
       </Section>
     </Variant>
 
-    <Variant id="with-custom-class" title="With Custom Inner Class">
-      <Section
-        title="Custom Inner Class"
-        icon="i-solar:star-line-duotone"
-        inner-class="bg-neutral-50 dark:bg-neutral-900 rounded-md"
-      >
+    <Variant
+      id="with-custom-class"
+      title="With Custom Inner Class"
+    >
+      <Section title="Custom Inner Class" icon="i-solar:star-line-duotone" inner-class="bg-neutral-50 dark:bg-neutral-900 rounded-md">
         <div>This section has a custom inner class applied</div>
       </Section>
     </Variant>
 
-    <Variant id="with-complex-content" title="With Complex Content">
+    <Variant
+      id="with-complex-content"
+      title="With Complex Content"
+    >
       <Section title="Complex Content" icon="i-solar:document-line-duotone">
         <div class="flex flex-col gap-4">
           <div class="flex items-center gap-2">
@@ -44,7 +56,10 @@ import Section from './section.vue'
       </Section>
     </Variant>
 
-    <Variant id="multiple-sections" title="Multiple Sections">
+    <Variant
+      id="multiple-sections"
+      title="Multiple Sections"
+    >
       <div class="flex flex-col gap-4">
         <Section title="First Section" icon="i-solar:user-line-duotone">
           <div>Content for the first section</div>

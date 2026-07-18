@@ -4,7 +4,10 @@ import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { toast } from 'vue-sonner'
 
-import { electronAuthCallback, electronAuthCallbackError } from '../../shared/eventa'
+import {
+  electronAuthCallback,
+  electronAuthCallbackError,
+} from '../../shared/eventa'
 
 /**
  * Register auth callback listeners at the renderer service level so they
@@ -16,7 +19,8 @@ export function initializeElectronAuthCallbackBridge() {
 
   context.on(electronAuthCallback, async (event) => {
     const tokens = event.body
-    if (!tokens) return
+    if (!tokens)
+      return
 
     try {
       const authStore = useAuthStore()
@@ -31,12 +35,14 @@ export function initializeElectronAuthCallbackBridge() {
       authStore.scheduleTokenRefresh(tokens.expiresIn)
 
       await fetchSession()
-    } catch (error) {
+    }
+    catch (error) {
       toast.error(errorMessageFrom(error) ?? 'Sign-in failed')
     }
   })
 
   context.on(electronAuthCallbackError, (event) => {
-    if (event.body) toast.error(event.body.error)
+    if (event.body)
+      toast.error(event.body.error)
   })
 }

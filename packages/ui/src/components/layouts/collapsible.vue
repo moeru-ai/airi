@@ -3,20 +3,14 @@ import { watchEffect } from 'vue'
 
 import { TransitionVertical } from '../animations'
 
-const props = withDefaults(
-  defineProps<{
-    default?: boolean
-    label?: string
-  }>(),
-  {
-    default: false,
-    label: '',
-  },
-)
+const props = defineProps<{
+  default?: boolean
+  label?: string
+}>()
 const visible = defineModel<boolean>({ default: false })
 watchEffect(() => {
   if (props.default != null) {
-    visible.value = Boolean(props.default)
+    visible.value = !!props.default
   }
 })
 
@@ -35,8 +29,7 @@ function setVisible(value: boolean) {
       >
         <span>
           {{ props.label ?? 'Collapsable' }}
-        </span>
-        <span op50>{{ visible ? '▲' : '▼' }}</span>
+        </span> <span op50>{{ visible ? '▲' : '▼' }}</span>
       </button>
     </slot>
     <TransitionVertical>

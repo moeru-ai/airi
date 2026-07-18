@@ -15,18 +15,15 @@ import { computed } from 'vue'
 
 const providerId = 'lm-studio'
 const providersStore = useProvidersStore()
-
-interface LMStudioConfig {
-  baseUrl?: string
-}
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, LMStudioConfig>> }
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Define computed properties for credentials
 
 const baseUrl = computed({
   get: () => providers.value[providerId]?.baseUrl || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].baseUrl = value
   },
 })
@@ -61,7 +58,10 @@ const {
         :description="t('settings.pages.providers.common.section.basic.description')"
         :on-reset="handleResetSettings"
       >
-        <ProviderBaseUrlInput v-model="baseUrl" placeholder="http://localhost:1234/v1/" />
+        <ProviderBaseUrlInput
+          v-model="baseUrl"
+          placeholder="http://localhost:1234/v1/"
+        />
       </ProviderBasicSettings>
 
       <ProviderValidationAlerts

@@ -2,21 +2,7 @@ import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/sp
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 
-import {
-  array,
-  boolean,
-  finite,
-  looseObject,
-  nonEmpty,
-  number,
-  optional,
-  picklist,
-  pipe,
-  record,
-  string,
-  trim,
-  unknown,
-} from 'valibot'
+import { array, boolean, finite, looseObject, nonEmpty, number, optional, picklist, pipe, record, string, trim, unknown } from 'valibot'
 
 type SparkNotifyProtocolEvent = WebSocketEventOf<'spark:notify'>
 type SparkNotifyProtocolData = SparkNotifyProtocolEvent['data']
@@ -51,9 +37,15 @@ export interface SparkNotifyPerformanceResult {
  * Caller-facing request used by the context bridge to turn one spark notification into a reaction string.
  */
 export interface SparkNotifyReactionOptions
-  extends
-    Partial<Pick<SparkNotifyProtocolData, 'lane' | 'note' | 'payload' | 'ttlMs' | 'requiresAck' | 'metadata'>>,
-    SparkNotifyResponseControl {
+  extends Partial<Pick<
+    SparkNotifyProtocolData,
+    | 'lane'
+    | 'note'
+    | 'payload'
+    | 'ttlMs'
+    | 'requiresAck'
+    | 'metadata'
+  >>, SparkNotifyResponseControl {
   /** Short title for the event that should be visible to the reaction runtime. */
   headline: SparkNotifyProtocolData['headline']
   /** Response text returned when the reaction runtime cannot produce a usable response. */

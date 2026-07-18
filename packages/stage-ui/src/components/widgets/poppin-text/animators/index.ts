@@ -6,7 +6,7 @@ export interface CreateAnimatorOptions {
   loop?: boolean
 }
 
-export type Animator = (elements: HTMLElement[]) => () => void
+export type Animator = (elements: HTMLElement[]) => (() => void)
 
 export * from './fade'
 export * from './float'

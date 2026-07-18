@@ -4,8 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
-import { errorMessageFrom } from '@moeru/std'
-import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { errorMessageFromValue, isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { useElementVisibility, useIntervalFn } from '@vueuse/core'
 import { createTimeline } from 'animejs'
 import { clamp } from 'es-toolkit'
@@ -30,29 +29,26 @@ import { useBreakpoints } from '../../../../../composables/use-breakpoints'
 import { useElementScroll } from '../../composables/use-element-scroll'
 import { chatScrollContainerKey } from '../../constants'
 
-const props = withDefaults(
-  defineProps<{
-    canCopy?: boolean
-    canRetry?: boolean
-    canDelete?: boolean
-    copyText?: string
-    menuLabel?: string
-    placement?: 'left' | 'right'
-  }>(),
-  {
-    canCopy: true,
-    canRetry: false,
-    canDelete: true,
-    copyText: '',
-    menuLabel: 'Message actions',
-    placement: 'right',
-  },
-)
+const props = withDefaults(defineProps<{
+  canCopy?: boolean
+  canRetry?: boolean
+  canDelete?: boolean
+  copyText?: string
+  menuLabel?: string
+  placement?: 'left' | 'right'
+}>(), {
+  canCopy: true,
+  canRetry: false,
+  canDelete: true,
+  copyText: '',
+  menuLabel: 'Message actions',
+  placement: 'right',
+})
 
 const emit = defineEmits<{
-  copy: []
-  retry: []
-  delete: []
+  (e: 'copy'): void
+  (e: 'retry'): void
+  (e: 'delete'): void
 }>()
 defineSlots<{
   default: (props: { setMeasuredElement: (element: Element | ComponentPublicInstance | null) => void }) => unknown
@@ -92,19 +88,15 @@ const { t } = useI18n()
 const shouldDisableDropdownMenu = computed(() => (isStageWeb() || isStageCapacitor()) && isMobile.value)
 const copyFeedbackActive = shallowRef(false)
 
-const menuItems = computed(() =>
-  createChatActionMenuItems({
-    canCopy: props.canCopy && props.copyText.trim().length > 0,
-    canRetry: props.canRetry,
-    canDelete: props.canDelete,
-    retryLabel: t('stage.chat.actions.retry'),
-  }),
-)
-const triggerState = computed(() =>
-  createChatActionMenuTriggerState({
-    copyFeedbackActive: copyFeedbackActive.value,
-  }),
-)
+const menuItems = computed(() => createChatActionMenuItems({
+  canCopy: props.canCopy && props.copyText.trim().length > 0,
+  canRetry: props.canRetry,
+  canDelete: props.canDelete,
+  retryLabel: t('stage.chat.actions.retry'),
+}))
+const triggerState = computed(() => createChatActionMenuTriggerState({
+  copyFeedbackActive: copyFeedbackActive.value,
+}))
 const hasMenuItems = computed(() => menuItems.value.length > 0)
 const forceVisible = computed(() => contextMenuOpen.value || dropdownMenuOpen.value)
 
@@ -127,7 +119,8 @@ const bottomIsVisible = computed(() => bottomSentinelVisible.value)
 const floatingInMiddle = computed(() => !topIsVisible.value && !bottomIsVisible.value)
 
 const floatingTop = computed(() => {
-  if (!hasMeasuredElement.value || !messageIsVisible.value || !floatingInMiddle.value) return 0
+  if (!hasMeasuredElement.value || !messageIsVisible.value || !floatingInMiddle.value)
+    return 0
 
   const buttonSize = 32
   const relativeInnerMiddle = innerTop.value - elementTop.value + innerHeight.value / 2 - buttonSize / 2
@@ -136,7 +129,11 @@ const floatingTop = computed(() => {
 
 const showFloatingTrigger = computed(() => !topIsVisible.value)
 
-const triggerStyle = computed(() => (bottomIsVisible.value ? undefined : { top: `${floatingTop.value}px` }))
+const triggerStyle = computed(() => (
+  bottomIsVisible.value
+    ? undefined
+    : { top: `${floatingTop.value}px` }
+))
 
 function handleContextMenuOpenChange(open: boolean) {
   contextMenuOpen.value = open
@@ -156,14 +153,16 @@ function useTouching(element: MaybeComputedElementRef) {
   const pressStartTime = ref(0)
   const pressNow = ref(0)
 
-  const { resume, pause } = useIntervalFn(() => (pressNow.value = Date.now()), 50)
+  const { resume, pause } = useIntervalFn(() => pressNow.value = Date.now(), 50)
 
   const isTouching = ref(false)
   const pressedFor = computed(() => {
-    if (!isTouching.value || pressStartTime.value === 0) return 0
+    if (!isTouching.value || pressStartTime.value === 0)
+      return 0
 
     const result = pressNow.value - pressStartTime.value
-    if (result < 0) return 0
+    if (result < 0)
+      return 0
 
     return result
   })
@@ -190,27 +189,24 @@ function useTouching(element: MaybeComputedElementRef) {
     pause()
   }
 
-  watch(
-    elementRef,
-    (newElement) => {
-      if (newElement) {
-        const el = newElement as HTMLElement
+  watch(elementRef, (newElement) => {
+    if (newElement) {
+      const el = newElement as HTMLElement
 
-        el.addEventListener('touchstart', handleTouchStart, { passive: true })
-        el.addEventListener('touchmove', handleTouchMove, { passive: true })
-        el.addEventListener('touchend', handleTouchEnd, { passive: true })
-        el.addEventListener('touchcancel', handleTouchCancel, { passive: true })
-      } else if (elementRef.value) {
-        const el = elementRef.value as HTMLElement
+      el.addEventListener('touchstart', handleTouchStart, { passive: true })
+      el.addEventListener('touchmove', handleTouchMove, { passive: true })
+      el.addEventListener('touchend', handleTouchEnd, { passive: true })
+      el.addEventListener('touchcancel', handleTouchCancel, { passive: true })
+    }
+    else if (elementRef.value) {
+      const el = elementRef.value as HTMLElement
 
-        el.removeEventListener('touchstart', handleTouchStart)
-        el.removeEventListener('touchmove', handleTouchMove)
-        el.removeEventListener('touchend', handleTouchEnd)
-        el.removeEventListener('touchcancel', handleTouchCancel)
-      }
-    },
-    { immediate: true },
-  )
+      el.removeEventListener('touchstart', handleTouchStart)
+      el.removeEventListener('touchmove', handleTouchMove)
+      el.removeEventListener('touchend', handleTouchEnd)
+      el.removeEventListener('touchcancel', handleTouchCancel)
+    }
+  }, { immediate: true })
 
   return {
     isTouching,
@@ -218,12 +214,13 @@ function useTouching(element: MaybeComputedElementRef) {
   }
 }
 
-function useSetTimeoutFn(fn: () => void, options?: { delay?: number; onClear?: () => void }) {
+function useSetTimeoutFn(fn: () => void, options?: { delay?: number, onClear?: () => void }) {
   let timeoutId: ReturnType<typeof setTimeout> | null = null
   const delay = options?.delay ?? 1000
 
   function trigger(options?: { delay?: number }) {
-    if (timeoutId !== null) return
+    if (timeoutId !== null)
+      return
 
     const effectiveDelay = options?.delay ?? delay
 
@@ -249,16 +246,14 @@ function useSetTimeoutFn(fn: () => void, options?: { delay?: number; onClear?: (
 
 const { isTouching } = useTouching(contextMenuContainerElementRef)
 
-const { trigger: triggerCopyFeedbackReset, clear: clearCopyFeedbackReset } = useSetTimeoutFn(
-  () => {
-    copyFeedbackActive.value = false
-  },
-  { delay: 1000 },
-)
+const { trigger: triggerCopyFeedbackReset, clear: clearCopyFeedbackReset } = useSetTimeoutFn(() => {
+  copyFeedbackActive.value = false
+}, { delay: 1000 })
 
 async function handleAction(action: ChatActionMenuAction) {
   if (action === 'copy') {
-    if (!props.copyText.trim()) return
+    if (!props.copyText.trim())
+      return
 
     try {
       await navigator.clipboard.writeText(props.copyText)
@@ -266,8 +261,9 @@ async function handleAction(action: ChatActionMenuAction) {
       clearCopyFeedbackReset()
       emit('copy')
       triggerCopyFeedbackReset()
-    } catch (error) {
-      console.error('Failed to copy text:', errorMessageFrom(error) ?? String(error))
+    }
+    catch (error) {
+      console.error('Failed to copy text:', errorMessageFromValue(error))
     }
 
     return
@@ -286,24 +282,23 @@ const tl = createTimeline({ defaults: { duration: 500, autoplay: false } })
   .add(pressedAnimatable, { scale: 90, ease: 'inOut', autoplay: false })
   .reset()
 
-const { trigger: triggerTimer, clear: clearTimer } = useSetTimeoutFn(
-  () => {
-    trigger('medium')
-    tl.reset()
-  },
-  { delay: 700 },
-)
+const { trigger: triggerTimer, clear: clearTimer } = useSetTimeoutFn(() => {
+  trigger('medium')
+  tl.reset()
+}, { delay: 700 })
 
 watch(isTouching, (val) => {
   if (val) {
     if (tl.completed || tl.paused) {
       tl.restart()
-    } else {
+    }
+    else {
       tl.play()
     }
 
     triggerTimer()
-  } else {
+  }
+  else {
     tl.reset()
 
     clearTimer()
@@ -316,12 +311,19 @@ watch(isTouching, (val) => {
     <ContextMenuTrigger as-child>
       <div
         ref="contextMenuContainer"
-        :class="['group/chat-action relative w-fit', 'transition-transform duration-150 ease-in-out']"
+        :class="[
+          'group/chat-action relative w-fit',
+          'transition-transform duration-150 ease-in-out',
+        ]"
         :style="{
           transform: `scale(${pressedAnimatable.scale / 100})`,
         }"
       >
-        <div ref="topSentinel" aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-px opacity-0" />
+        <div
+          ref="topSentinel"
+          aria-hidden="true"
+          class="pointer-events-none absolute inset-x-0 top-0 h-px opacity-0"
+        />
         <div
           ref="bottomSentinel"
           aria-hidden="true"
@@ -336,9 +338,7 @@ watch(isTouching, (val) => {
               'absolute z-10 opacity-0 transition-opacity duration-200',
               'group-hover/chat-action:opacity-100 group-focus-within/chat-action:opacity-100',
               forceVisible ? 'opacity-100' : '',
-              props.placement === 'left'
-                ? 'left-0 translate-x-[calc(-100%-8px)]'
-                : 'right-0 translate-x-[calc(100%+8px)]',
+              props.placement === 'left' ? 'left-0 translate-x-[calc(-100%-8px)]' : 'right-0 translate-x-[calc(100%+8px)]',
               showFloatingTrigger && bottomIsVisible ? 'bottom-0' : 'top-0',
             ]"
             :style="triggerStyle"
@@ -365,7 +365,12 @@ watch(isTouching, (val) => {
           <slot :set-measured-element="setMeasuredElement" />
 
           <DropdownMenuPortal>
-            <DropdownMenuContent align="end" side="bottom" :side-offset="6" :class="contentClasses">
+            <DropdownMenuContent
+              align="end"
+              side="bottom"
+              :side-offset="6"
+              :class="contentClasses"
+            >
               <DropdownMenuItem
                 v-for="item in menuItems"
                 :key="item.action"
@@ -387,17 +392,27 @@ watch(isTouching, (val) => {
     </ContextMenuTrigger>
 
     <ContextMenuPortal>
-      <ContextMenuContent :class="[...contentClasses]">
+      <ContextMenuContent
+        :class="[
+          ...contentClasses,
+        ]"
+      >
         <ContextMenuItem
           v-for="item in menuItems"
           :key="item.action"
           :class="[
             ...itemClasses,
-            item.danger ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40' : '',
+            item.danger
+              ? 'text-red-500 data-[highlighted]:bg-red-50/80 dark:data-[highlighted]:bg-red-950/40'
+              : '',
           ]"
           @select="() => void handleAction(item.action)"
         >
-          <div :class="[item.icon, 'text-xs']" />
+          <div
+            :class="[
+              item.icon, 'text-xs',
+            ]"
+          />
           <span>
             {{ item.label }}
           </span>

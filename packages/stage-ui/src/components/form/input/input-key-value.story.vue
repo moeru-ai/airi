@@ -7,7 +7,11 @@ const value = ref('')
 </script>
 
 <template>
-  <Story title="Input Key Value" group="form" :layout="{ type: 'grid', width: 300 }">
+  <Story
+    title="Input Key Value"
+    group="form"
+    :layout="{ type: 'grid', width: 300 }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>

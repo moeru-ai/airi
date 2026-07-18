@@ -4,10 +4,10 @@ import { createHttpServerManager } from './index'
 
 describe('createHttpServerManager', () => {
   it('starts and stops registered servers in order', async () => {
-    const startA = vi.fn(() => Promise.resolve())
-    const stopA = vi.fn(() => Promise.resolve())
-    const startB = vi.fn(() => Promise.resolve())
-    const stopB = vi.fn(() => Promise.resolve())
+    const startA = vi.fn(async () => {})
+    const stopA = vi.fn(async () => {})
+    const startB = vi.fn(async () => {})
+    const stopB = vi.fn(async () => {})
 
     const manager = createHttpServerManager([
       { key: 'a', start: startA, stop: stopA },
@@ -31,9 +31,9 @@ describe('createHttpServerManager', () => {
         releaseStartA = resolve
       })
     })
-    const stopA = vi.fn(() => Promise.resolve())
-    const startB = vi.fn(() => Promise.resolve())
-    const stopB = vi.fn(() => Promise.resolve())
+    const stopA = vi.fn(async () => {})
+    const startB = vi.fn(async () => {})
+    const stopB = vi.fn(async () => {})
 
     const manager = createHttpServerManager([
       { key: 'a', start: startA, stop: stopA },

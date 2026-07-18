@@ -6,8 +6,12 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const deepSeekConfigSchema = z.object({
-  apiKey: z.string('API Key'),
-  baseUrl: z.string('Base URL').optional().default('https://api.deepseek.com/'),
+  apiKey: z
+    .string('API Key'),
+  baseUrl: z
+    .string('Base URL')
+    .optional()
+    .default('https://api.deepseek.com/'),
 })
 
 type DeepSeekConfig = z.input<typeof deepSeekConfigSchema>
@@ -23,38 +27,29 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
   icon: 'i-lobe-icons:deepseek',
   iconColor: 'i-lobe-icons:deepseek-color',
 
-  createProviderConfig: ({ t }) =>
-    deepSeekConfigSchema.extend({
-      apiKey: deepSeekConfigSchema.shape.apiKey.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-        type: 'password',
-      }),
-      baseUrl: deepSeekConfigSchema.shape.baseUrl.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
-        ),
-        placeholderLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
-        ),
-      }),
+  createProviderConfig: ({ t }) => deepSeekConfigSchema.extend({
+    apiKey: deepSeekConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
     }),
+    baseUrl: deepSeekConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
   createProvider(config) {
     return createDeepSeek(config.apiKey, config.baseUrl)
   },
 
   validationRequiredWhen(config) {
-    return Boolean(config.apiKey?.trim())
+    return !!config.apiKey?.trim()
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [
-        ProviderValidationCheck.Connectivity,
-        ProviderValidationCheck.ModelList,
-        ProviderValidationCheck.ChatCompletions,
-      ],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

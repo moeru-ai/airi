@@ -1,13 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ref } from 'vue'
 
-import {
-  buildChatWsUrl,
-  computeReconnectDelay,
-  createChatWsUrlRef,
-  mapStatus,
-  WS_CLOSE_UNAUTHORIZED,
-} from './ws-client'
+import { buildChatWsUrl, computeReconnectDelay, createChatWsUrlRef, mapStatus, WS_CLOSE_UNAUTHORIZED } from './ws-client'
 
 describe('buildChatWsUrl', () => {
   /**

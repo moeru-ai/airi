@@ -44,10 +44,7 @@ export interface StageTtsSession {
  * etc.) that are not part of the session protocol; this typed subset keeps
  * the adapter honest about what it actually depends on.
  */
-type IntentHandleSubset = Pick<
-  IntentHandle,
-  'intentId' | 'writeLiteral' | 'writeSpecial' | 'writeFlush' | 'end' | 'cancel'
->
+type IntentHandleSubset = Pick<IntentHandle, 'intentId' | 'writeLiteral' | 'writeSpecial' | 'writeFlush' | 'end' | 'cancel'>
 
 /**
  * Direct adapter from a `pipelines-audio` `IntentHandle` to
@@ -57,9 +54,7 @@ type IntentHandleSubset = Pick<
 function fromIntent(intent: IntentHandleSubset): StageTtsSession {
   return {
     intentId: intent.intentId,
-    appendText: (text) => {
-      intent.writeLiteral(text)
-    },
+    appendText: intent.writeLiteral,
     appendSpecial: intent.writeSpecial,
     finishInput: intent.writeFlush,
     end: intent.end,
@@ -76,6 +71,7 @@ function fromIntent(intent: IntentHandleSubset): StageTtsSession {
 export interface StreamingSessionSnapshot {
   model: string
   voice: string
+  voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
   bufferEntireSession: boolean
   extraBody: Record<string, unknown>
   /**
@@ -163,11 +159,13 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
   const handle = pipelineFactory({
     model: snapshot.model,
     voice: snapshot.voice,
+    ttsVoiceType: snapshot.voiceType,
     audioContext,
     bufferEntireSession: snapshot.bufferEntireSession,
     extraBody: snapshot.extraBody,
     onSentence: ({ index, text, audio }) => {
-      if (terminated) return
+      if (terminated)
+        return
       playbackManager.schedule({
         id: `${intentId}-${index}`,
         streamId: intentId,
@@ -292,10 +290,15 @@ export interface StageTtsSessionContext<TAudio = AudioBuffer> {
  *   ref and calls `appendText` / `appendSpecial` / `finishInput` / `end`
  *   / `cancel` on it from the hooks.
  */
-export function createStageTtsSession<TAudio = AudioBuffer>(ctx: StageTtsSessionContext<TAudio>): StageTtsSession {
+export function createStageTtsSession<TAudio = AudioBuffer>(
+  ctx: StageTtsSessionContext<TAudio>,
+): StageTtsSession {
   const wantsStreaming = ctx.transport === 'bidirectional-ws'
-  const snapshot = wantsStreaming ? (ctx.streaming?.() ?? null) : null
-  const canStream = wantsStreaming && snapshot != null && snapshot.voice.length > 0 && ctx.audioContext != null
+  const snapshot = wantsStreaming ? ctx.streaming?.() ?? null : null
+  const canStream = wantsStreaming
+    && snapshot != null
+    && snapshot.voice.length > 0
+    && ctx.audioContext != null
 
   if (!canStream) {
     // Segmenter path: open the existing IntentHandle and adapt 1:1.

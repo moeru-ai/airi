@@ -18,6 +18,7 @@ import type {
 } from '../../libs/inference/protocol'
 
 import { AutoModel, AutoProcessor, env, RawImage } from '@huggingface/transformers'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
 import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
 import { classifyError, isRecoverable } from '../../libs/inference/protocol'
@@ -61,7 +62,7 @@ function sendProgress(requestId: string, percent: number, message?: string): voi
 }
 
 function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessageFromValue(error)
   const code = classifyError(error, phase)
   const msg: ErrorResponse = {
     type: 'error',
@@ -105,10 +106,12 @@ function clearCancelled(requestId: string): void {
  */
 async function detectWebGPUInWorker(): Promise<boolean> {
   try {
-    if (typeof navigator === 'undefined' || !navigator.gpu) return false
+    if (typeof navigator === 'undefined' || !navigator.gpu)
+      return false
     const adapter = await navigator.gpu.requestAdapter()
     return adapter != null
-  } catch {
+  }
+  catch {
     return false
   }
 }
@@ -149,13 +152,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
 
     model = await AutoModel.from_pretrained(MODEL_ID, {
       device,
-      progress_callback: (progress: {
-        progress?: number
-        status?: string
-        file?: string
-        loaded?: number
-        total?: number
-      }) => {
+      progress_callback: (progress: any) => {
         sendProgress(requestId, progress?.progress ?? -1, progress?.status)
       },
     })
@@ -174,9 +171,12 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
       device: resolvedDevice,
     }
     globalThis.postMessage(ready)
-  } catch (error) {
-    if (isCancelled(requestId)) clearCancelled(requestId)
-    else sendError(requestId, error, 'load')
+  }
+  catch (error) {
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'load')
   }
 }
 
@@ -203,7 +203,9 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
     const { output } = await model({ input: pixel_values })
 
     // Extract mask and resize to original dimensions
-    const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(width, height)
+    const mask = await RawImage.fromTensor(
+      output[0].mul(255).to('uint8'),
+    ).resize(width, height)
 
     if (isCancelled(requestId)) {
       clearCancelled(requestId)
@@ -218,10 +220,13 @@ async function runInference(request: RunInferenceRequest<BackgroundRemovalInput>
       output: { maskData, width, height },
     }
     // Transfer the buffer to avoid copying
-    globalThis.postMessage(result, { transfer: [maskData.buffer] })
-  } catch (error) {
-    if (isCancelled(requestId)) clearCancelled(requestId)
-    else sendError(requestId, error, 'inference')
+    ;(globalThis as any).postMessage(result, [maskData.buffer])
+  }
+  catch (error) {
+    if (isCancelled(requestId))
+      clearCancelled(requestId)
+    else
+      sendError(requestId, error, 'inference')
   }
 }
 

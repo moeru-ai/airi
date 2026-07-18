@@ -1,33 +1,24 @@
 export interface HandlerContext<T> {
   data: T
-  // JS-0339: replace `any[]` with `unknown[]`
-  emit: (eventName: string, ...params: unknown[]) => void
+  emit: (eventName: string, ...params: any[]) => void
 }
 
 export interface Events<T> {
   enqueue: Array<(payload: T, queueLength: number) => void>
   dequeue: Array<(payload: T, queueLength: number) => void>
-  // JS-0339: replace `any` with `unknown` for handler return types
-  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
-  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
-  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
   drain: Array<() => void>
 }
 
-/**
- * Internal storage type for event listeners.
- *
- * All event handler signatures are intentionally variadic at runtime,
- * so we use a single erased signature for storage and cast at emit time.
- */
-type InternalListener = (...args: unknown[]) => void
-
-export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T>) => Promise<void>> }) {
+export function createQueue<T>(options: {
+  handlers: Array<(ctx: HandlerContext<T>) => Promise<void>>
+}) {
   const queue: T[] = []
-  // JS-0339: replace `any` with `unknown`
-  let drainTask: Promise<unknown> | undefined
+  let drainTask: Promise<any> | undefined
 
-  const internalEventListeners: Record<keyof Events<T>, InternalListener[]> = {
+  const internalEventListeners: Events<T> = {
     enqueue: [],
     dequeue: [],
     process: [],
@@ -35,26 +26,25 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
     result: [],
     drain: [],
   }
-  // JS-0339: replace `any[]` with `unknown[]`
-  const internalHandlerEventListeners: Record<string, Array<(...params: unknown[]) => void>> = {}
+  const internalHandlerEventListeners: Record<string, Array<(...params: any[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, listener: Events<T>[E][number]) {
-    internalEventListeners[eventName].push(listener as InternalListener)
+    internalEventListeners[eventName].push(listener as any)
   }
 
   function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
-    const listeners = internalEventListeners[eventName]
-    listeners.forEach((listener) => listener(...params))
+    const listeners = internalEventListeners[eventName] as Events<T>[E]
+    listeners.forEach(listener => (listener as any)(...params))
   }
 
-  function onHandlerEvent(eventName: string, listener: (...params: unknown[]) => void) {
+  function onHandlerEvent(eventName: string, listener: (...params: any[]) => void) {
     internalHandlerEventListeners[eventName] = internalHandlerEventListeners[eventName] || []
     internalHandlerEventListeners[eventName].push(listener)
   }
 
-  function emitHandlerEvent(eventName: string, ...params: unknown[]) {
+  function emitHandlerEvent(eventName: string, ...params: any[]) {
     const listeners = internalHandlerEventListeners[eventName] || []
-    listeners.forEach((listener) => listener(...params))
+    listeners.forEach(listener => listener(...params))
   }
 
   function enqueue(payload: T) {
@@ -69,7 +59,7 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
     queue.length = 0
   }
 
-  async function drain(): Promise<void> {
+  async function drain() {
     while (queue.length > 0) {
       const payload = queue.shift() as T
       emit('dequeue', payload, queue.length)
@@ -78,8 +68,10 @@ export function createQueue<T>(options: { handlers: Array<(ctx: HandlerContext<T
         try {
           const result = await handler({ data: payload, emit: emitHandlerEvent })
           emit('result', payload, result, handler)
-        } catch (err) {
+        }
+        catch (err) {
           emit('error', payload, err, handler)
+          continue
         }
       }
     }

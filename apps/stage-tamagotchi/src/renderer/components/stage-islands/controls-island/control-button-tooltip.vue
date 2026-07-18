@@ -7,7 +7,10 @@ const { side = 'top' } = defineProps<{
 </script>
 
 <template>
-  <TooltipProvider :delay-duration="0" :skip-delay-duration="0">
+  <TooltipProvider
+    :delay-duration="0"
+    :skip-delay-duration="0"
+  >
     <TooltipRoot>
       <TooltipTrigger>
         <slot />

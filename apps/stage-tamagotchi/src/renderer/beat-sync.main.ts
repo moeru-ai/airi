@@ -11,8 +11,6 @@ import {
   createContext,
 } from '@proj-airi/stage-shared/beat-sync'
 
-const _logger = (..._a: unknown[]) => void 0
-
 const context = createContext()
 
 const changeState = defineInvoke(context, beatSyncStateChangedInvokeEventa)
@@ -22,26 +20,31 @@ const detector = createBeatSyncDetector({
   env: StageEnvironment.Tamagotchi,
 })
 
-detector.on('stateChange', (state) => changeState(state))
+detector.on('stateChange', state => changeState(state))
 detector.on('beat', (e) => {
-  _logger('[beat]', e) // This could be noisy.
+  // eslint-disable-next-line no-console
+  console.debug('[beat]', e) // This could be noisy.
   signalBeat(e)
 })
 
-defineInvokeHandler(context, beatSyncToggleInvokeEventa, (enabled) => {
-  _logger('[toggle]', enabled)
+defineInvokeHandler(context, beatSyncToggleInvokeEventa, async (enabled) => {
+  // eslint-disable-next-line no-console
+  console.log('[toggle]', enabled)
   if (enabled) {
     detector.startScreenCapture()
-  } else {
+  }
+  else {
     detector.stop()
   }
 })
-defineInvokeHandler(context, beatSyncGetStateInvokeEventa, () => Promise.resolve(detector.state))
-defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, (params) => {
-  _logger('[update-params]', params)
+defineInvokeHandler(context, beatSyncGetStateInvokeEventa, async () => detector.state)
+defineInvokeHandler(context, beatSyncUpdateParametersInvokeEventa, async (params) => {
+  // eslint-disable-next-line no-console
+  console.log('[update-params]', params)
   detector.updateParameters(params)
 })
-defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, () => {
-  _logger('[get-input-byte-frequency-data]') // This could be noisy.
-  return Promise.resolve(detector.getInputByteFrequencyData())
+defineInvokeHandler(context, beatSyncGetInputByteFrequencyDataInvokeEventa, async () => {
+  // eslint-disable-next-line no-console
+  console.debug('[get-input-byte-frequency-data]') // This could be noisy.
+  return detector.getInputByteFrequencyData()
 })

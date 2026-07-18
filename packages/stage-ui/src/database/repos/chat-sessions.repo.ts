@@ -1,4 +1,4 @@
-import type { ChatCharacterSessionsIndex, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
+import type { ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { storage } from '../storage'
 
@@ -68,17 +68,20 @@ export const chatSessionsRepo = {
 
   async addTombstone(userId: string, cloudChatId: string) {
     const current = await this.getTombstones(userId)
-    if (current.includes(cloudChatId)) return
+    if (current.includes(cloudChatId))
+      return
     current.push(cloudChatId)
     await storage.setItemRaw(tombstoneKey(userId), current)
   },
 
   async removeTombstones(userId: string, cloudChatIds: string[]) {
-    if (cloudChatIds.length === 0) return
+    if (cloudChatIds.length === 0)
+      return
     const current = await this.getTombstones(userId)
     const drop = new Set(cloudChatIds)
-    const next = current.filter((id) => !drop.has(id))
-    if (next.length === current.length) return
+    const next = current.filter(id => !drop.has(id))
+    if (next.length === current.length)
+      return
     await storage.setItemRaw(tombstoneKey(userId), next)
   },
 
@@ -97,50 +100,55 @@ export const chatSessionsRepo = {
     const current = await this.getOutbox(userId)
     // Idempotent on messageId — re-queue overwrites in place rather than
     // duplicating, so a flap between online/offline doesn't multiply rows.
-    const existingIndex = current.findIndex((e) => e.messageId === entry.messageId)
-    if (existingIndex >= 0) current[existingIndex] = entry
-    else current.push(entry)
+    const existingIndex = current.findIndex(e => e.messageId === entry.messageId)
+    if (existingIndex >= 0)
+      current[existingIndex] = entry
+    else
+      current.push(entry)
     await storage.setItemRaw(outboxKey(userId), current)
   },
 
   async dequeueOutbox(userId: string, messageIds: string[]) {
-    if (messageIds.length === 0) return
+    if (messageIds.length === 0)
+      return
     const current = await this.getOutbox(userId)
     const drop = new Set(messageIds)
-    const next = current.filter((e) => !drop.has(e.messageId))
-    if (next.length === current.length) return
+    const next = current.filter(e => !drop.has(e.messageId))
+    if (next.length === current.length)
+      return
     await storage.setItemRaw(outboxKey(userId), next)
   },
 
-  async updateOutboxEntries(
-    userId: string,
-    updates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>>,
-  ) {
-    if (updates.length === 0) return
+  async updateOutboxEntries(userId: string, updates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>>) {
+    if (updates.length === 0)
+      return
     const current = await this.getOutbox(userId)
-    const byId = new Map(updates.map((u) => [u.messageId, u]))
+    const byId = new Map(updates.map(u => [u.messageId, u]))
     let changed = false
     const next = current.map((entry) => {
       const update = byId.get(entry.messageId)
-      if (!update) return entry
+      if (!update)
+        return entry
       changed = true
       return { ...entry, attempts: update.attempts, lastError: update.lastError }
     })
-    if (changed) await storage.setItemRaw(outboxKey(userId), next)
+    if (changed)
+      await storage.setItemRaw(outboxKey(userId), next)
   },
 
   /** Remove every outbox entry for a session. Called when the session is deleted locally. */
   async dropOutboxForSession(userId: string, sessionId: string) {
     const current = await this.getOutbox(userId)
-    const next = current.filter((e) => e.sessionId !== sessionId)
-    if (next.length === current.length) return
+    const next = current.filter(e => e.sessionId !== sessionId)
+    if (next.length === current.length)
+      return
     await storage.setItemRaw(outboxKey(userId), next)
   },
 
   async clear(userId: string) {
     const index = await this.getIndex(userId)
     if (index) {
-      for (const charIndex of Object.values(index.characters) as ChatCharacterSessionsIndex[]) {
+      for (const charIndex of Object.values(index.characters)) {
         for (const sessionId of Object.keys(charIndex.sessions)) {
           await this.deleteSession(sessionId)
         }

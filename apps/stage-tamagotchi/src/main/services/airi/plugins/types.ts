@@ -1,54 +1,66 @@
-import type { ManifestV1, PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, ExtensionManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
+import type {
+  WidgetsAddPayload,
+  WidgetSnapshot,
+  WidgetsUpdatePayload,
+} from '../../../../shared/eventa'
 
 /**
- * Runtime-facing plugin host service bundle returned by setup.
+ * Stable manifest id used as the runtime identity for one extension.
+ */
+export type ExtensionId = string
+
+/**
+ * Runtime-facing extension host service bundle returned by setup.
  *
  * Use when:
- * - Bootstrapping plugin infrastructure during Electron startup
+ * - Bootstrapping extension infrastructure during Electron startup
  * - Accessing loaded manifests after host initialization
  *
  * Expects:
- * - `host` is an initialized Electron runtime plugin host
+ * - `host` is an initialized Electron runtime extension host
  * - `manifests` reflect the latest loaded manifest snapshot at setup time
  *
  * Returns:
  * - A stable object containing host instance and manifest list
  */
-export interface PluginHostService {
-  host: PluginHost
-  manifests: ManifestV1[]
+export interface ExtensionHostService {
+  host: ExtensionHost
+  manifests: ExtensionManifestV1[]
 }
 
 /**
- * Describes the widget manager surface required by plugin-driven gamelet APIs.
+ * Describes the widget manager surface required by extension-driven gamelet APIs.
  *
  * Use when:
- * - `setupPluginHost(...)` needs to open, update, or close extension-ui widgets
+ * - `setupExtensionHost(...)` needs to open, update, or close extension-ui widgets
  *
  * Expects:
  * - Widget ids remain stable and may be reused for the same module id
  *
  * Returns:
- * - The minimal widget-manager contract consumed by the plugin host service
+ * - The minimal widget-manager contract consumed by the extension host service
  */
-export interface PluginHostGameletWidgetsManager {
+export interface ExtensionHostGameletWidgetsManager {
   openWindow: (params?: { id?: string }) => Promise<void>
   pushWidget: (payload: WidgetsAddPayload) => Promise<string>
   updateWidget: (payload: WidgetsUpdatePayload) => Promise<void>
   removeWidget: (id: string) => Promise<void>
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
-  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
-  onWidgetEvent: (listener: (event: { id: string; event: Record<string, unknown> }) => void) => () => void
+  requestWidgetIframe: <TResponse extends Record<string, unknown> = Record<string, unknown>>(
+    id: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number },
+  ) => Promise<TResponse>
 }
 
 /**
- * Configures the runtime dependencies required by `setupPluginHost(...)`.
+ * Configures the runtime dependencies required by `setupExtensionHost(...)`.
  *
  * Use when:
- * - Wiring the plugin host during Electron startup
- * - Providing test doubles for plugin-driven gamelet orchestration
+ * - Wiring the extension host during Electron startup
+ * - Providing test doubles for extension-driven gamelet orchestration
  *
  * Expects:
  * - `widgetsManager` is already initialized and ready to manage overlay widgets
@@ -56,12 +68,12 @@ export interface PluginHostGameletWidgetsManager {
  * Returns:
  * - N/A
  */
-export interface SetupPluginHostOptions {
-  widgetsManager: PluginHostGameletWidgetsManager
+export interface SetupExtensionHostOptions {
+  widgetsManager: ExtensionHostGameletWidgetsManager
 }
 
 /**
- * Binding announcement payload used by plugin-side runtime registration.
+ * Binding announcement payload used by extension-side runtime registration.
  *
  * Use when:
  * - Announcing a new module for a registered kit
@@ -75,7 +87,7 @@ export interface SetupPluginHostOptions {
  * Returns:
  * - N/A
  */
-export interface PluginHostBindingAnnounceInput {
+export interface ExtensionHostBindingAnnounceInput {
   moduleId: string
   kitId: string
   kitModuleType: string
@@ -95,49 +107,49 @@ export interface PluginHostBindingAnnounceInput {
  * Returns:
  * - N/A
  */
-export interface PluginHostBindingListOptions {
+export interface ExtensionHostBindingListOptions {
   ownerSessionId?: string
   kitId?: string
 }
 
 /**
- * Persisted plugin configuration snapshot.
+ * Persisted extension configuration snapshot.
  *
  * Use when:
- * - Reading/writing enabled and auto-reload plugin state
- * - Keeping known plugin manifest path metadata
+ * - Reading/writing enabled and auto-reload extension state
+ * - Keeping known extension manifest path metadata
  *
  * Expects:
- * - Arrays contain plugin manifest names
- * - `known` maps plugin names to canonical manifest paths
+ * - Arrays contain extension manifest ids
+ * - `known` maps extension manifest ids to canonical manifest paths
  *
  * Returns:
  * - N/A
  */
-export interface PluginConfig {
-  enabled: string[]
-  autoReload: string[]
-  known: Record<string, { path: string }>
+export interface ExtensionConfig {
+  enabled: ExtensionId[]
+  autoReload: ExtensionId[]
+  known: Record<ExtensionId, { path: string }>
 }
 
 /**
  * Internal manifest record with resolved location and package version.
  *
  * Use when:
- * - Loading plugin manifests from disk
+ * - Loading extension manifests from disk
  * - Resolving runtime entrypoints and extension asset metadata
  *
  * Expects:
  * - `manifest` is schema-validated
- * - `path` points to `plugin.airi.json`
- * - `rootDir` is the plugin root directory
+ * - `path` points to `extension.airi.json`
+ * - `rootDir` is the extension root directory
  * - `version` is discovered from package metadata or fallback
  *
  * Returns:
  * - N/A
  */
 export interface ManifestEntry {
-  manifest: ManifestV1
+  manifest: ExtensionManifestV1
   path: string
   rootDir: string
   version: string

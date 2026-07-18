@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -10,9 +11,10 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
+const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
-const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
+const { persistedVisionProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -24,26 +26,32 @@ const {
   isLoadingActiveProviderModels,
   activeProviderModelError,
 } = storeToRefs(visionStore)
-const { captureIntervalMs, captureCount, contextUpdateCount, lastCaptureAt, lastContextUpdateAt, isRunning } =
-  storeToRefs(visionProcessingStore)
-
+const {
+  captureIntervalMs,
+  captureCount,
+  contextUpdateCount,
+  lastCaptureAt,
+  lastContextUpdateAt,
+  isRunning,
+} = storeToRefs(visionProcessingStore)
 
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
 
-watch(
-  activeProvider,
-  async (provider, oldProvider) => {
-    if (!provider) return
+watch(activeProvider, async (provider, oldProvider) => {
+  if (!provider)
+    return
 
-    if (oldProvider !== undefined && oldProvider !== provider) {
-      visionStore.resetModelSelection()
-    }
+  if (oldProvider !== undefined && oldProvider !== provider) {
+    visionStore.resetModelSelection()
+  }
 
-    await visionStore.loadModelsForProvider(provider)
-  },
-  { immediate: true },
-)
+  await visionStore.loadModelsForProvider(provider)
+}, { immediate: true })
+
+watch([activeProvider, activeModel], ([provider, model]) => {
+  airiCardStore.updateActiveCardVision({ provider, model })
+})
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -59,16 +67,23 @@ function handleDeleteProvider(providerId: string) {
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
 const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
-const isOllamaVisionProvider = computed(() => activeProvider.value === 'ollama')
+const isOllamaVisionProvider = computed(() => activeProvider.value === 'vision-ollama')
+
+function canDeleteProvider(providerId: string) {
+  return !providerId.startsWith('official-provider') && !providerId.startsWith('vision-official-provider')
+}
 
 function formatRelativeTime(timestamp: number | null) {
-  if (!timestamp) return 'Never'
+  if (!timestamp)
+    return 'Never'
 
   const diffMs = Date.now() - timestamp
   const diffSeconds = Math.max(0, Math.floor(diffMs / 1000))
-  if (diffSeconds < 60) return `${diffSeconds}s ago`
+  if (diffSeconds < 60)
+    return `${diffSeconds}s ago`
   const diffMinutes = Math.floor(diffSeconds / 60)
-  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  if (diffMinutes < 60)
+    return `${diffMinutes}m ago`
   const diffHours = Math.floor(diffMinutes / 60)
   return `${diffHours}h ago`
 }
@@ -83,19 +98,17 @@ function formatRelativeTime(timestamp: number | null) {
             {{ t('settings.pages.providers.title') }}
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-400']">
-            <span>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}
-            </span>
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}</span>
           </div>
         </div>
         <div :class="['max-w-full']">
           <fieldset
-            v-if="persistedChatProvidersMetadata.length > 0"
-            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'of-x-auto', 'scroll-smooth']"
+            v-if="persistedVisionProvidersMetadata.length > 0"
+            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedChatProvidersMetadata"
+              v-for="metadata in persistedVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
@@ -105,7 +118,7 @@ function formatRelativeTime(timestamp: number | null) {
               :description="metadata.localizedDescription"
               @click="trackProviderClick(metadata.id, 'vision')"
             >
-              <template #topRight>
+              <template v-if="canDeleteProvider(metadata.id)" #topRight>
                 <button
                   type="button"
                   :class="[
@@ -139,16 +152,12 @@ function formatRelativeTime(timestamp: number | null) {
                     'dark:text-amber-300',
                   ]"
                 >
-                  {{
-                    t(
-                      'settings.pages.modules.consciousness.sections.section.provider-model-selection.health_check_failed',
-                    )
-                  }}
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.health_check_failed') }}
                 </div>
               </template>
             </RadioCardSimple>
             <RouterLink
-              to="/settings/providers"
+              to="/settings/providers#vision"
               :class="[
                 'relative',
                 'min-w-50',
@@ -170,21 +179,16 @@ function formatRelativeTime(timestamp: number | null) {
                 'justify-center',
               ]"
             >
-              <div
-                :class="['text-2xl', 'text-neutral-500', 'dark:text-neutral-500', 'i-solar:add-circle-line-duotone']"
-              />
+              <div :class="['text-2xl', 'text-neutral-500', 'dark:text-neutral-500', 'i-solar:add-circle-line-duotone']" />
               <div
                 :class="['absolute', 'inset-0', 'z--1', 'bg-dotted-neutral-200/80', 'dark:bg-dotted-neutral-700/50']"
-                :style="{
-                  'background-size': '10px 10px',
-                  'mask-image': 'linear-gradient(165deg, white 30%, transparent 50%)',
-                }"
+                :style="{ 'background-size': '10px 10px', 'mask-image': 'linear-gradient(165deg, white 30%, transparent 50%)' }"
               />
             </RouterLink>
           </fieldset>
           <div v-else>
             <RouterLink
-              to="/settings/providers"
+              to="/settings/providers#vision"
               :class="[
                 'flex',
                 'items-center',
@@ -202,53 +206,30 @@ function formatRelativeTime(timestamp: number | null) {
                 'dark:bg-neutral-800',
               ]"
             >
-              <div
-                :class="['text-2xl', 'text-amber-500', 'dark:text-amber-400', 'i-solar:warning-circle-line-duotone']"
-              />
+              <div :class="['text-2xl', 'text-amber-500', 'dark:text-amber-400', 'i-solar:warning-circle-line-duotone']" />
               <div :class="['flex', 'flex-col']">
                 <span :class="['font-medium']">
-                  {{
-                    t(
-                      'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_providers_configured_title',
-                    )
-                  }}
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_providers_configured_title') }}
                 </span>
                 <span :class="['text-sm', 'text-neutral-400', 'dark:text-neutral-500']">
-                  {{
-                    t(
-                      'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_providers_configured_description',
-                    )
-                  }}
+                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_providers_configured_description') }}
                 </span>
               </div>
-              <div
-                :class="[
-                  'ml-auto',
-                  'text-xl',
-                  'text-neutral-400',
-                  'dark:text-neutral-500',
-                  'i-solar:arrow-right-line-duotone',
-                ]"
-              />
+              <div :class="['ml-auto', 'text-xl', 'text-neutral-400', 'dark:text-neutral-500', 'i-solar:arrow-right-line-duotone']" />
             </RouterLink>
           </div>
         </div>
       </div>
     </div>
 
-    <div
-      v-if="activeProvider && supportsModelListing"
-      :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']"
-    >
+    <div v-if="activeProvider && supportsModelListing" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'md:text-2xl']">
             {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-400']">
-            <span>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
-            </span>
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
           </div>
         </div>
 
@@ -265,14 +246,15 @@ function formatRelativeTime(timestamp: number | null) {
           :error="activeProviderModelError"
         />
 
-        <Alert v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels" type="warning">
+        <Alert
+          v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
+          type="warning"
+        >
           <template #title>
             {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
           </template>
           <template #content>
-            {{
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description')
-            }}
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
           </template>
         </Alert>
 
@@ -280,37 +262,15 @@ function formatRelativeTime(timestamp: number | null) {
           <RadioCardManySelect
             v-model="activeModel"
             v-model:search-query="modelSearchQuery"
-            :items="providerModels.sort((a, b) => (a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0))"
+            :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
             :searchable="true"
-            :search-placeholder="
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')
-            "
-            :search-no-results-title="
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')
-            "
-            :search-no-results-description="
-              t(
-                'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description',
-                { query: modelSearchQuery },
-              )
-            "
-            :search-results-text="
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', {
-                count: '{count}',
-                total: '{total}',
-              })
-            "
-            :custom-input-placeholder="
-              t(
-                'settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder',
-              )
-            "
-            :expand-button-text="
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')
-            "
-            :collapse-button-text="
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')
-            "
+            :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+            :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+            :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: modelSearchQuery })"
+            :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+            :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+            :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+            :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
             @update:custom-value="updateCustomModelName"
           />
@@ -318,19 +278,14 @@ function formatRelativeTime(timestamp: number | null) {
       </div>
     </div>
 
-    <div
-      v-else-if="activeProvider && !supportsModelListing"
-      :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']"
-    >
+    <div v-else-if="activeProvider && !supportsModelListing" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
             {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-500']">
-            <span>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
-            </span>
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}</span>
           </div>
         </div>
 
@@ -354,11 +309,7 @@ function formatRelativeTime(timestamp: number | null) {
               {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported') }}
             </span>
             <span :class="['text-sm', 'text-primary-600', 'dark:text-primary-400']">
-              {{
-                t(
-                  'settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description',
-                )
-              }}
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}
             </span>
           </div>
         </div>
@@ -381,12 +332,8 @@ function formatRelativeTime(timestamp: number | null) {
               'dark:border-neutral-700',
               'dark:bg-neutral-900',
             ]"
-            :placeholder="
-              t(
-                'settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder',
-              )
-            "
-          />
+            :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+          >
         </div>
       </div>
     </div>
@@ -409,68 +356,53 @@ function formatRelativeTime(timestamp: number | null) {
           :min="500"
           :max="15000"
           :step="250"
-          :format-value="(value) => `${(value / 1000).toFixed(2)}s`"
+          :format-value="value => `${(value / 1000).toFixed(2)}s`"
         />
 
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
-          <div
-            :class="[
-              'rounded-lg',
-              'border',
-              'border-neutral-200',
-              'bg-white',
-              'p-3',
-              'dark:border-neutral-800',
-              'dark:bg-neutral-900',
-            ]"
-          >
-            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">Ticker</div>
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Ticker
+            </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
               {{ isRunning ? 'Active' : 'Idle' }}
             </div>
-            <div :class="['text-xs', 'text-neutral-400']">Last capture {{ formattedLastCapture }}</div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              Last capture {{ formattedLastCapture }}
+            </div>
           </div>
 
-          <div
-            :class="[
-              'rounded-lg',
-              'border',
-              'border-neutral-200',
-              'bg-white',
-              'p-3',
-              'dark:border-neutral-800',
-              'dark:bg-neutral-900',
-            ]"
-          >
-            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">Captures</div>
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Captures
+            </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
               {{ captureCount }}
             </div>
-            <div :class="['text-xs', 'text-neutral-400']">Last update {{ formattedLastCapture }}</div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              Last update {{ formattedLastCapture }}
+            </div>
           </div>
 
-          <div
-            :class="[
-              'rounded-lg',
-              'border',
-              'border-neutral-200',
-              'bg-white',
-              'p-3',
-              'dark:border-neutral-800',
-              'dark:bg-neutral-900',
-            ]"
-          >
-            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">Context updates</div>
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Context updates
+            </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
               {{ contextUpdateCount }}
             </div>
-            <div :class="['text-xs', 'text-neutral-400']">Last update {{ formattedLastContextUpdate }}</div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              Last update {{ formattedLastContextUpdate }}
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div v-if="isOllamaVisionProvider" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <div
+      v-if="isOllamaVisionProvider"
+      :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']"
+    >
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">

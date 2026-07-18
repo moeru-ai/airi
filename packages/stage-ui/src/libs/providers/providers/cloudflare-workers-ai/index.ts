@@ -13,51 +13,46 @@ export const providerCloudflareWorkersAI = defineProvider({
   icon: 'i-simple-icons:cloudflare',
   iconColor: 'i-lobe-icons:cloudflare-color',
 
-  createProviderConfig: ({ t }) =>
-    z.object({
-      apiKey: z.string().meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t(
-          'settings.pages.providers.provider.cloudflare-workers-ai.fields.field.api-key.placeholder',
-        ),
-        type: 'password',
-      }),
-      accountId: z.string().meta({
-        labelLocalized: t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description',
-        ),
-        placeholderLocalized: t(
-          'settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder',
-        ),
-      }),
+  createProviderConfig: ({ t }) => z.object({
+    apiKey: z.string().meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.api-key.placeholder'),
+      type: 'password',
     }),
+    accountId: z.string().meta({
+      labelLocalized: t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.label'),
+      descriptionLocalized: t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.description'),
+      placeholderLocalized: t('settings.pages.providers.provider.cloudflare-workers-ai.fields.field.account-id.placeholder'),
+    }),
+  }),
   createProvider(config) {
     return createWorkersAI(config.apiKey, config.accountId)
   },
   validationRequiredWhen: (config) => {
-    return Boolean(config.apiKey) && Boolean(config.accountId)
+    return !!config.apiKey && !!config.accountId
   },
   validators: {
     validateConfig: [
       ({ t }) => ({
         id: 'cloudflare-workers-ai:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: (config) => {
+        validator: async (config) => {
           const errors: Array<{ error: unknown }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const accountId = typeof config.accountId === 'string' ? config.accountId.trim() : ''
 
-          if (!apiKey) errors.push({ error: new Error('API token is required.') })
-          if (!accountId) errors.push({ error: new Error('Account ID is required.') })
+          if (!apiKey)
+            errors.push({ error: new Error('API token is required.') })
+          if (!accountId)
+            errors.push({ error: new Error('Account ID is required.') })
 
-          return Promise.resolve({
+          return {
             errors,
-            reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
+            reason: errors.length > 0 ? errors.map(item => (item.error as Error).message).join(', ') : '',
             reasonKey: '',
             valid: errors.length === 0,
-          })
+          }
         },
       }),
     ],

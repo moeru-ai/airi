@@ -25,7 +25,7 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
   const listPluginXsaiToolDefinitions = useElectronEventaInvoke(electronPluginListXsaiTools)
   const invokePluginTool = useElectronEventaInvoke(electronPluginInvokeTool)
 
-  function refresh() {
+  async function refresh() {
     const abortController = new AbortController()
     const timeout = setTimeout(() => abortController.abort(new Error(`Timed out after ${5_000}ms`)), 5_000)
 
@@ -42,24 +42,23 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
         .then((definitions) => {
           llmToolsetPromptsStore.registerToolsetPrompts(
             'plugin-tools',
-            definitions.prompts.map((definition) => ({
-              id: `${definition.ownerPluginId}:${definition.id}`,
+            definitions.prompts.map(definition => ({
+              id: `${definition.ownerExtensionId}:${definition.id}`,
               title: definition.prompt.title,
               content: definition.prompt.content,
             })),
           )
 
-          return definitions.tools.map((definition) =>
+          return definitions.tools.map(definition =>
             rawTool({
               name: definition.name,
               description: definition.description,
               parameters: definition.parameters,
-              execute: (input) =>
-                invokePluginTool({
-                  ownerPluginId: definition.ownerPluginId,
-                  name: definition.name,
-                  input,
-                }),
+              execute: async input => invokePluginTool({
+                ownerExtensionId: definition.ownerExtensionId,
+                name: definition.name,
+                input,
+              }),
             }),
           )
         }),

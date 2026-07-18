@@ -1,12 +1,9 @@
 <script setup lang="ts">
-const props = withDefaults(
-  defineProps<{
-    animation?: 'pulse' | 'wave' | 'none'
-  }>(),
-  {
-    animation: 'pulse',
-  },
-)
+const props = withDefaults(defineProps<{
+  animation?: 'pulse' | 'wave' | 'none'
+}>(), {
+  animation: 'pulse',
+})
 </script>
 
 <template>

@@ -3,20 +3,20 @@ import type { PromptProjectionSnapshot } from '@proj-airi/stage-ui/stores/devtoo
 
 import { Section } from '@proj-airi/stage-ui/components'
 
-withDefaults(
-  defineProps<{
-    currentPromptText: string
-    currentSourceCount: number
-    lastProjection?: PromptProjectionSnapshot
-  }>(),
-  {
-    lastProjection: undefined,
-  },
-)
+defineProps<{
+  currentPromptText: string
+  currentSourceCount: number
+  lastProjection?: PromptProjectionSnapshot
+}>()
 </script>
 
 <template>
-  <Section title="Next Prompt Projection" icon="i-solar:document-text-bold-duotone" inner-class="gap-3" :expand="true">
+  <Section
+    title="Next Prompt Projection"
+    icon="i-solar:document-text-bold-duotone"
+    inner-class="gap-3"
+    :expand="true"
+  >
     <div
       :class="[
         'rounded-xl',
@@ -27,20 +27,12 @@ withDefaults(
         'p-4',
       ]"
     >
-      <div
-        :class="[
-          'text-xs',
-          'font-medium',
-          'uppercase',
-          'tracking-[0.08em]',
-          currentPromptText ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-400 dark:text-neutral-500',
-        ]"
-      >
+      <div :class="['text-xs', 'font-medium', 'uppercase', 'tracking-[0.08em]', currentPromptText ? 'text-emerald-600 dark:text-emerald-400' : 'text-neutral-400 dark:text-neutral-500']">
         Prompt Readiness
       </div>
       <div v-if="currentPromptText" :class="['mt-2', 'text-sm', 'text-neutral-700', 'dark:text-neutral-200']">
-        {{ currentSourceCount }} retained source bucket{{ currentSourceCount === 1 ? '' : 's' }} are ready for the next
-        compose in this runtime. `Last Actual Compose` stays empty until a real send starts.
+        {{ currentSourceCount }} retained source bucket{{ currentSourceCount === 1 ? '' : 's' }} are ready for the next compose in this runtime.
+        `Last Actual Compose` stays empty until a real send starts.
       </div>
       <div v-else :class="['mt-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
         No retained contexts are ready to inject right now.
@@ -59,16 +51,7 @@ withDefaults(
           'dark:bg-neutral-950/60',
         ]"
       >
-        <div
-          :class="[
-            'text-xs',
-            'font-medium',
-            'uppercase',
-            'tracking-[0.08em]',
-            'text-neutral-400',
-            'dark:text-neutral-500',
-          ]"
-        >
+        <div :class="['text-xs', 'font-medium', 'uppercase', 'tracking-[0.08em]', 'text-neutral-400', 'dark:text-neutral-500']">
           Current Derived Prompt Block
         </div>
         <div :class="['mt-2', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
@@ -76,21 +59,8 @@ withDefaults(
         </div>
         <pre
           v-if="currentPromptText"
-          :class="[
-            'mt-3',
-            'max-h-80',
-            'overflow-auto',
-            'whitespace-pre-wrap',
-            'break-words',
-            'rounded-lg',
-            'bg-neutral-900/90',
-            'p-3',
-            'text-xs',
-            'font-mono',
-            'text-neutral-100',
-          ]"
-          >{{ currentPromptText }}</pre
-        >
+          :class="['mt-3', 'max-h-80', 'overflow-auto', 'whitespace-pre-wrap', 'break-words', 'rounded-lg', 'bg-neutral-900/90', 'p-3', 'text-xs', 'font-mono', 'text-neutral-100']"
+        >{{ currentPromptText }}</pre>
         <div v-else :class="['mt-3', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
           No retained contexts to inject right now.
         </div>
@@ -108,16 +78,7 @@ withDefaults(
         ]"
       >
         <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
-          <div
-            :class="[
-              'text-xs',
-              'font-medium',
-              'uppercase',
-              'tracking-[0.08em]',
-              'text-neutral-400',
-              'dark:text-neutral-500',
-            ]"
-          >
+          <div :class="['text-xs', 'font-medium', 'uppercase', 'tracking-[0.08em]', 'text-neutral-400', 'dark:text-neutral-500']">
             Last Actual Compose
           </div>
           <span v-if="lastProjection" :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
@@ -134,21 +95,8 @@ withDefaults(
           </div>
           <pre
             v-if="lastProjection.promptText"
-            :class="[
-              'mt-3',
-              'max-h-80',
-              'overflow-auto',
-              'whitespace-pre-wrap',
-              'break-words',
-              'rounded-lg',
-              'bg-neutral-900/90',
-              'p-3',
-              'text-xs',
-              'font-mono',
-              'text-neutral-100',
-            ]"
-            >{{ lastProjection.promptText }}</pre
-          >
+            :class="['mt-3', 'max-h-80', 'overflow-auto', 'whitespace-pre-wrap', 'break-words', 'rounded-lg', 'bg-neutral-900/90', 'p-3', 'text-xs', 'font-mono', 'text-neutral-100']"
+          >{{ lastProjection.promptText }}</pre>
           <div v-else :class="['mt-3', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
             The last compose had no injected context block.
           </div>
@@ -157,19 +105,7 @@ withDefaults(
             <summary :class="['cursor-pointer', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
               Details
             </summary>
-            <pre
-              :class="[
-                'mt-2',
-                'max-h-72',
-                'overflow-auto',
-                'rounded-lg',
-                'bg-neutral-900/90',
-                'p-3',
-                'text-xs',
-                'text-neutral-100',
-              ]"
-              >{{ JSON.stringify(lastProjection, null, 2) }}</pre
-            >
+            <pre :class="['mt-2', 'max-h-72', 'overflow-auto', 'rounded-lg', 'bg-neutral-900/90', 'p-3', 'text-xs', 'text-neutral-100']">{{ JSON.stringify(lastProjection, null, 2) }}</pre>
           </details>
         </template>
 

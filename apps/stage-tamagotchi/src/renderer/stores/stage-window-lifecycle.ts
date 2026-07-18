@@ -35,20 +35,23 @@ export const useStageWindowLifecycleStore = defineStore('stageWindowLifecycle', 
   }
 
   async function initializeWindowLifecycleBridge() {
-    if (initialized) return
+    if (initialized)
+      return
 
     initialized = true
 
     const context = getElectronEventaContext()
     context.on(electronWindowLifecycleChanged, (event) => {
-      if (!event?.body) return
+      if (!event?.body)
+        return
       updateWindowLifecycle(event.body)
     })
 
     try {
       const getWindowLifecycleState = defineInvoke(context, electronGetWindowLifecycleState)
       updateWindowLifecycle(await getWindowLifecycleState())
-    } catch (error) {
+    }
+    catch (error) {
       console.warn('[StageWindowLifecycle] Failed to fetch initial window lifecycle state.', error)
     }
   }

@@ -14,26 +14,52 @@ const options = [
 </script>
 
 <template>
-  <Story title="Combobox Select" group="form" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Combobox Select"
+    group="form"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="basic" title="Basic Combobox Select">
+    <Variant
+      id="basic"
+      title="Basic Combobox Select"
+    >
       <div>
-        <ComboboxSelect v-model="singleValue" :options="options" placeholder="Choose an option..." />
+        <ComboboxSelect
+          v-model="singleValue"
+          :options="options"
+          placeholder="Choose an option..."
+        />
       </div>
     </Variant>
 
-    <Variant id="disabled" title="Disabled Combobox Select">
+    <Variant
+      id="disabled"
+      title="Disabled Combobox Select"
+    >
       <div>
-        <ComboboxSelect v-model="disabledValue" :options="options" placeholder="Disabled select" disabled />
+        <ComboboxSelect
+          v-model="disabledValue"
+          :options="options"
+          placeholder="Disabled select"
+          disabled
+        />
       </div>
     </Variant>
 
-    <Variant id="custom-width" title="Custom Width">
+    <Variant
+      id="custom-width"
+      title="Custom Width"
+    >
       <div class="w-[300px]">
-        <ComboboxSelect v-model="singleValue" :options="options" placeholder="Choose an option..." />
+        <ComboboxSelect
+          v-model="singleValue"
+          :options="options"
+          placeholder="Choose an option..."
+        />
       </div>
     </Variant>
   </Story>

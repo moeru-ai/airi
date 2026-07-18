@@ -28,7 +28,7 @@ export interface PluginIdentity {
    */
   version?: string
   /**
-   * Optional labels attached to the plugin manifest.
+   * Optional labels attached to the extension manifest.
    * Example: { env: "prod", app: "telegram", devtools: "true" }.
    */
   labels?: Record<string, string>
@@ -55,7 +55,72 @@ export interface ModuleIdentity {
   labels?: Record<string, string>
 }
 
-export type MetadataEventSource = ModuleIdentity
+/**
+ * Identifies an extension package/session that is loaded by an extension host.
+ *
+ * Extension identity is the package/session-level scope. Modules registered by
+ * the extension get their own {@link ExtensionModuleIdentity}.
+ */
+export interface ExtensionIdentity {
+  /**
+   * Stable extension identifier from `extension.airi.json`.
+   */
+  id: string
+  /**
+   * Optional semantic version for the extension package.
+   */
+  version?: string
+  /**
+   * Optional runtime session id assigned by the host for this loaded extension.
+   */
+  sessionId?: string
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+/**
+ * Identifies one runtime module registered by an extension setup function.
+ */
+export interface ExtensionModuleIdentity {
+  /**
+   * Stable module id within one extension session.
+   */
+  id: string
+  /**
+   * Owning extension session identity.
+   */
+  extension: ExtensionIdentity
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+/**
+ * Identifies a kit API surface that can be used by extension modules.
+ */
+export interface ExtensionKitIdentity {
+  /**
+   * Stable kit id.
+   */
+  id: string
+  /**
+   * Optional semantic version for compatibility checks.
+   */
+  version?: string
+  /**
+   * Optional owner for future extension-provided kits. Host-provided kits omit this field.
+   */
+  ownerExtension?: ExtensionIdentity
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+export type MetadataEventSource = ModuleIdentity | ExtensionIdentity | ExtensionModuleIdentity | ExtensionKitIdentity
 
 /**
  * Static schema metadata for module configuration.
@@ -150,22 +215,22 @@ export interface ModuleContribution {
 /**
  * Lifecycle phases for module orchestration and UX.
  */
-export type ModulePhase =
-  | 'announced'
-  | 'preparing'
-  | 'prepared'
-  | 'configuration-needed'
-  | 'configured'
-  | 'ready'
-  | 'failed'
+export type ModulePhase
+  = | 'announced'
+    | 'preparing'
+    | 'prepared'
+    | 'configuration-needed'
+    | 'configured'
+    | 'ready'
+    | 'failed'
 
-export type Localizable =
-  | string
-  | {
-      /**
-       * Localization key owned by the module.
-       * Example: "config.deprecated.model_driver.legacy"
-       */
+export type Localizable
+  = | string
+    | {
+    /**
+     * Localization key owned by the module.
+     * Example: "config.deprecated.model_driver.legacy"
+     */
       key: string
       /**
        * Fallback display string when translation is unavailable.
@@ -230,7 +295,7 @@ export interface ModuleConfigPlan {
   /**
    * Invalid fields with reasons (runtime validation result).
    */
-  invalid?: Array<{ path: string; reason: string }>
+  invalid?: Array<{ path: string, reason: string }>
   /**
    * Recommended defaults computed at runtime (may be environment-specific).
    */
@@ -274,7 +339,7 @@ export interface ModuleConfigValidation {
   /**
    * Invalid fields with reasons (only for invalid).
    */
-  invalid?: Array<{ path: string; reason: Localizable }>
+  invalid?: Array<{ path: string, reason: Localizable }>
   /**
    * Non-blocking issues (e.g., deprecations, best-practice notices).
    */
@@ -415,7 +480,8 @@ export interface ProtocolEventaInvokeMetadata {
   delivery?: Partial<DeliveryConfig>
 }
 
-export type ProtocolEventa<P = undefined> = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
+export type ProtocolEventa<P = undefined>
+  = Eventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>
 
 function defineProtocolEventa<P = undefined>(
   id: string,
@@ -428,16 +494,16 @@ function defineProtocolEventa<P = undefined>(
   return defineEventa<P, ProtocolEventaMetadata, ProtocolEventaInvokeMetadata>(id, options)
 }
 
-export type RouteTargetExpression =
-  | { type: 'and'; all: RouteTargetExpression[] }
-  | { type: 'or'; any: RouteTargetExpression[] }
-  | { type: 'glob'; glob: string; inverted?: boolean }
-  | { type: 'ids'; ids: string[]; inverted?: boolean }
-  | { type: 'plugin'; plugins: string[]; inverted?: boolean }
-  | { type: 'instance'; instances: string[]; inverted?: boolean }
-  | { type: 'label'; selectors: string[]; inverted?: boolean }
-  | { type: 'module'; modules: string[]; inverted?: boolean }
-  | { type: 'source'; sources: string[]; inverted?: boolean }
+export type RouteTargetExpression
+  = | { type: 'and', all: RouteTargetExpression[] }
+    | { type: 'or', any: RouteTargetExpression[] }
+    | { type: 'glob', glob: string, inverted?: boolean }
+    | { type: 'ids', ids: string[], inverted?: boolean }
+    | { type: 'plugin', plugins: string[], inverted?: boolean }
+    | { type: 'instance', instances: string[], inverted?: boolean }
+    | { type: 'label', selectors: string[], inverted?: boolean }
+    | { type: 'module', modules: string[], inverted?: boolean }
+    | { type: 'source', sources: string[], inverted?: boolean }
 
 export interface RouteConfig {
   destinations?: Array<string | RouteTargetExpression>
@@ -464,13 +530,13 @@ export enum WebSocketEventSource {
 interface InputSource {
   'stage-web': boolean
   'stage-tamagotchi': boolean
-  discord: Discord
+  'discord': Discord
 }
 
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, unknown>, unknown>[]>
+    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
   }
@@ -490,12 +556,14 @@ export interface ContextUpdateDestinationList {
   exclude?: Array<string>
 }
 
-export type ContextUpdateDestinationFilter = ContextUpdateDestinationAll | ContextUpdateDestinationList
+export type ContextUpdateDestinationFilter
+  = | ContextUpdateDestinationAll
+    | ContextUpdateDestinationList
 
 export interface ContextUpdate<
-  Metadata extends Record<string, unknown> = Record<string, unknown>,
+  Metadata extends Record<string, any> = Record<string, unknown>,
   // eslint-disable-next-line ts/no-unnecessary-type-constraint
-  Content extends unknown = undefined,
+  Content extends any = undefined,
 > {
   id: string
   /**
@@ -518,11 +586,9 @@ export interface InputMessageOverrides {
   messagePrefix?: string
 }
 
-export type InputContextUpdate = Omit<
-  ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>,
-  'id' | 'contextId'
-> &
-  Partial<Pick<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>>
+export type InputContextUpdate
+  = Omit<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>
+    & Partial<Pick<ContextUpdate<Record<string, unknown>, string | CommonContentPart[]>, 'id' | 'contextId'>>
 
 export interface WebSocketEventInputTextBase {
   text: string
@@ -531,8 +597,7 @@ export interface WebSocketEventInputTextBase {
   contextUpdates?: InputContextUpdate[]
 }
 
-export type WebSocketEventInputText = WebSocketEventInputTextBase &
-  Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+export type WebSocketEventInputText = WebSocketEventInputTextBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
 
 export interface WebSocketEventInputTextVoiceBase {
   transcription: string
@@ -541,8 +606,7 @@ export interface WebSocketEventInputTextVoiceBase {
   contextUpdates?: InputContextUpdate[]
 }
 
-export type WebSocketEventInputTextVoice = WebSocketEventInputTextVoiceBase &
-  Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+export type WebSocketEventInputTextVoice = WebSocketEventInputTextVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
 
 export interface WebSocketEventInputVoiceBase {
   audio: ArrayBuffer
@@ -550,15 +614,14 @@ export interface WebSocketEventInputVoiceBase {
   contextUpdates?: InputContextUpdate[]
 }
 
-export type WebSocketEventInputVoice = WebSocketEventInputVoiceBase &
-  Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
+export type WebSocketEventInputVoice = WebSocketEventInputVoiceBase & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>>
 
 export type InputEventData = WebSocketEventInputText | WebSocketEventInputTextVoice | WebSocketEventInputVoice
 
-export type InputEventEnvelope =
-  | { type: 'input:text'; data: WebSocketEventInputText }
-  | { type: 'input:text:voice'; data: WebSocketEventInputTextVoice }
-  | { type: 'input:voice'; data: WebSocketEventInputVoice }
+export type InputEventEnvelope
+  = | { type: 'input:text', data: WebSocketEventInputText }
+    | { type: 'input:text:voice', data: WebSocketEventInputTextVoice }
+    | { type: 'input:voice', data: WebSocketEventInputVoice }
 
 export interface EventBaseMetadata {
   source?: ModuleIdentity
@@ -590,6 +653,57 @@ export type WithOutputSource<Source extends keyof OutputSource> = {
 // 10) module:status (ready)
 // 11) module:status:change (to re-run phases)
 
+interface PeerAuthenticateEvent {
+  token?: string
+  peerId?: string
+}
+
+interface PeerAuthenticatedEvent {
+  authenticated: boolean
+  peerId: string
+}
+
+interface PeerStatusEvent {
+  peerId: string
+  phase: 'connected' | 'authenticated' | 'de-authenticated' | 'closed' | 'failed'
+  reason?: string
+}
+
+interface PeerDeAuthenticatedEvent {
+  peerId: string
+  reason?: string
+}
+
+interface ExtensionAuthenticateEvent {
+  identity: ExtensionIdentity
+  token?: string
+}
+
+interface ExtensionAuthenticatedEvent {
+  identity: ExtensionIdentity
+  authenticated: boolean
+  reason?: string
+}
+
+interface ExtensionAnnounceEvent {
+  identity: ExtensionIdentity
+  permissions?: ModulePermissionDeclaration
+}
+
+interface ExtensionModuleAnnounceEvent<C = undefined> {
+  name: string
+  identity: ExtensionModuleIdentity
+  possibleEvents: Array<(keyof ProtocolEvents<C>)>
+  permissions?: ModulePermissionDeclaration
+  configSchema?: ModuleConfigSchema
+  dependencies?: ModuleDependency[]
+}
+
+interface ExtensionKitAnnounceEvent {
+  identity: ExtensionKitIdentity
+  capabilities?: ModuleCapability[]
+}
+
 interface ModuleAuthenticateEvent {
   token: string
 }
@@ -616,7 +730,7 @@ export interface RegistryModulesSyncEvent {
   modules: Array<{
     name: string
     index?: number
-    identity: ModuleIdentity
+    identity: MetadataEventSource
   }>
 }
 
@@ -632,7 +746,7 @@ interface ErrorPermissionEvent {
 interface ModuleAnnounceEvent<C = undefined> {
   name: string
   identity: ModuleIdentity
-  possibleEvents: Array<keyof ProtocolEvents<C>>
+  possibleEvents: Array<(keyof ProtocolEvents<C>)>
   permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
@@ -653,14 +767,15 @@ interface ModuleDeAnnouncedEvent {
 interface RegistryModulesHealthUnhealthyEvent {
   name: string
   index?: number
-  identity: ModuleIdentity
+  identity: MetadataEventSource
   reason?: string
 }
 
 interface RegistryModulesHealthHealthyEvent {
   name: string
   index?: number
-  identity: ModuleIdentity
+  identity: MetadataEventSource
+
 }
 
 /**
@@ -744,7 +859,7 @@ interface ModulePermissionsDeniedEvent {
  * Emitted with the module's reconciled current permission snapshot.
  *
  * Typical use cases:
- * - bootstrapping plugin runtime state after startup or reload
+ * - bootstrapping extension runtime state after startup or reload
  * - synchronizing UI/debug tools with the final requested vs granted view
  *
  * Protocol expectations:
@@ -950,13 +1065,11 @@ interface UiConfigureEvent<C = undefined> {
 
 type OutputGenAiChatToolCallEvent = {
   toolCalls: ToolMessage[]
-} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> &
-  Partial<WithOutputSource<'gen-ai:chat'>>
+} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
 type OutputGenAiChatMessageEvent = {
   message: AssistantMessage
-} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> &
-  Partial<WithOutputSource<'gen-ai:chat'>>
+} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
 interface OutputGenAiChatUsage {
   promptTokens: number
@@ -969,8 +1082,7 @@ type OutputGenAiChatCompleteEvent = {
   message: AssistantMessage
   toolCalls: ToolMessage[]
   usage: OutputGenAiChatUsage
-} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> &
-  Partial<WithOutputSource<'gen-ai:chat'>>
+} & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
 interface SparkNotifyEvent {
   id: string
@@ -1046,17 +1158,32 @@ interface TransportConnectionHeartbeatEvent {
 
 type ContextUpdateEvent = ContextUpdate
 
+export const peerAuthenticate = defineEventa<PeerAuthenticateEvent>('peer:authenticate')
+export const peerAuthenticated = defineEventa<PeerAuthenticatedEvent>('peer:authenticated')
+export const peerStatus = defineEventa<PeerStatusEvent>('peer:status')
+export const peerDeAuthenticated = defineEventa<PeerDeAuthenticatedEvent>('peer:de-authenticated')
+
+export const extensionAuthenticate = defineEventa<ExtensionAuthenticateEvent>('extension:authenticate')
+export const extensionAuthenticated = defineEventa<ExtensionAuthenticatedEvent>('extension:authenticated')
+export const extensionAnnounce = defineEventa<ExtensionAnnounceEvent>('extension:announce')
+export const extensionAnnounced = defineEventa<ExtensionAnnounceEvent>('extension:announced')
+export const extensionDeAnnounced = defineEventa<ExtensionAnnounceEvent & { reason?: string }>('extension:de-announced')
+
+export const extensionModuleAnnounce = defineEventa<ExtensionModuleAnnounceEvent>('extension:module:announce')
+export const extensionModuleAnnounced = defineEventa<ExtensionModuleAnnounceEvent>('extension:module:announced')
+export const extensionModuleDeAnnounced = defineEventa<ExtensionModuleAnnounceEvent & { reason?: string }>('extension:module:de-announced')
+
+export const extensionKitAnnounce = defineEventa<ExtensionKitAnnounceEvent>('extension:kit:announce')
+export const extensionKitAnnounced = defineEventa<ExtensionKitAnnounceEvent>('extension:kit:announced')
+export const extensionKitDeAnnounced = defineEventa<ExtensionKitAnnounceEvent & { reason?: string }>('extension:kit:de-announced')
+
 export const moduleAuthenticate = defineEventa<ModuleAuthenticateEvent>('module:authenticate')
 export const moduleAuthenticated = defineEventa<ModuleAuthenticatedEvent>('module:authenticated')
 export const moduleCompatibilityRequest = defineEventa<ModuleCompatibilityRequestEvent>('module:compatibility:request')
 export const moduleCompatibilityResult = defineEventa<ModuleCompatibilityResultEvent>('module:compatibility:result')
 export const registryModulesSync = defineEventa<RegistryModulesSyncEvent>('registry:modules:sync')
-export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealthUnhealthyEvent>(
-  'registry:modules:health:unhealthy',
-)
-export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>(
-  'registry:modules:health:healthy',
-)
+export const registryModulesHealthUnhealthy = defineEventa<RegistryModulesHealthUnhealthyEvent>('registry:modules:health:unhealthy')
+export const registryModulesHealthHealthy = defineEventa<RegistryModulesHealthHealthyEvent>('registry:modules:health:healthy')
 
 export const error = defineEventa<ErrorEvent>('error')
 /** Permission-check failure event. See `ModulePermissionError`. */
@@ -1081,81 +1208,34 @@ export const modulePrepared = defineEventa<ModulePreparedEvent>('module:prepared
 export const moduleConfigurationNeeded = defineEventa<ModuleConfigurationNeededEvent>('module:configuration:needed')
 export const moduleStatus = defineEventa<ModuleStatusEvent>('module:status')
 
-export const moduleConfigurationValidateRequest = defineEventa<ModuleConfigurationValidateRequestEvent>(
-  'module:configuration:validate:request',
-)
-export const moduleConfigurationValidateResponse = defineEventa<ModuleConfigurationValidateResponseEvent>(
-  'module:configuration:validate:response',
-)
-export const moduleConfigurationValidateStatus = defineEventa<ModuleConfigurationValidateStatusEvent>(
-  'module:configuration:validate:status',
-)
-export const moduleConfigurationPlanRequest = defineEventa<ModuleConfigurationPlanRequestEvent>(
-  'module:configuration:plan:request',
-)
-export const moduleConfigurationPlanResponse = defineEventa<ModuleConfigurationPlanResponseEvent>(
-  'module:configuration:plan:response',
-)
-export const moduleConfigurationPlanStatus = defineEventa<ModuleConfigurationPlanStatusEvent>(
-  'module:configuration:plan:status',
-)
+export const moduleConfigurationValidateRequest = defineEventa<ModuleConfigurationValidateRequestEvent>('module:configuration:validate:request')
+export const moduleConfigurationValidateResponse = defineEventa<ModuleConfigurationValidateResponseEvent>('module:configuration:validate:response')
+export const moduleConfigurationValidateStatus = defineEventa<ModuleConfigurationValidateStatusEvent>('module:configuration:validate:status')
+export const moduleConfigurationPlanRequest = defineEventa<ModuleConfigurationPlanRequestEvent>('module:configuration:plan:request')
+export const moduleConfigurationPlanResponse = defineEventa<ModuleConfigurationPlanResponseEvent>('module:configuration:plan:response')
+export const moduleConfigurationPlanStatus = defineEventa<ModuleConfigurationPlanStatusEvent>('module:configuration:plan:status')
 export const moduleConfigurationCommit = defineEventa<ModuleConfigurationCommitEvent>('module:configuration:commit')
-export const moduleConfigurationCommitStatus = defineEventa<ModuleConfigurationCommitStatusEvent>(
-  'module:configuration:commit:status',
-)
-export const moduleConfigurationConfigured = defineEventa<ModuleConfigurationConfiguredEvent>(
-  'module:configuration:configured',
-)
+export const moduleConfigurationCommitStatus = defineEventa<ModuleConfigurationCommitStatusEvent>('module:configuration:commit:status')
+export const moduleConfigurationConfigured = defineEventa<ModuleConfigurationConfiguredEvent>('module:configuration:configured')
 
-export const moduleContributeCapabilityOffer = defineEventa<ModuleContributeCapabilityOfferEvent>(
-  'module:contribute:capability:offer',
-)
-export const moduleContributeCapabilityConfigurationNeeded =
-  defineEventa<ModuleContributeCapabilityConfigurationNeededEvent>('module:contribute:capability:configuration:needed')
-export const moduleContributeCapabilityConfigurationValidateRequest =
-  defineEventa<ModuleContributeCapabilityConfigurationValidateRequestEvent>(
-    'module:contribute:capability:configuration:validate:request',
-  )
-export const moduleContributeCapabilityConfigurationValidateResponse =
-  defineEventa<ModuleContributeCapabilityConfigurationValidateResponseEvent>(
-    'module:contribute:capability:configuration:validate:response',
-  )
-export const moduleContributeCapabilityConfigurationValidateStatus =
-  defineEventa<ModuleContributeCapabilityConfigurationValidateStatusEvent>(
-    'module:contribute:capability:configuration:validate:status',
-  )
-export const moduleContributeCapabilityConfigurationPlanRequest =
-  defineEventa<ModuleContributeCapabilityConfigurationPlanRequestEvent>(
-    'module:contribute:capability:configuration:plan:request',
-  )
-export const moduleContributeCapabilityConfigurationPlanResponse =
-  defineEventa<ModuleContributeCapabilityConfigurationPlanResponseEvent>(
-    'module:contribute:capability:configuration:plan:response',
-  )
-export const moduleContributeCapabilityConfigurationPlanStatus =
-  defineEventa<ModuleContributeCapabilityConfigurationPlanStatusEvent>(
-    'module:contribute:capability:configuration:plan:status',
-  )
-export const moduleContributeCapabilityConfigurationCommit =
-  defineEventa<ModuleContributeCapabilityConfigurationCommitEvent>('module:contribute:capability:configuration:commit')
-export const moduleContributeCapabilityConfigurationCommitStatus =
-  defineEventa<ModuleContributeCapabilityConfigurationCommitStatusEvent>(
-    'module:contribute:capability:configuration:commit:status',
-  )
-export const moduleContributeCapabilityConfigurationConfigured =
-  defineEventa<ModuleContributeCapabilityConfigurationConfiguredEvent>(
-    'module:contribute:capability:configuration:configured',
-  )
-export const moduleContributeCapabilityActivated = defineEventa<ModuleContributeCapabilityActivatedEvent>(
-  'module:contribute:capability:activated',
-)
+export const moduleContributeCapabilityOffer = defineEventa<ModuleContributeCapabilityOfferEvent>('module:contribute:capability:offer')
+export const moduleContributeCapabilityConfigurationNeeded = defineEventa<ModuleContributeCapabilityConfigurationNeededEvent>('module:contribute:capability:configuration:needed')
+export const moduleContributeCapabilityConfigurationValidateRequest = defineEventa<ModuleContributeCapabilityConfigurationValidateRequestEvent>('module:contribute:capability:configuration:validate:request')
+export const moduleContributeCapabilityConfigurationValidateResponse = defineEventa<ModuleContributeCapabilityConfigurationValidateResponseEvent>('module:contribute:capability:configuration:validate:response')
+export const moduleContributeCapabilityConfigurationValidateStatus = defineEventa<ModuleContributeCapabilityConfigurationValidateStatusEvent>('module:contribute:capability:configuration:validate:status')
+export const moduleContributeCapabilityConfigurationPlanRequest = defineEventa<ModuleContributeCapabilityConfigurationPlanRequestEvent>('module:contribute:capability:configuration:plan:request')
+export const moduleContributeCapabilityConfigurationPlanResponse = defineEventa<ModuleContributeCapabilityConfigurationPlanResponseEvent>('module:contribute:capability:configuration:plan:response')
+export const moduleContributeCapabilityConfigurationPlanStatus = defineEventa<ModuleContributeCapabilityConfigurationPlanStatusEvent>('module:contribute:capability:configuration:plan:status')
+export const moduleContributeCapabilityConfigurationCommit = defineEventa<ModuleContributeCapabilityConfigurationCommitEvent>('module:contribute:capability:configuration:commit')
+export const moduleContributeCapabilityConfigurationCommitStatus = defineEventa<ModuleContributeCapabilityConfigurationCommitStatusEvent>('module:contribute:capability:configuration:commit:status')
+export const moduleContributeCapabilityConfigurationConfigured = defineEventa<ModuleContributeCapabilityConfigurationConfiguredEvent>('module:contribute:capability:configuration:configured')
+export const moduleContributeCapabilityActivated = defineEventa<ModuleContributeCapabilityActivatedEvent>('module:contribute:capability:activated')
 
 export const moduleStatusChange = defineProtocolEventa<ModuleStatusChangeEvent>('module:status:change')
 
 export const moduleConfigure = defineProtocolEventa<ModuleConfigureEvent>('module:configure')
 export const moduleConsumerRegister = defineProtocolEventa<ModuleConsumerRegisterEvent>('module:consumer:register')
-export const moduleConsumerUnregister =
-  defineProtocolEventa<ModuleConsumerUnregisterEvent>('module:consumer:unregister')
+export const moduleConsumerUnregister = defineProtocolEventa<ModuleConsumerUnregisterEvent>('module:consumer:unregister')
 
 export const uiConfigure = defineProtocolEventa<UiConfigureEvent>('ui:configure')
 
@@ -1187,8 +1267,7 @@ export const inputVoice = defineProtocolEventa<WebSocketEventInputVoice>('input:
   },
 })
 
-export const outputGenAiChatToolCall =
-  defineProtocolEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
+export const outputGenAiChatToolCall = defineProtocolEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
 export const outputGenAiChatMessage = defineProtocolEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
 export const outputGenAiChatComplete = defineProtocolEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
 
@@ -1196,9 +1275,7 @@ export const sparkNotify = defineProtocolEventa<SparkNotifyEvent>('spark:notify'
 export const sparkEmit = defineProtocolEventa<SparkEmitEvent>('spark:emit')
 export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:command')
 
-export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>(
-  'transport:connection:heartbeat',
-)
+export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
 export const contextUpdate = defineProtocolEventa<ContextUpdateEvent>('context:update')
 
 export const protocolEventMetadataByType = {
@@ -1216,8 +1293,25 @@ export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | strin
 // A little hack for creating extensible discriminated unions : r/typescript
 // https://www.reddit.com/r/typescript/comments/1064ibt/a_little_hack_for_creating_extensible/
 export interface ProtocolEvents<C = undefined> {
-  error: ErrorEvent
+  'error': ErrorEvent
   'error:permission': ErrorPermissionEvent
+
+  'peer:authenticate': PeerAuthenticateEvent
+  'peer:authenticated': PeerAuthenticatedEvent
+  'peer:status': PeerStatusEvent
+  'peer:de-authenticated': PeerDeAuthenticatedEvent
+
+  'extension:authenticate': ExtensionAuthenticateEvent
+  'extension:authenticated': ExtensionAuthenticatedEvent
+  'extension:announce': ExtensionAnnounceEvent
+  'extension:announced': ExtensionAnnounceEvent
+  'extension:de-announced': ExtensionAnnounceEvent & { reason?: string }
+  'extension:module:announce': ExtensionModuleAnnounceEvent<C>
+  'extension:module:announced': ExtensionModuleAnnounceEvent<C>
+  'extension:module:de-announced': ExtensionModuleAnnounceEvent<C> & { reason?: string }
+  'extension:kit:announce': ExtensionKitAnnounceEvent
+  'extension:kit:announced': ExtensionKitAnnounceEvent
+  'extension:kit:de-announced': ExtensionKitAnnounceEvent & { reason?: string }
 
   'module:authenticate': ModuleAuthenticateEvent
   'module:authenticated': ModuleAuthenticatedEvent

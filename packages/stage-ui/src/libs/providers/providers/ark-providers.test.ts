@@ -27,23 +27,19 @@ describe('ark chat provider definitions', () => {
     const provider = getDefinedProvider('volcengine-coding-plan')
     expect(provider).toBeDefined()
 
-    const schema = provider!.createProviderConfig({ t: (input) => input }) as unknown as {
-      parse: (input: Record<string, unknown>) => Record<string, unknown>
-    }
+    const schema = provider!.createProviderConfig({ t: input => input }) as any
     const parsedConfig = schema.parse({
       apiKey: 'test-key',
     })
 
     expect(parsedConfig.baseUrl).toBe('https://ark.cn-beijing.volces.com/api/coding/v3')
 
-    const providerInstance = provider!.createProvider(parsedConfig) as unknown as {
-      chat: (model: string) => { model: string }
-    }
+    const providerInstance = provider!.createProvider(parsedConfig) as any
     const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.0-code')
     expect(chatConfig.model).toBe('doubao-seed-2.0-code')
 
-    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, provider!.createProvider(parsedConfig))
-    expect(listedModels.map((model) => model.id)).toEqual([
+    const listedModels = await provider!.extraMethods!.listModels!(parsedConfig, providerInstance)
+    expect(listedModels.map(model => model.id)).toEqual([
       'volcengine-coding-plan/doubao-seed-2.0-code',
       'volcengine-coding-plan/doubao-seed-2.0-pro',
       'volcengine-coding-plan/doubao-seed-2.0-lite',
@@ -66,41 +62,23 @@ describe('ark chat provider definitions', () => {
     expect(byteplus).toBeDefined()
     expect(byteplusCodingPlan).toBeDefined()
 
-    const byteplusConfig = (
-      byteplus!.createProviderConfig({ t: (input) => input }) as unknown as {
-        parse: (input: Record<string, unknown>) => Record<string, unknown>
-      }
-    ).parse({
-      apiKey: 'test-key',
-    })
-    const byteplusCodingPlanConfig = (
-      byteplusCodingPlan!.createProviderConfig({ t: (input) => input }) as unknown as {
-        parse: (input: Record<string, unknown>) => Record<string, unknown>
-      }
-    ).parse({
-      apiKey: 'test-key',
-    })
+    const byteplusConfig = (byteplus!.createProviderConfig({ t: input => input }) as any).parse({ apiKey: 'test-key' })
+    const byteplusCodingPlanConfig = (byteplusCodingPlan!.createProviderConfig({ t: input => input }) as any).parse({ apiKey: 'test-key' })
 
     expect(byteplusConfig.baseUrl).toBe('https://ark.ap-southeast.bytepluses.com/api/v3')
     expect(byteplusCodingPlanConfig.baseUrl).toBe('https://ark.ap-southeast.bytepluses.com/api/coding/v3')
 
-    const byteplusModels = await byteplus!.extraMethods!.listModels!(
-      byteplusConfig,
-      byteplus!.createProvider(byteplusConfig),
-    )
-    const byteplusCodingPlanModels = await byteplusCodingPlan!.extraMethods!.listModels!(
-      byteplusCodingPlanConfig,
-      byteplusCodingPlan!.createProvider(byteplusCodingPlanConfig),
-    )
+    const byteplusModels = await byteplus!.extraMethods!.listModels!(byteplusConfig, byteplus!.createProvider(byteplusConfig))
+    const byteplusCodingPlanModels = await byteplusCodingPlan!.extraMethods!.listModels!(byteplusCodingPlanConfig, byteplusCodingPlan!.createProvider(byteplusCodingPlanConfig))
 
-    expect(byteplusModels.map((model) => model.id)).toEqual([
+    expect(byteplusModels.map(model => model.id)).toEqual([
       'byteplus/seed-2-0-pro-260328',
       'byteplus/seed-2-0-lite-260228',
       'byteplus/seed-2-0-mini-260215',
       'byteplus/kimi-k2-5-260127',
       'byteplus/glm-4-7-251222',
     ])
-    expect(byteplusCodingPlanModels.map((model) => model.id)).toEqual([
+    expect(byteplusCodingPlanModels.map(model => model.id)).toEqual([
       'byteplus-coding-plan/dola-seed-2.0-pro',
       'byteplus-coding-plan/dola-seed-2.0-lite',
       'byteplus-coding-plan/bytedance-seed-code',

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  * Builds a binding for the uiohook driver.
  *
  * Defaults to `receiveKeyUps: true` because that flag is the dispatch
- * signal in the boss; the driver itself does not inspect it,
+ * signal in the orchestrator; the driver itself does not inspect it,
  * but tests stay closer to how callers will use the driver this way.
  *
  * @example
@@ -15,11 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
  *   // => { id: 'ptt', accelerator: { modifiers: ['shift'], key: 'KeyK' },
  *   //      scope: 'global', receiveKeyUps: true }
  */
-function exampleBinding(
-  id: string,
-  modifiers: ShortcutBinding['accelerator']['modifiers'] = ['shift'],
-  key = 'KeyK',
-): ShortcutBinding {
+function exampleBinding(id: string, modifiers: ShortcutBinding['accelerator']['modifiers'] = ['shift'], key = 'KeyK'): ShortcutBinding {
   return {
     id,
     accelerator: { modifiers, key },
@@ -73,11 +69,9 @@ async function setupMocks() {
 
   removeListenerMock.mockImplementation((event: string, listener: (e: KeyboardEvent) => void) => {
     const arr = listeners.get(event)
-    if (!arr) return
-    listeners.set(
-      event,
-      arr.filter((l) => l !== listener),
-    )
+    if (!arr)
+      return
+    listeners.set(event, arr.filter(l => l !== listener))
   })
 
   // Mirrors the literal subset of `UiohookKey` that exercises the
@@ -108,10 +102,11 @@ async function setupMocks() {
   const { createUiohookDriver } = await import('./global-shortcut-uiohook')
 
   function fire(name: 'keydown' | 'keyup', e: KeyboardEvent): void {
-    for (const listener of listeners.get(name) ?? []) listener(e)
+    for (const listener of listeners.get(name) ?? [])
+      listener(e)
   }
 
-  function createDriver(overrides: { platform?: NodeJS.Platform; sessionType?: string } = {}) {
+  function createDriver(overrides: { platform?: NodeJS.Platform, sessionType?: string } = {}) {
     const broadcastTriggered = vi.fn<(id: string, phase: 'down' | 'up') => void>()
     const logger = {
       warn: vi.fn(),
@@ -201,7 +196,7 @@ describe('createUiohookDriver', () => {
     m.fire('keydown', event({ keycode: 37, shiftKey: true }))
     m.fire('keydown', event({ keycode: 37, shiftKey: true }))
 
-    const downCalls = broadcastTriggered.mock.calls.filter((c) => c[1] === 'down')
+    const downCalls = broadcastTriggered.mock.calls.filter(c => c[1] === 'down')
     expect(downCalls).toHaveLength(1)
   })
 

@@ -11,6 +11,7 @@ import {
   widgetsFetch,
   widgetsHideWindow,
   widgetsIframePublish,
+  widgetsIframeRequestResultEvent,
   widgetsOpenWindow,
   widgetsPrepareWindow,
   widgetsRemove,
@@ -20,6 +21,7 @@ import {
   normalizeOptionalWidgetId,
   normalizeRequiredWidgetId,
   validateWidgetIframeEvent,
+  validateWidgetIframeRequestResult,
   validateWidgetsAddPayload,
   validateWidgetsUpdatePayload,
 } from './validation'
@@ -30,7 +32,8 @@ interface InvokeOptions {
 
 function isFromWindow(options: InvokeOptions | undefined, window: BrowserWindow) {
   const sender = options?.raw?.ipcMainEvent?.sender
-  if (!sender) return false
+  if (!sender)
+    return false
   return sender.id === window.webContents.id
 }
 
@@ -55,11 +58,16 @@ function isFromWindow(options: InvokeOptions | undefined, window: BrowserWindow)
  *     -> {@link validateWidgetsAddPayload}
  *       -> {@link WidgetsWindowManager.pushWidget}
  */
-export function createWidgetsService(params: {
-  context: ReturnType<typeof createContext>['context']
-  widgetsManager: WidgetsWindowManager
-  window: BrowserWindow
-}) {
+export function createWidgetsService(params: { context: ReturnType<typeof createContext>['context'], widgetsManager: WidgetsWindowManager, window: BrowserWindow }) {
+  params.context.on(widgetsIframeRequestResultEvent, (event, options) => {
+    if (!isFromWindow(options as InvokeOptions, params.window))
+      return
+
+    params.widgetsManager.publishWidgetIframeRequestResult(
+      validateWidgetIframeRequestResult(event.body),
+    )
+  })
+
   defineInvokeHandlers(
     params.context,
     {
@@ -74,47 +82,55 @@ export function createWidgetsService(params: {
       widgetsIframePublish,
     },
     {
-      widgetsPrepareWindow: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsPrepareWindow: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         const id = normalizeOptionalWidgetId(payload?.id)
         return params.widgetsManager.prepareWidgetWindow(id ? { id } : undefined)
       },
-      widgetsOpenWindow: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsOpenWindow: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         const id = normalizeOptionalWidgetId(payload?.id)
         return params.widgetsManager.openWindow(id ? { id } : undefined)
       },
-      widgetsHideWindow: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsHideWindow: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         return params.widgetsManager!.hideWindow(payload ?? undefined)
       },
-      widgetsAdd: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsAdd: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         return params.widgetsManager.pushWidget(validateWidgetsAddPayload(payload))
       },
-      widgetsUpdate: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsUpdate: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         return params.widgetsManager.updateWidget(validateWidgetsUpdatePayload(payload))
       },
-      widgetsRemove: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsRemove: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         return params.widgetsManager.removeWidget(
           normalizeRequiredWidgetId(payload?.id, 'id is required to remove a widget.'),
         )
       },
-      widgetsClear: (_payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsClear: async (_payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         return params.widgetsManager.clearWidgets()
       },
-      widgetsFetch: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsFetch: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         return params.widgetsManager.getWidgetSnapshot(
           normalizeRequiredWidgetId(payload?.id, 'id is required to fetch a widget snapshot.'),
         )
       },
-
-      widgetsIframePublish: (payload, options) => {
-        if (!isFromWindow(options as InvokeOptions, params.window)) return undefined
+      widgetsIframePublish: async (payload, options) => {
+        if (!isFromWindow(options as InvokeOptions, params.window))
+          return undefined
         const id = normalizeRequiredWidgetId(payload?.id, 'id is required to publish a widget iframe event.')
         params.widgetsManager.publishWidgetEvent(id, validateWidgetIframeEvent(payload?.event))
       },

@@ -15,6 +15,7 @@ import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
+import { useWebSearchStore } from '../stores/modules/web-search'
 
 export interface Module {
   id: string
@@ -38,6 +39,7 @@ export function useModulesList() {
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
   const twitterStore = useTwitterStore()
+  const webSearchStore = useWebSearchStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
   const artistryStore = useArtistryStore()
@@ -80,6 +82,15 @@ export function useModulesList() {
       icon: 'i-solar:eye-closed-bold-duotone',
       to: '/settings/modules/vision',
       configured: visionStore.configured,
+      category: 'essential',
+    },
+    {
+      id: 'web-search',
+      name: t('settings.pages.modules.web-search.title'),
+      description: t('settings.pages.modules.web-search.description'),
+      icon: 'i-solar:magnifer-bold-duotone',
+      to: '/settings/modules/web-search',
+      configured: webSearchStore.configured,
       category: 'essential',
     },
     {
@@ -166,17 +177,14 @@ export function useModulesList() {
   ])
 
   const categorizedModules = computed(() => {
-    return modulesList.value.reduce(
-      (categories, module) => {
-        const { category } = module
-        if (!categories[category]) {
-          categories[category] = []
-        }
-        categories[category].push(module)
-        return categories
-      },
-      {} as Record<string, Module[]>,
-    )
+    return modulesList.value.reduce((categories, module) => {
+      const { category } = module
+      if (!categories[category]) {
+        categories[category] = []
+      }
+      categories[category].push(module)
+      return categories
+    }, {} as Record<string, Module[]>)
   })
 
   // Define category display names
@@ -188,8 +196,8 @@ export function useModulesList() {
 
   // TODO(Makito): We can make this a reactive value from a synthetic store.
   onMounted(() => {
-    getBeatSyncState().then((initialState) => (beatSyncState.value = initialState))
-    const removeListener = listenBeatSyncStateChange((newState) => (beatSyncState.value = { ...newState }))
+    getBeatSyncState().then(initialState => beatSyncState.value = initialState)
+    const removeListener = listenBeatSyncStateChange(newState => beatSyncState.value = { ...newState })
     onUnmounted(() => removeListener())
   })
 

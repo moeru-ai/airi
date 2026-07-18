@@ -1,4 +1,3 @@
-import type { Ref } from 'vue'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
@@ -7,34 +6,15 @@ export interface ResolvedArtistryConfig {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, unknown>
-  globals: Record<string, unknown>
+  options?: Record<string, any>
+  globals: Record<string, any>
 }
 
 export interface ComfyUIWorkflowTemplate {
   id: string
   name: string
-  workflow: Record<string, unknown>
+  workflow: Record<string, any>
   exposedFields: Record<string, string[]>
-}
-
-type MaybeRefLike<T> = T | Ref<T> | { value: T }
-
-interface ArtistryConfigStoreLike {
-  activeProvider: MaybeRefLike<string | undefined>
-  activeModel: MaybeRefLike<string | undefined>
-  defaultPromptPrefix: MaybeRefLike<string | undefined>
-  providerOptions: MaybeRefLike<Record<string, unknown> | undefined>
-  comfyuiServerUrl: MaybeRefLike<string>
-  comfyuiSavedWorkflows: MaybeRefLike<ComfyUIWorkflowTemplate[]>
-  comfyuiActiveWorkflow: MaybeRefLike<string>
-  replicateApiKey: MaybeRefLike<string>
-  replicateDefaultModel: MaybeRefLike<string>
-  replicateAspectRatio: MaybeRefLike<string>
-  replicateInferenceSteps: MaybeRefLike<number>
-  nanobananaApiKey: MaybeRefLike<string>
-  nanobananaModel: MaybeRefLike<string>
-  nanobananaResolution: MaybeRefLike<string>
 }
 
 export const useArtistryStore = defineStore('artistry', () => {
@@ -42,10 +22,7 @@ export const useArtistryStore = defineStore('artistry', () => {
   const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none')
   const globalModel = useLocalStorageManualReset<string>('artistry-model', '')
   const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '')
-  const globalProviderOptions = useLocalStorageManualReset<Record<string, unknown> | undefined>(
-    'artistry-provider-options',
-    undefined,
-  )
+  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined)
 
   // --- Active settings (transient, can be overridden by cards) ---
   const activeProvider = ref(globalProvider.value)
@@ -54,12 +31,18 @@ export const useArtistryStore = defineStore('artistry', () => {
   const providerOptions = ref(globalProviderOptions.value)
 
   // --- ComfyUI provider settings ---
-  const comfyuiServerUrl = useLocalStorageManualReset<string>('artistry-comfyui-server-url', 'http://localhost:8188')
+  const comfyuiServerUrl = useLocalStorageManualReset<string>(
+    'artistry-comfyui-server-url',
+    'http://localhost:8188',
+  )
   const comfyuiSavedWorkflows = useLocalStorageManualReset<ComfyUIWorkflowTemplate[]>(
     'artistry-comfyui-saved-workflows',
     [],
   )
-  const comfyuiActiveWorkflow = useLocalStorageManualReset<string>('artistry-comfyui-active-workflow', '')
+  const comfyuiActiveWorkflow = useLocalStorageManualReset<string>(
+    'artistry-comfyui-active-workflow',
+    '',
+  )
 
   // --- Replicate provider settings ---
   const replicateApiKey = useLocalStorageManualReset<string>('artistry-replicate-api-key', '')
@@ -67,8 +50,14 @@ export const useArtistryStore = defineStore('artistry', () => {
     'artistry-replicate-default-model',
     'black-forest-labs/flux-schnell',
   )
-  const replicateAspectRatio = useLocalStorageManualReset<string>('artistry-replicate-aspect-ratio', '16:9')
-  const replicateInferenceSteps = useLocalStorageManualReset<number>('artistry-replicate-inference-steps', 4)
+  const replicateAspectRatio = useLocalStorageManualReset<string>(
+    'artistry-replicate-aspect-ratio',
+    '16:9',
+  )
+  const replicateInferenceSteps = useLocalStorageManualReset<number>(
+    'artistry-replicate-inference-steps',
+    4,
+  )
 
   // --- Nano Banana (Google AI Studio) provider settings ---
   const nanobananaApiKey = useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '')
@@ -76,7 +65,10 @@ export const useArtistryStore = defineStore('artistry', () => {
     'artistry-nanobanana-model',
     'gemini-3.1-flash-image-preview',
   )
-  const nanobananaResolution = useLocalStorageManualReset<string>('artistry-nanobanana-resolution', '1K')
+  const nanobananaResolution = useLocalStorageManualReset<string>(
+    'artistry-nanobanana-resolution',
+    '1K',
+  )
 
   /**
    * Resets active settings to match current global user preferences.
@@ -118,26 +110,28 @@ export const useArtistryStore = defineStore('artistry', () => {
   // NOTICE: We only sync if the active state currently matches the global state (i.e. no card override is active),
   // OR we just sync anyway and let airi-card's watch override it again if a card is active.
   // The latter is simpler and more predictable.
-  watch(globalProvider, (val) => (activeProvider.value = val))
-  watch(globalModel, (val) => (activeModel.value = val))
-  watch(globalPromptPrefix, (val) => (defaultPromptPrefix.value = val))
-  watch(globalProviderOptions, (val) => (providerOptions.value = val))
+  watch(globalProvider, val => activeProvider.value = val)
+  watch(globalModel, val => activeModel.value = val)
+  watch(globalPromptPrefix, val => defaultPromptPrefix.value = val)
+  watch(globalProviderOptions, val => providerOptions.value = val)
 
   const configured = computed(() => {
-    if (!activeProvider.value) return false
+    if (!activeProvider.value)
+      return false
 
-    if (activeProvider.value === 'none') return false
+    if (activeProvider.value === 'none')
+      return false
 
     if (activeProvider.value === 'replicate') {
-      return Boolean(replicateApiKey.value)
+      return !!replicateApiKey.value
     }
 
     if (activeProvider.value === 'comfyui') {
-      return Boolean(comfyuiServerUrl.value)
+      return !!comfyuiServerUrl.value
     }
 
     if (activeProvider.value === 'nanobanana') {
-      return Boolean(nanobananaApiKey.value)
+      return !!nanobananaApiKey.value
     }
 
     return true
@@ -200,36 +194,33 @@ export const useArtistryStore = defineStore('artistry', () => {
  *
  * @param store - The artistry store instance (from useArtistryStore())
  */
-export function resolveArtistryConfigFromStore(store: ArtistryConfigStoreLike): ResolvedArtistryConfig {
-  /**
-   * Unwraps a Pinia store property that may be a Ref or a plain value.
-   * In Vue component context, Pinia auto-unwraps Refs (so `val` is T).
-   * In headless service/tool context, `val` remains a Ref-like object with a `value` property.
-   */
-  const unwrap = <T>(val: MaybeRefLike<T>): T => {
-    if (isRef(val)) return val.value
-    if (val !== null && typeof val === 'object' && 'value' in val) {
-      return (val as { value: T }).value
-    }
+export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConfig {
+  const unwrap = (val: any) => {
+    if (isRef(val))
+      return val.value
+
+    if (val && typeof val === 'object' && 'value' in val && Object.keys(val).length === 1)
+      return val.value
+
     return val
   }
 
   return {
-    provider: unwrap<string | undefined>(store.activeProvider),
-    model: unwrap<string | undefined>(store.activeModel),
-    promptPrefix: unwrap<string | undefined>(store.defaultPromptPrefix),
-    options: unwrap<Record<string, unknown> | undefined>(store.providerOptions),
+    provider: unwrap(store.activeProvider),
+    model: unwrap(store.activeModel),
+    promptPrefix: unwrap(store.defaultPromptPrefix),
+    options: unwrap(store.providerOptions),
     globals: {
-      comfyuiServerUrl: unwrap<string>(store.comfyuiServerUrl),
-      comfyuiSavedWorkflows: unwrap<ComfyUIWorkflowTemplate[]>(store.comfyuiSavedWorkflows),
-      comfyuiActiveWorkflow: unwrap<string>(store.comfyuiActiveWorkflow),
-      replicateApiKey: unwrap<string>(store.replicateApiKey),
-      replicateDefaultModel: unwrap<string>(store.replicateDefaultModel),
-      replicateAspectRatio: unwrap<string>(store.replicateAspectRatio),
-      replicateInferenceSteps: unwrap<number>(store.replicateInferenceSteps),
-      nanobananaApiKey: unwrap<string>(store.nanobananaApiKey),
-      nanobananaModel: unwrap<string>(store.nanobananaModel),
-      nanobananaResolution: unwrap<string>(store.nanobananaResolution),
+      comfyuiServerUrl: unwrap(store.comfyuiServerUrl),
+      comfyuiSavedWorkflows: unwrap(store.comfyuiSavedWorkflows),
+      comfyuiActiveWorkflow: unwrap(store.comfyuiActiveWorkflow),
+      replicateApiKey: unwrap(store.replicateApiKey),
+      replicateDefaultModel: unwrap(store.replicateDefaultModel),
+      replicateAspectRatio: unwrap(store.replicateAspectRatio),
+      replicateInferenceSteps: unwrap(store.replicateInferenceSteps),
+      nanobananaApiKey: unwrap(store.nanobananaApiKey),
+      nanobananaModel: unwrap(store.nanobananaModel),
+      nanobananaResolution: unwrap(store.nanobananaResolution),
     },
   }
 }

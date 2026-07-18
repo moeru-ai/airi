@@ -8,26 +8,25 @@ import ModelSettingsPreviewStage from './preview-stage.vue'
 
 import { createEmptyModelSettingsRuntimeSnapshot } from './runtime'
 
-withDefaults(
-  defineProps<{
-    palette: string[]
-    settingsClass?: string | string[]
-    allowExtractColors?: boolean
-    live2dSceneClass?: string | string[]
-    vrmSceneClass?: string | string[]
-    spineSceneClass?: string | string[]
-  }>(),
-  {
-    allowExtractColors: true,
-  },
-)
+withDefaults(defineProps<{
+  palette: string[]
+  settingsClass?: string | string[]
+  allowExtractColors?: boolean
+  live2dSceneClass?: string | string[]
+  vrmSceneClass?: string | string[]
+  spineSceneClass?: string | string[]
+}>(), {
+  allowExtractColors: true,
+})
 
-defineEmits<{ extractColorsFromModel: [] }>()
+defineEmits<{
+  (e: 'extractColorsFromModel'): void
+}>()
 
 const previewStageRef = ref<{ capturePreviewFrame: () => Promise<Blob | undefined> }>()
 const runtimeSnapshot = ref<ModelSettingsRuntimeSnapshot>(createEmptyModelSettingsRuntimeSnapshot())
 
-function capturePreviewFrame() {
+async function capturePreviewFrame() {
   return previewStageRef.value?.capturePreviewFrame()
 }
 

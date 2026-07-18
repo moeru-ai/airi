@@ -1,8 +1,9 @@
-import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { MetadataEventSource, WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
+import { getMetadataSourceLabel } from '../../utils/event-source'
 import { useModsServerChannelStore } from '../mods/api/channel-server'
 
 export interface MinecraftTrafficEntry {
@@ -18,15 +19,15 @@ const RUNTIME_CONTEXT_TICK_MS = 1_000
 const MAX_TRAFFIC_ENTRIES = 50
 const MINECRAFT_SERVICE_NAME = 'minecraft-bot'
 
-function getEventSourceLabel(event: { metadata?: { source?: { plugin?: { id?: string }; id?: string } } }) {
-  return event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id ?? 'unknown'
+function getEventSourceLabel(event: { metadata?: { source?: MetadataEventSource } }) {
+  return getMetadataSourceLabel(event.metadata?.source) ?? 'unknown'
 }
 
-function isMinecraftSource(event: { metadata?: { source?: { plugin?: { id?: string }; id?: string } } }) {
-  const sourcePluginId = event.metadata?.source?.plugin?.id
+function isMinecraftSource(event: { metadata?: { source?: MetadataEventSource } }) {
+  const sourceLabel = getMetadataSourceLabel(event.metadata?.source)
   const sourceId = event.metadata?.source?.id
 
-  return sourcePluginId === MINECRAFT_SERVICE_NAME || sourceId === MINECRAFT_SERVICE_NAME
+  return sourceLabel === MINECRAFT_SERVICE_NAME || sourceId === MINECRAFT_SERVICE_NAME
 }
 
 function summarizeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
@@ -37,16 +38,15 @@ function summarizeContextUpdate(event: WebSocketBaseEvent<'context:update', WebS
 }
 
 function summarizeSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSocketEvents['spark:command']>) {
-  const destinations =
-    Array.isArray(event.data.destinations) && event.data.destinations.length > 0
-      ? event.data.destinations.join(', ')
-      : 'broadcast'
+  const destinations = Array.isArray(event.data.destinations) && event.data.destinations.length > 0
+    ? event.data.destinations.join(', ')
+    : 'broadcast'
 
   return `${event.data.intent} -> ${destinations}`
 }
 
-function isMinecraftModuleIdentity(value: { name?: string; identity?: { plugin?: { id?: string } } }) {
-  return value.name === MINECRAFT_SERVICE_NAME || value.identity?.plugin?.id === MINECRAFT_SERVICE_NAME
+function isMinecraftModuleIdentity(value: { name?: string, identity?: MetadataEventSource }) {
+  return value.name === MINECRAFT_SERVICE_NAME || getMetadataSourceLabel(value.identity) === MINECRAFT_SERVICE_NAME
 }
 
 export const useMinecraftStore = defineStore('minecraft', () => {
@@ -74,7 +74,8 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     return servicePresent.value || lastRuntimeContextAt.value > 0
   })
   const runtimeContextAgeMs = computed(() => {
-    if (!lastRuntimeContextAt.value) return 0
+    if (!lastRuntimeContextAt.value)
+      return 0
 
     return Math.max(0, now.value - lastRuntimeContextAt.value)
   })
@@ -93,9 +94,11 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   function handleRuntimeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
-    if (!isMinecraftSource(event)) return
+    if (!isMinecraftSource(event))
+      return
 
-    if (event.data.lane === 'minecraft:status') return
+    if (event.data.lane === 'minecraft:status')
+      return
 
     latestRuntimeContextText.value = event.data.text ?? ''
     lastRuntimeContextAt.value = Date.now()
@@ -109,46 +112,39 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     })
   }
 
-  function handleRegistrySync(
-    event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>,
-  ) {
+  function handleRegistrySync(event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) {
     const moduleEntry = event.data.modules.find(isMinecraftModuleIdentity)
     const wasPresent = servicePresent.value
-    servicePresent.value = Boolean(moduleEntry)
+    servicePresent.value = !!moduleEntry
 
     if (!moduleEntry) {
       serviceHealthy.value = false
       return
     }
 
-    if (!wasPresent) serviceHealthy.value = true
+    if (!wasPresent)
+      serviceHealthy.value = true
   }
 
-  function handleRegistryHealthy(
-    event: WebSocketBaseEvent<'registry:modules:health:healthy', WebSocketEvents['registry:modules:health:healthy']>,
-  ) {
-    if (!isMinecraftModuleIdentity(event.data)) return
+  function handleRegistryHealthy(event: WebSocketBaseEvent<'registry:modules:health:healthy', WebSocketEvents['registry:modules:health:healthy']>) {
+    if (!isMinecraftModuleIdentity(event.data))
+      return
 
     servicePresent.value = true
     serviceHealthy.value = true
   }
 
-  function handleRegistryUnhealthy(
-    event: WebSocketBaseEvent<
-      'registry:modules:health:unhealthy',
-      WebSocketEvents['registry:modules:health:unhealthy']
-    >,
-  ) {
-    if (!isMinecraftModuleIdentity(event.data)) return
+  function handleRegistryUnhealthy(event: WebSocketBaseEvent<'registry:modules:health:unhealthy', WebSocketEvents['registry:modules:health:unhealthy']>) {
+    if (!isMinecraftModuleIdentity(event.data))
+      return
 
     servicePresent.value = true
     serviceHealthy.value = false
   }
 
-  function handleModuleDeAnnounced(
-    event: WebSocketBaseEvent<'module:de-announced', WebSocketEvents['module:de-announced']>,
-  ) {
-    if (!isMinecraftModuleIdentity(event.data)) return
+  function handleModuleDeAnnounced(event: WebSocketBaseEvent<'module:de-announced', WebSocketEvents['module:de-announced']>) {
+    if (!isMinecraftModuleIdentity(event.data))
+      return
 
     servicePresent.value = false
     serviceHealthy.value = false
@@ -158,7 +154,8 @@ export const useMinecraftStore = defineStore('minecraft', () => {
     const destinations = Array.isArray(event.data.destinations) ? event.data.destinations : []
     const isMinecraftTraffic = destinations.includes(MINECRAFT_SERVICE_NAME)
 
-    if (!isMinecraftTraffic) return
+    if (!isMinecraftTraffic)
+      return
 
     pushTrafficEntry({
       type: 'spark:command',
@@ -170,15 +167,16 @@ export const useMinecraftStore = defineStore('minecraft', () => {
   }
 
   function initialize() {
-    if (initialized.value) return
+    if (initialized.value)
+      return
 
     initialized.value = true
-    disposeContextUpdate = serverChannelStore.onContextUpdate(handleRuntimeContextUpdate)
-    disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand)
-    disposeRegistrySync = serverChannelStore.onEvent('registry:modules:sync', handleRegistrySync)
-    disposeRegistryHealthy = serverChannelStore.onEvent('registry:modules:health:healthy', handleRegistryHealthy)
-    disposeRegistryUnhealthy = serverChannelStore.onEvent('registry:modules:health:unhealthy', handleRegistryUnhealthy)
-    disposeModuleDeAnnounced = serverChannelStore.onEvent('module:de-announced', handleModuleDeAnnounced)
+    disposeContextUpdate = serverChannelStore.onContextUpdate(handleRuntimeContextUpdate as any)
+    disposeSparkCommand = serverChannelStore.onEvent('spark:command', handleSparkCommand as any)
+    disposeRegistrySync = serverChannelStore.onEvent('registry:modules:sync', handleRegistrySync as any)
+    disposeRegistryHealthy = serverChannelStore.onEvent('registry:modules:health:healthy', handleRegistryHealthy as any)
+    disposeRegistryUnhealthy = serverChannelStore.onEvent('registry:modules:health:unhealthy', handleRegistryUnhealthy as any)
+    disposeModuleDeAnnounced = serverChannelStore.onEvent('module:de-announced', handleModuleDeAnnounced as any)
     runtimeTickTimer = setInterval(() => {
       now.value = Date.now()
     }, RUNTIME_CONTEXT_TICK_MS)

@@ -3,6 +3,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Button, Callout, Collapsible } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
@@ -13,7 +14,14 @@ import { electronGetServerChannelQrPayload } from '../../../../shared/eventa'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
 const { t } = useI18n()
+const { trackDevicePairingQrShown } = useAnalytics()
 const getServerChannelQrPayload = useElectronEventaInvoke(electronGetServerChannelQrPayload)
+
+function handleToggleExpanded(visible: boolean, setVisible: (value: boolean) => void) {
+  setVisible(visible)
+  if (visible)
+    trackDevicePairingQrShown()
+}
 const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
 
 const loading = shallowRef(false)
@@ -60,21 +68,19 @@ async function refreshPayload() {
 
   try {
     payload.value = await getServerChannelQrPayload()
-  } catch (error) {
+  }
+  catch (error) {
     payload.value = undefined
     errorMessage.value = errorMessageFrom(error) ?? t('settings.pages.connection.qr.errors.unavailable')
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
 
-watch(
-  [hostname, tlsConfig, authToken],
-  () => {
-    void refreshPayload()
-  },
-  { immediate: true },
-)
+watch([hostname, tlsConfig, authToken], () => {
+  void refreshPayload()
+}, { immediate: true })
 </script>
 
 <template>
@@ -84,7 +90,7 @@ watch(
         :class="[
           'w-full flex items-center justify-between gap-3 rounded-xl text-left outline-none transition-all duration-250 ease-in-out',
         ]"
-        @click="slotProps.setVisible(!slotProps.visible)"
+        @click="handleToggleExpanded(!slotProps.visible, slotProps.setVisible)"
       >
         <div :class="['min-w-0 flex flex-col gap-1']">
           <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">
@@ -104,21 +110,40 @@ watch(
       </button>
     </template>
 
-    <div :class="['mt-3 rounded-xl bg-white/70 p-4 dark:bg-neutral-900/50', 'flex flex-col gap-4']">
+    <div
+      :class="[
+        'mt-3 rounded-xl bg-white/70 p-4 dark:bg-neutral-900/50',
+        'flex flex-col gap-4',
+      ]"
+    >
       <div :class="['flex items-start justify-between gap-3']">
         <p :class="['m-0 text-xs leading-5 text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.connection.qr.token-hint') }}
         </p>
       </div>
 
-      <Callout v-if="errorMessage" theme="orange" :label="t('settings.pages.connection.qr.errors.title')">
+      <Callout
+        v-if="errorMessage"
+        theme="orange"
+        :label="t('settings.pages.connection.qr.errors.title')"
+      >
         <p :class="['m-0 text-xs leading-5']">
           {{ errorMessage }}
         </p>
       </Callout>
 
-      <div v-else-if="payload" :class="['grid grid-cols-1 gap-4', 'md:grid-cols-[auto_minmax(0,1fr)]']">
-        <img :src="qrCodeSource" :alt="t('settings.pages.connection.qr.image-alt')" :class="['h-48 w-48']" />
+      <div
+        v-else-if="payload"
+        :class="[
+          'grid grid-cols-1 gap-4',
+          'md:grid-cols-[auto_minmax(0,1fr)]',
+        ]"
+      >
+        <img
+          :src="qrCodeSource"
+          :alt="t('settings.pages.connection.qr.image-alt')"
+          :class="['h-48 w-48']"
+        >
 
         <Button
           size="sm"

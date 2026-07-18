@@ -1,373 +1,339 @@
-# AnimAIOS / AIRI
-
-AI companion desktop OS — Electron + Vue 3 + TypeScript pnpm monorepo. Your character lives on-screen, observes desktop activity, and acts as an agentic center of your Linux desktop.
-
-## Structure
-
-- `apps/stage-tamagotchi/` — Electron desktop app (main entry, `pnpm dev:tamagotchi`)
-- `apps/worker/` — Background worker process
-- `core/` — AIRI runtime kernel: EventBus, ModuleRegistry, TaskManager, Planner, Cognition, Persistence, Workers, Capabilities, Semantic Memory, Workspace isolation
-- `packages/stage-ui/` — Core business components, composables, stores (providers, modules, character)
-- `packages/stage-ui-{three,live2d,spine,mmd}/` — 3D/VRM, Live2D, Spine, MMD Vue bindings
-- `packages/stage-shared/` · `packages/stage-pages/` — Shared logic and page bases across stage packages
-- `packages/ui/` — UI primitives built on reka-ui (no business logic)
-- `packages/i18n/` — Central translations (all locales live here)
-- `packages/core-agent/` — Core agent runtime orchestration
-- `packages/core-character/` — Character pipeline (segmentation, emotion, TTS)
-- `packages/audio/` · `packages/pipelines-audio/` — Audio processing and pipeline orchestration
-- `packages/model-driver-lipsync/` — Lip-sync drivers (Live2D, wLipSync)
-- `packages/server-runtime/` · `packages/server-sdk/` — Server runtime and client SDK
-- `packages/plugin-sdk/` · `packages/plugin-protocol/` — Plugin SDK and protocol events
-- `packages/electron-{eventa,vueuse,screen-capture}/` — Electron IPC, VueUse, screen capture
-- `packages/stream-kit/` · `packages/ccc/` · `packages/vishot-runtime/` — Stream utils, PNG metadata, visual regression
-- `packages/ui-transitions/` · `packages/stage-layouts/` — Shared transitions and stage layouts
-- `docs/architecture/` — Architecture decision docs (bootstrap, modules, planner, memory, etc.)
-
-## Commands
-
-- `pnpm dev:tamagotchi` — Desktop app dev server
-- `pnpm -F @proj-airi/<pkg> typecheck` — Typecheck one package
-- `pnpm typecheck` — Typecheck all
-- `pnpm exec vitest run <path>` — Test a specific file
-- `pnpm -F @proj-airi/<pkg> exec vitest run` — Test one workspace
-- `pnpm test:run` — Run all tests
-- `pnpm lint` / `pnpm lint:fix` — ESLint + formatting
-- `pnpm -F @proj-airi/<pkg> build` — Build one package
-
-## Tools — Mandatory Binding Table
-
-**Primary rules:**
-1. ALWAYS attempt the PRIMARY columns first for any code operation on repo files (`.ts`, `.tsx`, `.vue`, `.js`, `.mts`, `.mjs`, `.json`, `.yaml`, configs).
-2. Native tools (`Read`, `Edit`, `Grep`, `Glob`, `Create`, `ApplyPatch`) are **emergency fallback only**.
-3. If native must be used, log inline: `// FALLBACK: MCP <tool> failed with <error>; using native <tool> for <path>`.
-4. Any fallback usage MUST be listed in the task summary delivered to the user.
-
----
-
-### Symbol & Declaration Operations
-
-| Operation | PRIMARY (jcodemunch) | Fallback (native) |
-|---|---|---|
-| Find symbol / declaration | `jcodemunch___search_units` | Grep |
-| Find references | `jcodemunch___find_references` | Grep |
-| Find implementations | `jcodemunch___find_implementations` | Grep |
-| File symbol overview | `jcodemunch___get_outline` / `jcodemunch___get_repo_map` | Read+Grep |
-| Safe symbol deletion | `jcodemunch___check_safe` (mode=delete) | Grep+Edit |
-
-### Search & Code Intelligence
-
-| Operation | PRIMARY (jcodemunch) | Fallback (native) |
-|---|---|---|
-| Symbol search (index) | `jcodemunch___search_units` | Grep |
-| Free-text search (index) | `jcodemunch___search_text` | Grep |
-| Column search (dbt-like) | `jcodemunch___search_columns` | Grep |
-| AST pattern scan | `jcodemunch___search_ast` | Grep |
-| Similar/duplicate funcs | `jcodemunch___find_similar_symbols` | — |
-| File read (cache) | `jcodemunch___get_file` | Read |
-| Full symbol + context | `jcodemunch___get_unit` / `get_unit_context` | Read |
-
-### Call Hierarchy & Class Hierarchy
-
-| Operation | PRIMARY (jcodemunch) | Fallback (native) |
-|---|---|---|
-| Caller trace (who calls me) | `jcodemunch___get_call_hierarchy` (callers) | Grep |
-| Callee trace (what I call) | `jcodemunch___get_call_hierarchy` (callees) | Grep |
-| Full inheritance tree | `jcodemunch___get_class_hierarchy` | Grep |
-| Blast radius (impact) | `jcodemunch___get_blast_radius` | Grep |
-| Dependency graph (file) | `jcodemunch___get_dependency_graph` | Grep |
-
-### Git & Change Intelligence
-
-| Operation | PRIMARY (jcodemunch) | Fallback (native) |
-|---|---|---|
-| Changed symbols between refs | `jcodemunch___get_changed_symbols` | git diff |
-| PR risk profile | `jcodemunch___get_pr_risk_profile` | — |
-| Symbol authorship/provenance | `jcodemunch___get_symbol_provenance` | git log |
-| Repo health snapshot | `jcodemunch___get_repo_health` | — |
-| Cyclomatic complexity | `jcodemunch___get_symbol_complexity` | — |
-| Dead-code detection | `jcodemunch___get_dead_code_v2` | — |
-| Refactor edit plan | `jcodemunch___plan_refactoring` | Manual Edit |
-| Pre-change safety check | `jcodemunch___check_safe` | Grep |
-
-### Indexing, Embedding, Topology
-
-| Operation | PRIMARY |
-|---|---|
-| Single-file re-index | `jcodemunch___index_file` |
-| Full repo index | `jcodemunch___index_content` / `summarize_repo` |
-| Cache invalidate (register edit) | `jcodemunch___register_edit` |
-| Embeddings/semantic warm | `jcodemunch___embed_repo` |
-| Module topology (tectonic map) | `jcodemunch___get_tectonic_map` |
-| Project intel (Docker/CI) | `jcodemunch___get_project_intel` |
-| Monorepo workspaces | `jcodemunch___list_workspaces` |
-| Runtime trace ingest | `jcodemunch___import_runtime_signal` |
-| Task-context assembly | `jcodemunch___assemble_task_context` |
-
----
-
-## Fresh Web Research: Google AI Mode
-
-For current external information, prefer Google AI Mode search when it is available. Use it for:
-
-- Current API/package documentation, release/version state, and migration notes.
-- Browser, web-platform, extension, Electron, Tauri, OS, and store-policy behavior.
-- Any user question where fresh web context materially improves correctness.
-
-Do not let web search replace local repository inspection, tests, compiler output, or primary project docs. Use search to fill external/contextual gaps, then verify against the codebase.
-
-### Search Tool Priority
-
-1. If the runtime exposes a native MCP tool named `search_google_ai`, call it directly.
-2. If direct MCP tool access is unavailable, Codex may use the local workaround in `~/anima-use-google/AGENTS.md`.
-3. Do not use unrelated web-search mechanisms when `search_google_ai` or the local workaround is available.
-
-### Codex Workaround
-
-Codex may call the local MCP server over stdio from `/home/vi/anima-use-google`. Build that helper once if `dist/index.js` is missing:
-
-```bash
-cd /home/vi/anima-use-google
-npm run build
-```
-
-Then run a query through the official MCP SDK:
-
-```bash
-cd /home/vi/anima-use-google
-node --input-type=module <<'EOF'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-
-const query = process.argv.slice(2).join(' ') || 'Chrome Manifest V3 native messaging restrictions answer in English';
-const transport = new StdioClientTransport({
-  command: 'node',
-  args: ['dist/index.js'],
-  cwd: process.cwd(),
-  stderr: 'pipe',
-});
-transport.stderr?.on('data', (chunk) => process.stderr.write(`[mcp stderr] ${chunk}`));
-
-const client = new Client({ name: 'codex-google-ai-research', version: '0.0.0' });
-try {
-  await client.connect(transport);
-  const result = await client.callTool({
-    name: 'search_google_ai',
-    arguments: { query, timeout_ms: 60000 },
-  });
-  console.log(result.content?.[0]?.text ?? JSON.stringify(result, null, 2));
-}
-finally {
-  await client.close().catch(() => {});
-}
-EOF
-```
-
-For multiple searches, keep one MCP client open and call `client.callTool(...)` repeatedly. Prefer precise research-style queries, and include `answer in English` when language matters.
-
-## Session Startup Protocol (MANDATORY — run BEFORE any other work)
-
-1. `jcodemunch___resolve_repo("/home/vi/anima")` → assert repo id is `"airi"`.
-
-This protocol applies to **every** session — no matter how trivial the task appears. Skip is NOT permitted.
-
----
-
-## The Delegated Code-Change Loop
-
-### Step 1: Analyze & Plan
-1. Call `jcodemunch___assemble_task_context(repo="airi", task="<user request>")` for auto-classification.
-2. Use `jcodemunch___get_outline` + `jcodemunch___search_units` to locate exact symbol IDs.
-3. Run `jcodemunch___get_blast_radius(symbol=<id>, depth=2, include_source=true)`.
-4. Run `jcodemunch___get_call_hierarchy(symbol_id=<id>, direction="both", depth=3)`.
-5. Optionally: `jcodemunch___find_similar_symbols`, `jcodemunch___get_dead_code_v2`, `jcodemunch___search_ast`, `jcodemunch___check_safe`.
-6. Break into **smallest possible steps**. One symbol/mutation per step. Never bundle.
-7. For planned multi-file refactors: `jcodemunch___plan_refactoring(symbol=<>, refactor_type=...)` → returns ready-to-apply `{old_text, new_text}` blocks.
-
-### Step 2: Delegate ONE Step
-- Prefer asynchronous subagent execution when steps are independent and write-conflict safe. Do not run concurrent writers against the same file, lockfile, mission ledger, git index, or other serialization point.
-- If concurrent implementation needs write access, prefer separate task worktrees and merge results deliberately after review.
-- Dispatch with the first available mechanism:
-  1. Use the agent runtime's native/internal subagent spawn tool when one is available. Do not call `codex exec` when native subagent dispatch exists.
-  2. If no native/internal subagent spawn tool is available, use `codex exec --yolo "<prompt>"`. This Codex CLI path is the only approved CLI fallback for subagent work.
-- Do not call `droid exec` for subagent dispatch.
-- Do not pass custom model/config/profile/sandbox/cwd/settings/reasoning flags unless the user explicitly asks.
-- Codex-controller fan-out SOP:
-  - When Codex is the controller and no native subagent tool exists, fan out by launching independent `codex exec --yolo` runs from separate managed tool sessions, one task per session. Do not serialize independent jobs.
-  - Write each subagent prompt to a task file, then pass only that prompt: `cd /path/to/worktree && codex exec --yolo "$(cat .superpowers/sdd/task-N-codex-prompt.md)"`.
-  - Use the shell/session working directory or `cd` to select the checkout. Do not add `--cd`, model, profile, sandbox, approval, reasoning, or config overrides unless the user explicitly asks.
-  - Keep the returned session IDs and poll them until exit so failures are visible. Treat a silent session as unfinished until its process and log state prove otherwise.
-  - If detached background jobs are unavoidable, redirect stdout/stderr to a task log, write a PID file, then immediately verify the PID is alive and the log is nonempty. Empty logs plus a dead PID means the agent did not start and must be relaunched.
-  - For fresh task worktrees, expect `node_modules` to be absent. If a test command fails with a missing runner such as `vitest`, run `pnpm install --ignore-scripts` once in that worktree, then retry. Do not update lockfiles unless the task owns the lockfile.
-  - If a fresh worktree blocks on generated SDK/cache assets, seed only ignored generated paths from a known-good local checkout after confirming with `git check-ignore -v`. Never stage or commit seeded cache assets.
-  - Give every concurrent Codex a non-overlapping writable file set and an explicit report file. Let only one agent per worktree commit at a time; use separate worktrees for concurrent committers.
-- Subagent prompt MUST contain:
-  - Repo identifier: `"airi"`.
-  - Exact `symbol_ids` (use outlines to find them).
-  - Full tool-binding mandate (see template below).
-  - Blast-radius context so the subagent knows the dependent surface.
-
-**Subagent Prompt Template:**
-```
-You are working in repo "airi" (indexed via jcodemunch-mcp).
-
-TOOL MANDATORY — use MCP for ALL code lookup. Native tools are emergency fallback ONLY.
-- jcodemunch: search_units, get_unit, get_unit_context, get_file_outline, get_blast_radius,
-  get_call_hierarchy, get_class_hierarchy, get_dependency_graph, find_references,
-  find_implementations, check_safe, plan_refactoring, register_edit
-
-Primary flow: get_outline -> search_units -> get_unit -> get_blast_radius -> apply edit via native tools -> register_edit
-
-Target symbols: [<symbol_ids>]
-Task: <description>
-Context: <blast radius notes, call chain, lessons learned>
-```
-
-### Step 3: Verify the Result (MANDATORY — NEVER skip)
-After every delegated task, in this order:
-1. `jcodemunch___get_unit(unit_id=<id>, verify=true, verify_against="cache")` — confirm source actually changed.
-2. `jcodemunch___get_blast_radius(symbol=<id>, include_source=true)` — confirm no dangling references remain.
-3. `jcodemunch___get_call_hierarchy(symbol_id=<id>, direction="callers")` — confirm callers intact.
-4. `jcodemunch___register_edit(file_paths=[...], reindex=true)` — invalidate cache.
-5. `pnpm -F @proj-airi/<pkg> exec vitest run <changed-file>` — run targeted tests.
-
-**If any verification step fails, re-delegate with corrective feedback — never fix yourself.**
-
----
-
-## Rules
-
-### Git
-- Rebase pulls: `git pull --rebase`.
-- Branch naming: `username/feat/short-name`.
-- Conventional Commits: `feat(<scope>): message`. No Gitmoji.
-- Commit messages: summarise changes, **test commands used**, follow-ups.
-
-### Testing
-- Reproduce bugs with a test **before** changing production code.
-- Include tracker identifiers: `Issue #<number>` or Linear key.
-- Add the report URL as a comment above the test.
-- Run targeted tests: `pnpm exec vitest run <changed-file>`.
-
-### Architecture Landmines
-- Module boundaries: prefer **deep modules** (hide a meaningful decision: policy, persistence, lifecycle). Avoid shallow splits (by execution order only).
-- DI: use only at **external boundaries** (database, model runtime, Redis). Do not create `Dependencies` objects for internal helpers.
-- Circular imports: treat as a **design problem**. Reconsider ownership/boundaries.
-- TypeScript: import types from the **owning module**. Never redeclare external types.
-- IPC: centralise Eventa contracts; use `@moeru/eventa` for all events.
-
-### Dependencies
-- **Never add a dependency without searching for existing internal implementations.**
-- For `node:*`, DOM, or Vue composables, research existing libraries first and **ask the user to confirm choices**.
-
-### Styling & Components
-- Use UnoCSS shortcuts/rules (extend in `uno.config.ts`). Prefer UnoCSS over Tailwind.
-- Build on `@proj-airi/ui` primitives (reka-ui). Update `docs/ai/context/ui-components.md` when adding/updating components.
-- Use Iconify icon sets; **no bespoke SVGs**.
-
-### Credentials/Secrets
-- **Never commit secrets or API keys.** Use `.env.example` patterns.
-
-### Observability
-- **Prometheus-compatible `/metrics` endpoint** is exposed by the AIRI core HTTP server. Instrument new subsystems by importing `Counter` / `Gauge` / `Histogram` from `core/telemetry/index.js` and registering them against the daemon's `MetricRegistry`. Snapshot via `.expose()` (Prometheus text) or `.snapshot()` (JSON).
-- Instrumentation follows OpenTelemetry naming conventions (`snake_total` for counters, underscore units like `_ms` for durations). Each daemon-owned metric is prefixed `airi_`.
-
-### Environment Variables
-- `SENTRY_DSN` — DSN for Sentry error tracking on the Electron app. Optional on dev/contributor machines; SDK gracefully no-ops when absent. Required in production builds to capture crashes.
-  - Scope: only `airi-tamagotchi@<version>` release events.
-  - Auth/identity: set post-login inside `services/airi/auth.ts` (OIDC does not expose email).
-
----
-
-## Lessons Learned
-
-### Missing Blast Radius Verification
-The subagent for ["Extract persistence logic from Electron main thread"](https://github.com/animaios/airi/pull/142) reported success, but the `AppDataManager` class was **never moved** out of `main.ts`. Only a stub file was created. The missing move was discovered when verifying blast radius — `find_references(identifier="AppDataManager")` still showed all IPC call sites inside the Electron main thread. **Always verify blast radius and references with jcodemunch after a delegated task.**
-
----
-
-## Standard Operating Procedure — Local Helper Scripts
-
-The following scripts are installed at `~/.agents/skills/`. Use them when the
-situation calls for it. Soft guidance — apply judgment, not dogma.
-
-### auto-execute (plan runner)
-
-`~/.agents/skills/auto-execute/auto-execute.sh`
-
-Use when the user has an implementation plan (Markdown with `### Task N:` headers)
-and wants it executed task-by-task in isolated sessions.
-
-CLI binaries: any `claude`-prefixed command name. Pass 1-5 for failover redundancy.
-
-
-```bash
-auto-execute.sh [--max-turns 80] [--task-timeout 600] [--context-limit 100000]
-                [--start-task N] [--log-dir logs/auto-execute]
-                <claude-binary> [claude-binary-2..5] <plan-input>
-```
-
-Plan input: path to plan file, partial match against `docs/plans/`, or `latest` for
-most recent.
-
-Behavior: runs each task as `claude -p "/auto-execute task-N.md"`, monitors for
-timeout/context-limit, verifies exit+commit+tree-clean after each step, retries
-with next binary on failure. Ctrl+C is trapped cleanly.
-
-Do not use for single-shot tasks, exploratory work, or when the user wants to
-review each step manually.
-
-### commit (git committer)
-
-`~/.agents/skills/commit/SKILL.md` — Claude Code skill, triggered via `/commit`
-
-Use when the user says "commit" or "save this" or asks for a commit message.
-Generates `type: description` format, runs `git diff --staged`, prompts for staging
-if nothing staged.
-
-Alternative without skill invocation:
-
-```bash
-git diff --staged → git add . → git commit -m "type: description"
-```
-
-### humanizer (writer)
-
-`~/.agents/skills/humanizer/SKILL.md` — Claude Code skill, triggered via
-`/humanizer`
-
-Use when the user asks to "clean up" writing, "make this sound natural", "de-AI
-this", or similar. Applies 25 pattern replacements (significance inflation, copula
-avoidance, chatbot artifacts, em dash overuse, etc.) with personality-injection
-pass. Repo-agnostic — works on any prose.
-
-### When to invoke automatically
-
-| User says | Invoke |
-|-----------|--------|
-| "run the plan" / "execute tasks from <file>" | auto-execute |
-| "commit this" / "commit changes" | commit skill or manual |
-| "fix this text" / "make it sound human" / "de-AI" | humanizer skill |
-
-Platform check: these scripts assume Linux/macOS. On Windows, use PowerShell
-equivalents (not yet ported).
-
----
-
-## Tool Selection Cheat-Sheet
-
-Repo: `airi` (indexed). Symbol ID: `{file_path}::{qualified_name}#{kind}`
-
-### Opening move (before ANY task)
-`jcodemunch___assemble_task_context` · `jcodemunch___get_repo_map(token_budget=2048)`
-
-### Locate target
-`jcodemunch___search_units` · `jcodemunch___get_outline`
-
-### Understand impact
-`jcodemunch___get_blast_radius(include_source=true)` · `jcodemunch___get_call_hierarchy(direction="both")` · `jcodemunch___get_class_hierarchy` · `jcodemunch___get_dependency_graph`
-
-### Apply edit
-Native tools (Edit, ApplyPatch) — no MCP edit tools available.
-
-### Verify & reindex
-`jcodemunch___get_unit(unit_id, verify=true)` · `jcodemunch___register_edit(file_paths, reindex=true)`
+# Project AIRI Agent Guide
+
+Concise but detailed reference for contributors working across the `moeru-ai/airi` monorepo. Improve code when you touch it; avoid one-off patterns.
+
+## Tech Stack (by surface)
+
+- **Desktop (stage-tamagotchi)**: Electron, Vue, Vite, TypeScript, Pinia, VueUse, Eventa (IPC/RPC), UnoCSS, Vitest, ESLint.
+- **Web (stage-web)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, ESLint. Backend: WIP.
+- **Mobile (stage-pocket)**: Vue 3 + Vue Router, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, ESLint, Kotlin, Swift, Capacitor.
+- **UI/Shared Packages**:
+  - `packages/stage-ui`: Core business components, composables, stores shared by stage-web & stage-tamagotchi (heart of stage work).
+  - `packages/stage-ui-three`: Three.js bindings + Vue components.
+  - `packages/stage-ui-pixi`: Planned Pixi bindings.
+  - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
+  - `packages/ui`: Standardized primitives (inputs, textarea, buttons, layout) built on reka-ui; minimal business logic.
+  - `packages/i18n`: Central translations.
+  - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
+  - Legacy: `crates/` (old Tauri desktop; current desktop is Electron).
+
+## Structure & Responsibilities
+
+- **Apps**
+  - `apps/stage-web`: Web app; composables/stores in `src/composables`, `src/stores`; pages in `src/pages`; devtools in `src/pages/devtools`; router config via `vite.config.ts`.
+  - `apps/stage-tamagotchi`: Electron app; renderer pages in `src/renderer/pages`; devtools in `src/renderer/pages/devtools`; settings layout at `src/renderer/layouts/settings.vue`; router config via `electron.vite.config.ts`.
+  - Settings/devtools routes rely on `<route lang="yaml"> meta: layout: settings </route>`; ensure routes/icons are registered accordingly (`apps/stage-tamagotchi/src/renderer/layouts/settings.vue`, `apps/stage-web/src/layouts/settings.vue`).
+  - Shared page bases: `packages/stage-pages`.
+  - Stage pages: `apps/stage-web/src/pages`, `apps/stage-tamagotchi/src/renderer/pages` (plus devtools folders).
+- **Stage UI internals** (`packages/stage-ui/src`)
+  - Providers: `stores/providers.ts` and `stores/providers/` (standardized provider definitions).
+  - Modules: `stores/modules/` (AIRI orchestration building blocks).
+  - Composables: `composables/` (business-oriented Vue helpers).
+  - Components: `components/`; scenarios in `components/scenarios/` for page/use-case-specific pieces.
+  - Stories: `packages/stage-ui/stories`, `packages/stage-ui/histoire.config.ts` (e.g. `components/misc/Button.story.vue`).
+- **IPC/Eventa**: Always use `@moeru/eventa` for type-safe, framework/runtime-agnostic IPC/RPC. Define contracts centrally (e.g., `apps/stage-tamagotchi/src/shared`) and follow usage patterns in `apps/stage-tamagotchi/src/main/services/electron` for main/renderer integration.
+- **Dependency Injection**: Use `injeca` for services/electron modules/plugins/frontend; see `apps/stage-tamagotchi/src/main/index.ts` for composition patterns.
+- **Build/CI/Lint**: `.github/workflows` for pipelines; `eslint.config.js` for lint rules.
+- **Styles**: UnoCSS config at `uno.config.ts`; check `apps/stage-web/src/styles` for existing animations; prefer UnoCSS over Tailwind.
+
+## Key Path Index (what lives where)
+
+- `packages/stage-ui`: Core stage business components/composables/stores.
+  - `src/stores/providers.ts` and `src/stores/providers/`: provider definitions (standardized).
+  - `src/stores/modules/`: AIRI orchestration modules.
+  - `src/composables/`: reusable Vue composables (business-oriented).
+  - `src/components/`: business components; `src/components/scenarios/` for page/use-case-specific pieces.
+  - Stories: `packages/stage-ui/stories`, `packages/stage-ui/histoire.config.ts` (e.g. `components/misc/Button.story.vue`).
+- `packages/stage-ui-three`: Three.js bindings + Vue components.
+- `packages/stage-ui-pixi`: Planned Pixi bindings.
+- `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
+- `packages/ui`: Standardized primitives (inputs/textarea/buttons/layout) built on reka-ui.
+- `packages/i18n`: All translations.
+- Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
+- Legacy desktop: `crates/` (old Tauri; Electron is current).
+- Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/stage-tamagotchi/src/renderer/pages` for app-specific pages; devtools live in each app’s `.../pages/devtools`.
+- Router configs: `apps/stage-web/vite.config.ts`, `apps/stage-tamagotchi/electron.vite.config.ts`.
+- Devtools/layouts: `apps/stage-tamagotchi/src/renderer/layouts/settings.vue`, `apps/stage-web/src/layouts/settings.vue`.
+- IPC/Eventa contracts/examples: `apps/stage-tamagotchi/src/shared`, `apps/stage-tamagotchi/src/main/services/electron`.
+- DI examples: `apps/stage-tamagotchi/src/main/index.ts` (injeca).
+- Styles: `uno.config.ts` (UnoCSS), `apps/stage-web/src/styles` (animations/reference).
+- Build pipeline refs: `.github/workflows`; lint rules in `eslint.config.js`.
+- Documented solutions: `docs/solutions/` records past fixes and workflow learnings, organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when implementing, debugging, or verifying in documented areas.
+- Tailwind/UnoCSS: prefer UnoCSS; if standardizing styles, add shortcuts/rules/plugins in `uno.config.ts`.
+
+## Commands (pnpm with filters)
+
+> Use pnpm workspace filters to scope tasks. Examples below are generic; replace the filter with the target workspace name (e.g. `@proj-airi/stage-tamagotchi`, `@proj-airi/stage-web`, `@proj-airi/stage-ui`, etc.).
+
+- **Typecheck**
+  - `pnpm -F <package.json name> typecheck`
+  - Example: `pnpm -F @proj-airi/stage-tamagotchi typecheck` (runs `tsc` + `vue-tsc`).
+- **Unit tests (Vitest)**
+  - Targeted: `pnpm exec vitest run <path/to/file>`
+    e.g. `pnpm exec vitest run apps/stage-tamagotchi/src/renderer/stores/tools/builtin/widgets.test.ts`
+  - Workspace: `pnpm -F <package.json name> exec vitest run`
+    e.g. `pnpm -F @proj-airi/stage-tamagotchi exec vitest run`
+  - Root `pnpm test:run`: runs all tests across registered projects. If no tests are found, check `vitest.config.ts` include patterns.
+  - Root `vitest.config.ts` includes `apps/stage-tamagotchi` and other projects; each app/package can have its own `vitest.config`.
+- **Lint**
+  - `pnpm lint` and `pnpm lint:fix`
+  - Formatting is handled via ESLint; `pnpm lint:fix` applies formatting.
+- **Build**
+  - `pnpm -F <package.json name> build`
+  - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
+
+## Development Practices
+
+- Favor clear module boundaries; shared logic goes in `packages/`.
+- Keep runtime entrypoints lean; move heavy logic into services/modules.
+- Prefer functional patterns + DI (`injeca`) for testability.
+- Use Valibot for schema validation; keep schemas close to their consumers.
+- Use Eventa (`@moeru/eventa`) for structured IPC/RPC contracts where needed.
+- Use `errorMessageFrom(error)` from `@moeru/std` to extract error messages instead of manual patterns like `error instanceof Error ? error.message : String(error)`. Pair with `?? 'fallback'` when a default is needed.
+- Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
+- If the refactor scope is small, do a progressive refactor step by step.
+- When modifying code, always check for opportunities to do small, minimal progressive refactors alongside the change.
+
+## Styling & Components
+
+- Prefer Vue v-bind class arrays for readability when working with UnoCSS & tailwindcss: do `:class="['px-2 py-1','flex items-center','bg-white/50 dark:bg-black/50']"`, don't do `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`, don't do `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`; avoid long inline `class=""`. Refactor legacy when you touch it.
+- Use/extend UnoCSS shortcuts/rules in `uno.config.ts`; add new shortcuts/rules/plugins there when standardizing styles. Prefer UnoCSS over Tailwind.
+- Check `apps/stage-web/src/styles` for existing animations; reuse or extend before adding new ones. If you need config references, see `apps/stage-web/tsconfig.json` and `uno.config.ts`.
+- Build primitives on `@proj-airi/ui` (reka-ui) instead of raw DOM; see [`docs/ai/context/ui-components.md`](docs/ai/context/ui-components.md) for the full component API reference and `packages/ui/src/components/Form` for implementation patterns.
+- **When adding or updating components in `packages/ui`**, update [`docs/ai/context/ui-components.md`](docs/ai/context/ui-components.md) to reflect the change (props, slots, emits, description).
+- Use Iconify icon sets; avoid bespoke SVGs.
+- Animations: keep intuitive, lively, and readable.
+- `useDark` (VueUse): set `disableTransition: false` or use existing composables in `packages/ui`.
+
+## Testing Practices
+
+- Vitest per project; keep runs targeted for speed.
+- For any investigated bug or issue, try to reproduce it first with a test-only reproduction before changing production code. Prefer a unit test; if that is not possible, use the smallest higher-level automated test that can still reproduce the problem.
+- When an issue reproduction test is possible, include the tracker identifier in the test case name:
+  - GitHub issues: include `Issue #<number>`
+  - Internal bugs tracked in Linear: include the Linear issue key
+- Add the actual report link as a comment directly above the regression test:
+  - GitHub issue URL for GitHub reports
+  - Discord message or thread URL for IM reports
+  - Linear issue URL for internal bugs
+- Mock IPC/services with `vi.fn`/`vi.mock`; do not rely on real Electron runtime.
+- For external providers/services, add both mock-based tests and integration-style tests (with env guards) when feasible. You can mock imports with Vitest.
+- Grow component/e2e coverage progressively (Vitest browser env where possible). Use `expect` and assert mock calls/params.
+- When writing tests, prefer line-by-line `expect` or assertion statements.
+- Avoid writing tests for impossible runtime states, such as `expect` against constants that never change, or asserting object mutations that can only happen inside the same Vitest case setup.
+- Avoid mocking `globalThis` or built-in modules by directly using `Object.defineProperty(...)`. If needed, use `node:worker_threads` to load another worker and simulate that situation, or build a mini CLI to reproduce and verify behavior. For DOM and Web Platform APIs, prefer Vitest browser mode instead of hard-mocking platform internals. If tests already use those patterns, progressively refactor them.
+- Do not use Vitest mocks, hoisting, dynamic imports, `as unknown as`, or test-only alternate import paths to maliciously bypass real import problems. If a test cannot import a module, investigate the actual compile/runtime boundary: package exports, side effects, mixed Node/browser type dependencies, circular imports, and whether the public module shape is wrong. Fix the boundary instead of hiding the failure in the test.
+
+## TypeScript / IPC / Tools
+
+- Keep JSON Schemas provider-compliant (explicit `type: object`, required fields; avoid unbounded records).
+- Favor functional patterns + DI (`injeca`); avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
+- Centralize Eventa contracts; use `@moeru/eventa` for all events.
+- Import types from the module or package that owns the contract. Do not redeclare external/public contracts locally just to use a narrower subset, and do not route type imports through local runtime assembly modules when the original side-effect-free type source is available.
+- Do not use inline type imports such as `typeof import('...').x` or `import('...').Type` to avoid normal module boundaries. Export explicit shared types from the owning module, import external contract types from their owning package, or split a dedicated side-effect-free type module when runtime imports would pull in the wrong environment.
+- Do not directly modify or override `tsconfig.json` to make an import/type error disappear. First investigate compilation behavior, `package.json` `exports` declarations, type declarations, and whether the dependency exposes the intended browser/node entrypoints.
+- When Node-only and browser-only types are mixed through one import chain, split the type declarations into a neutral type file and keep runtime modules environment-specific. Avoid importing values from modules that carry side effects just to obtain types.
+- If a wrong export or missing export causes an error, trace the full import chain and side-effect chain before changing imports at the leaf. Prefer fixing package/module exports and the owning boundary over adding local workaround imports.
+- Treat circular imports as a design problem. If a cycle appears, first reconsider ownership, module boundaries, and whether shared types or pure helpers need to move. If the cycle cannot be resolved confidently, ask the user for direction before continuing.
+- When a user asks to use a specific tool or dependency, first check Context7 docs with the search tool, then inspect actual usage of the dependency in this repo.
+- If multiple names are returned from Context7 without a clear distinction, ask the user to choose or confirm the desired one.
+- If docs conflict with typecheck results, inspect the dependency source under `node_modules` to diagnose root cause and fix types/bugs.
+
+## i18n
+
+- Add/modify translations in `packages/i18n`; avoid scattering i18n across apps/packages.
+
+## CSS/UNO
+
+- Use/extend UnoCSS shortcuts in `uno.config.ts`.
+- Prefer grouped class arrays for readability; refactor legacy inline strings when possible.
+
+## Readability, Naming, and Comments
+
+- File names: camelCase.
+- Prefer names that rely on the module boundary for context instead of repeating package, product, protocol, or transport prefixes inside every symbol. A well-named module should let exported functions use short action-first names; repeat the larger context only when the symbol crosses a boundary where that context is no longer obvious.
+- Name functions after the domain operation they perform, not after the implementation layer that happens to contain them. This keeps call sites readable after refactors and avoids names becoming stale when code moves between files.
+- Avoid names that encode multiple layers of ownership into one symbol. If a name needs several qualifiers to be understandable, reconsider the module boundary or introduce a clearer local concept.
+- Use nouns for resolved domain concepts and verbs for transformations or side effects. When a function derives a policy/configuration from an event or request, name the domain result explicitly so callers understand what decision is being made.
+- Prefer classes for runtime/browser APIs and substantial business modules when the class owns state, lifecycle, or a stable domain boundary. Prefer FP for pure transformations and local helpers.
+- Use dependency injection only at real external boundaries: database, model runtime, queue, Redis/cache, filesystem, network, clock, environment, and feature gates. Do not introduce `Dependencies`/`Deps` objects for internal functions that only call sibling helpers or forward parameters.
+- Comments should reduce reader uncertainty, not increase documentation volume.
+- Write comments where a reader would otherwise ask why this case can happen, why this branch is ignored, why this fallback exists, why this order matters, what state changed here, what external side effect just happened, or what protocol/invariant this line is preserving.
+- Good comments explain hidden intent, constraints, ownership, invariants, ordering, side effects, protocol shape, or non-obvious fallback behavior.
+- Bad comments translate code into English, restate names/types, or exist only to satisfy hover documentation.
+- Important implementation comments should live near the confusing line or branch, not only on exported declarations.
+- For calculation-heavy code, prefer inline comments near the intermediate values and branches that need explanation. Do not rely only on function-level JSDoc when the hard part is a coordinate system, unit conversion, clamp, rounding rule, aggregation, fallback, or precedence decision.
+- Apply this especially to geometry, graphics and shader math, billing or metering, analytics or statistics, UI layout and positioning, ranking or scoring, and normalization code.
+- Format longer comments as short paragraphs separated by blank comment lines. Do not compress background, symptom, rejected alternatives, final rationale, and references into one dense block.
+- For investigation-heavy comments, prefer this order when useful: source/context, observed failure, why the obvious fix is insufficient, chosen fix, and references/removal condition.
+- Do not add broad comments like `// Config`, `// Host`, or `// Update state` unless they explain a non-obvious boundary or transition.
+- Add clear, concise comments for utils, math, OS-interaction, algorithm, shared, and architectural functions that explain non-obvious intent, invariants, constraints, or why the code is needed.
+- When using a workaround, add a `// NOTICE:` comment explaining why, the root cause, and any source context. If validated via `node_modules` inspection or external sources (e.g., GitHub), include relevant line references and links in code-formatted text.
+- When moving/refactoring/fixing/updating code, keep still-accurate comments with the code. Remove obsolete comments rather than preserving their history in source; explain notable removals in review notes when needed.
+- Avoid stubby/hacky scaffolding; prefer small refactors that leave code cleaner.
+- Use markers:
+  - `// TODO:` follow-ups
+  - `// REVIEW:` concerns/needs another eye
+  - `// NOTICE:` magic numbers, hacks, important context, external references/links
+
+### JSDoc
+
+- Use JSDoc for public APIs, shared boundaries, exported types, and non-trivial exported functions/classes.
+- Do not use JSDoc as a substitute for explaining complex implementation branches.
+- Do not force `Use when / Expects / Returns` blocks onto internal helpers, object literal methods, simple pass-through methods, or interface/type top-level comments when they only restate names and signatures.
+- For interfaces and type aliases, keep top-level JSDoc short. Put field-specific semantics on fields when the field has non-obvious units, defaults, ownership, lifecycle, freshness, or compatibility behavior.
+- For exported functions/classes that form a real API boundary, JSDoc should explain what the boundary guarantees, when to use it, and what assumptions callers must respect.
+- For internal implementation details, prefer precise names and branch-local comments over large JSDoc blocks.
+
+### Fallbacks and Precedence
+
+- Any fallback chain with more than two sources must make precedence explicit.
+- If fallback sources represent different schema versions, compatibility behavior, specificity levels, or user/system overrides, each non-primary branch must explain why that case exists and why it has that priority.
+- Avoid nested ternaries for fallback chains when any branch is non-obvious. Use named intermediate variables or `if` / `else if` blocks so comments can live next to the relevant branch.
+- Do not keep backward-compatibility fallbacks silently. If a fallback is temporary, mark it with `// NOTICE:` and include the removal condition. If it is permanent, document it as supported policy instead of calling it legacy.
+- If a fallback returns an empty string, stale value, cached value, default value, or ignored result in non-trivial domain/protocol code, explain why that fallback is safe at the return or branch site.
+
+### Stateful and Protocol Code
+
+- For code that implements a protocol, state machine, lifecycle, cache, request/response flow, event routing, watcher, session, cookie, or cleanup sequence, document the state model near the implementation.
+- Distinguish persisted configuration, discovered filesystem state, runtime-loaded state, cache state, session/cookie state, watcher state, and external side effects in names or nearby comments.
+- Methods that look like state transitions, such as `setEnabled`, `load`, `unload`, `dispose`, `start`, `stop`, or `refresh`, should make clear which state they change when that is not obvious from the owning type/module.
+- When matching events or responses, explicitly document the correlation keys and isolation rules, such as `requestId`, `sessionId`, `ownerExtensionId`, `bindingId`, route namespace, or source window.
+- Event handlers must make ignored events understandable. If an event is ignored because of route mismatch, owner mismatch, stale request id, disposed lifecycle, or wrong source, the reason should be visible in code or captured in a named predicate.
+- For request/response flows, define or name the envelope shape close to the producer and consumer.
+- Document what happens to pending requests on timeout, close, unload, dispose, and publish failure.
+- When cleanup spans multiple owners, keep the ordering visible and explain why the order matters.
+- When returning a snapshot, fallback value, stale value, or cached value, document freshness semantics at the return site.
+
+### Helper Extraction
+
+- Before extracting a private helper, ask what decision it hides.
+- Keep logic inline when the helper only names a single execution step and is used once.
+- Extract a helper when it owns reusable policy, parsing, normalization, lifecycle, cleanup, error handling, protocol validation, or a cross-call invariant.
+- Do not hide special cases inside generic helpers if doing so moves the explanation away from the branch where readers need it.
+- If a helper manipulates encoded keys, cache ownership, session ownership, filesystem paths, route names, or protocol-shaped data, document the encoding/invariant near the helper or replace the encoding with a clearer structure.
+
+### Readability Refactors
+
+- If a comment is needed to explain hidden state, encoded data, protocol envelopes, or lifecycle transitions, first consider whether named types, structured state, or a small policy function would make the concept explicit.
+- Readability-only changes should preserve runtime behavior. If behavior changes, add focused tests and document the contract change explicitly.
+- For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts it, what stops it, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
+
+## Module Design
+
+- Prefer deep modules over shallow modules. A module should hide a meaningful decision: policy, persistence boundary, protocol/schema contract, scheduling semantics, model prompt contract, domain invariant, or lifecycle concern.
+- Do not split code by execution order alone. A module boundary should represent a stable responsibility that can be understood without reading all sibling files.
+- Keep cohesive domain flows together until there is proven pressure to split. A 200-400 line cohesive module is preferable to several shallow modules that pass the same context/options through each other.
+- Before creating a new `createXService` or `XDependencies`, verify that `X` adds policy, validation, state, retry/error handling, IO boundary, or a reusable abstraction. If not, keep it as a private helper or inline it.
+- Avoid pass-through services such as `createXService({ yService })` when `X` adds no meaningful policy, validation, state, or abstraction.
+- Do not extract tiny one-call helper functions just to name an implementation step, reduce line count, or make tests easier to write. Keep short logic inline when the helper does not hide a real decision, policy, IO boundary, normalization rule, retry/error handling, lifecycle concern, or reusable domain concept.
+- Extract a helper only when it is reused by multiple production call sites, hides non-trivial branching/IO/parsing/normalization/error policy, names a stable domain concept, or forms part of a public/package API.
+- Test through stable public behavior. Do not create new exports, dependency bags, or wrapper services only to make private implementation details mockable.
+- Keep reusable domain contracts and rendering/building logic in the package that owns that domain. Runtime entrypoints should wire dependencies and call those boundaries instead of inlining large reusable contracts.
+
+## PR / Workflow Tips
+
+- Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
+- Summarize changes, how tested (commands), and follow-ups.
+- Improve legacy you touch; avoid one-off patterns.
+- Keep changes scoped; use workspace filters (`pnpm -F <package> <script>`).
+- Maintain structured `README.md` documentation for each `packages/` and `apps/` entry, covering what it does, how to use it, when to use it, and when not to use it.
+- Always run `pnpm type-check` and `pnpm lint` after finishing a task.
+- Use Conventional Commits for commit messages (e.g., `feat(<package name>): add runner reconnect backoff`).
+- For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
+- Before planning or writing new utilities/functions, always search for existing internal implementations first. If the logic could become shared utilities, proactively propose that shared approach to users and developers.
+
+## TypeScript Coding Regulations
+
+These guidelines apply to all TypeScript code across the monorepo:
+
+- Do not create commits during implementation for this spec.
+- For implemented modules, use Vitest whenever possible to verify behavior and passing tests.
+- During test implementation, every workaround must include a clear and easy-to-understand `// NOTICE:` comment for reference.
+- Use the following workaround comment format whenever a workaround is introduced:
+  ```ts
+  // NOTICE:
+  // Why this workaround is needed.
+  // Root cause summary.
+  // Source/context (file, issue, URL, or node_modules reference).
+  // Removal condition (when it can be safely deleted).
+  ```
+- Prefer type generics wherever possible. Do not use `any`. Only use `as unknown as <target expected type>` when avoiding it is nearly impossible and the type cannot be fixed safely.
+- For public APIs, package-level exports, shared architectural boundaries, and non-trivial exported functions/classes/types, include clear `/** ... */` JSDoc that explains the contract, assumptions, side effects, lifecycle, or return guarantees callers actually need.
+- Avoid exporting helper functions only to satisfy tests or documentation rules. Keep implementation helpers private unless production code reuses them.
+- Avoid JSDoc on trivial one-line helpers, local projections, and pass-through functions; use precise names instead.
+- Do not use fixed JSDoc section templates for ordinary exported functions/classes/types. Write natural API documentation that explains the contract, non-obvious constraints, side effects, lifecycle expectations, and return guarantees that callers actually need.
+- Keep JSDoc short when the name and type already explain the behavior. Add detail only for information that is not visible from the signature.
+- For functions that include workarounds, include a `NOTICE:` explanation.
+- For exported test helpers or non-obvious reusable test fixtures, include examples when they clarify intended usage. Do not add `@example` comments to ordinary `describe`, `it`, or `expect*` calls.
+- For all exported interfaces, especially configurable options, document:
+  - What each interface/type represents.
+  - Put detailed field semantics on the fields themselves instead of repeating them in one large interface-level comment block.
+  - If the interface or type uses generic parameters, document them with `@param`.
+  - `@default` for every option that has a default value.
+- For interface and type JSDoc, keep the top-level comment focused on what the type represents. Do not use function-style `Use when`, `Expects`, or `Returns` sections on interfaces or type aliases. Put detailed meaning, defaults, and behavioral notes on the individual fields or methods instead of restating every field in the interface-level block.
+- For generic type parameters in JSDoc, use `@param` entries to explain what each type parameter represents.
+- For runner and CLI entrypoints, `/** ... */` JSDoc is required and must include a clear ASCII call-stack diagram using `{@link ...}` references where applicable. For server orchestrators, add the call-stack diagram only when it clarifies a stable architecture boundary; do not add diagrams to shallow glue code.
+- Use this call-stack section format in orchestrator/runner/CLI JSDoc:
+  ```ts
+  /**
+   * ...
+   *
+   * Call stack:
+   *
+   * collectEvalEntries (../runner)
+   *   -> {@link createRunnerSchedule}
+   *     -> {@link createMatrixCombinations}
+   *       -> {@link VievalScheduledTask}[]
+   */
+  ```
+- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context. For calculation-heavy code, prefer inline comments beside the calculation process over declaration-only JSDoc.
+- Prefer `es-toolkit` first when creating utilities.
+- For error handling, prefer `@moeru/std` patterns whenever possible.
+- For exported normalizers, shared normalizers, or non-obvious local normalizers that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.
+- Use this normalizer documentation format:
+  ```ts
+  /**
+   * Normalizes <target>.
+   *
+   * Before:
+   * - "ExampleInput"
+   *
+   * After:
+   * - "example-output"
+   */
+  ```
+- Do not move everything into constants. One-time or two-time constants should remain near usage (typically near the top after imports) with clear `/** ... */` explaining why.
+- For configurable options with defaults, prefer `@moeru/std` merge functions and define defaults as documented objects when possible, instead of broad standalone constants.
+- For retry, backoff, and limit values, do not use one standalone constant to cover everything.
+- Avoid hardcoded Unix/macOS/Windows path literals; prefer path-safe array arguments and cross-platform handling.
+- For test cases, do not rely on smoke-only tests. Reproduce bugs/failures before patching, then keep comments explaining root cause and fix rationale.
+- Use this root-cause block format in regression tests when relevant:
+  ```ts
+  // ROOT CAUSE:
+  //
+  // If XXXX, some XXX case happens.
+  // This happens because where line ...
+  //
+  // <before-patch behavior/code>
+  //
+  // We fixed this by XXX, XXX, XXX.
+  // <after-patch behavior/code>
+  ```
+- Do not split modules into sections using separators like `========`; use cohesive private helper groups or split into modules only when the new module owns a distinct responsibility. Do not split files merely to reduce nesting, line count, or create test seams.
+- Do not overuse table-driven style. In many cases, keep table arrays inline and map directly with `.map(...)`.
+- Prefer early returns and keep functions simple. Limit nesting when it improves readability, but do not introduce pass-through helpers or shallow modules solely to reduce indentation.
+
+## Readability Review Checklist
+
+When reviewing complex TypeScript modules, check:
+
+- Can I identify the module's owned state and external side effects within one screen?
+- Are persisted state, runtime state, cache state, session state, and external side effects separated by names or comments?
+- Are protocol envelopes, route names, ids, and correlation keys named or documented?
+- Are special branches and fallback cases explained next to the branch?
+- Are stale/fresh/cache/snapshot semantics visible at the return site?
+- Are cleanup and dispose semantics explicit?
+- Are helper functions hiding real policy, or just hiding the lines where explanation is needed?
+- Do comments explain why decisions exist, or mostly repeat what the code says?
+- Would a reader understand why this code is shaped this way without opening three neighboring files?

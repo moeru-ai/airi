@@ -17,7 +17,8 @@ vi.mock('../server', () => ({
 
 interface MockServer {
   url: string
-  receivedFrames: Array<{ kind: 'text' | 'binary'; data: string | Buffer }>
+  receivedFrames: Array<{ kind: 'text' | 'binary', data: string | Buffer }>
+  observedVoiceTypes: string[]
   /** Resolves when the server has observed a `start` frame from the client. */
   startObserved: Promise<void>
   stop: () => Promise<void>
@@ -25,6 +26,7 @@ interface MockServer {
 
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
   const receivedFrames: MockServer['receivedFrames'] = []
+  const observedVoiceTypes: string[] = []
   const httpServer = createServer()
   const wss = new WebSocketServer({ server: httpServer })
 
@@ -33,7 +35,12 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     resolveStartObserved = res
   })
 
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
+    const u = new URL(req.url!, 'http://localhost')
+    const voiceType = u.searchParams.get('tts_voice_type')
+    if (voiceType != null)
+      observedVoiceTypes.push(voiceType)
+
     ws.on('message', (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
       const decoded = isBinary ? buf : buf.toString('utf8')
@@ -41,25 +48,26 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
       if (!isBinary) {
         try {
           const ev = JSON.parse(decoded as string) as { event?: string }
-          if (ev.event === 'start') resolveStartObserved()
-        } catch {
-          // noop
+          if (ev.event === 'start')
+            resolveStartObserved()
         }
+        catch {}
       }
     })
     handler(ws)
   })
 
-  await new Promise<void>((resolve) => httpServer.listen(0, '127.0.0.1', resolve))
+  await new Promise<void>(resolve => httpServer.listen(0, '127.0.0.1', resolve))
   const { port } = httpServer.address() as AddressInfo
 
   return {
     url: `http://127.0.0.1:${port}`,
     receivedFrames,
+    observedVoiceTypes,
     startObserved,
     async stop() {
       wss.close()
-      await new Promise<void>((r) => httpServer.close(() => r()))
+      await new Promise<void>(r => httpServer.close(() => r()))
     },
   }
 }
@@ -71,17 +79,17 @@ function makeStubAudioContext(): BaseAudioContext {
   let counter = 0
   const ctx = {
     sampleRate: 24000,
-    decodeAudioData: vi.fn((buf: ArrayBuffer) => {
+    decodeAudioData: vi.fn(async (buf: ArrayBuffer) => {
       // Return a fake AudioBuffer-like object identifiable by index/byteLength.
       counter += 1
-      return Promise.resolve({
+      return {
         duration: buf.byteLength / 24000,
         length: buf.byteLength,
         numberOfChannels: 1,
         sampleRate: 24000,
         __index: counter,
         __byteLength: buf.byteLength,
-      } as unknown as AudioBuffer)
+      } as unknown as AudioBuffer
     }),
   }
   return ctx as unknown as BaseAudioContext
@@ -101,7 +109,8 @@ describe('createStreamingTtsPipeline', () => {
     const chunks = [Buffer.from([1, 2, 3, 4]), Buffer.from([5, 6, 7, 8]), Buffer.from([9, 10, 11, 12])]
     server = await startMockServer((ws) => {
       ws.on('message', async (data, isBinary) => {
-        if (isBinary) return
+        if (isBinary)
+          return
         const ev = JSON.parse(data.toString()) as { event?: string }
         if (ev.event === 'finish') {
           // First sentence: chunk1 + chunk2 → sentence.end
@@ -126,6 +135,7 @@ describe('createStreamingTtsPipeline', () => {
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
+      ttsVoiceType: 'official_selected',
       audioContext: makeStubAudioContext(),
       onSentence,
       onError,
@@ -143,17 +153,16 @@ describe('createStreamingTtsPipeline', () => {
     })
 
     await server.startObserved
-    const textFrames = server.receivedFrames.filter((f) => f.kind === 'text').map((f) => JSON.parse(f.data as string))
-    expect(textFrames.map((f) => f.event)).toEqual(['start', 'text', 'text', 'finish'])
+    const textFrames = server.receivedFrames.filter(f => f.kind === 'text').map(f => JSON.parse(f.data as string))
+    expect(textFrames.map(f => f.event)).toEqual(['start', 'text', 'text', 'finish'])
+    expect(server.observedVoiceTypes).toEqual(['official_selected'])
     expect(textFrames[1]).toMatchObject({ event: 'text', text: 'hi ' })
     expect(textFrames[2]).toMatchObject({ event: 'text', text: 'there' })
 
     expect(onError).not.toHaveBeenCalled()
     // Two `sentence.end` events → two AudioBuffers.
     expect(onSentence).toHaveBeenCalledTimes(2)
-    const calls = onSentence.mock.calls.map(
-      ([s]) => s as { index: number; text: string; audio: { __byteLength: number } },
-    )
+    const calls = onSentence.mock.calls.map(([s]) => s as { index: number, text: string, audio: { __byteLength: number } })
     expect(calls[0]).toMatchObject({ index: 0, text: 'first one.' })
     expect(calls[0].audio.__byteLength).toBe(chunks[0].length + chunks[1].length)
     expect(calls[1]).toMatchObject({ index: 1, text: 'second sentence.' })
@@ -164,7 +173,8 @@ describe('createStreamingTtsPipeline', () => {
     const chunks = [Buffer.from([1, 2, 3, 4]), Buffer.from([5, 6, 7, 8])]
     server = await startMockServer((ws) => {
       ws.on('message', (data, isBinary) => {
-        if (isBinary) return
+        if (isBinary)
+          return
         const ev = JSON.parse(data.toString()) as { event?: string }
         if (ev.event === 'finish') {
           // Two sentences with sentence.end events — but the pipeline should
@@ -190,10 +200,10 @@ describe('createStreamingTtsPipeline', () => {
 
     handle.finish()
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 800))
+    await new Promise<void>(resolve => setTimeout(resolve, 800))
 
     expect(onSentence).toHaveBeenCalledTimes(1)
-    const [sentence] = onSentence.mock.calls[0] as [{ index: number; audio: { __byteLength: number } }]
+    const [sentence] = onSentence.mock.calls[0] as [{ index: number, audio: { __byteLength: number } }]
     expect(sentence.index).toBe(0)
     expect(sentence.audio.__byteLength).toBe(chunks[0].length + chunks[1].length)
   })
@@ -201,7 +211,8 @@ describe('createStreamingTtsPipeline', () => {
   it('surfaces upstream error event then closes', async () => {
     server = await startMockServer((ws) => {
       ws.on('message', (data, isBinary) => {
-        if (isBinary) return
+        if (isBinary)
+          return
         const ev = JSON.parse(data.toString()) as { event?: string }
         if (ev.event === 'start') {
           ws.send(JSON.stringify({ event: 'error', code: 'insufficient_flux', message: 'top up' }))
@@ -232,7 +243,8 @@ describe('createStreamingTtsPipeline', () => {
   it('surfaces close-before-finished as error', async () => {
     server = await startMockServer((ws) => {
       ws.on('message', (data, isBinary) => {
-        if (isBinary) return
+        if (isBinary)
+          return
         const ev = JSON.parse(data.toString()) as { event?: string }
         if (ev.event === 'start') {
           // Drop ws without sending session.finished.
@@ -265,9 +277,11 @@ describe('createStreamingTtsPipeline', () => {
     let cancelObserved = false
     server = await startMockServer((ws) => {
       ws.on('message', (data, isBinary) => {
-        if (isBinary) return
+        if (isBinary)
+          return
         const ev = JSON.parse(data.toString()) as { event?: string }
-        if (ev.event === 'cancel') cancelObserved = true
+        if (ev.event === 'cancel')
+          cancelObserved = true
       })
     })
 
@@ -283,11 +297,21 @@ describe('createStreamingTtsPipeline', () => {
     await server.startObserved
     handle.cancel()
 
-    await new Promise<void>((resolve) => {
-      onDone.mockImplementation(() => resolve())
-      setTimeout(resolve, 500)
-    })
-
-    expect(cancelObserved).toBe(true)
+    // ROOT CAUSE:
+    //
+    // This test was flaky on CI: asserting `cancelObserved` right after `onDone`
+    // resolved raced the mock server's `message` event.
+    // `cancel()` queues the cancel frame in the ws write buffer, then `terminate()`
+    // defers `ws.close()` + `onDone()` by one macrotask (streaming-pipeline.ts) —
+    // but the frame still has to cross a real loopback socket and be dispatched to
+    // the server's `message` listener, which on a loaded runner can happen AFTER
+    // the client-side `onDone` fired.
+    //
+    // We fixed this by polling for both observations instead of asserting
+    // immediately after `onDone`.
+    await vi.waitFor(() => {
+      expect(cancelObserved).toBe(true)
+      expect(onDone).toHaveBeenCalledTimes(1)
+    }, { interval: 10, timeout: 1500 })
   })
 })

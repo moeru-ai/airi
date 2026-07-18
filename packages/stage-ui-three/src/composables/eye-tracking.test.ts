@@ -1,4 +1,3 @@
-import type { PerspectiveCamera } from 'three'
 import { createPinia, setActivePinia } from 'pinia'
 import { Raycaster, Vector3 } from 'three'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -49,7 +48,7 @@ describe('useVRMEyeFocusFor', () => {
         raycaster: new Raycaster(),
         camera: {
           near: 0.1,
-        } as unknown as PerspectiveCamera,
+        } as any,
         defaultLookAt,
       }),
       screenBoundingBox: () => ({ top: 0, left: 0, width: 100, height: 100 }),
@@ -80,7 +79,7 @@ describe('useVRMEyeFocusFor', () => {
         raycaster: raycaster as unknown as Raycaster,
         camera: {
           near: 0.1,
-        } as unknown as PerspectiveCamera,
+        } as any,
         defaultLookAt: new Vector3(1, 2, 3),
       }),
       screenBoundingBox: () => ({ top: 0, left: 0, width: 100, height: 100 }),

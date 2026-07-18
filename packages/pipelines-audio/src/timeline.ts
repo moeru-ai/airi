@@ -28,7 +28,7 @@ export interface TimelineOptions {
 function createDefaultClock(): TimelineClock {
   return {
     now: () => Date.now(),
-    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    sleep: ms => new Promise(resolve => setTimeout(resolve, ms)),
   }
 }
 
@@ -60,7 +60,8 @@ export function createTimeline(options?: TimelineOptions) {
     const previous = trackTails.get(item.track)
 
     const run = async () => {
-      if (controller.signal.aborted) return
+      if (controller.signal.aborted)
+        return
 
       await item.run({
         clock,
@@ -68,12 +69,11 @@ export function createTimeline(options?: TimelineOptions) {
       })
     }
 
-    const done = previous ? previous.catch(() => undefined).then(run) : run()
+    const done = previous
+      ? previous.catch(() => undefined).then(run)
+      : run()
 
-    trackTails.set(
-      item.track,
-      done.catch(() => undefined),
-    )
+    trackTails.set(item.track, done.catch(() => undefined))
 
     return {
       id,

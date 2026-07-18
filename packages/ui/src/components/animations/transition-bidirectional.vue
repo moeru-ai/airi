@@ -1,16 +1,9 @@
 <script setup lang="ts">
-withDefaults(
-  defineProps<{
-    fromClass?: string
-    activeClass?: string
-    toClass?: string
-  }>(),
-  {
-    fromClass: '',
-    activeClass: '',
-    toClass: '',
-  },
-)
+defineProps<{
+  fromClass?: string
+  activeClass?: string
+  toClass?: string
+}>()
 </script>
 
 <template>

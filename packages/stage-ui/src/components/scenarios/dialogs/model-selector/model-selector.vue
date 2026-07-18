@@ -7,19 +7,7 @@ import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuRoot,
-  DropdownMenuTrigger,
-  EditableArea,
-  EditableEditTrigger,
-  EditableInput,
-  EditablePreview,
-  EditableRoot,
-  EditableSubmitTrigger,
-} from 'reka-ui'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -27,14 +15,9 @@ import Live2DReportModal from './Live2DReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
-const props = withDefaults(
-  defineProps<{
-    selectedModel?: DisplayModel
-  }>(),
-  {
-    selectedModel: undefined,
-  },
-)
+const props = defineProps<{
+  selectedModel?: DisplayModel
+}>()
 const emits = defineEmits<{
   (e: 'close', value: void): void
   (e: 'pick', value: DisplayModel | undefined): void
@@ -53,17 +36,15 @@ const showReportModal = ref(false)
 const pendingFile = ref<File | null>(null)
 const validationReport = ref<Live2DValidationReport | null>(null)
 
-watch(
-  () => props.selectedModel?.id,
-  (modelId) => {
-    highlightDisplayModelCard.value = modelId
-  },
-  { immediate: true },
-)
+watch(() => props.selectedModel?.id, (modelId) => {
+  highlightDisplayModelCard.value = modelId
+}, { immediate: true })
 
 async function handleAddLive2DModel(file: FileList | null) {
-  if (file === null || file.length === 0) return
-  if (!file[0].name.endsWith('.zip')) return
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
 
   const report = await validateLive2DZip(file[0])
   validationReport.value = report
@@ -78,7 +59,8 @@ async function handleAddLive2DModel(file: FileList | null) {
 }
 
 async function confirmImport() {
-  if (pendingFile.value === null) return
+  if (pendingFile.value === null)
+    return
 
   // NOTICE:
   // Keep this await. Model picking can happen immediately after import from this dialog.
@@ -92,7 +74,7 @@ async function confirmImport() {
 }
 
 function handleFixError(error: string) {
-  console.warn('Live2D fix-error not implemented:', error)
+  void error
 }
 
 function handlePick(m: DisplayModel) {
@@ -102,16 +84,15 @@ function handlePick(m: DisplayModel) {
 }
 
 function handleMobilePick() {
-  emits(
-    'pick',
-    displayModels.value.find((model) => model.id === highlightDisplayModelCard.value),
-  )
+  emits('pick', displayModels.value.find(model => model.id === highlightDisplayModelCard.value))
   emits('close', undefined)
 }
 
 async function handleAddVRMModel(file: FileList | null) {
-  if (file === null || file.length === 0) return
-  if (!file[0].name.endsWith('.vrm')) return
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.vrm'))
+    return
 
   // NOTICE:
   // Keep this await for the same import-then-pick race as Live2D imports above.
@@ -123,8 +104,10 @@ async function handleAddVRMModel(file: FileList | null) {
 }
 
 async function handleAddSpineModel(file: FileList | null) {
-  if (file === null || file.length === 0) return
-  if (!file[0].name.endsWith('.zip')) return
+  if (file === null || file.length === 0)
+    return
+  if (!file[0].name.endsWith('.zip'))
+    return
 
   // NOTICE:
   // Keep this await for the same import-then-pick race as Live2D/VRM imports above.
@@ -171,14 +154,7 @@ spineDialog.onChange(handleAddSpineModel)
         <DropdownMenuRoot>
           <DropdownMenuTrigger
             bg="neutral-400/20 hover:neutral-400/45 active:neutral-400/60 dark:neutral-700/50 hover:dark:neutral-700/65 active:dark:neutral-700/90"
-            flex
-            items-center
-            justify-center
-            gap-1
-            rounded-lg
-            px-2
-            py-1
-            backdrop-blur-sm
+            flex items-center justify-center gap-1 rounded-lg px-2 py-1 backdrop-blur-sm
             transition="colors duration-200 ease-in-out"
             aria-label="Options for Display Models"
           >
@@ -214,8 +190,7 @@ spineDialog.onChange(handleAddSpineModel)
                   'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
                   'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
                 ]"
-                transition="colors duration-200 ease-in-out"
-                @click="vrmDialog.open()"
+                transition="colors duration-200 ease-in-out" @click="vrmDialog.open()"
               >
                 VRM
               </DropdownMenuItem>
@@ -226,8 +201,7 @@ spineDialog.onChange(handleAddSpineModel)
                   'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
                   'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
                 ]"
-                transition="colors duration-200 ease-in-out"
-                @click="spineDialog.open()"
+                transition="colors duration-200 ease-in-out" @click="spineDialog.open()"
               >
                 Spine
               </DropdownMenuItem>
@@ -236,21 +210,18 @@ spineDialog.onChange(handleAddSpineModel)
         </DropdownMenuRoot>
       </div>
     </div>
-    <div v-if="displayModelsFromIndexedDBLoading">Loading display models...</div>
-    <div
-      class="flex-1 overflow-x-auto overflow-y-hidden md:flex-none sm:overflow-x-hidden sm:overflow-y-scroll"
-      h-full
-      w-full
-    >
+    <div v-if="displayModelsFromIndexedDBLoading">
+      Loading display models...
+    </div>
+    <div class="flex-1 overflow-x-auto overflow-y-hidden md:flex-none sm:overflow-x-hidden sm:overflow-y-scroll" h-full w-full>
       <div class="w-full flex gap-2 md:grid lg:grid-cols-2 md:grid-cols-1 lg:max-h-80dvh">
         <div
-          v-for="model of displayModels"
+          v-for="(model) of displayModels"
           :key="model.id"
           v-auto-animate
-          relative
-          gap-2
+          relative gap-2
           class="block h-full w-full md:flex md:flex-row"
-          @click="() => (highlightDisplayModelCard = model.id)"
+          @click="() => highlightDisplayModelCard = model.id"
         >
           <div absolute left-3 top-4 z-1>
             <DropdownMenuRoot>
@@ -259,13 +230,7 @@ spineDialog.onChange(handleAddSpineModel)
                   'bg-neutral-900/20 hover:bg-neutral-900/45 active:bg-neutral-900/60 dark:bg-neutral-950/50 hover:dark:bg-neutral-900/65 active:dark:bg-neutral-900/90',
                 ]"
                 text="white"
-                h-7
-                w-7
-                flex
-                items-center
-                justify-center
-                rounded-lg
-                backdrop-blur-sm
+                h-7 w-7 flex items-center justify-center rounded-lg backdrop-blur-sm
                 transition="colors duration-200 ease-in-out"
                 aria-label="Options for Display Models"
               >
@@ -300,38 +265,21 @@ spineDialog.onChange(handleAddSpineModel)
               </DropdownMenuPortal>
             </DropdownMenuRoot>
           </div>
-          <div class="h-full min-w-80 w-full lg:min-h-60 md:min-w-70 sm:min-w-65" aspect="12/16" px-1 py-2>
+          <div
+            class="h-full min-w-80 w-full lg:min-h-60 md:min-w-70 sm:min-w-65"
+            aspect="12/16"
+            px-1 py-2
+          >
             <img
               v-if="model.previewImage"
               :src="model.previewImage"
               :class="[
                 'h-full w-full rounded-xl object-cover',
                 'transition-all duration-200 ease-in-out',
-                highlightDisplayModelCard && highlightDisplayModelCard === model.id
-                  ? 'ring-3 ring-primary-400'
-                  : 'ring-0 ring-transparent',
+                highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent',
               ]"
-            />
-            <div
-              v-else
-              bg="neutral-100 dark:neutral-900"
-              relative
-              h-full
-              w-full
-              flex
-              flex-col
-              items-center
-              justify-center
-              gap-2
-              overflow-hidden
-              rounded-xl
-              :class="[
-                highlightDisplayModelCard && highlightDisplayModelCard === model.id
-                  ? 'ring-3 ring-primary-400'
-                  : 'ring-0 ring-transparent',
-              ]"
-              transition="all duration-200 ease-in-out"
             >
+            <div v-else bg="neutral-100 dark:neutral-900" relative h-full w-full flex flex-col items-center justify-center gap-2 overflow-hidden rounded-xl :class="[highlightDisplayModelCard && highlightDisplayModelCard === model.id ? 'ring-3 ring-primary-400' : 'ring-0 ring-transparent']" transition="all duration-200 ease-in-out">
               <div i-solar:question-square-bold-duotone text-4xl opacity-75 />
               <div translate-y="100%" absolute top-0 flex flex-col translate-x--7 rotate-45 scale-250 gap-0 opacity-5>
                 <div text="sm sm:sm" translate-x-7 translate-y--2 text-nowrap>
@@ -357,9 +305,7 @@ spineDialog.onChange(handleAddSpineModel)
               >
                 <EditableArea class="w-[calc(100%-8px-1rem)] dark:text-white">
                   <EditablePreview class="line-clamp-1 w-[calc(100%-8px)] overflow-hidden text-ellipsis" />
-                  <EditableInput
-                    class="w-[calc(100%-8px)]! placeholder:text-neutral-700 dark:placeholder:text-neutral-600"
-                  />
+                  <EditableInput class="w-[calc(100%-8px)]! placeholder:text-neutral-700 dark:placeholder:text-neutral-600" />
                 </EditableArea>
                 <EditableEditTrigger v-if="!isEditing">
                   <div i-solar:pen-2-line-duotone opacity-50 />

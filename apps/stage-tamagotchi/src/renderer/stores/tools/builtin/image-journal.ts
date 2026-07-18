@@ -4,7 +4,7 @@ import type { JsonSchema } from 'xsschema'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { resolveArtistryConfigFromStore, useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
@@ -28,7 +28,8 @@ type Invokers = ReturnType<typeof createInvokers>
 let invokeCache: Invokers | undefined
 
 function getInvokers(): Invokers {
-  if (!invokeCache) invokeCache = createInvokers()
+  if (!invokeCache)
+    invokeCache = createInvokers()
   return invokeCache
 }
 
@@ -55,92 +56,49 @@ const imageJournalParams = {
     mode: {
       type: ['string', 'null'],
       enum: ['inline', 'widget', 'bg', 'bg_widget', null],
-      description:
-        'Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.',
+      description: 'Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.',
     },
   },
-  required: ['action', 'prompt', 'title', 'query', 'mode'],
+  required: [
+    'action',
+    'prompt',
+    'title',
+    'query',
+    'mode',
+  ],
   additionalProperties: false,
 } satisfies JsonSchema
 
-function resolveCardArtistryConfig(
-  activeCard: ReturnType<typeof useAiriCardStore>['activeCard'],
-  globalArtistryConfig: ReturnType<typeof getArtistryConfig>,
-) {
+async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }) {
+  if (!params.prompt?.trim())
+    throw new Error('prompt is required for image_journal.create')
+
+  const backgroundStore = useBackgroundStore()
+  const cardStore = useAiriCardStore()
+  const activeCard = cardStore.activeCard
+  const globalArtistryConfig = getArtistryConfig()
+
   const airiExt = activeCard?.extensions?.airi
   const cardArtistry = airiExt?.modules?.artistry
-  return {
+  const artistryConfig = {
     provider: cardArtistry?.provider || globalArtistryConfig.provider,
     model: cardArtistry?.model || globalArtistryConfig.model,
     promptPrefix: cardArtistry?.promptPrefix || globalArtistryConfig.promptPrefix,
     options: cardArtistry?.options || globalArtistryConfig.options,
     globals: globalArtistryConfig.globals,
-    spawnMode: cardArtistry?.spawnMode,
   }
-}
-
-function setCardActiveBackgroundId(cardStore: ReturnType<typeof useAiriCardStore>, entryId: string) {
-  const cardId = cardStore.activeCardId
-  if (!cardId) return
-
-  const card = cardStore.cards.get(cardId)
-  if (!card) return
-
-  const extension = JSON.parse(JSON.stringify(card.extensions || {}))
-  if (!extension.airi) extension.airi = {}
-  if (!extension.airi.modules) extension.airi.modules = {}
-  extension.airi.modules.activeBackgroundId = entryId
-  cardStore.updateCard(cardId, { ...card, extensions: extension })
-}
-
-async function spawnResultWidget(
-  addWidget: ReturnType<typeof getInvokers>['addWidget'],
-  entryId: string,
-  imageUrl: string,
-  prompt: string,
-  title: string,
-) {
-  try {
-    await addWidget({
-      componentName: 'artistry',
-      componentProps: {
-        status: 'done',
-        entryId,
-        imageUrl,
-        prompt,
-        title,
-        _skipIngestion: true,
-      },
-      size: 'm',
-      ttlMs: 0,
-    })
-  } catch (e) {
-    console.warn('[ImageJournalTool] Failed to spawn Result widget', e)
-  }
-}
-
-async function executeCreateImageJournalEntry(params: {
-  prompt?: string
-  title?: string
-  mode?: 'inline' | 'widget' | 'bg' | 'bg_widget'
-}) {
-  if (!params.prompt?.trim()) throw new Error('prompt is required for image_journal.create')
-
-  const backgroundStore = useBackgroundStore()
-  const cardStore = useAiriCardStore()
-  const globalArtistryConfig = getArtistryConfig()
-  const artistryConfig = resolveCardArtistryConfig(cardStore.activeCard, globalArtistryConfig)
 
   const title = params.title || `Generation ${new Date().toLocaleString()}`
-  const mode = params.mode || artistryConfig.spawnMode || 'inline'
+
+  // Resolve mode: explicit param > character fallback > global default (inline)
+  const spawnMode = cardArtistry?.spawnMode
+  const mode = params.mode || spawnMode || 'inline'
 
   const { addWidget, generateHeadless } = getInvokers()
 
   try {
     const artistryResult = await generateHeadless({
-      prompt: artistryConfig.promptPrefix
-        ? `${artistryConfig.promptPrefix} ${params.prompt}`
-        : (params.prompt as string),
+      prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt as string,
       model: artistryConfig.model as string,
       provider: artistryConfig.provider as string,
       options: JSON.parse(JSON.stringify(artistryConfig.options || {})),
@@ -151,35 +109,73 @@ async function executeCreateImageJournalEntry(params: {
       throw new Error(`Failed to generate image: ${artistryResult.error || 'No output received'}`)
     }
 
-    const imageUrl = artistryResult.imageUrl || artistryResult.base64!
-    const response = await fetch(artistryResult.base64 || artistryResult.imageUrl!)
-    const blob = await response.blob()
+    let blob: Blob
+    if (artistryResult.base64) {
+      const response = await fetch(artistryResult.base64)
+      blob = await response.blob()
+    }
+    else {
+      const response = await fetch(artistryResult.imageUrl!)
+      blob = await response.blob()
+    }
 
     const entryId = await backgroundStore.addBackground('journal', blob, title, params.prompt, cardStore.activeCardId)
 
+    // Handle Application Logic based on Mode
     if (mode === 'bg' || mode === 'bg_widget') {
-      await setCardActiveBackgroundId(cardStore, entryId)
+      const cardId = cardStore.activeCardId
+      if (cardId) {
+        const card = cardStore.cards.get(cardId)
+        if (card) {
+          const extension = JSON.parse(JSON.stringify(card.extensions || {}))
+          if (!extension.airi)
+            extension.airi = {}
+          if (!extension.airi.modules)
+            extension.airi.modules = {}
+          extension.airi.modules.activeBackgroundId = entryId
+          cardStore.updateCard(cardId, { ...card, extensions: extension })
+        }
+      }
     }
 
     if (mode === 'widget' || mode === 'bg_widget') {
-      await spawnResultWidget(addWidget, entryId, imageUrl, params.prompt as string, title)
+      try {
+        await addWidget({
+          componentName: 'artistry',
+          componentProps: {
+            status: 'done',
+            entryId,
+            imageUrl: artistryResult.imageUrl || artistryResult.base64,
+            prompt: params.prompt as string,
+            title,
+            _skipIngestion: true,
+          },
+          size: 'm',
+          ttlMs: 0,
+        })
+      }
+      catch (e) {
+        console.warn('[ImageJournalTool] Failed to spawn Result widget', e)
+      }
     }
 
+    // Return structured result for UI rendering
     return JSON.stringify({
       message: `Image created in ${mode} mode${mode === 'bg' || mode === 'bg_widget' ? ' and set as background' : ''}.`,
       entryId,
-      imageUrl,
+      imageUrl: artistryResult.imageUrl || artistryResult.base64,
       title,
       prompt: params.prompt,
       mode,
     })
-  } catch (e) {
+  }
+  catch (e) {
     console.error('[ImageJournalTool] Failed to create entry', e)
-    return `Error: ${e instanceof Error ? e.message : String(e)}`
+    return `Error: ${errorMessageFromValue(e)}`
   }
 }
 
-function executeSetAsBackground(params: { query?: string }) {
+async function executeSetAsBackground(params: { query?: string }) {
   if (!params.query?.trim())
     return 'Error: query is required for image_journal.apply. Provide a title or ID to search for.'
 
@@ -188,13 +184,14 @@ function executeSetAsBackground(params: { query?: string }) {
   const cardId = cardStore.activeCardId
   const query = params.query.toLowerCase().trim()
 
-  const entries = Array.from(backgroundStore.entries.values()).filter(
-    (e) => e.characterId === null || e.characterId === cardId,
-  )
+  const entries = Array.from(backgroundStore.entries.values())
+    .filter(e => e.characterId === null || e.characterId === cardId)
 
-  let entry = entries.find((e) => e.type === 'journal' && (e.id === query || e.id.toLowerCase().includes(query)))
-  if (!entry) entry = entries.find((e) => e.type === 'journal' && e.title.toLowerCase().includes(query))
-  if (!entry) entry = entries.find((e) => e.type !== 'journal' && e.title.toLowerCase().includes(query))
+  let entry = entries.find(e => e.type === 'journal' && (e.id === query || e.id.toLowerCase().includes(query)))
+  if (!entry)
+    entry = entries.find(e => e.type === 'journal' && e.title.toLowerCase().includes(query))
+  if (!entry)
+    entry = entries.find(e => e.type !== 'journal' && e.title.toLowerCase().includes(query))
 
   if (entry) {
     try {
@@ -202,48 +199,40 @@ function executeSetAsBackground(params: { query?: string }) {
         const card = cardStore.cards.get(cardId)
         if (card) {
           const extension = JSON.parse(JSON.stringify(card.extensions || {}))
-          if (!extension.airi) extension.airi = {}
-          if (!extension.airi.modules) extension.airi.modules = {}
+          if (!extension.airi)
+            extension.airi = {}
+          if (!extension.airi.modules)
+            extension.airi.modules = {}
           extension.airi.modules.activeBackgroundId = entry.id
           cardStore.updateCard(cardId, { ...card, extensions: extension })
         }
       }
       return `Background set to "${entry.title}".`
-    } catch (e) {
-      return `Error applying "${entry.title}": ${e instanceof Error ? e.message : String(e)}`
+    }
+    catch (e) {
+      return `Error applying "${entry.title}": ${errorMessageFromValue(e)}`
     }
   }
 
-  const available = entries
-    .filter((e) => e.type === 'journal')
-    .map((e) => e.title)
-    .slice(0, 10)
+  const available = entries.filter(e => e.type === 'journal').map(e => e.title).slice(0, 10)
   return `No match for "${params.query}".${available.length > 0 ? ` Try: ${available.join(', ')}` : ''}`
 }
 
-async function executeImageJournalAction(params: unknown) {
-  if (params && typeof params === 'object' && 'action' in params) {
-    const { action } = params as { action: string }
-    if (action === 'create') {
-      return await executeCreateImageJournalEntry(params as Parameters<typeof executeCreateImageJournalEntry>[0])
-    }
-    if (action === 'apply' || action === 'set_as_background') {
-      return await executeSetAsBackground(params as Parameters<typeof executeSetAsBackground>[0])
-    }
-  }
+async function executeImageJournalAction(params: any) {
+  if (params.action === 'create')
+    return await executeCreateImageJournalEntry(params)
+  if (params.action === 'apply' || params.action === 'set_as_background')
+    return await executeSetAsBackground(params)
   return 'No action performed.'
 }
 
 const tools: Promise<Tool>[] = [
-  Promise.resolve(
-    rawTool({
-      name: 'image_journal',
-      description:
-        'Manage AI-generated images. Use "create" to generate and display images. An optional "mode" (inline, widget, bg, bg_widget) can override the default character routing preference. Use "apply" to switch to an existing image from the journal.',
-      execute: (params) => executeImageJournalAction(params),
-      parameters: imageJournalParams,
-    }),
-  ),
+  Promise.resolve(rawTool({
+    name: 'image_journal',
+    description: 'Manage AI-generated images. Use "create" to generate and display images. An optional "mode" (inline, widget, bg, bg_widget) can override the default character routing preference. Use "apply" to switch to an existing image from the journal.',
+    execute: params => executeImageJournalAction(params),
+    parameters: imageJournalParams,
+  })),
 ]
 
 export const imageJournalTools = async () => Promise.all(tools)

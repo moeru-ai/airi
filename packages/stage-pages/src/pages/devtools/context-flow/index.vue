@@ -34,7 +34,12 @@ import { useContextFlowFormatters } from './composables/use-context-flow-formatt
 
 type DirectionFilter = 'all' | FlowDirection
 
-const { formatDestinations, getPayloadData, summarizeContextUpdate, truncateText } = useContextFlowFormatters()
+const {
+  formatDestinations,
+  getPayloadData,
+  summarizeContextUpdate,
+  truncateText,
+} = useContextFlowFormatters()
 
 const chatStore = useChatOrchestratorStore()
 const chatContextStore = useChatContextStore()
@@ -60,22 +65,16 @@ const maxEntries = ref('200')
 const testPayload = ref('{"type":"coding:context","data":{"file":{"path":"README.md"}}}')
 const testStrategy = ref<ContextUpdateStrategy>(ContextUpdateStrategy.ReplaceSelf)
 
-const testSparkNotifyPayload = ref(
-  JSON.stringify(
-    {
-      kind: 'ping',
-      urgency: 'immediate',
-      headline: 'Minecraft entity `zombie` attacked you, health dropped 2 points.',
-      note: 'Triggered from minecraft',
-      destinations: ['character'],
-      payload: {
-        message: 'Hello from Context Flow devtools',
-      },
-    },
-    null,
-    2,
-  ),
-)
+const testSparkNotifyPayload = ref(JSON.stringify({
+  kind: 'ping',
+  urgency: 'immediate',
+  headline: 'Minecraft entity `zombie` attacked you, health dropped 2 points.',
+  note: 'Triggered from minecraft',
+  destinations: ['character'],
+  payload: {
+    message: 'Hello from Context Flow devtools',
+  },
+}, null, 2))
 
 const directionFilter = ref<DirectionFilter>('all')
 
@@ -85,21 +84,30 @@ let nowTimer: ReturnType<typeof setInterval> | null = null
 
 const maxEntriesValue = computed(() => {
   const parsed = Number.parseInt(maxEntries.value, 10)
-  if (!Number.isFinite(parsed)) return 200
+  if (!Number.isFinite(parsed))
+    return 200
   return Math.min(Math.max(parsed, 50), 1000)
 })
 
 const filteredEntries = computed(() => {
   const query = filterText.value.trim().toLowerCase()
   const filtered = entries.value.filter((entry) => {
-    if (directionFilter.value !== 'all' && entry.direction !== directionFilter.value) return false
-    if (!showIncoming.value && entry.direction === 'incoming') return false
-    if (!showOutgoing.value && entry.direction === 'outgoing') return false
-    if (!showServer.value && entry.channel === 'server') return false
-    if (!showBroadcast.value && entry.channel === 'broadcast') return false
-    if (!showChat.value && entry.channel === 'chat') return false
-    if (!showDevtools.value && entry.channel === 'devtools') return false
-    if (!query) return true
+    if (directionFilter.value !== 'all' && entry.direction !== directionFilter.value)
+      return false
+    if (!showIncoming.value && entry.direction === 'incoming')
+      return false
+    if (!showOutgoing.value && entry.direction === 'outgoing')
+      return false
+    if (!showServer.value && entry.channel === 'server')
+      return false
+    if (!showBroadcast.value && entry.channel === 'broadcast')
+      return false
+    if (!showChat.value && entry.channel === 'chat')
+      return false
+    if (!showDevtools.value && entry.channel === 'devtools')
+      return false
+    if (!query)
+      return true
     return entry.searchText.includes(query)
   })
   return filtered.slice().reverse()
@@ -112,8 +120,8 @@ const pendingQueuedSends = computed(() => chatStore.getPendingQueuedSendSnapshot
 function normalizePayload(payload: unknown) {
   try {
     return JSON.parse(JSON.stringify(payload)) as unknown
-  } catch (error) {
-    console.warn('Failed to normalize payload', error)
+  }
+  catch {
     return payload
   }
 }
@@ -122,15 +130,18 @@ function getSparkNotifyReaction(eventId: string) {
   const reactions = characterStore.reactions
   for (let index = reactions.length - 1; index >= 0; index -= 1) {
     const reaction = reactions[index]
-    if (reaction.sourceEventId === eventId) return reaction
+    if (reaction.sourceEventId === eventId)
+      return reaction
   }
   return undefined
 }
 
 function getSparkNotifyEntryState(entry: FlowEntry) {
-  if (entry.type !== 'spark:notify') return undefined
+  if (entry.type !== 'spark:notify')
+    return undefined
   const payload = getPayloadData(entry) as { id?: string } | undefined
-  if (!payload?.id) return undefined
+  if (!payload?.id)
+    return undefined
   return sparkNotifyStates.value.get(payload.id)
 }
 
@@ -142,69 +153,58 @@ function setSparkNotifyState(nextState: SparkNotifyEntryState) {
 
 function updateSparkNotifyState(eventId: string, updater: (state: SparkNotifyEntryState) => SparkNotifyEntryState) {
   const current = sparkNotifyStates.value.get(eventId)
-  if (!current) return
+  if (!current)
+    return
   setSparkNotifyState(updater(current))
 }
 
-interface SummarizeServerEventData {
-  name?: string
-  possibleEvents?: unknown[]
-  headline?: string
-  destinations?: unknown[]
-  state?: string
-  intent?: string
-  priority?: string | number
-  text?: string
-  transcription?: string
-  [key: string]: unknown
-}
-
-function summarizeServerEvent(event: unknown) {
-  const data = ((event as { data?: unknown }).data ?? {}) as SummarizeServerEventData
-  switch ((event as { type?: string }).type) {
+function summarizeServerEvent(event: { type: string, data: Record<string, any> }) {
+  switch (event.type) {
     case 'module:announce':
-      return `name=${data.name} events=${data.possibleEvents?.length ?? 0}`
+      return `name=${event.data.name} events=${event.data.possibleEvents?.length ?? 0}`
     case 'spark:notify':
       return [
-        data.headline ? `headline="${truncateText(String(data.headline), 120)}"` : '',
-        data.destinations ? `destinations="${truncateText(formatDestinations(data.destinations), 120)}"` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
+        event.data.headline ? `headline="${truncateText(String(event.data.headline), 120)}"` : '',
+        event.data.destinations ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"` : '',
+      ].filter(Boolean).join(' ')
     case 'spark:emit':
       return [
-        data.state ? `state=${data.state}` : '',
-        data.destinations ? `destinations="${truncateText(formatDestinations(data.destinations), 120)}"` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
+        event.data.state ? `state=${event.data.state}` : '',
+        event.data.destinations ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"` : '',
+      ].filter(Boolean).join(' ')
     case 'spark:command':
       return [
-        data.intent ? `intent=${data.intent}` : '',
-        data.priority ? `priority=${data.priority}` : '',
-        data.destinations ? `destinations="${truncateText(formatDestinations(data.destinations), 120)}"` : '',
-      ]
-        .filter(Boolean)
-        .join(' ')
+        event.data.intent ? `intent=${event.data.intent}` : '',
+        event.data.priority ? `priority=${event.data.priority}` : '',
+        event.data.destinations ? `destinations="${truncateText(formatDestinations(event.data.destinations), 120)}"` : '',
+      ].filter(Boolean).join(' ')
     default:
-      if (data.text) return `text="${truncateText(String(data.text), 120)}"`
-      if (data.transcription) return `transcription="${truncateText(String(data.transcription), 120)}"`
+      if (event.data.text)
+        return `text="${truncateText(String(event.data.text), 120)}"`
+      if (event.data.transcription)
+        return `transcription="${truncateText(String(event.data.transcription), 120)}"`
       return ''
   }
 }
 
 function buildSearchText(entry: Omit<FlowEntry, 'searchText'>) {
-  const payloadText =
-    typeof entry.payload === 'string'
-      ? entry.payload
-      : (() => {
-          try {
-            return JSON.stringify(entry.payload)
-          } catch {
-            return ''
-          }
-        })()
-  return [entry.direction, entry.channel, entry.type, entry.summary ?? '', payloadText].join(' ').toLowerCase()
+  const payloadText = typeof entry.payload === 'string'
+    ? entry.payload
+    : (() => {
+        try {
+          return JSON.stringify(entry.payload)
+        }
+        catch {
+          return ''
+        }
+      })()
+  return [
+    entry.direction,
+    entry.channel,
+    entry.type,
+    entry.summary ?? '',
+    payloadText,
+  ].join(' ').toLowerCase()
 }
 
 let entryId = 0
@@ -231,7 +231,8 @@ function clearEntries() {
 
 function sendTestContextUpdate() {
   const text = testPayload.value.trim()
-  if (!text) return
+  if (!text)
+    return
 
   serverChannelStore.sendContextUpdate({
     strategy: testStrategy.value,
@@ -249,43 +250,38 @@ function sendTestContextUpdate() {
 
 async function sendTestSparkNotify() {
   const raw = testSparkNotifyPayload.value.trim()
-  if (!raw) return
+  if (!raw)
+    return
 
-  let parsed: Record<string, unknown>
+  let parsed: any
   try {
-    parsed = JSON.parse(raw) as Record<string, unknown>
-  } catch (err) {
+    parsed = JSON.parse(raw)
+  }
+  catch (err) {
     toast(`Invalid spark:notify: ${errorMessageFrom(err)}`)
     return
   }
 
-  const destinations = Array.isArray(parsed?.destinations)
-    ? parsed.destinations.filter((d: unknown) => typeof d === 'string')
-    : []
+  const destinations = Array.isArray(parsed?.destinations) ? parsed.destinations.filter((d: unknown) => typeof d === 'string') : []
   if (!parsed?.headline || !destinations.length) {
     toast('Missing required fields (headline, destinations[]) for spark:notify')
     return
   }
 
   // TODO(@nekomeowww): improve server event, support to have zod or valibot schema validation for better cross runtime handling
-  const notify: WebSocketEvents['spark:notify'] = {
+  const notify = {
     id: typeof parsed.id === 'string' && parsed.id ? parsed.id : nanoid(),
     eventId: typeof parsed.eventId === 'string' && parsed.eventId ? parsed.eventId : nanoid(),
     lane: typeof parsed.lane === 'string' ? parsed.lane : undefined,
     kind: parsed.kind === 'alarm' || parsed.kind === 'ping' || parsed.kind === 'reminder' ? parsed.kind : 'ping',
-    urgency:
-      parsed.urgency === 'immediate' || parsed.urgency === 'soon' || parsed.urgency === 'later'
-        ? parsed.urgency
-        : 'immediate',
+    urgency: parsed.urgency === 'immediate' || parsed.urgency === 'soon' || parsed.urgency === 'later' ? parsed.urgency : 'immediate',
     headline: String(parsed.headline),
     note: typeof parsed.note === 'string' ? parsed.note : undefined,
-    payload:
-      parsed.payload && typeof parsed.payload === 'object' ? (parsed.payload as Record<string, unknown>) : undefined,
+    payload: parsed.payload && typeof parsed.payload === 'object' ? parsed.payload : undefined,
     ttlMs: typeof parsed.ttlMs === 'number' ? parsed.ttlMs : undefined,
     requiresAck: typeof parsed.requiresAck === 'boolean' ? parsed.requiresAck : undefined,
     destinations,
-    metadata:
-      parsed.metadata && typeof parsed.metadata === 'object' ? (parsed.metadata as Record<string, unknown>) : undefined,
+    metadata: parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : undefined,
   }
 
   const simulatedEvent: WebSocketEventOf<'spark:notify'> = {
@@ -298,7 +294,7 @@ async function sendTestSparkNotify() {
     direction: 'incoming',
     channel: 'server',
     type: 'spark:notify',
-    summary: summarizeServerEvent(simulatedEvent),
+    summary: summarizeServerEvent(simulatedEvent as any),
     payload: simulatedEvent,
   })
 
@@ -314,7 +310,7 @@ async function sendTestSparkNotify() {
 
     const result = await characterOrchestratorStore.handleSparkNotify(simulatedEvent)
     const reaction = getSparkNotifyReaction(notify.id)
-    updateSparkNotifyState(notify.id, (current) => ({
+    updateSparkNotifyState(notify.id, current => ({
       ...current,
       sparkId: notify.eventId,
       handling: false,
@@ -331,9 +327,10 @@ async function sendTestSparkNotify() {
         })
       }
     }
-  } catch (error) {
+  }
+  catch (error) {
     toast(`Error handling spark:notify: ${errorMessageFrom(error)}`)
-    updateSparkNotifyState(notify.id, (current) => ({
+    updateSparkNotifyState(notify.id, current => ({
       ...current,
       handling: false,
       endedAt: Date.now(),
@@ -356,23 +353,19 @@ onMounted(() => {
     now.value = Date.now()
   }, 1000)
 
-  cleanupFns.push(
-    serverChannelStore.onContextUpdate((event) => {
-      pushEntry({
-        direction: 'incoming',
-        channel: 'server',
-        type: event.type,
-        summary: [
-          `source=${getEventSourceKey(event)}`,
-          `strategy=${event.data.strategy}`,
-          summarizeContextUpdate(event.data),
-        ]
-          .filter(Boolean)
-          .join(' '),
-        payload: event,
-      })
-    }),
-  )
+  cleanupFns.push(serverChannelStore.onContextUpdate((event) => {
+    pushEntry({
+      direction: 'incoming',
+      channel: 'server',
+      type: event.type,
+      summary: [
+        `source=${getEventSourceKey(event)}`,
+        `strategy=${event.data.strategy}`,
+        summarizeContextUpdate(event.data),
+      ].filter(Boolean).join(' '),
+      payload: event,
+    })
+  }))
 
   const serverEventTypes = [
     'module:announce',
@@ -390,36 +383,34 @@ onMounted(() => {
   ] as const
 
   for (const type of serverEventTypes) {
-    cleanupFns.push(
-      serverChannelStore.onEvent(type, (event) => {
-        if (event.type === 'spark:notify') {
-          const eventId = (event as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>).data?.id
-          if (eventId && !sparkNotifyStates.value.has(eventId)) {
-            const sparkId = (event as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>).data?.eventId
-            setSparkNotifyState({
-              eventId,
-              sparkId,
-              handling: true,
-              commands: [],
-              reaction: '',
-              startedAt: Date.now(),
-            })
-          }
+    cleanupFns.push(serverChannelStore.onEvent(type, (event) => {
+      if (event.type === 'spark:notify') {
+        const eventId = (event as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>).data?.id
+        if (eventId && !sparkNotifyStates.value.has(eventId)) {
+          const sparkId = (event as WebSocketBaseEvent<'spark:notify', WebSocketEvents['spark:notify']>).data?.eventId
+          setSparkNotifyState({
+            eventId,
+            sparkId,
+            handling: true,
+            commands: [],
+            reaction: '',
+            startedAt: Date.now(),
+          })
         }
+      }
 
-        pushEntry({
-          direction: 'incoming',
-          channel: 'server',
-          type: event.type,
-          summary: summarizeServerEvent(event),
-          payload: event,
-        })
-      }),
-    )
+      pushEntry({
+        direction: 'incoming',
+        channel: 'server',
+        type: event.type,
+        summary: summarizeServerEvent(event as any),
+        payload: event,
+      })
+    }))
   }
 
   cleanupFns.push(
-    chatStore.onBeforeMessageComposed((message, context) => {
+    chatStore.onBeforeMessageComposed(async (message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -427,9 +418,8 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onAfterMessageComposed((message, context) => {
+    chatStore.onAfterMessageComposed(async (message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -437,9 +427,8 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onBeforeSend((message, context) => {
+    chatStore.onBeforeSend(async (message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -447,9 +436,8 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onAfterSend((message, context) => {
+    chatStore.onAfterSend(async (message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -457,9 +445,8 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onTokenLiteral((literal, context) => {
+    chatStore.onTokenLiteral(async (literal, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -467,9 +454,8 @@ onMounted(() => {
         summary: truncateText(literal, 80),
         payload: { literal, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onTokenSpecial((special, context) => {
+    chatStore.onTokenSpecial(async (special, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -477,9 +463,8 @@ onMounted(() => {
         summary: truncateText(special, 80),
         payload: { special, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onStreamEnd((context) => {
+    chatStore.onStreamEnd(async (context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -487,9 +472,8 @@ onMounted(() => {
         summary: 'stream completed',
         payload: { context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onAssistantResponseEnd((message, context) => {
+    chatStore.onAssistantResponseEnd(async (message, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -497,9 +481,8 @@ onMounted(() => {
         summary: truncateText(message),
         payload: { message, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onAssistantMessage((message, messageText, context) => {
+    chatStore.onAssistantMessage(async (message, messageText, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -507,9 +490,8 @@ onMounted(() => {
         summary: truncateText(messageText),
         payload: { message, messageText, context },
       })
-      return Promise.resolve()
     }),
-    chatStore.onChatTurnComplete((chat, context) => {
+    chatStore.onChatTurnComplete(async (chat, context) => {
       pushEntry({
         direction: 'outgoing',
         channel: 'chat',
@@ -517,60 +499,61 @@ onMounted(() => {
         summary: truncateText(chat.outputText),
         payload: { chat, context },
       })
-      return Promise.resolve()
     }),
   )
 })
 
 watch(incomingContext, (event) => {
-  if (!event) return
+  if (!event)
+    return
 
   pushEntry({
     direction: 'incoming',
     channel: 'broadcast',
     type: 'context:broadcast',
-    summary: [`source=${getEventSourceKey(event)}`, `strategy=${event.strategy}`, summarizeContextUpdate(event)]
-      .filter(Boolean)
-      .join(' '),
+    summary: [
+      `source=${getEventSourceKey(event)}`,
+      `strategy=${event.strategy}`,
+      summarizeContextUpdate(event),
+    ].filter(Boolean).join(' '),
     payload: event,
   })
 })
 
 watch(incomingStreamEvent, (event) => {
-  if (!event) return
+  if (!event)
+    return
 
   pushEntry({
     direction: 'incoming',
     channel: 'broadcast',
     type: `stream:${event.type}`,
-    summary:
-      event.type === 'token-literal'
-        ? truncateText(event.literal, 80)
-        : event.type === 'token-special'
-          ? truncateText(event.special, 80)
-          : event.type === 'assistant-message'
-            ? truncateText(event.messageText ?? '', 120)
-            : `session=${event.sessionId}`,
+    summary: event.type === 'token-literal'
+      ? truncateText(event.literal, 80)
+      : event.type === 'token-special'
+        ? truncateText(event.special, 80)
+        : event.type === 'assistant-message'
+          ? truncateText(event.messageText ?? '', 120)
+          : `session=${event.sessionId}`,
     payload: event,
   })
 })
 
-watch(
-  () => characterStore.reactions.length,
-  () => {
-    for (const state of sparkNotifyStates.value.values()) {
-      if (state.reaction) continue
-      const reaction = getSparkNotifyReaction(state.eventId)
-      if (!reaction) continue
-      updateSparkNotifyState(state.eventId, (current) => ({
-        ...current,
-        reaction: reaction.message,
-        handling: false,
-        endedAt: current.endedAt ?? Date.now(),
-      }))
-    }
-  },
-)
+watch(() => characterStore.reactions.length, () => {
+  for (const state of sparkNotifyStates.value.values()) {
+    if (state.reaction)
+      continue
+    const reaction = getSparkNotifyReaction(state.eventId)
+    if (!reaction)
+      continue
+    updateSparkNotifyState(state.eventId, current => ({
+      ...current,
+      reaction: reaction.message,
+      handling: false,
+      endedAt: current.endedAt ?? Date.now(),
+    }))
+  }
+})
 
 watch(maxEntriesValue, () => {
   if (entries.value.length > maxEntriesValue.value)
@@ -578,7 +561,8 @@ watch(maxEntriesValue, () => {
 })
 
 onUnmounted(() => {
-  for (const cleanup of cleanupFns) cleanup()
+  for (const cleanup of cleanupFns)
+    cleanup()
 
   if (nowTimer) {
     clearInterval(nowTimer)
@@ -627,7 +611,11 @@ onUnmounted(() => {
         />
 
         <div :class="['grid', 'gap-2', 'xl:grid-cols-2']">
-          <ContextFlowActiveContexts :buckets="activeContextBuckets" :filter-text="filterText" :now="now" />
+          <ContextFlowActiveContexts
+            :buckets="activeContextBuckets"
+            :filter-text="filterText"
+            :now="now"
+          />
           <ContextFlowPromptProjection
             :current-prompt-text="currentPromptText"
             :current-source-count="activeContextBuckets.length"
@@ -635,7 +623,10 @@ onUnmounted(() => {
           />
         </div>
 
-        <ContextFlowLifecycle :records="contextObservabilityStore.history" :filter-text="filterText" />
+        <ContextFlowLifecycle
+          :records="contextObservabilityStore.history"
+          :filter-text="filterText"
+        />
 
         <Section title="Raw Event Stream" icon="i-solar:inbox-line-bold-duotone" inner-class="gap-3" :expand="true">
           <ContextFlowStream

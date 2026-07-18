@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    min?: number
-    max?: number
-    step?: number
-    disabled?: boolean
-  }>(),
-  {
-    min: 0,
-    max: 100,
-    step: 1,
-    disabled: false,
-  },
-)
+const props = withDefaults(defineProps<{
+  min?: number
+  max?: number
+  step?: number
+  disabled?: boolean
+  thumbColor?: string
+  trackColor?: string
+  trackValueColor?: string
+}>(), {
+  min: 0,
+  max: 100,
+  step: 1,
+  disabled: false,
+  thumbColor: '#9090906e',
+  trackColor: 'gray',
+  trackValueColor: 'red',
+})
 
 const modelValue = defineModel<number>({ required: true })
 
@@ -41,8 +44,8 @@ function updateTrackColor() {
   }
 
   sliderRef.value.style.setProperty('--value', sliderValue.value.toString())
-  sliderRef.value.style.setProperty('--min', props.min.toString())
-  sliderRef.value.style.setProperty('--max', props.max.toString())
+  sliderRef.value.style.setProperty('--min', !sliderRef.value.min ? props.min.toString() : sliderRef.value.min)
+  sliderRef.value.style.setProperty('--max', !sliderRef.value.max ? props.max.toString() : sliderRef.value.max)
 }
 
 function handleInput(e: Event) {
@@ -59,10 +62,9 @@ function handleInput(e: Event) {
     :min="scaledMin"
     :max="scaledMax"
     :step="scaledStep"
-    :disabled="disabled"
     class="slider-progress form_input-range"
     @input="handleInput"
-  />
+  >
 </template>
 
 <style scoped>

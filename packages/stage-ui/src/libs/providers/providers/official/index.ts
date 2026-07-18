@@ -1,10 +1,10 @@
 import type { Ref, WatchSource } from 'vue'
 
 import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
-import { resilientFetch } from '@proj-airi/resilience'
-import { ref, watch } from 'vue'
 
+import { ref, watch } from 'vue'
 import { z } from 'zod'
+
 import { getAuthToken } from '../../../../libs/auth'
 import { SERVER_URL } from '../../../../libs/server'
 import { defineProvider } from '../registry'
@@ -12,6 +12,7 @@ import { createOfficialAudioProvider, createOfficialOpenAIProvider, OFFICIAL_ICO
 
 export const OFFICIAL_SPEECH_PROVIDER_ID = 'official-provider-speech'
 export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-streaming'
+export const OFFICIAL_TRANSCRIPTION_PROVIDER_ID = 'official-provider-transcription'
 
 // Locale → voice id map recommended by the server, keyed by provider id.
 // Populated by each speech provider's listVoices() from the response's
@@ -20,6 +21,15 @@ export const OFFICIAL_SPEECH_STREAMING_PROVIDER_ID = 'official-provider-speech-s
 // independent catalogs and recommendation buckets. Falls back to language +
 // first-voice matching when the server returns no recommendations.
 const recommendedVoicesByProvider: Record<string, Record<string, string>> = {}
+
+// Server-curated default HTTP speech model id, populated by the HTTP speech
+// provider's listModels(). The speech store uses this when it needs to seed an
+// empty/stale model selection, so the UI mirrors `/audio/speech` `model: auto`.
+let defaultSpeechModelId: string | null = null
+
+export function getDefaultSpeechModel(): string | null {
+  return defaultSpeechModelId
+}
 
 // Server-curated default streaming model id, populated by the streaming
 // provider's listModels(). Pages that need to seed an initial model selection
@@ -47,7 +57,8 @@ const officialConfigSchema = z.object({})
 function authHeaders(): Record<string, string> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   const token = getAuthToken()
-  if (token) headers.Authorization = `Bearer ${token}`
+  if (token)
+    headers.Authorization = `Bearer ${token}`
   return headers
 }
 
@@ -115,23 +126,21 @@ export const providerOfficialSpeech = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async (): Promise<ModelInfo[]> => {
-      const res = await resilientFetch(`${SERVER_URL}/api/v1/audio/models`, {
-        headers: authHeaders(),
-        breakerName: 'airi:official:/api/v1/audio/models',
-        breakerThreshold: 4,
-        breakerOpenForMs: 30_000,
-        timeoutMs: 15_000,
-        retryAttempts: 2,
-      })
+      defaultSpeechModelId = null
+      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models`, { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`audio models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = (await res.json()) as { models?: { id: string; name: string }[] }
-      if (!Array.isArray(data.models)) throw new Error('audio models upstream returned malformed body')
+      const data = await res.json() as { models?: { id: string, name: string, description?: string }[], default?: string | null }
+      if (!Array.isArray(data.models))
+        throw new Error('audio models upstream returned malformed body')
 
-      return data.models.map((m) => ({
+      defaultSpeechModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
+
+      return data.models.map(m => ({
         id: m.id,
         name: m.name,
+        description: m.description,
         provider: OFFICIAL_SPEECH_PROVIDER_ID,
       }))
     },
@@ -143,28 +152,21 @@ export const providerOfficialSpeech = defineProvider({
       const target = model && model.length > 0 ? model : 'auto'
       const url = new URL(`${SERVER_URL}/api/v1/audio/voices`)
       url.searchParams.set('model', target)
-      const res = await resilientFetch(url.toString(), {
-        headers: authHeaders(),
-        breakerName: 'airi:official:/api/v1/audio/voices',
-        breakerThreshold: 4,
-        breakerOpenForMs: 30_000,
-        timeoutMs: 15_000,
-        retryAttempts: 2,
-      })
+      const res = await globalThis.fetch(url.toString(), { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`audio voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
       // Shape aligned with unspeech's types.ListVoicesResponse, plus the
       // `recommended` field our server injects from configKV DEFAULT_TTS_VOICES.
       // https://github.com/moeru-ai/unspeech/blob/main/pkg/backend/types/voices.go
-      const data = (await res.json()) as {
+      const data = await res.json() as {
         voices?: {
           id: string
           name: string
           description?: string
           labels?: Record<string, unknown>
           tags?: string[]
-          languages?: { code: string; title: string }[]
+          languages?: { code: string, title: string }[]
           compatible_models?: string[]
           preview_audio_url?: string
         }[]
@@ -174,10 +176,10 @@ export const providerOfficialSpeech = defineProvider({
       // Refresh the server-side recommendation map. Done here rather than
       // threading it through the return value because the auto-pick watcher
       // lives in this module and reads the same singleton.
-      recommendedVoicesByProvider[OFFICIAL_SPEECH_PROVIDER_ID] =
-        data.recommended && typeof data.recommended === 'object' ? data.recommended : {}
+      recommendedVoicesByProvider[OFFICIAL_SPEECH_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
 
-      if (!Array.isArray(data.voices)) throw new Error('audio voices upstream returned malformed body')
+      if (!Array.isArray(data.voices))
+        throw new Error('audio voices upstream returned malformed body')
 
       return data.voices.map((v) => {
         // unspeech surfaces gender inside labels rather than as a top-level field.
@@ -233,14 +235,16 @@ export const providerOfficialSpeechStreaming = defineProvider({
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     // Same audio-scoped baseURL as the HTTP speech provider. The streaming
-    // provider does not actually use `.speech()` for synthesis (it goes
-    // through `streamingSynthesize` which opens its own WebSocket), but the
-    // OpenAI-shaped provider instance is still returned so legacy fallback
-    // and feature-detection helpers keep working.
+    // provider usually goes through `streamingSynthesize`, but settings
+    // previews still use the OpenAI-shaped `.speech()` API so manual preview
+    // analytics must be able to pass extra request body fields through.
     const provider = createOfficialAudioProvider()
     const originalSpeech = provider.speech.bind(provider)
-    provider.speech = (model: string) => {
-      const result = originalSpeech(model)
+    provider.speech = (model: string, extraOptions?: Record<string, unknown>) => {
+      const result = {
+        ...originalSpeech(model),
+        ...extraOptions,
+      }
       result.fetch = withCredentials()
       return result
     }
@@ -260,28 +264,18 @@ export const providerOfficialSpeechStreaming = defineProvider({
       streamingTtsAvailable.value = false
       defaultStreamingModelId = null
 
-      const res = await resilientFetch(`${SERVER_URL}/api/v1/audio/models/streaming`, {
-        headers: authHeaders(),
-        breakerName: 'airi:official:/api/v1/audio/models/streaming',
-        breakerThreshold: 4,
-        breakerOpenForMs: 30_000,
-        timeoutMs: 15_000,
-        retryAttempts: 2,
-      })
+      const res = await globalThis.fetch(`${SERVER_URL}/api/v1/audio/models/streaming`, { headers: authHeaders() })
       if (!res.ok)
         throw new Error(`streaming models upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = (await res.json()) as {
-        available?: boolean
-        models: { id: string; name?: string; description?: string }[]
-        default?: string | null
-      }
-      if (!Array.isArray(data.models)) throw new Error('streaming models upstream missing models[]')
+      const data = await res.json() as { available?: boolean, models: { id: string, name?: string, description?: string }[], default?: string | null }
+      if (!Array.isArray(data.models))
+        throw new Error('streaming models upstream missing models[]')
 
       streamingTtsAvailable.value = data.available === true
       defaultStreamingModelId = typeof data.default === 'string' && data.default.length > 0 ? data.default : null
 
-      return data.models.map((m) => ({
+      return data.models.map(m => ({
         id: m.id,
         name: m.name ?? m.id,
         provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
@@ -301,25 +295,22 @@ export const providerOfficialSpeechStreaming = defineProvider({
       // strip the backend prefix before forwarding.
       const apiResourceId = model?.includes('/') ? model.split('/', 2)[1] : model
       const voicesURL = new URL(`${SERVER_URL}/api/v1/audio/voices/streaming`)
-      if (apiResourceId) voicesURL.searchParams.set('model', apiResourceId)
-      const res = await resilientFetch(voicesURL.toString(), {
-        headers: authHeaders(),
-        breakerName: 'airi:official:/api/v1/audio/voices/streaming',
-        breakerThreshold: 4,
-        breakerOpenForMs: 30_000,
-        timeoutMs: 15_000,
-        retryAttempts: 2,
-      })
+      if (apiResourceId)
+        voicesURL.searchParams.set('model', apiResourceId)
+      const res = await globalThis.fetch(
+        voicesURL.toString(),
+        { headers: authHeaders() },
+      )
       if (!res.ok)
         throw new Error(`streaming voices upstream ${res.status}: ${await res.text().catch(() => '')}`.slice(0, 256))
 
-      const data = (await res.json()) as {
+      const data = await res.json() as {
         voices?: {
           id: string
           name: string
           description?: string
           labels?: Record<string, unknown>
-          languages?: { code: string; title: string }[]
+          languages?: { code: string, title: string }[]
           preview_audio_url?: string
         }[]
         recommended?: Record<string, string>
@@ -328,10 +319,10 @@ export const providerOfficialSpeechStreaming = defineProvider({
       // Mirror the HTTP provider: stash the server's per-locale recommendations
       // so setupOfficialSpeechAutoPick can seed a curated default voice when
       // the streaming provider becomes active.
-      recommendedVoicesByProvider[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] =
-        data.recommended && typeof data.recommended === 'object' ? data.recommended : {}
+      recommendedVoicesByProvider[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = (data.recommended && typeof data.recommended === 'object') ? data.recommended : {}
 
-      if (!Array.isArray(data.voices)) throw new Error('streaming voices upstream returned malformed body')
+      if (!Array.isArray(data.voices))
+        throw new Error('streaming voices upstream returned malformed body')
 
       return data.voices.map((v) => {
         const rawGender = typeof v.labels?.gender === 'string' ? (v.labels.gender as string) : undefined
@@ -349,6 +340,47 @@ export const providerOfficialSpeechStreaming = defineProvider({
   },
 })
 
+export const providerOfficialTranscription = defineProvider({
+  id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+  order: -1,
+  name: 'Official Transcription Provider',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-title'),
+  description: 'Official realtime speech-to-text provider by AIRI.',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.official.transcription-description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
+  icon: OFFICIAL_ICON,
+  requiresCredentials: false,
+  capabilities: {
+    transcription: {
+      protocol: 'http',
+      generateOutput: false,
+      streamOutput: true,
+      streamInput: true,
+    },
+  },
+  createProviderConfig: () => officialConfigSchema,
+  createProvider(_config) {
+    return {
+      transcription: (model: string) => ({
+        baseURL: new URL(`${SERVER_URL}/api/v1/audio/transcriptions/stream`),
+        fetch: withCredentials(),
+        model,
+      }),
+    }
+  },
+  validationRequiredWhen: () => false,
+  extraMethods: {
+    listModels: async (): Promise<ModelInfo[]> => [
+      {
+        id: 'auto',
+        name: 'Auto',
+        provider: OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+        description: 'Realtime transcription routed by AIRI',
+      },
+    ],
+  },
+})
+
 const LOCALE_SEPARATOR_RE = /[-_]/
 
 function languagePrefix(locale: string): string {
@@ -358,23 +390,40 @@ function languagePrefix(locale: string): string {
 // Pick a locale from available voice locales that best matches the UI locale:
 // exact match → language-subtag prefix match → en-US → first available.
 function pickLocaleForUi(uiLocale: string, available: string[]): string {
-  if (!available.length) return ''
-  if (available.includes(uiLocale)) return uiLocale
+  if (!available.length)
+    return ''
+  if (available.includes(uiLocale))
+    return uiLocale
   const uiPrefix = languagePrefix(uiLocale)
-  const prefixMatch = available.find((c) => languagePrefix(c) === uiPrefix)
-  if (prefixMatch) return prefixMatch
-  const enUSMatch = available.find((c) => c === 'en-US') || available.find((c) => c.toLowerCase().startsWith('en'))
-  return enUSMatch || available[0]
+  const prefixMatch = available.find(c => languagePrefix(c) === uiPrefix)
+  if (prefixMatch)
+    return prefixMatch
+  return available.find(c => c === 'en-US') || available.find(c => c.toLowerCase().startsWith('en')) || available[0]
 }
 
 // Look up the recommended voice id for a locale: exact match first, then
 // language-subtag prefix match. Returns undefined when nothing matches.
 function lookupRecommendedVoiceId(locale: string, map: Record<string, string>): string | undefined {
-  if (map[locale]) return map[locale]
+  if (map[locale])
+    return map[locale]
 
   const prefix = languagePrefix(locale)
   for (const [code, voiceId] of Object.entries(map)) {
-    if (languagePrefix(code) === prefix) return voiceId
+    if (languagePrefix(code) === prefix)
+      return voiceId
+  }
+  return undefined
+}
+
+function findRecommendedVoice(voices: VoiceInfo[], recommendedMap: Record<string, string>): VoiceInfo | undefined {
+  const seen = new Set<string>()
+  for (const voiceId of Object.values(recommendedMap)) {
+    if (seen.has(voiceId))
+      continue
+    seen.add(voiceId)
+    const voice = voices.find(v => v.id === voiceId)
+    if (voice)
+      return voice
   }
   return undefined
 }
@@ -392,42 +441,45 @@ export function setupOfficialSpeechAutoPick(ctx: {
   availableVoices: Ref<Record<string, VoiceInfo[]>>
   uiLocale: WatchSource<string> | Ref<string>
 }) {
-  watch(
-    [ctx.availableVoices, ctx.activeSpeechProvider],
-    ([voices, provider]) => {
-      if (!AUTO_PICK_PROVIDER_IDS.has(provider)) return
-      if (ctx.activeSpeechVoiceId.value) return
+  watch([ctx.availableVoices, ctx.activeSpeechProvider], ([voices, provider]) => {
+    if (!AUTO_PICK_PROVIDER_IDS.has(provider))
+      return
 
-      const providerVoices = voices[provider]
-      if (!providerVoices?.length) return
+    const providerVoices = voices[provider]
+    if (!providerVoices?.length)
+      return
+    if (ctx.activeSpeechVoiceId.value && providerVoices.some(v => v.id === ctx.activeSpeechVoiceId.value))
+      return
 
-      const localeCodes = Array.from(
-        new Set(providerVoices.flatMap((v) => (v.languages || []).map((l) => l.code).filter(Boolean))),
-      ).sort()
+    const localeCodes = Array.from(new Set(
+      providerVoices.flatMap(v => (v.languages || []).map(l => l.code).filter(Boolean)),
+    )).sort()
 
-      const uiLocaleValue =
-        typeof ctx.uiLocale === 'function' ? (ctx.uiLocale as () => string)() : (ctx.uiLocale as Ref<string>).value
-      const targetLocale = pickLocaleForUi(uiLocaleValue, localeCodes)
+    const uiLocaleValue = typeof ctx.uiLocale === 'function'
+      ? (ctx.uiLocale as () => string)()
+      : (ctx.uiLocale as Ref<string>).value
+    const targetLocale = pickLocaleForUi(uiLocaleValue, localeCodes)
 
-      // Pick a default voice with a layered fallback so auto-pick never dumps
-      // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
-      // voice when nothing matches):
-      //   1) server-recommended voice for the exact locale, then the same
-      //      language prefix
-      //   2) first voice speaking the exact target locale
-      //   3) any English voice (en-US, then en-*) — broadest comprehensible
-      //      fallback when the user's locale has no coverage at all
-      //   4) alphabetical first voice, as a last resort
-      const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedVoicesByProvider[provider] ?? {})
-      const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some((l) => l.code === code)
-      const match =
-        (recommendedId && providerVoices.find((v) => v.id === recommendedId)) ||
-        providerVoices.find((v) => speaksLocale(v, targetLocale)) ||
-        providerVoices.find((v) => speaksLocale(v, 'en-US')) ||
-        providerVoices.find((v) => (v.languages || []).some((l) => l.code.toLowerCase().startsWith('en'))) ||
-        providerVoices[0]
-      if (match) ctx.activeSpeechVoiceId.value = match.id
-    },
-    { deep: true, immediate: true },
-  )
+    // Pick a default voice with a layered fallback so auto-pick never dumps
+    // the user into an unrelated voice (e.g. the alphabetically-first af-ZA
+    // voice when nothing matches):
+    //   1) server-recommended voice for the exact locale, then the same
+    //      language prefix
+    //   2) any other server-recommended voice for the same model
+    //   3) first voice speaking the exact target locale
+    //   4) any English voice (en-US, then en-*) — broadest comprehensible
+    //      fallback when the user's locale has no coverage at all
+    //   5) alphabetical first voice, as a last resort
+    const recommendedMap = recommendedVoicesByProvider[provider] ?? {}
+    const recommendedId = lookupRecommendedVoiceId(targetLocale, recommendedMap)
+    const speaksLocale = (v: VoiceInfo, code: string) => (v.languages || []).some(l => l.code === code)
+    const match = (recommendedId && providerVoices.find(v => v.id === recommendedId))
+      || findRecommendedVoice(providerVoices, recommendedMap)
+      || providerVoices.find(v => speaksLocale(v, targetLocale))
+      || providerVoices.find(v => speaksLocale(v, 'en-US'))
+      || providerVoices.find(v => (v.languages || []).some(l => l.code.toLowerCase().startsWith('en')))
+      || providerVoices[0]
+    if (match)
+      ctx.activeSpeechVoiceId.value = match.id
+  }, { deep: true, immediate: true })
 }

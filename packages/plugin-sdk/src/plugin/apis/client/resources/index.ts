@@ -1,4 +1,5 @@
-import type { ChannelHost } from '../../../../channels/shared'
+import type { EventContext } from '@moeru/eventa'
+
 import { createProviders } from './providers'
 
 /**
@@ -8,12 +9,12 @@ import { createProviders } from './providers'
  * - Building the plugin SDK API object for a specific session
  *
  * Expects:
- * - `ctx` is the Eventa context for the current plugin session
+ * - `ctx` is the Eventa context for the current extension session
  *
  * Returns:
  * - The resource client groups currently supported by the SDK
  */
-export function createResources(ctx: ChannelHost) {
+export function createResources(ctx: EventContext<any, any>) {
   return {
     providers: createProviders(ctx),
   }

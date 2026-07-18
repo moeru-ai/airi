@@ -39,7 +39,9 @@ export function useElementScroll(
 
   function syncEffectiveScrollTarget() {
     const target = resolvedScrollTarget.value
-    effectiveScrollTarget.value = target && target.scrollHeight > target.clientHeight ? target : null
+    effectiveScrollTarget.value = target && target.scrollHeight > target.clientHeight
+      ? target
+      : null
   }
 
   function bindScrollTarget(target: HTMLElement | null | undefined) {
@@ -48,35 +50,34 @@ export function useElementScroll(
 
     scrollOffset.value = target?.scrollTop ?? 0
     updateScrollViewportBounds()
-    if (!target) return
+    if (!target)
+      return
 
-    stopScrollListener.value = useEventListener(
-      target,
-      'scroll',
-      () => {
-        scrollOffset.value = target.scrollTop
-        updateElementBounds()
-        updateScrollViewportBounds()
-      },
-      { passive: true },
-    )
+    stopScrollListener.value = useEventListener(target, 'scroll', () => {
+      scrollOffset.value = target.scrollTop
+      updateElementBounds()
+      updateScrollViewportBounds()
+    }, { passive: true })
   }
 
-  const viewportTop = computed(() => (effectiveScrollTarget.value ? scrollViewportTop.value : 0))
-  const viewportBottom = computed(() => (effectiveScrollTarget.value ? scrollViewportBottom.value : windowHeight.value))
+  const viewportTop = computed(() => effectiveScrollTarget.value ? scrollViewportTop.value : 0)
+  const viewportBottom = computed(() => effectiveScrollTarget.value ? scrollViewportBottom.value : windowHeight.value)
   const viewportHeight = computed(() => effectiveScrollTarget.value?.clientHeight ?? windowHeight.value)
   const elementTopInScrollContent = computed(() => {
-    if (!effectiveScrollTarget.value) return elementTop.value
+    if (!effectiveScrollTarget.value)
+      return elementTop.value
 
     return elementTop.value - scrollViewportTop.value + scrollOffset.value
   })
   const visibleStart = computed(() => {
-    if (!effectiveScrollTarget.value) return Math.max(viewportTop.value - elementTop.value, 0)
+    if (!effectiveScrollTarget.value)
+      return Math.max(viewportTop.value - elementTop.value, 0)
 
     return clamp(scrollOffset.value - elementTopInScrollContent.value, 0, elementHeight.value)
   })
   const visibleEnd = computed(() => {
-    if (!effectiveScrollTarget.value) return Math.min(viewportBottom.value - elementTop.value, elementHeight.value)
+    if (!effectiveScrollTarget.value)
+      return Math.min(viewportBottom.value - elementTop.value, elementHeight.value)
 
     return clamp(scrollOffset.value + viewportHeight.value - elementTopInScrollContent.value, 0, elementHeight.value)
   })
@@ -99,17 +100,12 @@ export function useElementScroll(
     updateScrollViewportBounds()
   })
 
-  useEventListener(
-    window,
-    'resize',
-    () => {
-      syncEffectiveScrollTarget()
-      bindScrollTarget(effectiveScrollTarget.value)
-      updateElementBounds()
-      updateScrollViewportBounds()
-    },
-    { passive: true },
-  )
+  useEventListener(window, 'resize', () => {
+    syncEffectiveScrollTarget()
+    bindScrollTarget(effectiveScrollTarget.value)
+    updateElementBounds()
+    updateScrollViewportBounds()
+  }, { passive: true })
 
   onBeforeUnmount(() => {
     stopScrollListener.value?.()

@@ -4,7 +4,7 @@ import type { EventContext } from '@moeru/eventa'
  * Describes the control-plane Eventa context used between a plugin and its host.
  *
  * Use when:
- * - Typing `ContextInit.channels.host`
+ * - Typing host-backed extension channels
  * - Passing a host-backed Eventa context through plugin bootstrap code
  *
  * Expects:
@@ -13,4 +13,4 @@ import type { EventContext } from '@moeru/eventa'
  * Returns:
  * - An Eventa context whose raw transport payload may be exposed through `raw`
  */
-export type ChannelHost = EventContext<unknown, { raw?: unknown }>
+export type ChannelHost = EventContext<unknown, { raw?: any }>

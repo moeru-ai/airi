@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
-import {
-  useElectronEventaContext,
-  useElectronMouseAroundWindowBorder,
-  useElectronMouseInWindow,
-} from '@proj-airi/electron-vueuse'
+import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
 import { createFadeAnimator, PoppinText } from '@proj-airi/stage-ui/components'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -25,13 +21,9 @@ const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBo
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 // Broadcast channel for captions
-type CaptionChannelEvent = { type: 'caption-speaker'; text: string } | { type: 'caption-assistant'; text: string }
+type CaptionChannelEvent = | { type: 'caption-speaker', text: string } | { type: 'caption-assistant', text: string }
 const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
-const {
-  items: captionItems,
-  add: addCaptionItem,
-  dispose: disposeCaptionItems,
-} = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
+const { items: captionItems, add: addCaptionItem, dispose: disposeCaptionItems } = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
 
 const context = useElectronEventaContext()
 const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
@@ -41,11 +33,14 @@ const captionAnimatorByType = {
   'caption-assistant': createFadeAnimator({ duration: 180 }),
 } satisfies Record<CaptionChannelEvent['type'], ReturnType<typeof createFadeAnimator>>
 
-const captionTypes = ['caption-speaker', 'caption-assistant'] satisfies CaptionChannelEvent['type'][]
+const captionTypes = [
+  'caption-speaker',
+  'caption-assistant',
+] satisfies CaptionChannelEvent['type'][]
 
 function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
   return captionItems.value
-    .filter((item) => item.type === type)
+    .filter(item => item.type === type)
     .map((item, index) => ({
       key: item.id,
       text: index === 0 ? item.text : ` ${item.text}`,
@@ -61,38 +56,30 @@ onMounted(async () => {
   try {
     const isAttached = await getAttached()
     attached.value = Boolean(isAttached)
-    // eslint-disable-next-line no-empty
-  } catch {
-    // noop
   }
+  catch {}
 
   try {
     context.value.on(captionIsFollowingWindowChanged, (event) => {
-      // eslint-disable-next-line no-empty
       attached.value = Boolean(event?.body)
     })
-  } catch {
-    // noop
   }
+  catch {}
 
   try {
     // Update texts from broadcast channel
-    watch(
-      data,
-      (event) => {
-        if (!event) return
-        if (event.type === 'caption-speaker') {
-          addCaptionItem(event)
-        } else if (event.type === 'caption-assistant') {
-          addCaptionItem(event)
-          // eslint-disable-next-line no-empty
-        }
-      },
-      { immediate: true },
-    )
-  } catch {
-    // noop
+    watch(data, (event) => {
+      if (!event)
+        return
+      if (event.type === 'caption-speaker') {
+        addCaptionItem(event)
+      }
+      else if (event.type === 'caption-assistant') {
+        addCaptionItem(event)
+      }
+    }, { immediate: true })
   }
+  catch {}
 })
 
 onUnmounted(() => {
@@ -114,9 +101,7 @@ onUnmounted(() => {
         class="[-webkit-app-region:drag] absolute left-1/2 h-[14px] w-[36px] border border-[rgba(125,125,125,0.35)] rounded-[10px] bg-[rgba(125,125,125,0.28)] backdrop-blur-[6px] -top-2 -translate-x-1/2"
         title="Drag to move"
       >
-        <div
-          class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2"
-        />
+        <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
       </div>
 
       <div class="max-w-[80vw] flex flex-col gap-1">
@@ -125,25 +110,15 @@ onUnmounted(() => {
           v-show="captionTextByType[type].length > 0"
           :key="type"
           :class="[
-            type === 'caption-speaker'
-              ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60'
-              : '',
-            type === 'caption-assistant'
-              ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50'
-              : '',
+            type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
+            type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
           ]"
           :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
         >
           <PoppinText
             :text="captionTextByType[type]"
             :animator="captionAnimatorByType[type]"
-            :text-class="
-              type === 'caption-assistant'
-                ? 'color-neutral-50! align-middle'
-                : type === 'caption-speaker'
-                  ? 'color-neutral-50! align-middle'
-                  : ''
-            "
+            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
           />
         </div>
       </div>
@@ -168,6 +143,9 @@ onUnmounted(() => {
     </Transition>
   </div>
 </template>
+
+<style scoped>
+</style>
 
 <route lang="yaml">
 meta:

@@ -1,24 +1,12 @@
 <script setup lang="ts">
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import {
-  Alert,
-  ErrorContainer,
-  LevelMeter,
-  RadioCardManySelect,
-  RadioCardSimple,
-  TestDummyMarker,
-  ThresholdMeter,
-  TimeSeriesChart,
-} from '@proj-airi/stage-ui/components'
-import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { useAnalytics, useAudioAnalyzer, useAudioRecorder, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import {
-  CONFIDENCE_THRESHOLD_DISABLED,
-  useHearingSpeechInputPipeline,
-  useHearingStore,
-} from '@proj-airi/stage-ui/stores/modules/hearing'
+import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
@@ -54,8 +42,15 @@ const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
 const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingSpeechInputPipeline
-const { supportsStreamInput, error: transcriptionPipelineError } = storeToRefs(hearingSpeechInputPipeline)
+const {
+  transcribeForRecording,
+  transcribeForMediaStream,
+  stopStreamingTranscription,
+} = hearingSpeechInputPipeline
+const {
+  supportsStreamInput,
+  error: transcriptionPipelineError,
+} = storeToRefs(hearingSpeechInputPipeline)
 
 const animationFrame = ref<number>()
 
@@ -85,13 +80,68 @@ const testStreamWasStarted = ref(false) // Track if we started the stream for te
 const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && Boolean(stream.value))
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+let sttTestStopTimer: ReturnType<typeof setTimeout> | undefined
+
+const sttTestVoiceInputSession = useVoiceInputSession(stream, {
+  shouldUseStreamInput,
+  // Manual Settings tests own their 3s recording window; automatic volume segmentation
+  // would race that timer and make provider diagnostics harder to interpret.
+  volumeFallback: {
+    enabled: false,
+  },
+  onSegmentStart: () => {
+    testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
+  },
+  onTranscriptionStart: () => {
+    testStatusMessage.value = 'Transcribing recording...'
+    isTranscribing.value = true
+  },
+  onTranscriptionResult: ({ text }) => {
+    testTranscriptionText.value = text
+    testStatusMessage.value = 'Transcription complete!'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+    console.info('STT test transcription result:', text)
+  },
+  onTranscriptionEmpty: () => {
+    testTranscriptionError.value = transcriptionPipelineError.value || 'No transcription result returned from provider'
+    testStatusMessage.value = 'Transcription failed'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+  },
+  onRecordingSkipped: ({ gate }) => {
+    testTranscriptionError.value = gate?.reason || transcriptionPipelineError.value || 'No recording captured from microphone'
+    testStatusMessage.value = 'Transcription failed'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+  },
+  onTranscriptionError: ({ error }) => {
+    testTranscriptionError.value = errorMessageFromValue(error)
+    testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+    isTranscribing.value = false
+    isTestingSTT.value = false
+    console.error('STT test transcription error:', error)
+  },
+})
+
+async function resetSttTestVoiceInputSession() {
+  if (sttTestStopTimer) {
+    clearTimeout(sttTestStopTimer)
+    sttTestStopTimer = undefined
+  }
+
+  await sttTestVoiceInputSession.stop({ flushActiveRecording: false })
+}
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
 }
 
 async function handleSpeechStart() {
+  if (isTestingSTT.value)
+    return
+
   if (shouldUseStreamInput.value && stream.value) {
     // Use both callbacks to support incremental updates and final transcript replacement.
     // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
@@ -109,7 +159,10 @@ async function handleSpeechStart() {
   startRecord()
 }
 
-function handleSpeechEnd() {
+async function handleSpeechEnd() {
+  if (isTestingSTT.value)
+    return
+
   if (shouldUseStreamInput.value) {
     // For streaming providers, keep the session alive; idle timer will handle teardown.
     return
@@ -148,48 +201,52 @@ const isSpeech = computed(() => {
   return isSpeechVolume.value
 })
 
-function connectAnalyzer(source: MediaStreamAudioSourceNode) {
-  const analyzer = startAnalyzer(audioContext.value)
-  onAnalyzerUpdate((volumeLevel) => {
-    if (!useVADModel.value || !loadedVAD.value) {
-      isSpeechVolume.value = volumeLevel > useVADThreshold.value
-    }
-  })
-  if (analyzer) source.connect(analyzer)
-}
-
-async function startVadProcessing() {
-  if (!useVADModel.value) return
-  await initVAD()
-  await startVAD(stream.value!)
-}
-
 async function setupAudioMonitoring() {
   try {
-    if (!selectedAudioInput.value) return
+    if (!selectedAudioInput.value) {
+      console.warn('No audio input device selected')
+      return
+    }
 
     await stopAudioMonitoring()
+
     await startStream()
-    if (!stream.value) return
+    if (!stream.value) {
+      console.warn('No audio stream available')
+      return
+    }
 
     const source = audioContext.value.createMediaStreamSource(stream.value)
-    await connectAnalyzer(source)
-    await startVadProcessing()
-  } catch (error) {
-    vadModelError.value = error instanceof Error ? error.message : String(error)
+
+    // Fallback speaking detection (when VAD model is not used)
+    const analyzer = startAnalyzer(audioContext.value)
+    onAnalyzerUpdate((volumeLevel) => {
+      if (!useVADModel.value || !loadedVAD.value) {
+        isSpeechVolume.value = volumeLevel > useVADThreshold.value
+      }
+    })
+    if (analyzer)
+      source.connect(analyzer)
+
+    if (useVADModel.value) {
+      await initVAD()
+      await startVAD(stream.value)
+    }
+  }
+  catch (error) {
+    console.error('Error setting up audio monitoring:', error)
+    vadModelError.value = errorMessageFromValue(error)
   }
 }
 
 async function stopAudioMonitoring() {
-  if (animationFrame.value) {
-    // Stop animation frame
+  if (animationFrame.value) { // Stop animation frame
     cancelAnimationFrame(animationFrame.value)
     animationFrame.value = undefined
   }
 
   await stopStreamingTranscription(true, activeTranscriptionProvider.value)
-  if (stream.value) {
-    // Stop media stream
+  if (stream.value) { // Stop media stream
     stopStream()
   }
 
@@ -202,31 +259,38 @@ async function toggleMonitoring() {
   if (!isMonitoring.value) {
     await setupAudioMonitoring()
     isMonitoring.value = true
-  } else {
+  }
+  else {
     await stopAudioMonitoring()
     isMonitoring.value = false
   }
 }
 
-const volumeIndicatorClass = computed(() =>
-  isSpeechVolume.value
-    ? 'bg-green-500 shadow-lg shadow-green-500/50'
-    : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600',
-)
+// Speaking indicator with enhanced VAD visualization
+const speakingIndicatorClass = computed(() => {
+  if (!useVADModel.value || !loadedVAD.value) {
+    // Volume-based: simple green/white
+    return isSpeechVolume.value
+      ? 'bg-green-500 shadow-lg shadow-green-500/50'
+      : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
+  }
 
-const vadIndicatorClass = computed(() => {
+  // VAD-based: color intensity based on probability
   const prob = isSpeechProb.value
   const threshold = useVADThreshold.value
 
-  if (prob > threshold) return 'bg-green-500 shadow-lg shadow-green-500/50'
-  if (prob > threshold * 0.5) return 'bg-yellow-500 shadow-lg shadow-yellow-500/30'
-  return 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
-})
-
-// Speaking indicator with enhanced VAD visualization
-const speakingIndicatorClass = computed(() => {
-  if (!useVADModel.value || !loadedVAD.value) return volumeIndicatorClass.value
-  return vadIndicatorClass.value
+  if (prob > threshold) {
+    // Speaking: green (could add intensity in future)
+    return `bg-green-500 shadow-lg shadow-green-500/50`
+  }
+  else if (prob > threshold * 0.5) {
+    // Close to threshold: yellow
+    return 'bg-yellow-500 shadow-lg shadow-yellow-500/30'
+  }
+  else {
+    // Low probability: neutral
+    return 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
+  }
 })
 
 function updateCustomModelName(value: string | undefined) {
@@ -237,14 +301,16 @@ function updateCustomModelName(value: string | undefined) {
 
 // Sync OpenAI Compatible model from provider config
 function syncOpenAICompatibleSettings() {
-  if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription') return
+  if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
+    return
 
   const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
   // Always sync model from provider config (override any existing value from previous provider)
   if (providerConfig?.model) {
     activeTranscriptionModel.value = providerConfig.model as string
     updateCustomModelName(providerConfig.model as string)
-  } else {
+  }
+  else {
     // If no model in provider config, use default
     const defaultModel = 'whisper-1'
     activeTranscriptionModel.value = defaultModel
@@ -252,30 +318,17 @@ function syncOpenAICompatibleSettings() {
   }
 }
 
-async function transcribeRecordingForTest(recording: Blob) {
-  testStatusMessage.value = 'Transcribing recording...'
-  isTranscribing.value = true
+onStopRecord(async (recording) => {
+  if (shouldUseStreamInput.value)
+    return
 
-  try {
-    const result = await transcribeForRecording(recording)
-    if (result) {
-      testTranscriptionText.value = result
-      testStatusMessage.value = 'Transcription complete!'
-    } else {
-      testTranscriptionError.value =
-        transcriptionPipelineError.value || 'No transcription result returned from provider'
-      testStatusMessage.value = 'Transcription failed'
-    }
-  } catch (err) {
-    testTranscriptionError.value = err instanceof Error ? err.message : String(err)
-    testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-  } finally {
-    isTranscribing.value = false
-    isTestingSTT.value = false
-  }
-}
+  if (isTestingSTT.value)
+    return
 
-async function transcribeRecordingForMonitoring(recording: Blob) {
+  if (!recording || recording.size === 0)
+    return
+
+  // Normal monitoring mode - add to audios and transcribe
   audios.value.push(recording)
 
   const res = await transcribeForRecording(recording)
@@ -283,85 +336,11 @@ async function transcribeRecordingForMonitoring(recording: Blob) {
   if (res) {
     transcriptions.value.push(res)
     error.value = ''
-  } else if (transcriptionPipelineError.value) {
+  }
+  else if (transcriptionPipelineError.value) {
     error.value = transcriptionPipelineError.value
   }
-}
-
-onStopRecord((recording) => {
-  if (shouldUseStreamInput.value) return Promise.resolve()
-  if (!recording || recording.size === 0) return Promise.resolve()
-
-  if (isTestingSTT.value) {
-    transcribeRecordingForTest(recording)
-    return Promise.resolve()
-  }
-
-  transcribeRecordingForMonitoring(recording)
-  return Promise.resolve()
 })
-
-async function ensureTestStream(): Promise<boolean> {
-  if (stream.value) {
-    testStreamWasStarted.value = false
-    return true
-  }
-
-  testStatusMessage.value = 'Starting audio stream...'
-  testStreamWasStarted.value = true
-  await startStream()
-
-  try {
-    await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
-  } catch {
-    handleStreamStartError()
-    return false
-  }
-
-  if (!stream.value) {
-    handleStreamStartError()
-    return false
-  }
-
-  return true
-}
-
-async function startStreamingTest() {
-  testStatusMessage.value = 'Starting streaming transcription...'
-
-  await transcribeForMediaStream(stream.value!, {
-    onSentenceEnd: (delta) => {
-      if (delta?.trim()) {
-        testStreamingText.value += `${delta} `
-        testStatusMessage.value = 'Transcribing... (streaming)'
-        isTranscribing.value = true
-      }
-    },
-    onSpeechEnd: (text) => {
-      if (text) {
-        testTranscriptionText.value = text
-        testStreamingText.value = ''
-        testStatusMessage.value = 'Transcription complete!'
-        isTranscribing.value = false
-      } else {
-        testStatusMessage.value = 'Waiting for speech...'
-        isTranscribing.value = false
-      }
-    },
-  })
-
-  testStatusMessage.value = 'Listening for speech... (streaming mode active)'
-  isTranscribing.value = false
-}
-
-function startRecordingTest() {
-  testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
-  startRecord()
-  setTimeout(() => {
-    stopRecord()
-    testStatusMessage.value = 'Processing transcription...'
-  }, 3000)
-}
 
 // Speech-to-Text test functions
 async function startSTTTest() {
@@ -384,47 +363,100 @@ async function startSTTTest() {
   isTranscribing.value = true
 
   try {
-    const streamReady = await ensureTestStream()
-    if (!streamReady) return
+    // Ensure audio stream is available
+    if (!stream.value) {
+      testStatusMessage.value = 'Starting audio stream...'
+      testStreamWasStarted.value = true
+      await startStream()
 
-    if (shouldUseStreamInput.value && stream.value) {
-      await startStreamingTest()
-    } else {
-      startRecordingTest()
+      // Wait for the stream to become available with a 3-second timeout.
+      try {
+        await until(stream).toBeTruthy({ timeout: 3000, throwOnTimeout: true })
+      }
+      catch {
+        handleStreamStartError()
+        return
+      }
+
+      // Type guard: until guarantees stream.value is truthy, but TypeScript doesn't know this
+      if (!stream.value) {
+        handleStreamStartError()
+        return
+      }
     }
-  } catch (err) {
-    testTranscriptionError.value = err instanceof Error ? err.message : String(err)
+    else {
+      testStreamWasStarted.value = false // Stream was already running
+    }
+
+    // Check if provider supports streaming input
+    if (shouldUseStreamInput.value && stream.value) {
+      testStatusMessage.value = 'Starting streaming transcription...'
+      console.info('Starting STT test with streaming input for provider:', activeTranscriptionProvider.value)
+
+      await transcribeForMediaStream(stream.value, {
+        onSentenceEnd: (delta) => {
+          if (delta && delta.trim()) {
+            testStreamingText.value += `${delta} `
+            testStatusMessage.value = 'Transcribing... (streaming)'
+            isTranscribing.value = true
+            console.info('STT test received sentence:', delta)
+          }
+        },
+        onSpeechEnd: (text) => {
+          if (text) {
+            testTranscriptionText.value = text
+            testStreamingText.value = ''
+            testStatusMessage.value = 'Transcription complete!'
+            isTranscribing.value = false
+            console.info('STT test completed with text:', text)
+          }
+          else {
+            testStatusMessage.value = 'Waiting for speech...'
+            isTranscribing.value = false
+          }
+        },
+      })
+
+      testStatusMessage.value = 'Listening for speech... (streaming mode active)'
+      isTranscribing.value = false // Not actively transcribing yet, just listening
+    }
+    else {
+      // Fallback to recording-based transcription
+      testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
+      console.info('Starting STT test with recording-based transcription for provider:', activeTranscriptionProvider.value)
+
+      const recordingStarted = await sttTestVoiceInputSession.startSegment('manual')
+      if (!recordingStarted) {
+        if (!testTranscriptionError.value)
+          testStatusMessage.value = 'Recording did not start'
+        isTranscribing.value = false
+        isTestingSTT.value = false
+        return
+      }
+
+      // Wait a bit for recording to start, then stop it after a delay
+      sttTestStopTimer = setTimeout(async () => {
+        sttTestStopTimer = undefined
+        testStatusMessage.value = 'Processing transcription...'
+        try {
+          await sttTestVoiceInputSession.stopSegment('manual')
+        }
+        catch (err) {
+          testTranscriptionError.value = errorMessageFromValue(err)
+          testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+          isTranscribing.value = false
+          isTestingSTT.value = false
+          console.error('STT test stop timer error:', err)
+        }
+      }, 3000) // Record for 3 seconds
+    }
+  }
+  catch (err) {
+    testTranscriptionError.value = errorMessageFromValue(err)
     testStatusMessage.value = `Error: ${testTranscriptionError.value}`
     isTranscribing.value = false
     isTestingSTT.value = false
-  }
-}
-
-async function stopSTTTranscription() {
-  try {
-    if (shouldUseStreamInput.value) {
-      await stopStreamingTranscription(false, activeTranscriptionProvider.value)
-    } else {
-      stopRecord()
-    }
-  } catch {
-    // noop: best-effort stop
-  }
-}
-
-function finalizeStreamingTranscription() {
-  if (testStreamingText.value.trim() && !testTranscriptionText.value) {
-    testTranscriptionText.value = testStreamingText.value.trim()
-  }
-}
-
-function stopTestStream() {
-  if (!testStreamWasStarted.value || isMonitoring.value) return
-  try {
-    stopStream()
-    testStreamWasStarted.value = false
-  } catch {
-    // noop: best-effort stop
+    console.error('STT test error:', err)
   }
 }
 
@@ -433,17 +465,37 @@ async function stopSTTTest() {
   isTranscribing.value = false
   testStatusMessage.value = 'Stopped'
 
-  await stopSTTTranscription()
-  finalizeStreamingTranscription()
-  stopTestStream()
+  try {
+    // Stop streaming transcription if active
+    if (shouldUseStreamInput.value) {
+      await stopStreamingTranscription(false, activeTranscriptionProvider.value)
+    }
+    else {
+      await resetSttTestVoiceInputSession()
+    }
+  }
+  catch (err) {
+    console.error('Error stopping STT test:', err)
+  }
+
+  // Finalize transcription if we have streaming text
+  if (testStreamingText.value.trim() && !testTranscriptionText.value) {
+    testTranscriptionText.value = testStreamingText.value.trim()
+  }
+
+  // Stop the stream if we started it for testing (and monitoring is not active)
+  if (testStreamWasStarted.value && !isMonitoring.value) {
+    try {
+      stopStream()
+      testStreamWasStarted.value = false
+    }
+    catch (err) {
+      console.error('Error stopping test stream:', err)
+    }
+  }
 }
 
-// Note: STT test transcription is now handled directly in onStopRecord handler above
-// This watch is kept for potential future use but is no longer needed for STT tests
-
-watch(selectedAudioInput, () => {
-  if (isMonitoring.value) setupAudioMonitoring()
-})
+watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
 
 function handleStreamStartError() {
   testTranscriptionError.value = 'Failed to start audio stream. Please check microphone permissions.'
@@ -453,26 +505,24 @@ function handleStreamStartError() {
   testStreamWasStarted.value = false
 }
 
-watch(
-  activeTranscriptionProvider,
-  (provider) => {
-    if (!provider) return
+watch(activeTranscriptionProvider, async (provider) => {
+  if (!provider)
+    return
 
-    hearingStore.loadModelsForProvider(provider)
-    syncOpenAICompatibleSettings()
+  await hearingStore.loadModelsForProvider(provider)
+  syncOpenAICompatibleSettings()
 
-    // Auto-select first model for Web Speech API if no model is selected
-    if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
-      const models = providerModels.value
-      if (models.length > 0) {
-        activeTranscriptionModel.value = models[0].id
-      }
+  // Auto-select first model for Web Speech API if no model is selected
+  if (provider === 'browser-web-speech-api' && !activeTranscriptionModel.value) {
+    const models = providerModels.value
+    if (models.length > 0) {
+      activeTranscriptionModel.value = models[0].id
+      console.info('Auto-selected Web Speech API model:', models[0].id)
     }
-  },
-  { immediate: true },
-)
+  }
+}, { immediate: true })
 
-onMounted(() => {
+onMounted(async () => {
   // Audio devices are loaded on demand when user requests them
   syncOpenAICompatibleSettings()
 })
@@ -485,14 +535,12 @@ onUnmounted(() => {
   // Clean up any active transcription sessions when leaving the page
   // This prevents stale sessions from interfering with other pages
   if (shouldUseStreamInput.value) {
-    stopStreamingTranscription(true, activeTranscriptionProvider.value).catch(() => {
-      // Intentionally empty - best effort cleanup
+    stopStreamingTranscription(true, activeTranscriptionProvider.value).catch((err) => {
+      console.warn('[Hearing Module] Error cleaning up transcription session on unmount:', err)
     })
   }
 
-  audioCleanups.value.forEach((cleanup) => {
-    cleanup()
-  })
+  audioCleanups.value.forEach(cleanup => cleanup())
 })
 </script>
 
@@ -506,12 +554,10 @@ onUnmounted(() => {
             v-model="selectedAudioInput"
             label="Audio Input Device"
             description="Select the audio input device for your hearing module."
-            :options="
-              audioInputs.map((input) => ({
-                label: input.label || input.deviceId,
-                value: input.deviceId,
-              }))
-            "
+            :options="audioInputs.map(input => ({
+              label: input.label || input.deviceId,
+              value: input.deviceId,
+            }))"
             placeholder="Select an audio input device"
             layout="vertical"
           />
@@ -535,9 +581,7 @@ onUnmounted(() => {
             <fieldset
               v-if="configuredTranscriptionProvidersMetadata.length > 0"
               flex="~ row gap-4"
-              min-w-0
-              of-x-auto
-              scroll-smooth
+              min-w-0 overflow-x-auto scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple
@@ -555,21 +599,17 @@ onUnmounted(() => {
                 to="/settings/providers#transcription"
                 border="2px solid"
                 class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
+
                 flex="~ col items-center justify-center"
+
                 transition="all duration-200 ease-in-out"
-                relative
-                min-w-50
-                w-fit
-                rounded-xl
-                p-4
+                relative min-w-50 w-fit rounded-xl p-4
               >
                 <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
                 <div
                   class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
-                  absolute
-                  inset-0
-                  z--1
-                  style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%)"
+                  absolute inset-0 z--1
+                  style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
                 />
               </RouterLink>
             </fieldset>
@@ -584,9 +624,7 @@ onUnmounted(() => {
                 <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
                 <div class="flex flex-col">
                   <span class="font-medium">No Providers Configured</span>
-                  <span class="text-sm text-neutral-400 dark:text-neutral-500">
-                    Click here to set up your Transcription providers
-                  </span>
+                  <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your Transcription providers</span>
                 </div>
                 <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
               </RouterLink>
@@ -601,38 +639,23 @@ onUnmounted(() => {
               <h2 class="text-lg md:text-2xl">
                 {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
               </h2>
-              <div
-                class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400"
-              >
+              <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
                 <span v-if="supportsModelListing && providerModels.length > 0">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
                 </span>
-                <span v-else>Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')</span>
-                <span
-                  v-if="activeTranscriptionModel"
-                  class="text-sm text-neutral-400 font-medium dark:text-neutral-400"
-                >
-                  {{
-                    t(
-                      'settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label',
-                    )
-                  }}
-                  {{ activeTranscriptionModel }}
+                <span v-else>
+                  Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
                 </span>
+                <span v-if="activeTranscriptionModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
               </div>
             </div>
 
             <!-- Loading state -->
-            <div
-              v-if="isLoadingActiveProviderModels && supportsModelListing"
-              class="flex items-center justify-center py-4"
-            >
+            <div v-if="isLoadingActiveProviderModels && supportsModelListing" class="flex items-center justify-center py-4">
               <div class="mr-2 animate-spin">
                 <div i-solar:spinner-line-duotone text-xl />
               </div>
-              <span>
-                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}
-              </span>
+              <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
 
             <!-- Error state -->
@@ -644,12 +667,7 @@ onUnmounted(() => {
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
-              v-else-if="
-                !supportsModelListing ||
-                (activeTranscriptionProvider === 'openai-compatible-audio-transcription' &&
-                  providerModels.length === 0 &&
-                  !isLoadingActiveProviderModels)
-              "
+              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
               class="mt-2"
             >
               <FieldInput
@@ -668,11 +686,7 @@ onUnmounted(() => {
                 {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
               </template>
               <template #content>
-                {{
-                  t(
-                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description',
-                  )
-                }}
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
               </template>
             </Alert>
 
@@ -681,41 +695,15 @@ onUnmounted(() => {
               <RadioCardManySelect
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
-                :items="
-                  providerModels.sort((a, b) =>
-                    a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0,
-                  )
-                "
+                :items="providerModels.sort((a, b) => a.id === activeTranscriptionModel ? -1 : b.id === activeTranscriptionModel ? 1 : 0)"
                 :searchable="true"
-                :search-placeholder="
-                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')
-                "
-                :search-no-results-title="
-                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')
-                "
-                :search-no-results-description="
-                  t(
-                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description',
-                    { query: transcriptionModelSearchQuery },
-                  )
-                "
-                :search-results-text="
-                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', {
-                    count: '{count}',
-                    total: '{total}',
-                  })
-                "
-                :custom-input-placeholder="
-                  t(
-                    'settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder',
-                  )
-                "
-                :expand-button-text="
-                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')
-                "
-                :collapse-button-text="
-                  t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')
-                "
+                :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
+                :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
+                :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
+                :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
+                :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
+                :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
                 @update:custom-value="updateCustomModelName"
               />
@@ -738,23 +726,12 @@ onUnmounted(() => {
             :min="CONFIDENCE_THRESHOLD_DISABLED"
             :max="0"
             :step="0.1"
-            :format-value="
-              (value) =>
-                value <= CONFIDENCE_THRESHOLD_DISABLED
-                  ? t('settings.pages.modules.hearing.sections.section.confidence-threshold.disabled')
-                  : value.toFixed(1)
-            "
+            :format-value="value => value <= CONFIDENCE_THRESHOLD_DISABLED ? t('settings.pages.modules.hearing.sections.section.confidence-threshold.disabled') : value.toFixed(1)"
           />
-          <div
-            v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED"
-            class="mt-2 text-xs text-neutral-400 dark:text-neutral-500"
-          >
+          <div v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED" class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-note') }}
           </div>
-          <div
-            v-if="verboseJsonNotSupported"
-            class="mt-2 flex items-center gap-1.5 text-xs text-amber-500 dark:text-amber-400"
-          >
+          <div v-if="verboseJsonNotSupported" class="mt-2 flex items-center gap-1.5 text-xs text-amber-500 dark:text-amber-400">
             <div i-solar:warning-circle-line-duotone class="shrink-0" />
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
           </div>
@@ -763,8 +740,12 @@ onUnmounted(() => {
         <!-- Auto-send settings -->
         <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
           <div class="mb-4">
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">Auto-send Settings</h2>
-            <div text="neutral-400 dark:neutral-400">Configure automatic sending of transcribed text to chat</div>
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              Auto-send Settings
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              Configure automatic sending of transcribed text to chat
+            </div>
           </div>
 
           <div class="space-y-4">
@@ -782,7 +763,7 @@ onUnmounted(() => {
               :min="0"
               :max="10000"
               :step="100"
-              :format-value="(value) => (value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`)"
+              :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
             />
           </div>
         </div>
@@ -853,7 +834,7 @@ onUnmounted(() => {
                   :min="200"
                   :max="1500"
                   :step="50"
-                  :format-value="(value) => `${value} ms`"
+                  :format-value="value => `${value} ms`"
                 />
               </div>
 
@@ -865,13 +846,16 @@ onUnmounted(() => {
                   :min="1"
                   :max="80"
                   :step="1"
-                  :format-value="(value) => `${value}%`"
+                  :format-value="value => `${value}%`"
                 />
               </div>
 
               <!-- Speaking Indicator -->
               <div class="flex items-center gap-3">
-                <div class="h-4 w-4 rounded-full transition-all duration-200" :class="speakingIndicatorClass" />
+                <div
+                  class="h-4 w-4 rounded-full transition-all duration-200"
+                  :class="speakingIndicatorClass"
+                />
                 <span class="text-sm font-medium">
                   {{ isSpeech ? 'Speaking Detected' : 'Silence' }}
                 </span>
@@ -895,7 +879,11 @@ onUnmounted(() => {
                     <span class="text-sm">Loading...</span>
                   </div>
 
-                  <ErrorContainer v-else-if="vadModelError" title="Inference error" :error="vadModelError" />
+                  <ErrorContainer
+                    v-else-if="vadModelError"
+                    title="Inference error"
+                    :error="vadModelError"
+                  />
 
                   <div v-else-if="loadedVAD" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <div class="text-sm" i-solar:check-circle-bold-duotone />
@@ -929,26 +917,21 @@ onUnmounted(() => {
 
       <!-- Speech-to-Text Test Section -->
       <div w-full rounded-xl bg="neutral-50 dark:[rgba(0,0,0,0.3)]" p-4 flex="~ col gap-4">
-        <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">Speech-to-Text Test</h2>
+        <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+          Speech-to-Text Test
+        </h2>
         <div text="sm neutral-400 dark:neutral-500" mb-2>
-          Test your transcription provider with the selected audio device. This will help verify that STT is working
-          correctly.
+          Test your transcription provider with the selected audio device. This will help verify that STT is working correctly.
         </div>
 
-        <div
-          v-if="!activeTranscriptionProvider"
-          class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
-        >
+        <div v-if="!activeTranscriptionProvider" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
           <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
             <div i-solar:warning-circle-line-duotone class="text-lg" />
             <span class="text-sm font-medium">Please select a transcription provider above to test</span>
           </div>
         </div>
 
-        <div
-          v-else-if="!selectedAudioInput"
-          class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20"
-        >
+        <div v-else-if="!selectedAudioInput" class="border border-amber-200 rounded-lg bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
           <div class="flex items-center gap-2 text-amber-700 dark:text-amber-400">
             <div i-solar:warning-circle-line-duotone class="text-lg" />
             <span class="text-sm font-medium">Please select an audio input device to test</span>
@@ -977,10 +960,7 @@ onUnmounted(() => {
 
           <ErrorContainer v-if="testTranscriptionError" title="Transcription Error" :error="testTranscriptionError" />
 
-          <div
-            v-if="testStatusMessage"
-            class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20"
-          >
+          <div v-if="testStatusMessage" class="border border-primary-200 rounded-lg bg-primary-50 p-3 dark:border-primary-800 dark:bg-primary-900/20">
             <div class="flex items-center gap-2 text-primary-700 dark:text-primary-400">
               <div v-if="isTranscribing" class="animate-spin text-sm" i-solar:spinner-line-duotone />
               <div v-else class="text-sm" i-solar:info-circle-line-duotone />
@@ -988,10 +968,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div
-            v-if="shouldUseStreamInput"
-            class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
-          >
+          <div v-if="shouldUseStreamInput" class="border border-blue-200 rounded-lg bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
             <div class="flex items-center gap-2 text-blue-700 dark:text-blue-400">
               <div i-solar:info-circle-line-duotone class="text-sm" />
               <span class="text-xs">Streaming mode: Transcription will appear in real-time as you speak</span>
@@ -1008,16 +985,15 @@ onUnmounted(() => {
                 class="min-h-[100px] border border-neutral-200 rounded-lg bg-white p-3 text-sm dark:border-neutral-700 dark:bg-neutral-900"
               >
                 <div v-if="testStreamingText && shouldUseStreamInput" class="text-neutral-600 dark:text-neutral-400">
-                  <div class="mb-2 font-medium">Current transcription (streaming):</div>
+                  <div class="mb-2 font-medium">
+                    Current transcription (streaming):
+                  </div>
                   <div class="whitespace-pre-wrap">
                     {{ testStreamingText }}
                   </div>
                 </div>
                 <div v-if="testTranscriptionText" class="text-neutral-700 dark:text-neutral-200">
-                  <div
-                    v-if="testStreamingText && shouldUseStreamInput"
-                    class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700"
-                  >
+                  <div v-if="testStreamingText && shouldUseStreamInput" class="mb-2 mt-3 border-t border-neutral-200 pt-2 font-medium dark:border-neutral-700">
                     Final transcription:
                   </div>
                   <div class="whitespace-pre-wrap">
@@ -1034,25 +1010,11 @@ onUnmounted(() => {
             </div>
 
             <div v-if="activeTranscriptionProvider" class="text-xs text-neutral-500 dark:text-neutral-400">
-              <div>
-                Provider:
-                <span class="font-medium">
-                  {{
-                    configuredTranscriptionProvidersMetadata.find((p) => p.id === activeTranscriptionProvider)
-                      ?.localizedName || activeTranscriptionProvider
-                  }}
-                </span>
-              </div>
+              <div>Provider: <span class="font-medium">{{ configuredTranscriptionProvidersMetadata.find(p => p.id === activeTranscriptionProvider)?.localizedName || activeTranscriptionProvider }}</span></div>
               <div v-if="activeTranscriptionModel">
-                Model:
-                <span class="font-medium">{{ activeTranscriptionModel }}</span>
+                Model: <span class="font-medium">{{ activeTranscriptionModel }}</span>
               </div>
-              <div>
-                Mode:
-                <span class="font-medium">
-                  {{ shouldUseStreamInput ? 'Streaming (real-time)' : 'Recording (file-based)' }}
-                </span>
-              </div>
+              <div>Mode: <span class="font-medium">{{ shouldUseStreamInput ? 'Streaming (real-time)' : 'Recording (file-based)' }}</span></div>
             </div>
           </div>
         </div>

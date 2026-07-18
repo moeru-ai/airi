@@ -13,7 +13,7 @@ describe('tools/character/orchestrator/spark-notify', () => {
 
     expect(tools).toHaveLength(2)
     for (const name of ['builtIn_sparkNoResponse', 'builtIn_sparkCommand']) {
-      const entry = tools.find((tool) => tool.function.name === name)
+      const entry = tools.find(tool => tool.function.name === name)
       expect(entry, `missing tool: ${name}`).toBeDefined()
       expect(entry?.function.parameters.additionalProperties).toBe(false)
     }
@@ -23,73 +23,62 @@ describe('tools/character/orchestrator/spark-notify', () => {
     const received: unknown[] = []
     const { tools } = await createSparkNotifyTools({
       onNoResponse: () => undefined,
-      onCommands: (commands) => received.push(...commands),
+      onCommands: commands => received.push(...commands),
     })
 
-    const commandTool = tools.find((tool) => tool.function.name === 'builtIn_sparkCommand')
+    const commandTool = tools.find(tool => tool.function.name === 'builtIn_sparkCommand')
     expect(commandTool).toBeDefined()
 
-    await commandTool!.execute(
-      {
-        commands: [
-          {
-            destinations: ['minecraft'],
-            interrupt: 'false',
-            priority: null,
-            intent: null,
-            ack: '',
-            guidance: {
-              type: 'proposal',
-              persona: [
-                { traits: 'bravery', strength: 'high' },
-                { traits: 'curiosity', strength: 'medium' },
-              ],
-              options: [
-                {
-                  label: 'Investigate',
-                  steps: ['Walk closer', 'Observe the source'],
-                  rationale: null,
-                  possibleOutcome: [],
-                  risk: null,
-                  fallback: [],
-                  triggers: [],
-                },
-              ],
-            },
-          },
-        ],
-      },
-      { messages: [], toolCallId: 'tool-call-id' },
-    )
-
-    expect(received).toEqual([
-      {
+    await commandTool!.execute({
+      commands: [{
         destinations: ['minecraft'],
-        interrupt: false,
-        priority: 'normal',
-        intent: 'action',
-        ack: undefined,
-        contexts: [],
+        interrupt: 'false',
+        priority: null,
+        intent: null,
+        ack: '',
         guidance: {
           type: 'proposal',
-          persona: {
-            bravery: 'high',
-            curiosity: 'medium',
-          },
-          options: [
-            {
-              label: 'Investigate',
-              steps: ['Walk closer', 'Observe the source'],
-              rationale: undefined,
-              possibleOutcome: undefined,
-              risk: undefined,
-              fallback: undefined,
-              triggers: undefined,
-            },
+          persona: [
+            { traits: 'bravery', strength: 'high' },
+            { traits: 'curiosity', strength: 'medium' },
           ],
+          options: [{
+            label: 'Investigate',
+            steps: ['Walk closer', 'Observe the source'],
+            rationale: null,
+            possibleOutcome: [],
+            risk: null,
+            fallback: [],
+            triggers: [],
+          }],
         },
+      }],
+    }, { messages: [], toolCallId: 'tool-call-id' })
+
+    expect(received).toEqual([{
+      destinations: ['minecraft'],
+      interrupt: false,
+      priority: 'normal',
+      intent: 'action',
+      ack: undefined,
+      contexts: [],
+      guidance: {
+        type: 'proposal',
+        persona: {
+          bravery: 'high',
+          curiosity: 'medium',
+        },
+        options: [{
+          label: 'Investigate',
+          steps: ['Walk closer', 'Observe the source'],
+          rationale: undefined,
+          possibleOutcome: undefined,
+          risk: undefined,
+          fallback: undefined,
+          triggers: undefined,
+        }],
       },
-    ])
+    }])
   })
 
   it('uses an empty strict schema for the no-response tool', async () => {
@@ -98,7 +87,7 @@ describe('tools/character/orchestrator/spark-notify', () => {
       onCommands: () => undefined,
     })
 
-    const noResponseTool = tools.find((tool) => tool.function.name === 'builtIn_sparkNoResponse')
+    const noResponseTool = tools.find(tool => tool.function.name === 'builtIn_sparkNoResponse')
     expect(noResponseTool).toBeDefined()
     const schema = noResponseTool!.function.parameters as JsonSchema
     expect(schema.type).toBe('object')
@@ -113,7 +102,7 @@ describe('tools/character/orchestrator/spark-notify', () => {
       allowNoResponse: false,
       allowSparkCommand: true,
     })
-    expect(onlyCommand.tools.map((tool) => tool.function.name)).toEqual(['builtIn_sparkCommand'])
+    expect(onlyCommand.tools.map(tool => tool.function.name)).toEqual(['builtIn_sparkCommand'])
 
     const none = await createSparkNotifyTools({
       onNoResponse: () => undefined,

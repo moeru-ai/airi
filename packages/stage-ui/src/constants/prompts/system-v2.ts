@@ -7,9 +7,9 @@ function message(prefix: string, suffix: string) {
     role: 'system',
     content: [
       prefix,
-      EMOTION_VALUES.map(
-        (emotion) => `- ${emotion} (Emotion for feeling ${EMOTION_EmotionMotionName_value[emotion]})`,
-      ).join('\n'),
+      EMOTION_VALUES
+        .map(emotion => `- ${emotion} (Emotion for feeling ${EMOTION_EmotionMotionName_value[emotion]})`)
+        .join('\n'),
       suffix,
     ].join('\n\n'),
   } satisfies SystemMessage

@@ -2,16 +2,10 @@
 import { Collapsible } from '@proj-airi/ui'
 import { ref } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    title?: string
-    initialVisible?: boolean
-  }>(),
-  {
-    title: '',
-    initialVisible: false,
-  },
-)
+const props = defineProps<{
+  title?: string
+  initialVisible?: boolean
+}>()
 
 const visible = ref(props.initialVisible || false)
 
@@ -25,11 +19,7 @@ function toggleVisible() {
     <template #trigger="slotProps">
       <button
         transition="all ease-in-out duration-250"
-        w-full
-        flex
-        items-center
-        gap-1.5
-        outline-none
+        w-full flex items-center gap-1.5 outline-none
         class="[&_.provider-icon]:grayscale-100 [&_.provider-icon]:hover:grayscale-0"
         @click="() => slotProps.setVisible(!slotProps.visible) && toggleVisible()"
       >

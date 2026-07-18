@@ -17,20 +17,14 @@ import { computed } from 'vue'
 
 const providerId = 'azure-ai-foundry'
 const providersStore = useProvidersStore()
-
-interface AzureAIFoundryConfig {
-  apiKey?: string
-  resourceName?: string
-  apiVersion?: string
-  modelId?: string
-}
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, AzureAIFoundryConfig>> }
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 // Define computed properties for credentials
 const apiKey = computed({
   get: () => providers.value[providerId]?.apiKey || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].apiKey = value
   },
 })
@@ -38,7 +32,8 @@ const apiKey = computed({
 const resourceName = computed({
   get: () => providers.value[providerId]?.resourceName || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].resourceName = value
   },
 })
@@ -46,7 +41,8 @@ const resourceName = computed({
 const apiVersion = computed({
   get: () => providers.value[providerId]?.apiVersion || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].apiVersion = value
   },
 })
@@ -54,7 +50,8 @@ const apiVersion = computed({
 const modelId = computed({
   get: () => providers.value[providerId]?.modelId || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].modelId = value
   },
 })
@@ -137,8 +134,8 @@ const {
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

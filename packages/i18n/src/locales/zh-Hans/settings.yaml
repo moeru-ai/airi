@@ -76,7 +76,7 @@ dialogs:
       optional: 可选的。
     media-files:
       label: 媒体文件
-      description: 可选：手动选择。
+      description: '可选：手动选择。'
       placeholder: 选择屏幕截图或视频文件
       selected-count: '已选择 {count} 个文件'
     last-submitted-preview: 提交前预览
@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -137,7 +137,7 @@ live2d:
     title: 缩放与位置
     scale: 缩放
     x: X
-    y: Y
+    'y': 'Y'
   switch-to-vrm:
     title: 想切换至3D虚拟形象？
     change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
@@ -182,7 +182,7 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: ∞
+        unlimited: '∞'
     shadow: Drop shadow
     reset-parameters: Reset to default parameters
   clear-model-cache: Clear model cache
@@ -248,6 +248,8 @@ pages:
         listFailed: 暂时无法加载已关联的帐户
         unlinkFailed: 无法解除此帐户的关联
         linkFailed: 暂时无法开始关联的流程，要之后再试试吗？
+        accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
+        oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
     security:
       tab: 安全
@@ -308,6 +310,9 @@ pages:
       provider: 聊天 / 提供商
     consciousness:
       model: 意识 / 模型
+    vision:
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
@@ -358,12 +363,12 @@ pages:
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
         name: 错误：你必须提供一个有效的名称！
-        version: 错误：版本号无效！
-        description: 错误：你必须为此卡片提供描述。
-        personality: 错误：必须为该角色提供性格描述。
-        scenario: 错误：必须提供一个情境。
-        systemprompt: 错误：请提供系统提示。
-        posthistoryinstructions: 错误：必须提供消息历史后的提示。
+        version: '错误：版本号无效！'
+        description: '错误：你必须为此卡片提供描述。'
+        personality: '错误：必须为该角色提供性格描述。'
+        scenario: '错误：必须提供一个情境。'
+        systemprompt: '错误：请提供系统提示。'
+        posthistoryinstructions: '错误：必须提供消息历史后的提示。'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
       none: None
     modules: 模块
@@ -385,8 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 上传
-    upload_desc: 点击或拖拽文件到此处上传
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
@@ -426,10 +437,11 @@ pages:
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
+        center: Move desktop window to center
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
-      yes: 是
+      'yes': '是'
     status:
       exported: 聊天会话已导出。
       imported: 聊天会话已导入。
@@ -439,9 +451,10 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 桌面数据重置。
   models:
-    description: 切换角色的 Live2D，VRM 模型
+    description: Live2D, VRM, Spine, etc.
     title: 角色模型
     sections:
       section:
@@ -568,7 +581,7 @@ pages:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
-            current_model_label: 当前模型：
+            current_model_label: '当前模型：'
             description: 为意识选择合适的 LLM 服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
@@ -636,7 +649,7 @@ pages:
         service-offline: 服务已离线
         no-runtime-context: 尚未观察到 Bot 状态
         last-context-seconds: '最后一次 Bot 状态更新：{seconds} 秒之前'
-        last-context-stale: 最后一次 Bot 状态：挂起
+        last-context-stale: '最后一次 Bot 状态：挂起'
     hearing:
       description: 语音识别
       title: 听觉
@@ -679,6 +692,12 @@ pages:
             select-voice:
               loading: 正在加载模型……
               required: 请选择声线
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -729,6 +748,15 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    web-search:
+      title: 网络搜索
+      description: 让 AIRI 联网搜索最新信息
+      enable: 启用网络搜索
+      enable-description: 允许 AIRI 在对话中联网搜索
+      api-key: Tavily API 密钥
+      api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
+      api-key-placeholder: 输入您的 Tavily API 密钥
+      configured: 网络搜索已就绪！
     mcp-server:
       title: MCP 集成
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
@@ -743,7 +771,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: 填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」
+        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -789,7 +817,7 @@ pages:
           label: 启用
       json:
         title: 编辑 mcp.json
-        description: 可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～
+        description: '可以直接修改 JSON，点击「应用」时会自动解析，此时再次点击「保存并重启」就能写到磁盘上啦～'
         placeholder: 在这里粘贴 mcp.json...
       test:
         title: 测试连接
@@ -952,6 +980,9 @@ pages:
       chat:
         title: 聊天
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1014,7 +1045,7 @@ pages:
           description:
             part1: >-
               虽然 Anthropic 最近宣布他们正在提供对 OpenAI SDK 兼容性的 Beta 版支持
-            part2: （您可以在此处阅读更多信息）
+            part2: '（您可以在此处阅读更多信息）'
             part3: 但由于实现细节附带
             part4: >-
               与 OpenAI SDK 不一致，目前无法在浏览器中使用此提供程序。
@@ -1215,6 +1246,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1602,7 +1636,7 @@ vrm:
       坐标轴已被可视化。
     scale: 缩放
     x: X轴偏移
-    y: Y 轴偏移
+    'y': Y 轴偏移
     z: Z轴偏移
     fov: 视角调整（度）
     rotation-y: 模型朝向（Y轴旋转）
@@ -1629,7 +1663,7 @@ spine:
     title: Scale And Position
     scale: Scale
     x: X
-    y: Y
+    'y': 'Y'
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
@@ -1639,6 +1673,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant

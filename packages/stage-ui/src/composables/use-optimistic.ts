@@ -5,7 +5,7 @@ export interface UseOptimisticMutationOptions<T, R, E = unknown> {
    * The optimistic update logic.
    * Should return a rollback function.
    */
-  apply: () => Promise<() => Promise<void> | void> | (() => Promise<void> | void)
+  apply: () => Promise<(() => Promise<void> | void)> | (() => Promise<void> | void)
   /**
    * The actual async task (e.g., API call).
    */
@@ -39,33 +39,39 @@ export interface UseOptimisticMutationOptions<T, R, E = unknown> {
  * TODO: use https://pinia-colada.esm.dev/guide/mutations.html instead.
  */
 export function useOptimisticMutation<T, R = T, E = unknown>(options: UseOptimisticMutationOptions<T, R, E>) {
-  const { apply, action, onSuccess, onError, skipActionIf, shouldRollback, lazy = false } = options
+  const {
+    apply,
+    action,
+    onSuccess,
+    onError,
+    skipActionIf,
+    shouldRollback,
+    lazy = false,
+  } = options
 
-  return useAsyncState(
-    async () => {
-      if (skipActionIf && (await skipActionIf())) {
-        return undefined as R
+  return useAsyncState(async () => {
+    if (skipActionIf && await skipActionIf()) {
+      return undefined as R
+    }
+
+    const rollback = await apply()
+
+    try {
+      const result = await action()
+      if (onSuccess) {
+        return await onSuccess(result)
       }
-
-      const rollback = await apply()
-
-      try {
-        const result = await action()
-        if (onSuccess) {
-          return await onSuccess(result)
-        }
-        return result as unknown as R
-      } catch (err) {
-        const allowRollback = shouldRollback ? await shouldRollback(err as E) : true
-        if (allowRollback && typeof rollback === 'function') {
-          await rollback()
-        }
-        if (onError) {
-          await onError(err as E)
-        }
-        throw err
+      return result as unknown as R
+    }
+    catch (err) {
+      const allowRollback = shouldRollback ? await shouldRollback(err as E) : true
+      if (allowRollback && typeof rollback === 'function') {
+        await rollback()
       }
-    },
-    { immediate: !lazy },
-  )
+      if (onError) {
+        await onError(err as E)
+      }
+      throw err
+    }
+  }, { immediate: !lazy })
 }

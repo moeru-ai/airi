@@ -14,12 +14,12 @@ export class VAD implements BaseVAD {
   private sampleRateTensor: Tensor
   private buffer: Float32Array
   private bufferPointer: number = 0
-  private isRecording = false
+  private isRecording: boolean = false
   private postSpeechSamples: number = 0
   private prevBuffers: Float32Array[] = []
-  private inferenceChain: Promise<unknown> = Promise.resolve()
-  private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<keyof VADEvents>[]>> = {}
-  private isReady = false
+  private inferenceChain: Promise<any> = Promise.resolve()
+  private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
+  private isReady: boolean = false
 
   constructor(userConfig: Partial<BaseVADConfig> = {}) {
     // Default configuration
@@ -37,8 +37,7 @@ export class VAD implements BaseVAD {
     this.config = { ...defaultConfig, ...userConfig }
 
     this.buffer = new Float32Array(this.config.maxBufferDuration * this.config.sampleRate)
-    // JS-W1042: int64 dtype requires BigInt64Array, not a plain number array
-    this.sampleRateTensor = new Tensor('int64', new BigInt64Array([BigInt(this.config.sampleRate)]), [1])
+    this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
     this.state = new Tensor('float32', new Float32Array(2 * 1 * 128), [2, 1, 128])
   }
 
@@ -50,20 +49,12 @@ export class VAD implements BaseVAD {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
       // Full-precision
-      this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', {
-        config: {
-          model_type: 'custom',
-          is_encoder_decoder: false,
-          max_position_embeddings: 512,
-          'transformers.js_config': {},
-          normalized_config: null,
-        },
-        dtype: 'fp32',
-      })
+      this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', { config: { model_type: 'custom' } as any, dtype: 'fp32' })
       this.isReady = true
 
       this.emit('status', { type: 'info', message: 'VAD model loaded successfully' })
-    } catch (error) {
+    }
+    catch (error) {
       this.emit('status', { type: 'error', message: `Failed to load VAD model: ${error}` })
       throw error
     }
@@ -76,23 +67,24 @@ export class VAD implements BaseVAD {
     if (!this.eventListeners[event]) {
       this.eventListeners[event] = []
     }
-    this.eventListeners[event]!.push(callback as VADEventCallback<keyof VADEvents>)
+    this.eventListeners[event]!.push(callback as any)
   }
 
   /**
    * Remove event listener
    */
   public off<K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>): void {
-    if (this.eventListeners[event]) {
-      this.eventListeners[event] = this.eventListeners[event]!.filter((cb) => cb !== callback)
-    }
+    if (!this.eventListeners[event])
+      return
+    this.eventListeners[event] = this.eventListeners[event]!.filter(cb => cb !== callback)
   }
 
   /**
    * Emit event
    */
   private emit<K extends keyof VADEvents>(event: K, data: VADEvents[K]): void {
-    if (!this.eventListeners[event]) return
+    if (!this.eventListeners[event])
+      return
     for (const callback of this.eventListeners[event]!) {
       callback(data)
     }
@@ -120,9 +112,7 @@ export class VAD implements BaseVAD {
 
     // If not currently in speech and the current buffer isn't speech,
     // store it in the previous buffers queue for potential padding
-    if (wasRecording || isSpeech) {
-      // handled below
-    } else {
+    if (!wasRecording && !isSpeech) {
       if (this.prevBuffers.length >= maxPrevBuffers) {
         this.prevBuffers.shift()
       }
@@ -144,7 +134,8 @@ export class VAD implements BaseVAD {
       this.processSpeechSegment(overflow)
 
       return
-    } else {
+    }
+    else {
       // Add input to the buffer
       this.buffer.set(inputBuffer, this.bufferPointer)
       this.bufferPointer += inputBuffer.length
@@ -152,9 +143,7 @@ export class VAD implements BaseVAD {
 
     // Handle speech detection
     if (isSpeech) {
-      if (this.isRecording) {
-        // already recording, no start event needed
-      } else {
+      if (!this.isRecording) {
         // Speech just started
         this.emit('speech-start', undefined)
         this.emit('status', { type: 'info', message: 'Speech detected' })
@@ -207,9 +196,10 @@ export class VAD implements BaseVAD {
     this.emit('debug', { message: 'VAD score', data: { probability: speechProb } })
 
     // Apply thresholds
-    const exceedsSpeechThreshold = speechProb > this.config.speechThreshold
-    const exceedsExitThresholdWhileRecording = this.isRecording && speechProb >= this.config.exitThreshold
-    return exceedsSpeechThreshold || exceedsExitThresholdWhileRecording
+    return (
+      speechProb > this.config.speechThreshold
+      || (this.isRecording && speechProb >= this.config.exitThreshold)
+    )
   }
 
   /**
@@ -276,7 +266,7 @@ export class VAD implements BaseVAD {
 
     // Update sample rate tensor if needed
     if (newConfig.sampleRate) {
-      this.sampleRateTensor = new Tensor('int64', new BigInt64Array([BigInt(this.config.sampleRate)]), [1])
+      this.sampleRateTensor = new Tensor('int64', [this.config.sampleRate], [])
     }
   }
 }

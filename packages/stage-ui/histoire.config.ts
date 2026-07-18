@@ -1,7 +1,7 @@
-import { HstVue } from '@histoire/plugin-vue'
-
-import { defineConfig } from 'histoire'
 import Info from 'unplugin-info/vite'
+
+import { HstVue } from '@histoire/plugin-vue'
+import { defineConfig } from 'histoire'
 
 export default defineConfig({
   routerMode: 'hash',
@@ -68,7 +68,9 @@ export default defineConfig({
       contrastColor: '#fff',
     },
   ],
-  plugins: [HstVue()],
+  plugins: [
+    HstVue(),
+  ],
   // NOTICE:
   // Histoire force-overrides `vite.build.rollupOptions.output.manualChunks` to lump every
   // `node_modules` module into a single `vendor-*.js`. On this project that produces a
@@ -84,7 +86,9 @@ export default defineConfig({
   },
   vite: {
     base: '/ui/',
-    plugins: [Info()],
+    plugins: [
+      Info(),
+    ],
     build: {
       target: 'esnext',
     },
@@ -94,7 +98,10 @@ export default defineConfig({
     server: 'stories/setup.server.ts',
   },
   viteNodeTransformMode: {
-    web: [/\.web\.vue$/, /\.web\.story\.vue$/],
+    web: [
+      /\.web\.vue$/,
+      /\.web\.story\.vue$/,
+    ],
   },
   tree: {
     groups: [

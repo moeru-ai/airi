@@ -7,6 +7,9 @@ function normalizeRoutePath(routePath: string) {
   return path || '/'
 }
 
+/**
+ * Resolves hash routes before Vue Router hydrates `route.path`.
+ */
 export function resolveInitialChatSyncRoutePath(routePath: string, hash = globalThis.location?.hash ?? '') {
   const hashPath = hash.startsWith('#') ? hash.slice(1) : ''
   return normalizeRoutePath(hashPath || routePath)
@@ -14,8 +17,10 @@ export function resolveInitialChatSyncRoutePath(routePath: string, hash = global
 
 function resolveChatSyncWindowRole(routePath: string): ChatSyncWindowRole | null {
   const path = normalizeRoutePath(routePath)
-  if (path === '/') return 'authority'
-  if (path === '/chat') return 'follower'
+  if (path === '/')
+    return 'authority'
+  if (path === '/chat' || path === '/spotlight')
+    return 'follower'
   return null
 }
 
@@ -33,10 +38,12 @@ export function createChatSyncWindowLifecycle(routePath: string, hash?: string) 
   return {
     role,
     initialize() {
-      if (role) chatSyncStore.initialize(role)
+      if (role)
+        chatSyncStore.initialize(role)
     },
     dispose() {
-      if (role) chatSyncStore.dispose()
+      if (role)
+        chatSyncStore.dispose()
     },
   }
 }

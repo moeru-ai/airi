@@ -6,47 +6,45 @@ import Button from './button.vue'
 type ButtonVariant = 'primary' | 'secondary' | 'secondary-muted' | 'danger' | 'caution'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
-const props = withDefaults(
-  defineProps<{
-    variant?: ButtonVariant
-    cancelVariant?: ButtonVariant
-    size?: ButtonSize
-    block?: boolean
-    disabled?: boolean
-    loading?: boolean
-  }>(),
-  {
-    variant: 'danger',
-    cancelVariant: 'secondary',
-    size: 'md',
-    block: false,
-    disabled: false,
-    loading: false,
-  },
-)
+const props = withDefaults(defineProps<{
+  variant?: ButtonVariant
+  cancelVariant?: ButtonVariant
+  size?: ButtonSize
+  block?: boolean
+  disabled?: boolean
+  loading?: boolean
+}>(), {
+  variant: 'danger',
+  cancelVariant: 'secondary',
+  size: 'md',
+  block: false,
+  disabled: false,
+  loading: false,
+})
 
 const emit = defineEmits<{
-  confirm: []
-  cancel: []
+  (event: 'confirm'): void
+  (event: 'cancel'): void
 }>()
 
 const slots = defineSlots<{
-  default: (props: Record<string, unknown>) => unknown
-  confirm: (props: Record<string, unknown>) => unknown
-  cancel: (props: Record<string, unknown>) => unknown
-  'cancel-button-icon': (props: Record<string, unknown>) => unknown
+  'default': (props: Record<string, unknown>) => unknown
+  'confirm': (props: Record<string, unknown>) => unknown
+  'cancel': (props: Record<string, unknown>) => unknown
+  'cancel-botton-icon': (props: Record<string, unknown>) => unknown
 }>()
 
 const confirming = ref(false)
 
-const wrapperClasses = computed(() => ['inline-flex flex-col gap-2', props.block ? 'w-full' : ''])
+const wrapperClasses = computed(() => [
+  'inline-flex flex-col gap-2',
+  props.block ? 'w-full' : '',
+])
 
-watch(
-  () => props.disabled,
-  (disabled) => {
-    if (disabled) confirming.value = false
-  },
-)
+watch(() => props.disabled, (disabled) => {
+  if (disabled)
+    confirming.value = false
+})
 
 function handlePrimaryClick() {
   if (!confirming.value) {
@@ -78,7 +76,10 @@ function handleCancel() {
           @click="handleCancel"
         >
           <div class="flex items-center gap-2">
-            <slot v-if="slots['cancel-button-icon']" name="cancel-button-icon" />
+            <slot
+              v-if="slots['cancel-botton-icon']"
+              name="cancel-botton-icon"
+            />
             <span><slot name="cancel">Cancel</slot></span>
           </div>
         </Button>
@@ -113,9 +114,7 @@ function handleCancel() {
 <style scoped>
 .double-check-slide-enter-active,
 .double-check-slide-leave-active {
-  transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
 .double-check-slide-enter-from,
@@ -125,9 +124,7 @@ function handleCancel() {
 }
 
 .double-check-primary {
-  transition:
-    min-width 180ms ease,
-    padding 180ms ease;
+  transition: min-width 180ms ease, padding 180ms ease;
 }
 
 .double-check-primary--default {

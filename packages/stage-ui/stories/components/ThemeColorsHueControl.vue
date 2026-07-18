@@ -13,11 +13,7 @@ function resetToDefault() {
 onMounted(() => {
   const hue = document.documentElement.style.getPropertyValue(VAR_HUE)
   const hueF = Number.parseFloat(hue)
-  if (hueF >= 0 && hueF <= 360) {
-    themeColorsHue.value = hueF
-  } else {
-    themeColorsHue.value = DEFAULT_THEME_COLORS_HUE
-  }
+  themeColorsHue.value = hueF >= 0 && hueF <= 360 ? hueF : DEFAULT_THEME_COLORS_HUE
   document.documentElement.style.setProperty(VAR_HUE, themeColorsHue.value.toString())
 })
 
@@ -28,7 +24,14 @@ watch(themeColorsHue, () => {
 
 <template>
   <div px-4 py-2 flex="~ col">
-    <input v-model="themeColorsHue" type="range" min="0" max="360" step="0.01" class="chromatic-hue-slider" />
+    <input
+      v-model="themeColorsHue"
+      type="range"
+      min="0"
+      max="360"
+      step="0.01"
+      class="chromatic-hue-slider"
+    >
     <button
       class="mt-2 rounded-md px-2 py-1 text-xs transition-colors"
       bg="neutral-200 dark:neutral-800 hover:neutral-200 dark:hover:neutral-700"

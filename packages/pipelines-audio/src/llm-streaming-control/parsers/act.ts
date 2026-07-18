@@ -4,8 +4,7 @@ const actTokenPrefix = '<|ACT '
 const markerSuffix = '|>'
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  const isNonNullObject = typeof value === 'object' && value !== null
-  return isNonNullObject && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /**
@@ -34,7 +33,8 @@ export function tokenAct(): LlmStreamingControlParser<LlmStreamingControlTokenAc
       let parsed: unknown
       try {
         parsed = JSON.parse(rawPayload)
-      } catch {
+      }
+      catch {
         return undefined
       }
 

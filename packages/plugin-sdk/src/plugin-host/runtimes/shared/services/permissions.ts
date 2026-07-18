@@ -184,7 +184,10 @@ function intersectPermissions(
  * - combining persisted grants with new grants
  * - extending requested declarations with newly runtime-declared scopes
  */
-function mergePermissionScopes<T extends PermissionScope>(current: T[] | undefined, incoming: T[] | undefined): T[] {
+function mergePermissionScopes<T extends PermissionScope>(
+  current: T[] | undefined,
+  incoming: T[] | undefined,
+): T[] {
   const map = new Map<string, T>()
 
   for (const list of [current ?? [], incoming ?? []]) {
@@ -250,7 +253,7 @@ function mergePermissionDeclarations(
 }
 
 /**
- * Tracks requested and granted permissions for plugin sessions.
+ * Tracks requested and granted permissions for extension sessions.
  *
  * Use when:
  * - The host needs to initialize permission state for a session
@@ -266,8 +269,31 @@ function mergePermissionDeclarations(
 export class PermissionService {
   private readonly store = new Map<string, PermissionSnapshot>()
 
+  /**
+   * Computes the effective permission boundary for one module.
+   *
+   * Use when:
+   * - Extension permissions define the install/session-level ceiling
+   * - Module permissions describe actual runtime usage
+   *
+   * Expects:
+   * - `extensionGrant` is the already granted extension-level ceiling
+   * - `moduleRequest` is the module-level requested usage
+   *
+   * Returns:
+   * - The intersection that stays within both extension and module boundaries
+   */
+  intersectGrant(
+    extensionGrant: ModulePermissionGrant,
+    moduleRequest: ModulePermissionDeclaration,
+  ): ModulePermissionGrant {
+    // Extension grants are the package/session ceiling; module requests are
+    // actual runtime usage. Effective access must stay inside both boundaries.
+    return intersectPermissions(normalizeDeclaration(moduleRequest), normalizeDeclaration(extensionGrant))
+  }
+
   initialize(
-    pluginId: string,
+    extensionId: string,
     requestedDeclaration: ModulePermissionDeclaration,
     options?: {
       grant?: ModulePermissionGrant
@@ -279,21 +305,21 @@ export class PermissionService {
     const explicitGrant = options?.grant ?? requested
     const mergedGrant = mergePermissions(persisted, explicitGrant)
     const granted = intersectPermissions(requested, mergedGrant)
-    const previousRevision = this.store.get(pluginId)?.revision ?? 0
+    const previousRevision = this.store.get(extensionId)?.revision ?? 0
     const snapshot: PermissionSnapshot = {
       requested,
       granted,
       revision: previousRevision + 1,
     }
 
-    this.store.set(pluginId, snapshot)
+    this.store.set(extensionId, snapshot)
     return snapshot
   }
 
-  declare(pluginId: string, requestedDeclaration: ModulePermissionDeclaration) {
-    const existing = this.store.get(pluginId)
+  declare(extensionId: string, requestedDeclaration: ModulePermissionDeclaration) {
+    const existing = this.store.get(extensionId)
     if (!existing) {
-      throw new Error(`Cannot declare permissions for unknown plugin "${pluginId}".`)
+      throw new Error(`Cannot declare permissions for unknown plugin "${extensionId}".`)
     }
 
     const requested = normalizeDeclaration(requestedDeclaration)
@@ -303,14 +329,14 @@ export class PermissionService {
       revision: existing.revision + 1,
     }
 
-    this.store.set(pluginId, snapshot)
+    this.store.set(extensionId, snapshot)
     return snapshot
   }
 
-  grant(pluginId: string, grant: ModulePermissionGrant) {
-    const existing = this.store.get(pluginId)
+  grant(extensionId: string, grant: ModulePermissionGrant) {
+    const existing = this.store.get(extensionId)
     if (!existing) {
-      throw new Error(`Cannot grant permissions to unknown plugin "${pluginId}".`)
+      throw new Error(`Cannot grant permissions to unknown plugin "${extensionId}".`)
     }
 
     const mergedGranted = mergePermissions(existing.granted, grant)
@@ -319,21 +345,32 @@ export class PermissionService {
       granted: intersectPermissions(existing.requested, mergedGranted),
       revision: existing.revision + 1,
     }
-    this.store.set(pluginId, snapshot)
+    this.store.set(extensionId, snapshot)
     return snapshot
   }
 
-  get(pluginId: string) {
-    return this.store.get(pluginId)
+  get(extensionId: string) {
+    return this.store.get(extensionId)
   }
 
-  isAllowed(pluginId: string, area: ModulePermissionArea, action: string, key: string) {
-    const snapshot = this.store.get(pluginId)
+  isAllowed(extensionId: string, area: ModulePermissionArea, action: string, key: string) {
+    const snapshot = this.store.get(extensionId)
     if (!snapshot) {
       return false
     }
 
     const scopes = snapshot.granted[area] ?? []
-    return scopes.some((scope) => matchKey(scope.key, key) && hasAction(scope.actions, action))
+    return scopes.some(scope =>
+      matchKey(scope.key, key)
+      && hasAction(scope.actions, action),
+    )
+  }
+
+  grantAllows(grant: ModulePermissionGrant, area: ModulePermissionArea, action: string, key: string) {
+    const scopes = grant[area] ?? []
+    return scopes.some(scope =>
+      matchKey(scope.key, key)
+      && hasAction(scope.actions, action),
+    )
   }
 }

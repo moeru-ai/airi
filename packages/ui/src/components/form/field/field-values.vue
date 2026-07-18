@@ -1,22 +1,14 @@
 <script setup lang="ts">
 import { Input } from '../input'
 
-const props = withDefaults(
-  defineProps<{
-    label?: string
-    description?: string
-    valuePlaceholder?: string
-    required?: boolean
-    inputClass?: string
-  }>(),
-  {
-    label: '',
-    description: '',
-    valuePlaceholder: '',
-    required: false,
-    inputClass: '',
-  },
-)
+const props = defineProps<{
+  label?: string
+  description?: string
+  name?: string
+  valuePlaceholder?: string
+  required?: boolean
+  inputClass?: string
+}>()
 
 const emit = defineEmits<{
   (e: 'remove', index: number): void
@@ -54,14 +46,17 @@ function removeItem(index: number) {
       </div>
 
       <div v-auto-animate class="~ col gap-2">
-        <div v-for="(_item, index) in items" :key="index" :class="['w-full', 'flex', 'items-center', 'gap-2']">
-          <Input v-model="items[index]" :placeholder="props.valuePlaceholder" :class="['w-90%']" />
-          <button
-            i-solar:minus-circle-line-duotone
-            size="6"
-            :class="['min-w-20px', 'w-10%', 'flex', 'text-red-500']"
-            @click="removeItem(index)"
+        <div
+          v-for="(_, index) in items"
+          :key="index"
+          :class="['w-full', 'flex', 'items-center', 'gap-2']"
+        >
+          <Input
+            v-model="items[index]"
+            :placeholder="props.valuePlaceholder"
+            :class="['w-90%']"
           />
+          <button i-solar:minus-circle-line-duotone size="6" :class="['min-w-20px', 'w-10%', 'flex', 'text-red-500']" @click="removeItem(index)" />
         </div>
 
         <div i-solar:add-circle-line-duotone size="6" :class="['mt-2', 'w-4/5', 'text-blue-500']" @click="addItem" />

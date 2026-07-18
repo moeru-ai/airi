@@ -8,17 +8,22 @@ const extensionUiDispatchReservedPropKeys = new Set([
   'module-config',
 ])
 
-const extensionUiRenderReservedPropKeys = new Set(['title', ...extensionUiDispatchReservedPropKeys])
+const extensionUiRenderReservedPropKeys = new Set([
+  'title',
+  ...extensionUiDispatchReservedPropKeys,
+])
 
-function sanitizeExtensionUiProps(record: Record<string, unknown>, reservedKeys: Set<string>) {
-  return Object.fromEntries(Object.entries(record).filter(([key]) => !reservedKeys.has(key)))
+function sanitizeExtensionUiProps(record: Record<string, any>, reservedKeys: Set<string>) {
+  return Object.fromEntries(
+    Object.entries(record).filter(([key]) => !reservedKeys.has(key)),
+  )
 }
 
-export function sanitizeExtensionUiDispatchProps(record: Record<string, unknown>) {
+export function sanitizeExtensionUiDispatchProps(record: Record<string, any>) {
   return sanitizeExtensionUiProps(record, extensionUiDispatchReservedPropKeys)
 }
 
-export function sanitizeExtensionUiRenderProps(record: Record<string, unknown>) {
+export function sanitizeExtensionUiRenderProps(record: Record<string, any>) {
   return sanitizeExtensionUiProps(record, extensionUiRenderReservedPropKeys)
 }
 
@@ -31,7 +36,12 @@ export function canRenderExtensionUi(options: {
   iframeSrc?: string
   iframeSrcdoc?: string
 }) {
-  const hasContent = Boolean(options.moduleSnapshot && (options.iframeSrc || options.iframeSrcdoc))
-  const hasError = Boolean(options.loading || options.error || options.iframeLoadError || options.iframeMountError)
-  return hasContent && !hasError
+  return Boolean(
+    options.moduleSnapshot
+    && (options.iframeSrc || options.iframeSrcdoc)
+    && !options.loading
+    && !options.error
+    && !options.iframeLoadError
+    && !options.iframeMountError,
+  )
 }

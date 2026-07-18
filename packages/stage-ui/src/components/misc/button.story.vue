@@ -3,12 +3,19 @@ import { Button } from '@proj-airi/ui'
 </script>
 
 <template>
-  <Story title="Button" group="misc" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Button"
+    group="misc"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="basic" title="Basic Button">
+    <Variant
+      id="basic"
+      title="Basic Button"
+    >
       <div flex flex-col>
         <div class="flex flex-row gap-4 p-2">
           <Button label="Primary Button" />
@@ -20,7 +27,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="disabled" title="Disabled State">
+    <Variant
+      id="disabled"
+      title="Disabled State"
+    >
       <div class="flex flex-row gap-4 p-2">
         <Button label="Disabled Primary" disabled />
         <Button label="Disabled Secondary" variant="secondary" disabled />
@@ -30,7 +40,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="loading" title="Loading State">
+    <Variant
+      id="loading"
+      title="Loading State"
+    >
       <div class="flex flex-row gap-4 p-2">
         <Button label="Loading Primary" loading />
         <Button label="Loading Secondary" variant="secondary" loading />
@@ -40,7 +53,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="with-icon" title="With Icon">
+    <Variant
+      id="with-icon"
+      title="With Icon"
+    >
       <div class="flex flex-row gap-4 p-2">
         <Button label="Add Item" icon="i-solar:add-circle-line-duotone" />
         <Button label="Warn" variant="caution" icon="i-solar:danger-triangle-line-duotone" />
@@ -50,7 +66,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="icon-only" title="Icon Only">
+    <Variant
+      id="icon-only"
+      title="Icon Only"
+    >
       <div class="flex gap-4 p-2">
         <Button icon="i-solar:add-circle-line-duotone" />
         <Button variant="secondary" icon="i-solar:settings-line-duotone" />
@@ -60,7 +79,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="sizes" title="Button Sizes">
+    <Variant
+      id="sizes"
+      title="Button Sizes"
+    >
       <div class="flex items-center gap-4 p-2">
         <Button label="Small" size="sm" />
         <Button label="Medium" size="md" />
@@ -69,7 +91,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="block" title="Block Button">
+    <Variant
+      id="block"
+      title="Block Button"
+    >
       <div class="flex flex-col gap-4 p-2">
         <Button label="Block Primary" block />
         <Button label="Block Secondary" variant="secondary" block />
@@ -78,7 +103,10 @@ import { Button } from '@proj-airi/ui'
       </div>
     </Variant>
 
-    <Variant id="slot" title="Using Slot Content">
+    <Variant
+      id="slot"
+      title="Using Slot Content"
+    >
       <div class="flex flex-row gap-4 p-2">
         <Button>Custom Content</Button>
         <Button variant="secondary">

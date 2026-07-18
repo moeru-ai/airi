@@ -5,8 +5,6 @@
 # Node.js
 node_modules
 
-#Graphify
-graphify-out/
 # Logs
 *.log
 *.logs
@@ -19,12 +17,18 @@ lerna-debug.log*
 .idea
 .temp
 **/temp/
+
+# AI Agents
 .claude/worktrees/
+.superpowers/
 
 # Anything .local, especially for .env.local
 *.local
 # e.g. Claude Code settings.local.json
 *.local.*
+.env
+.env.*
+!.env.example
 
 # Audio binaries
 *.pcm
@@ -66,6 +70,7 @@ components.d.ts
 **/typed-router.d.ts
 
 # Cache
+.eslintcache
 **/.cache/
 **/.vitepress/cache/
 **/*.tsbuildinfo
@@ -98,9 +103,6 @@ devenv.*
 target/
 crates/*/target/
 
-# jscpd config (.jscpd.json is tracked for CI enforcement)
-.jscpd/
-
 # turborepo
 .turbo
 
@@ -128,9 +130,6 @@ plugins/development
 plugins-local
 plugins-development
 
-# Tauri
-apps/stage-tauri/gen/
-
 apps/stage-pocket/ios/buildServer.json
 apps/stage-pocket/airi-pocket.jks
 apps/stage-tamagotchi/electron.vite.config.*.mjs
@@ -138,9 +137,6 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - ghfs
 .ghfs/
-
-# Local git worktrees
-.worktrees/
 
 # Tools - Obsidian
 .obsidian/

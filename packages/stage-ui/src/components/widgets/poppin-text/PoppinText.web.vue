@@ -16,24 +16,19 @@ interface PoppinTextTarget {
   grapheme: string
 }
 
-const props = withDefaults(
-  defineProps<{
-    /**
-     * A plain string, keyed text segments, or a ReadableStream of bytes from text in UTF-8 encoding.
-     * If a stream is provided, the stream **SHOULD NOT** be reused. (i.e. You should not set a same stream twice.)
-     */
-    text?: string | PoppinTextSegment[] | ReadableStream<Uint8Array>
-    textClass?: string | string[]
-    animator?: Animator
-  }>(),
-  {
-    text: undefined,
-    textClass: '',
-    animator: undefined,
-  },
-)
+const props = defineProps<{
+  /**
+   * A plain string, keyed text segments, or a ReadableStream of bytes from text in UTF-8 encoding.
+   * If a stream is provided, the stream **SHOULD NOT** be reused. (i.e. You should not set a same stream twice.)
+   */
+  text?: string | PoppinTextSegment[] | ReadableStream<Uint8Array>
+  textClass?: string | string[]
+  animator?: Animator
+}>()
 
-const emits = defineEmits<{ textSplit: [grapheme: string] }>()
+const emits = defineEmits<{
+  (e: 'textSplit', grapheme: string): void
+}>()
 
 const targets = ref<PoppinTextTarget[]>([])
 const abortController = shallowRef<AbortController>()
@@ -50,7 +45,7 @@ function readTextTargets(text: string, namespace: string): PoppinTextTarget[] {
 }
 
 function readSegmentTargets(segments: PoppinTextSegment[]): PoppinTextTarget[] {
-  return segments.flatMap((segment) =>
+  return segments.flatMap(segment =>
     Array.from(segmenter.segment(segment.text), (seg, index) => ({
       id: `segment:${segment.key}:${index}`,
       grapheme: seg.segment,
@@ -58,62 +53,59 @@ function readSegmentTargets(segments: PoppinTextSegment[]): PoppinTextTarget[] {
   )
 }
 
-watch(
-  () => props.text,
-  async (text) => {
-    if (!text) {
+watch(() => props.text, async (text) => {
+  if (!text) {
+    animatedTargetIds.clear()
+    targets.value = []
+    return
+  }
+
+  if (typeof text === 'string') {
+    const nextTargets = readTextTargets(text, `text:${plainTextGeneration}`)
+    const appendsToPreviousText = targets.value.length <= nextTargets.length
+      && targets.value.every((target, index) => target.grapheme === nextTargets[index]?.grapheme)
+
+    if (!appendsToPreviousText) {
+      plainTextGeneration += 1
       animatedTargetIds.clear()
-      targets.value = []
+      targets.value = readTextTargets(text, `text:${plainTextGeneration}`)
       return
     }
 
-    if (typeof text === 'string') {
-      const nextTargets = readTextTargets(text, `text:${plainTextGeneration}`)
-      const appendsToPreviousText =
-        targets.value.length <= nextTargets.length &&
-        targets.value.every((target, index) => target.grapheme === nextTargets[index]?.grapheme)
+    targets.value = nextTargets
+    return
+  }
+  if (Array.isArray(text)) {
+    targets.value = readSegmentTargets(text)
+    return
+  }
 
-      if (!appendsToPreviousText) {
-        plainTextGeneration += 1
-        animatedTargetIds.clear()
-        targets.value = readTextTargets(text, `text:${plainTextGeneration}`)
-        return
-      }
+  abortController.value?.abort()
+  abortController.value = new AbortController()
 
-      targets.value = nextTargets
-      return
+  try {
+    streamTextGeneration += 1
+    animatedTargetIds.clear()
+    targets.value = []
+
+    for await (const cluster of readGraphemeClusters(text.getReader(), { signal: abortController.value.signal })) {
+      targets.value.push({
+        id: `stream:${streamTextGeneration}:${targets.value.length}`,
+        grapheme: cluster,
+      })
+
+      emits('textSplit', cluster)
     }
-    if (Array.isArray(text)) {
-      targets.value = readSegmentTargets(text)
-      return
+  }
+  catch (error) {
+    if (error instanceof Error && error.message === 'Aborted') {
+      console.warn('Text reading aborted')
     }
-
-    abortController.value?.abort()
-    abortController.value = new AbortController()
-
-    try {
-      streamTextGeneration += 1
-      animatedTargetIds.clear()
-      targets.value = []
-
-      for await (const cluster of readGraphemeClusters(text.getReader(), { signal: abortController.value.signal })) {
-        targets.value.push({
-          id: `stream:${streamTextGeneration}:${targets.value.length}`,
-          grapheme: cluster,
-        })
-
-        emits('textSplit', cluster)
-      }
-    } catch (error) {
-      if (error instanceof Error && error.message === 'Aborted') {
-        console.warn('Text reading aborted')
-      } else {
-        console.error('Error reading text:', error)
-      }
+    else {
+      console.error('Error reading text:', error)
     }
-  },
-  { immediate: true },
-)
+  }
+}, { immediate: true })
 
 const elements = ref<HTMLElement[]>([])
 const animatorCleanupFn = shallowRef<() => void>()
@@ -122,40 +114,37 @@ const activeAnimator = shallowRef<Animator>()
 onMounted(() => {
   animatorCleanupFn.value = props.animator?.(elements.value.slice())
   activeAnimator.value = props.animator
-  targets.value.forEach((target) => animatedTargetIds.add(target.id))
+  targets.value.forEach(target => animatedTargetIds.add(target.id))
 })
 
-watch(
-  [targets, () => props.animator],
-  ([targets, animator]) => {
-    const animatorChanged = activeAnimator.value !== animator
-    const targetIds = new Set(targets.map((target) => target.id))
+watch([targets, () => props.animator], ([targets, animator]) => {
+  const animatorChanged = activeAnimator.value !== animator
+  const targetIds = new Set(targets.map(target => target.id))
 
-    for (const id of animatedTargetIds) {
-      if (!targetIds.has(id)) animatedTargetIds.delete(id)
-    }
+  for (const id of animatedTargetIds) {
+    if (!targetIds.has(id))
+      animatedTargetIds.delete(id)
+  }
 
-    if (animatorChanged) {
-      animatorCleanupFn.value?.()
-      animatedTargetIds.clear()
-    }
+  if (animatorChanged) {
+    animatorCleanupFn.value?.()
+    animatedTargetIds.clear()
+  }
 
-    const targetElements = elements.value.filter((_, index) => {
-      const target = targets[index]
-      return target && !animatedTargetIds.has(target.id)
-    })
+  const targetElements = elements.value.filter((_, index) => {
+    const target = targets[index]
+    return target && !animatedTargetIds.has(target.id)
+  })
 
-    const cleanup = targetElements.length > 0 ? animator?.(targetElements) : undefined
-    if (cleanup) {
-      animatorCleanupFn.value = cleanup
-    }
+  const cleanup = targetElements.length > 0 ? animator?.(targetElements) : undefined
+  if (cleanup) {
+    animatorCleanupFn.value = cleanup
+  }
 
-    targets.forEach((target) => animatedTargetIds.add(target.id))
+  targets.forEach(target => animatedTargetIds.add(target.id))
 
-    activeAnimator.value = animator
-  },
-  { deep: true, flush: 'post' },
-) // <- Ensure post-update refs
+  activeAnimator.value = animator
+}, { deep: true, flush: 'post' }) // <- Ensure post-update refs
 </script>
 
 <template>
@@ -165,7 +154,13 @@ watch(
       :key="target.id"
       ref="elements"
       class="inline-block whitespace-pre-wrap color-primary-400 dark:color-primary-100"
-      :class="[...(typeof props.textClass === 'string' ? [props.textClass] : props.textClass || [])]"
+      :class="[
+        ...(
+          typeof props.textClass === 'string'
+            ? [props.textClass]
+            : (props.textClass || [])
+        ),
+      ]"
     >
       {{ target.grapheme }}
     </span>

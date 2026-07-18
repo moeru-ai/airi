@@ -16,33 +16,40 @@ interface SelectOptionGroupItem<T extends AcceptableValue> {
   children?: SelectOptionItem<T>[]
 }
 
-const props = withDefaults(
-  defineProps<{
-    label: string
-    description?: string
-    options?: SelectOptionItem<T>[] | SelectOptionGroupItem<T>[]
-    placeholder?: string
-    disabled?: boolean
-    layout?: 'horizontal' | 'vertical'
-    selectClass?: string | string[]
-    by?: string | ((a: T, b: T) => boolean)
-    contentMinWidth?: string | number
-    contentWidth?: string | number
-    shape?: 'rounded' | 'default'
-    variant?: 'blurry' | 'default'
-  }>(),
-  {
-    layout: 'horizontal',
-  },
-)
+const props = withDefaults(defineProps<{
+  label: string
+  description?: string
+  options?: SelectOptionItem<T>[] | SelectOptionGroupItem<T>[]
+  placeholder?: string
+  disabled?: boolean
+  layout?: 'horizontal' | 'vertical'
+  selectClass?: string | string[]
+  by?: string | ((a: T, b: T) => boolean)
+  contentMinWidth?: string | number
+  contentWidth?: string | number
+  shape?: 'rounded' | 'default'
+  variant?: 'blurry' | 'default'
+}>(), {
+  layout: 'horizontal',
+})
 
 const modelValue = defineModel<T>({ required: false })
 </script>
 
 <template>
   <label :class="['flex', 'flex-col', 'gap-4']">
-    <div :class="['items-center', props.layout === 'horizontal' ? 'grid grid-cols-4 gap-2' : 'grid grid-rows-2 gap-2']">
-      <div :class="['w-full', props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2']">
+    <div
+      :class="[
+        'items-center',
+        props.layout === 'horizontal' ? 'grid grid-cols-4 gap-2' : 'grid grid-rows-2 gap-2',
+      ]"
+    >
+      <div
+        :class="[
+          'w-full',
+          props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2',
+        ]"
+      >
         <div :class="['flex', 'items-center', 'gap-1', 'break-words', 'text-sm', 'font-medium', 'text-left']">
           <slot name="label">
             {{ props.label }}
@@ -67,19 +74,29 @@ const modelValue = defineModel<T>({ required: false })
           :variant="props.variant"
           :class="[
             ...(props.selectClass
-              ? typeof props.selectClass === 'string'
-                ? [props.selectClass]
-                : props.selectClass
+              ? (typeof props.selectClass === 'string' ? [props.selectClass] : props.selectClass)
               : []),
             props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2',
           ]"
         >
-          <template v-if="$slots.value" #value="{ option, value, placeholder: slotPlaceholder }">
-            <slot name="value" v-bind="{ option, value, placeholder: slotPlaceholder }" />
+          <template
+            v-if="$slots.value"
+            #value="{ option, value, placeholder: slotPlaceholder }"
+          >
+            <slot
+              name="value"
+              v-bind="{ option, value, placeholder: slotPlaceholder }"
+            />
           </template>
 
-          <template v-if="$slots.option" #option="{ option }">
-            <slot name="option" v-bind="{ option }" />
+          <template
+            v-if="$slots.option"
+            #option="{ option }"
+          >
+            <slot
+              name="option"
+              v-bind="{ option }"
+            />
           </template>
         </Select>
       </slot>

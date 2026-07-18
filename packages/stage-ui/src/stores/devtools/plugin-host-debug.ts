@@ -1,8 +1,9 @@
+import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
 export interface PluginManifestSummary {
-  name: string
+  extensionId: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -25,20 +26,9 @@ export interface PluginCapabilityState {
   updatedAt: number
 }
 
-export type PluginHostSidecarState = 'stopped' | 'booting' | 'ready' | 'degraded'
-
-export interface PluginHostSidecarStatus {
-  state: PluginHostSidecarState
-  pid: number | null
-  endpoint?: string
-  executablePath?: string
-  lastError?: string
-  updatedAt: number
-}
-
 export interface PluginHostSessionSummary {
   id: string
-  manifestName: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
   moduleId: string
@@ -59,7 +49,7 @@ export interface PluginHostKitSummary {
 export interface PluginHostModuleSummary {
   moduleId: string
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   kitId: string
   kitModuleType: string
   state: 'announced' | 'active' | 'degraded' | 'withdrawn'
@@ -74,18 +64,17 @@ export interface PluginHostDebugSnapshot {
   sessions: PluginHostSessionSummary[]
   kits: PluginHostKitSummary[]
   modules: PluginHostModuleSummary[]
-  sidecar: PluginHostSidecarStatus
   capabilities: PluginCapabilityState[]
   refreshedAt: number
 }
 
 interface PluginHostDebugBridge {
   list: () => Promise<PluginRegistrySnapshot>
-  setEnabled: (payload: { name: string; enabled: boolean; path?: string }) => Promise<PluginRegistrySnapshot>
-  setAutoReload: (payload: { name: string; enabled: boolean }) => Promise<PluginRegistrySnapshot>
+  setEnabled: (payload: { extensionId: string, enabled: boolean, path?: string }) => Promise<PluginRegistrySnapshot>
+  setAutoReload: (payload: { extensionId: string, enabled: boolean }) => Promise<PluginRegistrySnapshot>
   loadEnabled: () => Promise<PluginRegistrySnapshot>
-  load: (payload: { name: string }) => Promise<PluginRegistrySnapshot>
-  unload: (payload: { name: string }) => Promise<PluginRegistrySnapshot>
+  load: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
+  unload: (payload: { extensionId: string }) => Promise<PluginRegistrySnapshot>
   inspect: () => Promise<PluginHostDebugSnapshot>
 }
 
@@ -103,14 +92,13 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   const sessions = ref<PluginHostSessionSummary[]>([])
   const kits = ref<PluginHostKitSummary[]>([])
   const capabilities = ref<PluginCapabilityState[]>([])
-  const sidecar = ref<PluginHostSidecarStatus>()
   const refreshedAt = ref<number>()
   const error = ref<string>()
   const loading = ref(false)
 
   const discoveredPlugins = computed(() => registry.value?.plugins ?? [])
-  const enabledPlugins = computed(() => discoveredPlugins.value.filter((plugin) => plugin.enabled))
-  const loadedPlugins = computed(() => discoveredPlugins.value.filter((plugin) => plugin.loaded))
+  const enabledPlugins = computed(() => discoveredPlugins.value.filter(plugin => plugin.enabled))
+  const loadedPlugins = computed(() => discoveredPlugins.value.filter(plugin => plugin.loaded))
   const isAvailable = computed(() => Boolean(bridge.value))
 
   function setBridge(nextBridge: PluginHostDebugBridge) {
@@ -132,7 +120,6 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     sessions.value = snapshot.sessions
     kits.value = snapshot.kits
     capabilities.value = snapshot.capabilities
-    sidecar.value = snapshot.sidecar
     refreshedAt.value = snapshot.refreshedAt
   }
 
@@ -158,60 +145,62 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     clearError()
     try {
       return await run(bridge.value)
-    } catch (cause) {
-      error.value = cause instanceof Error ? cause.message : 'Plugin host debug request failed.'
+    }
+    catch (cause) {
+      error.value = errorMessageFrom(cause) ?? 'Plugin host debug request failed.'
       throw cause
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
 
   async function refreshRegistry() {
-    const nextRegistry = await withBridge((activeBridge) => activeBridge.list())
+    const nextRegistry = await withBridge(activeBridge => activeBridge.list())
     assignRegistry(nextRegistry)
     return nextRegistry
   }
 
   async function refreshInspection() {
-    const snapshot = await withBridge((activeBridge) => activeBridge.inspect())
+    const snapshot = await withBridge(activeBridge => activeBridge.inspect())
     assignInspection(snapshot)
     return snapshot
   }
 
-  function refreshAll() {
+  async function refreshAll() {
     return refreshInspection()
   }
 
-  async function setEnabled(payload: { name: string; enabled: boolean; path?: string }) {
-    const nextRegistry = await withBridge((activeBridge) => activeBridge.setEnabled(payload))
+  async function setEnabled(payload: { extensionId: string, enabled: boolean, path?: string }) {
+    const nextRegistry = await withBridge(activeBridge => activeBridge.setEnabled(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function setAutoReload(payload: { name: string; enabled: boolean }) {
-    const nextRegistry = await withBridge((activeBridge) => activeBridge.setAutoReload(payload))
+  async function setAutoReload(payload: { extensionId: string, enabled: boolean }) {
+    const nextRegistry = await withBridge(activeBridge => activeBridge.setAutoReload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
   async function loadEnabled() {
-    const nextRegistry = await withBridge((activeBridge) => activeBridge.loadEnabled())
+    const nextRegistry = await withBridge(activeBridge => activeBridge.loadEnabled())
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function load(payload: { name: string }) {
-    const nextRegistry = await withBridge((activeBridge) => activeBridge.load(payload))
+  async function load(payload: { extensionId: string }) {
+    const nextRegistry = await withBridge(activeBridge => activeBridge.load(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
   }
 
-  async function unload(payload: { name: string }) {
-    const nextRegistry = await withBridge((activeBridge) => activeBridge.unload(payload))
+  async function unload(payload: { extensionId: string }) {
+    const nextRegistry = await withBridge(activeBridge => activeBridge.unload(payload))
     assignRegistry(nextRegistry)
     await refreshInspection()
     return nextRegistry
@@ -222,7 +211,6 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     sessions,
     kits,
     capabilities,
-    sidecar,
     refreshedAt,
     loading,
     error,

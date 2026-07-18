@@ -20,7 +20,8 @@ export function normalizeToolResultText(result: unknown): string {
 
   try {
     return JSON.stringify(result, null, 2).trim()
-  } catch {
+  }
+  catch {
     return String(result).trim()
   }
 }

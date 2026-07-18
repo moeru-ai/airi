@@ -12,16 +12,10 @@ import {
   electronOpenSettings,
 } from '../../../../shared/eventa'
 
-const props = withDefaults(
-  defineProps<{
-    buttonStyle?: string
-    iconClass?: string
-  }>(),
-  {
-    buttonStyle: '',
-    iconClass: '',
-  },
-)
+const props = defineProps<{
+  buttonStyle?: string
+  iconClass?: string
+}>()
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -39,7 +33,8 @@ const userAvatar = computed(() => user.value?.image)
 function handleClick() {
   if (isAuthenticated.value) {
     openSettings({ route: '/settings/account' })
-  } else {
+  }
+  else {
     doSigningIn()
   }
 }
@@ -68,15 +63,26 @@ watch(needsLogin, (val) => {
 
 // Clear loading when authenticated
 watch(isAuthenticated, (val) => {
-  if (val) signingIn.value = false
+  if (val)
+    signingIn.value = false
 })
 </script>
 
 <template>
   <!-- Signing in state -->
   <div v-if="signingIn && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
-    <div flex="~ items-center gap-3" rounded-xl px-3 py-2.5 bg="black/5 dark:white/5">
-      <div :class="['size-4 shrink-0', 'i-svg-spinners:ring-resize', 'text-primary-500 dark:text-primary-400']" />
+    <div
+      flex="~ items-center gap-3"
+      rounded-xl px-3 py-2.5
+      bg="black/5 dark:white/5"
+    >
+      <div
+        :class="[
+          'size-4 shrink-0',
+          'i-svg-spinners:ring-resize',
+          'text-primary-500 dark:text-primary-400',
+        ]"
+      />
       <span text="sm neutral-500 dark:neutral-400" truncate>
         {{ t('tamagotchi.stage.controls-island.logging-in') }}
       </span>
@@ -105,11 +111,22 @@ watch(isAuthenticated, (val) => {
           'flex items-center justify-center',
         ]"
       >
-        <img v-if="userAvatar" :src="userAvatar" :alt="userName ?? ''" class="size-full object-cover" />
+        <img
+          v-if="userAvatar"
+          :src="userAvatar"
+          :alt="userName ?? ''"
+          class="size-full object-cover"
+        >
         <div v-else i-solar:user-check-rounded-bold class="size-4 text-primary-500 dark:text-primary-400" />
       </div>
       <div class="min-w-0 flex flex-1 flex-col items-start gap-0.5">
-        <span :class="['w-full truncate', 'text-sm font-semibold', 'text-neutral-800 dark:text-neutral-200']">
+        <span
+          :class="[
+            'w-full truncate',
+            'text-sm font-semibold',
+            'text-neutral-800 dark:text-neutral-200',
+          ]"
+        >
           {{ userName }}
         </span>
 
@@ -123,7 +140,12 @@ watch(isAuthenticated, (val) => {
             'text-primary-600 dark:text-primary-400',
           ]"
         >
-          <div :class="['i-solar:battery-charge-bold-duotone', 'size-3 shrink-0']" />
+          <div
+            :class="[
+              'i-solar:battery-charge-bold-duotone',
+              'size-3 shrink-0',
+            ]"
+          />
           <span class="whitespace-nowrap leading-tight">{{ credits }} Flux</span>
         </div>
       </div>
@@ -148,7 +170,10 @@ watch(isAuthenticated, (val) => {
     >
       <div
         i-solar:login-3-bold-duotone
-        :class="[props.iconClass ?? 'size-4.5', 'shrink-0 text-primary-500 dark:text-primary-400']"
+        :class="[
+          props.iconClass ?? 'size-4.5',
+          'shrink-0 text-primary-500 dark:text-primary-400',
+        ]"
       />
       <span text="sm primary-600 dark:primary-400" font-medium>
         {{ t('tamagotchi.stage.controls-island.login') }}

@@ -6,11 +6,13 @@ import ContextFlowSparkNotify from './context-flow-spark-notify.vue'
 
 import { useContextFlowFormatters } from '../composables/use-context-flow-formatters'
 
-withDefaults(defineProps<{ entry: FlowEntry; sparkNotifyState?: SparkNotifyEntryState }>(), {
-  sparkNotifyState: undefined,
-})
+defineProps<{ entry: FlowEntry, sparkNotifyState?: SparkNotifyEntryState }>()
 
-const { formatPayload, formatTimestamp, getEventSource } = useContextFlowFormatters()
+const {
+  formatPayload,
+  formatTimestamp,
+  getEventSource,
+} = useContextFlowFormatters()
 
 const directionBadgeClassMap: Record<FlowDirection, string[]> = {
   incoming: [
@@ -19,7 +21,12 @@ const directionBadgeClassMap: Record<FlowDirection, string[]> = {
     'dark:text-complementary-300',
     'border-complementary-500/30',
   ],
-  outgoing: ['bg-primary-500/15', 'text-primary-600', 'dark:text-primary-300', 'border-primary-500/30'],
+  outgoing: [
+    'bg-primary-500/15',
+    'text-primary-600',
+    'dark:text-primary-300',
+    'border-primary-500/30',
+  ],
 }
 
 const channelBadgeClassMap: Record<FlowChannel, string[]> = {
@@ -64,24 +71,16 @@ function directionIconClass(direction: FlowDirection) {
   >
     <div :class="['flex', 'items-start', 'justify-between', 'gap-3']">
       <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2', 'text-xs']">
-        <span
-          :class="[
-            'rounded-full',
-            'border',
-            'px-2',
-            'py-0.5',
-            'flex',
-            'items-center',
-            'justify-center',
-            ...directionBadgeClasses(entry.direction),
-          ]"
-        >
+        <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'flex', 'items-center', 'justify-center', ...directionBadgeClasses(entry.direction)]">
           <span :class="['size-3.5', directionIconClass(entry.direction)]" :aria-label="entry.direction" />
         </span>
         <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...channelBadgeClasses(entry.channel)]">
           {{ entry.channel }}
         </span>
-        <span v-if="getEventSource(entry)" :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...sourceBadgeClasses]">
+        <span
+          v-if="getEventSource(entry)"
+          :class="['rounded-full', 'border', 'px-2', 'py-0.5', ...sourceBadgeClasses]"
+        >
           {{ getEventSource(entry) }}
         </span>
         <span :class="['font-semibold', 'text-neutral-800', 'dark:text-neutral-100']">
@@ -97,24 +96,20 @@ function directionIconClass(direction: FlowDirection) {
       {{ entry.summary }}
     </div>
 
-    <ContextFlowSparkNotify v-if="entry.type === 'spark:notify'" :entry-id="entry.id" :state="sparkNotifyState" />
+    <ContextFlowSparkNotify
+      v-if="entry.type === 'spark:notify'"
+      :entry-id="entry.id"
+      :state="sparkNotifyState"
+    />
 
     <ContextFlowPreview :entry="entry" />
 
     <details :class="['mt-3']">
-      <summary :class="['cursor-pointer', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">Details</summary>
-      <pre
-        :class="[
-          'mt-2',
-          'max-h-64',
-          'overflow-auto',
-          'rounded-lg',
-          'bg-neutral-900/90',
-          'p-3',
-          'text-xs',
-          'text-neutral-100',
-        ]"
-        >{{ formatPayload(entry.payload) }}
+      <summary :class="['cursor-pointer', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+        Details
+      </summary>
+      <pre :class="['mt-2', 'max-h-64', 'overflow-auto', 'rounded-lg', 'bg-neutral-900/90', 'p-3', 'text-xs', 'text-neutral-100']">
+{{ formatPayload(entry.payload) }}
       </pre>
     </details>
   </div>

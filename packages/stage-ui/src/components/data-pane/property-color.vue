@@ -3,16 +3,13 @@ import type { DataType, Globals } from 'csstype'
 
 import ColorPicker from './color-picker.vue'
 
-const props = withDefaults(
-  defineProps<{
-    label?: string
-    disabled?: boolean
-  }>(),
-  {
-    label: 'Color Picker',
-    disabled: false,
-  },
-)
+const props = withDefaults(defineProps<{
+  label?: string
+  disabled?: boolean
+}>(), {
+  label: 'Color Picker',
+  disabled: false,
+})
 
 const modelValue = defineModel<Globals | DataType.Color>({ required: false })
 </script>

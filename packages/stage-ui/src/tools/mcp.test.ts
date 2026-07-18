@@ -8,7 +8,7 @@ describe('tools mcp schema', () => {
   it('emits strict parameter objects', async () => {
     const tools = await mcp()
     for (const name of ['builtIn_mcpListTools', 'builtIn_mcpCallTool']) {
-      const t = tools.find((entry) => entry.function.name === name)
+      const t = tools.find(entry => entry.function.name === name)
       expect(t, `missing tool: ${name}`).toBeDefined()
       expect(t?.function.parameters.additionalProperties).toBe(false)
     }
@@ -16,7 +16,7 @@ describe('tools mcp schema', () => {
 
   it('builtIn_mcpCallTool uses flat name+arguments schema', async () => {
     const tools = await mcp()
-    const callTool = tools.find((entry) => entry.function.name === 'builtIn_mcpCallTool')
+    const callTool = tools.find(entry => entry.function.name === 'builtIn_mcpCallTool')
     expect(callTool).toBeDefined()
 
     const props = (callTool!.function.parameters as JsonSchema).properties!

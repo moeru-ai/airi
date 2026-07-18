@@ -21,15 +21,12 @@ export interface CharactersRemoteClient {
   api: {
     v1: {
       characters: {
-        $get: (params: { query: { all: string } }, options?: RequestOptions) => Promise<RemoteResponse<unknown[]>>
-        $post: (params: { json: CreateCharacterPayload }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
+        '$get': (params: { query: { all: string } }, options?: RequestOptions) => Promise<RemoteResponse<unknown[]>>
+        '$post': (params: { json: CreateCharacterPayload }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
         ':id': {
           $delete: (params: { param: { id: string } }, options?: RequestOptions) => Promise<{ ok: boolean }>
           $get: (params: { param: { id: string } }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
-          $patch: (
-            params: { json: UpdateCharacterPayload; param: { id: string } },
-            options?: RequestOptions,
-          ) => Promise<RemoteResponse<unknown>>
+          $patch: (params: { json: UpdateCharacterPayload, param: { id: string } }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
           bookmark: {
             $post: (params: { param: { id: string } }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
           }
@@ -59,26 +56,13 @@ export interface CharactersService {
   /** Builds an optimistic local character from a create payload. */
   buildLocal: (userId: string, payload: CreateCharacterPayload) => Character
   /** Fetches and parses the remote character list. */
-  fetchRemote: (
-    client: CharactersRemoteClient,
-    params: { all?: boolean },
-    options?: CharacterServiceOptions,
-  ) => Promise<Character[]>
+  fetchRemote: (client: CharactersRemoteClient, params: { all?: boolean }, options?: CharacterServiceOptions) => Promise<Character[]>
   /** Fetches and parses one remote character. */
   fetchRemoteById: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<Character>
   /** Creates and parses one remote character. */
-  createRemote: (
-    client: CharactersRemoteClient,
-    payload: CreateCharacterPayload,
-    options?: CharacterServiceOptions,
-  ) => Promise<Character>
+  createRemote: (client: CharactersRemoteClient, payload: CreateCharacterPayload, options?: CharacterServiceOptions) => Promise<Character>
   /** Updates and parses one remote character. */
-  updateRemote: (
-    client: CharactersRemoteClient,
-    id: string,
-    payload: UpdateCharacterPayload,
-    options?: CharacterServiceOptions,
-  ) => Promise<Character>
+  updateRemote: (client: CharactersRemoteClient, id: string, payload: UpdateCharacterPayload, options?: CharacterServiceOptions) => Promise<Character>
   /** Removes one remote character. */
   removeRemote: (client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions) => Promise<void>
   /** Likes and parses one remote character. */
@@ -132,13 +116,13 @@ export function createCharactersService(): CharactersService {
       createdAt: now,
       updatedAt: now,
       deletedAt: undefined,
-      capabilities: payload.capabilities?.map((capability) => ({
+      capabilities: payload.capabilities?.map(capability => ({
         id: nanoid(),
         characterId: id,
         type: capability.type,
         config: capability.config,
       })),
-      avatarModels: payload.avatarModels?.map((model) => ({
+      avatarModels: payload.avatarModels?.map(model => ({
         id: nanoid(),
         characterId: id,
         name: model.name,
@@ -148,7 +132,7 @@ export function createCharactersService(): CharactersService {
         createdAt: now,
         updatedAt: now,
       })),
-      i18n: payload.i18n?.map((item) => ({
+      i18n: payload.i18n?.map(item => ({
         id: nanoid(),
         characterId: id,
         language: item.language,
@@ -158,7 +142,7 @@ export function createCharactersService(): CharactersService {
         createdAt: now,
         updatedAt: now,
       })),
-      prompts: payload.prompts?.map((prompt) => ({
+      prompts: payload.prompts?.map(prompt => ({
         id: nanoid(),
         characterId: id,
         language: prompt.language,
@@ -170,107 +154,79 @@ export function createCharactersService(): CharactersService {
     })
   }
 
-  async function fetchRemote(
-    client: CharactersRemoteClient,
-    params: { all?: boolean },
-    options?: CharacterServiceOptions,
-  ): Promise<Character[]> {
+  async function fetchRemote(client: CharactersRemoteClient, params: { all?: boolean }, options?: CharacterServiceOptions): Promise<Character[]> {
     options?.abortSignal?.throwIfAborted()
-    const res = await client.api.v1.characters.$get(
-      {
-        query: { all: String(params.all ?? false) },
-      },
-      requestOptions(options),
-    )
-    if (!res.ok) throw new Error('Failed to fetch characters')
+    const res = await client.api.v1.characters.$get({
+      query: { all: String(params.all ?? false) },
+    }, requestOptions(options))
+    if (!res.ok)
+      throw new Error('Failed to fetch characters')
 
     const data = await res.json()
     options?.abortSignal?.throwIfAborted()
     return data.map((item: unknown) => parse(item))
   }
 
-  async function fetchRemoteById(
-    client: CharactersRemoteClient,
-    id: string,
-    options?: CharacterServiceOptions,
-  ): Promise<Character> {
+  async function fetchRemoteById(client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters[':id'].$get({ param: { id } }, requestOptions(options))
-    if (!res.ok) throw new Error('Failed to fetch character')
+    if (!res.ok)
+      throw new Error('Failed to fetch character')
 
     const data = await res.json()
     options?.abortSignal?.throwIfAborted()
     return parse(data)
   }
 
-  async function createRemote(
-    client: CharactersRemoteClient,
-    payload: CreateCharacterPayload,
-    options?: CharacterServiceOptions,
-  ): Promise<Character> {
+  async function createRemote(client: CharactersRemoteClient, payload: CreateCharacterPayload, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters.$post({ json: payload }, requestOptions(options))
-    if (!res.ok) throw new Error('Failed to create character')
+    if (!res.ok)
+      throw new Error('Failed to create character')
 
     const data = await res.json()
     options?.abortSignal?.throwIfAborted()
     return parse(data)
   }
 
-  async function updateRemote(
-    client: CharactersRemoteClient,
-    id: string,
-    payload: UpdateCharacterPayload,
-    options?: CharacterServiceOptions,
-  ): Promise<Character> {
+  async function updateRemote(client: CharactersRemoteClient, id: string, payload: UpdateCharacterPayload, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
-    const res = await client.api.v1.characters[':id'].$patch(
-      {
-        param: { id },
-        json: payload,
-      },
-      requestOptions(options),
-    )
-    if (!res.ok) throw new Error('Failed to update character')
+    const res = await client.api.v1.characters[':id'].$patch({
+      param: { id },
+      json: payload,
+    }, requestOptions(options))
+    if (!res.ok)
+      throw new Error('Failed to update character')
 
     const data = await res.json()
     options?.abortSignal?.throwIfAborted()
     return parse(data)
   }
 
-  async function removeRemote(
-    client: CharactersRemoteClient,
-    id: string,
-    options?: CharacterServiceOptions,
-  ): Promise<void> {
+  async function removeRemote(client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions): Promise<void> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters[':id'].$delete({ param: { id } }, requestOptions(options))
-    if (!res.ok) throw new Error('Failed to remove character')
+    if (!res.ok)
+      throw new Error('Failed to remove character')
     options?.abortSignal?.throwIfAborted()
   }
 
-  async function likeRemote(
-    client: CharactersRemoteClient,
-    id: string,
-    options?: CharacterServiceOptions,
-  ): Promise<Character> {
+  async function likeRemote(client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters[':id'].like.$post({ param: { id } }, requestOptions(options))
-    if (!res.ok) throw new Error('Failed to like character')
+    if (!res.ok)
+      throw new Error('Failed to like character')
 
     const data = await res.json()
     options?.abortSignal?.throwIfAborted()
     return parse(data)
   }
 
-  async function bookmarkRemote(
-    client: CharactersRemoteClient,
-    id: string,
-    options?: CharacterServiceOptions,
-  ): Promise<Character> {
+  async function bookmarkRemote(client: CharactersRemoteClient, id: string, options?: CharacterServiceOptions): Promise<Character> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters[':id'].bookmark.$post({ param: { id } }, requestOptions(options))
-    if (!res.ok) throw new Error('Failed to bookmark character')
+    if (!res.ok)
+      throw new Error('Failed to bookmark character')
 
     const data = await res.json()
     options?.abortSignal?.throwIfAborted()

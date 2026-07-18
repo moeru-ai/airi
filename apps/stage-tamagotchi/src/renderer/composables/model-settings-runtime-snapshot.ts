@@ -1,12 +1,18 @@
-import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
+import type {
+  ModelSettingsRuntimeSnapshot,
+} from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
 
-import { createEmptyModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
+import {
+  createEmptyModelSettingsRuntimeSnapshot,
+} from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { useBroadcastChannel } from '@vueuse/core'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 
-import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import {
+  modelSettingsRuntimeSnapshotChannelName,
+} from '../../shared/model-settings-runtime'
 
 export function useModelSettingsRuntimeSnapshot() {
   const runtimeSnapshot = ref<ModelSettingsRuntimeSnapshot>(createEmptyModelSettingsRuntimeSnapshot())
@@ -22,7 +28,8 @@ export function useModelSettingsRuntimeSnapshot() {
     requestCurrent()
   }
   const syncFromOwnerWhenVisible = () => {
-    if (document.visibilityState === 'visible') requestCurrent()
+    if (document.visibilityState === 'visible')
+      requestCurrent()
   }
 
   onMounted(() => {
@@ -37,7 +44,8 @@ export function useModelSettingsRuntimeSnapshot() {
   })
 
   watch(data, (event) => {
-    if (!event) return
+    if (!event)
+      return
 
     if (event.type === 'snapshot') {
       runtimeSnapshot.value = event.snapshot
@@ -45,7 +53,8 @@ export function useModelSettingsRuntimeSnapshot() {
     }
 
     if (event.type === 'owner-gone') {
-      if (runtimeSnapshot.value.ownerInstanceId !== event.ownerInstanceId) return
+      if (runtimeSnapshot.value.ownerInstanceId !== event.ownerInstanceId)
+        return
 
       runtimeSnapshot.value = createEmptyModelSettingsRuntimeSnapshot()
     }

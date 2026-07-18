@@ -1,30 +1,27 @@
 <script setup lang="ts">
-withDefaults(
-  defineProps<{
-    progress: number
-    barClass?: string
-  }>(),
-  {
-    barClass: '',
-  },
-)
+defineProps<{
+  progress: number
+  barClass?: string
+}>()
 </script>
 
 <template>
   <div relative overflow-hidden rounded-md>
     <div
       :class="[barClass ? barClass : 'bg-primary-300 dark:bg-primary-300/50']"
-      absolute
-      h-4
-      min-w-2
-      rounded-md
-      will-change-width
+      absolute h-4 min-w-2 rounded-md will-change-width
       :style="{ width: `${progress}%` }"
       transition="width duration-500 ease-in-out"
     >
-      <div v-if="progress < 100" absolute inset-0 origin-left rounded-md bg-white class="progress-shine-animation" />
+      <div
+        v-if="progress < 100"
+        absolute inset-0 origin-left rounded-md bg-white
+        class="progress-shine-animation"
+      />
     </div>
-    <div bg="neutral-100 dark:neutral-900" h-4 w-full rounded-md />
+    <div
+      bg="neutral-100 dark:neutral-900" h-4 w-full rounded-md
+    />
   </div>
 </template>
 

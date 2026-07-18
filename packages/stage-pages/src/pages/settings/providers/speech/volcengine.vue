@@ -2,22 +2,16 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-interface VolcengineProviderConfig {
-  [key: string]: unknown
-  apiKey?: string
-  baseUrl?: string
-  model?: string
-  app?: { appId?: string }
-  audio?: { speedRatio?: number }
-}
 
 const providerId = 'volcengine'
 const defaultModel = 'v1'
@@ -29,15 +23,12 @@ const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
 const { t } = useI18n()
 
-function getProviderConfig(): VolcengineProviderConfig {
-  return (providers.value[providerId] ?? {}) as VolcengineProviderConfig
-}
-
 // Additional settings specific to Volcengine (appId)
 const appId = computed({
-  get: () => getProviderConfig().app?.appId ?? '',
+  get: () => (providers.value[providerId]?.app as any)?.appId as string | undefined || '',
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
 
     providers.value[providerId].app = {
       appId: value,
@@ -46,7 +37,7 @@ const appId = computed({
 })
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Get available voices for ElevenLabs
 const availableVoices = computed(() => {
@@ -55,65 +46,68 @@ const availableVoices = computed(() => {
 
 // Generate speech with ElevenLabs-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
-    string,
-    UnElevenLabsOptions
-  >
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
 
   // Get provider configuration
-  const providerConfig = getProviderConfig()
+  const providerConfig = providersStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const model = providerConfig.model || defaultModel
+  const model = providerConfig.model as string | undefined || defaultModel
 
   // ElevenLabs doesn't need SSML conversion, but if SSML is provided, use it directly
-  const { app: _app, audio: _audio, ...restConfig } = providerConfig
-  return await speechStore.speech(provider as SpeechProviderWithExtraOptions<string, unknown>, model, input, voiceId, {
-    ...restConfig,
-  })
+  return await speechStore.speech(
+    provider,
+    model,
+    input,
+    voiceId,
+    {
+      ...providerConfig,
+    },
+  )
 }
 
 onMounted(async () => {
-  const providerConfig = getProviderConfig()
+  const providerConfig = providersStore.getProviderConfig(providerId)
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
     await speechStore.loadVoicesForProvider(providerId)
-  } else {
+  }
+  else {
     console.error('Failed to validate provider config', providerConfig)
   }
 })
 
-watch(speedRatio, () => {
-  const providerConfig = getProviderConfig()
+watch(speedRatio, async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
   if (!providerConfig.audio) {
     providerConfig.audio = {}
   }
 
-  providerConfig.audio.speedRatio = speedRatio.value
+  (providerConfig.audio as any).speedRatio = speedRatio.value
 })
 
-watch(
-  [providers, appId],
-  async () => {
-    const providerConfig = getProviderConfig()
-    const providerMetadata = providersStore.getProviderMetadata(providerId)
-    if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
-      await speechStore.loadVoicesForProvider(providerId)
-    } else {
-      console.error('Failed to validate provider config', providerConfig)
-    }
-  },
-  {
-    immediate: true,
-  },
-)
+watch([providers, appId], async () => {
+  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerMetadata = providersStore.getProviderMetadata(providerId)
+  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+    await speechStore.loadVoicesForProvider(providerId)
+  }
+  else {
+    console.error('Failed to validate provider config', providerConfig)
+  }
+}, {
+  immediate: true,
+})
 </script>
 
 <template>
-  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
+  <SpeechProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
+  >
     <!-- Voice settings specific to ElevenLabs -->
     <template #basic-settings>
       <div flex="~ col gap-4">
@@ -133,8 +127,7 @@ watch(
         :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
         :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
         :min="0.5"
-        :max="2.0"
-        :step="0.01"
+        :max="2.0" :step="0.01"
       />
     </template>
 
@@ -151,8 +144,8 @@ watch(
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

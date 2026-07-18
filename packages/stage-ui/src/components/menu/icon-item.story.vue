@@ -3,12 +3,19 @@ import IconItem from './icon-item.vue'
 </script>
 
 <template>
-  <Story title="Menu Icon Item" group="menu" :layout="{ type: 'grid', width: 500 }">
+  <Story
+    title="Menu Icon Item"
+    group="menu"
+    :layout="{ type: 'grid', width: 500 }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="global" title="IconItem">
+    <Variant
+      id="global"
+      title="IconItem"
+    >
       <IconItem
         title="Modules"
         description="Thinking, vision, speech synthesis, gaming, etc."
@@ -18,7 +25,10 @@ import IconItem from './icon-item.vue'
       />
     </Variant>
 
-    <Variant id="global-hover" title="IconItem">
+    <Variant
+      id="global-hover"
+      title="IconItem"
+    >
       <IconItem
         title="Modules"
         description="Thinking, vision, speech synthesis, gaming, etc."

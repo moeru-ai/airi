@@ -12,9 +12,7 @@ export function useReplayable(replayFn?: () => void | Promise<void>) {
     console.warn('useReplayable must be used within a Replayable component')
 
     return {
-      registerReplay: () => () => {
-        /* noop */
-      },
+      registerReplay: () => () => {},
       isReplaying: () => false,
     }
   }

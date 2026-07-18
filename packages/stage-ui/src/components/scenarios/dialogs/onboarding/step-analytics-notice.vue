@@ -6,15 +6,10 @@ import { useI18n } from 'vue-i18n'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 
-const props = withDefaults(
-  defineProps<{
-    onNext: OnboardingStepNextHandler
-    onPrevious?: OnboardingStepPrevHandler
-  }>(),
-  {
-    onPrevious: undefined,
-  },
-)
+const props = defineProps<{
+  onNext: OnboardingStepNextHandler
+  onPrevious?: OnboardingStepPrevHandler
+}>()
 
 const { t } = useI18n()
 const { privacyPolicyUrl } = useAnalytics()
@@ -25,23 +20,15 @@ const { privacyPolicyUrl } = useAnalytics()
     <div sticky top-0 z-100 flex flex-shrink-0 items-center gap-2>
       <button
         type="button"
-        :class="['outline-none', props.onPrevious ? '' : 'invisible']"
+        :class="[
+          'outline-none',
+          props.onPrevious ? '' : 'invisible',
+        ]"
         @click="props.onPrevious?.()"
       >
         <div :class="['i-solar:alt-arrow-left-line-duotone', 'h-5', 'w-5']" />
       </button>
-      <h2
-        :class="[
-          'flex-1',
-          'text-center',
-          'text-xl',
-          'text-neutral-800',
-          'font-semibold',
-          'md:text-left',
-          'md:text-2xl',
-          'dark:text-neutral-100',
-        ]"
-      >
+      <h2 :class="['flex-1', 'text-center', 'text-xl', 'text-neutral-800', 'font-semibold', 'md:text-left', 'md:text-2xl', 'dark:text-neutral-100']">
         {{ t('settings.analytics.notice.title') }}
       </h2>
       <div h-5 w-5 />
@@ -60,14 +47,17 @@ const { privacyPolicyUrl } = useAnalytics()
               :class="['underline', 'decoration-dotted']"
             >
               {{ t('settings.analytics.notice.privacyLink') }}
-            </a>
-            .
+            </a>.
           </p>
           <p>{{ t('settings.analytics.notice.onboardingHint') }}</p>
         </div>
       </Callout>
     </div>
 
-    <Button variant="primary" :label="t('settings.dialogs.onboarding.next')" @click="props.onNext" />
+    <Button
+      variant="primary"
+      :label="t('settings.dialogs.onboarding.next')"
+      @click="props.onNext"
+    />
   </div>
 </template>

@@ -55,12 +55,14 @@ function extractAllTags(response: string): ExtractedTag[] {
 
     visit(tree, 'element', (node: Element) => {
       const position = node.position
-      if (!position?.start || !position?.end) return
+      if (!position?.start || !position?.end)
+        return
 
       const startIndex = getOffsetFromPosition(response, position.start)
       const endIndex = getOffsetFromPosition(response, position.end)
 
-      if (startIndex === -1 || endIndex === -1) return
+      if (startIndex === -1 || endIndex === -1)
+        return
 
       // Extract the actual tag content from source
       const fullMatch = response.slice(startIndex, endIndex)
@@ -81,7 +83,8 @@ function extractAllTags(response: string): ExtractedTag[] {
         endIndex,
       })
     })
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Failed to parse response for tag extraction:', error)
     // If parsing fails, return empty array (no tags found)
   }
@@ -93,7 +96,8 @@ function extractAllTags(response: string): ExtractedTag[] {
  * Converts a position (line/column) to a character offset in the string
  */
 function getOffsetFromPosition(text: string, position: Position['start']): number {
-  if (!position || typeof position.line !== 'number' || typeof position.column !== 'number') return -1
+  if (!position || typeof position.line !== 'number' || typeof position.column !== 'number')
+    return -1
 
   const lines = text.split('\n')
   let offset = 0
@@ -119,7 +123,8 @@ function extractTextContent(node: Element): string {
     for (const child of node.children) {
       if (child.type === 'text') {
         textParts.push(child.value)
-      } else if (child.type === 'element') {
+      }
+      else if (child.type === 'element') {
         textParts.push(extractTextContent(child))
       }
     }
@@ -132,7 +137,10 @@ function extractTextContent(node: Element): string {
  * Categorizes a model response by dynamically extracting any XML-like tags
  * Works with any tag format the model uses
  */
-export function categorizeResponse(response: string, _providerId?: string): CategorizedResponse {
+export function categorizeResponse(
+  response: string,
+  _providerId?: string,
+): CategorizedResponse {
   // Extract all tags dynamically
   const extractedTags = extractAllTags(response)
 
@@ -147,7 +155,7 @@ export function categorizeResponse(response: string, _providerId?: string): Cate
   }
 
   // Convert extracted tags to categorized segments
-  const segments: CategorizedSegment[] = extractedTags.map((tag) => ({
+  const segments: CategorizedSegment[] = extractedTags.map(tag => ({
     category: mapTagNameToCategory(tag.tagName),
     content: tag.content.trim(),
     startIndex: tag.startIndex,
@@ -184,8 +192,8 @@ export function categorizeResponse(response: string, _providerId?: string): Cate
 
   // Combine segments by category
   const reasoning = segments
-    .filter((s) => s.category === 'reasoning')
-    .map((s) => s.content)
+    .filter(s => s.category === 'reasoning')
+    .map(s => s.content)
     .join('\n\n')
 
   // Speech is everything outside tags
@@ -203,7 +211,10 @@ export function categorizeResponse(response: string, _providerId?: string): Cate
  * Note: This receives literal text from useLlmmarkerParser (special tokens <|...|> are already extracted).
  * Only XML/HTML tags like <think>, <reasoning> need to be parsed here.
  */
-export function createStreamingCategorizer(providerId?: string, onSegment?: (segment: CategorizedSegment) => void) {
+export function createStreamingCategorizer(
+  providerId?: string,
+  onSegment?: (segment: CategorizedSegment) => void,
+) {
   let buffer = ''
   let categorized: CategorizedResponse | null = null
   let lastEmittedSegmentIndex = -1
@@ -227,7 +238,8 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
       }
 
       return false
-    } catch {
+    }
+    catch {
       // If parsing fails, assume incomplete
       return true
     }
@@ -247,7 +259,8 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
             if (i + 1 < chunk.length && chunk[i + 1] === '/') {
               tagState = 'in-closing-tag'
               i++
-            } else {
+            }
+            else {
               tagState = 'in-opening-tag'
             }
           }
@@ -267,7 +280,8 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
             if (i + 1 < chunk.length && chunk[i + 1] === '/') {
               tagState = 'in-closing-tag'
               i++
-            } else {
+            }
+            else {
               tagState = 'in-opening-tag'
             }
           }
@@ -280,7 +294,8 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
             if (tagStackDepth === 0) {
               tagState = 'outside'
               tagJustClosed = true
-            } else {
+            }
+            else {
               tagState = 'in-content'
             }
           }
@@ -299,7 +314,9 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
       buffer += chunk
 
       // Re-categorize on first chunk, tag closure, or every 1KB (periodic fallback)
-      const shouldRecategorize = !categorized || tagJustClosed || buffer.length - lastParsedLength > 1000
+      const shouldRecategorize = !categorized
+        || tagJustClosed
+        || buffer.length - lastParsedLength > 1000
 
       if (shouldRecategorize) {
         categorized = categorizeResponse(buffer, providerId)
@@ -361,7 +378,10 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
             if (position?.end && closingOffset === -1) {
               const endOffset = getOffsetFromPosition(fullText, position.end)
               // Check if this element actually has a closing tag in the source
-              const elementSource = fullText.slice(getOffsetFromPosition(fullText, position.start), endOffset)
+              const elementSource = fullText.slice(
+                getOffsetFromPosition(fullText, position.start),
+                endOffset,
+              )
               const expectedClosingTag = `</${node.tagName}>`
 
               // Only consider it complete if the closing tag exists in source
@@ -374,7 +394,8 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
             }
           })
 
-          if (closingOffset === -1) return '' // Still incomplete, filter everything
+          if (closingOffset === -1)
+            return '' // Still incomplete, filter everything
 
           // Return only content after the closing tag
           // The buffer already includes text up to closingOffset (from consume())
@@ -382,7 +403,8 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
           startPosition += closingOffset
           // Re-categorize with the complete tag now in buffer
           categorized = categorizeResponse(buffer, providerId)
-        } catch {
+        }
+        catch {
           return '' // Parsing failed, filter everything
         }
       }
@@ -398,7 +420,7 @@ export function createStreamingCategorizer(providerId?: string, onSegment?: (seg
       // Find all non-speech segments that overlap with this text
       // Note: segments are already filtered to be complete by extractAllTags
       const overlappingSegments = categorized.segments.filter(
-        (segment) => segment.endIndex > startPosition && segment.startIndex < endPosition,
+        segment => segment.endIndex > startPosition && segment.startIndex < endPosition,
       )
 
       if (overlappingSegments.length === 0) {

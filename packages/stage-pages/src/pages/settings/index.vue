@@ -29,13 +29,11 @@ const removeBeforeEach = router.beforeEach(async (_, __, next) => {
 const settings = computed(() => {
   return router
     .getRoutes()
-    .filter((route) => route.meta?.settingsEntry)
-    .sort((a, b) => Number(a.meta?.order ?? 0) - Number(b.meta?.order ?? 0))
-    .map((route) => ({
+    .filter(route => route.meta?.settingsEntry)
+    .sort((a, b) => (Number(a.meta?.order ?? 0) - Number(b.meta?.order ?? 0)))
+    .map(route => ({
       title: route.meta?.titleKey ? t(route.meta.titleKey as string) : (route.meta?.title as string | undefined),
-      description: route.meta?.descriptionKey
-        ? t(route.meta.descriptionKey as string)
-        : (route.meta?.description as string | undefined) || '',
+      description: route.meta?.descriptionKey ? t(route.meta.descriptionKey as string) : (route.meta?.description as string | undefined) || '',
       icon: route.meta?.icon as string | undefined,
       to: route.path,
     }))
@@ -47,32 +45,30 @@ const settings = computed(() => {
     <div pb-12>
       <RippleGrid
         :items="settings"
-        :get-key="(item) => item.to"
+        :get-key="item => item.to"
         :columns="1"
         :origin-index="lastClickedIndex"
         @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
       >
         <template #item="{ item }">
-          <IconItem :title="item.title || ''" :description="item.description" :icon="item.icon" :to="item.to" />
+          <IconItem
+            :title="item.title || ''"
+            :description="item.description"
+            :icon="item.icon"
+            :to="item.to"
+          />
         </template>
       </RippleGrid>
     </div>
     <div
       v-motion
-      text="neutral-200/50 dark:neutral-600/20"
-      pointer-events-none
-      fixed
-      top="[calc(100dvh-12rem)]"
-      bottom-0
-      right--10
-      z--1
+      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+      fixed top="[calc(100dvh-12rem)]" bottom-0 right--10 z--1
       :initial="{ scale: 0.9, opacity: 0, rotate: 180 }"
       :enter="{ scale: 1, opacity: 1, rotate: 0 }"
       :duration="500"
       size-60
-      flex
-      items-center
-      justify-center
+      flex items-center justify-center
     >
       <div v-motion text="60" i-solar:settings-bold-duotone />
     </div>

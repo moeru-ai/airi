@@ -8,8 +8,12 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const perplexityConfigSchema = z.object({
-  apiKey: z.string('API Key'),
-  baseUrl: z.string('Base URL').optional().default('https://api.perplexity.ai/'),
+  apiKey: z
+    .string('API Key'),
+  baseUrl: z
+    .string('Base URL')
+    .optional()
+    .default('https://api.perplexity.ai/'),
 })
 
 type PerplexityConfig = z.input<typeof perplexityConfigSchema>
@@ -24,34 +28,29 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
   icon: 'i-lobe-icons:perplexity',
   iconColor: 'i-lobe-icons:perplexity-color',
 
-  createProviderConfig: ({ t }) =>
-    perplexityConfigSchema.extend({
-      apiKey: perplexityConfigSchema.shape.apiKey.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-        type: 'password',
-      }),
-      baseUrl: perplexityConfigSchema.shape.baseUrl.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
-        ),
-        placeholderLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
-        ),
-      }),
+  createProviderConfig: ({ t }) => perplexityConfigSchema.extend({
+    apiKey: perplexityConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
     }),
+    baseUrl: perplexityConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
   createProvider(config) {
     return createPerplexity(config.apiKey, config.baseUrl)
   },
 
   validationRequiredWhen(config) {
-    return Boolean(config.apiKey?.trim())
+    return !!config.apiKey?.trim()
   },
   extraMethods: {
-    listModels() {
-      return Promise.resolve([
+    async listModels() {
+      return [
         {
           id: 'sonar',
           name: 'Sonar',
@@ -77,11 +76,10 @@ export const providerPerplexityAI = defineProvider<PerplexityConfig>({
           id: 'sonar-deep-research',
           name: 'Sonar Deep Research',
           provider: 'perplexity-ai',
-          description:
-            'Expert-level research model conducting exhaustive searches and generating comprehensive reports.',
+          description: 'Expert-level research model conducting exhaustive searches and generating comprehensive reports.',
           contextLength: 200000,
         },
-      ] satisfies ModelInfo[])
+      ] satisfies ModelInfo[]
     },
   },
   validators: {

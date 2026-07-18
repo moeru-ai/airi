@@ -1,90 +1,84 @@
-import type { PluginHost } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type { PluginHostDebugSnapshot, PluginHostModuleSummary } from '../../../../../shared/eventa/plugin/host'
-import type { PluginAssetSnapshotService } from '../features/static-assets'
-import type { ManifestEntry, PluginConfig } from '../types'
+import type {
+  PluginHostDebugSnapshot,
+} from '../../../../../shared/eventa/plugin/host'
+import type { ExtensionAssetSnapshotService } from '../features/static-assets'
+import type { ExtensionConfig, ManifestEntry } from '../types'
 
 import { rewriteWidgetModuleAssetUrl } from '../kits/widget'
 import { buildPluginRegistrySnapshot } from './registry'
 
 /**
- * Builds the debug snapshot exposed by the Electron plugin host inspector.
+ * Builds the debug snapshot exposed by the Electron extension host inspector.
  *
  * Use when:
  * - Renderer devtools need sessions, kits, modules, and capability state
- * - Widget iframe asset URLs must be rewritten to mounted plugin asset URLs
+ * - Widget iframe asset URLs must be rewritten to mounted extension asset URLs
  *
  * Expects:
- * - `host` is the initialized plugin host instance
- * - `manifestEntryByName` contains entries for any plugin-owned modules being inspected
- * - `pluginAssetService` owns plugin asset URL/session lifecycle when mounted asset URLs are needed
+ * - `host` is the initialized extension host instance
+ * - `manifestEntryByExtensionId` contains entries for any extension-owned modules being inspected
+ * - `extensionAssetService` owns extension asset URL/session lifecycle when mounted asset URLs are needed
  *
  * Returns:
  * - A full debug snapshot with registry, sessions, kits, modules, and capabilities
  */
 export function buildPluginHostDebugSnapshot(options: {
-  host: PluginHost
-  pluginsRoot: string
+  host: ExtensionHost
+  extensionsRoot: string
   entries: ManifestEntry[]
-  config: PluginConfig
+  config: ExtensionConfig
   loaded: Set<string>
-  manifestEntryByName: Map<string, ManifestEntry>
-  pluginAssetService?: PluginAssetSnapshotService
+  manifestEntryByExtensionId: Map<string, ManifestEntry>
+  extensionAssetService?: ExtensionAssetSnapshotService
 }): Promise<PluginHostDebugSnapshot> {
-  const pluginAssetService = options.pluginAssetService
-  const modules = Promise.all(
-    options.host.listBindings().map((module) =>
-      rewriteWidgetModuleAssetUrl(module as PluginHostModuleSummary, options.manifestEntryByName, {
-        pluginAssetBaseUrl: pluginAssetService?.getBaseUrl(),
-        ...(pluginAssetService
-          ? {
-              createAssetSession: ({
-                extensionId,
-                version,
-                sessionId,
-                routeAssetPath,
-                sessionPathPrefix,
-              }: {
-                extensionId: string
-                version: string
-                sessionId: string
-                routeAssetPath: string
-                sessionPathPrefix: string
-              }) =>
-                pluginAssetService.createAssetSession({
-                  pluginId: extensionId,
+  const extensionAssetService = options.extensionAssetService
+  const modules = Promise.all(options.host
+    .listBindings()
+    .map(module =>
+      rewriteWidgetModuleAssetUrl(
+        module,
+        options.manifestEntryByExtensionId,
+        {
+          extensionAssetBaseUrl: extensionAssetService?.getBaseUrl(),
+          ...(extensionAssetService
+            ? {
+                createAssetSession: ({ extensionId, version, sessionId, routeAssetPath, sessionPathPrefix }: {
+                  extensionId: string
+                  version: string
+                  sessionId: string
+                  routeAssetPath: string
+                  sessionPathPrefix: string
+                }) => extensionAssetService.createAssetSession({
+                  extensionId,
                   version,
                   ownerSessionId: sessionId,
                   routeAssetPath,
                   pathPrefix: sessionPathPrefix,
                 }),
-            }
-          : {}),
-      }),
-    ) as Array<PluginHostModuleSummary | Promise<PluginHostModuleSummary>>,
-  )
+              }
+            : {}),
+        },
+      ),
+    ))
 
-  return modules.then((resolvedModules) => ({
+  return modules.then(resolvedModules => ({
     registry: buildPluginRegistrySnapshot({
-      pluginsRoot: options.pluginsRoot,
+      extensionsRoot: options.extensionsRoot,
       entries: options.entries,
       config: options.config,
       loaded: options.loaded,
     }),
-    sessions: options.host.listSessions().map((session) => ({
+    sessions: options.host.listSessions().map(session => ({
       id: session.id,
-      manifestName: session.manifest.name,
+      extensionId: session.manifest.id,
       phase: session.phase,
-      runtime: session.runtime,
-      moduleId: session.identity.id,
+      runtime: session.runtime ?? 'electron',
+      moduleId: session.extension.id,
     })),
     kits: options.host.listKits(),
-    modules: resolvedModules as PluginHostDebugSnapshot['modules'],
-    sidecar: {
-      state: 'stopped',
-      pid: null,
-      updatedAt: Date.now(),
-    },
+    modules: resolvedModules,
     capabilities: options.host.listCapabilities(),
     refreshedAt: Date.now(),
   }))

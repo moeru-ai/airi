@@ -36,60 +36,57 @@ export function useSpeechPipelineAnalytics() {
   function safeForward(label: string, fn: () => void) {
     try {
       fn()
-    } catch (err) {
+    }
+    catch (err) {
       console.warn(`[speech-pipeline-analytics] ${label} forward failed:`, errorMessageFrom(err))
     }
   }
 
-  disposers.push(
-    ctx.on(speechIntentStartEvent, (evt) => {
-      const payload = evt?.body
-      if (!payload?.intentId) return
-      intentStartedAt.set(payload.intentId, Date.now())
-      safeForward('intent-start', () => {
-        trackTtsIntentStarted({ intent_id: payload.intentId, turn_id: payload.turnId })
-      })
-    }),
-  )
+  disposers.push(ctx.on(speechIntentStartEvent, (evt) => {
+    const payload = evt?.body
+    if (!payload?.intentId)
+      return
+    intentStartedAt.set(payload.intentId, Date.now())
+    safeForward('intent-start', () => {
+      trackTtsIntentStarted({ intent_id: payload.intentId, turn_id: payload.turnId })
+    })
+  }))
 
-  disposers.push(
-    ctx.on(speechIntentEndEvent, (evt) => {
-      const payload = evt?.body
-      if (!payload?.intentId) return
-      const startedAt = intentStartedAt.get(payload.intentId)
-      intentStartedAt.delete(payload.intentId)
-      safeForward('intent-end', () => {
-        trackTtsIntentEnded({
-          intent_id: payload.intentId,
-          turn_id: payload.turnId,
-          duration_ms: startedAt ? Date.now() - startedAt : 0,
-        })
+  disposers.push(ctx.on(speechIntentEndEvent, (evt) => {
+    const payload = evt?.body
+    if (!payload?.intentId)
+      return
+    const startedAt = intentStartedAt.get(payload.intentId)
+    intentStartedAt.delete(payload.intentId)
+    safeForward('intent-end', () => {
+      trackTtsIntentEnded({
+        intent_id: payload.intentId,
+        turn_id: payload.turnId,
+        duration_ms: startedAt ? Date.now() - startedAt : 0,
       })
-    }),
-  )
+    })
+  }))
 
-  disposers.push(
-    ctx.on(speechIntentCancelEvent, (evt) => {
-      const payload = evt?.body
-      if (!payload?.intentId) return
-      intentStartedAt.delete(payload.intentId)
-      safeForward('intent-cancel', () => {
-        trackTtsIntentCancelled({
-          intent_id: payload.intentId,
-          turn_id: payload.turnId,
-          reason: payload.reason,
-        })
+  disposers.push(ctx.on(speechIntentCancelEvent, (evt) => {
+    const payload = evt?.body
+    if (!payload?.intentId)
+      return
+    intentStartedAt.delete(payload.intentId)
+    safeForward('intent-cancel', () => {
+      trackTtsIntentCancelled({
+        intent_id: payload.intentId,
+        turn_id: payload.turnId,
+        reason: payload.reason,
       })
-    }),
-  )
+    })
+  }))
 
   onScopeDispose(() => {
     for (const dispose of disposers) {
       try {
         dispose()
-      } catch {
-        /* swallow — disposers must not throw */
       }
+      catch { /* swallow — disposers must not throw */ }
     }
     disposers.length = 0
     intentStartedAt.clear()

@@ -14,17 +14,11 @@ export const useVisionStore = defineStore('vision', () => {
   const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false)
   const modelSearchQuery = refManualReset('')
 
-  // Type for provider metadata
-  interface ProviderMetadata {
-    capabilities: {
-      listModels?: () => Promise<Array<{ id: string; name: string }>>
-    }
-  }
+  const providerMetadata = computed(() => {
+    if (!activeProvider.value)
+      return null
 
-  const providerMetadata = computed<ProviderMetadata | null>(() => {
-    if (!activeProvider.value) return null
-
-    return (providersStore.providerMetadata[activeProvider.value] as ProviderMetadata) ?? null
+    return providersStore.providerMetadata[activeProvider.value] ?? null
   })
 
   const supportsModelListing = computed(() => {
@@ -32,25 +26,28 @@ export const useVisionStore = defineStore('vision', () => {
   })
 
   const providerModels = computed(() => {
-    if (!activeProvider.value) return []
+    if (!activeProvider.value)
+      return []
 
     return providersStore.getModelsForProvider(activeProvider.value)
   })
 
   const isLoadingActiveProviderModels = computed(() => {
-    if (!activeProvider.value) return false
+    if (!activeProvider.value)
+      return false
 
     return providersStore.isLoadingModels[activeProvider.value] || false
   })
 
   const activeProviderModelError = computed(() => {
-    if (!activeProvider.value) return null
+    if (!activeProvider.value)
+      return null
 
     return providersStore.modelLoadError[activeProvider.value] || null
   })
 
   const configured = computed(() => {
-    return Boolean(activeProvider.value) && Boolean(activeModel.value)
+    return !!activeProvider.value && !!activeModel.value
   })
 
   function resetModelSelection() {
@@ -63,11 +60,9 @@ export const useVisionStore = defineStore('vision', () => {
     if (provider && providerMetadata.value?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
-
-    return undefined
   }
 
-  function getModelsForProvider(provider: string) {
+  async function getModelsForProvider(provider: string) {
     if (provider && providerMetadata.value?.capabilities.listModels !== undefined) {
       return providersStore.getModelsForProvider(provider)
     }

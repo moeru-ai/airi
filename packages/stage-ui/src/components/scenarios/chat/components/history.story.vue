@@ -9,8 +9,7 @@ import ChatHistory from './history.vue'
 const comprehensiveMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
-    content:
-      'Plan a compact release update. Check the task list, inspect the weather for launch timing, and explain what changed.',
+    content: 'Plan a compact release update. Check the task list, inspect the weather for launch timing, and explain what changed.',
   },
   {
     role: 'assistant',
@@ -75,8 +74,7 @@ const comprehensiveMessages = ref<ChatHistoryItem[]>([
     ],
     tool_results: [],
     categorization: {
-      speech:
-        'Here is the release update. Task scan succeeded, weather is clear, and preview deploy needs one missing environment variable.',
+      speech: 'Here is the release update. Task scan succeeded, weather is clear, and preview deploy needs one missing environment variable.',
       reasoning: [
         'The user asked for a compact release update, so I should keep the final answer concise.',
         '',
@@ -87,34 +85,27 @@ const comprehensiveMessages = ref<ChatHistoryItem[]>([
   {
     role: 'assistant',
     content: [
-      {
-        type: 'text',
-        text: 'This assistant message has no `slices`, so the renderer falls back to the text part from array content.',
-      },
+      { type: 'text', text: 'This assistant message has no `slices`, so the renderer falls back to the text part from array content.' },
     ],
     slices: [],
     tool_results: [],
   },
   {
     role: 'error',
-    content:
-      'Provider stream aborted after the tool results were rendered. Retry from the previous user message if the final answer is incomplete.',
+    content: 'Provider stream aborted after the tool results were rendered. Retry from the previous user message if the final answer is incomplete.',
   },
 ])
 
 const markdownMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
-    content: "Hey AIRI, can you summarize today's tasks?",
+    content: 'Hey AIRI, can you summarize today\'s tasks?',
   },
   {
     role: 'assistant',
     content: '',
     slices: [
-      {
-        type: 'text',
-        text: 'Absolutely! Here is a **quick recap** with bullet points:\n\n- Finish UI polish\n- Ship the API client\n- Record the demo',
-      },
+      { type: 'text', text: 'Absolutely! Here is a **quick recap** with bullet points:\n\n- Finish UI polish\n- Ship the API client\n- Record the demo' },
     ],
     tool_results: [],
   },
@@ -122,15 +113,7 @@ const markdownMessages = ref<ChatHistoryItem[]>([
     role: 'assistant',
     content: '',
     slices: [
-      {
-        type: 'tool-call',
-        toolCall: {
-          toolName: 'fetch_tasks',
-          args: JSON.stringify({ limit: 5 }),
-          toolCallId: '1',
-          toolCallType: 'function',
-        },
-      },
+      { type: 'tool-call', toolCall: { toolName: 'fetch_tasks', args: JSON.stringify({ limit: 5 }), toolCallId: '1', toolCallType: 'function' } },
       { type: 'text', text: 'Let me pull the latest tasks from the tracker.' },
     ],
     tool_results: [],
@@ -146,10 +129,7 @@ const markdownMessagesMultipleLanguage = ref<ChatHistoryItem[]>([
     role: 'assistant',
     content: '',
     slices: [
-      {
-        type: 'text',
-        text: '嗯，我在这里的每一天都像是在做梦一样呢！ 我会想象各种有趣的事情，比如和朋友们一起去探险！你希望我梦到什么呢？',
-      },
+      { type: 'text', text: '嗯，我在这里的每一天都像是在做梦一样呢！ 我会想象各种有趣的事情，比如和朋友们一起去探险！你希望我梦到什么呢？' },
     ],
     tool_results: [],
   },
@@ -172,9 +152,7 @@ Sed eu lacus rhoncus, venenatis libero vel, molestie tellus. Morbi porttitor, le
     role: 'assistant',
     content: '',
     slices: [
-      {
-        type: 'text',
-        text: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam dapibus risus quis ipsum mattis tristique. In blandit vestibulum libero, vel tincidunt ante porttitor et. Etiam purus ante, iaculis sed malesuada id, dictum eu est. Praesent dictum sagittis justo, pretium interdum mauris aliquam sed. Fusce maximus suscipit dapibus. Praesent et sem felis. Fusce dolor sapien, iaculis mollis posuere ut, ornare ac velit. Duis id volutpat justo. Nulla convallis magna ut metus hendrerit, eget bibendum orci blandit. Mauris ullamcorper ante sit amet quam auctor, at pellentesque nunc lobortis. Suspendisse et massa at enim porttitor egestas in vel nulla. Suspendisse sed erat accumsan, iaculis ligula nec, hendrerit ligula. Mauris vehicula quam libero, aliquam mollis odio laoreet eu. Integer accumsan ante vel dui pulvinar, a aliquet ex accumsan. Vivamus vehicula eleifend posuere. Etiam vitae dictum arcu.
+      { type: 'text', text: `Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam dapibus risus quis ipsum mattis tristique. In blandit vestibulum libero, vel tincidunt ante porttitor et. Etiam purus ante, iaculis sed malesuada id, dictum eu est. Praesent dictum sagittis justo, pretium interdum mauris aliquam sed. Fusce maximus suscipit dapibus. Praesent et sem felis. Fusce dolor sapien, iaculis mollis posuere ut, ornare ac velit. Duis id volutpat justo. Nulla convallis magna ut metus hendrerit, eget bibendum orci blandit. Mauris ullamcorper ante sit amet quam auctor, at pellentesque nunc lobortis. Suspendisse et massa at enim porttitor egestas in vel nulla. Suspendisse sed erat accumsan, iaculis ligula nec, hendrerit ligula. Mauris vehicula quam libero, aliquam mollis odio laoreet eu. Integer accumsan ante vel dui pulvinar, a aliquet ex accumsan. Vivamus vehicula eleifend posuere. Etiam vitae dictum arcu.
 
 Sed finibus velit vel dignissim sodales. Etiam bibendum blandit porta. Proin a purus ac erat aliquam accumsan et quis diam. Etiam sagittis nulla ac risus varius, sed blandit ante ullamcorper. Aliquam ultrices eros vitae metus vestibulum lobortis. Integer faucibus, urna eu cursus malesuada, odio enim varius lacus, non scelerisque justo eros ultricies libero. Quisque aliquam facilisis elementum. Integer at tortor in ipsum euismod tincidunt. Integer commodo nunc porta lectus porttitor, quis interdum odio tempus. Phasellus sodales eget turpis sit amet congue. Pellentesque aliquam, nisl vel malesuada pretium, turpis erat molestie justo, non ornare dui purus ut est. Aliquam rutrum imperdiet mollis.
 
@@ -182,8 +160,7 @@ Curabitur fringilla orci sed urna tempus pharetra. Cras elementum nulla eget sem
 
 Duis fringilla vestibulum nibh ut imperdiet. Nulla sed venenatis nibh, tempor varius arcu. Curabitur fringilla mauris hendrerit, varius justo eu, suscipit sem. Quisque tempor justo tincidunt orci egestas ultrices eu iaculis augue. Sed suscipit enim non ex ullamcorper, ut hendrerit justo laoreet. Suspendisse consectetur ex id augue euismod, a vehicula purus facilisis. Etiam pretium porta mi, id ultricies augue tristique eleifend. Nam ullamcorper placerat iaculis. Integer quis auctor tortor. In vitae tempus lorem. Praesent bibendum mi aliquet sem consequat, molestie congue neque interdum.
 
-Sed eu lacus rhoncus, venenatis libero vel, molestie tellus. Morbi porttitor, lectus sit amet imperdiet gravida, lacus nulla pulvinar turpis, ac maximus nulla purus a nibh. Donec ac scelerisque neque. Vestibulum ultrices varius purus, at consequat elit porta vitae. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Phasellus sit amet neque condimentum, laoreet justo non, placerat nulla. Ut volutpat urna pretium, semper ligula quis, lobortis est. Praesent eleifend vel ligula et facilisis. Quisque vehicula pellentesque ex, vel gravida ante pretium non.`,
-      },
+Sed eu lacus rhoncus, venenatis libero vel, molestie tellus. Morbi porttitor, lectus sit amet imperdiet gravida, lacus nulla pulvinar turpis, ac maximus nulla purus a nibh. Donec ac scelerisque neque. Vestibulum ultrices varius purus, at consequat elit porta vitae. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Phasellus sit amet neque condimentum, laoreet justo non, placerat nulla. Ut volutpat urna pretium, semper ligula quis, lobortis est. Praesent eleifend vel ligula et facilisis. Quisque vehicula pellentesque ex, vel gravida ante pretium non.` },
     ],
     tool_results: [],
   },
@@ -198,24 +175,8 @@ const toolHeavyMessages = computed<ChatHistoryItem[]>(() => [
     role: 'assistant',
     content: '',
     slices: [
-      {
-        type: 'tool-call',
-        toolCall: {
-          toolName: 'weather',
-          args: JSON.stringify({ location: 'Tokyo' }),
-          toolCallId: '2',
-          toolCallType: 'function',
-        },
-      },
-      {
-        type: 'tool-call',
-        toolCall: {
-          toolName: 'weather',
-          args: JSON.stringify({ location: 'Osaka' }),
-          toolCallId: '3',
-          toolCallType: 'function',
-        },
-      },
+      { type: 'tool-call', toolCall: { toolName: 'weather', args: JSON.stringify({ location: 'Tokyo' }), toolCallId: '2', toolCallType: 'function' } },
+      { type: 'tool-call', toolCall: { toolName: 'weather', args: JSON.stringify({ location: 'Osaka' }), toolCallId: '3', toolCallType: 'function' } },
       { type: 'text', text: 'I will fetch both cities, one sec.' },
     ],
     tool_results: [],
@@ -299,86 +260,136 @@ const errorOverflowMessages = ref<ChatHistoryItem[]>([
   },
   {
     role: 'error',
-    content:
-      'Remote sent 400 response: {"error":{"message":"This model is not available in your region.","type":"invalid_request_error","param":"model","code":"region_not_supported"},"request_id":"req_01K8F0R7X1W2Y3Z4A5B6C7D8E9","endpoint":"https://api.example.invalid/v1/chat/completions","provider":"openai-compatible"}',
+    content: 'Remote sent 400 response: {"error":{"message":"This model is not available in your region.","type":"invalid_request_error","param":"model","code":"region_not_supported"},"request_id":"req_01K8F0R7X1W2Y3Z4A5B6C7D8E9","endpoint":"https://api.example.invalid/v1/chat/completions","provider":"openai-compatible"}',
   },
 ])
 
 const streamingMessage = ref<ChatAssistantMessage>({
   role: 'assistant',
   content: '',
-  slices: [{ type: 'text', text: 'Working on it...' }],
+  slices: [
+    { type: 'text', text: 'Working on it...' },
+  ],
   tool_results: [],
 })
 </script>
 
 <template>
-  <Story title="Chat / History" group="chat">
+  <Story
+    title="Chat / History"
+    group="chat"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="all-normal-message-parts" title="All Normal Message Parts">
+    <Variant
+      id="all-normal-message-parts"
+      title="All Normal Message Parts"
+    >
       <div class="font-cute">
         <ChatHistory :messages="comprehensiveMessages" />
       </div>
     </Variant>
 
-    <Variant id="with-tools-desktop" title="With Tools">
+    <Variant
+      id="with-tools-desktop"
+      title="With Tools"
+    >
       <div class="font-cute">
         <ChatHistory :messages="markdownMessages" />
       </div>
     </Variant>
 
-    <Variant id="with-tools-desktop-multiple-languages" title="With Tools (Multiple Languages)">
+    <Variant
+      id="with-tools-desktop-multiple-languages"
+      title="With Tools (Multiple Languages)"
+    >
       <div class="font-cute">
         <ChatHistory :messages="markdownMessagesMultipleLanguage" />
       </div>
     </Variant>
 
-    <Variant id="with-tools-desktop-long" title="With Tools (Long)">
+    <Variant
+      id="with-tools-desktop-long"
+      title="With Tools (Long)"
+    >
       <div class="font-cute">
         <ChatHistory :messages="markdownMessagesLong" />
       </div>
     </Variant>
 
-    <Variant id="with-tools-mobile" title="With Tools (Mobile)">
+    <Variant
+      id="with-tools-mobile"
+      title="With Tools (Mobile)"
+    >
       <div class="font-cute">
-        <ChatHistory :messages="markdownMessages" variant="mobile" />
+        <ChatHistory
+          :messages="markdownMessages"
+          variant="mobile"
+        />
       </div>
     </Variant>
 
-    <Variant id="multiple-tools" title="Multiple Tools">
+    <Variant
+      id="multiple-tools"
+      title="Multiple Tools"
+    >
       <div class="font-cute">
         <ChatHistory :messages="toolHeavyMessages" />
       </div>
     </Variant>
 
-    <Variant id="hybrid-tool-failure" title="Hybrid Tool Failure">
+    <Variant
+      id="hybrid-tool-failure"
+      title="Hybrid Tool Failure"
+    >
       <div class="font-cute">
         <ChatHistory :messages="hybridToolFailureMessages" />
       </div>
     </Variant>
 
-    <Variant id="streaming" title="Streaming">
+    <Variant
+      id="streaming"
+      title="Streaming"
+    >
       <div class="font-cute">
-        <ChatHistory :messages="[]" :sending="true" :streaming-message="streamingMessage" variant="mobile" />
+        <ChatHistory
+          :messages="[]"
+          :sending="true"
+          :streaming-message="streamingMessage"
+          variant="mobile"
+        />
       </div>
     </Variant>
 
-    <Variant id="error" title="Error">
+    <Variant
+      id="error"
+      title="Error"
+    >
       <div class="font-cute">
-        <ChatHistory :messages="errorMessages" />
+        <ChatHistory
+          :messages="errorMessages"
+        />
       </div>
     </Variant>
 
-    <Variant id="error-overflow" title="Error (Overflow)">
+    <Variant
+      id="error-overflow"
+      title="Error (Overflow)"
+    >
       <div :class="['font-cute', 'w-72', 'max-w-full']">
-        <ChatHistory :messages="errorOverflowMessages" variant="mobile" />
+        <ChatHistory
+          :messages="errorOverflowMessages"
+          variant="mobile"
+        />
       </div>
     </Variant>
 
-    <Variant id="scroll-visualizer" title="Scroll Visualizer">
+    <Variant
+      id="scroll-visualizer"
+      title="Scroll Visualizer"
+    >
       <ChatScrollVisualizer />
     </Variant>
   </Story>

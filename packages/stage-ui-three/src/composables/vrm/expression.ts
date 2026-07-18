@@ -38,60 +38,46 @@ export function useVRMEmote(vrm: VRMCore) {
   // Using slightly lower values (0.7–0.8) for primary expressions to
   // prevent the "too raw / smiles too much" problem reported in #590.
   const emotionStates = new Map<string, EmotionState>([
-    [
-      'happy',
-      {
-        expression: [
-          { name: 'happy', value: 0.7, duration: 0.3 },
-          { name: 'aa', value: 0.2 },
-        ],
-        blendDuration: 0.4,
-      },
-    ],
-    [
-      'sad',
-      {
-        expression: [
-          { name: 'sad', value: 0.7 },
-          { name: 'oh', value: 0.15 },
-        ],
-        blendDuration: 0.4,
-      },
-    ],
-    [
-      'angry',
-      {
-        expression: [
-          { name: 'angry', value: 0.7 },
-          { name: 'ee', value: 0.3 },
-        ],
-        blendDuration: 0.3,
-      },
-    ],
-    [
-      'surprised',
-      {
-        expression: [
-          { name: 'surprised', value: 0.8 },
-          { name: 'oh', value: 0.4 },
-        ],
-        blendDuration: 0.15,
-      },
-    ],
-    [
-      'neutral',
-      {
-        expression: [{ name: 'neutral', value: 1.0 }],
-        blendDuration: 0.6,
-      },
-    ],
-    [
-      'think',
-      {
-        expression: [{ name: 'think', value: 0.7 }],
-        blendDuration: 0.5,
-      },
-    ],
+    ['happy', {
+      expression: [
+        { name: 'happy', value: 0.7, duration: 0.3 },
+        { name: 'aa', value: 0.2 },
+      ],
+      blendDuration: 0.4,
+    }],
+    ['sad', {
+      expression: [
+        { name: 'sad', value: 0.7 },
+        { name: 'oh', value: 0.15 },
+      ],
+      blendDuration: 0.4,
+    }],
+    ['angry', {
+      expression: [
+        { name: 'angry', value: 0.7 },
+        { name: 'ee', value: 0.3 },
+      ],
+      blendDuration: 0.3,
+    }],
+    ['surprised', {
+      expression: [
+        { name: 'surprised', value: 0.8 },
+        { name: 'oh', value: 0.4 },
+      ],
+      blendDuration: 0.15,
+    }],
+    ['neutral', {
+      expression: [
+        { name: 'neutral', value: 1.0 },
+      ],
+      blendDuration: 0.6,
+    }],
+    ['think', {
+      expression: [
+        { name: 'think', value: 0.7 },
+      ],
+      blendDuration: 0.5,
+    }],
   ])
 
   const clearResetTimeout = () => {
@@ -151,7 +137,8 @@ export function useVRMEmote(vrm: VRMCore) {
   }
 
   const update = (deltaTime: number) => {
-    if (!isTransitioning.value || !currentEmotion.value) return
+    if (!isTransitioning.value || !currentEmotion.value)
+      return
 
     const emotionState = emotionStates.get(currentEmotion.value)!
     const blendDuration = emotionState.blendDuration || 0.3
@@ -165,7 +152,11 @@ export function useVRMEmote(vrm: VRMCore) {
     // Update all expressions
     for (const [exprName, targetValue] of targetExpressionValues.value) {
       const startValue = currentExpressionValues.value.get(exprName) || 0
-      const currentValue = lerp(startValue, targetValue, easeInOutCubic(transitionProgress.value))
+      const currentValue = lerp(
+        startValue,
+        targetValue,
+        easeInOutCubic(transitionProgress.value),
+      )
       vrm.expressionManager?.setValue(exprName, currentValue)
     }
   }

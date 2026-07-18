@@ -1,10 +1,4 @@
-import type {
-  NewMessagesPayload,
-  PullMessagesRequest,
-  PullMessagesResponse,
-  SendMessagesRequest,
-  SendMessagesResponse,
-} from '@proj-airi/server-sdk-shared'
+import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared'
 import type { ComputedRef, Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
@@ -12,12 +6,9 @@ import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/ad
 import { errorMessageFrom } from '@moeru/std'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 import { useWebSocket } from '@vueuse/core'
-import * as v from 'valibot'
-
 import { computed, ref, shallowRef, watch } from 'vue'
 
-/** Placeholder to ensure all imports are used */
-void wsErrorEvent
+import * as v from 'valibot'
 
 const RECONNECT_BASE_MS = 1000
 const RECONNECT_MAX_MS = 30_000
@@ -47,18 +38,16 @@ const NewMessagesPayloadSchema = v.object({
   chatId: v.pipe(v.string(), v.minLength(1)),
   fromSeq: v.number(),
   toSeq: v.number(),
-  messages: v.array(
-    v.object({
-      id: v.pipe(v.string(), v.minLength(1)),
-      chatId: v.pipe(v.string(), v.minLength(1)),
-      senderId: v.nullable(v.string()),
-      role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
-      content: v.string(),
-      seq: v.number(),
-      createdAt: v.number(),
-      updatedAt: v.number(),
-    }),
-  ),
+  messages: v.array(v.object({
+    id: v.pipe(v.string(), v.minLength(1)),
+    chatId: v.pipe(v.string(), v.minLength(1)),
+    senderId: v.nullable(v.string()),
+    role: v.picklist(['system', 'user', 'assistant', 'tool', 'error']),
+    content: v.string(),
+    seq: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })),
 })
 
 /**
@@ -162,8 +151,10 @@ export function computeReconnectDelay(retries: number, baseMs: number, maxMs: nu
  * @internal
  */
 export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolean): ChatWsStatus {
-  if (vue === 'OPEN') return 'open'
-  if (vue === 'CONNECTING') return 'connecting'
+  if (vue === 'OPEN')
+    return 'open'
+  if (vue === 'CONNECTING')
+    return 'connecting'
   return enabled ? 'closed' : 'idle'
 }
 
@@ -204,9 +195,11 @@ export function createChatWsUrlRef(
   serverUrl: string,
 ): ComputedRef<string | undefined> {
   return computed(() => {
-    if (!enabled.value) return undefined
+    if (!enabled.value)
+      return undefined
     const token = getToken()
-    if (!token) return undefined
+    if (!token)
+      return undefined
     return buildChatWsUrl(serverUrl, token)
   })
 }
@@ -235,7 +228,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     for (const handler of statusHandlers) {
       try {
         handler(next)
-      } catch (err) {
+      }
+      catch (err) {
         // Listener errors must not poison the status pipeline.
         console.warn('[chat-ws] status handler threw:', errorMessageFrom(err))
       }
@@ -247,42 +241,38 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       const dispose = contextDisposers.pop()!
       try {
         dispose()
-      } catch {
-        // noop
       }
+      catch {}
     }
     context.value = undefined
   }
 
   function attachContextListeners(ctx: WsEventContext) {
-    contextDisposers.push(
-      ctx.on(newMessages, (event) => {
-        // External boundary: validate the wire payload before fanning it out.
-        // A malformed server push would otherwise flow unchecked into every
-        // subscriber and into `mergeCloudMessagesIntoSession`.
-        const result = v.safeParse(NewMessagesPayloadSchema, event.body)
-        if (!result.success) {
-          console.warn('[chat-ws] dropped malformed newMessages payload:', result.issues[0]?.message)
-          return
+    contextDisposers.push(ctx.on(newMessages, (event) => {
+      // External boundary: validate the wire payload before fanning it out.
+      // A malformed server push would otherwise flow unchecked into every
+      // subscriber and into `mergeCloudMessagesIntoSession`.
+      const result = v.safeParse(NewMessagesPayloadSchema, event.body)
+      if (!result.success) {
+        console.warn('[chat-ws] dropped malformed newMessages payload:', result.issues[0]?.message)
+        return
+      }
+      const payload = result.output
+      for (const handler of newMessagesHandlers) {
+        try {
+          handler(payload)
         }
-        const payload = result.output
-        for (const handler of newMessagesHandlers) {
-          try {
-            handler(payload)
-          } catch (err) {
-            // Same isolation principle as notifyStatus: one bad listener should
-            // not silently drop messages for the rest.
-            console.warn('[chat-ws] newMessages handler threw:', errorMessageFrom(err))
-          }
+        catch (err) {
+          // Same isolation principle as notifyStatus: one bad listener should
+          // not silently drop messages for the rest.
+          console.warn('[chat-ws] newMessages handler threw:', errorMessageFrom(err))
         }
-      }),
-    )
+      }
+    }))
 
-    contextDisposers.push(
-      ctx.on(wsErrorEvent, (event) => {
-        console.warn('[chat-ws] socket error:', event.body)
-      }),
-    )
+    contextDisposers.push(ctx.on(wsErrorEvent, (event) => {
+      console.warn('[chat-ws] socket error:', event.body)
+    }))
   }
 
   // The url-as-ref form lets useWebSocket reconnect when `urlRef` changes
@@ -293,7 +283,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     autoClose: true,
     autoReconnect: {
       retries: RECONNECT_RETRIES,
-      delay: (r) => computeReconnectDelay(r, RECONNECT_BASE_MS, RECONNECT_MAX_MS),
+      delay: r => computeReconnectDelay(r, RECONNECT_BASE_MS, RECONNECT_MAX_MS),
     },
     onConnected(rawWs) {
       const created = createWsContext(rawWs)
@@ -340,7 +330,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   )
 
   function getContext(): WsEventContext {
-    if (!context.value) throw new Error('chat-ws not connected')
+    if (!context.value)
+      throw new Error('chat-ws not connected')
     return context.value
   }
 
@@ -355,11 +346,13 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   return {
     status: () => mapStatus(ws.status.value, enabled.value),
     connect() {
-      if (enabled.value && ws.status.value === 'OPEN') return
+      if (enabled.value && ws.status.value === 'OPEN')
+        return
       enabled.value = true
       // urlRef will recompute and useWebSocket reopens; if it was already
       // closed by a previous disconnect, call open() to nudge it.
-      if (ws.status.value === 'CLOSED') ws.open()
+      if (ws.status.value === 'CLOSED')
+        ws.open()
     },
     disconnect() {
       // Flip intent off first so the autoReconnect loop won't fight us, then
@@ -377,8 +370,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       disposeContext()
       stopStatusWatch()
     },
-    sendMessages: (req) => invokeSendMessages(req),
-    pullMessages: (req) => invokePullMessages(req),
+    sendMessages: req => invokeSendMessages(req),
+    pullMessages: req => invokePullMessages(req),
     onNewMessages(handler) {
       newMessagesHandlers.add(handler)
       return () => {

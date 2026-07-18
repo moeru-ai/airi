@@ -4,10 +4,7 @@ import type { MaybeRefOrGetter, Ref } from 'vue'
 import { defaultWindow, useStorage } from '@vueuse/core'
 import { ref, toValue, watch } from 'vue'
 
-export interface Versioned<T> {
-  version?: string
-  data?: T
-}
+export interface Versioned<T> { version?: string, data?: T }
 export interface UseVersionedStorageOptions<T> {
   defaultVersion?: string
   storage?: StorageLike
@@ -15,14 +12,8 @@ export interface UseVersionedStorageOptions<T> {
   onVersionMismatch?: (value: Versioned<T>) => OnVersionMismatchActions<T>
 }
 
-export interface OnVersionMismatchKeep<T> {
-  action: 'keep'
-  data?: T
-}
-export interface OnVersionMismatchReset<T> {
-  action: 'reset'
-  data?: T
-}
+export interface OnVersionMismatchKeep<T> { action: 'keep', data?: T }
+export interface OnVersionMismatchReset<T> { action: 'reset', data?: T }
 export type OnVersionMismatchActions<T> = OnVersionMismatchKeep<T> | OnVersionMismatchReset<T>
 
 export function useVersionedLocalStorage<T>(
@@ -39,73 +30,57 @@ export function useVersionedLocalStorage<T>(
     options as unknown as UseStorageOptions<Versioned<T>>,
   )
 
-  const syncDataToStorage = watch(
-    data,
-    (value) => {
-      rawValue.value = { version: defaultVersion, data: value }
-    },
-    {
-      deep: true,
-    },
-  )
+  const syncDataToStorage = watch(data, (value) => {
+    rawValue.value = { version: defaultVersion, data: value }
+  }, {
+    deep: true,
+  })
 
-  watch(
-    rawValue,
-    (value) => {
-      try {
-        if ('version' in rawValue.value && rawValue.value.version != null) {
-          if (
-            options?.satisfiesVersionBy != null &&
-            !options.satisfiesVersionBy(rawValue.value.version, defaultVersion)
-          ) {
-            if (options.onVersionMismatch != null) {
-              const action = options.onVersionMismatch(rawValue.value)
-              if (action.action === 'reset') {
-                rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
-                syncDataToStorage.pause()
-                data.value = toValue(initialValue)
-                syncDataToStorage.resume()
-              }
-            } else {
-              console.warn(
-                `version ${rawValue.value.version} doesn't satisfy the version ${defaultVersion} for key ${key}, will reset the value to default value ${toValue(initialValue)}`,
-              )
+  watch(rawValue, (value) => {
+    try {
+      if ('version' in rawValue.value && rawValue.value.version != null) {
+        if (options?.satisfiesVersionBy != null && !options.satisfiesVersionBy(rawValue.value.version, defaultVersion)) {
+          if (options.onVersionMismatch != null) {
+            const action = options.onVersionMismatch(rawValue.value)
+            if (action.action === 'reset') {
               rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
               syncDataToStorage.pause()
               data.value = toValue(initialValue)
               syncDataToStorage.resume()
             }
           }
-
-          syncDataToStorage.pause()
-          data.value = rawValue.value.data!
-          syncDataToStorage.resume()
-          return
+          else {
+            console.warn(`version ${rawValue.value.version} doesn't satisfy the version ${defaultVersion} for key ${key}, will reset the value to default value ${toValue(initialValue)}`)
+            rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
+            syncDataToStorage.pause()
+            data.value = toValue(initialValue)
+            syncDataToStorage.resume()
+          }
         }
 
-        console.warn(
-          `property key 'version' wasn't found in the value of key ${key} as ${value}, will keep the current ${toValue(initialValue)}`,
-        )
-        rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
         syncDataToStorage.pause()
-        data.value = toValue(initialValue)
+        data.value = rawValue.value.data!
         syncDataToStorage.resume()
-      } catch (err) {
-        console.warn(
-          `failed to un-marshal Local Storage value, possibly due to incompatible or corrupted for key ${key} value ${value}, falling back to default value ${toValue(initialValue)}`,
-          err,
-        )
-        rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
-        syncDataToStorage.pause()
-        data.value = toValue(initialValue)
-        syncDataToStorage.resume()
+        return
       }
-    },
-    {
-      immediate: true,
-      deep: true,
-    },
-  )
+
+      console.warn(`property key 'version' wasn't found in the value of key ${key} as ${value}, will keep the current ${toValue(initialValue)}`)
+      rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
+      syncDataToStorage.pause()
+      data.value = toValue(initialValue)
+      syncDataToStorage.resume()
+    }
+    catch (err) {
+      console.warn(`failed to un-marshal Local Storage value, possibly due to incompatible or corrupted for key ${key} value ${value}, falling back to default value ${toValue(initialValue)}`, err)
+      rawValue.value = { version: defaultVersion, data: toValue(initialValue) }
+      syncDataToStorage.pause()
+      data.value = toValue(initialValue)
+      syncDataToStorage.resume()
+    }
+  }, {
+    immediate: true,
+    deep: true,
+  })
 
   return data
 }

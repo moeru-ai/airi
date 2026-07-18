@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { UnElevenLabsOptions } from 'unspeech'
 
-import { Alert, SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  Alert,
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldRange } from '@proj-airi/ui'
@@ -20,22 +25,24 @@ const availableVoices = computed(() => {
 })
 // Generate speech with Player2-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
-    string,
-    Record<string, unknown>
-  >
+  const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string, UnElevenLabsOptions>
   if (!provider) {
     throw new Error('Failed to initialize speech provider')
   }
   // Get provider configuration
   const providerConfig = providersStore.getProviderConfig(providerId)
   // Get model from configuration or use default
-  const model = (providerConfig.model as string | undefined) || defaultModel
+  const model = providerConfig.model as string | undefined || defaultModel
   // Player2 doesn't need SSML conversion, but if SSML is provided, use it directly
-  // speechStore.speech expects SpeechProviderWithExtraOptions; provider is already typed as such above
-  return await speechStore.speech(provider, model, input, voiceId, {
-    ...providerConfig,
-  })
+  return await speechStore.speech(
+    provider,
+    model,
+    input,
+    voiceId,
+    {
+      ...providerConfig,
+    },
+  )
 }
 const hasPlayer2 = ref(true)
 onMounted(async () => {
@@ -43,7 +50,8 @@ onMounted(async () => {
   const providerMetadata = providersStore.getProviderMetadata(providerId)
   if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
     await speechStore.loadVoicesForProvider(providerId)
-  } else {
+  }
+  else {
     console.error('Failed to validate provider config', providerConfig)
   }
   try {
@@ -55,19 +63,23 @@ onMounted(async () => {
       },
     })
     hasPlayer2.value = res.status === 200
-  } catch (e) {
+  }
+  catch (e) {
     console.error(e)
     hasPlayer2.value = false
   }
 })
-watch(speedRatio, () => {
+watch(speedRatio, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speedRatio.value
 })
 </script>
 
 <template>
-  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
+  <SpeechProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
+  >
     <template #voice-settings>
       <!-- Speed control - common to most providers -->
       <FieldRange
@@ -75,8 +87,7 @@ watch(speedRatio, () => {
         :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
         :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
         :min="0.5"
-        :max="5.0"
-        :step="0.01"
+        :max="5.0" :step="0.01"
       />
     </template>
 
@@ -98,14 +109,15 @@ watch(speedRatio, () => {
       <div class="whitespace-pre-wrap break-all">
         <div>
           Please download and run the Player2 App:
-          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">https://player2.game</a>
+          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
+            https://player2.game
+          </a>
 
           <div>
             After downloading, if you still are having trouble, please reach out to us on Discord:
             <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
               https://player2.game/discord
-            </a>
-            .
+            </a>.
           </div>
         </div>
       </div>
@@ -114,8 +126,8 @@ watch(speedRatio, () => {
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

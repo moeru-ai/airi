@@ -3,20 +3,18 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/provi
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
-import {
-  createAliyunNLSProvider,
-  streamAliyunTranscription,
-} from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { createAliyunNLSProvider, streamAliyunTranscription } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
 import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 
-type AliyunRegion =
-  | 'cn-shanghai'
-  | 'cn-shanghai-internal'
-  | 'cn-beijing'
-  | 'cn-beijing-internal'
-  | 'cn-shenzhen'
-  | 'cn-shenzhen-internal'
+type AliyunRegion
+  = | 'cn-shanghai'
+    | 'cn-shanghai-internal'
+    | 'cn-beijing'
+    | 'cn-beijing-internal'
+    | 'cn-shenzhen'
+    | 'cn-shenzhen-internal'
 
 const SAMPLE_RATE = 16000
 
@@ -30,7 +28,7 @@ const credentials = reactive({
 const isRecording = ref(false)
 const isTranscribing = ref(false)
 const currentPartial = ref<string | undefined>('')
-const transcripts = ref<Array<{ index: number; text: string; final: boolean }>>([])
+const transcripts = ref<Array<{ index: number, text: string, final: boolean }>>([])
 
 const audioContext = shallowRef<AudioContext>()
 const workletNode = shallowRef<AudioWorkletNode>()
@@ -41,10 +39,10 @@ const audioStreamController = shallowRef<ReadableStreamDefaultController<ArrayBu
 const transcriptionAbortController = shallowRef<AbortController>()
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
 
-const logs = ref<Array<{ id: number; level: 'info' | 'error'; text: string }>>([])
+const logs = ref<Array<{ id: number, level: 'info' | 'error', text: string }>>([])
 const logsContainer = ref<HTMLDivElement>()
 
-const regionOptions: { label: string; value: AliyunRegion }[] = [
+const regionOptions: { label: string, value: AliyunRegion }[] = [
   { label: 'cn-shanghai', value: 'cn-shanghai' },
   { label: 'cn-beijing', value: 'cn-beijing' },
   { label: 'cn-shenzhen', value: 'cn-shenzhen' },
@@ -54,17 +52,14 @@ const regionOptions: { label: string; value: AliyunRegion }[] = [
 ]
 
 const credentialsReady = computed(() => {
-  const hasAccessKeyId = Boolean(credentials.accessKeyId.trim())
-  const hasAccessKeySecret = Boolean(credentials.accessKeySecret.trim())
-  const hasAppKey = Boolean(credentials.appKey.trim())
-  const hasAllKeys = hasAccessKeyId && hasAccessKeySecret
-  return hasAllKeys && hasAppKey
+  return Boolean(
+    credentials.accessKeyId.trim()
+    && credentials.accessKeySecret.trim()
+    && credentials.appKey.trim(),
+  )
 })
 
-const canStartRecording = computed(() => {
-  const notRecording = !isRecording.value && !isTranscribing.value
-  return credentialsReady.value && notRecording
-})
+const canStartRecording = computed(() => credentialsReady.value && !isRecording.value && !isTranscribing.value)
 const canStopRecording = computed(() => isRecording.value)
 const canAbortTranscription = computed(() => isTranscribing.value && Boolean(transcriptionAbortController.value))
 
@@ -74,7 +69,8 @@ let lastChunkLogAt = 0
 watch(logs, () => {
   nextTick(() => {
     const container = logsContainer.value
-    if (container) container.scrollTop = container.scrollHeight
+    if (container)
+      container.scrollTop = container.scrollHeight
   })
 })
 
@@ -90,7 +86,7 @@ function float32ToInt16(buffer: Float32Array) {
   const output = new Int16Array(buffer.length)
   for (let i = 0; i < buffer.length; i++) {
     const value = Math.max(-1, Math.min(1, buffer[i]))
-    output[i] = value < 0 ? value * 0x8000 : value * 0x7fff
+    output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
   }
   return output
 }
@@ -116,7 +112,8 @@ async function initializeAudioGraph(stream: MediaStream) {
   node.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
     const buffer = data.buffer
     const controller = audioStreamController.value
-    if (!buffer || !controller) return
+    if (!buffer || !controller)
+      return
 
     const pcm16 = float32ToInt16(buffer)
     controller.enqueue(pcm16.buffer.slice(0))
@@ -142,7 +139,8 @@ async function initializeAudioGraph(stream: MediaStream) {
 }
 
 async function startRecording() {
-  if (!canStartRecording.value) return
+  if (!canStartRecording.value)
+    return
 
   resetTranscriptionOutput()
   resetRecordingCounters()
@@ -180,7 +178,7 @@ async function startRecording() {
       },
       onSessionTerminated: (error) => {
         if (error) {
-          appendLog(`Session terminated: ${error instanceof Error ? error.message : String(error)}`, 'error')
+          appendLog(`Session terminated: ${errorMessageFromValue(error)}`, 'error')
           isTranscribing.value = false
         }
       },
@@ -192,13 +190,17 @@ async function startRecording() {
 
   transcriptionResult.text
     .then((finalText) => {
-      if (finalText.trim()) appendLog(`Transcription finished (${finalText.trim().length} characters)`)
-      else appendLog('Transcription finished (no speech detected)')
+      if (finalText.trim())
+        appendLog(`Transcription finished (${finalText.trim().length} characters)`)
+      else
+        appendLog('Transcription finished (no speech detected)')
     })
     .catch((error) => {
       console.error(error)
-      if (error instanceof DOMException && error.name === 'AbortError') appendLog('Transcription aborted by user')
-      else appendLog(`Transcription failed: ${error instanceof Error ? error.message : String(error)}`, 'error')
+      if (error instanceof DOMException && error.name === 'AbortError')
+        appendLog('Transcription aborted by user')
+      else
+        appendLog(`Transcription failed: ${errorMessageFromValue(error)}`, 'error')
     })
     .finally(() => {
       isTranscribing.value = false
@@ -220,13 +222,15 @@ async function startRecording() {
     mediaStream.value = stream
     await initializeAudioGraph(stream)
 
-    if (audioContext.value?.state === 'suspended') await audioContext.value.resume()
+    if (audioContext.value?.state === 'suspended')
+      await audioContext.value.resume()
 
     isRecording.value = true
     appendLog('Recording started')
-  } catch (error) {
+  }
+  catch (error) {
     console.error(error)
-    appendLog(`Failed to start recording: ${error instanceof Error ? error.message : String(error)}`, 'error')
+    appendLog(`Failed to start recording: ${errorMessageFromValue(error)}`, 'error')
     audioStreamController.value?.error(error instanceof Error ? error : new Error(String(error)))
     audioStreamController.value = undefined
     abortTranscription()
@@ -235,13 +239,13 @@ async function startRecording() {
 }
 
 async function stopRecording() {
-  if (!isRecording.value && !audioContext.value && !audioStreamController.value) return
+  if (!isRecording.value && !audioContext.value && !audioStreamController.value)
+    return
 
   try {
     workletNode.value?.port.postMessage({ type: 'stop' })
-  } catch {
-    /* noop */
   }
+  catch { /* noop */ }
 
   if (mediaStreamSource.value) {
     mediaStreamSource.value.disconnect()
@@ -255,14 +259,15 @@ async function stopRecording() {
   }
 
   if (mediaStream.value) {
-    mediaStream.value.getTracks().forEach((track) => track.stop())
+    mediaStream.value.getTracks().forEach(track => track.stop())
     mediaStream.value = undefined
   }
 
   if (audioContext.value) {
     try {
       await audioContext.value.close()
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to close audio context', error)
     }
     audioContext.value = undefined
@@ -271,7 +276,8 @@ async function stopRecording() {
   audioStreamController.value?.close()
   audioStreamController.value = undefined
 
-  if (isRecording.value) appendLog('Recording stopped')
+  if (isRecording.value)
+    appendLog('Recording stopped')
 
   isRecording.value = false
   resetRecordingCounters()
@@ -279,14 +285,14 @@ async function stopRecording() {
   if (isTranscribing.value) {
     try {
       await transcriptionTextPromise.value
-    } catch {
-      /* handled elsewhere */
     }
+    catch { /* handled elsewhere */ }
   }
 }
 
 function abortTranscription() {
-  if (!transcriptionAbortController.value) return
+  if (!transcriptionAbortController.value)
+    return
 
   transcriptionAbortController.value.abort(new DOMException('Aborted by user', 'AbortError'))
   audioStreamController.value?.error(new DOMException('Aborted by user', 'AbortError'))
@@ -299,13 +305,15 @@ function handleServerEvent(event: ServerEvent) {
     case 'TranscriptionStarted':
       appendLog(`Transcription started. Session: ${(event.payload as ServerEvents['TranscriptionStarted']).session_id}`)
       break
-    case 'TranscriptionResultChanged': {
+    case 'TranscriptionResultChanged':
+    {
       const payload = event.payload as ServerEvents['TranscriptionResultChanged']
       currentPartial.value = payload.result
       upsertTranscript(payload.index, payload.result, false)
       break
     }
-    case 'SentenceEnd': {
+    case 'SentenceEnd':
+    {
       const payload = event.payload as ServerEvents['SentenceEnd']
       currentPartial.value = ''
       upsertTranscript(payload.index, payload.result, true)
@@ -322,7 +330,7 @@ function handleServerEvent(event: ServerEvent) {
 }
 
 function upsertTranscript(index: number, text: string, final: boolean) {
-  const existingIndex = transcripts.value.findIndex((entry) => entry.index === index)
+  const existingIndex = transcripts.value.findIndex(entry => entry.index === index)
 
   if (existingIndex >= 0) {
     const existing = transcripts.value[existingIndex]
@@ -331,7 +339,8 @@ function upsertTranscript(index: number, text: string, final: boolean) {
       text,
       final: existing.final || final,
     })
-  } else {
+  }
+  else {
     transcripts.value.push({ index, text, final })
   }
 
@@ -347,7 +356,9 @@ onBeforeUnmount(async () => {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-2xl font-semibold">Aliyun NLS Realtime Transcription</h1>
+      <h1 class="text-2xl font-semibold">
+        Aliyun NLS Realtime Transcription
+      </h1>
       <p class="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
         Provide your Access Key, Secret, and App Key to test Aliyun NLS streaming with microphone audio.
       </p>
@@ -389,16 +400,36 @@ onBeforeUnmount(async () => {
 
       <div class="flex flex-wrap items-center gap-4">
         <div class="text-sm">
-          <span v-if="isRecording" class="ml-2 rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-500">Recording</span>
-          <span v-else-if="isTranscribing" class="ml-2 rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-500">
+          <span
+            v-if="isRecording"
+            class="ml-2 rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-500"
+          >
+            Recording
+          </span>
+          <span
+            v-else-if="isTranscribing"
+            class="ml-2 rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-500"
+          >
             Transcribing
           </span>
         </div>
 
         <div class="flex flex-wrap gap-3">
-          <Button :disabled="!canStartRecording" variant="primary" @click="startRecording">Start Recording</Button>
+          <Button
+            :disabled="!canStartRecording"
+            variant="primary"
+            @click="startRecording"
+          >
+            Start Recording
+          </Button>
 
-          <Button :disabled="!canStopRecording" variant="primary" @click="stopRecording">Stop Recording</Button>
+          <Button
+            :disabled="!canStopRecording"
+            variant="primary"
+            @click="stopRecording"
+          >
+            Stop Recording
+          </Button>
 
           <Button
             v-if="isTranscribing"
@@ -413,12 +444,14 @@ onBeforeUnmount(async () => {
     </section>
 
     <section class="space-y-3">
-      <h2 class="text-lg font-semibold">Transcripts</h2>
-      <div
-        class="border border-neutral-200/80 rounded bg-neutral-50/60 p-4 text-sm dark:border-neutral-700 dark:bg-neutral-900/50"
-      >
+      <h2 class="text-lg font-semibold">
+        Transcripts
+      </h2>
+      <div class="border border-neutral-200/80 rounded bg-neutral-50/60 p-4 text-sm dark:border-neutral-700 dark:bg-neutral-900/50">
         <div v-if="currentPartial" class="mb-3 text-neutral-500 dark:text-neutral-400">
-          <div class="text-xs text-neutral-400 tracking-wide uppercase dark:text-neutral-500">Partial</div>
+          <div class="text-xs text-neutral-400 tracking-wide uppercase dark:text-neutral-500">
+            Partial
+          </div>
           <div class="mt-1 font-medium">
             {{ currentPartial }}
           </div>
@@ -427,17 +460,21 @@ onBeforeUnmount(async () => {
           Waiting for server...
         </div>
         <ul class="space-y-2">
-          <li v-for="sentence in transcripts" :key="sentence.index" class="flex items-start gap-2">
-            <span
-              class="mt-0.5 rounded bg-neutral-200/80 px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200"
-            >
+          <li
+            v-for="sentence in transcripts"
+            :key="sentence.index"
+            class="flex items-start gap-2"
+          >
+            <span class="mt-0.5 rounded bg-neutral-200/80 px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200">
               #{{ sentence.index }}
             </span>
             <div>
               <div class="font-medium" :class="sentence.final ? '' : 'italic text-neutral-500 dark:text-neutral-400'">
                 {{ sentence.text }}
               </div>
-              <div v-if="!sentence.final" class="text-xs text-neutral-400">Waiting for final result...</div>
+              <div v-if="!sentence.final" class="text-xs text-neutral-400">
+                Waiting for final result...
+              </div>
             </div>
           </li>
         </ul>
@@ -445,7 +482,9 @@ onBeforeUnmount(async () => {
     </section>
 
     <section class="space-y-3">
-      <h2 class="text-lg font-semibold">Logs</h2>
+      <h2 class="text-lg font-semibold">
+        Logs
+      </h2>
       <div
         ref="logsContainer"
         class="h-64 overflow-y-auto border border-neutral-200/80 rounded bg-neutral-50/60 p-3 text-xs leading-5 dark:border-neutral-700 dark:bg-neutral-900/50"

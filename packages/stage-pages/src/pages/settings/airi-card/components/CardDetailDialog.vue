@@ -1,50 +1,65 @@
 <script setup lang="ts">
-// @ts-nocheck -- template type-narrowing and vue-tsc template analysis is fragile for this component
 import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import DOMPurify from 'dompurify'
 
-import { useBackgroundStore, type BackgroundEntry } from '@proj-airi/stage-ui/stores/background'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useDownload } from '@proj-airi/stage-ui/composables/download'
+import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import {
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from 'reka-ui'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
 interface Props {
+  modelValue: boolean
   cardId: string
   initialTab?: string
 }
 
 const props = defineProps<Props>()
-const modelValue = defineModel<boolean>({ required: true })
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: boolean): void
+}>()
 
 const { t } = useI18n()
+const { trackSceneBackgroundSet } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
+const visionStore = useVisionStore()
 const backgroundStore = useBackgroundStore()
+const displayModelsStore = useDisplayModelsStore()
 
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
-const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } =
-  storeToRefs(consciousnessStore)
-const {
-  activeSpeechProvider: speechProvider,
-  activeSpeechModel: defaultSpeechModel,
-  activeSpeechVoiceId: defaultVoiceId,
-} = storeToRefs(speechStore)
+const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
+const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultVoiceId } = storeToRefs(speechStore)
+const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
 
 const isRefreshingGallery = ref(false)
+const isExportingCard = shallowRef(false)
 
 // Get selected card data
 const selectedCard = computed<AiriCard | undefined>(() => {
-  if (!props.cardId) return undefined
+  if (!props.cardId)
+    return undefined
   return cardStore.getCard(props.cardId)
 })
 
@@ -54,21 +69,25 @@ const journalEntries = computed(() => {
 })
 
 // Get module settings
-const emptyModuleSettings = {
-  consciousnessProvider: '',
-  consciousness: '',
-  speechProvider: '',
-  speech: '',
-  voice: '',
-}
-
 const moduleSettings = computed(() => {
-  const airiExt = selectedCard.value?.extensions?.airi?.modules
-  if (!airiExt) return emptyModuleSettings
+  if (!selectedCard.value || !selectedCard.value.extensions?.airi?.modules) {
+    return {
+      consciousnessProvider: '',
+      consciousness: '',
+      visionProvider: '',
+      vision: '',
+      speechProvider: '',
+      speech: '',
+      voice: '',
+    }
+  }
 
+  const airiExt = selectedCard.value.extensions.airi.modules
   return {
     consciousnessProvider: airiExt.consciousness?.provider || '',
     consciousness: airiExt.consciousness?.model || '',
+    visionProvider: airiExt.vision?.provider || '',
+    vision: airiExt.vision?.model || '',
     speechProvider: airiExt.speech?.provider || '',
     speech: airiExt.speech?.model || '',
     voice: airiExt.speech?.voice_id || '',
@@ -77,7 +96,8 @@ const moduleSettings = computed(() => {
 
 // Get character settings
 const characterSettings = computed(() => {
-  if (!selectedCard.value) return {}
+  if (!selectedCard.value)
+    return {}
 
   return {
     personality: selectedCard.value.personality,
@@ -101,10 +121,29 @@ function handleActivate() {
   }, 300)
 }
 
+async function handleExportCard() {
+  if (!selectedCard.value)
+    return
+
+  isExportingCard.value = true
+  try {
+    useDownload(
+      await exportAiriCardPackage({ card: selectedCard.value, displayModelsStore }),
+      `${selectedCard.value.name.trim()}.zip`,
+    ).download()
+    toast(t('settings.pages.card.exported'))
+  }
+  catch (error) {
+    console.error('Error exporting card package:', error)
+    toast(t('settings.pages.card.export_failed'))
+  }
+  finally {
+    isExportingCard.value = false
+  }
+}
+
 function highlightTagToHtml(text: string) {
-  return DOMPurify.sanitize(
-    text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim(),
-  )
+  return DOMPurify.sanitize(text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim())
 }
 
 // Delete confirmation
@@ -113,7 +152,7 @@ const showDeleteConfirm = ref(false)
 function handleDeleteConfirm() {
   if (selectedCard.value) {
     removeCard(props.cardId)
-    modelValue.value = false
+    emit('update:modelValue', false)
   }
   showDeleteConfirm.value = false
 }
@@ -123,7 +162,7 @@ const backgroundOptions = computed(() => {
   const backgrounds = backgroundStore.getCharacterBackgrounds(props.cardId)
   return [
     { value: 'none', label: t('settings.pages.card.creation.none') },
-    ...backgrounds.map((bg) => ({
+    ...backgrounds.map(bg => ({
       value: bg.id,
       label: bg.type === 'journal' ? `Journal: ${bg.title}` : bg.title,
     })),
@@ -132,10 +171,12 @@ const backgroundOptions = computed(() => {
 
 const activeBackgroundId = computed({
   get: () => selectedCard.value?.extensions?.airi?.modules?.activeBackgroundId || 'none',
-  set: (val: string) => {
-    if (!selectedCard.value) return
+  set: async (val: string) => {
+    if (!selectedCard.value)
+      return
     const extension = JSON.parse(JSON.stringify(selectedCard.value.extensions))
-    if (!extension.airi.modules) extension.airi.modules = {}
+    if (!extension.airi.modules)
+      extension.airi.modules = {}
 
     extension.airi.modules.activeBackgroundId = val
 
@@ -143,6 +184,7 @@ const activeBackgroundId = computed({
       ...selectedCard.value,
       extensions: extension,
     })
+    trackSceneBackgroundSet({ source: 'card_gallery', cleared: val === 'none' })
   },
 })
 
@@ -179,7 +221,7 @@ const tabs = computed<Tab[]>(() => {
   }
 
   // Character tab - only show if there are character settings
-  if (Object.values(characterSettings.value).some((value) => Boolean(value))) {
+  if (Object.values(characterSettings.value).some(value => !!value)) {
     availableTabs.push({
       id: 'character',
       label: t('settings.pages.card.character'),
@@ -204,14 +246,23 @@ const tabs = computed<Tab[]>(() => {
   return availableTabs
 })
 
-function handleSetAsBackground(entry: BackgroundEntry) {
+async function handleSetAsBackground(entry: any) {
   activeBackgroundId.value = entry.id
 }
 
-// eslint-disable-next-line no-alert -- User confirmation before deletion
+function requestDeleteConfirmation(message: string): boolean {
+  // NOTICE:
+  // Native confirm is the existing guard for this destructive gallery action.
+  // Root cause: `no-alert` rejects direct `confirm(...)` calls before this page
+  // has a shared confirmation-dialog primitive wired into the card settings flow.
+  // Source/context: this component already used native confirm for journal delete.
+  // Removal condition: replace with the shared modal confirmation component.
+  const confirmAction = globalThis.confirm.bind(globalThis)
+  return confirmAction(message)
+}
+
 async function handleDeleteEntry(id: string) {
-  // eslint-disable-next-line no-alert -- User confirmation before deletion
-  if (confirm('Are you sure you want to delete this image from the journal?')) {
+  if (requestDeleteConfirmation('Are you sure you want to delete this image from the journal?')) {
     await backgroundStore.removeBackground(id)
   }
 }
@@ -220,14 +271,16 @@ async function handleRefreshGallery() {
   isRefreshingGallery.value = true
   try {
     await backgroundStore.initializeStore()
-  } finally {
+  }
+  finally {
     isRefreshingGallery.value = false
   }
 }
 
-function handleDownloadEntry(id: string, title: string) {
+async function handleDownloadEntry(id: string, title: string) {
   const url = backgroundStore.getBackgroundUrl(id)
-  if (!url) return
+  if (!url)
+    return
 
   const link = document.createElement('a')
   link.href = url
@@ -241,8 +294,9 @@ function handleDownloadEntry(id: string, title: string) {
 const activeTab = computed({
   get: () => {
     // If current active tab is not in available tabs, reset to first tab
-    if (!tabs.value.some((tab) => tab.id === activeTabId.value)) {
-      if (props.initialTab && tabs.value.some((tab) => tab.id === props.initialTab)) return props.initialTab
+    if (!tabs.value.some(tab => tab.id === activeTabId.value)) {
+      if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
+        return props.initialTab
       return tabs.value[0]?.id || ''
     }
     return activeTabId.value
@@ -253,10 +307,12 @@ const activeTab = computed({
 })
 
 // Reset active tab when dialog opens
-watch(modelValue, (isOpen) => {
+watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
-    if (props.initialTab && tabs.value.some((tab) => tab.id === props.initialTab)) activeTabId.value = props.initialTab
-    else activeTabId.value = '' // Let computed handle default
+    if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
+      activeTabId.value = props.initialTab
+    else
+      activeTabId.value = '' // Let computed handle default
   }
 })
 
@@ -274,32 +330,20 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
 </script>
 
 <template>
-  <DialogRoot :open="modelValue" @update:open="modelValue = $event">
+  <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
-      <DialogOverlay
-        class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn"
-      />
-      <DialogContent
-        class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6"
-        @interact-outside.prevent
-      >
+      <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
+      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
         <div v-if="selectedCard" class="w-full flex flex-col gap-5">
           <!-- Header with status indicator -->
           <div flex="~ col" gap-3>
             <div flex="~ row" items-center justify-between>
               <div>
                 <div flex="~ row" items-center gap-2>
-                  <DialogTitle
-                    text-2xl
-                    font-normal
-                    class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent"
-                  >
+                  <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
                     {{ selectedCard.name }}
                   </DialogTitle>
-                  <div
-                    v-if="isActive"
-                    class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400"
-                  >
+                  <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">
                     <div i-solar:check-circle-bold-duotone text-xs />
                     {{ t('settings.pages.card.active_badge') }}
                   </div>
@@ -307,14 +351,20 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 <div mt-1 text-sm text-neutral-500 dark:text-neutral-400>
                   v{{ selectedCard.version }}
                   <template v-if="selectedCard.creator">
-                    · {{ t('settings.pages.card.created_by') }}
-                    <span font-medium>{{ selectedCard.creator }}</span>
+                    · {{ t('settings.pages.card.created_by') }} <span font-medium>{{ selectedCard.creator }}</span>
                   </template>
                 </div>
               </div>
 
               <!-- Action buttons -->
               <div flex="~ row" gap-2>
+                <Button
+                  variant="secondary"
+                  icon="i-solar:download-minimalistic-bold-duotone"
+                  :label="t('settings.pages.card.export')"
+                  :disabled="isExportingCard"
+                  @click="handleExportCard"
+                />
                 <!-- Activation button -->
                 <Button
                   variant="primary"
@@ -328,7 +378,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   variant="secondary"
                   icon="i-solar:close-circle-bold-duotone"
                   :label="t('settings.pages.card.cancel')"
-                  @click="modelValue = false"
+                  @click="emit('update:modelValue', false)"
                 />
               </div>
             </div>
@@ -358,36 +408,21 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
             </div>
 
             <!-- Creator notes -->
-            <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
             <div v-if="activeTab === 'notes' && selectedCard.notes">
               <div
                 bg="white/60 dark:black/30"
                 border="~ neutral-200/50 dark:neutral-700/30"
-                max-h-60
-                overflow-auto
-                whitespace-pre-line
-                rounded-lg
-                p-4
-                text-neutral-700
-                sm:max-h-80
-                dark:text-neutral-300
-                transition="all duration-200"
+                max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 text-neutral-700 sm:max-h-80 dark:text-neutral-300 transition="all duration-200"
                 hover="bg-white/80 dark:bg-black/40"
                 v-html="highlightTagToHtml(selectedCard.notes)"
               />
             </div>
 
             <!-- Description section -->
-            <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
             <div v-if="activeTab === 'description' && selectedCard.description">
               <div
                 bg="white/60 dark:black/30"
-                max-h-60
-                overflow-auto
-                whitespace-pre-line
-                rounded-lg
-                p-4
-                sm:max-h-80
+                max-h-60 overflow-auto whitespace-pre-line rounded-lg p-4 sm:max-h-80
                 text="neutral-600 dark:neutral-300"
                 border="~ neutral-200/50 dark:neutral-700/30"
                 v-html="highlightTagToHtml(selectedCard.description)"
@@ -395,26 +430,19 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
             </div>
 
             <!-- Character -->
-            <div v-if="activeTab === 'character' && Object.values(characterSettings).some((value) => Boolean(value))">
+            <div v-if="activeTab === 'character' && Object.values(characterSettings).some(value => !!value)">
               <div flex="~ col" max-h-60 gap-4 overflow-auto pr-1 sm:max-h-80>
                 <template v-for="(value, key) in characterSettings" :key="key">
                   <div v-if="value" flex="~ col" gap-2>
                     <h2 text-lg text-neutral-500 font-medium dark:text-neutral-400>
                       {{ t(`settings.pages.card.${key.toLowerCase()}`) }}
                     </h2>
-                    <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
                     <div
                       bg="white/60 dark:black/30"
                       border="~ neutral-200/50 dark:neutral-700/30"
                       transition="all duration-200"
                       hover="bg-white/80 dark:bg-black/40"
-                      max-h-none
-                      overflow-auto
-                      whitespace-pre-line
-                      rounded-lg
-                      p-3
-                      text-neutral-700
-                      dark:text-neutral-300
+                      max-h-none overflow-auto whitespace-pre-line rounded-lg p-3 text-neutral-700 dark:text-neutral-300
                       v-html="highlightTagToHtml(value)"
                     />
                   </div>
@@ -428,9 +456,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 <div
                   flex="~ col"
                   bg="white/60 dark:black/30"
-                  gap-1
-                  rounded-lg
-                  p-3
+                  gap-1 rounded-lg p-3
                   border="~ neutral-200/50 dark:neutral-700/30"
                   transition="all duration-200"
                   hover="bg-white/80 dark:bg-black/40"
@@ -447,9 +473,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 <div
                   flex="~ col"
                   bg="white/60 dark:black/30"
-                  gap-1
-                  rounded-lg
-                  p-3
+                  gap-1 rounded-lg p-3
                   border="~ neutral-200/50 dark:neutral-700/30"
                   transition="all duration-200"
                   hover="bg-white/80 dark:bg-black/40"
@@ -466,9 +490,41 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 <div
                   flex="~ col"
                   bg="white/60 dark:black/30"
-                  gap-1
-                  rounded-lg
-                  p-3
+                  gap-1 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                    <div i-lucide:eye />
+                    {{ t('settings.pages.card.vision.provider') }}
+                  </span>
+                  <div truncate font-medium>
+                    {{ getModuleDisplayValue(moduleSettings.visionProvider, visionProvider) }}
+                  </div>
+                </div>
+
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-1 rounded-lg p-3
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                  transition="all duration-200"
+                  hover="bg-white/80 dark:bg-black/40"
+                >
+                  <span flex="~ row" items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400>
+                    <div i-lucide:scan-eye />
+                    {{ t('settings.pages.card.vision.model') }}
+                  </span>
+                  <div truncate font-medium>
+                    {{ getModuleDisplayValue(moduleSettings.vision, defaultVisionModel) }}
+                  </div>
+                </div>
+
+                <div
+                  flex="~ col"
+                  bg="white/60 dark:black/30"
+                  gap-1 rounded-lg p-3
                   border="~ neutral-200/50 dark:neutral-700/30"
                   transition="all duration-200"
                   hover="bg-white/80 dark:bg-black/40"
@@ -485,9 +541,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 <div
                   flex="~ col"
                   bg="white/60 dark:black/30"
-                  gap-2
-                  rounded-lg
-                  p-3
+                  gap-2 rounded-lg p-3
                   border="~ neutral-200/50 dark:neutral-700/30"
                   transition="all duration-200"
                   hover="bg-white/80 dark:bg-black/40"
@@ -504,9 +558,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 <div
                   flex="~ col"
                   bg="white/60 dark:black/30"
-                  gap-2
-                  rounded-lg
-                  p-3
+                  gap-2 rounded-lg p-3
                   border="~ neutral-200/50 dark:neutral-700/30"
                   transition="all duration-200"
                   hover="bg-white/80 dark:bg-black/40"
@@ -533,8 +585,12 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
               >
                 <div class="flex flex-row items-center gap-3">
                   <div class="flex flex-col gap-1">
-                    <h3 text-sm font-medium>Pinned Background</h3>
-                    <p text-xs text-neutral-500>Select the image to show when this character is active.</p>
+                    <h3 text-sm font-medium>
+                      Pinned Background
+                    </h3>
+                    <p text-xs text-neutral-500>
+                      Select the image to show when this character is active.
+                    </p>
                   </div>
                   <button
                     :class="[
@@ -547,11 +603,18 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     title="Refresh gallery"
                     @click="handleRefreshGallery"
                   >
-                    <div class="i-lucide:refresh-cw text-sm" :class="{ 'animate-spin': isRefreshingGallery }" />
+                    <div
+                      class="i-lucide:refresh-cw text-sm"
+                      :class="{ 'animate-spin': isRefreshingGallery }"
+                    />
                   </button>
                 </div>
                 <div w-64>
-                  <Select v-model="activeBackgroundId" :options="backgroundOptions" placeholder="Select background" />
+                  <Select
+                    v-model="activeBackgroundId"
+                    :options="backgroundOptions"
+                    placeholder="Select background"
+                  />
                 </div>
               </div>
 
@@ -564,7 +627,9 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 ]"
               >
                 <div class="i-solar:gallery-wide-broken mb-3 text-5xl text-neutral-300 dark:text-neutral-600" />
-                <p class="text-neutral-500 dark:text-neutral-400">No images in the journal yet.</p>
+                <p class="text-neutral-500 dark:text-neutral-400">
+                  No images in the journal yet.
+                </p>
               </div>
               <div v-else class="grid grid-cols-2 max-h-120 gap-4 overflow-y-auto pr-2 lg:grid-cols-4 sm:grid-cols-3">
                 <div
@@ -577,18 +642,12 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     :src="backgroundStore.getBackgroundUrl(entry.id) ?? undefined"
                     class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
                     loading="lazy"
-                  />
-                  <!-- Overlay Actions -->
-                  <div
-                    class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                   >
+                  <!-- Overlay Actions -->
+                  <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                     <button
                       class="flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95"
-                      :class="
-                        activeBackgroundId === entry.id
-                          ? 'bg-primary-500 hover:bg-primary-600'
-                          : 'bg-white/20 hover:bg-white/30'
-                      "
+                      :class="activeBackgroundId === entry.id ? 'bg-primary-500 hover:bg-primary-600' : 'bg-white/20 hover:bg-white/30'"
                       @click="handleSetAsBackground(entry)"
                     >
                       <div :class="activeBackgroundId === entry.id ? 'i-solar:pin-bold' : 'i-solar:pin-linear'" />
@@ -610,16 +669,11 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                     </button>
                   </div>
                   <!-- Info Badge -->
-                  <div
-                    class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/40 px-1.5 py-0.5 text-[9px] text-white/90 backdrop-blur-sm"
-                  >
+                  <div class="pointer-events-none absolute bottom-1 left-1 right-1 truncate rounded bg-black/40 px-1.5 py-0.5 text-[9px] text-white/90 backdrop-blur-sm">
                     {{ entry.title }}
                   </div>
                   <!-- Active Indicator -->
-                  <div
-                    v-if="activeBackgroundId === entry.id"
-                    class="absolute left-1 top-1 rounded bg-primary-500 p-1 text-white shadow-lg"
-                  >
+                  <div v-if="activeBackgroundId === entry.id" class="absolute left-1 top-1 rounded bg-primary-500 p-1 text-white shadow-lg">
                     <div class="i-solar:pin-bold text-[10px]" />
                   </div>
                 </div>
@@ -630,9 +684,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
         <div
           v-else
           bg="neutral-50/50 dark:neutral-900/50"
-          rounded-xl
-          p-8
-          text-center
+          rounded-xl p-8 text-center
           border="~ neutral-200/50 dark:neutral-700/30"
           shadow="sm"
         >

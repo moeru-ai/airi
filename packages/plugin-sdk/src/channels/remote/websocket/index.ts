@@ -14,7 +14,23 @@ import { createContext } from '@moeru/eventa/adapters/websocket/native'
  */
 export function createWebSocketHostChannel(webSocket: WebSocket) {
   // TODO: make sure to setup proper event handling on the webSocket
-  return createContext(webSocket).context
+  return createContext(webSocket)
+}
+
+/**
+ * Creates an extension Eventa transport backed by a native `WebSocket`.
+ *
+ * Use when:
+ * - A peer transport carries extension protocol and invoke traffic over websocket
+ *
+ * Expects:
+ * - `webSocket` is already connected and managed by the caller
+ *
+ * Returns:
+ * - An Eventa context ready to pass into `createExtensionChannelScope`
+ */
+export function createWebSocketExtensionTransport(webSocket: WebSocket) {
+  return createContext(webSocket)
 }
 
 /**
@@ -31,5 +47,5 @@ export function createWebSocketHostChannel(webSocket: WebSocket) {
  */
 export function createWebSocketDataChannel(webSocket: WebSocket) {
   // TODO: make sure to setup proper event handling on the webSocket
-  return createContext(webSocket).context
+  return createContext(webSocket)
 }

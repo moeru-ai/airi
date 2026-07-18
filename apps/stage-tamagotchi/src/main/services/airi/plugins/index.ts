@@ -1,4 +1,4 @@
-import type { PluginHostService, SetupPluginHostOptions } from './types'
+import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -23,28 +23,29 @@ import {
   electronPluginInvokeTool,
   electronPluginListAgentTools,
   electronPluginListXsaiTools,
+  electronPluginToolsChanged,
 } from '../../../../shared/eventa/plugin/tools'
-import { setupPluginHostHostService } from './host'
+import { setupExtensionHostServiceInternal } from './host'
 
 /**
- * Initializes the Electron plugin host and wires IPC handlers.
+ * Initializes the Electron extension host and wires IPC handlers.
  * Call once during app startup; it loads manifests, returns the host instance,
  * and registers Eventa handlers for listing, enabling, and loading plugins.
  *
- * Loads plugin manifests from the app config directory under `plugins/v1`.
+ * Loads extension manifests from the app config directory under `extensions/v1`.
  *
- * - Windows: %APPDATA%\${appId}\plugins\v1
- * - Linux: $XDG_CONFIG_HOME/${appId}/plugins/v1 or ~/.config/${appId}/plugins/v1
- * - macOS: ~/Library/Application Support/${appId}/plugins/v1
+ * - Windows: %APPDATA%\${appId}\extensions\v1
+ * - Linux: $XDG_CONFIG_HOME/${appId}/extensions/v1 or ~/.config/${appId}/extensions/v1
+ * - macOS: ~/Library/Application Support/${appId}/extensions/v1
  *
- * Persists enablement/known state to `plugins-v1.json` alongside config data.
+ * Persists enablement/known state to `extensions-v1.json` alongside config data.
  *
- * - Windows: %APPDATA%\${appId}/plugins-v1.json
- * - Linux: $XDG_CONFIG_HOME/${appId}/plugins-v1.json or ~/.config/${appId}/plugins-v1.json
- * - macOS: ~/Library/Application Support/${appId}/plugins-v1.json
+ * - Windows: %APPDATA%\${appId}/extensions-v1.json
+ * - Linux: $XDG_CONFIG_HOME/${appId}/extensions-v1.json or ~/.config/${appId}/extensions-v1.json
+ * - macOS: ~/Library/Application Support/${appId}/extensions-v1.json
  */
-export async function setupPluginHost(options: SetupPluginHostOptions): Promise<PluginHostService> {
-  const hostService = await setupPluginHostHostService(options)
+export async function setupExtensionHost(options: SetupExtensionHostOptions): Promise<ExtensionHostService> {
+  const hostService = await setupExtensionHostServiceInternal(options)
   const { context } = createContext(ipcMain)
   const invokePluginProtocolListProviders = defineInvoke(context, pluginProtocolListProviders)
 
@@ -53,7 +54,12 @@ export async function setupPluginHost(options: SetupPluginHostOptions): Promise<
   })
 
   defineInvokeHandler(context, electronPluginSetEnabled, async (payload) => {
-    return await hostService.setEnabled(payload)
+    const result = await hostService.setEnabled(payload)
+    context.emit(electronPluginToolsChanged, {
+      reason: 'enabled-state-changed',
+      extensionId: payload.extensionId,
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginSetAutoReload, async (payload) => {
@@ -61,15 +67,29 @@ export async function setupPluginHost(options: SetupPluginHostOptions): Promise<
   })
 
   defineInvokeHandler(context, electronPluginLoadEnabled, async () => {
-    return await hostService.loadEnabled()
+    const result = await hostService.loadEnabled()
+    context.emit(electronPluginToolsChanged, {
+      reason: 'load-enabled',
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginLoad, async (payload) => {
-    return await hostService.load(payload.name)
+    const result = await hostService.load(payload.extensionId)
+    context.emit(electronPluginToolsChanged, {
+      reason: 'loaded',
+      extensionId: payload.extensionId,
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginUnload, async (payload) => {
-    return await hostService.unload(payload.name)
+    const result = await hostService.unload(payload.extensionId)
+    context.emit(electronPluginToolsChanged, {
+      reason: 'unloaded',
+      extensionId: payload.extensionId,
+    })
+    return result
   })
 
   defineInvokeHandler(context, electronPluginInspect, async () => {
@@ -81,15 +101,15 @@ export async function setupPluginHost(options: SetupPluginHostOptions): Promise<
   })
 
   defineInvokeHandler(context, electronPluginListAgentTools, async () => {
-    return await hostService.host.listAvailableToolDescriptors()
+    return await hostService.tools.listAvailableDescriptors()
   })
 
   defineInvokeHandler(context, electronPluginListXsaiTools, async () => {
-    return await hostService.host.listSerializedXsaiTools()
+    return await hostService.tools.listSerializedXsaiTools()
   })
 
   defineInvokeHandler(context, electronPluginInvokeTool, async (payload) => {
-    return await hostService.host.invokeTool(payload.ownerPluginId, payload.name, payload.input)
+    return await hostService.tools.invoke(payload.ownerExtensionId, payload.name, payload.input)
   })
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {

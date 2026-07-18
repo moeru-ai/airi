@@ -25,10 +25,8 @@ describe('buildCreateTokenRequest', () => {
     Version: '2019-02-28',
   }
 
-  const expectedCanonicalQuery =
-    'AccessKeyId=my_access_key_id&Action=CreateToken&Format=JSON&RegionId=cn-shanghai&SignatureMethod=HMAC-SHA1&SignatureNonce=b924c8c3-6d03-4c5d-ad36-d984d3116788&SignatureVersion=1.0&Timestamp=2019-04-18T08%3A32%3A31Z&Version=2019-02-28'
-  const expectedBuiltQueryString =
-    'POST&%2F&AccessKeyId%3Dmy_access_key_id%26Action%3DCreateToken%26Format%3DJSON%26RegionId%3Dcn-shanghai%26SignatureMethod%3DHMAC-SHA1%26SignatureNonce%3Db924c8c3-6d03-4c5d-ad36-d984d3116788%26SignatureVersion%3D1.0%26Timestamp%3D2019-04-18T08%253A32%253A31Z%26Version%3D2019-02-28'
+  const expectedCanonicalQuery = 'AccessKeyId=my_access_key_id&Action=CreateToken&Format=JSON&RegionId=cn-shanghai&SignatureMethod=HMAC-SHA1&SignatureNonce=b924c8c3-6d03-4c5d-ad36-d984d3116788&SignatureVersion=1.0&Timestamp=2019-04-18T08%3A32%3A31Z&Version=2019-02-28'
+  const expectedBuiltQueryString = 'POST&%2F&AccessKeyId%3Dmy_access_key_id%26Action%3DCreateToken%26Format%3DJSON%26RegionId%3Dcn-shanghai%26SignatureMethod%3DHMAC-SHA1%26SignatureNonce%3Db924c8c3-6d03-4c5d-ad36-d984d3116788%26SignatureVersion%3D1.0%26Timestamp%3D2019-04-18T08%253A32%253A31Z%26Version%3D2019-02-28'
   const expectedSignature = 'X4/yeE8FUchC5Wv7AZJybEuDWzw='
   const expectedSignatureEncoded = encodeURIComponent(expectedSignature)
   const expectedSignedQuery = `Signature=${expectedSignatureEncoded}&${expectedCanonicalQuery}`
@@ -52,10 +50,14 @@ describe('buildCreateTokenRequest', () => {
   })
 
   it('constructs the full token request data', async () => {
-    const request = await buildCreateTokenRequest('my_access_key_id', 'my_access_key_secret', {
-      timestamp: parse(testParameters.Timestamp, "yyyy-MM-dd'T'HH:mm:ssX", new Date()),
-      signatureNonce: testParameters.SignatureNonce,
-    })
+    const request = await buildCreateTokenRequest(
+      'my_access_key_id',
+      'my_access_key_secret',
+      {
+        timestamp: parse(testParameters.Timestamp, 'yyyy-MM-dd\'T\'HH:mm:ssX', new Date()),
+        signatureNonce: testParameters.SignatureNonce,
+      },
+    )
 
     expect(request.canonicalQuery).toBe(expectedCanonicalQuery)
     expect(request.stringToSign).toBe(expectedBuiltQueryString)
@@ -70,7 +72,7 @@ describe('buildCreateTokenRequest', () => {
 describe('createToken', (test) => {
   it('successfully fetches a token', async () => {
     if (!env.ALIYUN_AK_ID || !env.ALIYUN_AK_SECRET) {
-      test.skip('ALIYUN_AK_ID and ALIYUN_AK_SECRET must be set in environment to run this test')
+      test.skip('ALIYUN_AK_ID and ALIYUN_AK_SECRET must be set in environment to run this test', () => {})
       return
     }
 

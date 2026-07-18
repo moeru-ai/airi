@@ -7,13 +7,14 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
-import { electronApplyServerChannelConfig, electronGetServerChannelConfig } from '../../../shared/eventa'
+import {
+  electronApplyServerChannelConfig,
+  electronGetServerChannelConfig,
+
+} from '../../../shared/eventa'
 
 export const useServerChannelSettingsStore = defineStore('tamagotchi-server-channel-settings', () => {
-  const tlsConfig = useLocalStorage<{ cert?: string; key?: string; passphrase?: string } | null | undefined>(
-    'settings/server-channel/websocket-tls-config',
-    null,
-  )
+  const tlsConfig = useLocalStorage<{ cert?: string, key?: string, passphrase?: string } | null | undefined>('settings/server-channel/websocket-tls-config', null)
   const hostname = useLocalStorage<string>('settings/server-channel/hostname', '127.0.0.1')
   const authToken = useLocalStorage<string>('settings/server-channel/auth-token', '')
   const lastApplyError = ref<string | null>(null)
@@ -41,10 +42,7 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   }
 
   watch([tlsConfig, hostname, authToken], async ([newTls, newHost, newAuth], [oldTls, oldHost, oldAuth]) => {
-    if (
-      syncingWithServer.value ||
-      (JSON.stringify(newTls) === JSON.stringify(oldTls) && newHost === oldHost && newAuth === oldAuth)
-    ) {
+    if (syncingWithServer.value || (JSON.stringify(newTls) === JSON.stringify(oldTls) && newHost === oldHost && newAuth === oldAuth)) {
       return
     }
 
@@ -57,7 +55,8 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
         authToken: newAuth,
       })
       syncConfigFromServer(config)
-    } catch (error) {
+    }
+    catch (error) {
       const message = errorMessageFrom(error) ?? 'Failed to apply WebSocket security setting'
       lastApplyError.value = message
 

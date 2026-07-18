@@ -42,8 +42,10 @@ async function handleToggle() {
       route: '/notice/fade-on-hover',
       type: 'fade-on-hover',
     })
-    if (acknowledged) uiStore.enableFadeOnHover()
-  } catch (error) {
+    if (acknowledged)
+      uiStore.enableFadeOnHover()
+  }
+  catch (error) {
     console.error('Failed to open fade-on-hover notice:', error)
   }
 }
@@ -63,11 +65,7 @@ async function handleToggle() {
     </ControlButton>
 
     <template #tooltip>
-      {{
-        enabled
-          ? t('tamagotchi.stage.controls-island.fade-on-hover.disable')
-          : t('tamagotchi.stage.controls-island.fade-on-hover.enable')
-      }}
+      {{ enabled ? t('tamagotchi.stage.controls-island.fade-on-hover.disable') : t('tamagotchi.stage.controls-island.fade-on-hover.enable') }}
     </template>
   </ControlButtonTooltip>
 </template>

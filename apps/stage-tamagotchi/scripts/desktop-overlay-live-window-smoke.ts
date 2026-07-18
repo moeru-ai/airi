@@ -1,3 +1,4 @@
+import type { Buffer } from 'node:buffer'
 import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 
 import { spawn } from 'node:child_process'
@@ -7,6 +8,8 @@ import { createServer } from 'node:net'
 import { dirname, resolve } from 'node:path'
 import { env, exit, kill as killProcess } from 'node:process'
 import { fileURLToPath } from 'node:url'
+
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
 import { desktopOverlayPollHeartbeatMarker } from '../src/shared/desktop-overlay-heartbeat'
 import { selectDesktopOverlaySmokeCandidateId } from '../src/shared/desktop-overlay-live-window-smoke'
@@ -27,8 +30,8 @@ interface McpResult {
 
 interface McpApplyResult {
   started: Array<{ name: string }>
-  failed: Array<{ name: string; error: string }>
-  skipped: Array<{ name: string; reason: string }>
+  failed: Array<{ name: string, error: string }>
+  skipped: Array<{ name: string, reason: string }>
 }
 
 interface McpToolDescriptor {
@@ -77,7 +80,8 @@ const smokeHtml = `<!doctype html>
 const smokeUrl = `data:text/html;charset=utf-8,${encodeURIComponent(smokeHtml)}`
 
 function assert(condition: boolean, message: string): asserts condition {
-  if (!condition) throw new Error(message)
+  if (!condition)
+    throw new Error(message)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -85,7 +89,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 async function findAvailablePort(): Promise<number> {
@@ -96,7 +100,8 @@ async function findAvailablePort(): Promise<number> {
       server.close(() => {
         if (typeof address === 'object' && address?.port) {
           resolvePort(address.port)
-        } else {
+        }
+        else {
           reject(new Error('failed to allocate debug port'))
         }
       })
@@ -114,11 +119,13 @@ async function waitFor<T>(
   const start = Date.now()
   let lastError: unknown
 
-  while (Date.now() - start < timeoutMs) {
+  while ((Date.now() - start) < timeoutMs) {
     try {
       const value = await probe()
-      if (value !== undefined) return value
-    } catch (error) {
+      if (value !== undefined)
+        return value
+    }
+    catch (error) {
       lastError = error
     }
     await sleep(intervalMs)
@@ -131,28 +138,28 @@ async function waitFor<T>(
 export class CdpClient {
   private socket?: WebSocket
   private nextId = 1
-  private pending = new Map<
-    number,
-    {
-      resolve: (value: Record<string, unknown>) => void
-      reject: (error: Error) => void
-    }
-  >()
+  private pending = new Map<number, {
+    resolve: (value: Record<string, unknown>) => void
+    reject: (error: Error) => void
+  }>()
 
   constructor(socket: WebSocket) {
     this.socket = socket
     this.socket.addEventListener('message', (event) => {
       const payload = JSON.parse(String(event.data)) as Record<string, unknown>
       const id = typeof payload.id === 'number' ? payload.id : undefined
-      if (id === undefined) return
+      if (id === undefined)
+        return
 
       const pending = this.pending.get(id)
-      if (!pending) return
+      if (!pending)
+        return
 
       this.pending.delete(id)
       if (payload.error) {
         pending.reject(new Error(JSON.stringify(payload.error)))
-      } else {
+      }
+      else {
         pending.resolve(payload)
       }
     })
@@ -194,7 +201,8 @@ export class CdpClient {
       returnByValue: true,
     })
     const result = response.result
-    if (!isRecord(result)) throw new Error('Runtime.evaluate missing result')
+    if (!isRecord(result))
+      throw new Error('Runtime.evaluate missing result')
 
     const exceptionDetails = result.exceptionDetails
     if (exceptionDetails) {
@@ -202,7 +210,8 @@ export class CdpClient {
     }
 
     const remoteObject = result.result
-    if (!isRecord(remoteObject)) throw new Error('Runtime.evaluate missing remote object')
+    if (!isRecord(remoteObject))
+      throw new Error('Runtime.evaluate missing remote object')
 
     return remoteObject.value as T
   }
@@ -227,8 +236,9 @@ export class CdpClient {
 
 async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url)
-  if (!response.ok) throw new Error(`${url} returned ${response.status}`)
-  return (await response.json()) as T
+  if (!response.ok)
+    throw new Error(`${url} returned ${response.status}`)
+  return await response.json() as T
 }
 
 async function prepareMcpConfig() {
@@ -272,56 +282,44 @@ async function prepareMcpConfig() {
 
 async function ensureSmokePrerequisites() {
   if (typeof WebSocket !== 'function') {
-    throw new TypeError(
-      'APP_START_FAILED: WebSocket is unavailable in this Node runtime. Run through the package script or set NODE_OPTIONS=--experimental-websocket.',
-    )
+    throw new TypeError('APP_START_FAILED: WebSocket is unavailable in this Node runtime. Run through the package script or set NODE_OPTIONS=--experimental-websocket.')
   }
 
   const missingOutputs: string[] = []
   for (const relativePath of requiredWorkspaceBuildOutputs) {
     try {
       await access(resolve(repoDir, relativePath))
-    } catch {
+    }
+    catch {
       missingOutputs.push(relativePath)
     }
   }
 
-  if (missingOutputs.length === 0) return
+  if (missingOutputs.length === 0)
+    return
 
-  throw new Error(
-    [
-      'APP_START_FAILED: required workspace build outputs are missing.',
-      `Missing: ${missingOutputs.join(', ')}`,
-      'Build stage-tamagotchi dependencies manually before this smoke. The smoke command does not auto-build them to avoid saturating the local machine.',
-      "Suggested command: pnpm -F '@proj-airi/stage-tamagotchi^...' --if-present build",
-    ].join(' '),
-  )
+  throw new Error([
+    'APP_START_FAILED: required workspace build outputs are missing.',
+    `Missing: ${missingOutputs.join(', ')}`,
+    'Build stage-tamagotchi dependencies manually before this smoke. The smoke command does not auto-build them to avoid saturating the local machine.',
+    'Suggested command: pnpm -F \'@proj-airi/stage-tamagotchi^...\' --if-present build',
+  ].join(' '))
 }
 
 async function waitForRemoteDebug(debugPort: number): Promise<string> {
-  const version = await waitFor(
-    'Electron remote debug endpoint',
-    async () => {
-      const data = await fetchJson<{ webSocketDebuggerUrl?: string }>(`http://127.0.0.1:${debugPort}/json/version`)
-      return data.webSocketDebuggerUrl
-    },
-    120_000,
-    500,
-  )
+  const version = await waitFor('Electron remote debug endpoint', async () => {
+    const data = await fetchJson<{ webSocketDebuggerUrl?: string }>(`http://127.0.0.1:${debugPort}/json/version`)
+    return data.webSocketDebuggerUrl
+  }, 120_000, 500)
 
   return version
 }
 
 async function findOverlayTarget(debugPort: number): Promise<DebugTarget> {
-  return await waitFor(
-    'desktop overlay debug target',
-    async () => {
-      const targets = await fetchJson<DebugTarget[]>(`http://127.0.0.1:${debugPort}/json/list`)
-      return targets.find((target) => target.type === 'page' && target.url.includes('#/desktop-overlay'))
-    },
-    120_000,
-    500,
-  )
+  return await waitFor('desktop overlay debug target', async () => {
+    const targets = await fetchJson<DebugTarget[]>(`http://127.0.0.1:${debugPort}/json/list`)
+    return targets.find(target => target.type === 'page' && target.url.includes('#/desktop-overlay'))
+  }, 120_000, 500)
 }
 
 async function connectOverlayClient(debugPort: number): Promise<CdpClient> {
@@ -331,28 +329,17 @@ async function connectOverlayClient(debugPort: number): Promise<CdpClient> {
 
   const client = await CdpClient.connect(overlayTarget.webSocketDebuggerUrl)
 
-  await waitFor(
-    'overlay smoke bridge',
-    async () => {
-      return (await client.evaluate<boolean>('Boolean(window.__AIRI_DESKTOP_OVERLAY_SMOKE__?.callMcpTool)'))
-        ? true
-        : undefined
-    },
-    60_000,
-    500,
-  )
+  await waitFor('overlay smoke bridge', async () => {
+    return await client.evaluate<boolean>('Boolean(window.__AIRI_DESKTOP_OVERLAY_SMOKE__?.callMcpTool)')
+      ? true
+      : undefined
+  }, 60_000, 500)
 
   return client
 }
 
-async function callOverlayMcpTool(
-  client: CdpClient,
-  name: string,
-  args: Record<string, unknown> = {},
-): Promise<McpResult> {
-  const result = await client.evaluate<McpResult>(
-    `window.__AIRI_DESKTOP_OVERLAY_SMOKE__.callMcpTool(${JSON.stringify({ name, arguments: args })})`,
-  )
+async function callOverlayMcpTool(client: CdpClient, name: string, args: Record<string, unknown> = {}): Promise<McpResult> {
+  const result = await client.evaluate<McpResult>(`window.__AIRI_DESKTOP_OVERLAY_SMOKE__.callMcpTool(${JSON.stringify({ name, arguments: args })})`)
   if (result.isError) {
     throw new Error(`${name} returned isError=true`)
   }
@@ -360,48 +347,35 @@ async function callOverlayMcpTool(
 }
 
 async function ensureOverlayMcpServerReady(client: CdpClient): Promise<void> {
-  const applyResult = await client.evaluate<McpApplyResult>(
-    'window.__AIRI_DESKTOP_OVERLAY_SMOKE__.applyAndRestartMcp()',
-  )
-  const failedComputerUse = applyResult.failed.find((item) => item.name === 'computer_use')
+  const applyResult = await client.evaluate<McpApplyResult>('window.__AIRI_DESKTOP_OVERLAY_SMOKE__.applyAndRestartMcp()')
+  const failedComputerUse = applyResult.failed.find(item => item.name === 'computer_use')
   if (failedComputerUse) {
     throw new Error(`computer_use failed to start: ${failedComputerUse.error}`)
   }
 
-  await waitFor(
-    'computer_use MCP runtime',
-    async () => {
-      const status = await client.evaluate<McpRuntimeStatus>(
-        'window.__AIRI_DESKTOP_OVERLAY_SMOKE__.getMcpRuntimeStatus()',
-      )
-      const computerUse = status.servers.find((server) => server.name === 'computer_use')
-      if (computerUse?.state === 'error') {
-        throw new Error(`computer_use runtime error: ${computerUse.lastError ?? 'unknown error'}`)
-      }
-      return computerUse?.state === 'running' ? true : undefined
-    },
-    30_000,
-    500,
-  )
+  await waitFor('computer_use MCP runtime', async () => {
+    const status = await client.evaluate<McpRuntimeStatus>('window.__AIRI_DESKTOP_OVERLAY_SMOKE__.getMcpRuntimeStatus()')
+    const computerUse = status.servers.find(server => server.name === 'computer_use')
+    if (computerUse?.state === 'error') {
+      throw new Error(`computer_use runtime error: ${computerUse.lastError ?? 'unknown error'}`)
+    }
+    return computerUse?.state === 'running' ? true : undefined
+  }, 30_000, 500)
 
-  await waitFor(
-    'computer_use desktop tools',
-    async () => {
-      const tools = await client.evaluate<McpToolDescriptor[]>('window.__AIRI_DESKTOP_OVERLAY_SMOKE__.listMcpTools()')
-      const names = new Set(tools.map((tool) => tool.name))
-      return names.has('computer_use::desktop_get_state') &&
-        names.has('computer_use::desktop_observe') &&
-        names.has('computer_use::desktop_click_target')
-        ? true
-        : undefined
-    },
-    30_000,
-    500,
-  )
+  await waitFor('computer_use desktop tools', async () => {
+    const tools = await client.evaluate<McpToolDescriptor[]>('window.__AIRI_DESKTOP_OVERLAY_SMOKE__.listMcpTools()')
+    const names = new Set(tools.map(tool => tool.name))
+    return names.has('computer_use::desktop_get_state')
+      && names.has('computer_use::desktop_observe')
+      && names.has('computer_use::desktop_click_target')
+      ? true
+      : undefined
+  }, 30_000, 500)
 }
 
 function requireStructuredContent(result: McpResult, label: string): Record<string, unknown> {
-  if (!isRecord(result.structuredContent)) throw new Error(`${label} missing structuredContent`)
+  if (!isRecord(result.structuredContent))
+    throw new Error(`${label} missing structuredContent`)
 
   if (result.structuredContent.status && result.structuredContent.status !== 'ok')
     throw new Error(`${label} expected status=ok, got ${String(result.structuredContent.status)}`)
@@ -411,7 +385,8 @@ function requireStructuredContent(result: McpResult, label: string): Record<stri
 
 function requireRunState(result: McpResult, label: string): Record<string, unknown> {
   const structuredContent = requireStructuredContent(result, label)
-  if (!isRecord(structuredContent.runState)) throw new Error(`${label} missing runState`)
+  if (!isRecord(structuredContent.runState))
+    throw new Error(`${label} missing runState`)
   return structuredContent.runState
 }
 
@@ -449,7 +424,8 @@ function startStage(debugPort: number, heartbeatLines: string[]): ChildProcessWi
 }
 
 async function stopStage(stageProcess: ChildProcessWithoutNullStreams | undefined) {
-  if (!stageProcess || stageProcess.exitCode !== null) return
+  if (!stageProcess || stageProcess.exitCode !== null)
+    return
 
   const signalStageProcessGroup = (signal: NodeJS.Signals) => {
     try {
@@ -457,7 +433,8 @@ async function stopStage(stageProcess: ChildProcessWithoutNullStreams | undefine
         killProcess(-stageProcess.pid, signal)
         return
       }
-    } catch {
+    }
+    catch {
       // Fall back to the pnpm wrapper process if process-group signalling is
       // unavailable. The smoke starts a detached group to make this reliable on
       // macOS, but the fallback keeps the helper safe on other local setups.
@@ -468,7 +445,7 @@ async function stopStage(stageProcess: ChildProcessWithoutNullStreams | undefine
 
   signalStageProcessGroup('SIGTERM')
   await Promise.race([
-    new Promise((resolve) => stageProcess.once('exit', resolve)),
+    new Promise(resolve => stageProcess.once('exit', resolve)),
     sleep(5_000).then(() => signalStageProcessGroup('SIGKILL')),
   ])
 }
@@ -500,12 +477,18 @@ async function main() {
         console.error(`APP_START_FAILED: stage-tamagotchi exited with code=${code} signal=${String(signal)}`)
     })
 
-    await Promise.race([waitForRemoteDebug(debugPort), stageExited]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+    await Promise.race([
+      waitForRemoteDebug(debugPort),
+      stageExited,
+    ]).catch((error) => {
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
     })
 
-    overlayClient = await Promise.race([connectOverlayClient(debugPort), stageExited]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+    overlayClient = await Promise.race([
+      connectOverlayClient(debugPort),
+      stageExited,
+    ]).catch((error) => {
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
     })
 
     // NOTICE:
@@ -515,17 +498,16 @@ async function main() {
     // target. This is local smoke harness discipline, not product runtime.
     await sleep(5_000)
     overlayClient.close()
-    overlayClient = await Promise.race([connectOverlayClient(debugPort), stageExited]).catch((error) => {
-      throw new Error(`APP_START_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+    overlayClient = await Promise.race([
+      connectOverlayClient(debugPort),
+      stageExited,
+    ]).catch((error) => {
+      throw new Error(`APP_START_FAILED: ${errorMessageFromValue(error)}`)
     })
 
-    const readiness = await overlayClient.evaluate<{ state: 'booting' | 'ready' | 'degraded'; error?: string }>(
-      'window.__AIRI_DESKTOP_OVERLAY_SMOKE__.getReadiness()',
-    )
+    const readiness = await overlayClient.evaluate<{ state: 'booting' | 'ready' | 'degraded', error?: string }>('window.__AIRI_DESKTOP_OVERLAY_SMOKE__.getReadiness()')
     if (readiness.state !== 'ready') {
-      throw new Error(
-        `OVERLAY_READINESS_DEGRADED: state=${readiness.state}${readiness.error ? ` error=${readiness.error}` : ''}`,
-      )
+      throw new Error(`OVERLAY_READINESS_DEGRADED: state=${readiness.state}${readiness.error ? ` error=${readiness.error}` : ''}`)
     }
 
     try {
@@ -549,38 +531,26 @@ async function main() {
       )
       const pointerIntent = postClickRunState.lastPointerIntent
       assert(isRecord(pointerIntent), 'computer_use::desktop_get_state missing lastPointerIntent after click')
-      assert(
-        pointerIntent.candidateId === candidateId,
-        `lastPointerIntent candidate mismatch: expected ${candidateId}, got ${String(pointerIntent.candidateId)}`,
-      )
-    } catch (error) {
-      throw new Error(`MCP_CALL_FAILED: ${error instanceof Error ? error.message : String(error)}`)
+      assert(pointerIntent.candidateId === candidateId, `lastPointerIntent candidate mismatch: expected ${candidateId}, got ${String(pointerIntent.candidateId)}`)
+    }
+    catch (error) {
+      throw new Error(`MCP_CALL_FAILED: ${errorMessageFromValue(error)}`)
     }
 
-    const heartbeat = await waitFor(
-      'overlay poll heartbeat',
-      () => {
-        return heartbeatLines.find((line) => line.includes('snapshotId=') && line.includes('pointerIntent=yes'))
-      },
-      30_000,
-      250,
-    ).catch((error) => {
-      throw new Error(`HEARTBEAT_TIMEOUT: ${error instanceof Error ? error.message : String(error)}`)
+    const heartbeat = await waitFor('overlay poll heartbeat', () => {
+      return heartbeatLines.find(line => line.includes('snapshotId=') && line.includes('pointerIntent=yes'))
+    }, 30_000, 250).catch((error) => {
+      throw new Error(`HEARTBEAT_TIMEOUT: ${errorMessageFromValue(error)}`)
     })
 
-    console.info(
-      JSON.stringify(
-        {
-          ok: true,
-          reportDir,
-          stageLogPath,
-          heartbeat,
-        },
-        null,
-        2,
-      ),
-    )
-  } finally {
+    console.info(JSON.stringify({
+      ok: true,
+      reportDir,
+      stageLogPath,
+      heartbeat,
+    }, null, 2))
+  }
+  finally {
     overlayClient?.close()
     stoppingStage = true
     await stopStage(stageProcess)
@@ -589,7 +559,7 @@ async function main() {
 
 if (import.meta.main) {
   main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error))
+    console.error(errorMessageFromValue(error))
     console.error(`stage log: ${stageLogPath}`)
     exit(1)
   })

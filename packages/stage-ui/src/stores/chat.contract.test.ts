@@ -6,12 +6,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
+import {
+  AIRI_CHAT_APP_SURFACE_HEADER,
+  AIRI_CHAT_ROUND_ID_HEADER,
+  AIRI_CHAT_SESSION_ID_HEADER,
+} from '../libs/analytics-headers'
 import { useChatOrchestratorStore } from './chat'
-import { usePatternDisruptorStore } from './pattern-disruptor'
 
 vi.hoisted(() => {
-  // deepsource:issue=JS-0323
-  ;(globalThis as Record<string, unknown>).window = {
+  ;(globalThis as any).window = {
     location: {
       origin: 'http://localhost',
     },
@@ -19,8 +22,8 @@ vi.hoisted(() => {
 })
 
 const ioTracerMocks = vi.hoisted(() => {
-  const activeTurnSpan = { value: undefined as unknown }
-  const spans: Record<string, unknown>[] = []
+  const activeTurnSpan = { value: undefined as any }
+  const spans: any[] = []
   const startSpanMock = vi.fn((name: string) => {
     const span = {
       name,
@@ -41,6 +44,27 @@ const ioTracerMocks = vi.hoisted(() => {
 
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
+const chatAnalyticsMocks = vi.hoisted(() => ({
+  trackAiGeneration: vi.fn(),
+  trackAssistantResponseRendered: vi.fn(),
+  trackChatActivationFailed: vi.fn(),
+  trackChatActivationStarted: vi.fn(),
+  trackChatActivationSucceeded: vi.fn(),
+  trackLlmFirstToken: vi.fn(),
+  trackLlmRequestStarted: vi.fn(),
+  trackMessageRound: vi.fn(),
+  trackMessageRoundFailed: vi.fn(),
+  trackMessageSendStarted: vi.fn(),
+  trackMessageSent: vi.fn(),
+  trackSecondTurnStarted: vi.fn(),
+}))
+const trackSecondTurnStartedMock = chatAnalyticsMocks.trackSecondTurnStarted
+const redundantChatAnalyticsMocks = vi.hoisted(() => ({
+  trackAssistantResponseCompleted: vi.fn(),
+  trackChatFailed: vi.fn(),
+  trackChatStarted: vi.fn(),
+  trackFeatureUsed: vi.fn(),
+}))
 const ingestContextMessageMock = vi.fn()
 const getContextsSnapshotMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
@@ -49,33 +73,40 @@ const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 
 const activeSessionIdRef = ref('session-1')
-const activeCardIdRef = ref('card-1')
-const activeCardRef = ref<unknown>(undefined)
-const streamingMessageRef = ref<{ role: string; content: string; slices: unknown[]; tool_results: unknown[] }>({
-  role: 'assistant',
-  content: '',
-  slices: [],
-  tool_results: [],
-})
-const sessionMessages: Record<string, unknown[]> = {}
+const activeProviderRef = ref('mock-provider')
+const activeModelRef = ref('gpt-test')
+const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+const sessionMessages: Record<string, any[]> = {}
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
   return {
     ...actual,
-    storeToRefs: (store: unknown) => store,
+    storeToRefs: (store: any) => store,
   }
 })
 
 vi.mock('../composables', () => ({
+  getConversationAnalyticsSurface: () => 'web',
   useAnalytics: () => ({
     trackFirstMessage: trackFirstMessageMock,
-    trackMessageSendStarted: vi.fn(),
-    trackLlmRequestStarted: vi.fn(),
-    trackLlmFirstToken: vi.fn(),
-    trackAssistantResponseRendered: vi.fn(),
-    trackMessageRound: vi.fn(),
+    trackChatFailed: redundantChatAnalyticsMocks.trackChatFailed,
+    trackChatStarted: redundantChatAnalyticsMocks.trackChatStarted,
+    trackMessageSendStarted: chatAnalyticsMocks.trackMessageSendStarted,
+    trackMessageSent: chatAnalyticsMocks.trackMessageSent,
+    trackLlmRequestStarted: chatAnalyticsMocks.trackLlmRequestStarted,
+    trackLlmFirstToken: chatAnalyticsMocks.trackLlmFirstToken,
+    trackAiGeneration: chatAnalyticsMocks.trackAiGeneration,
+    trackAssistantResponseRendered: chatAnalyticsMocks.trackAssistantResponseRendered,
+    trackAssistantResponseCompleted: redundantChatAnalyticsMocks.trackAssistantResponseCompleted,
+    trackMessageRound: chatAnalyticsMocks.trackMessageRound,
+    trackMessageRoundFailed: chatAnalyticsMocks.trackMessageRoundFailed,
+    trackFeatureUsed: redundantChatAnalyticsMocks.trackFeatureUsed,
+    trackChatActivationStarted: chatAnalyticsMocks.trackChatActivationStarted,
+    trackChatActivationSucceeded: chatAnalyticsMocks.trackChatActivationSucceeded,
+    trackChatActivationFailed: chatAnalyticsMocks.trackChatActivationFailed,
+    trackSecondTurnStarted: trackSecondTurnStartedMock,
   }),
 }))
 
@@ -103,7 +134,7 @@ vi.mock('./chat/session-store', () => ({
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
     },
-    appendSessionMessage: (sessionId: string, message: unknown) => {
+    appendSessionMessage: (sessionId: string, message: any) => {
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
@@ -137,14 +168,14 @@ vi.mock('./llm-toolset-prompts', () => ({
 
 vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
-    activeProvider: ref('mock-provider'),
+    activeModel: activeModelRef,
+    activeProvider: activeProviderRef,
   }),
 }))
 
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
-    activeCardId: activeCardIdRef,
-    activeCard: activeCardRef.value,
+    activeCard: undefined,
   }),
 }))
 
@@ -152,6 +183,13 @@ vi.mock('./modules/artistry-autonomous', () => ({
   useAutonomousArtistryStore: () => ({
     runArtistTask: vi.fn(),
   }),
+}))
+
+// The chat orchestrator instantiates the web-search store for its side effect
+// (registering the web-search toolset prompt); stub it so the contract test does
+// not pull in the real store's toolset-prompt watcher.
+vi.mock('./modules/web-search', () => ({
+  useWebSearchStore: () => ({}),
 }))
 
 const provider = {
@@ -163,6 +201,12 @@ describe('chat orchestrator contract', () => {
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
+    for (const analyticsMock of Object.values(chatAnalyticsMocks))
+      analyticsMock.mockReset()
+    redundantChatAnalyticsMocks.trackAssistantResponseCompleted.mockReset()
+    redundantChatAnalyticsMocks.trackChatFailed.mockReset()
+    redundantChatAnalyticsMocks.trackChatStarted.mockReset()
+    redundantChatAnalyticsMocks.trackFeatureUsed.mockReset()
     ingestContextMessageMock.mockReset()
     getContextsSnapshotMock.mockReset()
     getContextsSnapshotMock.mockReturnValue({})
@@ -175,17 +219,176 @@ describe('chat orchestrator contract', () => {
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
-    activeCardIdRef.value = 'card-1'
-    activeCardRef.value = undefined
+    activeProviderRef.value = 'mock-provider'
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
     for (const key of Object.keys(sessionMessages)) {
-      // eslint-disable-next-line ts/no-dynamic-delete
       delete sessionMessages[key]
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  it('forwards one correlation identity across every PostHog chat milestone', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const messageProperties = chatAnalyticsMocks.trackMessageSent.mock.calls[0]?.[0]
+    expect(messageProperties).toMatchObject({
+      conversation_id: 'session-1',
+      round_id: messageProperties.message_id,
+      turn_index: 1,
+    })
+
+    const correlation = {
+      conversation_id: 'session-1',
+      round_id: messageProperties.round_id,
+      turn_index: 1,
+    }
+    expect(chatAnalyticsMocks.trackMessageSendStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackLlmRequestStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackLlmFirstToken).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackAssistantResponseRendered).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackChatActivationStarted).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    expect(chatAnalyticsMocks.trackChatActivationSucceeded).toHaveBeenCalledWith(expect.objectContaining(correlation))
+  })
+
+  it('captures custom-provider usage once and leaves official generation capture to the server', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onUsage({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('custom turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
+      round_id: expect.any(String),
+      provider_type: 'custom',
+      provider_id: 'mock-provider',
+      model_id: 'gpt-test',
+      usage_source: 'reported',
+      input_tokens: 12,
+      output_tokens: 8,
+      total_tokens: 20,
+    })
+
+    chatAnalyticsMocks.trackAiGeneration.mockClear()
+    activeProviderRef.value = 'official-provider'
+    await store.ingest('official turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).not.toHaveBeenCalled()
+    expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
+      [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+  })
+
+  it('emits second turn analytics from chat sends', async () => {
+    activeProviderRef.value = 'official-provider'
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+
+    await store.ingest('first turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+    await store.ingest('second turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(trackSecondTurnStartedMock).toHaveBeenCalledTimes(1)
+    expect(trackSecondTurnStartedMock).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
+      provider_id: 'official-provider',
+      provider_mode: 'official',
+      model_id: 'chat-auto',
+      round_id: expect.any(String),
+      source: 'text',
+      turn_index: 2,
+    })
+  })
+
+  // ROOT CAUSE:
+  //
+  // One successful send emitted both the canonical message/latency events
+  // and four generic aliases, multiplying PostHog volume without adding a
+  // distinct product decision.
+  it('does not emit redundant generic chat aliases for a successful send', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(redundantChatAnalyticsMocks.trackChatStarted).not.toHaveBeenCalled()
+    expect(redundantChatAnalyticsMocks.trackAssistantResponseCompleted).not.toHaveBeenCalled()
+    expect(redundantChatAnalyticsMocks.trackChatFailed).not.toHaveBeenCalled()
+    expect(redundantChatAnalyticsMocks.trackFeatureUsed).not.toHaveBeenCalled()
+  })
+
+  it('forwards later-turn failures to the canonical round failure event', async () => {
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+    llmStreamMock.mockRejectedValueOnce(new Error('later turn rejected'))
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('first turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    await expect(store.ingest('second turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('later turn rejected')
+
+    expect(chatAnalyticsMocks.trackChatActivationFailed).not.toHaveBeenCalled()
+    expect(chatAnalyticsMocks.trackMessageRoundFailed).toHaveBeenCalledWith({
+      conversation_id: 'session-1',
+      error_code: 'llm_response_failed',
+      failure_stage: 'llm_response',
+      model_id: 'gpt-test',
+      provider_id: 'mock-provider',
+      round_id: expect.any(String),
+      source: 'text',
+      turn_index: 2,
+    })
   })
 
   it('keeps hook order and composes context prompt after system message', async () => {
@@ -204,16 +407,14 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue(contextsSnapshot)
 
     let composedMessages: Message[] = []
-    llmStreamMock.mockImplementation(
-      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: Record<string, unknown>) => {
-        composedMessages = messages
-        expect(options.waitForTools).toBe(true)
-        expect(options.captureToolErrors).toBe(true)
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+      composedMessages = messages
+      expect(options.waitForTools).toBe(true)
+      expect(options.captureToolErrors).toBe(true)
 
-        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'text-delta', text: 'hello' })
-        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'finish', finishReason: 'stop' })
-      },
-    )
+      await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
 
     const store = useChatOrchestratorStore()
     const hookOrder: string[] = []
@@ -280,11 +481,8 @@ describe('chat orchestrator contract', () => {
     // the prefix permanently KV-cache friendly across turns and across day
     // boundaries (the date now lives inside per-message timestamp prefixes
     // instead of a system anchor).
-    const systemContent = (composedMessages[0] as Message & { content: unknown }).content
-    const systemText =
-      typeof systemContent === 'string'
-        ? systemContent
-        : (systemContent as { text: string }[]).map((p) => p.text).join('')
+    const systemContent = (composedMessages[0] as any).content
+    const systemText = typeof systemContent === 'string' ? systemContent : systemContent.map((p: any) => p.text).join('')
     expect(systemText).toContain('system prompt')
     expect(systemText).toContain('Plugin toolset guidance.')
 
@@ -293,7 +491,7 @@ describe('chat orchestrator contract', () => {
     // "current" turn becomes "historic" on the next send. Side-channel context
     // (weather) is appended as a separate text part so providers don't see
     // consecutive same-role messages.
-    const userMessageContent = (composedMessages[1] as Message & { content: { text: string }[] }).content
+    const userMessageContent = (composedMessages[1] as any).content
     expect(userMessageContent[0].text).toMatch(/^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}\] hello from user$/)
 
     const syntheticContextText = userMessageContent[1].text
@@ -301,89 +499,6 @@ describe('chat orchestrator contract', () => {
     expect(syntheticContextText).not.toContain('<module ')
     expect(syntheticContextText).toContain('[Context]')
     expect(syntheticContextText).toContain('- system:weather: sunny')
-  })
-
-  it('appends pattern disruptor guidance when the active card enables it', async () => {
-    activeCardRef.value = {
-      extensions: {
-        airi: {
-          modules: {
-            patternDisruptor: {
-              enabled: true,
-              randomWords: {
-                enabled: true,
-                wordCount: 1,
-                customPrompt: 'Pattern words: {{words}}',
-              },
-              synonyms: {
-                enabled: false,
-              },
-            },
-          },
-        },
-      },
-    }
-
-    let composedMessages: Message[] = []
-    llmStreamMock.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
-      composedMessages = messages
-      await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
-      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
-    })
-
-    const store = useChatOrchestratorStore()
-    await store.ingest('the garden feels quiet tonight', {
-      model: 'gpt-test',
-      chatProvider: provider,
-    })
-
-    const systemContent = (composedMessages[0] as Message & { content: unknown }).content
-    const systemText =
-      typeof systemContent === 'string'
-        ? systemContent
-        : (systemContent as { text: string }[]).map((p) => p.text).join('')
-    expect(systemText).toContain('Plugin toolset guidance.')
-    expect(systemText).toContain('Pattern words:')
-  })
-
-  it('resets pattern disruptor state when the active session or card changes', async () => {
-    useChatOrchestratorStore()
-    const patternDisruptorStore = usePatternDisruptorStore()
-    const prepareTurn = () => {
-      patternDisruptorStore.prepareForUserTurn({
-        settings: {
-          enabled: true,
-          randomWords: {
-            enabled: true,
-            wordCount: 1,
-            customPrompt: 'Pattern words: {{ words }}',
-          },
-          synonyms: { enabled: false },
-        },
-        messageText: 'the garden feels quiet tonight',
-        sessionMessages: [],
-      })
-    }
-
-    prepareTurn()
-    expect(patternDisruptorStore.activePromptSupplement).toContain('Pattern words:')
-    expect(patternDisruptorStore.wordHistory).toHaveLength(1)
-
-    activeSessionIdRef.value = 'session-2'
-    await nextTick()
-
-    expect(patternDisruptorStore.activePromptSupplement).toBe('')
-    expect(patternDisruptorStore.wordHistory).toEqual([])
-
-    prepareTurn()
-    expect(patternDisruptorStore.activePromptSupplement).toContain('Pattern words:')
-    expect(patternDisruptorStore.wordHistory).toHaveLength(1)
-
-    activeCardIdRef.value = 'card-2'
-    await nextTick()
-
-    expect(patternDisruptorStore.activePromptSupplement).toBe('')
-    expect(patternDisruptorStore.wordHistory).toEqual([])
   })
 
   it('emits special tokens for speech timeline handling during chat streaming', async () => {
@@ -401,12 +516,9 @@ describe('chat orchestrator contract', () => {
       model: 'mock-model',
     })
 
-    expect(specialHook).toHaveBeenCalledWith(
-      '<|CALL ["plugin.action"]|>',
-      expect.objectContaining({
-        contexts: {},
-      }),
-    )
+    expect(specialHook).toHaveBeenCalledWith('<|CALL ["plugin.action"]|>', expect.objectContaining({
+      contexts: {},
+    }))
   })
 
   /**
@@ -451,11 +563,12 @@ describe('chat orchestrator contract', () => {
       expect(store.sending).toBe(true)
     })
     await vi.waitFor(() => {
-      expect(ioTracerMocks.spans.some((span) => span.name === IOSpanNames.InteractionTurn)).toBe(true)
+      expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.InteractionTurn)).toBe(true)
     })
 
-    const turnSpan = ioTracerMocks.spans.find((span) => span.name === IOSpanNames.InteractionTurn)
-    if (!turnSpan) throw new Error('Expected the chat facade to create an interaction turn span')
+    const turnSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.InteractionTurn)
+    if (!turnSpan)
+      throw new Error('Expected the chat facade to create an interaction turn span')
 
     store.sending = false
     await nextTick()
@@ -489,16 +602,11 @@ describe('chat orchestrator contract', () => {
     getContextsSnapshotMock.mockReturnValue({
       'system:minecraft': [minecraftContext],
     })
-    llmStreamMock.mockImplementation(
-      async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: Record<string, unknown>) => {
-        composedMessages = messages
-        await (options.onStreamEvent as (event: unknown) => Promise<void>)({
-          type: 'text-delta',
-          text: 'minecraft reply',
-        })
-        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'finish', finishReason: 'stop' })
-      },
-    )
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
+      composedMessages = messages
+      await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
 
     const store = useChatOrchestratorStore()
 
@@ -648,12 +756,10 @@ describe('chat orchestrator contract', () => {
   it('uses forked session id in ingestOnFork and keeps public store contract keys', async () => {
     getContextsSnapshotMock.mockReturnValue({})
     forkSessionMock.mockResolvedValue('session-forked')
-    llmStreamMock.mockImplementation(
-      async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: Record<string, unknown>) => {
-        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'text-delta', text: 'fork-reply' })
-        await (options.onStreamEvent as (event: unknown) => Promise<void>)({ type: 'finish', finishReason: 'stop' })
-      },
-    )
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'fork-reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
 
     const store = useChatOrchestratorStore()
 
@@ -664,19 +770,15 @@ describe('chat orchestrator contract', () => {
     expect(typeof store.onBeforeSend).toBe('function')
     expect(typeof store.emitBeforeSendHooks).toBe('function')
 
-    await store.ingestOnFork(
-      'fork me',
-      {
-        model: 'gpt-test',
-        chatProvider: provider,
-      },
-      {
-        fromSessionId: 'session-1',
-        atIndex: 3,
-        reason: 'retry',
-        hidden: true,
-      },
-    )
+    await store.ingestOnFork('fork me', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, {
+      fromSessionId: 'session-1',
+      atIndex: 3,
+      reason: 'retry',
+      hidden: true,
+    })
 
     expect(forkSessionMock).toHaveBeenCalledWith({
       fromSessionId: 'session-1',

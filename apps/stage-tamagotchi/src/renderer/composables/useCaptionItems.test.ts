@@ -13,16 +13,17 @@ describe('useCaptionItems', () => {
       vi.advanceTimersByTime(500)
       captions.add({ type: 'caption-speaker', text: 'second' })
 
-      expect(captions.items.value.map((item) => item.text)).toEqual(['first', 'second'])
+      expect(captions.items.value.map(item => item.text)).toEqual(['first', 'second'])
 
       vi.advanceTimersByTime(500)
 
-      expect(captions.items.value.map((item) => item.text)).toEqual(['second'])
+      expect(captions.items.value.map(item => item.text)).toEqual(['second'])
 
       vi.advanceTimersByTime(500)
 
       expect(captions.items.value).toEqual([])
-    } finally {
+    }
+    finally {
       vi.useRealTimers()
     }
   })
@@ -37,12 +38,13 @@ describe('useCaptionItems', () => {
       captions.add({ type: 'caption-assistant', text: 'assistant' })
       captions.add({ type: 'caption-speaker', text: '' })
 
-      expect(captions.items.value.map((item) => item.text)).toEqual(['assistant'])
+      expect(captions.items.value.map(item => item.text)).toEqual(['assistant'])
 
       vi.advanceTimersByTime(1000)
 
       expect(captions.items.value).toEqual([])
-    } finally {
+    }
+    finally {
       vi.useRealTimers()
     }
   })

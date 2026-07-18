@@ -1,6 +1,8 @@
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/strip-markdown.ts'],
+  entry: [
+    'src/index.ts',
+  ],
   dts: true,
 })

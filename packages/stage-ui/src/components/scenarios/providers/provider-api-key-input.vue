@@ -3,21 +3,13 @@ import { FieldInput } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const props = withDefaults(
-  defineProps<{
-    providerName: string
-    placeholder?: string
-    required?: boolean
-    label?: string
-    description?: string
-  }>(),
-  {
-    placeholder: '',
-    required: false,
-    label: '',
-    description: '',
-  },
-)
+const props = defineProps<{
+  providerName: string
+  placeholder?: string
+  required?: boolean
+  label?: string
+  description?: string
+}>()
 
 const { t } = useI18n()
 

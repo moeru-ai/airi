@@ -9,7 +9,10 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { useSettings } from '../../../../stores/settings'
-import { createEmptyModelSettingsRuntimeSnapshot, resolveComponentStateToRuntimePhase } from './runtime'
+import {
+  createEmptyModelSettingsRuntimeSnapshot,
+  resolveComponentStateToRuntimePhase,
+} from './runtime'
 
 const props = defineProps<{
   live2dSceneClass?: string | string[]
@@ -17,7 +20,9 @@ const props = defineProps<{
   spineSceneClass?: string | string[]
 }>()
 
-const emit = defineEmits<{ runtimeSnapshotChanged: [value: ModelSettingsRuntimeSnapshot] }>()
+const emit = defineEmits<{
+  (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
+}>()
 
 const settingsStore = useSettings()
 const modelStore = useModelStore()
@@ -28,10 +33,21 @@ const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
 
-const { stageModelSelected, stageModelSelectedUrl, stageModelRenderer, themeColorsHue, themeColorsHueDynamic } =
-  storeToRefs(settingsStore)
-const { spinePremultipliedAlpha, spineDefaultMixDuration, spineIdleAnimationEnabled, spineMaxFps, spineRenderScale } =
-  storeToRefs(settingsStore)
+const {
+  stageModelSelected,
+  stageModelSelectedUrl,
+  stageModelRenderer,
+  themeColorsHue,
+  themeColorsHueDynamic,
+
+} = storeToRefs(settingsStore)
+const {
+  spinePremultipliedAlpha,
+  spineDefaultMixDuration,
+  spineIdleAnimationEnabled,
+  spineMaxFps,
+  spineRenderScale,
+} = storeToRefs(settingsStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
@@ -39,34 +55,36 @@ const vrmSceneClassList = computed(() => normalizeClassList(props.vrmSceneClass)
 const spineSceneClassList = computed(() => normalizeClassList(props.spineSceneClass))
 
 function normalizeClassList(value?: string | string[]) {
-  if (!value) return []
+  if (!value)
+    return []
 
   return typeof value === 'string' ? [value] : value
 }
 
 function captureCanvasFrame(canvas?: HTMLCanvasElement) {
   return new Promise<Blob | undefined>((resolve) => {
-    if (!canvas) {
-      resolve(undefined)
-      return
-    }
+    if (!canvas)
+      return resolve(undefined)
 
-    canvas.toBlob((blob) => resolve(blob ?? undefined))
+    canvas.toBlob(blob => resolve(blob ?? undefined))
   })
 }
 
-function capturePreviewFrame() {
-  if (stageModelRenderer.value === 'live2d') return captureCanvasFrame(live2dSceneRef.value?.canvasElement())
+async function capturePreviewFrame() {
+  if (stageModelRenderer.value === 'live2d')
+    return captureCanvasFrame(live2dSceneRef.value?.canvasElement())
 
-  if (stageModelRenderer.value === 'vrm') return captureCanvasFrame(vrmSceneRef.value?.canvasElement())
+  if (stageModelRenderer.value === 'vrm')
+    return captureCanvasFrame(vrmSceneRef.value?.canvasElement())
 
-  if (stageModelRenderer.value === 'spine') return captureCanvasFrame(spineSceneRef.value?.canvasElement())
+  if (stageModelRenderer.value === 'spine')
+    return captureCanvasFrame(spineSceneRef.value?.canvasElement())
 
   return undefined
 }
 
 const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
-  const hasModel = Boolean(stageModelSelectedUrl.value)
+  const hasModel = !!stageModelSelectedUrl.value
 
   if (stageModelRenderer.value === 'live2d') {
     const phase = resolveComponentStateToRuntimePhase(live2dComponentState.value, { hasModel })
@@ -77,7 +95,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
-      canCapturePreview: Boolean(live2dSceneRef.value?.canvasElement()),
+      canCapturePreview: !!live2dSceneRef.value?.canvasElement(),
       updatedAt: Date.now(),
     })
   }
@@ -89,7 +107,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       phase: hasModel ? scenePhase.value : 'no-model',
       controlsLocked: hasModel ? sceneMutationLocked.value : false,
       previewAvailable: hasModel,
-      canCapturePreview: Boolean(vrmSceneRef.value?.canvasElement()),
+      canCapturePreview: !!vrmSceneRef.value?.canvasElement(),
       updatedAt: Date.now(),
     })
   }
@@ -103,7 +121,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
-      canCapturePreview: Boolean(spineSceneRef.value?.canvasElement()),
+      canCapturePreview: !!spineSceneRef.value?.canvasElement(),
       updatedAt: Date.now(),
     })
   }
@@ -126,7 +144,7 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   })
 })
 
-watch(runtimeSnapshot, (snapshot) => emit('runtimeSnapshotChanged', snapshot), { immediate: true })
+watch(runtimeSnapshot, snapshot => emit('runtimeSnapshotChanged', snapshot), { immediate: true })
 
 defineExpose({
   capturePreviewFrame,

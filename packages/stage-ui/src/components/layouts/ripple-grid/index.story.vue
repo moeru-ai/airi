@@ -26,14 +26,21 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
 </script>
 
 <template>
-  <Story title="RippleGrid" group="common" :layout="{ type: 'grid', width: '100%' }">
-    <Variant id="sections" title="With Sections">
+  <Story
+    title="RippleGrid"
+    group="common"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
+    <Variant
+      id="sections"
+      title="With Sections"
+    >
       <div p-4>
         <RippleGrid
           :key="renderKey"
           :sections="sections"
-          :get-items="(s) => s.items"
-          :get-key="(i) => i.id"
+          :get-items="s => s.items"
+          :get-key="i => i.id"
           :columns="{ default: 6, md: 8, xl: 10 }"
           :origin-index="lastClickedIndex"
           @item-click="handleItemClick"
@@ -45,19 +52,9 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
           </template>
           <template #item="{ item, active }">
             <div
-              h-24
-              flex
-              items-center
-              justify-center
-              border-2
-              rounded-lg
-              transition-colors
-              duration-200
-              :class="
-                active
-                  ? 'bg-primary-500 text-white border-primary-600'
-                  : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700'
-              "
+
+              h-24 flex items-center justify-center border-2 rounded-lg transition-colors duration-200
+              :class="active ? 'bg-primary-500 text-white border-primary-600' : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700'"
             >
               {{ item.label }}
             </div>
@@ -66,7 +63,10 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
       </div>
     </Variant>
 
-    <Variant id="flat" title="No Sections (Flat List)">
+    <Variant
+      id="flat"
+      title="No Sections (Flat List)"
+    >
       <div p-4>
         <RippleGrid
           :key="renderKey"
@@ -77,19 +77,9 @@ function handleItemClick({ globalIndex }: { globalIndex: number }) {
         >
           <template #item="{ item, active }">
             <div
-              h-24
-              flex
-              items-center
-              justify-center
-              border-2
-              rounded-lg
-              transition-colors
-              duration-200
-              :class="
-                active
-                  ? 'bg-emerald-500 text-white border-emerald-600'
-                  : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700'
-              "
+
+              h-24 flex items-center justify-center border-2 rounded-lg transition-colors duration-200
+              :class="active ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-neutral-100 dark:bg-neutral-800 border-transparent hover:bg-neutral-200 dark:hover:bg-neutral-700'"
             >
               {{ item.label }}
             </div>

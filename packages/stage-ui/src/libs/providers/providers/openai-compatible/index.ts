@@ -6,8 +6,13 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const openAICompatibleConfigSchema = z.object({
-  apiKey: z.string('API Key').optional(),
-  baseUrl: z.string('Base URL').optional().default('https://api.openai.com/v1'),
+  apiKey: z
+    .string('API Key')
+    .optional(),
+  baseUrl: z
+    .string('Base URL')
+    .optional()
+    .default('https://api.openai.com/v1'),
 })
 
 type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
@@ -22,38 +27,29 @@ export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig>({
   tasks: ['chat'],
   icon: 'i-lobe-icons:openai',
 
-  createProviderConfig: ({ t }) =>
-    openAICompatibleConfigSchema.extend({
-      apiKey: openAICompatibleConfigSchema.shape.apiKey.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-        type: 'password',
-      }),
-      baseUrl: openAICompatibleConfigSchema.shape.baseUrl.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
-        ),
-        placeholderLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
-        ),
-      }),
+  createProviderConfig: ({ t }) => openAICompatibleConfigSchema.extend({
+    apiKey: openAICompatibleConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
     }),
+    baseUrl: openAICompatibleConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
   createProvider(config) {
     return createOpenAI(config.apiKey as string, config.baseUrl)
   },
 
   validationRequiredWhen(config) {
-    return Boolean(config.apiKey?.trim())
+    return !!config.apiKey?.trim()
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [
-        ProviderValidationCheck.Connectivity,
-        ProviderValidationCheck.ModelList,
-        ProviderValidationCheck.ChatCompletions,
-      ],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })

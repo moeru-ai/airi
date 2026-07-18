@@ -11,7 +11,8 @@ const server = createServer({
 let stopping = false
 
 async function shutdown() {
-  if (stopping) return
+  if (stopping)
+    return
   stopping = true
   await server.stop()
   exit(0)

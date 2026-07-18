@@ -5,11 +5,7 @@ import type { SourcesOptions } from 'electron'
 import { errorMessageFrom } from '@moeru/std'
 import { ProcessingMeter } from '@proj-airi/stage-ui/components'
 import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
-import {
-  useVisionOrchestratorStore,
-  useVisionProcessingStore,
-  useVisionStore,
-} from '@proj-airi/stage-ui/stores/modules/vision'
+import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, ref } from 'vue'
@@ -35,7 +31,11 @@ const {
   contextUpdateRatePerMinute,
   processingHistoryMs,
 } = storeToRefs(visionProcessingStore)
-const { lastResultText, lastResultAt, lastError } = storeToRefs(visionOrchestratorStore)
+const {
+  lastResultText,
+  lastResultAt,
+  lastError,
+} = storeToRefs(visionOrchestratorStore)
 
 const sourcesOptions = ref<SourcesOptions>({
   types: ['screen', 'window'],
@@ -70,7 +70,7 @@ const categoryOptions = [
   { label: 'Displays', value: 'displays', icon: 'i-solar:screencast-2-line-duotone' },
 ]
 
-const workloadOptions = VISION_WORKLOADS.map((workload) => ({
+const workloadOptions = VISION_WORKLOADS.map(workload => ({
   label: workload.label,
   value: workload.id,
 }))
@@ -79,7 +79,8 @@ const isDisplaySource = (source: { id: string }) => source.id.startsWith('screen
 const isWindowSource = (source: { id: string }) => source.id.startsWith('window:')
 
 const filteredSources = computed(() => {
-  if (sourceCategory.value === 'applications') return sources.value.filter(isWindowSource)
+  if (sourceCategory.value === 'applications')
+    return sources.value.filter(isWindowSource)
   return sources.value.filter(isDisplaySource)
 })
 
@@ -89,19 +90,19 @@ const sourceCounts = computed(() => ({
 }))
 
 function getShareLabel(source: { id: string }) {
-  if (isDisplaySource(source)) return 'Share Screen'
+  if (isDisplaySource(source))
+    return 'Share Screen'
   return 'Share Window'
 }
 
 const statusLabel = computed(() => {
-  if (isRunning.value) return isProcessing.value ? 'Processing...' : 'Streaming'
+  if (isRunning.value)
+    return isProcessing.value ? 'Processing...' : 'Streaming'
   return activeStream.value ? 'Ready' : 'Idle'
 })
 
 const isInitialLoading = computed(() => !hasFetchedOnce.value && isRefetching.value)
-const refetchLabel = computed(() =>
-  isInitialLoading.value ? 'Loading...' : isRefetching.value ? 'Refetching...' : 'Refetch',
-)
+const refetchLabel = computed(() => (isInitialLoading.value ? 'Loading...' : isRefetching.value ? 'Refetching...' : 'Refetch'))
 const captureInputBounds = computed(() => {
   const scaleRatio = captureDownscalePercent.value / 100
 
@@ -112,7 +113,8 @@ const captureInputBounds = computed(() => {
 })
 
 const processingMaxMs = computed(() => {
-  if (!processingHistoryMs.value.length) return 500
+  if (!processingHistoryMs.value.length)
+    return 500
   return Math.max(500, ...processingHistoryMs.value)
 })
 
@@ -122,17 +124,20 @@ const expectedRateMax = computed(() => {
 })
 
 function hasLiveVideoStream(stream: MediaStream | null) {
-  if (!stream) return false
+  if (!stream)
+    return false
 
-  return stream.getVideoTracks().some((track) => track.readyState === 'live')
+  return stream.getVideoTracks().some(track => track.readyState === 'live')
 }
 
 async function ensureVideoStream() {
-  if (!activeSourceId.value) return
+  if (!activeSourceId.value)
+    return
 
   const stream = await startStream()
   const video = videoRef.value
-  if (!video) return
+  if (!video)
+    return
 
   video.srcObject = stream
   await video.play()
@@ -153,7 +158,8 @@ async function ensureVideoStream() {
 }
 
 async function handleVisionTick() {
-  if (!activeSourceId.value) return
+  if (!activeSourceId.value)
+    return
 
   try {
     if (!hasLiveVideoStream(activeStream.value)) {
@@ -162,10 +168,17 @@ async function handleVisionTick() {
     }
 
     const video = videoRef.value
-    if (!video) return
+    if (!video)
+      return
 
-    const dataUrl = captureFrame(video, 0.82, captureInputBounds.value.maxWidth, captureInputBounds.value.maxHeight)
-    if (!dataUrl) return
+    const dataUrl = captureFrame(
+      video,
+      0.82,
+      captureInputBounds.value.maxWidth,
+      captureInputBounds.value.maxHeight,
+    )
+    if (!dataUrl)
+      return
 
     screenshotDataUrl.value = dataUrl
     const capturedAt = Date.now()
@@ -178,12 +191,11 @@ async function handleVisionTick() {
       publishContext: sendContextUpdates.value,
     })
 
-    // eslint-disable-next-line consistent-return
     return { capturedAt, contextUpdates: result.contextUpdates }
-  } catch (error) {
+  }
+  catch (error) {
     visionOrchestratorStore.recordError(error)
     errorMessage.value = `Failed to interpret frame: ${errorMessageFrom(error)}`
-    // eslint-disable-next-line consistent-return
     return { capturedAt: Date.now(), contextUpdates: 0 }
   }
 }
@@ -197,7 +209,8 @@ async function startCaptureLoop() {
 
   try {
     await ensureVideoStream()
-  } catch (error) {
+  }
+  catch (error) {
     errorMessage.value = `Failed to start stream: ${errorMessageFrom(error)}`
     return
   }
@@ -205,7 +218,7 @@ async function startCaptureLoop() {
   visionProcessingStore.startTicker(handleVisionTick)
 }
 
-function stopCaptureLoop() {
+async function stopCaptureLoop() {
   visionProcessingStore.stopTicker()
   stopStream()
   if (videoRef.value) {
@@ -233,7 +246,8 @@ async function shareSource(sourceId: string) {
 
   try {
     await ensureVideoStream()
-  } catch (error) {
+  }
+  catch (error) {
     errorMessage.value = `Failed to start stream: ${errorMessageFrom(error)}`
   }
 }
@@ -250,22 +264,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <WithScreenCapture :sources-options="sourcesOptions" @permission-granted="handlePermissionGranted()">
+  <WithScreenCapture
+    :sources-options="sourcesOptions"
+    @permission-granted="handlePermissionGranted()"
+  >
     <template #default="{ hasPermissions, requestPermission }">
-      <div v-if="hasPermissions" :class="['flex', 'flex-col', 'gap-6']">
-        <div
-          :class="[
-            'flex',
-            'items-center',
-            'justify-between',
-            'rounded-xl',
-            'bg-neutral-100',
-            'p-4',
-            'dark:bg-[rgba(0,0,0,0.3)]',
-          ]"
-        >
+      <div
+        v-if="hasPermissions"
+        :class="['flex', 'flex-col', 'gap-6']"
+      >
+        <div :class="['flex', 'items-center', 'justify-between', 'rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
           <div :class="['flex', 'flex-col', 'gap-1']">
-            <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">Vision model</div>
+            <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              Vision model
+            </div>
             <div :class="['text-lg', 'font-semibold']">
               {{ activeModel || 'Not configured' }}
             </div>
@@ -278,16 +290,9 @@ onBeforeUnmount(() => {
         <div
           v-if="activeStream"
           :class="[
-            'flex',
-            'w-full',
-            'flex-col',
-            'gap-2',
-            'overflow-hidden',
-            'rounded-2xl',
-            'p-3',
-            'border-2',
-            'border-solid',
-            'border-primary-400/70',
+            'flex', 'w-full', 'flex-col', 'gap-2',
+            'overflow-hidden', 'rounded-2xl', 'p-3',
+            'border-2', 'border-solid', 'border-primary-400/70',
             'bg-primary-300/10',
           ]"
         >
@@ -305,33 +310,26 @@ onBeforeUnmount(() => {
             <div :class="['relative', 'overflow-hidden', 'rounded-lg']">
               <div
                 :class="[
-                  'absolute',
-                  'right-0',
-                  'top-0',
-                  'z-10',
-                  'flex',
-                  'h-full',
-                  'w-full',
-                  'cursor-pointer',
-                  'flex-col',
-                  'items-center',
-                  'justify-center',
-                  'gap-1',
-                  'rounded-lg',
-                  'bg-black/30',
-                  'text-light',
-                  'opacity-0',
-                  'backdrop-blur-sm',
-                  'transition-all',
-                  'duration-200',
-                  'hover:opacity-100',
+                  'absolute', 'right-0', 'top-0', 'z-10',
+                  'flex', 'h-full', 'w-full', 'cursor-pointer', 'flex-col',
+                  'items-center', 'justify-center', 'gap-1', 'rounded-lg',
+                  'bg-black/30', 'text-light', 'opacity-0', 'backdrop-blur-sm',
+                  'transition-all', 'duration-200', 'hover:opacity-100',
                 ]"
                 @click="stopActiveCapture()"
               >
                 <div :class="['i-solar:stop-line-duotone']" />
-                <div :class="['text-sm']">Stop</div>
+                <div :class="['text-sm']">
+                  Stop
+                </div>
               </div>
-              <video autoplay muted playsinline :srcObject="activeStream" :class="['h-140px', 'w-auto']" />
+              <video
+                autoplay
+                muted
+                playsinline
+                :srcObject="activeStream"
+                :class="['h-140px', 'w-auto']"
+              />
             </div>
           </div>
         </div>
@@ -344,12 +342,10 @@ onBeforeUnmount(() => {
                   <SelectTab
                     v-model="sourceCategory"
                     size="sm"
-                    :options="
-                      categoryOptions.map((option) => ({
-                        ...option,
-                        label: `${option.label} (${sourceCounts[option.value as SourceCategory]})`,
-                      }))
-                    "
+                    :options="categoryOptions.map(option => ({
+                      ...option,
+                      label: `${option.label} (${sourceCounts[option.value as SourceCategory]})`,
+                    }))"
                     :class="['flex-1']"
                   />
                   <Button
@@ -364,19 +360,11 @@ onBeforeUnmount(() => {
                 <div
                   v-if="isInitialLoading"
                   :class="[
-                    'flex',
-                    'w-full',
-                    'items-center',
-                    'justify-center',
+                    'flex', 'w-full', 'items-center', 'justify-center',
                     'rounded-xl',
-                    'border-2',
-                    'border-dashed',
-                    'border-neutral-200/70',
-                    'dark:border-neutral-800/40',
-                    'px-4',
-                    'py-10',
-                    'text-sm',
-                    'text-neutral-500',
+                    'border-2', 'border-dashed', 'border-neutral-200/70', 'dark:border-neutral-800/40',
+                    'px-4', 'py-10',
+                    'text-sm', 'text-neutral-500',
                   ]"
                 >
                   <div :class="['flex', 'items-center', 'gap-2']">
@@ -385,74 +373,44 @@ onBeforeUnmount(() => {
                   </div>
                 </div>
 
-                <div v-else :class="['grid', 'gap-3', 'grid-cols-1', 'md:grid-cols-2', 'xl:grid-cols-3']">
+                <div
+                  v-else
+                  :class="[
+                    'grid', 'gap-3',
+                    'grid-cols-1', 'md:grid-cols-2', 'xl:grid-cols-3',
+                  ]"
+                >
                   <button
                     v-for="source in filteredSources"
                     :key="source.id"
                     type="button"
                     :class="[
-                      'group',
-                      'flex',
-                      'w-full',
-                      'flex-col',
-                      'gap-2',
-                      'rounded-xl',
-                      'p-3',
-                      'text-left',
-                      'border',
-                      'border-transparent',
-                      'bg-white/60',
-                      'dark:bg-neutral-900/40',
-                      'transition',
-                      'duration-200',
+                      'group', 'flex', 'w-full', 'flex-col', 'gap-2', 'rounded-xl', 'p-3', 'text-left',
+                      'border', 'border-transparent',
+                      'bg-white/60', 'dark:bg-neutral-900/40',
+                      'transition', 'duration-200',
                       activeSourceId === source.id
                         ? 'border-primary-400/70 shadow-sm'
                         : 'hover:border-neutral-200 dark:hover:border-neutral-700',
                     ]"
                     @click="selectSource(source.id)"
                   >
-                    <div
-                      :class="[
-                        'relative',
-                        'aspect-video',
-                        'w-full',
-                        'overflow-hidden',
-                        'rounded-lg',
-                        'bg-neutral-200/60',
-                        'dark:bg-neutral-800',
-                      ]"
-                    >
+                    <div :class="['relative', 'aspect-video', 'w-full', 'overflow-hidden', 'rounded-lg', 'bg-neutral-200/60', 'dark:bg-neutral-800']">
                       <div
                         :class="[
-                          'absolute',
-                          'inset-0',
-                          'z-10',
-                          'flex',
-                          'items-center',
-                          'justify-center',
-                          'opacity-0',
-                          'backdrop-blur-sm',
-                          'transition-all',
-                          'duration-200',
-                          'bg-black/30',
-                          'group-hover:opacity-100',
+                          'absolute', 'inset-0', 'z-10',
+                          'flex', 'items-center', 'justify-center',
+                          'opacity-0', 'backdrop-blur-sm',
+                          'transition-all', 'duration-200',
+                          'bg-black/30', 'group-hover:opacity-100',
                         ]"
                       >
                         <button
                           type="button"
                           :class="[
-                            'flex',
-                            'items-center',
-                            'gap-2',
-                            'rounded-lg',
-                            'px-3',
-                            'py-2',
-                            'bg-primary-500/80',
-                            'text-white',
-                            'shadow-lg',
-                            'transition-transform',
-                            'duration-200',
-                            'hover:scale-105',
+                            'flex', 'items-center', 'gap-2', 'rounded-lg', 'px-3', 'py-2',
+                            'bg-primary-500/80', 'text-white', 'shadow-lg',
+                            'transition-transform', 'duration-200', 'hover:scale-105',
                           ]"
                           @click.stop="shareSource(source.id)"
                         >
@@ -466,29 +424,18 @@ onBeforeUnmount(() => {
                         :src="source.thumbnailURL"
                         alt="Source preview"
                         :class="['h-full', 'w-full', 'object-contain']"
-                      />
+                      >
                       <div
                         v-else
                         :class="[
-                          'absolute',
-                          'inset-0',
-                          'flex',
-                          'items-center',
-                          'justify-center',
-                          'text-2xl',
-                          'text-neutral-400',
-                          'i-solar:screen-share-line-duotone',
+                          'absolute', 'inset-0', 'flex', 'items-center', 'justify-center',
+                          'text-2xl', 'text-neutral-400', 'i-solar:screen-share-line-duotone',
                         ]"
                       />
                     </div>
                     <div :class="['flex', 'items-center', 'gap-2']">
                       <div :class="['h-5', 'w-5']">
-                        <img
-                          v-if="source.appIconURL"
-                          :src="source.appIconURL"
-                          alt="Source icon"
-                          :class="['h-full', 'w-full']"
-                        />
+                        <img v-if="source.appIconURL" :src="source.appIconURL" alt="Source icon" :class="['h-full', 'w-full']">
                         <div v-else :class="['i-solar:window-frame-line-duotone', 'h-full', 'w-full']" />
                       </div>
                       <div :class="['text-sm', 'text-neutral-700', 'dark:text-neutral-200', 'line-clamp-1']">
@@ -504,25 +451,16 @@ onBeforeUnmount(() => {
                 <div
                   v-if="filteredSources.length === 0 && !isInitialLoading"
                   :class="[
-                    'flex',
-                    'flex-col',
-                    'items-center',
-                    'justify-center',
-                    'gap-2',
-                    'rounded-xl',
-                    'border-2',
-                    'border-dashed',
-                    'border-neutral-200/70',
-                    'px-4',
-                    'py-10',
-                    'text-sm',
-                    'text-neutral-500',
-                    'dark:border-neutral-800/40',
+                    'flex', 'flex-col', 'items-center', 'justify-center', 'gap-2',
+                    'rounded-xl', 'border-2', 'border-dashed', 'border-neutral-200/70',
+                    'px-4', 'py-10', 'text-sm', 'text-neutral-500', 'dark:border-neutral-800/40',
                   ]"
                 >
                   <div :class="['i-solar:shield-warning-line-duotone', 'text-2xl']" />
                   <div>No sources found for this category.</div>
-                  <div :class="['text-xs', 'text-neutral-400']">Try switching tabs or refetching the sources.</div>
+                  <div :class="['text-xs', 'text-neutral-400']">
+                    Try switching tabs or refetching the sources.
+                  </div>
                 </div>
               </div>
             </div>
@@ -530,7 +468,9 @@ onBeforeUnmount(() => {
             <div :class="['rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
               <div :class="['flex', 'flex-col', 'gap-4']">
                 <div :class="['flex', 'items-center', 'justify-between']">
-                  <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">Ticker controls</div>
+                  <div :class="['text-sm', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+                    Ticker controls
+                  </div>
                   <div :class="['text-xs', 'text-neutral-400']">
                     {{ statusLabel }}
                   </div>
@@ -543,7 +483,7 @@ onBeforeUnmount(() => {
                   :min="500"
                   :max="15000"
                   :step="250"
-                  :format-value="(value) => `${(value / 1000).toFixed(2)}s`"
+                  :format-value="value => `${(value / 1000).toFixed(2)}s`"
                 />
 
                 <FieldRange
@@ -553,7 +493,7 @@ onBeforeUnmount(() => {
                   :min="25"
                   :max="100"
                   :step="5"
-                  :format-value="(value) => `${value}%`"
+                  :format-value="value => `${value}%`"
                 />
 
                 <div :class="['text-xs', 'text-neutral-400']">
@@ -609,26 +549,15 @@ onBeforeUnmount(() => {
             />
 
             <div :class="['rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
-              <div
-                :class="[
-                  'flex',
-                  'items-center',
-                  'justify-between',
-                  'text-xs',
-                  'uppercase',
-                  'tracking-wide',
-                  'text-neutral-400',
-                ]"
-              >
+              <div :class="['flex', 'items-center', 'justify-between', 'text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
                 <span>Snapshot</span>
                 <span>{{ captureCount }} captures, {{ contextUpdateCount }} context updates</span>
               </div>
-              <div v-if="screenshotDataUrl" :class="['mt-3', 'flex', 'flex-col', 'gap-3']">
-                <img
-                  :src="screenshotDataUrl"
-                  alt="Captured screen"
-                  :class="['w-full', 'rounded-lg', 'object-contain']"
-                />
+              <div
+                v-if="screenshotDataUrl"
+                :class="['mt-3', 'flex', 'flex-col', 'gap-3']"
+              >
+                <img :src="screenshotDataUrl" alt="Captured screen" :class="['w-full', 'rounded-lg', 'object-contain']">
                 <textarea
                   :value="screenshotDataUrl"
                   readonly
@@ -654,17 +583,7 @@ onBeforeUnmount(() => {
             </div>
 
             <div :class="['rounded-xl', 'bg-neutral-100', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
-              <div
-                :class="[
-                  'flex',
-                  'items-center',
-                  'justify-between',
-                  'text-xs',
-                  'uppercase',
-                  'tracking-wide',
-                  'text-neutral-400',
-                ]"
-              >
+              <div :class="['flex', 'items-center', 'justify-between', 'text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
                 <span>Last interpretation</span>
                 <span>{{ lastResultAt ? new Date(lastResultAt).toLocaleTimeString() : 'Idle' }}</span>
               </div>
@@ -679,13 +598,9 @@ onBeforeUnmount(() => {
             <div
               v-if="errorMessage"
               :class="[
-                'rounded-lg',
-                'bg-amber-100',
-                'p-3',
-                'text-sm',
-                'text-amber-700',
-                'dark:bg-amber-900/30',
-                'dark:text-amber-300',
+                'rounded-lg', 'bg-amber-100', 'p-3',
+                'text-sm', 'text-amber-700',
+                'dark:bg-amber-900/30', 'dark:text-amber-300',
               ]"
             >
               {{ errorMessage }}
@@ -696,9 +611,18 @@ onBeforeUnmount(() => {
         <video ref="videoRef" :class="['hidden']" />
       </div>
 
-      <div v-else :class="['flex', 'h-full', 'flex-col', 'items-center', 'justify-center', 'gap-4', 'p-6']">
-        <div>Screen capture permissions are required to use vision capture.</div>
-        <Button @click="requestPermission()">Open system preferences</Button>
+      <div
+        v-else
+        :class="[
+          'flex', 'h-full', 'flex-col', 'items-center', 'justify-center', 'gap-4', 'p-6',
+        ]"
+      >
+        <div>
+          Screen capture permissions are required to use vision capture.
+        </div>
+        <Button @click="requestPermission()">
+          Open system preferences
+        </Button>
       </div>
     </template>
   </WithScreenCapture>

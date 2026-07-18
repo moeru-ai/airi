@@ -34,7 +34,7 @@ export interface VRMEyeFocusSource {
 export function useVRMEyeFocusFor(options: {
   cameraPosition: MaybeRefOrGetter<Vec3>
   context: MaybeRefOrGetter<VRMWorldContext>
-  screenBoundingBox: MaybeRefOrGetter<{ top: number; left: number; height: number; width: number }>
+  screenBoundingBox: MaybeRefOrGetter<{ top: number, left: number, height: number, width: number }>
   source: MaybeRefOrGetter<VRMEyeFocusSource | null | undefined>
   trackingMode: MaybeRefOrGetter<TrackingMode>
 }) {
@@ -47,7 +47,8 @@ export function useVRMEyeFocusFor(options: {
 
     const ctx = toValue(options.context)
     const trackingSource = toValue(options.source)
-    if (trackingMode === 'none' || !trackingSource) return ctx.defaultLookAt
+    if (trackingMode === 'none' || !trackingSource)
+      return ctx.defaultLookAt
     const screen = toValue(options.screenBoundingBox)
     if (trackingMode === 'mouse') {
       const castedPos = castScreenToCam(
@@ -69,6 +70,7 @@ function castScreenToCam(ctx: VRMWorldContext, point: Vector2): Vector3 {
   ctx.raycaster.setFromCamera(point, ctx.camera)
   const nearPlaneDistance = ctx.camera.near
   const direction = ctx.raycaster.ray.direction.clone().normalize().multiplyScalar(8)
-  const pointOnNearPlane = ctx.raycaster.ray.origin.clone().add(direction.multiplyScalar(nearPlaneDistance))
+  const pointOnNearPlane = ctx.raycaster.ray.origin.clone()
+    .add(direction.multiplyScalar(nearPlaneDistance))
   return pointOnNearPlane
 }

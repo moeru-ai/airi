@@ -26,7 +26,7 @@ interface Props {
   thresholdLabel?: string // Label for threshold
   height?: number // Chart height in pixels
   lineWidth?: number // Line stroke width
-
+  chartHeight?: number // Internal chart height for calculations
   minDataPoints?: number // Minimum points needed to show chart
   precision?: number // Value display precision
   unit?: string // Value unit
@@ -75,29 +75,20 @@ const chromaticShades = computed(() => chromaticPaletteFrom(chromaticHueOrDefaul
 const timeSeriesChartContainerBounding = useElementBounding(timeSeriesChartRef, { windowResize: true })
 
 const throttledWidth = ref(0)
-const updateWidth = useThrottleFn(
-  () => {
-    throttledWidth.value = Math.max(0, Math.floor(timeSeriesChartContainerBounding.width.value || 0))
-  },
-  100,
-  true,
-  true,
-)
+const updateWidth = useThrottleFn(() => {
+  throttledWidth.value = Math.max(0, Math.floor(timeSeriesChartContainerBounding.width.value || 0))
+}, 100, true, true)
 
 watch(() => timeSeriesChartContainerBounding.width.value, updateWidth, { immediate: true })
 
-watch(
-  [chromaticHueOrDefault, timeSeriesChartRef],
-  () => {
-    if (timeSeriesChartRef.value) {
-      timeSeriesChartRef.value.style.setProperty('--chromatic-hue', chromaticHueOrDefault.value.toString())
-    }
-  },
-  { immediate: true },
-)
+watch([chromaticHueOrDefault, timeSeriesChartRef], () => {
+  if (timeSeriesChartRef.value) {
+    timeSeriesChartRef.value.style.setProperty('--chromatic-hue', chromaticHueOrDefault.value.toString())
+  }
+}, { immediate: true })
 
 const lineColorProps = toRef(() => props.lineColor)
-const resolvedLineColor = computed(() => {
+const lineColor = computed(() => {
   if (!lineColorProps.value) {
     return chromaticShades.value.shadeBy(500).toHex()
   }
@@ -106,7 +97,7 @@ const resolvedLineColor = computed(() => {
 })
 
 const thresholdColorProps = toRef(() => props.thresholdColor)
-const resolvedThresholdColor = computed(() => {
+const thresholdColor = computed(() => {
   if (!thresholdColorProps.value) {
     const color = chromaticShades.value.shadeBy(500).withAlpha(0.1).color as Oklch
     return `oklch(${color.l} ${color.c} ${color.h} / ${color.alpha})`
@@ -116,7 +107,7 @@ const resolvedThresholdColor = computed(() => {
 })
 
 const activeColorProps = toRef(() => props.activeColor)
-const resolvedActiveColor = computed(() => {
+const activeColor = computed(() => {
   if (!activeColorProps.value) {
     return chromaticShades.value.shadeBy(600).toHex()
   }
@@ -125,7 +116,7 @@ const resolvedActiveColor = computed(() => {
 })
 
 const inactiveColorProps = toRef(() => props.inactiveColor)
-const resolvedInactiveColor = computed(() => {
+const inactiveColor = computed(() => {
   if (!inactiveColorProps.value) {
     return chromaticShades.value.shadeBy(400).toHex()
   }
@@ -139,19 +130,23 @@ const gridPatternId = `grid-${componentId}`
 const areaGradientId = `area-gradient-${componentId}`
 const thresholdGradientId = `threshold-gradient-${componentId}`
 
-const normalizedThreshold = computed(() => (props.threshold !== null ? Math.max(0, Math.min(1, props.threshold)) : 0))
+const normalizedThreshold = computed(() =>
+  props.threshold !== null ? Math.max(0, Math.min(1, props.threshold)) : 0,
+)
 
 // Calculate threshold line Y position
 const thresholdLineY = computed(() => {
-  if (props.threshold === null) return 0
-  return chartHeight.value - normalizedThreshold.value * chartHeight.value
+  if (props.threshold === null)
+    return 0
+  return chartHeight.value - (normalizedThreshold.value * chartHeight.value)
 })
 
 const chartWidth = computed(() => throttledWidth.value)
 
 // Keep the number of rendered points close to the available pixels to avoid giant SVG paths
 function downsampleSeries(values: readonly number[], maxPoints: number) {
-  if (values.length <= maxPoints || maxPoints < 2) return values
+  if (values.length <= maxPoints || maxPoints < 2)
+    return values
 
   const result: number[] = []
   const bucketSize = (values.length - 1) / (maxPoints - 1)
@@ -165,7 +160,8 @@ function downsampleSeries(values: readonly number[], maxPoints: number) {
     }
 
     let sum = 0
-    for (let j = start; j < end; j++) sum += values[j]
+    for (let j = start; j < end; j++)
+      sum += values[j]
 
     result.push(sum / (end - start))
   }
@@ -183,23 +179,25 @@ const downsampledHistory = computed(() => {
 // Create smooth curve path
 const smoothPath = computed(() => {
   const history = downsampledHistory.value
-  if (history.length < 2 || chartWidth.value === 0) return ''
+  if (history.length < 2 || chartWidth.value === 0)
+    return ''
 
   const width = chartWidth.value
   const height = chartHeight.value
 
-  let path = `M0,${height - history[0] * height}`
+  let path = `M0,${height - (history[0] * height)}`
 
   for (let i = 1; i < history.length; i++) {
     const x = (i / (history.length - 1)) * width
-    const y = height - history[i] * height
+    const y = height - (history[i] * height)
 
     if (i === 1) {
-      path += ` Q${x / 2},${height - history[0] * height} ${x},${y}`
-    } else {
+      path += ` Q${x / 2},${height - (history[0] * height)} ${x},${y}`
+    }
+    else {
       const prevX = ((i - 1) / (history.length - 1)) * width
       const cpX = (prevX + x) / 2
-      const prevY = height - history[i - 1] * height
+      const prevY = height - (history[i - 1] * height)
       path += ` Q${cpX},${prevY} ${x},${y}`
     }
   }
@@ -210,23 +208,25 @@ const smoothPath = computed(() => {
 // Create filled area path
 const dataAreaPath = computed(() => {
   const history = downsampledHistory.value
-  if (history.length < 2 || chartWidth.value === 0) return ''
+  if (history.length < 2 || chartWidth.value === 0)
+    return ''
 
   const width = chartWidth.value
   const height = chartHeight.value
 
-  let path = `M0,${height} L0,${height - history[0] * height}`
+  let path = `M0,${height} L0,${height - (history[0] * height)}`
 
   for (let i = 1; i < history.length; i++) {
     const x = (i / (history.length - 1)) * width
-    const y = height - history[i] * height
+    const y = height - (history[i] * height)
 
     if (i === 1) {
-      path += ` Q${x / 2},${height - history[0] * height} ${x},${y}`
-    } else {
+      path += ` Q${x / 2},${height - (history[0] * height)} ${x},${y}`
+    }
+    else {
       const prevX = ((i - 1) / (history.length - 1)) * width
       const cpX = (prevX + x) / 2
-      const prevY = height - history[i - 1] * height
+      const prevY = height - (history[i - 1] * height)
       path += ` Q${cpX},${prevY} ${x},${y}`
     }
   }
@@ -261,23 +261,23 @@ const dataAreaPath = computed(() => {
 
           <!-- Gradient for the filled area -->
           <linearGradient :id="areaGradientId" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :style="`stop-color:${resolvedLineColor};stop-opacity:0.3`" />
-            <stop offset="50%" :style="`stop-color:${resolvedLineColor};stop-opacity:0.15`" />
-            <stop offset="100%" :style="`stop-color:${resolvedLineColor};stop-opacity:0.05`" />
+            <stop offset="0%" :style="`stop-color:${lineColor};stop-opacity:0.3`" />
+            <stop offset="50%" :style="`stop-color:${lineColor};stop-opacity:0.15`" />
+            <stop offset="100%" :style="`stop-color:${lineColor};stop-opacity:0.05`" />
           </linearGradient>
 
           <!-- Gradient for threshold areas -->
           <linearGradient :id="thresholdGradientId" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :style="`stop-color:${resolvedActiveColor};stop-opacity:0.3`" />
-            <stop offset="50%" :style="`stop-color:${resolvedActiveColor};stop-opacity:0.15`" />
-            <stop offset="100%" :style="`stop-color:${resolvedActiveColor};stop-opacity:0.05`" />
+            <stop offset="0%" :style="`stop-color:${activeColor};stop-opacity:0.3`" />
+            <stop offset="50%" :style="`stop-color:${activeColor};stop-opacity:0.15`" />
+            <stop offset="100%" :style="`stop-color:${activeColor};stop-opacity:0.05`" />
           </linearGradient>
 
           <!-- Below threshold gradient -->
           <linearGradient id="below-threshold-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" :style="`stop-color:${resolvedThresholdColor};stop-opacity:0.2`" />
-            <stop offset="50%" :style="`stop-color:${resolvedThresholdColor};stop-opacity:0.1`" />
-            <stop offset="100%" :style="`stop-color:${resolvedThresholdColor};stop-opacity:0.05`" />
+            <stop offset="0%" :style="`stop-color:${thresholdColor};stop-opacity:0.2`" />
+            <stop offset="50%" :style="`stop-color:${thresholdColor};stop-opacity:0.1`" />
+            <stop offset="100%" :style="`stop-color:${thresholdColor};stop-opacity:0.05`" />
           </linearGradient>
         </defs>
 
@@ -291,7 +291,7 @@ const dataAreaPath = computed(() => {
           :y="thresholdLineY"
           width="100%"
           :height="chartHeight - thresholdLineY"
-          :fill="resolvedThresholdColor"
+          :fill="thresholdColor"
         />
 
         <!-- Threshold line -->
@@ -301,21 +301,25 @@ const dataAreaPath = computed(() => {
           :y1="thresholdLineY"
           x2="100%"
           :y2="thresholdLineY"
-          :stroke="resolvedThresholdColor"
+          :stroke="thresholdColor"
           stroke-width="1.5"
           stroke-dasharray="4,4"
-          :fill="resolvedThresholdColor"
+          :fill="thresholdColor"
         />
 
         <!-- Data area (filled under curve) -->
-        <path v-if="dataAreaPath && showArea" :d="dataAreaPath" :fill="`url(#${areaGradientId})`" />
+        <path
+          v-if="dataAreaPath && showArea"
+          :d="dataAreaPath"
+          :fill="`url(#${areaGradientId})`"
+        />
 
         <!-- Main data curve -->
         <path
           v-if="smoothPath"
           :d="smoothPath"
           fill="none"
-          :stroke="resolvedLineColor"
+          :stroke="lineColor"
           :stroke-width="lineWidth"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -329,10 +333,7 @@ const dataAreaPath = computed(() => {
         class="absolute right-2 top-2 border border-neutral-200 rounded-md bg-white px-2 py-1 shadow-sm transition-all duration-200 dark:border-neutral-700 dark:bg-neutral-800"
         :class="isActive ? `bg-primary-50 dark:bg-primary-900 border-primary-200 dark:border-primary-800` : ''"
       >
-        <div
-          class="text-xs font-medium"
-          :class="isActive ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-400'"
-        >
+        <div class="text-xs font-medium" :class="isActive ? 'text-primary-700 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-400'">
           {{ formatValue ? formatValue(currentValue) : `${(currentValue * 100).toFixed(precision)}${unit}` }}
         </div>
       </div>
@@ -353,17 +354,15 @@ const dataAreaPath = computed(() => {
     <div v-if="showLegend" class="flex flex-wrap items-center justify-between text-xs text-neutral-500">
       <div class="flex items-center gap-3">
         <span class="flex items-center gap-1 text-nowrap">
-          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: resolvedActiveColor }" />
+          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: activeColor }" />
           {{ activeLegendLabel }}
         </span>
         <span class="flex items-center gap-1 text-nowrap">
-          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: resolvedInactiveColor }" />
+          <div class="h-2 w-2 rounded-full" :style="{ backgroundColor: inactiveColor }" />
           {{ inactiveLegendLabel }}
         </span>
       </div>
-      <span v-if="threshold !== null" class="text-nowrap">
-        {{ thresholdLabel }}: {{ formatThreshold ? formatThreshold(threshold) : `${(threshold * 100).toFixed(0)}%` }}
-      </span>
+      <span v-if="threshold !== null" class="text-nowrap">{{ thresholdLabel }}: {{ formatThreshold ? formatThreshold(threshold) : `${(threshold * 100).toFixed(0)}%` }}</span>
     </div>
   </div>
 </template>

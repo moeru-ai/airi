@@ -35,9 +35,10 @@ const tools = [
       'Optionally provide a duration in seconds for auto-reset.',
       'Examples: expression_set("Cry", true), expression_set("Blush", 0.7, 3)',
     ].join(' '),
-    execute: ({ name, value, duration }) => {
+    execute: async ({ name, value, duration }) => {
       const err = ensureModelLoaded()
-      if (err) return serialize(err)
+      if (err)
+        return serialize(err)
 
       const store = useExpressionStore()
       const numericValue = typeof value === 'boolean' ? (value ? 1 : 0) : value
@@ -58,9 +59,10 @@ const tools = [
       'Get the current state of a Live2D expression or parameter.',
       'Omit the name to list all available expressions with their current values.',
     ].join(' '),
-    execute: ({ name }) => {
+    execute: async ({ name }) => {
       const err = ensureModelLoaded()
-      if (err) return serialize(err)
+      if (err)
+        return serialize(err)
 
       const store = useExpressionStore()
       const result = store.get(name ?? undefined)
@@ -78,9 +80,10 @@ const tools = [
       'Toggle a Live2D expression (flip between default and active state).',
       'Optionally provide a duration in seconds for auto-reset.',
     ].join(' '),
-    execute: ({ name, duration }) => {
+    execute: async ({ name, duration }) => {
       const err = ensureModelLoaded()
-      if (err) return serialize(err)
+      if (err)
+        return serialize(err)
 
       const store = useExpressionStore()
       const result = store.toggle(name, duration ?? undefined)
@@ -96,9 +99,10 @@ const tools = [
   tool({
     name: 'expression_save_defaults',
     description: 'Save the current expression state as the new defaults. Persists across app restarts.',
-    execute: () => {
+    execute: async () => {
       const err = ensureModelLoaded()
-      if (err) return serialize(err)
+      if (err)
+        return serialize(err)
 
       const store = useExpressionStore()
       const result = store.saveDefaults()
@@ -111,9 +115,10 @@ const tools = [
   tool({
     name: 'expression_reset_all',
     description: 'Reset all expressions to their default values.',
-    execute: () => {
+    execute: async () => {
       const err = ensureModelLoaded()
-      if (err) return serialize(err)
+      if (err)
+        return serialize(err)
 
       const store = useExpressionStore()
       const result = store.resetAll()

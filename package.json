@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.2",
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "description": "LLM powered virtual character",
@@ -19,7 +19,6 @@
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
     "dev:web:https": "pnpm -rF @proj-airi/stage-web run dev:https",
     "dev:server-auth": "pnpm -rF @proj-airi/ui-server-auth run dev",
-    "dev:admin": "pnpm -rF @proj-airi/ui-admin run dev",
     "dev:pocket:ios": "pnpm -rF @proj-airi/stage-pocket run dev:ios",
     "dev:pocket:android": "pnpm -rF @proj-airi/stage-pocket run dev:android",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
@@ -27,9 +26,6 @@
     "dev:tamagotchi:xwayland": "pnpm -rF @proj-airi/stage-tamagotchi run dev:xwayland",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
     "dev:packages": "pnpm -rF=\"./packages/*\" --parallel run dev",
-    "cpd": "jscpd .",
-    "docs:generate": "typedoc --options typedoc.base.json",
-    "docs:arch": "node docs/scripts/gen-arch-docs.mjs",
     "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\"",
     "build:web": "turbo run build -F @proj-airi/stage-web",
     "build:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:build",
@@ -37,11 +33,12 @@
     "build:packages": "turbo run build -F=\"./packages/*\"",
     "build:engines": "turbo run build -F=\"./engines/*\"",
     "test": "vitest --coverage",
-    "test:run": "vitest run --reporter=junit --outputFile=test-results.xml && pnpm run test-vishot:run && pnpm run test-ui:run",
-    "test:coverage": "vitest run --coverage",
+    "test:run": "vitest run && pnpm run test-audio-pipelines-transcribe:run && pnpm run test-vishot:run && pnpm run test-ui:run",
+    "test-audio-pipelines-transcribe:run": "vitest run --config packages/audio-pipelines-transcribe/vitest.config.ts",
     "test-vishot:run": "vitest run --config packages/vishot-runtime/vitest.config.ts",
     "test-ui:run": "vitest run --config packages/stage-ui/vitest.config.ts",
-    "lint": "eslint --cache .",
+    "lint": "moeru-lint .",
+    "lint:fix": "moeru-lint --fix .",
     "lint:swift": "pnpm -rF @proj-airi/stage-pocket run lint:swift",
     "capture:tamagotchi": "pnpm -F @proj-airi/vishot-runner-electron capture -- ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket.ts --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw",
     "to-avif": "tsx docs/scripts/avif.ts",
@@ -51,8 +48,7 @@
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
     "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
-    "knip": "knip",
-    "syncpack": "syncpack"
+    "knip": "knip"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
@@ -70,31 +66,23 @@
     "@vitest/coverage-v8": "catalog:vitest",
     "bumpp": "catalog:",
     "eslint": "catalog:",
-    "eslint-import-resolver-node": "catalog:",
-    "eslint-import-resolver-typescript": "catalog:",
-    "eslint-plugin-boundaries": "catalog:",
     "eslint-plugin-oxlint": "catalog:",
-    "jscpd": "catalog:",
     "knip": "catalog:",
-    "marked": "catalog:",
     "nano-staged": "catalog:",
     "oxc-minify": "catalog:",
     "oxlint": "catalog:",
     "playwright": "catalog:",
     "posthog-js": "catalog:",
-    "prettier": "catalog:",
     "publint": "catalog:",
     "rollup": "catalog:",
     "simple-git-hooks": "catalog:",
     "sponsorkit": "catalog:",
     "sponsors-svg": "catalog:",
-    "syncpack": "catalog:",
     "taze": "catalog:",
     "tinyexec": "catalog:",
     "tsdown": "catalog:",
     "tsx": "catalog:",
     "turbo": "catalog:",
-    "typedoc": "catalog:",
     "typescript": "catalog:",
     "uncrypto": "catalog:",
     "unocss": "catalog:",
@@ -121,11 +109,6 @@
     "pre-commit": "pnpm nano-staged"
   },
   "nano-staged": {
-    "packages/**/*.{ts,tsx,vue,js,jsx,css,scss,less}": [
-      "prettier --write"
-    ],
-    "apps/**/*.{ts,tsx,vue,js,jsx,css,scss,less}": [
-      "prettier --write"
-    ]
+    "*": "moeru-lint --fix"
   }
 }

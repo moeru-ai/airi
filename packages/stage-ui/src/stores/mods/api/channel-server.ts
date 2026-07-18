@@ -1,16 +1,16 @@
 import type {
+  ClientConnector,
   ContextUpdate,
   InputContextUpdate,
   WebSocketBaseEvent,
   WebSocketEvent,
   WebSocketEventOptionalSource,
   WebSocketEvents,
-  WebSocketLikeConstructor,
 } from '@proj-airi/server-sdk'
 import type { CommonContentPart } from '@xsai/shared-chat'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Client, WebSocketEventSource } from '@proj-airi/server-sdk'
+import { Client, createTextProtocolConnector, WebSocketEventSource } from '@proj-airi/server-sdk'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -19,15 +19,13 @@ import { computed, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
-interface ChannelListenerEntry<E extends keyof WebSocketEvents = keyof WebSocketEvents> {
-  type: E
-  callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>
+interface ChannelListenerEntry {
+  type: keyof WebSocketEvents
+  callback: (event: WebSocketBaseEvent<any, any>) => void | Promise<void>
   boundClient?: Client
 }
 
-type EventCallback = (
-  data: WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>,
-) => void | Promise<void>
+type TextConnectorFactory = (url: string) => ClientConnector<string> | undefined
 
 function hasReconnectableWebSocketScheme(url: string | undefined) {
   if (!url) {
@@ -37,7 +35,8 @@ function hasReconnectableWebSocketScheme(url: string | undefined) {
   try {
     const parsedUrl = new URL(url)
     return parsedUrl.protocol === 'ws:' || parsedUrl.protocol === 'wss:'
-  } catch {
+  }
+  catch {
     return false
   }
 }
@@ -54,7 +53,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
-  const websocketConstructor = ref<WebSocketLikeConstructor>()
+  const textConnectorFactory = ref<TextConnectorFactory>()
   const hasEverConnected = ref(false)
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
@@ -64,10 +63,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
   const websocketAuthToken = useLocalStorage('settings/connection/websocket-auth-token', '')
   const registeredListeners: ChannelListenerEntry[] = []
-  const replayableEvents = new Map<
-    keyof WebSocketEvents,
-    WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>
-  >()
+  const replayableEvents = new Map<keyof WebSocketEvents, WebSocketBaseEvent<any, any>>()
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
@@ -93,32 +89,36 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'ui:configure',
   ]
 
-  function initialize(options?: {
+  async function initialize(options?: {
     token?: string
     possibleEvents?: Array<keyof WebSocketEvents>
-    websocketConstructor?: WebSocketLikeConstructor
+    connector?: TextConnectorFactory
   }) {
-    if (connected.value && client.value) return Promise.resolve()
-    if (initializing.value) return initializing.value
+    if (connected.value && client.value)
+      return Promise.resolve()
+    if (initializing.value)
+      return initializing.value
 
-    if (options?.websocketConstructor) {
-      websocketConstructor.value = options.websocketConstructor
+    if (options?.connector) {
+      textConnectorFactory.value = options.connector
     }
 
-    const possibleEvents = Array.from(
-      new Set<keyof WebSocketEvents>([...basePossibleEvents, ...(options?.possibleEvents ?? [])]),
-    )
+    const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
+      ...basePossibleEvents,
+      ...(options?.possibleEvents ?? []),
+    ]))
 
     initializing.value = new Promise<void>((resolve) => {
+      const currentWebSocketUrl = websocketUrl.value || defaultWebSocketUrl
+      const textConnector = textConnectorFactory.value?.(currentWebSocketUrl)
+
       client.value = new Client({
-        name: isStageWeb()
-          ? WebSocketEventSource.StageWeb
-          : isStageTamagotchi()
-            ? WebSocketEventSource.StageTamagotchi
-            : WebSocketEventSource.StageWeb,
-        url: websocketUrl.value || defaultWebSocketUrl,
+        name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
+        url: currentWebSocketUrl,
         token: options?.token ?? (websocketAuthToken.value || undefined),
-        websocketConstructor: websocketConstructor.value,
+        connector: textConnector
+          ? createTextProtocolConnector(textConnector)
+          : undefined,
         heartbeat: {
           // Keep client and server heartbeat windows aligned to reduce false-positive disconnects.
           readTimeout: 60_000,
@@ -126,20 +126,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
         possibleEvents,
         onAnyMessage: (event) => {
-          const eventType = event.type as keyof WebSocketEvents
-          if (REPLAYABLE_EVENT_TYPES.has(eventType)) {
-            replayableEvents.set(
-              eventType,
-              event as WebSocketBaseEvent<keyof WebSocketEvents, WebSocketEvents[keyof WebSocketEvents]>,
-            )
-          }
+          if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
+            replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
 
           useWebSocketInspectorStore().add('incoming', event)
         },
         onAnySend: (event) => {
           useWebSocketInspectorStore().add('outgoing', event)
         },
-        onError: (error: unknown) => {
+        onError: (error) => {
           connected.value = false
           // Do not clear listeners or replay cache here.
           // onError may be recoverable while the SDK is reconnecting.
@@ -180,7 +175,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             for (const callback of reconnectedCallbacks) {
               try {
                 callback()
-              } catch (error) {
+              }
+              catch (error) {
                 console.error('Error in reconnected callback:', error)
               }
             }
@@ -192,7 +188,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
       })
 
-      client.value.onEvent('module:authenticated', (event: { data: { authenticated: boolean } }) => {
+      client.value.onEvent('module:authenticated', (event) => {
         if (event.data.authenticated) {
           if (!hasEverConnected.value) {
             // First connection can flush immediately after authentication.
@@ -209,8 +205,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         connected.value = false
       })
     })
-
-    return initializing.value
   }
 
   async function ensureConnected() {
@@ -223,20 +217,22 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function clearListeners() {
     for (const listener of registeredListeners) {
       if (listener.boundClient) {
-        listener.boundClient.offEvent(listener.type, listener.callback as EventCallback)
+        listener.boundClient.offEvent(listener.type, listener.callback as any)
         listener.boundClient = undefined
       }
     }
   }
 
   function initializeListeners() {
-    if (!client.value) return
+    if (!client.value)
+      return
 
     for (const listener of registeredListeners) {
-      if (listener.boundClient === client.value) continue
+      if (listener.boundClient === client.value)
+        continue
 
-      listener.boundClient?.offEvent(listener.type, listener.callback as EventCallback)
-      client.value.onEvent(listener.type, listener.callback as EventCallback)
+      listener.boundClient?.offEvent(listener.type, listener.callback as any)
+      client.value.onEvent(listener.type, listener.callback as any)
       listener.boundClient = client.value
     }
   }
@@ -245,33 +241,38 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     type: E,
     callback: (event: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
   ) {
-    if (!client.value && !initializing.value) void initialize()
+    if (!client.value && !initializing.value)
+      void initialize()
 
     const entry: ChannelListenerEntry = {
       type,
-      callback: callback as unknown as ChannelListenerEntry['callback'],
+      callback: callback as any,
     }
     registeredListeners.push(entry)
     initializeListeners()
 
     const replayableEvent = replayableEvents.get(type)
-    if (replayableEvent) void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
+    if (replayableEvent)
+      void Promise.resolve(callback(replayableEvent as WebSocketBaseEvent<E, WebSocketEvents[E]>))
 
     return () => {
       const index = registeredListeners.indexOf(entry)
-      if (index >= 0) registeredListeners.splice(index, 1)
+      if (index >= 0)
+        registeredListeners.splice(index, 1)
 
-      entry.boundClient?.offEvent(type, callback as EventCallback)
+      entry.boundClient?.offEvent(type, callback as any)
       entry.boundClient = undefined
     }
   }
 
   function send<C = undefined>(data: WebSocketEventOptionalSource<C>) {
-    if (!client.value && !initializing.value) void initialize()
+    if (!client.value && !initializing.value)
+      void initialize()
 
     if (client.value && connected.value) {
       client.value.send(data as WebSocketEvent)
-    } else {
+    }
+    else {
       pendingSend.value.push(data as WebSocketEvent)
     }
   }
@@ -286,9 +287,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
-  function onContextUpdate(
-    callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>,
-  ) {
+  function onContextUpdate(callback: (event: WebSocketBaseEvent<'context:update', ContextUpdate>) => void | Promise<void>) {
     return registerListener('context:update', callback)
   }
 
@@ -330,9 +329,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   watch([websocketUrl, websocketAuthToken], ([newUrl, newToken], [oldUrl, oldToken]) => {
-    if (newUrl === oldUrl && newToken === oldToken) return
+    if (newUrl === oldUrl && newToken === oldToken)
+      return
 
-    if (!hasReconnectableWebSocketScheme(newUrl)) return
+    if (!hasReconnectableWebSocketScheme(newUrl))
+      return
 
     if (client.value || initializing.value) {
       dispose()

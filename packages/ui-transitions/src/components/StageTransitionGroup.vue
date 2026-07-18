@@ -31,14 +31,14 @@ interface StageTransitionCommonParams {
   pageSpecificAvailable?: boolean
 }
 
-type TransitionComponent =
-  | typeof SlideTransition
-  | typeof SlopeSlideTransition
-  | typeof ArrowTransition
-  | typeof MultipleBlocksRevealTransition
-  | typeof FantasyFallTransition
-  | typeof RectanglesRotateTransition
-  | typeof BubbleWaveOutTransition
+type TransitionComponent
+  = | typeof SlideTransition
+    | typeof SlopeSlideTransition
+    | typeof ArrowTransition
+    | typeof MultipleBlocksRevealTransition
+    | typeof FantasyFallTransition
+    | typeof RectanglesRotateTransition
+    | typeof BubbleWaveOutTransition
 
 const router = useRouter()
 const showTransition = ref(false)
@@ -48,17 +48,17 @@ const activeTransitionName = ref('')
 const activeStageTransitionParams = ref<StageTransitionCommonParams>()
 
 // Define transition lifecycle events
-export type TransitionStage =
-  | 'before-enter' // Just before animation starts
-  | 'enter-active' // Animation has started
-  | 'navigation' // Time to navigate (component still decides when)
-  | 'after-enter' // Entry animation completed
-  | 'before-leave' // Before exit animation starts
-  | 'leave-active' // Exit animation has started
-  | 'after-leave' // Complete animation cycle finished
+export type TransitionStage
+  = | 'before-enter' // Just before animation starts
+    | 'enter-active' // Animation has started
+    | 'navigation' // Time to navigate (component still decides when)
+    | 'after-enter' // Entry animation completed
+    | 'before-leave' // Before exit animation starts
+    | 'leave-active' // Exit animation has started
+    | 'after-leave' // Complete animation cycle finished
 
 // Define hook types
-type TransitionHook = (stage: TransitionStage, data: Record<string, unknown>) => void | Promise<void>
+type TransitionHook = (stage: TransitionStage, data: any) => void | Promise<void>
 type NavigationCallback = () => void
 
 interface TransitionOptions {
@@ -69,7 +69,7 @@ interface TransitionOptions {
 }
 
 const transitions = shallowRef<Record<string, TransitionOptions>>({
-  slide: {
+  'slide': {
     component: SlideTransition,
     duration: 2700,
   },
@@ -77,7 +77,7 @@ const transitions = shallowRef<Record<string, TransitionOptions>>({
     component: SlopeSlideTransition,
     duration: 2700,
   },
-  arrow: {
+  'arrow': {
     component: ArrowTransition,
     duration: 2700,
   },
@@ -116,24 +116,21 @@ function addTransitionHook(hook: TransitionHook): () => void {
 }
 
 // Trigger all hooks for a stage
-async function triggerHooks(stage: TransitionStage, data: Record<string, unknown> = {}) {
+async function triggerHooks(stage: TransitionStage, data: any = {}) {
   transitionStage.value = stage
 
   // Execute all hooks and wait for them to complete
   for (const hook of lifecycleHooks.value) {
     try {
       await Promise.resolve(hook(stage, data))
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`Error in transition hook at stage "${stage}":`, error)
     }
   }
 }
 
-async function triggerTransitionAsyncFn(
-  params: StageTransitionCommonParams,
-  next: NavigationCallback,
-  resolve: (value: void | PromiseLike<void>) => void,
-) {
+async function triggerTransitionAsyncFn(params: StageTransitionCommonParams, next: NavigationCallback, resolve: (value: void | PromiseLike<void>) => void) {
   if (params.name === 'none' || !params.name) {
     next()
     resolve()
@@ -149,7 +146,9 @@ async function triggerTransitionAsyncFn(
   }
 
   // Get navigation timing from configuration, with fallback
-  const navTiming = transition.nextDelay !== undefined ? transition.nextDelay : transition.duration / 3 // Fallback, but configurable
+  const navTiming = transition.nextDelay !== undefined
+    ? transition.nextDelay
+    : transition.duration / 3 // Fallback, but configurable
 
   let hasNavigated = false
 
@@ -178,7 +177,7 @@ async function triggerTransitionAsyncFn(
       await triggerHooks('after-leave', { transitionName: activeTransitionName.value })
 
       // Short delay before starting new transition
-      await new Promise((r) => setTimeout(r, 50))
+      await new Promise(r => setTimeout(r, 50))
     }
 
     // Start new transition
@@ -187,7 +186,7 @@ async function triggerTransitionAsyncFn(
     showTransition.value = true
 
     // Enter active phase
-    await triggerHooks('enter-active', { transitionName: params.name })
+    await triggerHooks('enter-active', { transitionName: name })
 
     // Trigger navigation phase at the configured time
     setTimeout(async () => {
@@ -224,9 +223,11 @@ async function triggerTransitionAsyncFn(
       await triggerHooks('after-leave', { transitionName: params.name })
       resolve()
     }, transition.duration + totalDuration)
-  } catch (error) {
+  }
+  catch (error) {
     console.error(error)
-  } finally {
+  }
+  finally {
     // Always remove the navigation hook
     removeNavHook()
 

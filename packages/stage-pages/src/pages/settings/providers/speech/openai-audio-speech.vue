@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCombobox, FieldRange } from '@proj-airi/ui'
@@ -26,9 +29,10 @@ const speed = ref<number>(1.0)
 
 // Model selection
 const model = computed({
-  get: () => (providers.value[providerId]?.model as string | undefined) || defaultModel,
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
@@ -43,7 +47,7 @@ const isLoadingModels = computed(() => {
 })
 
 // Check if API key is configured
-const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 // Filter voices based on the selected model's compatibility
 const availableVoices = computed(() => {
@@ -84,13 +88,19 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   // Use the reactive model computed property (not a local variable)
   const modelToUse = model.value || defaultModel
 
-  return await speechStore.speech(provider, modelToUse, input, voiceId, {
-    ...providerConfig,
-    ...defaultVoiceSettings,
-  })
+  return await speechStore.speech(
+    provider,
+    modelToUse,
+    input,
+    voiceId,
+    {
+      ...providerConfig,
+      ...defaultVoiceSettings,
+    },
+  )
 }
 
-watch(speed, () => {
+watch(speed, async () => {
   const providerConfig = providersStore.getProviderConfig(providerId)
   providerConfig.speed = speed.value
 })
@@ -117,7 +127,7 @@ watch(model, async () => {
         v-model="model"
         label="Model"
         description="Select the TTS model to use for speech generation"
-        :options="providerModels.map((m) => ({ value: m.id, label: m.name }))"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
         :disabled="isLoadingModels || providerModels.length === 0"
         placeholder="Select a model..."
       />
@@ -127,8 +137,7 @@ watch(model, async () => {
         :label="t('settings.pages.providers.provider.common.fields.field.speed.label')"
         :description="t('settings.pages.providers.provider.common.fields.field.speed.description')"
         :min="0.5"
-        :max="2.0"
-        :step="0.01"
+        :max="2.0" :step="0.01"
       />
     </template>
 
@@ -144,8 +153,8 @@ watch(model, async () => {
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

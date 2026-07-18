@@ -6,6 +6,7 @@ import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
   ProviderBasicSettings,
@@ -34,14 +35,7 @@ const regionOptions = [
 
 const hearingStore = useHearingStore()
 const providersStore = useProvidersStore()
-
-interface AliyunNlsConfig {
-  accessKeyId?: string
-  accessKeySecret?: string
-  appKey?: string
-  region?: string
-}
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, AliyunNlsConfig>> }
+const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
 providersStore.initializeProvider(providerId)
 
@@ -88,18 +82,18 @@ function ensureProviderCredentials() {
 }
 
 const credentialsReady = computed(() => {
-  const hasAccessKeyId = Boolean(credentials.accessKeyId.trim())
-  const hasAccessKeySecret = Boolean(credentials.accessKeySecret.trim())
-  const hasAppKey = Boolean(credentials.appKey.trim())
-  const hasAllKeys = hasAccessKeyId && hasAccessKeySecret
-  return hasAllKeys && hasAppKey
+  return Boolean(
+    credentials.accessKeyId.trim()
+    && credentials.accessKeySecret.trim()
+    && credentials.appKey.trim(),
+  )
 })
 
 const isRecording = ref(false)
 const isStreaming = ref(false)
 const errorMessage = ref<string | null>(null)
 const currentPartial = ref('')
-const transcripts = ref<Array<{ index: number; text: string; final: boolean }>>([])
+const transcripts = ref<Array<{ index: number, text: string, final: boolean }>>([])
 
 const audioContext = shallowRef<AudioContext>()
 const workletNode = shallowRef<AudioWorkletNode>()
@@ -110,21 +104,26 @@ const transcriptionAbortController = shallowRef<AbortController>()
 const activeTranscription = shallowRef<HearingTranscriptionResult | null>(null)
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
 
-const canStart = computed(() => {
-  const notActive = !isRecording.value && !isStreaming.value
-  return credentialsReady.value && notActive
-})
+const canStart = computed(() => credentialsReady.value && !isRecording.value && !isStreaming.value)
 const canStop = computed(() => isRecording.value || isStreaming.value)
 const canAbort = computed(() => isStreaming.value && Boolean(transcriptionAbortController.value))
 
-const { t, router, providerMetadata, isValidating, isValid, validationMessage, handleResetSettings, forceValid } =
-  useProviderValidation(providerId)
+const {
+  t,
+  router,
+  providerMetadata,
+  isValidating,
+  isValid,
+  validationMessage,
+  handleResetSettings,
+  forceValid,
+} = useProviderValidation(providerId)
 
 function float32ToInt16(buffer: Float32Array) {
   const output = new Int16Array(buffer.length)
   for (let i = 0; i < buffer.length; i++) {
     const value = Math.max(-1, Math.min(1, buffer[i]))
-    output[i] = value < 0 ? value * 0x8000 : value * 0x7fff
+    output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
   }
   return output
 }
@@ -140,7 +139,8 @@ async function initializeAudioGraph(stream: MediaStream) {
   node.port.onmessage = ({ data }: MessageEvent<{ buffer?: Float32Array }>) => {
     const buffer = data.buffer
     const controller = audioStreamController.value
-    if (!buffer || !controller) return
+    if (!buffer || !controller)
+      return
 
     const pcm16 = float32ToInt16(buffer)
     controller.enqueue(pcm16.buffer.slice(0))
@@ -184,7 +184,7 @@ function handleServerEvent(event: ServerEvent) {
 }
 
 function upsertTranscript(index: number, text: string, final: boolean) {
-  const existingIndex = transcripts.value.findIndex((entry) => entry.index === index)
+  const existingIndex = transcripts.value.findIndex(entry => entry.index === index)
 
   if (existingIndex >= 0) {
     const existing = transcripts.value[existingIndex]
@@ -193,7 +193,8 @@ function upsertTranscript(index: number, text: string, final: boolean) {
       text,
       final: existing.final || final,
     })
-  } else {
+  }
+  else {
     transcripts.value.push({ index, text, final })
   }
 
@@ -201,7 +202,8 @@ function upsertTranscript(index: number, text: string, final: boolean) {
 }
 
 async function startStreaming() {
-  if (!canStart.value) return
+  if (!canStart.value)
+    return
 
   errorMessage.value = null
   resetTranscriptionOutput()
@@ -219,11 +221,9 @@ async function startStreaming() {
   })
 
   try {
-    const provider =
-      await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(
-        providerId,
-      )
-    if (!provider) throw new Error('Failed to initialize Aliyun NLS provider.')
+    const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+    if (!provider)
+      throw new Error('Failed to initialize Aliyun NLS provider.')
 
     const result = await hearingStore.transcription(
       providerId,
@@ -240,7 +240,8 @@ async function startStreaming() {
             },
           },
           onSessionTerminated: async (error?: unknown) => {
-            if (error) errorMessage.value = error instanceof Error ? error.message : String(error)
+            if (error)
+              errorMessage.value = errorMessageFromValue(error)
             isStreaming.value = false
             transcriptionAbortController.value = undefined
           },
@@ -253,13 +254,15 @@ async function startStreaming() {
       },
     )
 
-    if (result.mode !== 'stream') throw new Error('Aliyun NLS returned a non-streaming result unexpectedly.')
+    if (result.mode !== 'stream')
+      throw new Error('Aliyun NLS returned a non-streaming result unexpectedly.')
 
     activeTranscription.value = result
-    transcriptionTextPromise.value = result.text.catch((error) => {
-      errorMessage.value = error instanceof Error ? error.message : String(error)
-      throw error
-    })
+    transcriptionTextPromise.value = result.text
+      .catch((error) => {
+        errorMessage.value = errorMessageFromValue(error)
+        throw error
+      })
 
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -274,12 +277,14 @@ async function startStreaming() {
     mediaStream.value = stream
     await initializeAudioGraph(stream)
 
-    if (audioContext.value?.state === 'suspended') await audioContext.value.resume()
+    if (audioContext.value?.state === 'suspended')
+      await audioContext.value.resume()
 
     isRecording.value = true
     isStreaming.value = true
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : String(error)
+  }
+  catch (error) {
+    errorMessage.value = errorMessageFromValue(error)
     await stopStreaming()
   }
 }
@@ -287,9 +292,8 @@ async function startStreaming() {
 async function stopStreaming() {
   try {
     workletNode.value?.port.postMessage({ type: 'stop' })
-  } catch (error) {
-    console.warn('Failed to send stop message to worklet', error)
   }
+  catch { /* noop */ }
 
   if (mediaStreamSource.value) {
     mediaStreamSource.value.disconnect()
@@ -303,16 +307,15 @@ async function stopStreaming() {
   }
 
   if (mediaStream.value) {
-    mediaStream.value.getTracks().forEach((track) => track.stop())
+    mediaStream.value.getTracks().forEach(track => track.stop())
     mediaStream.value = undefined
   }
 
   if (audioContext.value) {
     try {
       await audioContext.value.close()
-    } catch (error) {
-      console.warn('Failed to close audio context', error)
     }
+    catch { /* noop */ }
     audioContext.value = undefined
   }
 
@@ -324,10 +327,9 @@ async function stopStreaming() {
   if (transcriptionTextPromise.value) {
     try {
       await transcriptionTextPromise.value
-    } catch (error) {
-      // Error already handled in the promise chain during startStreaming
-      console.debug('Transcription text promise rejected', error)
-    } finally {
+    }
+    catch { /* handled in promise */ }
+    finally {
       transcriptionTextPromise.value = null
     }
   }
@@ -339,12 +341,13 @@ async function stopStreaming() {
 
 function abortStreaming() {
   const controller = transcriptionAbortController.value
-  if (!controller) return
+  if (!controller)
+    return
 
   controller.abort(new DOMException('Aborted by user', 'AbortError'))
   audioStreamController.value?.error(new DOMException('Aborted by user', 'AbortError'))
   audioStreamController.value = undefined
-  stopStreaming().catch((error) => console.warn('Failed to stop streaming', error))
+  void stopStreaming()
 }
 
 onBeforeUnmount(async () => {
@@ -367,7 +370,11 @@ onBeforeUnmount(async () => {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetSettings"
         >
-          <FieldInput v-model="credentials.accessKeyId" label="Access Key ID" placeholder="LTAI..." />
+          <FieldInput
+            v-model="credentials.accessKeyId"
+            label="Access Key ID"
+            placeholder="LTAI..."
+          />
 
           <FieldInput
             v-model="credentials.accessKeySecret"
@@ -376,9 +383,18 @@ onBeforeUnmount(async () => {
             placeholder="****************"
           />
 
-          <FieldInput v-model="credentials.appKey" label="App Key" placeholder="请输入 AppKey" />
+          <FieldInput
+            v-model="credentials.appKey"
+            label="App Key"
+            placeholder="请输入 AppKey"
+          />
 
-          <FieldCombobox v-model="credentials.region" label="Region" :options="regionOptions" layout="vertical" />
+          <FieldCombobox
+            v-model="credentials.region"
+            label="Region"
+            :options="regionOptions"
+            layout="vertical"
+          />
         </ProviderBasicSettings>
 
         <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
@@ -409,19 +425,27 @@ onBeforeUnmount(async () => {
       </ProviderSettingsContainer>
 
       <div class="w-full flex flex-1 flex-col gap-6">
-        <div
-          class="border border-neutral-200/80 rounded-xl bg-neutral-50/60 p-4 dark:border-neutral-700 dark:bg-neutral-900/40"
-        >
+        <div class="border border-neutral-200/80 rounded-xl bg-neutral-50/60 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-x-3">
               <Button :disabled="!canStart" variant="primary" @click="startStreaming">
                 {{ isRecording ? 'Streaming...' : 'Start Realtime Transcription' }}
               </Button>
-              <Button :disabled="!canStop" variant="secondary" @click="stopStreaming">Stop</Button>
-              <Button v-if="isStreaming" :disabled="!canAbort" @click="abortStreaming">Abort Session</Button>
+              <Button :disabled="!canStop" variant="secondary" @click="stopStreaming">
+                Stop
+              </Button>
+              <Button
+                v-if="isStreaming"
+                :disabled="!canAbort"
+                @click="abortStreaming"
+              >
+                Abort Session
+              </Button>
             </div>
             <div class="text-sm text-neutral-500 dark:text-neutral-400">
-              <span v-if="isRecording" class="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-500">Recording</span>
+              <span v-if="isRecording" class="rounded bg-red-500/10 px-2 py-0.5 text-xs text-red-500">
+                Recording
+              </span>
               <span v-else-if="isStreaming" class="rounded bg-blue-500/10 px-2 py-0.5 text-xs text-blue-500">
                 Connected
               </span>
@@ -433,34 +457,40 @@ onBeforeUnmount(async () => {
           </p>
         </div>
 
-        <div
-          class="border border-neutral-200/80 rounded-xl bg-neutral-50/60 p-4 dark:border-neutral-700 dark:bg-neutral-900/40"
-        >
-          <h2 class="text-lg font-semibold">Transcripts</h2>
+        <div class="border border-neutral-200/80 rounded-xl bg-neutral-50/60 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+          <h2 class="text-lg font-semibold">
+            Transcripts
+          </h2>
           <div v-if="currentPartial" class="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
-            <div class="text-xs text-neutral-400 tracking-wide uppercase dark:text-neutral-500">Partial</div>
+            <div class="text-xs text-neutral-400 tracking-wide uppercase dark:text-neutral-500">
+              Partial
+            </div>
             <div class="mt-1 font-medium">
               {{ currentPartial }}
             </div>
           </div>
-          <div
-            v-if="!transcripts.length && !currentPartial"
-            class="mt-3 text-sm text-neutral-400 dark:text-neutral-600"
-          >
+          <div v-if="!transcripts.length && !currentPartial" class="mt-3 text-sm text-neutral-400 dark:text-neutral-600">
             Waiting for audio...
           </div>
           <ul class="mt-4 text-sm space-y-3">
-            <li v-for="sentence in transcripts" :key="sentence.index" class="flex items-start gap-3">
-              <span
-                class="mt-0.5 rounded bg-neutral-200/80 px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200"
-              >
+            <li
+              v-for="sentence in transcripts"
+              :key="sentence.index"
+              class="flex items-start gap-3"
+            >
+              <span class="mt-0.5 rounded bg-neutral-200/80 px-2 py-0.5 text-xs text-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-200">
                 #{{ sentence.index }}
               </span>
               <div>
-                <div class="font-medium" :class="sentence.final ? '' : 'italic text-neutral-500 dark:text-neutral-400'">
+                <div
+                  class="font-medium"
+                  :class="sentence.final ? '' : 'italic text-neutral-500 dark:text-neutral-400'"
+                >
                   {{ sentence.text }}
                 </div>
-                <div v-if="!sentence.final" class="text-xs text-neutral-400">Awaiting final result...</div>
+                <div v-if="!sentence.final" class="text-xs text-neutral-400">
+                  Awaiting final result...
+                </div>
               </div>
             </li>
           </ul>

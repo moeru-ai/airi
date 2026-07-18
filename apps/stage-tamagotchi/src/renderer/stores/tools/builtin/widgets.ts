@@ -9,65 +9,63 @@ import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod'
 
-import {
-  widgetsAdd,
-  widgetsClear,
-  widgetsOpenWindow,
-  widgetsPrepareWindow,
-  widgetsRemove,
-  widgetsUpdate,
-} from '../../../../shared/eventa'
+import { widgetsAdd, widgetsClear, widgetsOpenWindow, widgetsPrepareWindow, widgetsRemove, widgetsUpdate } from '../../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../../shared/utils/electron/windows/window-size'
 import { sanitizeExtensionUiDispatchProps } from '../../../widgets/extension-ui/host'
 
 type SizePreset = 's' | 'm' | 'l'
 
-type WidgetActionInput =
+type WidgetActionInput
+  = | {
+    action: 'spawn'
+    id: string
+    componentName: string
+    componentProps: string | Record<string, any>
+    alwaysOnTop?: boolean
+    size: SizePreset
+    windowSize?: WidgetWindowSize
+    ttlSeconds: number
+  }
   | {
-      action: 'spawn'
-      id: string
-      componentName: string
-      componentProps: string | Record<string, unknown>
-      size: SizePreset
-      windowSize?: WidgetWindowSize
-      ttlSeconds: number
-    }
+    action: 'update'
+    id: string
+    componentProps: string | Record<string, any>
+    componentName?: string
+    alwaysOnTop?: boolean
+    size?: SizePreset
+    windowSize?: WidgetWindowSize
+    ttlSeconds?: number
+  }
   | {
-      action: 'update'
-      id: string
-      componentProps: string | Record<string, unknown>
-      componentName?: string
-      size?: SizePreset
-      windowSize?: WidgetWindowSize
-      ttlSeconds?: number
-    }
+    action: 'remove'
+    id: string
+    componentName?: string
+    componentProps?: string | Record<string, any>
+    alwaysOnTop?: boolean
+    size?: SizePreset
+    windowSize?: WidgetWindowSize
+    ttlSeconds?: number
+  }
   | {
-      action: 'remove'
-      id: string
-      componentName?: string
-      componentProps?: string | Record<string, unknown>
-      size?: SizePreset
-      windowSize?: WidgetWindowSize
-      ttlSeconds?: number
-    }
+    action: 'clear'
+    id: string
+    componentName?: string
+    componentProps?: string | Record<string, any>
+    alwaysOnTop?: boolean
+    size?: SizePreset
+    windowSize?: WidgetWindowSize
+    ttlSeconds?: number
+  }
   | {
-      action: 'clear'
-      id: string
-      componentName?: string
-      componentProps?: string | Record<string, unknown>
-      size?: SizePreset
-      windowSize?: WidgetWindowSize
-      ttlSeconds?: number
-    }
-  | {
-      action: 'open'
-      id: string
-      componentName?: string
-      componentProps?: string | Record<string, unknown>
-      size?: SizePreset
-      windowSize?: WidgetWindowSize
-      ttlSeconds?: number
-    }
+    action: 'open'
+    id: string
+    componentName?: string
+    componentProps?: string | Record<string, any>
+    alwaysOnTop?: boolean
+    size?: SizePreset
+    windowSize?: WidgetWindowSize
+    ttlSeconds?: number
+  }
 
 export type WidgetInvokers = ReturnType<typeof createInvokers>
 
@@ -88,48 +86,41 @@ function createInvokers() {
 }
 
 function resolveInvokers(override?: WidgetInvokers): WidgetInvokers {
-  if (override) return override
-  if (!cachedInvokers) cachedInvokers = createInvokers()
+  if (override)
+    return override
+  if (!cachedInvokers)
+    cachedInvokers = createInvokers()
   return cachedInvokers
 }
 
-const widgetWindowSizeParams = z
-  .object({
-    width: z.number().positive(),
-    height: z.number().positive(),
-    // NOTICE: OpenAI-compatible tool validators reject strict object schemas when
-    // some nested properties are omitted from `required`. Keep these fields
-    // required-but-nullable for the provider, then collapse `null` back to omitted
-    // runtime fields before dispatching widget window updates.
-    minWidth: z.union([z.number().positive(), z.null()]),
-    minHeight: z.union([z.number().positive(), z.null()]),
-    maxWidth: z.union([z.number().positive(), z.null()]),
-    maxHeight: z.union([z.number().positive(), z.null()]),
-  })
-  .strict()
+const widgetWindowSizeParams = z.object({
+  width: z.number().positive(),
+  height: z.number().positive(),
+  // NOTICE: OpenAI-compatible tool validators reject strict object schemas when
+  // some nested properties are omitted from `required`. Keep these fields
+  // required-but-nullable for the provider, then collapse `null` back to omitted
+  // runtime fields before dispatching widget window updates.
+  minWidth: z.union([z.number().positive(), z.null()]),
+  minHeight: z.union([z.number().positive(), z.null()]),
+  maxWidth: z.union([z.number().positive(), z.null()]),
+  maxHeight: z.union([z.number().positive(), z.null()]),
+}).strict()
 
-const widgetParams = z
-  .object({
-    action: z
-      .enum(['spawn', 'update', 'remove', 'clear', 'open'])
-      .describe('Choose one: spawn, update, remove, clear, open'),
-    id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
-    componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
-    componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
-    size: z.enum(['s', 'm', 'l']),
-    windowSize: z
-      .union([widgetWindowSizeParams, z.null()])
-      .describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
-    ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
-  })
-  .strict()
+const widgetParams = z.object({
+  action: z.enum(['spawn', 'update', 'remove', 'clear', 'open']).describe('Choose one: spawn, update, remove, clear, open'),
+  id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
+  componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
+  componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
+  alwaysOnTop: z.boolean().describe('Whether the widget window should stay above other windows. Defaults to false when omitted by internal callers.'),
+  size: z.enum(['s', 'm', 'l']),
+  windowSize: z.union([widgetWindowSizeParams, z.null()]).describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
+  ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
+}).strict()
 
 type WidgetToolInput = z.infer<typeof widgetParams>
 
 function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  const isObject = typeof value === 'object' && value !== null
-  const isValidSchemaObject = isObject && !Array.isArray(value) && value !== undefined
-  return isValidSchemaObject
+  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
 }
 
 function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
@@ -138,34 +129,37 @@ function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
   if (next.properties) {
     next.properties = Object.fromEntries(
       Object.entries(next.properties).map(([key, value]) => {
-        if (!isJsonSchema(value)) return [key, value]
+        if (!isJsonSchema(value))
+          return [key, value]
         return [key, normalizeNullableAnyOf(value)]
       }),
     )
   }
 
   if (Array.isArray(next.items)) {
-    next.items = next.items.map((item) => (isJsonSchema(item) ? normalizeNullableAnyOf(item) : item))
-  } else if (isJsonSchema(next.items)) {
+    next.items = next.items.map(item => isJsonSchema(item) ? normalizeNullableAnyOf(item) : item)
+  }
+  else if (isJsonSchema(next.items)) {
     next.items = normalizeNullableAnyOf(next.items)
   }
 
   if (next.anyOf) {
-    next.anyOf = next.anyOf.map((value) => (isJsonSchema(value) ? normalizeNullableAnyOf(value) : value))
+    next.anyOf = next.anyOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
 
     const normalizedEntries = next.anyOf.filter(isJsonSchema)
     const primitiveTypes = normalizedEntries
-      .map((entry) => entry.type)
+      .map(entry => entry.type)
       .filter((type): type is Exclude<JsonSchema['type'], JsonSchema['type'][]> => typeof type === 'string')
     const dedupedPrimitiveTypes = [...new Set(primitiveTypes)]
 
     if (
-      primitiveTypes.length === normalizedEntries.length &&
-      dedupedPrimitiveTypes.length > 0 &&
-      dedupedPrimitiveTypes.every((type) => type !== undefined && JSON_SCHEMA_NULLABLE_SCALAR_TYPES.has(type))
+      primitiveTypes.length === normalizedEntries.length
+      && dedupedPrimitiveTypes.length > 0
+      && dedupedPrimitiveTypes.every(type => type !== undefined && JSON_SCHEMA_NULLABLE_SCALAR_TYPES.has(type))
     ) {
       for (const entry of normalizedEntries) {
-        if (entry.type !== 'number' && entry.type !== 'integer') continue
+        if (entry.type !== 'number' && entry.type !== 'integer')
+          continue
 
         next.multipleOf ??= entry.multipleOf
         next.minimum ??= entry.minimum
@@ -179,14 +173,15 @@ function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
   }
 
   if (next.oneOf) {
-    next.oneOf = next.oneOf.map((value) => (isJsonSchema(value) ? normalizeNullableAnyOf(value) : value))
+    next.oneOf = next.oneOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
   }
 
   return next
 }
 
 function normalizeWidgetWindowSizeInput(windowSize: WidgetToolInput['windowSize']): WidgetWindowSize | undefined {
-  if (!windowSize) return undefined
+  if (!windowSize)
+    return undefined
 
   return {
     width: windowSize.width,
@@ -205,40 +200,47 @@ function normalizeWidgetToolInput(input: WidgetToolInput): WidgetActionInput {
   }
 }
 
-export function normalizeComponentProps(raw?: string | Record<string, unknown>) {
-  if (raw === undefined || raw === null) return {}
+export function normalizeComponentProps(raw?: string | Record<string, any>) {
+  if (raw === undefined || raw === null)
+    return {}
 
   if (typeof raw === 'string') {
     const payload = raw.trim()
-    if (!payload) return {}
+    if (!payload)
+      return {}
     try {
       const parsed = JSON.parse(payload)
       return typeof parsed === 'object' && parsed !== null ? parsed : {}
-    } catch (error) {
+    }
+    catch (error) {
       throw new Error(`Invalid JSON for componentProps: ${(error as Error).message}`)
     }
   }
 
-  if (typeof raw === 'object') return raw
+  if (typeof raw === 'object')
+    return raw
 
   return {}
 }
 
 function resolveWindowSize(
   componentName: string | undefined,
-  componentProps: Record<string, unknown>,
+  componentProps: Record<string, any>,
   windowSize?: WidgetWindowSize,
 ) {
   const explicitWindowSize = normalizeWidgetWindowSize(windowSize)
-  if (explicitWindowSize) return explicitWindowSize
+  if (explicitWindowSize)
+    return explicitWindowSize
 
-  if (componentName?.trim().toLowerCase() !== 'extension-ui') return undefined
+  if (componentName?.trim().toLowerCase() !== 'extension-ui')
+    return undefined
 
-  return normalizeWidgetWindowSize(componentProps.windowSize as WidgetWindowSize | undefined)
+  return normalizeWidgetWindowSize(componentProps.windowSize)
 }
 
-function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, unknown>) {
-  if (componentName?.trim().toLowerCase() !== 'extension-ui') return componentProps
+function sanitizeComponentPropsForDispatch(componentName: string | undefined, componentProps: Record<string, any>) {
+  if (componentName?.trim().toLowerCase() !== 'extension-ui')
+    return componentProps
 
   return sanitizeExtensionUiDispatchProps(componentProps)
 }
@@ -249,7 +251,8 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
 
   switch (input.action) {
     case 'spawn': {
-      if (!input.componentName?.trim()) throw new Error('componentName is required to spawn a widget.')
+      if (!input.componentName?.trim())
+        throw new Error('componentName is required to spawn a widget.')
 
       const componentProps = normalizeComponentProps(input.componentProps)
       const sanitizedComponentProps = sanitizeComponentPropsForDispatch(input.componentName, componentProps)
@@ -260,14 +263,16 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
         componentName: input.componentName,
         componentProps: sanitizedComponentProps,
         size: input.size ?? 'm',
-        windowSize,
+        ...(input.alwaysOnTop === undefined ? {} : { alwaysOnTop: input.alwaysOnTop }),
+        ...(windowSize === undefined ? {} : { windowSize }),
         ttlMs,
       })
 
       return `Spawned widget${id ? ` (${id})` : ''}.`
     }
     case 'update': {
-      if (!normalizedId) throw new Error('id is required to update a widget.')
+      if (!normalizedId)
+        throw new Error('id is required to update a widget.')
 
       const componentProps = normalizeComponentProps(input.componentProps)
       const sanitizedComponentProps = sanitizeComponentPropsForDispatch(input.componentName, componentProps)
@@ -275,13 +280,15 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
       await invokers.updateWidget({
         id: normalizedId,
         componentProps: sanitizedComponentProps,
-        windowSize,
+        ...(input.alwaysOnTop === undefined ? {} : { alwaysOnTop: input.alwaysOnTop }),
+        ...(windowSize === undefined ? {} : { windowSize }),
       })
 
       return `Updated widget (${normalizedId}).`
     }
     case 'remove': {
-      if (!normalizedId) throw new Error('id is required to remove a widget.')
+      if (!normalizedId)
+        throw new Error('id is required to remove a widget.')
 
       await invokers.removeWidget({ id: normalizedId })
       return `Removed widget (${normalizedId}).`
@@ -301,14 +308,12 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
 }
 
 const tools: Promise<Tool>[] = [
-  (async () =>
-    rawTool({
-      name: 'stage_widgets',
-      description:
-        'Manage overlay widgets in the Stage desktop app (spawn, update, remove, clear, or open the widgets window).',
-      execute: (params) => executeWidgetAction(normalizeWidgetToolInput(params as WidgetToolInput)),
-      parameters: normalizeNullableAnyOf((await toJsonSchema(widgetParams)) as JsonSchema),
-    }))(),
+  (async () => rawTool({
+    name: 'stage_widgets',
+    description: 'Manage overlay widgets in the Stage desktop app (spawn, update, remove, clear, or open the widgets window).',
+    execute: params => executeWidgetAction(normalizeWidgetToolInput(params as WidgetToolInput)),
+    parameters: normalizeNullableAnyOf(await toJsonSchema(widgetParams) as JsonSchema),
+  }))(),
 ]
 
 export const widgetsTools = async () => Promise.all(tools)

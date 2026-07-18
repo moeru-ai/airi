@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 /**
  * @example
  * describe('createConfig', () => {
- *   it('persists configuration data', () => {
+ *   it('persists configuration data', async () => {
  *     // assertions
  *   })
  * })
@@ -18,7 +18,7 @@ describe('createConfig', () => {
 
   /**
    * @example
-   * it('uses a unique temp file per save to avoid concurrent rename collisions', () => {
+   * it('uses a unique temp file per save to avoid concurrent rename collisions', async () => {
    *   await vi.waitFor(() => {
    *     expect(renameMock).toHaveBeenCalledTimes(2)
    *   })
@@ -26,7 +26,7 @@ describe('createConfig', () => {
    *
    * Failed to save config Error: ENOENT: no such file or directory, rename '/path/to/the/electron/app/data/app-config.json.tmp' -> '/path/to/the/electron/app/data/app-config.json'
    *   at async rename (node:internal/fs/promises:785:10)
-   *   at file://./airi/apps/stage-tamagotchi/out/main/index.js:3327:4 {
+   *   at async file://./airi/apps/stage-tamagotchi/out/main/index.js:3327:4 {
    *     errno: -2,
    *     code: 'ENOENT',
    *     syscall: 'rename',
@@ -45,9 +45,9 @@ describe('createConfig', () => {
     const appMock = {
       getPath: vi.fn(() => '/tmp/airi-user-data'),
     }
-    const mkdirMock = vi.fn(() => {})
+    const mkdirMock = vi.fn(async () => {})
     const existingTempFiles = new Set<string>()
-    const renameMock = vi.fn((from: string) => {
+    const renameMock = vi.fn(async (from: string) => {
       if (!existingTempFiles.has(from)) {
         const error = new Error(`ENOENT: no such file or directory, rename '${from}'`) as NodeJS.ErrnoException
         error.code = 'ENOENT'
@@ -60,13 +60,13 @@ describe('createConfig', () => {
       waitFor: Promise.resolve(),
       release: () => {},
     }
-    const writeFileMock = vi.fn((path: string) => {
+    const writeFileMock = vi.fn(async (path: string) => {
       existingTempFiles.add(path)
       writeCoordinator.calls += 1
       if (writeCoordinator.calls === 2) {
         writeCoordinator.release()
       }
-      return writeCoordinator.waitFor
+      await writeCoordinator.waitFor
     })
 
     writeCoordinator.waitFor = new Promise<void>((resolve) => {
@@ -84,7 +84,7 @@ describe('createConfig', () => {
       readFileSync: () => '',
     }))
     vi.doMock('node:fs/promises', () => ({
-      copyFile: vi.fn(() => {}),
+      copyFile: vi.fn(async () => {}),
       mkdir: mkdirMock,
       rename: renameMock,
       writeFile: writeFileMock,

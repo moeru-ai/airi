@@ -6,9 +6,7 @@ export function createCutePopupAnimator(options: CreateAnimatorOptions): Animato
   return (elements: HTMLElement[]) => {
     if (elements.length === 0) {
       // NO DIV0
-      return () => {
-        /* noop — no elements to animate */
-      }
+      return () => {}
     }
 
     const timeline = createTimeline({ loop: options.loop })
@@ -24,7 +22,7 @@ export function createCutePopupAnimator(options: CreateAnimatorOptions): Animato
         translateY: ['1.1em', 0],
         translateZ: 0,
         ...options,
-        delay: (_, i) => (options.duration / elements.length) * i,
+        delay: (_, i) => options.duration / elements.length * i,
         ease: createSpring(),
       })
 

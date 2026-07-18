@@ -1,20 +1,4 @@
-import {
-  check,
-  finite,
-  integer,
-  literal,
-  nonEmpty,
-  nullish,
-  number,
-  optional,
-  partial,
-  picklist,
-  pipe,
-  safeParse,
-  strictObject,
-  string,
-  trim,
-} from 'valibot'
+import { check, finite, integer, literal, nonEmpty, nullish, number, optional, partial, picklist, pipe, safeParse, strictObject, string, trim } from 'valibot'
 
 const finiteNumberSchema = pipe(number(), finite())
 const finiteIntegerSchema = pipe(number(), finite(), integer())
@@ -64,7 +48,8 @@ export const StageViewStateSchema = strictObject({
 })
 
 /** Camera pose mutation accepted by the Godot stage. */
-export interface StageCameraPosePatch extends Partial<Pick<StageCameraPoseState, 'yawDeg' | 'pitchDeg' | 'fovDeg'>> {
+export interface StageCameraPosePatch
+  extends Partial<Pick<StageCameraPoseState, 'yawDeg' | 'pitchDeg' | 'fovDeg'>> {
   position?: Partial<StageViewVec3>
 }
 
@@ -88,20 +73,14 @@ export const StageCameraPosePatchSchema = strictObject({
 })
 
 function hasStageViewVec3PatchMutation(patch: Partial<StageViewVec3> | undefined) {
-  const hasX = patch?.x !== undefined
-  const hasY = patch?.y !== undefined
-  const hasZ = patch?.z !== undefined
-  const hasPositionMutation = hasX || hasY || hasZ
-  return hasPositionMutation
+  return patch?.x !== undefined || patch?.y !== undefined || patch?.z !== undefined
 }
 
 function hasStageViewPatchMutation(patch: StageViewPatch) {
-  const hasPositionMutation = hasStageViewVec3PatchMutation(patch.camera?.position)
-  const hasYawMutation = patch.camera?.yawDeg !== undefined
-  const hasPitchMutation = patch.camera?.pitchDeg !== undefined
-  const hasFovMutation = patch.camera?.fovDeg !== undefined
-  const hasAngleMutation = hasYawMutation || hasPitchMutation || hasFovMutation
-  return hasPositionMutation || hasAngleMutation
+  return hasStageViewVec3PatchMutation(patch.camera?.position)
+    || patch.camera?.yawDeg !== undefined
+    || patch.camera?.pitchDeg !== undefined
+    || patch.camera?.fovDeg !== undefined
 }
 
 export const StageViewPatchSchema = pipe(
@@ -114,13 +93,19 @@ export const StageViewPatchSchema = pipe(
 /** Parses a host-origin Godot view-state patch. */
 export function parseStageViewPatchPayload(payload: unknown): StageViewPatch {
   const result = safeParse(StageViewPatchSchema, payload)
-  if (!result.success) throw new Error('Invalid Godot stage view-state patch payload.')
+  if (!result.success)
+    throw new Error('Invalid Godot stage view-state patch payload.')
 
   return result.output
 }
 
 /** Reason attached to a Godot view-state snapshot event. */
-export type StageViewSnapshotReason = 'loaded' | 'remote-patch' | 'local-input' | 'request' | 'shutdown-flush'
+export type StageViewSnapshotReason
+  = | 'loaded'
+    | 'remote-patch'
+    | 'local-input'
+    | 'request'
+    | 'shutdown-flush'
 
 /** Runtime-only avatar bounds emitted with view snapshots for UI range decisions. */
 export interface StageAvatarBoundsPayload {
@@ -154,7 +139,8 @@ export const StageViewSnapshotPayloadSchema = strictObject({
 /** Parses a Godot-emitted view-state snapshot. */
 export function parseStageViewSnapshotPayload(payload: unknown): StageViewSnapshotPayload {
   const result = safeParse(StageViewSnapshotPayloadSchema, payload)
-  if (!result.success) throw new Error('Invalid Godot stage view-state snapshot payload.')
+  if (!result.success)
+    throw new Error('Invalid Godot stage view-state snapshot payload.')
 
   return {
     state: result.output.state,
@@ -165,12 +151,12 @@ export function parseStageViewSnapshotPayload(payload: unknown): StageViewSnapsh
 }
 
 /** Stable machine-readable Godot view-state error code. */
-export type StageViewErrorCode =
-  | 'invalid-payload'
-  | 'invalid-state-file'
-  | 'persistence-failed'
-  | 'storage-root-missing'
-  | 'view-state-unavailable'
+export type StageViewErrorCode
+  = | 'invalid-payload'
+    | 'invalid-state-file'
+    | 'persistence-failed'
+    | 'storage-root-missing'
+    | 'view-state-unavailable'
 
 /** Error event emitted by Godot for view-state request, validation, or lifecycle failures. */
 export interface StageViewErrorPayload {
@@ -180,13 +166,7 @@ export interface StageViewErrorPayload {
 }
 
 export const StageViewErrorPayloadSchema = strictObject({
-  code: picklist([
-    'invalid-payload',
-    'invalid-state-file',
-    'persistence-failed',
-    'storage-root-missing',
-    'view-state-unavailable',
-  ]),
+  code: picklist(['invalid-payload', 'invalid-state-file', 'persistence-failed', 'storage-root-missing', 'view-state-unavailable']),
   message: string(),
   requestId: requestIdSchema,
 })
@@ -194,7 +174,8 @@ export const StageViewErrorPayloadSchema = strictObject({
 /** Parses a Godot-emitted view-state error. */
 export function parseStageViewErrorPayload(payload: unknown): StageViewErrorPayload {
   const result = safeParse(StageViewErrorPayloadSchema, payload)
-  if (!result.success) throw new Error('Invalid Godot stage view-state error payload.')
+  if (!result.success)
+    throw new Error('Invalid Godot stage view-state error payload.')
 
   return {
     code: result.output.code,

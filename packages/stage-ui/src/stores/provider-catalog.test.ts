@@ -1,13 +1,5 @@
-import type {
-  InferenceServiceProvider,
-  InferenceServiceProviders,
-  InferenceServiceProvidersModel,
-} from '../models/inference-service-providers'
-import type {
-  InferenceServiceProvidersRemoteClient,
-  InferenceServiceProvidersService,
-  PatchConfigParams,
-} from '../services/inference-service-providers'
+import type { InferenceServiceProvider, InferenceServiceProviders, InferenceServiceProvidersModel } from '../models/inference-service-providers'
+import type { InferenceServiceProvidersRemoteClient, InferenceServiceProvidersService, PatchConfigParams } from '../services/inference-service-providers'
 
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
@@ -39,7 +31,8 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
     async mutateAsync(vars: TVars) {
       try {
         return await mutation(vars)
-      } catch (error) {
+      }
+      catch (error) {
         this.error.value = error as Error
         throw error
       }
@@ -49,52 +42,38 @@ function createMutation<TVars, TData>(mutation: (vars: TVars) => Promise<TData>)
 
 function setupController() {
   const model: InferenceServiceProvidersModel = {
-    list: vi.fn(() => Promise.resolve({})),
-    saveAll: vi.fn(() => Promise.resolve()),
-    upsert: vi.fn(() => Promise.resolve()),
-    remove: vi.fn(() => Promise.resolve()),
+    list: vi.fn(async () => ({})),
+    saveAll: vi.fn(async () => {}),
+    upsert: vi.fn(async () => {}),
+    remove: vi.fn(async () => {}),
   }
   const service: InferenceServiceProvidersService = {
     getDefinition: vi.fn(() => providerOpenAICompatible),
     listDefinitions: vi.fn(() => [providerOpenAICompatible]),
     buildLocal: vi.fn(() => localProvider),
-    fetchRemote: vi.fn(() => Promise.resolve({})),
-    createRemote: vi.fn(() => Promise.resolve(remoteProvider)),
-    deleteRemote: vi.fn(() => Promise.resolve()),
-    patchConfigRemote: vi.fn(() => Promise.resolve({ ...remoteProvider, id: 'provider-1', validated: true })),
+    fetchRemote: vi.fn(async () => ({})),
+    createRemote: vi.fn(async () => remoteProvider),
+    deleteRemote: vi.fn(async () => {}),
+    patchConfigRemote: vi.fn(async () => ({ ...remoteProvider, id: 'provider-1', validated: true })),
   }
   const providersQuery = {
     error: ref<Error | null>(null),
     isLoading: ref(false),
-    refetch: vi.fn(() =>
-      Promise.resolve({
-        data: {
-          'remote-id': { ...remoteProvider, id: 'remote-id' },
-        },
-      }),
-    ),
+    refetch: vi.fn(async () => ({
+      data: {
+        'remote-id': { ...remoteProvider, id: 'remote-id' },
+      },
+    })),
   }
   const controller = createProviderCatalogStoreController({
-    addProviderMutation: createMutation<InferenceServiceProvider, InferenceServiceProvider>((provider) =>
-      service.createRemote({} as InferenceServiceProvidersRemoteClient, provider),
-    ),
-    commitProviderConfigMutation: createMutation<
-      { providerId: string; config: Record<string, unknown>; options: PatchConfigParams },
-      InferenceServiceProvider
-    >((vars) =>
-      service.patchConfigRemote(
-        {} as InferenceServiceProvidersRemoteClient,
-        vars.providerId,
-        vars.config,
-        vars.options,
-      ),
+    addProviderMutation: createMutation<InferenceServiceProvider, InferenceServiceProvider>(provider => service.createRemote({} as InferenceServiceProvidersRemoteClient, provider)),
+    commitProviderConfigMutation: createMutation<{ providerId: string, config: Record<string, unknown>, options: PatchConfigParams }, InferenceServiceProvider>(
+      vars => service.patchConfigRemote({} as InferenceServiceProvidersRemoteClient, vars.providerId, vars.config, vars.options),
     ),
     configs: ref<Record<string, InferenceServiceProvider>>({}),
     model,
     providersQuery,
-    removeProviderMutation: createMutation<string, void>((id) =>
-      service.deleteRemote({} as InferenceServiceProvidersRemoteClient, id),
-    ),
+    removeProviderMutation: createMutation<string, void>(id => service.deleteRemote({} as InferenceServiceProvidersRemoteClient, id)),
     service,
   })
 
@@ -143,11 +122,7 @@ describe('store provider-catalog controller', () => {
     const { controller, model, service } = setupController()
     controller.configs.value[localProvider.id] = localProvider
 
-    await controller.commitProviderConfig(
-      localProvider.id,
-      { apiKey: 'sk-test' },
-      { validated: true, validationBypassed: false },
-    )
+    await controller.commitProviderConfig(localProvider.id, { apiKey: 'sk-test' }, { validated: true, validationBypassed: false })
     await controller.removeProvider(localProvider.id)
 
     expect(service.patchConfigRemote).toHaveBeenCalled()
@@ -161,10 +136,10 @@ describe('store provider-catalog controller', () => {
    */
   it('passes Pinia Colada query abort signal to provider service and model', async () => {
     const service = {
-      fetchRemote: vi.fn(() => ({}) as Promise<InferenceServiceProviders>),
+      fetchRemote: vi.fn(async () => ({}) as Promise<InferenceServiceProviders>),
     }
     const model = {
-      saveAll: vi.fn(() => Promise.resolve()),
+      saveAll: vi.fn(async () => {}),
     }
     const controller = new AbortController()
     const options = createProviderCatalogListQueryOptions({

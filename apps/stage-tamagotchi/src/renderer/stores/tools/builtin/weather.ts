@@ -22,7 +22,7 @@ async function executeGetWeather(input: { city: string }): Promise<string> {
     action: 'spawn',
     id: `weather-${weather.city.toLowerCase().replace(/\s+/g, '-')}`,
     componentName: 'weather',
-    componentProps: weather as unknown as Record<string, unknown>,
+    componentProps: weather,
     size: 'm',
     ttlSeconds: 60,
   })

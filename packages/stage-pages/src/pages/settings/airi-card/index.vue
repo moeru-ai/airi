@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ccv3 } from '@proj-airi/ccc'
-
 import { Alert } from '@proj-airi/stage-ui/components'
+import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
@@ -9,6 +9,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 import CardCreate from './components/CardCreate.vue'
 import CardCreationDialog from './components/CardCreationDialog.vue'
@@ -18,6 +19,7 @@ import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
+const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
 const { cards, activeCardId } = storeToRefs(cardStore)
 
@@ -53,18 +55,21 @@ interface CardItem {
 
 watch(inputFiles, async (newFiles) => {
   const file = newFiles[0]
-  if (!file) return
+  if (!file)
+    return
 
   try {
-    const content = await file.text()
-    const cardJSON = JSON.parse(content) as ccv3.CharacterCardV3
-
-    // Add card and select it
-    selectedCardId.value = addCard(cardJSON)
-    isCardDialogOpen.value = true
-  } catch (error) {
-    const _logger = (..._a: unknown[]) => void 0
-    _logger('Error processing card file:', error)
+    addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    toast(t('settings.pages.card.imported'))
+  }
+  catch (error) {
+    console.error('Error processing card package:', error)
+    toast(t(error instanceof AiriCardPackageError && error.code === 'missing-file'
+      ? 'settings.pages.card.import_missing_file'
+      : 'settings.pages.card.import_invalid_file'))
+  }
+  finally {
+    inputFiles.value = []
   }
 })
 
@@ -79,12 +84,13 @@ const cardsArray = computed<CardItem[]>(() =>
 
 // Filtered cards based on search query
 const filteredCards = computed<CardItem[]>(() => {
-  if (!searchQuery.value) return cardsArray.value
+  if (!searchQuery.value)
+    return cardsArray.value
 
   const query = searchQuery.value.toLowerCase()
-  return cardsArray.value.filter(
-    (item) =>
-      item.name.toLowerCase().includes(query) || (item.description && item.description.toLowerCase().includes(query)),
+  return cardsArray.value.filter(item =>
+    item.name.toLowerCase().includes(query)
+    || (item.description && item.description.toLowerCase().includes(query)),
   )
 })
 
@@ -93,10 +99,14 @@ const sortedFilteredCards = computed<CardItem[]>(() => {
   // Create a new array to avoid mutating the source
   const sorted = [...filteredCards.value]
 
-  if (sortOption.value === 'nameAsc') return sorted.sort((a, b) => a.name.localeCompare(b.name))
-  else if (sortOption.value === 'nameDesc') return sorted.sort((a, b) => b.name.localeCompare(a.name))
-  else if (sortOption.value === 'recent') return sorted.sort((a, b) => b.id.localeCompare(a.id))
-  else return sorted
+  if (sortOption.value === 'nameAsc')
+    return sorted.sort((a, b) => a.name.localeCompare(b.name))
+  else if (sortOption.value === 'nameDesc')
+    return sorted.sort((a, b) => b.name.localeCompare(a.name))
+  else if (sortOption.value === 'recent')
+    return sorted.sort((a, b) => b.id.localeCompare(a.id))
+  else
+    return sorted
 })
 
 // Delete confirmation
@@ -119,27 +129,31 @@ function confirmDelete(id: string) {
 
 function handleSelectCard(cardId: string) {
   // Verify card exists before opening dialog
-  if (cards.value.has(cardId)) {
-    selectedCardId.value = cardId
-    isCardDialogOpen.value = true
+  if (!cards.value.has(cardId)) {
+    console.error(`Card with id ${cardId} not found`)
+    return
   }
+  selectedCardId.value = cardId
+  isCardDialogOpen.value = true
 }
 
 function handleEditCard(cardId: string) {
   // Verify card exists before opening edit dialog
-  if (cards.value.has(cardId)) {
-    editingCardId.value = cardId
-    isCardCreationDialogOpen.value = true
+  if (!cards.value.has(cardId)) {
+    console.error(`Card with id ${cardId} not found`)
+    return
   }
+  editingCardId.value = cardId
+  isCardCreationDialogOpen.value = true
 }
 
-const handleCardCreationDialog = () => {
+function handleCardCreationDialog() {
   editingCardId.value = '' // Clear editing state for new card creation
   isCardCreationDialogOpen.value = true
 }
 
 // Card activation
-const activateCard = (id: string) => {
+function activateCard(id: string) {
   activeCardId.value = id
 }
 
@@ -159,58 +173,53 @@ watch(isCardDialogOpen, (isOpen) => {
 })
 
 // Handle deep-linking from query params
-watch(
-  () => [route.query.cardId, route.query.tab],
-  ([cardId, tab]) => {
-    if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId)) return
+watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
+  if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId))
+    return
 
-    const targetTab = typeof tab === 'string' ? tab : ''
-    selectedCardId.value = cardId
-    initialTabId.value = targetTab
+  const targetTab = typeof tab === 'string' ? tab : ''
+  selectedCardId.value = cardId
+  initialTabId.value = targetTab
 
-    // Gallery or other viewing tabs go to Detail dialog
-    if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
-      isCardDialogOpen.value = true
-      isCardCreationDialogOpen.value = false
-    }
-    // Artistry or other editing tabs go to Creation/Edit dialog
-    else if (['artistry', 'identity', 'behavior', 'modules', 'pattern-disruptor', 'settings'].includes(targetTab)) {
-      editingCardId.value = cardId
-      isCardCreationDialogOpen.value = true
-      isCardDialogOpen.value = false
-    } else {
-      // Default to detail if tab is unknown
-      isCardDialogOpen.value = true
-      isCardCreationDialogOpen.value = false
-    }
+  // Gallery or other viewing tabs go to Detail dialog
+  if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
+    isCardDialogOpen.value = true
+    isCardCreationDialogOpen.value = false
+  }
+  // Artistry or other editing tabs go to Creation/Edit dialog
+  else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
+    editingCardId.value = cardId
+    isCardCreationDialogOpen.value = true
+    isCardDialogOpen.value = false
+  }
+  else {
+    // Default to detail if tab is unknown
+    isCardDialogOpen.value = true
+    isCardCreationDialogOpen.value = false
+  }
 
-    // Clear query params to prevent re-triggering and keep URL clean
-    void router.replace({ query: {} })
-  },
-  { immediate: true },
-)
+  // Clear query params to prevent re-triggering and keep URL clean
+  void router.replace({ query: {} })
+}, { immediate: true })
 
 // Card version number
-const getVersionNumber = (id: string) => {
+function getVersionNumber(id: string) {
   const card = cards.value.get(id)
   return card?.version || '1.0.0'
 }
 
 // Card module short name
-const getModuleShortName = (id: string, module: 'consciousness' | 'voice') => {
+function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   const card = cards.value.get(id)
-  if (!card || !card.extensions?.airi?.modules) return 'default'
+  if (!card || !card.extensions?.airi?.modules)
+    return 'default'
 
   const airiExt = card.extensions.airi.modules
 
   if (module === 'consciousness') {
-    const model = airiExt.consciousness?.model
-    if (model) {
-      const parts = model.split('-')
-      return parts[parts.length - 1] || 'default'
-    }
-    return 'default'
-  } else if (module === 'voice') {
+    return airiExt.consciousness?.model ? airiExt.consciousness.model.split('-').pop() || 'default' : 'default'
+  }
+  else if (module === 'voice') {
     return airiExt.speech?.voice_id || 'default'
   }
 
@@ -235,14 +244,12 @@ const getModuleShortName = (id: string, module: 'consciousness' | 'voice') => {
           transition="all duration-200 ease-in-out"
           bg="white dark:neutral-900"
           :placeholder="t('settings.pages.card.search')"
-        />
+        >
       </div>
 
       <!-- Sort options -->
       <div class="relative flex flex-row justify-start gap-2 lg:flex-col">
-        <div
-          class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400"
-        >
+        <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
         <ComboboxSelect
@@ -261,13 +268,10 @@ const getModuleShortName = (id: string, module: 'consciousness' | 'voice') => {
     <!-- Masonry card layout -->
     <div
       class="mt-4"
-      :class="{
-        'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]':
-          cards.size > 0,
-      }"
+      :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
       <!-- Upload card -->
-      <InputFileCard v-model="inputFiles" accept="*.json">
+      <InputFileCard v-model="inputFiles" accept=".zip">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
             <div flex flex-col items-center>
@@ -346,28 +350,29 @@ const getModuleShortName = (id: string, module: 'consciousness' | 'voice') => {
   />
 
   <!-- Card detail dialog -->
-  <CardDetailDialog v-model="isCardDialogOpen" :card-id="selectedCardId" :initial-tab="initialTabId" />
+  <CardDetailDialog
+    v-model="isCardDialogOpen"
+    :card-id="selectedCardId"
+    :initial-tab="initialTabId"
+  />
 
   <!-- Card creation/edit dialog -->
-  <CardCreationDialog v-model="isCardCreationDialogOpen" :card-id="editingCardId" :initial-tab="initialTabId" />
+  <CardCreationDialog
+    v-model="isCardCreationDialogOpen"
+    :card-id="editingCardId"
+    :initial-tab="initialTabId"
+  />
 
   <!-- Background decoration -->
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20"
-    pointer-events-none
-    fixed
-    top="[calc(100dvh-15rem)]"
-    bottom-0
-    right--5
-    z--1
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
     size-60
-    flex
-    items-center
-    justify-center
+    flex items-center justify-center
   >
     <div text="60" i-solar:emoji-funny-square-bold-duotone />
   </div>

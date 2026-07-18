@@ -5,9 +5,7 @@ import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 
-const props = withDefaults(defineProps<{ colorClass?: string }>(), {
-  colorClass: 'text-primary-500 dark:text-primary-200',
-})
+const props = withDefaults(defineProps<{ colorClass?: string }>(), { colorClass: 'text-primary-500 dark:text-primary-200' })
 const settingsAudio = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudio)
 
@@ -21,7 +19,8 @@ const normalized = computed(() => Math.min(1, (volumeLevel.value ?? 0) / 100))
 function teardown() {
   try {
     source?.disconnect()
-  } catch {
+  }
+  catch {
     // ignore
   }
 
@@ -31,12 +30,15 @@ function teardown() {
 
 async function setup() {
   teardown()
-  if (!enabled.value || !stream.value) return
+  if (!enabled.value || !stream.value)
+    return
 
   const ctx = audioContext.value
-  if (ctx.state === 'suspended') await ctx.resume()
+  if (ctx.state === 'suspended')
+    await ctx.resume()
   const analyser = startAnalyzer(ctx)
-  if (!analyser) return
+  if (!analyser)
+    return
   source = ctx.createMediaStreamSource(stream.value)
   source.connect(analyser)
 }

@@ -1,25 +1,36 @@
 import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
-import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
-
 import posthog from 'posthog-js'
+
+import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 
 import {
   DEFAULT_POSTHOG_CONFIG,
   POSTHOG_ENABLED,
-  POSTHOG_PROJECT_KEY_DESKTOP,
-  POSTHOG_PROJECT_KEY_POCKET,
-  POSTHOG_PROJECT_KEY_WEB,
+  POSTHOG_PROJECT_KEY,
 } from '../../../../../posthog.config'
 
 let posthogInitialized = false
 
-function getPosthogProjectKey(): string {
-  if (isStageTamagotchi()) return POSTHOG_PROJECT_KEY_DESKTOP
+export interface PosthogIdentitySnapshot {
+  /** Current PostHog distinct id for the browser/device/user person. */
+  distinctId: string
+  /** Current PostHog session id, when the SDK has established one. */
+  sessionId?: string
+}
 
-  if (isStageCapacitor()) return POSTHOG_PROJECT_KEY_POCKET
+// All AIRI surfaces (web, desktop, mobile) capture into a single PostHog
+// project. The platform is carried on every event via the `app_surface` super
+// property (registered at init), so cross-platform funnels live in one
+// project instead of being split across per-platform projects.
+function currentSurface(): 'web' | 'mobile' | 'electron' {
+  if (isStageTamagotchi())
+    return 'electron'
 
-  return POSTHOG_PROJECT_KEY_WEB
+  if (isStageCapacitor())
+    return 'mobile'
+
+  return 'web'
 }
 
 export function isPosthogAvailableInBuild(): boolean {
@@ -27,39 +38,48 @@ export function isPosthogAvailableInBuild(): boolean {
 }
 
 export function ensurePosthogInitialized(enabled: boolean): boolean {
-  if (!POSTHOG_ENABLED) return false
+  if (!POSTHOG_ENABLED)
+    return false
 
-  if (posthogInitialized) return true
+  if (posthogInitialized)
+    return true
 
-  posthog.init(getPosthogProjectKey(), {
+  posthog.init(POSTHOG_PROJECT_KEY, {
     ...DEFAULT_POSTHOG_CONFIG,
     opt_out_capturing_by_default: !enabled,
   })
+  // Tag every event (including autocapture / pageview) with the platform so
+  // the single project can still be broken down by web / desktop / mobile.
+  posthog.register({ app_surface: currentSurface() })
   posthogInitialized = true
   return true
 }
 
 export function syncPosthogCapture(enabled: boolean): boolean {
-  if (!POSTHOG_ENABLED) return false
+  if (!POSTHOG_ENABLED)
+    return false
 
   if (enabled) {
     ensurePosthogInitialized(true)
 
-    if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing()
+    if (posthog.has_opted_out_capturing())
+      posthog.opt_in_capturing()
 
     return true
   }
 
-  if (posthogInitialized && !posthog.has_opted_out_capturing()) posthog.opt_out_capturing()
+  if (posthogInitialized && !posthog.has_opted_out_capturing())
+    posthog.opt_out_capturing()
 
   return false
 }
 
 export function registerPosthogBuildInfo(buildInfo: AboutBuildInfo): void {
-  if (!posthogInitialized) return
+  if (!posthogInitialized)
+    return
 
   posthog.register({
-    app_version: buildInfo.version && buildInfo.version !== '0.0.0' ? buildInfo.version : 'dev',
+    app_version: (buildInfo.version && buildInfo.version !== '0.0.0') ? buildInfo.version : 'dev',
     app_commit: buildInfo.commit,
     app_branch: buildInfo.branch,
     app_build_time: buildInfo.builtOn,
@@ -75,12 +95,13 @@ export function registerPosthogBuildInfo(buildInfo: AboutBuildInfo): void {
  * land on the anonymous device person, PostHog cannot join them.
  *
  * Expects:
- * - `userId` is the Better Auth user id (`user.id`) — must match what
- *   `apps/server/src/routes/stripe/index.ts` passes as `distinctId` in
- *   `capturePaymentCompleted`.
+ * - `userId` is the Better Auth user id (`user.id`) — the same value the
+ *   server-side product-events forwarder passes as `distinctId` (see
+ *   `apps/server/src/services/domain/product-events.ts`).
  */
 export function identifyPosthogUser(userId: string): void {
-  if (!posthogInitialized || posthog.has_opted_out_capturing()) return
+  if (!posthogInitialized || posthog.has_opted_out_capturing())
+    return
   // PostHog's `identify` is idempotent and aliases the anonymous distinct
   // id, so calling it on every auth-state-change is safe.
   posthog.identify(userId)
@@ -93,8 +114,28 @@ export function identifyPosthogUser(userId: string): void {
  * signs in on the same device).
  */
 export function resetPosthog(): void {
-  if (!posthogInitialized) return
+  if (!posthogInitialized)
+    return
   posthog.reset()
+}
+
+/**
+ * Returns the current PostHog identity that server-side conversion events can
+ * use to merge Stripe webhook facts back into the same browser funnel.
+ */
+export function getPosthogIdentitySnapshot(): PosthogIdentitySnapshot | null {
+  if (!posthogInitialized || posthog.has_opted_out_capturing())
+    return null
+
+  const distinctId = posthog.get_distinct_id()
+  if (!distinctId)
+    return null
+
+  const sessionId = posthog.get_session_id()
+  return {
+    distinctId,
+    ...(sessionId && { sessionId }),
+  }
 }
 
 interface PosthogCaptureOptions {
@@ -113,12 +154,9 @@ interface PosthogCaptureOptions {
  *   event. UI components should still prefer `useAnalytics()` composable
  *   for consistency with existing call sites.
  */
-export function capturePosthogEvent(
-  name: string,
-  properties: Record<string, unknown>,
-  options?: PosthogCaptureOptions,
-): boolean {
-  if (!posthogInitialized || posthog.has_opted_out_capturing()) return false
+export function capturePosthogEvent(name: string, properties: Record<string, unknown>, options?: PosthogCaptureOptions): boolean {
+  if (!posthogInitialized || posthog.has_opted_out_capturing())
+    return false
 
   posthog.capture(name, properties, options)
   return true

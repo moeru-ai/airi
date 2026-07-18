@@ -27,7 +27,10 @@ describe('mergeLoadedSessionMessages', () => {
       { role: 'user', content: 'latest prompt', createdAt: 4, id: 'user-2' },
     ]
 
-    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([...storedMessages, currentMessages[1]])
+    expect(mergeLoadedSessionMessages(storedMessages, currentMessages)).toEqual([
+      ...storedMessages,
+      currentMessages[1],
+    ])
   })
 
   it('does not duplicate messages that are already present in storage', () => {
@@ -73,7 +76,9 @@ describe('mergeLoadedSessionMessages', () => {
       { role: 'system', content: 'system', createdAt: 2, id: 'system-memory' },
       {
         role: 'user',
-        content: [{ type: 'text', text: 'hello world' }],
+        content: [
+          { type: 'text', text: 'hello world' },
+        ],
         createdAt: 5,
       },
     ]

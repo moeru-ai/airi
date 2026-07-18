@@ -12,7 +12,8 @@ const { capturing, events, isMock, lastRun, payloadPreview, scheduleDelayMs, run
 
 const previewText = computed(() => payloadPreview.value ?? '')
 const lastRunSummary = computed(() => {
-  if (!lastRun.value) return undefined
+  if (!lastRun.value)
+    return undefined
 
   return {
     events: lastRun.value.events.length,
@@ -24,8 +25,10 @@ const runSummary = computed(() => {
 })
 
 function toggleCapture() {
-  if (capturing.value) stressStore.stopCapture()
-  else stressStore.startCapture()
+  if (capturing.value)
+    stressStore.stopCapture()
+  else
+    stressStore.startCapture()
 }
 
 function toggleMode() {
@@ -93,46 +96,60 @@ function toggleMode() {
           type="number"
           min="0"
           class="max-w-[180px] w-full border border-neutral-700 rounded bg-neutral-900 px-2 py-1 text-sm text-neutral-100"
-        />
+        >
       </div>
 
       <Callout label="Run state" theme="violet">
         <div class="text-xs text-neutral-200">
           {{ runSummary }}
         </div>
-        <div class="text-xs text-neutral-500">Capture to record recent events; export last run for offline review.</div>
+        <div class="text-xs text-neutral-500">
+          Capture to record recent events; export last run for offline review.
+        </div>
       </Callout>
 
       <Callout v-if="lastRunSummary" label="Last run" theme="orange">
         <div class="text-xs text-neutral-200">
           {{ lastRunSummary.events }} events, duration {{ lastRunSummary.durationMs }} ms
         </div>
-        <div class="text-xs text-neutral-500">Export the last run to CSV to share with the team.</div>
+        <div class="text-xs text-neutral-500">
+          Export the last run to CSV to share with the team.
+        </div>
       </Callout>
     </Section>
 
     <div class="border border-neutral-800/70 rounded-xl bg-neutral-900/60 p-4 shadow-sm lg:col-span-1 space-y-3">
-      <div class="text-sm text-neutral-200">Live traces</div>
-      <div class="text-xs text-neutral-400">Capturing: {{ capturing ? 'yes' : 'no' }}, events: {{ events.length }}</div>
+      <div class="text-sm text-neutral-200">
+        Live traces
+      </div>
+      <div class="text-xs text-neutral-400">
+        Capturing: {{ capturing ? 'yes' : 'no' }}, events: {{ events.length }}
+      </div>
       <ul class="max-h-64 overflow-auto text-xs text-neutral-300 space-y-1">
         <li v-for="(event, idx) in events.slice(-20).reverse()" :key="idx">
           <span class="text-neutral-100 font-mono">{{ event.name }}</span>
           — {{ (event.duration ?? 0).toFixed(2) }} ms
-          <span v-if="event.meta" class="text-neutral-500">{{ JSON.stringify(event.meta) }}</span>
+          <span v-if="event.meta" class="text-neutral-500"> {{ JSON.stringify(event.meta) }}</span>
         </li>
       </ul>
     </div>
 
-    <Section title="Payload preview" icon="i-solar:code-file-bold-duotone" inner-class="gap-3" class="lg:col-span-2">
-      <div class="text-xs text-neutral-300">Latest payload</div>
+    <Section
+      title="Payload preview"
+      icon="i-solar:code-file-bold-duotone"
+      inner-class="gap-3"
+      class="lg:col-span-2"
+    >
+      <div class="text-xs text-neutral-300">
+        Latest payload
+      </div>
 
-      <div
-        v-if="previewText"
-        class="border border-neutral-700 rounded-lg border-dashed bg-neutral-900/60 p-3 space-y-2"
-      >
+      <div v-if="previewText" class="border border-neutral-700 rounded-lg border-dashed bg-neutral-900/60 p-3 space-y-2">
         <pre class="max-h-60 overflow-auto whitespace-pre-wrap text-xs text-neutral-200">{{ previewText }}</pre>
       </div>
-      <div v-else class="text-xs text-neutral-500">Generate a payload to see the preview.</div>
+      <div v-else class="text-xs text-neutral-500">
+        Generate a payload to see the preview.
+      </div>
     </Section>
   </div>
 </template>

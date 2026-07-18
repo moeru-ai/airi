@@ -30,9 +30,11 @@ function keepRecentHistoryItems(items: HistoryItem[], recentTurnLimit: number) {
 
   for (let index = items.length - 1; index >= 0; index -= 1) {
     keptItems.unshift(items[index])
-    if (items[index].type === 'turn') turnCount += 1
+    if (items[index].type === 'turn')
+      turnCount += 1
 
-    if (turnCount >= recentTurnLimit) break
+    if (turnCount >= recentTurnLimit)
+      break
   }
 
   return keptItems
@@ -47,10 +49,12 @@ function compactHistoryBlock(
     keptItems: HistoryItem[]
   }) => string,
 ): MessageHistoryBlockSegment {
-  if (segment.compacted) return segment
+  if (segment.compacted)
+    return segment
 
   const historyTurnCount = countTurns(segment.items)
-  if (historyTurnCount <= recentTurnLimit) return segment
+  if (historyTurnCount <= recentTurnLimit)
+    return segment
 
   const keptItems = keepRecentHistoryItems(segment.items, recentTurnLimit)
   const removedTurnCount = historyTurnCount - recentTurnLimit
@@ -61,20 +65,17 @@ function compactHistoryBlock(
     items: [
       {
         type: 'summary',
-        text:
-          summarizeCompactedHistory?.({
-            removedTurnCount,
-            originalItems: segment.items,
-            keptItems,
-          }) ?? `Compacted ${removedTurnCount} older turns with paired reactions.`,
-        fromTurnIndex:
-          segment.items.find((item) => item.type === 'turn')?.type === 'turn'
-            ? (segment.items.find((item) => item.type === 'turn')?.turnIndex ?? undefined)
-            : undefined,
-        toTurnIndex:
-          keptItems.findLast((item) => item.type === 'turn')?.type === 'turn'
-            ? keptItems.findLast((item) => item.type === 'turn')?.turnIndex
-            : undefined,
+        text: summarizeCompactedHistory?.({
+          removedTurnCount,
+          originalItems: segment.items,
+          keptItems,
+        }) ?? `Compacted ${removedTurnCount} older turns with paired reactions.`,
+        fromTurnIndex: segment.items.find(item => item.type === 'turn')?.type === 'turn'
+          ? (segment.items.find(item => item.type === 'turn')?.turnIndex ?? undefined)
+          : undefined,
+        toTurnIndex: keptItems.findLast(item => item.type === 'turn')?.type === 'turn'
+          ? keptItems.findLast(item => item.type === 'turn')?.turnIndex
+          : undefined,
       },
       ...keptItems,
     ],
@@ -97,15 +98,18 @@ function compactHistoryBlock(
  * - A new entry array with eligible history blocks compacted in place
  */
 export function compactConversationEntries(input: CompactConversationEntriesOptions): Array<Message | RawMessage> {
-  if (input.recentTurnLimit <= 0) return input.entries
+  if (input.recentTurnLimit <= 0)
+    return input.entries
 
   return input.entries.map((entry) => {
-    if (!isStructuredMessage(entry)) return entry
+    if (!isStructuredMessage(entry))
+      return entry
 
     return {
       ...entry,
       segments: entry.segments.map((segment) => {
-        if (segment.type !== 'history-block') return segment
+        if (segment.type !== 'history-block')
+          return segment
 
         return compactHistoryBlock(segment, input.recentTurnLimit, input.summarizeCompactedHistory)
       }),

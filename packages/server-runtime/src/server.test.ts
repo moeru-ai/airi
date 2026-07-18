@@ -5,19 +5,17 @@ const serveMocks = vi.hoisted(() => {
   let resolveServe: (() => void) | null = null
   let rejectServe: ((error: Error) => void) | null = null
 
-  const serveCall = vi.fn(
-    () =>
-      new Promise<void>((resolve, reject) => {
-        resolveServe = resolve
-        rejectServe = reject
-      }),
-  )
+  const serveCall = vi.fn(() => new Promise<void>((resolve, reject) => {
+    resolveServe = resolve
+    rejectServe = reject
+  }))
 
-  const closeCall = vi.fn(() => Promise.resolve())
+  const closeCall = vi.fn(async () => {})
   const disposeCall = vi.fn(() => {})
+  const createH3CrossWsPluginCall = vi.fn(() => ({ name: 'better-ws-h3-plugin' }))
   const setupAppCall = vi.fn(() => ({
     app: {
-      fetch: vi.fn(() => Promise.resolve({ crossws: {} })),
+      fetch: vi.fn(async () => ({ crossws: {} })),
     },
     closeAllPeers: vi.fn(),
     dispose: disposeCall,
@@ -25,6 +23,7 @@ const serveMocks = vi.hoisted(() => {
 
   return {
     closeCall,
+    createH3CrossWsPluginCall,
     disposeCall,
     rejectServe: (error: Error) => rejectServe?.(error),
     resolveServe: () => resolveServe?.(),
@@ -37,15 +36,14 @@ vi.mock('h3', () => ({
   H3: class {
     get = vi.fn()
   },
-  defineWebSocketHandler: vi.fn((handler) => handler),
   serve: vi.fn(() => ({
     serve: serveMocks.serveCall,
     close: serveMocks.closeCall,
   })),
 }))
 
-vi.mock('crossws/server', () => ({
-  plugin: vi.fn(() => ({})),
+vi.mock('@proj-airi/better-ws/server/h3', () => ({
+  createH3CrossWsPlugin: serveMocks.createH3CrossWsPluginCall,
 }))
 
 vi.mock('./index', () => ({
@@ -75,6 +73,9 @@ describe('createServer', async () => {
 
     await Promise.all([firstStart, secondStart])
     expect(serveMocks.serveCall).toHaveBeenCalledTimes(1)
+    expect(serveMocks.createH3CrossWsPluginCall).toHaveBeenCalledWith(expect.objectContaining({
+      fetch: expect.any(Function),
+    }))
   })
 
   it('clears the single-flight state when start fails', async () => {
@@ -126,18 +127,16 @@ describe('createServer', async () => {
     serveMocks.resolveServe()
     await startTask
 
-    expect(serveMocks.setupAppCall).toHaveBeenCalledWith(
-      expect.objectContaining({
-        logger: {
-          app: {
-            level: LogLevelString.Log,
-            format: Format.Pretty,
-          },
-          websocket: {
-            format: Format.Pretty,
-          },
+    expect(serveMocks.setupAppCall).toHaveBeenCalledWith(expect.objectContaining({
+      logger: {
+        app: {
+          level: LogLevelString.Log,
+          format: Format.Pretty,
         },
-      }),
-    )
+        websocket: {
+          format: Format.Pretty,
+        },
+      },
+    }))
   })
 })

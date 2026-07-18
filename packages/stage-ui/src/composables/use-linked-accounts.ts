@@ -37,15 +37,15 @@ export interface LinkedAccountsClient {
       createdAt: Date | string
       scopes?: string[]
     }> | null
-    error: { message?: string; status?: number } | null
+    error: { message?: string, status?: number } | null
   }>
-  unlinkAccount: (args: { providerId: string; accountId?: string }) => Promise<{
+  unlinkAccount: (args: { providerId: string, accountId?: string }) => Promise<{
     data: unknown
-    error: { message?: string; status?: number } | null
+    error: { message?: string, status?: number } | null
   }>
-  linkSocial: (args: { provider: string; callbackURL: string; errorCallbackURL?: string }) => Promise<{
-    data: { url?: string; redirect?: boolean; status?: boolean } | null
-    error: { message?: string; status?: number } | null
+  linkSocial: (args: { provider: string, callbackURL: string, errorCallbackURL?: string }) => Promise<{
+    data: { url?: string, redirect?: boolean, status?: boolean } | null
+    error: { message?: string, status?: number } | null
   }>
 }
 
@@ -76,6 +76,21 @@ export interface UseLinkedAccountsArgs {
    *          and hash-history routers without further configuration.
    */
   buildCallbackURL?: () => string
+  /**
+   * Analytics hook — fires exactly once per successful unlink, after the
+   * server confirmed the removal. Success is only knowable inside this
+   * composable (errors are swallowed into the `error` ref for the UI), so
+   * callers that need to observe it must hook here instead of inspecting
+   * refs after `unlink()` resolves.
+   */
+  onUnlinked?: (providerId: string) => void
+  /**
+   * Analytics hook — fires right before the OAuth consent redirect
+   * navigates away (or after a synchronous link succeeded). Link
+   * completion happens on the provider's site and is not observable
+   * from this page; treat this as "link attempt handed off".
+   */
+  onLinkStarted?: (providerId: string) => void
 }
 
 /**
@@ -102,19 +117,23 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
 
   const accountsByProvider = computed(() => {
     const map = new Map<string, LinkedAccountRow>()
-    for (const account of linkedAccounts.value) map.set(account.providerId, account)
+    for (const account of linkedAccounts.value)
+      map.set(account.providerId, account)
     return map
   })
 
   const hasCredentialAccount = computed(() => accountsByProvider.value.has('credential'))
-  const socialLinkedCount = computed(() => linkedAccounts.value.filter((a) => a.providerId !== 'credential').length)
+  const socialLinkedCount = computed(
+    () => linkedAccounts.value.filter(a => a.providerId !== 'credential').length,
+  )
 
   /**
    * Client-side mirror of better-auth's `FAILED_TO_UNLINK_LAST_ACCOUNT`
    * guard so we can surface a user-friendly message before round-tripping.
    */
   function isLastSignInMethod(providerId: string): boolean {
-    if (providerId === 'credential') return socialLinkedCount.value === 0
+    if (providerId === 'credential')
+      return socialLinkedCount.value === 0
     return !hasCredentialAccount.value && socialLinkedCount.value <= 1
   }
 
@@ -123,30 +142,36 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
     error.value = null
     try {
       const { data, error: apiError } = await args.client.listAccounts()
-      if (apiError) throw new Error(apiError.message ?? 'listAccounts failed')
+      if (apiError)
+        throw new Error(apiError.message ?? 'listAccounts failed')
       // better-auth 1.6.6 widens listAccounts elements to `any`; consume
       // the row directly rather than dressing `any` up with a fake shape.
       // Field layout: node_modules/better-auth/dist/api/routes/account.mjs L20-50.
-      linkedAccounts.value = (data ?? []).map((account) => ({
+      linkedAccounts.value = (data ?? []).map(account => ({
         id: account.id,
         accountId: account.accountId,
         providerId: account.providerId,
-        createdAt: account.createdAt instanceof Date ? account.createdAt.toISOString() : account.createdAt,
+        createdAt: account.createdAt instanceof Date
+          ? account.createdAt.toISOString()
+          : account.createdAt,
         scopes: account.scopes ?? [],
       }))
       loaded.value = true
-    } catch (err) {
+    }
+    catch (err) {
       // Keep prior `linkedAccounts` on error so a transient 5xx doesn't
       // flip `hasCredentialAccount` and mis-route the password UI.
       // Source: PR #1753 review (chatgpt-codex-connector P2).
       error.value = args.describeError(err) || args.messages.listFailed
-    } finally {
+    }
+    finally {
       loading.value = false
     }
   }
 
   async function unlink(providerId: string, providerName: string) {
-    if (inFlight.value) return
+    if (inFlight.value)
+      return
 
     if (isLastSignInMethod(providerId)) {
       error.value = args.messages.lastAccount
@@ -160,18 +185,23 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
 
     try {
       const { error: apiError } = await args.client.unlinkAccount({ providerId })
-      if (apiError) throw new Error(apiError.message ?? 'unlinkAccount failed')
+      if (apiError)
+        throw new Error(apiError.message ?? 'unlinkAccount failed')
       message.value = args.messages.unlinked(providerName)
+      args.onUnlinked?.(providerId)
       await refresh()
-    } catch (err) {
+    }
+    catch (err) {
       error.value = args.describeError(err) || args.messages.unlinkFailed
-    } finally {
+    }
+    finally {
       inFlight.value = null
     }
   }
 
   async function link(providerId: LinkedProviderId, providerName: string) {
-    if (inFlight.value) return
+    if (inFlight.value)
+      return
 
     inFlight.value = providerId
     error.value = null
@@ -182,16 +212,21 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       const { data, error: apiError } = await args.client.linkSocial({
         provider: providerId,
         callbackURL,
+        errorCallbackURL: callbackURL,
       })
-      if (apiError) throw new Error(apiError.message ?? 'linkSocial failed')
+      if (apiError)
+        throw new Error(apiError.message ?? 'linkSocial failed')
       if (data?.url) {
+        args.onLinkStarted?.(providerId)
         window.location.assign(data.url)
         return
       }
       // No URL came back (e.g. provider returned success synchronously) —
       // refresh so the new row shows up without a navigation.
+      args.onLinkStarted?.(providerId)
       await refresh()
-    } catch (err) {
+    }
+    catch (err) {
       error.value = args.describeError(err) || args.messages.linkFailed
       message.value = null
       inFlight.value = null
@@ -201,13 +236,15 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
   // Auto-refresh: load on mount when already authed; react to sign-in /
   // sign-out so the list never shows stale rows.
   onMounted(() => {
-    if (args.isAuthenticated.value) refresh()
+    if (args.isAuthenticated.value)
+      refresh()
   })
 
   watch(args.isAuthenticated, (next) => {
     if (next) {
       refresh()
-    } else {
+    }
+    else {
       // Don't leak previous user's accounts into the next session.
       linkedAccounts.value = []
       loaded.value = false

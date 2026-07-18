@@ -12,13 +12,18 @@ import { computeAdjacentPosition } from '../../../windows/shared/display'
 
 const ANIMATION_DURATION = 350
 
-function animateWindowTo(window: BrowserWindow, target: Rectangle): ReturnType<typeof animate> | undefined {
-  if (window.isDestroyed()) return undefined
+function animateWindowTo(
+  window: BrowserWindow,
+  target: Rectangle,
+): ReturnType<typeof animate> | undefined {
+  if (window.isDestroyed())
+    return undefined
 
   const current = window.getBounds()
   const needsResize = current.width !== target.width || current.height !== target.height
 
-  if (needsResize) window.setSize(target.width, target.height)
+  if (needsResize)
+    window.setSize(target.width, target.height)
 
   const state = { x: current.x, y: current.y }
 
@@ -29,7 +34,8 @@ function animateWindowTo(window: BrowserWindow, target: Rectangle): ReturnType<t
     ease: 'outCubic',
     modifier: utils.round(0),
     onRender: () => {
-      if (!window.isDestroyed()) window.setPosition(Math.round(state.x), Math.round(state.y))
+      if (!window.isDestroyed())
+        window.setPosition(Math.round(state.x), Math.round(state.y))
     },
   })
 }
@@ -67,7 +73,8 @@ export function createOnboardingService(params: {
     let ignoreNextMoves = true
 
     const moveListener = () => {
-      if (ignoreNextMoves) return
+      if (ignoreNextMoves)
+        return
       userMovedManually = true
     }
 

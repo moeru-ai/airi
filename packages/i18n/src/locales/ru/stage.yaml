@@ -32,14 +32,14 @@ viewers:
   debug-menu:
     emotions: Эмоции
     emotions-btn:
-      angry: 😠 Злость
-      awkward: 😳 Неловкость
-      happy: 😄 Радость
-      neutral: 🙂 Нейтраль
-      question: 🤔 Вопрос
-      sad: 😫 Грусть
-      surprised: 🤯 Удивление
-      think: 🤨 Задумчивость
+      angry: '😠 Злость'
+      awkward: '😳 Неловкость'
+      happy: '😄 Радость'
+      neutral: '🙂 Нейтраль'
+      question: '🤔 Вопрос'
+      sad: '😫 Грусть'
+      surprised: '🤯 Удивление'
+      think: '🤨 Задумчивость'
     vrm:
       camera: Камера
       model:
@@ -94,6 +94,6 @@ promo-banner:
       cta: Просмотр тем
 waiting: Ожидание
 websocket-status:
-  connected:
+  connected: Подключено
   disconnected: Нет подключения
   open-settings: Открыть настройки подключения

@@ -22,16 +22,19 @@ export function createPushStream<T>(): StreamController<T> {
   return {
     stream,
     write(value) {
-      if (!controller || closed) return
+      if (!controller || closed)
+        return
       controller.enqueue(value)
     },
     close() {
-      if (!controller || closed) return
+      if (!controller || closed)
+        return
       closed = true
       controller.close()
     },
     error(err) {
-      if (!controller || closed) return
+      if (!controller || closed)
+        return
       closed = true
       controller.error(err)
     },
@@ -46,11 +49,13 @@ export async function readStream<T>(stream: ReadableStream<T>, handler: (value: 
   try {
     while (true) {
       const { value, done } = await reader.read()
-      if (done) break
+      if (done)
+        break
 
       await handler(value as T)
     }
-  } finally {
+  }
+  finally {
     reader.releaseLock()
   }
 }

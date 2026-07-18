@@ -56,10 +56,8 @@ const tn = (k: string) => t(`settings.pages.modules.mcp-server.${k}`)
       />
       <div class="flex justify-end">
         <Button
-          variant="ghost"
-          size="sm"
-          icon="i-solar:add-circle-bold-duotone"
-          :label="tn('actions.add-env')"
+          variant="ghost" size="sm"
+          icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-env')"
           @click="model.envEntries.push({ key: '', value: '' })"
         />
       </div>
@@ -67,10 +65,8 @@ const tn = (k: string) => t(`settings.pages.modules.mcp-server.${k}`)
 
     <div class="flex justify-end border-t border-neutral-200/70 pt-2 dark:border-neutral-800">
       <Button
-        variant="danger"
-        size="sm"
-        icon="i-solar:trash-bin-2-bold-duotone"
-        :label="tn('actions.remove')"
+        variant="danger" size="sm"
+        icon="i-solar:trash-bin-2-bold-duotone" :label="tn('actions.remove')"
         @click="$emit('remove')"
       />
     </div>

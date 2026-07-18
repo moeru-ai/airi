@@ -1,11 +1,12 @@
 import { join, resolve } from 'node:path'
 
-import { BrowserWindow, shell } from 'electron'
+import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { protectPrivilegedWindowNavigation } from '../shared'
 
 export interface OpenDevtoolsWindowParams extends Partial<Electron.Rectangle> {
   key: string
@@ -23,7 +24,8 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
 
   function getReusableForKey(key: string, route: string) {
     const existing = reusableWindows.get(key)
-    if (existing) return existing
+    if (existing)
+      return existing
 
     const reusable = createReusableWindow(async () => {
       const window = new BrowserWindow({
@@ -43,12 +45,10 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
 
       window.on('ready-to-show', () => window.show())
       window.on('closed', () => {
-        if (reusableWindows.get(key) === reusable) reusableWindows.delete(key)
+        if (reusableWindows.get(key) === reusable)
+          reusableWindows.delete(key)
       })
-      window.webContents.setWindowOpenHandler((details) => {
-        shell.openExternal(details.url)
-        return { action: 'deny' }
-      })
+      protectPrivilegedWindowNavigation(window)
 
       await load(window, withHashRoute(rendererBase, route))
       return window
@@ -62,15 +62,16 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
     const targetRoute = params.route ?? defaultRoute
     const window = await getReusableForKey(params.key, targetRoute).getWindow()
 
-    if (
-      params &&
-      (params.width !== undefined || params.height !== undefined || params.x !== undefined || params.y !== undefined)
-    ) {
+    if (params && (params.width !== undefined || params.height !== undefined || params.x !== undefined || params.y !== undefined)) {
       const bounds: Partial<Electron.Rectangle> = {}
-      if (params.width !== undefined) bounds.width = params.width
-      if (params.height !== undefined) bounds.height = params.height
-      if (params.x !== undefined) bounds.x = params.x
-      if (params.y !== undefined) bounds.y = params.y
+      if (params.width !== undefined)
+        bounds.width = params.width
+      if (params.height !== undefined)
+        bounds.height = params.height
+      if (params.x !== undefined)
+        bounds.x = params.x
+      if (params.y !== undefined)
+        bounds.y = params.y
       window.setBounds(bounds)
     }
 

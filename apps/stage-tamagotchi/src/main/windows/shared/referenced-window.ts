@@ -35,7 +35,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
   createWindow: (id: string) => BrowserWindow
   loadRoute: (window: BrowserWindow, payload: Payload & { id: string }) => Promise<void>
 }): ReferencedWindowManager<Payload> {
-  const windows = new Map<string, { window: BrowserWindow; context: ReturnType<typeof createContext>['context'] }>()
+  const windows = new Map<string, { window: BrowserWindow, context: ReturnType<typeof createContext>['context'] }>()
 
   async function bindContext(id: string, payload: Payload, win: BrowserWindow) {
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -45,21 +45,18 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
     const { context } = createContext(ipcMain, win)
 
     defineInvokeHandler(context, params.eventa.pageMounted, (req) => {
-      if (req?.id && req.id !== id) return undefined
+      if (req?.id && req.id !== id)
+        return undefined
       return { id, type: payload.type, payload: payload.payload }
     })
 
     defineInvokeHandler(context, params.eventa.pageUnmounted, (req) => {
-      if (req?.id && req.id !== id) return
+      if (req?.id && req.id !== id)
+        return
       windows.delete(id)
     })
 
-    await setupBaseWindowElectronInvokes({
-      context,
-      window: win,
-      i18n: params.i18n,
-      serverChannel: params.serverChannel,
-    })
+    await setupBaseWindowElectronInvokes({ context, window: win, i18n: params.i18n, serverChannel: params.serverChannel })
 
     win.on('closed', () => windows.delete(id))
 
@@ -80,7 +77,8 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
       await params.loadRoute(ctx.window, { ...payload, id })
       ctx.window.show()
       ctx.window.focus()
-    } catch (error) {
+    }
+    catch (error) {
       const wrapped = error ?? new Error('Failed to open referenced window')
       console.error('[referenced-window] open failed', wrapped)
       throw wrapped
@@ -91,7 +89,8 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
 
   function close(id: string) {
     const ctx = windows.get(id)
-    if (!ctx) return
+    if (!ctx)
+      return
 
     safeClose(ctx.window)
     windows.delete(id)

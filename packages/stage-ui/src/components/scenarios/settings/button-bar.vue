@@ -3,17 +3,15 @@ import { Button } from '@proj-airi/ui'
 
 import Bar from './bar.vue'
 
-withDefaults(
-  defineProps<{
-    text: string
-    description?: string
-  }>(),
-  {
-    description: '',
-  },
-)
+defineProps<{
+  text: string
+  icon: string
+  description?: string
+}>()
 
-const emits = defineEmits<{ click: [] }>()
+const emits = defineEmits<{
+  (e: 'click'): void
+}>()
 </script>
 
 <template>

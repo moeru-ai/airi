@@ -59,33 +59,67 @@ const statusOptions = [
 </script>
 
 <template>
-  <Story title="Select" group="form" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Select"
+    group="form"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="basic" title="Basic Select">
+    <Variant
+      id="basic"
+      title="Basic Select"
+    >
       <div :class="['max-w-80', 'w-full', 'flex', 'flex-col', 'gap-3']">
-        <Select v-model="basicValue" :options="basicOptions" placeholder="Choose an option..." />
-        <p :class="['text-sm', 'text-neutral-600 dark:text-neutral-300']">Selected: {{ basicValue || 'none' }}</p>
+        <Select
+          v-model="basicValue"
+          :options="basicOptions"
+          placeholder="Choose an option..."
+        />
+        <p :class="['text-sm', 'text-neutral-600 dark:text-neutral-300']">
+          Selected: {{ basicValue || 'none' }}
+        </p>
       </div>
     </Variant>
 
-    <Variant id="grouped" title="Grouped Options">
+    <Variant
+      id="grouped"
+      title="Grouped Options"
+    >
       <div :class="['max-w-90', 'w-full', 'flex', 'flex-col', 'gap-3']">
-        <Select v-model="groupedValue" :options="groupedOptions" placeholder="Pick produce" />
+        <Select
+          v-model="groupedValue"
+          :options="groupedOptions"
+          placeholder="Pick produce"
+        />
         <p :class="['text-sm', 'text-neutral-600 dark:text-neutral-300']">
           Grouped value: {{ groupedValue || 'none' }}
         </p>
       </div>
     </Variant>
 
-    <Variant id="custom-option" title="Custom Option And Value Rendering">
+    <Variant
+      id="custom-option"
+      title="Custom Option And Value Rendering"
+    >
       <div :class="['max-w-90', 'w-full', 'flex', 'flex-col', 'gap-3']">
-        <Select v-model="customValue" :options="groupedOptions" placeholder="Pick produce">
+        <Select
+          v-model="customValue"
+          :options="groupedOptions"
+          placeholder="Pick produce"
+        >
           <template #value="slotProps">
             <div :class="['min-w-0', 'flex', 'items-center', 'gap-2']">
-              <span v-if="slotProps.option?.icon" :class="['size-4 shrink-0', 'text-current', slotProps.option.icon]" />
+              <span
+                v-if="slotProps.option?.icon"
+                :class="[
+                  'size-4 shrink-0',
+                  'text-current',
+                  slotProps.option.icon,
+                ]"
+              />
               <div :class="['min-w-0', 'flex', 'flex-1', 'items-center', 'justify-between', 'gap-2']">
                 <span
                   :class="[
@@ -99,14 +133,7 @@ const statusOptions = [
                 </span>
                 <span
                   v-if="slotProps.option"
-                  :class="[
-                    'rounded-full',
-                    'bg-primary-400/12 dark:bg-primary-400/18',
-                    'px-2',
-                    'py-0.5',
-                    'text-xs',
-                    'text-primary-700 dark:text-primary-200',
-                  ]"
+                  :class="['rounded-full', 'bg-primary-400/12 dark:bg-primary-400/18', 'px-2', 'py-0.5', 'text-xs', 'text-primary-700 dark:text-primary-200']"
                 >
                   {{ slotProps.option.value }}
                 </span>
@@ -118,7 +145,11 @@ const statusOptions = [
               <div :class="['min-w-0', 'flex', 'items-center', 'gap-2']">
                 <span
                   v-if="slotProps.option.icon"
-                  :class="['size-4 shrink-0', 'text-current', slotProps.option.icon]"
+                  :class="[
+                    'size-4 shrink-0',
+                    'text-current',
+                    slotProps.option.icon,
+                  ]"
                 />
                 <div :class="['min-w-0', 'flex', 'flex-col']">
                   <span :class="['truncate']">{{ slotProps.option.label }}</span>
@@ -130,16 +161,7 @@ const statusOptions = [
                   </span>
                 </div>
               </div>
-              <span
-                :class="[
-                  'rounded-full',
-                  'bg-primary-400/12 dark:bg-primary-400/18',
-                  'px-2',
-                  'py-0.5',
-                  'text-xs',
-                  'text-primary-700 dark:text-primary-200',
-                ]"
-              >
+              <span :class="['rounded-full', 'bg-primary-400/12 dark:bg-primary-400/18', 'px-2', 'py-0.5', 'text-xs', 'text-primary-700 dark:text-primary-200']">
                 {{ slotProps.option.value }}
               </span>
             </div>
@@ -151,18 +173,33 @@ const statusOptions = [
       </div>
     </Variant>
 
-    <Variant id="disabled" title="Disabled State">
+    <Variant
+      id="disabled"
+      title="Disabled State"
+    >
       <div :class="['max-w-80', 'w-full', 'flex', 'flex-col', 'gap-3']">
-        <Select v-model="disabledValue" :options="statusOptions" placeholder="Disabled select" disabled />
+        <Select
+          v-model="disabledValue"
+          :options="statusOptions"
+          placeholder="Disabled select"
+          disabled
+        />
         <p :class="['text-sm', 'text-neutral-600 dark:text-neutral-300']">
           Disabled selection: {{ disabledValue || 'none' }}
         </p>
       </div>
     </Variant>
 
-    <Variant id="custom-empty-value" title="Custom Value Placeholder">
+    <Variant
+      id="custom-empty-value"
+      title="Custom Value Placeholder"
+    >
       <div :class="['max-w-90', 'w-full', 'flex', 'flex-col', 'gap-3']">
-        <Select v-model="emptyCustomValue" :options="groupedOptions" placeholder="Pick produce">
+        <Select
+          v-model="emptyCustomValue"
+          :options="groupedOptions"
+          placeholder="Pick produce"
+        >
           <template #value="slotProps">
             <div
               :class="[
@@ -173,7 +210,12 @@ const statusOptions = [
                 slotProps.option ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
               ]"
             >
-              <span :class="['size-4 shrink-0', slotProps.option?.icon ?? 'i-solar:question-circle-linear']" />
+              <span
+                :class="[
+                  'size-4 shrink-0',
+                  slotProps.option?.icon ?? 'i-solar:question-circle-linear',
+                ]"
+              />
               <span :class="['truncate']">
                 {{ slotProps.option?.label ?? `Nothing selected, ${slotProps.placeholder}` }}
               </span>
@@ -181,7 +223,14 @@ const statusOptions = [
           </template>
           <template #option="slotProps">
             <div :class="['min-w-0', 'flex', 'flex-1', 'items-center', 'gap-2.5', 'py-1']">
-              <span v-if="slotProps.option.icon" :class="['size-4 shrink-0', 'text-current', slotProps.option.icon]" />
+              <span
+                v-if="slotProps.option.icon"
+                :class="[
+                  'size-4 shrink-0',
+                  'text-current',
+                  slotProps.option.icon,
+                ]"
+              />
               <div :class="['min-w-0', 'flex', 'flex-col']">
                 <span :class="['truncate']">{{ slotProps.option.label }}</span>
                 <span

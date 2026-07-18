@@ -36,11 +36,15 @@ export type ContextSnapshot = Record<string, ContextMessage[]>
  */
 export function formatContextPromptText(contextsSnapshot: ContextSnapshot) {
   const entries = Object.entries(contextsSnapshot)
-  if (entries.length === 0) return ''
+  if (entries.length === 0)
+    return ''
 
-  const lines = entries.flatMap(([contextId, messages]) => messages.map((m) => `- ${contextId}: ${m.text}`))
+  const lines = entries.flatMap(([contextId, messages]) =>
+    messages.map(m => `- ${contextId}: ${m.text}`),
+  )
 
-  if (lines.length === 0) return ''
+  if (lines.length === 0)
+    return ''
 
   return ['[Context]', ...lines].join('\n')
 }
@@ -60,7 +64,8 @@ export function formatContextPromptText(contextsSnapshot: ContextSnapshot) {
  */
 export function buildContextPromptMessage(contextsSnapshot: ContextSnapshot): UserMessage | null {
   const promptText = formatContextPromptText(contextsSnapshot)
-  if (!promptText) return null
+  if (!promptText)
+    return null
 
   return {
     role: 'user',

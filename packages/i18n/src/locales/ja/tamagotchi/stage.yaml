@@ -8,27 +8,28 @@ docs:
     navbar:
       appearance:
         title: 外観
-controls-island:
-  fade-on-hover:
+'controls-island':
+  'fade-on-hover':
     enable: 自動的に隠す
     disable: 常に表示
-  open-settings: 設定を開く
-  open-chat: チャットを開く
-  refresh: 再読み込み
-  open-hearing-controls: 聴覚コントロールを開く
-  drag-to-move-window: ウィンドウをドラッグして移動
-  switch-to-light-mode: ライトモードに切り替え
-  switch-to-dark-mode: ダークモードに切り替え
-  pin-on-top: ピン留め
-  unpin-from-top: ピン留めを外す
-  switch-profile: プロファイルを切り替え
-  close: 閉じる
-  expand: 展開
-  collapse: 折りたたむ
-  login: サインイン
-  logging-in: サインイン中…
-  account: アカウント
-  logout: サインアウト
+  'open-settings': 設定を開く
+  'open-chat': チャットを開く
+  'refresh': 再読み込み
+  'center-main-window': Move to screen center
+  'open-hearing-controls': 聴覚コントロールを開く
+  'drag-to-move-window': ウィンドウをドラッグして移動
+  'switch-to-light-mode': ライトモードに切り替え
+  'switch-to-dark-mode': ダークモードに切り替え
+  'pin-on-top': ピン留め
+  'unpin-from-top': ピン留めを外す
+  'switch-profile': プロファイルを切り替え
+  'close': 閉じる
+  'expand': 展開
+  'collapse': 折りたたむ
+  'login': サインイン
+  'logging-in': サインイン中…
+  'account': アカウント
+  'logout': サインアウト
 widgets:
   close: Close widget
   empty:
@@ -37,7 +38,7 @@ widgets:
   loading: Loading widget…
   waiting: Waiting for widget data for "{id}"…
 notice:
-  fade-on-hover:
+  'fade-on-hover':
     title: ホバー時にフェード
     intro: カーソルが近くを移動するとキャラクターが自動的にフェードアウトする。この仕組みは視界の妨げを抑えつつ、キャラクターを見失わないように保つ。
     opacity: 有効にすると、カーソルが近くに来た時に、{targets} の不透明度が {value} に下がります。

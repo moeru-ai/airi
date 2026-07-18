@@ -6,15 +6,18 @@ const ALL_INTERFACE_HOSTNAMES = new Set(['0.0.0.0', '::'])
 export function serverChannelExposureModeFromHostname(hostname?: string): ServerChannelExposureMode {
   const normalizedHostname = hostname?.trim() ?? ''
 
-  if (LOOPBACK_HOSTNAMES.has(normalizedHostname)) return 'this-device'
+  if (LOOPBACK_HOSTNAMES.has(normalizedHostname))
+    return 'this-device'
 
-  if (ALL_INTERFACE_HOSTNAMES.has(normalizedHostname)) return 'all'
+  if (ALL_INTERFACE_HOSTNAMES.has(normalizedHostname))
+    return 'all'
 
   return 'advanced'
 }
 
 export function hostnameFromExposureMode(mode: ServerChannelExposureMode, manualHostname?: string) {
-  if (mode === 'all') return '0.0.0.0'
+  if (mode === 'all')
+    return '0.0.0.0'
 
   if (mode === 'advanced') {
     const normalizedHostname = manualHostname?.trim() ?? ''

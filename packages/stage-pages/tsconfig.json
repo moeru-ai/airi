@@ -2,14 +2,25 @@
   "compilerOptions": {
     "target": "ESNext",
     "jsx": "preserve",
-    "lib": ["DOM", "DOM.AsyncIterable", "ESNext"],
+    "lib": [
+      "DOM",
+      "DOM.AsyncIterable",
+      "ESNext"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "paths": {
-      "@proj-airi/stage-ui/*": ["../../packages/stage-ui/src/*"]
+      "@proj-airi/stage-ui/*": [
+        "../../packages/stage-ui/src/*"
+      ]
     },
     "resolveJsonModule": true,
-    "types": ["vitest", "vite/client", "unplugin-info/client", "@webgpu/types"],
+    "types": [
+      "vitest",
+      "vite/client",
+      "unplugin-info/client",
+      "@webgpu/types"
+    ],
     "allowJs": true,
     "strict": true,
     "strictNullChecks": true,
@@ -22,9 +33,19 @@
     "skipLibCheck": true
   },
   "vueCompilerOptions": {
-    "plugins": ["@vue-macros/volar/define-models", "@vue-macros/volar/define-slots"],
+    "plugins": [
+      "@vue-macros/volar/define-models",
+      "@vue-macros/volar/define-slots"
+    ],
     "skipTemplateCodegen": false
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
-  "exclude": ["dist", "node_modules"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }

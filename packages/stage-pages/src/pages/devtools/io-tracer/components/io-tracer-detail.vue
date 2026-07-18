@@ -5,16 +5,10 @@ import { computed } from 'vue'
 
 import { SUBSYSTEM_CONFIG_MAP } from '../io-tracer-types'
 
-const props = withDefaults(
-  defineProps<{
-    span: IOSpan | undefined
-    turn: IOTurn | undefined
-  }>(),
-  {
-    span: undefined,
-    turn: undefined,
-  },
-)
+const props = defineProps<{
+  span: IOSpan | undefined
+  turn: IOTurn | undefined
+}>()
 
 defineEmits<{
   close: []
@@ -22,42 +16,51 @@ defineEmits<{
 }>()
 
 function fmtMs(ms: number): string {
-  if (ms < 0.01) return '0ms'
-  if (ms < 1) return `${(ms * 1000).toFixed(0)}µs`
-  if (ms < 1000) return `${ms.toFixed(ms < 10 ? 1 : 0)}ms`
+  if (ms < 0.01)
+    return '0ms'
+  if (ms < 1)
+    return `${(ms * 1000).toFixed(0)}µs`
+  if (ms < 1000)
+    return `${ms.toFixed(ms < 10 ? 1 : 0)}ms`
   return `${(ms / 1000).toFixed(2)}s`
 }
 
 const duration = computed(() => {
-  if (!props.span?.endTs) return null
+  if (!props.span?.endTs)
+    return null
   return props.span.endTs - props.span.startTs
 })
 
 const relativeStart = computed(() => {
-  if (!props.span || !props.turn) return 0
+  if (!props.span || !props.turn)
+    return 0
   return props.span.startTs - props.turn.startTs
 })
 
 const relativeEnd = computed(() => {
-  if (!props.span?.endTs || !props.turn) return null
+  if (!props.span?.endTs || !props.turn)
+    return null
   return props.span.endTs - props.turn.startTs
 })
 
 const timingBar = computed(() => {
-  if (!props.turn || !props.span) return null
+  if (!props.turn || !props.span)
+    return null
   const turnDur = (props.turn.endTs ?? performance.now()) - props.turn.startTs
-  if (turnDur <= 0) return null
+  if (turnDur <= 0)
+    return null
   const start = (props.span.startTs - props.turn.startTs) / turnDur
   const end = ((props.span.endTs ?? performance.now()) - props.turn.startTs) / turnDur
   return { startPct: `${(start * 100).toFixed(1)}%`, widthPct: `${((end - start) * 100).toFixed(1)}%` }
 })
 
 const relatedSpans = computed(() => {
-  if (!props.turn || !props.span) return []
+  if (!props.turn || !props.span)
+    return []
   return props.turn.spans
-    .filter((s) => s.id !== props.span!.id)
+    .filter(s => s.id !== props.span!.id)
     .slice(0, 10)
-    .map((s) => ({
+    .map(s => ({
       id: s.id,
       lane: s.subsystem,
       name: s.name,
@@ -68,7 +71,8 @@ const relatedSpans = computed(() => {
 })
 
 const metaEntries = computed(() => {
-  if (!props.span) return []
+  if (!props.span)
+    return []
   const skip = new Set(['endTs'])
   return Object.entries(props.span.meta)
     .filter(([k]) => !skip.has(k))
@@ -81,15 +85,17 @@ const metaEntries = computed(() => {
 
 const eventEntries = computed(() => {
   const span = props.span
-  if (!span) return []
+  if (!span)
+    return []
 
-  return (span.events ?? []).map((event) => ({
+  return (span.events ?? []).map(event => ({
     name: event.name,
     relativeTime: fmtMs(event.timeTs - span.startTs),
-    meta: Object.entries(event.meta).map(([key, value]) => ({
-      key: key.includes('.') ? key.split('.').at(-1)! : key,
-      value: typeof value === 'object' ? JSON.stringify(value) : String(value),
-    })),
+    meta: Object.entries(event.meta)
+      .map(([key, value]) => ({
+        key: key.includes('.') ? key.split('.').at(-1)! : key,
+        value: typeof value === 'object' ? JSON.stringify(value) : String(value),
+      })),
   }))
 })
 
@@ -109,9 +115,7 @@ function copyValue(value: string) {
     ]"
   >
     <!-- Header -->
-    <div
-      :class="['flex items-center justify-between', 'px-3 py-2', 'border-b border-neutral-200 dark:border-neutral-700']"
-    >
+    <div :class="['flex items-center justify-between', 'px-3 py-2', 'border-b border-neutral-200 dark:border-neutral-700']">
       <div :class="['flex items-center gap-2 min-w-0']">
         <div
           :class="['w-2.5 h-2.5 rounded-sm flex-shrink-0']"
@@ -131,8 +135,13 @@ function copyValue(value: string) {
     </div>
 
     <!-- Timing Bar Visualization -->
-    <div v-if="timingBar" :class="['px-3 py-2', 'border-b border-neutral-100 dark:border-neutral-800']">
-      <div :class="['text-2.5 text-neutral-400 mb-1']">Position in turn</div>
+    <div
+      v-if="timingBar"
+      :class="['px-3 py-2', 'border-b border-neutral-100 dark:border-neutral-800']"
+    >
+      <div :class="['text-2.5 text-neutral-400 mb-1']">
+        Position in turn
+      </div>
       <div :class="['h-3 rounded-full bg-neutral-100 dark:bg-neutral-800 relative overflow-hidden']">
         <div
           :class="['absolute h-full rounded-full']"
@@ -149,7 +158,9 @@ function copyValue(value: string) {
     <div :class="['px-3 py-2', 'text-xs', 'flex flex-col gap-3']">
       <!-- Timing Section -->
       <div>
-        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Timing</div>
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Timing
+        </div>
         <div :class="['grid grid-cols-[auto_1fr] gap-x-3 gap-y-1']">
           <template v-if="duration !== null">
             <span :class="['text-neutral-400']">Duration</span>
@@ -165,18 +176,18 @@ function copyValue(value: string) {
             <span :class="['text-neutral-400']">End</span>
             <span :class="['font-mono']">+{{ fmtMs(relativeEnd) }}</span>
           </template>
-          <template v-if="props.span.meta.ttftMs as number">
+          <template v-if="props.span.meta.ttftMs">
             <span :class="['text-purple-500']">TTFT</span>
-            <span :class="['font-mono text-purple-500 font-medium']">
-              {{ fmtMs(props.span.meta.ttftMs as number) }}
-            </span>
+            <span :class="['font-mono text-purple-500 font-medium']">{{ fmtMs(props.span.meta.ttftMs) }}</span>
           </template>
         </div>
       </div>
 
       <!-- Text Content -->
-      <div v-if="props.span.meta.text as string">
-        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Text</div>
+      <div v-if="props.span.meta.text">
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Text
+        </div>
         <div
           :class="[
             'p-2 rounded',
@@ -186,7 +197,7 @@ function copyValue(value: string) {
             'relative group',
           ]"
         >
-          {{ props.span.meta.text as string }}
+          {{ props.span.meta.text }}
           <button
             :class="[
               'absolute top-1 right-1',
@@ -195,7 +206,7 @@ function copyValue(value: string) {
               'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300',
             ]"
             title="Copy text"
-            @click="copyValue(props.span.meta.text as string)"
+            @click="copyValue(props.span.meta.text)"
           >
             <div class="i-solar:copy-bold-duotone h-3 w-3" />
           </button>
@@ -204,7 +215,9 @@ function copyValue(value: string) {
 
       <!-- Events -->
       <div v-if="eventEntries.length > 0">
-        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Events</div>
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Events
+        </div>
         <div :class="['flex flex-col gap-1.5']">
           <div
             v-for="entry in eventEntries"
@@ -219,8 +232,15 @@ function copyValue(value: string) {
               <span :class="['font-mono text-2.5 truncate']">{{ entry.name }}</span>
               <span :class="['font-mono text-2.5 text-neutral-400 flex-shrink-0']">+{{ entry.relativeTime }}</span>
             </div>
-            <div v-if="entry.meta.length > 0" :class="['mt-1 flex flex-col gap-0.5']">
-              <div v-for="item in entry.meta" :key="item.key" :class="['grid grid-cols-[auto_1fr] gap-x-2']">
+            <div
+              v-if="entry.meta.length > 0"
+              :class="['mt-1 flex flex-col gap-0.5']"
+            >
+              <div
+                v-for="item in entry.meta"
+                :key="item.key"
+                :class="['grid grid-cols-[auto_1fr] gap-x-2']"
+              >
                 <span :class="['text-neutral-400 text-2.5']">{{ item.key }}</span>
                 <span :class="['font-mono text-2.5 truncate']">{{ item.value }}</span>
               </div>
@@ -231,7 +251,9 @@ function copyValue(value: string) {
 
       <!-- Metadata -->
       <div v-if="metaEntries.length > 0">
-        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Attributes</div>
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Attributes
+        </div>
         <div :class="['flex flex-col gap-1']">
           <div
             v-for="entry in metaEntries"
@@ -240,7 +262,12 @@ function copyValue(value: string) {
           >
             <span :class="['text-neutral-400 text-2.5']">{{ entry.key }}</span>
             <div :class="['flex items-start gap-1']">
-              <span :class="['font-mono text-2.5', entry.isLong ? 'break-all' : 'truncate']">{{ entry.value }}</span>
+              <span
+                :class="[
+                  'font-mono text-2.5',
+                  entry.isLong ? 'break-all' : 'truncate',
+                ]"
+              >{{ entry.value }}</span>
               <button
                 :class="[
                   'opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0',
@@ -272,7 +299,10 @@ function copyValue(value: string) {
             ]"
             @click="$emit('selectSpan', rs.id)"
           >
-            <div :class="['w-1.5 h-1.5 rounded-sm flex-shrink-0']" :style="{ backgroundColor: rs.color }" />
+            <div
+              :class="['w-1.5 h-1.5 rounded-sm flex-shrink-0']"
+              :style="{ backgroundColor: rs.color }"
+            />
             <span :class="['text-2.5 text-neutral-500 flex-shrink-0']">{{ rs.label }}</span>
             <span :class="['text-2.5 truncate']">{{ rs.name }}</span>
             <span :class="['text-2.5 text-neutral-400 ml-auto flex-shrink-0 font-mono']">{{ rs.duration }}</span>
@@ -282,7 +312,9 @@ function copyValue(value: string) {
 
       <!-- Span IDs -->
       <div>
-        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Identity</div>
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Identity
+        </div>
         <div :class="['grid grid-cols-[auto_1fr] gap-x-3 gap-y-1']">
           <span :class="['text-neutral-400 text-2.5']">Trace</span>
           <span :class="['font-mono text-2.5']">{{ props.span.traceId.slice(0, 16) }}…</span>
@@ -301,7 +333,9 @@ function copyValue(value: string) {
 
       <!-- Turn Info -->
       <div>
-        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">Turn</div>
+        <div :class="['text-neutral-500 font-medium mb-1.5 uppercase tracking-wider text-2.5']">
+          Turn
+        </div>
         <div :class="['grid grid-cols-[auto_1fr] gap-x-3 gap-y-1']">
           <span :class="['text-neutral-400 text-2.5']">Spans</span>
           <span :class="['text-2.5']">{{ props.turn.spans.length }}</span>

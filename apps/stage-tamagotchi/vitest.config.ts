@@ -6,7 +6,9 @@ import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+  ],
   test: {
     env: loadEnv('test', cwd(), ''),
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],

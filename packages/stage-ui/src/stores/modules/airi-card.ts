@@ -1,7 +1,5 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
-import type { PatternDisruptorSettings } from '@proj-airi/pattern-disruptor'
 
-import { resolvePatternDisruptorSettings } from '@proj-airi/pattern-disruptor'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -9,45 +7,26 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-
 import SystemPromptV2 from '../../constants/prompts/system-v2'
-import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
+
+import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { capturePosthogEvent } from '../analytics/posthog'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
-
-export type VoicePackParams = Record<string, string | number | null>
-
-export interface VoicePackBindingInput {
-  id: string
-  name: string
-  provider: string
-  model: string
-  voiceId: string
-  ttsModelId: string
-  params: VoicePackParams
-  costMultiplier: number
-}
-
-export interface VoicePackSnapshot {
-  packId: string
-  name: string
-  provider: string
-  model: string
-  voiceId: string
-  ttsModelId: string
-  params: VoicePackParams
-  costMultiplier: number
-}
+import { useVisionStore } from './vision'
 
 export interface AiriExtension {
   modules: {
     consciousness: {
       provider: string // Example: "openai"
       model: string // Example: "gpt-4o"
+    }
+
+    vision: {
+      provider: string // Example: "ollama"
+      model: string // Example: "llava"
     }
 
     speech: {
@@ -59,7 +38,6 @@ export interface AiriExtension {
       rate?: number
       ssml?: boolean
       language?: string
-      voicePack?: VoicePackSnapshot
     }
 
     vrm?: {
@@ -86,18 +64,15 @@ export interface AiriExtension {
       workflowId?: string
       widgetInstruction?: string
       spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
-      options?: Record<string, unknown>
+      options?: Record<string, any>
       autonomousEnabled?: boolean
       autonomousThreshold?: number
       autonomousTarget?: 'user' | 'assistant'
     }
-
-    patternDisruptor?: PatternDisruptorSettings
   }
 
   agents: {
-    [key: string]: {
-      // example: minecraft
+    [key: string]: { // example: minecraft
       prompt: string
       enabled?: boolean
     }
@@ -110,30 +85,6 @@ export interface AiriCard extends Card {
   } & Card['extensions']
 }
 
-/**
- * Legacy shape where `artistry` lived directly on the extension (pre-`modules` nesting).
- * Kept as a separate interface so the compatibility reads are explicit and typed.
- */
-interface LegacyAiriExtension {
-  artistry?: {
-    enabled?: boolean
-    provider?: string
-    model?: string
-    promptPrefix?: string
-    /** Legacy snake_case alias of promptPrefix */
-    prompt_prefix?: string
-    workflowId?: string
-    /** Legacy alias of workflowId used by some exporters */
-    remixId?: string
-    widgetInstruction?: string
-    spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
-    options?: Record<string, unknown>
-    autonomousEnabled?: boolean
-    autonomousThreshold?: number
-    autonomousTarget?: 'user' | 'assistant'
-  }
-}
-
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
@@ -143,18 +94,37 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const activeCard = computed(() => cards.value.get(activeCardId.value))
 
   const consciousnessStore = useConsciousnessStore()
+  const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
   const artistryStore = useArtistryStore()
   const stageModelStore = useSettingsStageModel()
 
-  const { activeProvider: activeConsciousnessProvider, activeModel: activeConsciousnessModel } =
-    storeToRefs(consciousnessStore)
+  const {
+    activeProvider: activeConsciousnessProvider,
+    activeModel: activeConsciousnessModel,
+  } = storeToRefs(consciousnessStore)
 
-  const { activeSpeechProvider, activeSpeechVoiceId, activeSpeechModel } = storeToRefs(speechStore)
+  const {
+    activeProvider: activeVisionProvider,
+    activeModel: activeVisionModel,
+  } = storeToRefs(visionStore)
 
-  const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3) => {
+  const {
+    activeSpeechProvider,
+    activeSpeechVoiceId,
+    activeSpeechModel,
+  } = storeToRefs(speechStore)
+
+  /**
+   * `source` feeds the `card_created` analytics event: `scratch` = built in
+   * the creation dialog, `import` = ccv3 JSON upload, `duplicate` = cloned
+   * from an existing card (profile switcher). Required so a new call site
+   * can't silently degrade creation attribution.
+   */
+  const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
+    capturePosthogEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
 
@@ -165,7 +135,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
     const existingCard = cards.value.get(id)
-    if (!existingCard) return false
+    if (!existingCard)
+      return false
 
     const updatedCard = {
       ...existingCard,
@@ -180,24 +151,23 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
-  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+  function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
     const cardId = activeCardId.value
     const card = cards.value.get(cardId)
-    if (!card) return false
+    if (!card)
+      return false
 
     const extension = resolveAiriExtension(card)
-    const modules: AiriExtension['modules'] = {
-      ...extension.modules,
-      displayModelId,
-    }
-
     cards.value.set(cardId, {
       ...card,
       extensions: {
         ...card.extensions,
         airi: {
           ...extension,
-          modules,
+          modules: {
+            ...extension.modules,
+            ...patch(extension),
+          },
         },
       },
     })
@@ -205,17 +175,42 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
+  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    return updateActiveCardModules(() => ({ displayModelId }))
+  }
+
+  function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
+    return updateActiveCardModules(() => ({ consciousness }))
+  }
+
+  function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
+    return updateActiveCardModules(() => ({ vision }))
+  }
+
+  function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+    return updateActiveCardModules(({ modules }) => ({
+      speech: {
+        ...modules.speech,
+        ...speech,
+      },
+    }))
+  }
+
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
     // Get existing extension if available
-    // Older cards may have `artistry` at the top level instead of under `modules.artistry`.
-    const existingExtension = ('data' in card ? card.data?.extensions?.airi : card.extensions?.airi) as AiriExtension &
-      LegacyAiriExtension
+    const existingExtension = ('data' in card
+      ? card.data?.extensions?.airi
+      : card.extensions?.airi) as AiriExtension
 
     // Create default modules config
     const defaultModules = {
       consciousness: {
         provider: activeConsciousnessProvider.value,
         model: activeConsciousnessModel.value,
+      },
+      vision: {
+        provider: activeVisionProvider.value,
+        model: activeVisionModel.value,
       },
       speech: {
         provider: activeSpeechProvider.value,
@@ -235,7 +230,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         autonomousThreshold: 70,
         autonomousTarget: 'assistant' as const,
       },
-      patternDisruptor: resolvePatternDisruptorSettings(),
     } as const
 
     // Return default if no extension exists
@@ -253,6 +247,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           provider: existingExtension.modules?.consciousness?.provider ?? defaultModules.consciousness.provider,
           model: existingExtension.modules?.consciousness?.model ?? defaultModules.consciousness.model,
         },
+        vision: {
+          provider: existingExtension.modules?.vision?.provider ?? defaultModules.vision.provider,
+          model: existingExtension.modules?.vision?.model ?? defaultModules.vision.model,
+        },
         speech: {
           provider: existingExtension.modules?.speech?.provider ?? defaultModules.speech.provider,
           model: existingExtension.modules?.speech?.model ?? defaultModules.speech.model,
@@ -261,62 +259,24 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           rate: existingExtension.modules?.speech?.rate,
           ssml: existingExtension.modules?.speech?.ssml,
           language: existingExtension.modules?.speech?.language,
-          voicePack: existingExtension.modules?.speech?.voicePack,
         },
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
         displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
         activeBackgroundId: existingExtension.modules?.activeBackgroundId,
         artistry: {
-          enabled:
-            existingExtension.modules?.artistry?.enabled ??
-            existingExtension.artistry?.enabled ??
-            defaultModules.artistry.enabled,
-          provider:
-            existingExtension.modules?.artistry?.provider ??
-            existingExtension.artistry?.provider ??
-            defaultModules.artistry.provider,
-          model:
-            existingExtension.modules?.artistry?.model ??
-            existingExtension.artistry?.model ??
-            defaultModules.artistry.model,
-          promptPrefix:
-            existingExtension.modules?.artistry?.promptPrefix ??
-            existingExtension.artistry?.promptPrefix ??
-            existingExtension.artistry?.prompt_prefix ??
-            defaultModules.artistry.promptPrefix,
-          workflowId:
-            existingExtension.modules?.artistry?.workflowId ??
-            existingExtension.artistry?.workflowId ??
-            existingExtension.artistry?.remixId,
-          widgetInstruction:
-            existingExtension.modules?.artistry?.widgetInstruction ??
-            existingExtension.artistry?.widgetInstruction ??
-            defaultModules.artistry.widgetInstruction,
-          spawnMode:
-            existingExtension.modules?.artistry?.spawnMode ??
-            existingExtension.artistry?.spawnMode ??
-            defaultModules.artistry.spawnMode,
-          options:
-            existingExtension.modules?.artistry?.options ??
-            existingExtension.artistry?.options ??
-            defaultModules.artistry.options,
-          autonomousEnabled:
-            existingExtension.modules?.artistry?.autonomousEnabled ??
-            existingExtension.artistry?.autonomousEnabled ??
-            defaultModules.artistry.autonomousEnabled,
-          autonomousThreshold:
-            existingExtension.modules?.artistry?.autonomousThreshold ??
-            existingExtension.artistry?.autonomousThreshold ??
-            defaultModules.artistry.autonomousThreshold,
-          autonomousTarget:
-            existingExtension.modules?.artistry?.autonomousTarget ??
-            existingExtension.artistry?.autonomousTarget ??
-            defaultModules.artistry.autonomousTarget,
+          enabled: existingExtension.modules?.artistry?.enabled ?? (existingExtension as any).artistry?.enabled ?? defaultModules.artistry.enabled,
+          provider: existingExtension.modules?.artistry?.provider ?? (existingExtension as any).artistry?.provider ?? defaultModules.artistry.provider,
+          model: existingExtension.modules?.artistry?.model ?? (existingExtension as any).artistry?.model ?? defaultModules.artistry.model,
+          promptPrefix: existingExtension.modules?.artistry?.promptPrefix ?? (existingExtension as any).artistry?.promptPrefix ?? (existingExtension as any).artistry?.prompt_prefix ?? defaultModules.artistry.promptPrefix,
+          workflowId: existingExtension.modules?.artistry?.workflowId ?? (existingExtension as any).artistry?.workflowId ?? (existingExtension as any).artistry?.remixId,
+          widgetInstruction: existingExtension.modules?.artistry?.widgetInstruction ?? (existingExtension as any).artistry?.widgetInstruction ?? defaultModules.artistry.widgetInstruction,
+          spawnMode: existingExtension.modules?.artistry?.spawnMode ?? (existingExtension as any).artistry?.spawnMode ?? defaultModules.artistry.spawnMode,
+          options: existingExtension.modules?.artistry?.options ?? (existingExtension as any).artistry?.options ?? defaultModules.artistry.options,
+          autonomousEnabled: existingExtension.modules?.artistry?.autonomousEnabled ?? (existingExtension as any).artistry?.autonomousEnabled ?? defaultModules.artistry.autonomousEnabled,
+          autonomousThreshold: existingExtension.modules?.artistry?.autonomousThreshold ?? (existingExtension as any).artistry?.autonomousThreshold ?? defaultModules.artistry.autonomousThreshold,
+          autonomousTarget: existingExtension.modules?.artistry?.autonomousTarget ?? (existingExtension as any).artistry?.autonomousTarget ?? defaultModules.artistry.autonomousTarget,
         },
-        patternDisruptor: resolvePatternDisruptorSettings(
-          existingExtension.modules?.patternDisruptor ?? defaultModules.patternDisruptor,
-        ),
       },
       agents: existingExtension.agents ?? {},
     }
@@ -335,7 +295,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         notesMultilingual: ccv3Card.data.creator_notes_multilingual,
         personality: ccv3Card.data.personality ?? '',
         scenario: ccv3Card.data.scenario ?? '',
-        greetings: [ccv3Card.data.first_mes, ...(ccv3Card.data.alternate_greetings ?? [])],
+        greetings: [
+          ccv3Card.data.first_mes,
+          ...(ccv3Card.data.alternate_greetings ?? []),
+        ],
         greetingsGroupOnly: ccv3Card.data.group_only_greetings ?? [],
         systemPrompt: ccv3Card.data.system_prompt ?? '',
         postHistoryInstructions: ccv3Card.data.post_history_instructions ?? '',
@@ -343,13 +306,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           ? ccv3Card.data.mes_example
               .split('<START>\n')
               .filter(Boolean)
-              .map((example) =>
-                example.split('\n').map((line) => {
+              .map(example => example.split('\n')
+                .map((line) => {
                   if (line.startsWith('{{char}}:') || line.startsWith('{{user}}:'))
                     return line as `{{char}}: ${string}` | `{{user}}: ${string}`
                   throw new Error(`Invalid message example format: ${line}`)
-                }),
-              )
+                }))
           : [],
         tags: ccv3Card.data.tags ?? [],
         extensions: {
@@ -368,100 +330,60 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  function bindVoicePackToActiveCard(pack: VoicePackBindingInput) {
-    const cardId = activeCardId.value
-    const card = cards.value.get(cardId)
-    if (!card) return false
-
-    const extension = resolveAiriExtension(card)
-    const voicePack: VoicePackSnapshot = {
-      packId: pack.id,
-      name: pack.name,
-      provider: pack.provider,
-      model: pack.model,
-      voiceId: pack.voiceId,
-      ttsModelId: pack.ttsModelId,
-      params: { ...pack.params },
-      costMultiplier: pack.costMultiplier,
-    }
-
-    const speech: AiriExtension['modules']['speech'] = {
-      ...extension.modules.speech,
-      provider: OFFICIAL_SPEECH_PROVIDER_ID,
-      model: pack.ttsModelId,
-      voice_id: pack.voiceId,
-      voicePack,
-    }
-
-    cards.value.set(cardId, {
-      ...card,
-      extensions: {
-        ...card.extensions,
-        airi: {
-          ...extension,
-          modules: {
-            ...extension.modules,
-            speech,
-          },
-        },
-      },
-    })
-
-    activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
-    activeSpeechModel.value = pack.ttsModelId
-    activeSpeechVoiceId.value = pack.voiceId
-
-    return true
-  }
-
   function initialize() {
-    if (cards.value.has('default')) return
-    cards.value.set(
-      'default',
-      newAiriCard({
-        name: 'ReLU',
-        version: '1.0.0',
-        description: SystemPromptV2(t('base.prompt.prefix'), t('base.prompt.suffix')).content,
-      }),
-    )
-    if (!activeCardId.value) activeCardId.value = 'default'
+    if (cards.value.has('default'))
+      return
+    cards.value.set('default', newAiriCard({
+      name: 'ReLU',
+      version: '1.0.0',
+      description: SystemPromptV2(
+        t('base.prompt.prefix'),
+        t('base.prompt.suffix'),
+      ).content,
+    }))
+    if (!activeCardId.value)
+      activeCardId.value = 'default'
   }
 
-  watchDebounced(
-    activeCard,
-    (newCard: AiriCard | undefined) => {
-      artistryStore.resetToGlobal()
+  watchDebounced(activeCard, (newCard: AiriCard | undefined) => {
+    artistryStore.resetToGlobal()
 
-      if (!newCard) return
+    if (!newCard)
+      return
 
-      // TODO: Minecraft Agent, etc
-      const extension = resolveAiriExtension(newCard)
-      if (!extension) return
+    // TODO: Minecraft Agent, etc
+    const extension = resolveAiriExtension(newCard)
+    if (!extension)
+      return
 
-      activeConsciousnessProvider.value = extension?.modules?.consciousness?.provider
-      activeConsciousnessModel.value = extension?.modules?.consciousness?.model
+    activeConsciousnessProvider.value = extension?.modules?.consciousness?.provider
+    activeConsciousnessModel.value = extension?.modules?.consciousness?.model
 
-      activeSpeechProvider.value = extension?.modules?.speech?.provider
-      activeSpeechModel.value = extension?.modules?.speech?.model
-      activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
+    activeVisionProvider.value = extension?.modules?.vision?.provider
+    activeVisionModel.value = extension?.modules?.vision?.model
 
-      // Apply body model if the card has a display model configured.
-      // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
-      // proxy correctly calls the writable computed setter → stageModelSelectedState → updateStageModel().
-      if (extension.modules?.displayModelId) {
-        stageModelStore.stageModelSelected = extension.modules.displayModelId
-      }
+    activeSpeechProvider.value = extension?.modules?.speech?.provider
+    activeSpeechModel.value = extension?.modules?.speech?.model
+    activeSpeechVoiceId.value = extension?.modules?.speech?.voice_id
 
-      if (extension.modules?.artistry) {
-        if (extension.modules.artistry.provider) artistryStore.activeProvider = extension.modules.artistry.provider
-        if (extension.modules.artistry.model) artistryStore.activeModel = extension.modules.artistry.model
-        if (extension.modules.artistry.promptPrefix)
-          artistryStore.defaultPromptPrefix = extension.modules.artistry.promptPrefix
-        if (extension.modules.artistry.options) artistryStore.providerOptions = extension.modules.artistry.options
-      }
-    },
-    { debounce: 300, maxWait: 1000 },
-  )
+    // Apply body model if the card has a display model configured.
+    // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
+    // proxy correctly calls the writable computed setter → stageModelSelectedState → updateStageModel().
+    if (extension.modules?.displayModelId) {
+      stageModelStore.stageModelSelected = extension.modules.displayModelId
+    }
+
+    if (extension.modules?.artistry) {
+      if (extension.modules.artistry.provider)
+        artistryStore.activeProvider = extension.modules.artistry.provider
+      if (extension.modules.artistry.model)
+        artistryStore.activeModel = extension.modules.artistry.model
+      if (extension.modules.artistry.promptPrefix)
+        artistryStore.defaultPromptPrefix = extension.modules.artistry.promptPrefix
+      if (extension.modules.artistry.options)
+        artistryStore.providerOptions = extension.modules.artistry.options
+    }
+  }, { debounce: 300, maxWait: 1000 })
 
   function resetState() {
     activeCardId.reset()
@@ -475,8 +397,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     addCard,
     removeCard,
     updateCard,
-    bindVoicePackToActiveCard,
+    updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
+    updateActiveCardSpeech,
+    updateActiveCardVision,
     getCard,
     resetState,
     initialize,
@@ -487,21 +411,24 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           provider: activeConsciousnessProvider.value,
           model: activeConsciousnessModel.value,
         },
+        vision: {
+          provider: activeVisionProvider.value,
+          model: activeVisionModel.value,
+        },
         speech: {
           provider: activeSpeechProvider.value,
           model: activeSpeechModel.value,
           voice_id: activeSpeechVoiceId.value,
-          voicePack: activeCard.value?.extensions?.airi?.modules?.speech?.voicePack,
         },
         displayModelId: stageModelStore.stageModelSelected,
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
-        patternDisruptor: activeCard.value?.extensions?.airi?.modules?.patternDisruptor,
       } satisfies AiriExtension['modules']
     }),
 
     systemPrompt: computed(() => {
       const card = activeCard.value
-      if (!card) return ''
+      if (!card)
+        return ''
 
       const components = [
         card.systemPrompt,

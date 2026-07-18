@@ -66,7 +66,7 @@ describe('useDuckDB (Singleton)', () => {
     expect(vi.mocked(drizzle).mock.calls.length).toBe(1)
 
     await nextTick()
-    const spy = vi.spyOn(await instance1!.$client, 'close')
+    const spy = vi.spyOn(await (instance1!.$client), 'close')
     await closeDb()
     expect(spy).toHaveBeenCalled()
 

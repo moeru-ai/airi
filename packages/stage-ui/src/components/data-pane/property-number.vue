@@ -11,15 +11,12 @@ interface RangeConfig {
   disabled?: boolean
 }
 
-const props = withDefaults(
-  defineProps<{
-    label?: string
-    config?: RangeConfig
-  }>(),
-  {
-    label: 'Range',
-  },
-)
+const props = withDefaults(defineProps<{
+  label?: string
+  config?: RangeConfig
+}>(), {
+  label: 'Range',
+})
 
 const modelValue = defineModel<number>({ required: true })
 
@@ -61,7 +58,8 @@ watch(
 )
 
 function updateSliderProgress() {
-  if (!sliderRef.value) return
+  if (!sliderRef.value)
+    return
 
   const min = props.config?.min ?? 0
   const max = props.config?.max ?? 100
@@ -89,7 +87,8 @@ function handleInputChange(event: Event) {
   const input = event.target as HTMLInputElement
   const value = Number.parseFloat(input.value)
 
-  if (Number.isNaN(value)) return
+  if (Number.isNaN(value))
+    return
 
   updateValue(value)
 }
@@ -107,7 +106,8 @@ function updateValue(value: number) {
 }
 
 function startDrag(event: MouseEvent) {
-  if (props.config?.disabled) return
+  if (props.config?.disabled)
+    return
 
   event.preventDefault()
   isDragging.value = true
@@ -120,12 +120,13 @@ function startDrag(event: MouseEvent) {
 }
 
 function onDrag(event: MouseEvent) {
-  if (!isDragging.value) return
+  if (!isDragging.value)
+    return
 
   const deltaX = event.clientX - dragStartX.value
   const config = props.config
   const sensitivity = config?.step || 0.01
-  const newValue = dragStartValue.value + deltaX * sensitivity
+  const newValue = dragStartValue.value + (deltaX * sensitivity)
 
   updateValue(newValue)
 }
@@ -145,7 +146,11 @@ function stopDrag() {
     </slot>
   </div>
   <div />
-  <div h="5" grid-col-span-2 w-full>
+  <div
+
+    h="5"
+    grid-col-span-2 w-full
+  >
     <input
       ref="sliderRef"
       :value="modelValue"
@@ -155,19 +160,23 @@ function stopDrag() {
       :step="props.config?.step ?? 1"
       :disabled="props.config?.disabled"
       class="range-slider"
-      h-full
-      w-full
-      appearance-none
-      bg-transparent
-      outline-none
+      h-full w-full appearance-none bg-transparent outline-none
       @input="handleSliderChange"
-    />
+    >
   </div>
 
   <!-- Value input -->
-  <label bg="neutral-100 dark:neutral-900" h-fit min-w-12 inline-flex items-center rounded-md px="1.5" py="0.5">
+  <label
+    bg="neutral-100 dark:neutral-900"
+    h-fit min-w-12 inline-flex items-center rounded-md px="1.5" py="0.5"
+  >
     <span h-fit w-full inline-flex items-center gap-2 text-xs>
-      <span cursor-col-resize select-none :class="{ 'text-blue-500': isDragging }" @mousedown="startDrag">|</span>
+      <span
+        cursor-col-resize
+        select-none
+        :class="{ 'text-blue-500': isDragging }"
+        @mousedown="startDrag"
+      >|</span>
       <input
         :value="normalizedValue"
         type="number"
@@ -175,18 +184,11 @@ function stopDrag() {
         :max="props.config?.max"
         :step="props.config?.step || 0.0001"
         :disabled="props.config?.disabled"
-        max-w-4lh
-        w-full
-        flex-1
-        appearance-none
-        bg-transparent
-        text-right
-        font-mono
-        outline-none
+        max-w-4lh w-full flex-1 appearance-none bg-transparent text-right font-mono outline-none
         transition="all duration-200 ease-in-out"
         class="[&::-webkit-inner-spin-button]:(m-0 appearance-none)"
         @change="handleInputChange"
-      />
+      >
     </span>
   </label>
 </template>

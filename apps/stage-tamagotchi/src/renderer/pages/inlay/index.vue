@@ -12,15 +12,22 @@ const setBackgroundMaterial = useElectronEventaInvoke(electron.window.setBackgro
 const vibrancy = ref<NonNullable<VibrancyType>>()
 const backgroundMaterial = ref<NonNullable<BackgroundMaterialType>>()
 
-watch(vibrancy, (newVibrancy) => {
-  setVibrancy([newVibrancy ?? null])
-})
+watch(
+  vibrancy,
+  (newVibrancy) => {
+    setVibrancy([newVibrancy ?? null])
+  },
+)
 
-watch(backgroundMaterial, (newBackgroundMaterial) => {
-  if (!newBackgroundMaterial) return
+watch(
+  backgroundMaterial,
+  (newBackgroundMaterial) => {
+    if (!newBackgroundMaterial)
+      return
 
-  setBackgroundMaterial([newBackgroundMaterial])
-})
+    setBackgroundMaterial([newBackgroundMaterial])
+  },
+)
 </script>
 
 <template>

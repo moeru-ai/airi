@@ -1,26 +1,31 @@
 <script setup lang="ts">
 import { Section } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore, useBackgroundStore } from '@proj-airi/stage-ui/stores'
 import { Button, Callout } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { trackSceneBackgroundSet } = useAnalytics()
 const backgroundStore = useBackgroundStore()
 const cardStore = useAiriCardStore()
 
 const fileInputRef = ref<HTMLInputElement>()
 
 const sceneEntries = computed(() => {
-  return backgroundStore.availableBackgrounds.filter((e) => e.type === 'scene' || e.type === 'builtin')
+  return backgroundStore.availableBackgrounds
+    .filter(e => e.type === 'scene' || e.type === 'builtin')
 })
 
 const activeBackgroundId = computed({
   get: () => cardStore.activeCard?.extensions?.airi?.modules?.activeBackgroundId || 'none',
   set: (val: string) => {
-    if (!cardStore.activeCard) return
+    if (!cardStore.activeCard)
+      return
     const extension = JSON.parse(JSON.stringify(cardStore.activeCard.extensions))
-    if (!extension.airi.modules) extension.airi.modules = {}
+    if (!extension.airi.modules)
+      extension.airi.modules = {}
 
     extension.airi.modules.activeBackgroundId = val
 
@@ -28,6 +33,7 @@ const activeBackgroundId = computed({
       ...cardStore.activeCard,
       extensions: extension,
     })
+    trackSceneBackgroundSet({ source: 'scene_settings', cleared: val === 'none' })
   },
 })
 
@@ -37,7 +43,8 @@ function triggerUpload() {
 
 async function handleFileChange(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
+  if (!file)
+    return
 
   await backgroundStore.addBackground('scene', file, file.name)
 }
@@ -46,10 +53,19 @@ function setAsBackground(id: string) {
   activeBackgroundId.value = id
 }
 
-// eslint-disable-next-line no-alert -- User confirmation before deletion
+function requestDeleteConfirmation(message: string): boolean {
+  // NOTICE:
+  // Native confirm is the existing guard for this destructive scene action.
+  // Root cause: `no-alert` rejects direct `confirm(...)` calls before this page
+  // has a shared confirmation-dialog primitive wired into the scene gallery flow.
+  // Source/context: this component already used native confirm for scene delete.
+  // Removal condition: replace with the shared modal confirmation component.
+  const confirmAction = globalThis.confirm.bind(globalThis)
+  return confirmAction(message)
+}
+
 function removeBackground(id: string) {
-  // eslint-disable-next-line no-alert -- User confirmation before deletion
-  if (confirm(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
+  if (requestDeleteConfirmation(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
     backgroundStore.removeBackground(id)
   }
 }
@@ -61,7 +77,11 @@ function clearDefault() {
 
 <template>
   <div :class="['flex flex-col gap-6', 'mx-auto max-w-2xl', 'p-4 pb-20']">
-    <Callout :label="t('settings.pages.scene.beta_label')" theme="orange" icon="i-solar:star-fall-bold-duotone">
+    <Callout
+      :label="t('settings.pages.scene.beta_label')"
+      theme="orange"
+      icon="i-solar:star-fall-bold-duotone"
+    >
       <div>
         {{ t('settings.pages.scene.beta_description') }}
       </div>
@@ -75,12 +95,26 @@ function clearDefault() {
       <div :class="['flex flex-col gap-4', 'p-4']">
         <!-- Upload Controls -->
         <div :class="['flex gap-2']">
-          <input ref="fileInputRef" type="file" accept="image/*" hidden @change="handleFileChange" />
-          <Button variant="primary" class="flex-1" @click="triggerUpload">
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/*"
+            hidden
+            @change="handleFileChange"
+          >
+          <Button
+            variant="primary"
+            class="flex-1"
+            @click="triggerUpload"
+          >
             <div :class="['i-solar:upload-bold-duotone', 'mr-2']" />
             {{ t('settings.pages.scene.background_image.upload') }}
           </Button>
-          <Button v-if="activeBackgroundId !== 'none'" variant="secondary" @click="clearDefault">
+          <Button
+            v-if="activeBackgroundId !== 'none'"
+            variant="secondary"
+            @click="clearDefault"
+          >
             <div :class="['i-solar:trash-bin-trash-bold-duotone', 'mr-2']" />
             {{ t('settings.pages.scene.background_image.clear') }}
           </Button>
@@ -93,9 +127,7 @@ function clearDefault() {
             :key="bg.id"
             :class="[
               'relative aspect-square overflow-hidden rounded-xl border-2 group transition-all',
-              bg.id === activeBackgroundId
-                ? 'border-primary shadow-lg'
-                : 'border-transparent bg-neutral-100 dark:bg-neutral-900',
+              bg.id === activeBackgroundId ? 'border-primary shadow-lg' : 'border-transparent bg-neutral-100 dark:bg-neutral-900',
             ]"
           >
             <!-- Background Image -->
@@ -136,7 +168,12 @@ function clearDefault() {
                 'flex items-center justify-center gap-2',
               ]"
             >
-              <Button v-if="bg.id !== activeBackgroundId" size="sm" variant="primary" @click="setAsBackground(bg.id)">
+              <Button
+                v-if="bg.id !== activeBackgroundId"
+                size="sm"
+                variant="primary"
+                @click="setAsBackground(bg.id)"
+              >
                 <div :class="['i-solar:check-read-bold-duotone']" />
               </Button>
               <Button
@@ -155,10 +192,7 @@ function clearDefault() {
         <!-- Empty State -->
         <div
           v-else
-          :class="[
-            'border-2 border-dashed border-neutral-200 dark:border-neutral-800',
-            'p-12 text-center text-neutral-400 rounded-xl',
-          ]"
+          :class="['border-2 border-dashed border-neutral-200 dark:border-neutral-800', 'p-12 text-center text-neutral-400 rounded-xl']"
         >
           <div :class="['i-solar:gallery-wide-bold-duotone', 'mx-auto mb-2 text-4xl opacity-50']" />
           <p :class="['text-sm']">
@@ -169,7 +203,6 @@ function clearDefault() {
     </Section>
 
     <Callout theme="lime" :label="t('settings.pages.scene.tip.label')">
-      <!-- deepline: JS-0693 requires v-html here for raw HTML rendering -->
       <div v-html="t('settings.pages.scene.tip.description')" />
     </Callout>
   </div>

@@ -53,7 +53,8 @@ provide('replayable', {
 
 // Replay function
 async function replay() {
-  if (isReplaying.value || props.disabled) return
+  if (isReplaying.value || props.disabled)
+    return
 
   isReplaying.value = true
   replayCount.value++
@@ -62,15 +63,17 @@ async function replay() {
 
   try {
     // Execute all registered replay callbacks
-    await Promise.all(replayCallbacks.value.map((callback) => callback()))
+    await Promise.all(replayCallbacks.value.map(callback => callback()))
 
     // Small delay to ensure animations complete
     await nextTick()
 
     emit('replay')
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error during replay:', error)
-  } finally {
+  }
+  finally {
     isReplaying.value = false
     emit('afterReplay')
   }
@@ -78,7 +81,8 @@ async function replay() {
 
 // Auto replay functionality
 function startAutoReplay() {
-  if (!props.autoReplay) return
+  if (!props.autoReplay)
+    return
 
   autoReplayTimer.value = setInterval(() => {
     replay()
@@ -111,26 +115,21 @@ onMounted(() => {
   }
 })
 
-watch(
-  () => props.autoReplay,
-  (newVal) => {
-    if (newVal) {
-      startAutoReplay()
-    } else {
-      stopAutoReplay()
-    }
-  },
-)
+watch(() => props.autoReplay, (newVal) => {
+  if (newVal) {
+    startAutoReplay()
+  }
+  else {
+    stopAutoReplay()
+  }
+})
 
-watch(
-  () => props.replayInterval,
-  () => {
-    if (props.autoReplay) {
-      stopAutoReplay()
-      startAutoReplay()
-    }
-  },
-)
+watch(() => props.replayInterval, () => {
+  if (props.autoReplay) {
+    stopAutoReplay()
+    startAutoReplay()
+  }
+})
 
 // Expose methods for external control
 defineExpose({
@@ -156,31 +155,18 @@ defineExpose({
       transition="all duration-150 ease-in-out"
       :class="[
         disabled || isReplaying ? 'opacity-50 cursor-not-allowed' : '',
-        position === 'top-right'
-          ? 'top-1 right-1'
-          : position === 'top-left'
-            ? 'top-1 left-1'
-            : position === 'bottom-right'
-              ? 'bottom-1 right-1'
-              : position === 'bottom-left'
-                ? 'bottom-1 left-1'
-                : position === 'center'
-                  ? 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2'
-                  : '',
+        position === 'top-right' ? 'top-1 right-1'
+        : position === 'top-left' ? 'top-1 left-1'
+          : position === 'bottom-right' ? 'bottom-1 right-1'
+            : position === 'bottom-left' ? 'bottom-1 left-1'
+              : position === 'center' ? 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2' : '',
       ]"
       :disabled="disabled || isReplaying"
       :title="`Replay animation${hotkey ? ` (${hotkey.toUpperCase()})` : ''}`"
       type="button"
       @click="replay"
     >
-      <div
-        i-solar:play-circle-bold-duotone
-        h-4
-        w-4
-        flex-shrink-0
-        text="neutral-500 dark:neutral-400"
-        :class="[isReplaying ? 'animate-spin' : '']"
-      />
+      <div i-solar:play-circle-bold-duotone h-4 w-4 flex-shrink-0 text="neutral-500 dark:neutral-400" :class="[isReplaying ? 'animate-spin' : '']" />
 
       <!-- Label -->
       <span v-if="showLabel" text-nowrap>
@@ -189,7 +175,11 @@ defineExpose({
     </button>
 
     <!-- Auto replay indicator -->
-    <div v-if="autoReplay" class="replayable-auto-indicator" :title="`Auto replay every ${replayInterval}ms`">
+    <div
+      v-if="autoReplay"
+      class="replayable-auto-indicator"
+      :title="`Auto replay every ${replayInterval}ms`"
+    >
       <div class="replayable-auto-pulse" />
     </div>
   </div>

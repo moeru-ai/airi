@@ -16,13 +16,13 @@ describe('useOptimistic', () => {
       }
     })
 
-    const action = vi.fn(() => {
-      return Promise.resolve(actionResult)
+    const action = vi.fn(async () => {
+      return actionResult
     })
 
     const onSuccess = vi.fn((result: string) => {
       state.value = `final-${result}`
-      return Promise.resolve(state.value)
+      return state.value
     })
 
     const { state: resultState, isLoading } = useOptimisticMutation({
@@ -37,7 +37,7 @@ describe('useOptimistic', () => {
 
     // Wait for action to complete
     await nextTick()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(action).toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalledWith(actionResult)
@@ -59,7 +59,7 @@ describe('useOptimistic', () => {
       return rollback
     })
 
-    const action = vi.fn(() => {
+    const action = vi.fn(async () => {
       throw error
     })
 
@@ -72,7 +72,7 @@ describe('useOptimistic', () => {
 
     // Wait for failure
     await nextTick()
-    await new Promise((resolve) => setTimeout(resolve, 0))
+    await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(rollback).toHaveBeenCalled()
     expect(state.value).toBe('initial')
@@ -84,10 +84,10 @@ describe('useOptimistic', () => {
     const state = ref('initial')
 
     const apply = async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise(resolve => setTimeout(resolve, 10))
       state.value = 'optimistic'
       return async () => {
-        await new Promise((resolve) => setTimeout(resolve, 10))
+        await new Promise(resolve => setTimeout(resolve, 10))
         state.value = 'initial'
       }
     }
@@ -107,7 +107,7 @@ describe('useOptimistic', () => {
   })
 
   it('should not throw if apply returns non-function', async () => {
-    const action = vi.fn(() => {
+    const action = vi.fn(async () => {
       throw new Error('fail')
     })
 
@@ -129,7 +129,7 @@ describe('useOptimistic', () => {
         state.value = 'initial'
       }
     })
-    const action = vi.fn(() => Promise.resolve('should-not-run'))
+    const action = vi.fn(async () => 'should-not-run')
     const skipActionIf = vi.fn(() => true)
 
     const { execute, state: resultState } = useOptimisticMutation({

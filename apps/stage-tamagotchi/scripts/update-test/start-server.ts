@@ -1,8 +1,9 @@
-import { readFile } from 'node:fs/promises'
+/* eslint-disable no-console */
+import process, { exit } from 'node:process'
 
+import { readFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import { extname, join, normalize } from 'node:path'
-import process, { exit } from 'node:process'
 
 import { cac } from 'cac'
 
@@ -21,7 +22,7 @@ function getContentType(pathname: string) {
   return CONTENT_TYPES[extname(pathname)] ?? 'application/octet-stream'
 }
 
-export async function startUpdateTestServer(options: { port: number; rootDir: string }) {
+export async function startUpdateTestServer(options: { port: number, rootDir: string }) {
   const server = createServer(async (request, response) => {
     const pathname = request.url?.split('?')[0] || '/'
 
@@ -32,7 +33,8 @@ export async function startUpdateTestServer(options: { port: number; rootDir: st
       const body = await readFile(filePath)
       response.writeHead(200, { 'content-type': getContentType(filePath) })
       response.end(body)
-    } catch {
+    }
+    catch {
       response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
       response.end(`Not found: ${pathname}`)
     }
@@ -58,16 +60,13 @@ async function main() {
   const server = await startUpdateTestServer({ port, rootDir })
 
   console.log(`Update test server listening on http://127.0.0.1:${port}`)
-
   console.log(`stable:  http://127.0.0.1:${port}/stable`)
-
   console.log(`nightly: http://127.0.0.1:${port}/nightly`)
-
   console.log(`canary:  http://127.0.0.1:${port}/canary`)
 
   const close = async () => {
     await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()))
+      server.close(error => error ? reject(error) : resolve())
     })
     exit(0)
   }

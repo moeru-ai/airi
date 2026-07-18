@@ -1,3 +1,4 @@
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { onUnmounted, ref } from 'vue'
 
 const amplification = 3 // Amplification factor for volume visualization
@@ -16,24 +17,25 @@ export function useAudioAnalyzer() {
     onAnalyzerUpdateHooks.value.push(callback)
     return () => {
       // optional cleanup if consumer wants to unsubscribe
-      onAnalyzerUpdateHooks.value = onAnalyzerUpdateHooks.value.filter((cb) => cb !== callback)
+      onAnalyzerUpdateHooks.value = onAnalyzerUpdateHooks.value.filter(cb => cb !== callback)
     }
   }
 
   function start() {
-    if (animationFrame.value) return // prevent multiple loops
+    if (animationFrame.value)
+      return // prevent multiple loops
 
     const analyze = () => {
-      if (!analyzer.value || !dataArray.value) return
+      if (!analyzer.value || !dataArray.value)
+        return
 
       // Get frequency data for volume visualization
       analyzer.value.getByteFrequencyData(dataArray.value)
 
       // Calculate RMS volume level
       let sum = 0
-
-      for (const value of dataArray.value) {
-        sum += value * value
+      for (let i = 0; i < dataArray.value.length; i++) {
+        sum += dataArray.value[i] * dataArray.value[i]
       }
       const rms = Math.sqrt(sum / dataArray.value.length)
       volumeLevel.value = Math.min(100, (rms / 255) * 100 * amplification) // Amplify for better visualization
@@ -67,9 +69,10 @@ export function useAudioAnalyzer() {
       start()
 
       return analyzer.value
-    } catch (err) {
+    }
+    catch (err) {
       console.error('Error setting up audio monitoring:', err)
-      error.value = err instanceof Error ? err.message : String(err)
+      error.value = errorMessageFromValue(err)
     }
   }
 

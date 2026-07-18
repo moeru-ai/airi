@@ -1,49 +1,54 @@
 import type { JsonSchema } from 'xsschema'
 
-import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
+import z from 'zod/v4'
 
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { rawTool } from '@xsai/tool'
 import { describe, expect, it, vi } from 'vitest'
 import { toJsonSchema } from 'xsschema'
-import z from 'zod/v4'
 
+import { normalizeNullableAnyOf } from '../../json-schema'
 import { createSparkCommandTool } from './spark-command'
-import { normalizeNullableAnyOf, sparkNotifyCommandItemSchema } from './spark-command-shared'
+import { sparkNotifyCommandItemSchema } from './spark-command-shared'
 
 function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
   return Boolean(value && typeof value === 'object')
 }
 
 function getObjectSchema(schema?: JsonSchema) {
-  if (!schema) return undefined
+  if (!schema)
+    return undefined
 
-  if (schema.type === 'object') return schema
+  if (schema.type === 'object')
+    return schema
 
   const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)
-  return candidates.find((candidate) => candidate?.type === 'object')
+  return candidates.find(candidate => candidate?.type === 'object')
 }
 
 function getArraySchema(schema?: JsonSchema) {
-  if (!schema) return undefined
+  if (!schema)
+    return undefined
 
-  if (schema.type === 'array') return schema
+  if (schema.type === 'array')
+    return schema
 
   const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)
-  return candidates.find((candidate) => candidate?.type === 'array')
+  return candidates.find(candidate => candidate?.type === 'array')
 }
 
-function findObjectSchema(
-  schema: JsonSchema | undefined,
-  predicate: (schema: JsonSchema) => boolean,
-): JsonSchema | undefined {
-  if (!schema) return undefined
+function findObjectSchema(schema: JsonSchema | undefined, predicate: (schema: JsonSchema) => boolean): JsonSchema | undefined {
+  if (!schema)
+    return undefined
 
   const objectSchema = getObjectSchema(schema)
-  if (objectSchema && predicate(objectSchema)) return objectSchema
+  if (objectSchema && predicate(objectSchema))
+    return objectSchema
 
   for (const candidate of [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])].filter(isJsonSchema)) {
     const found = findObjectSchema(candidate, predicate)
-    if (found) return found
+    if (found)
+      return found
   }
 
   return undefined
@@ -51,11 +56,9 @@ function findObjectSchema(
 
 describe('tools/character/orchestrator/spark-command', () => {
   it('normalizes scalar|null anyOf into a type array', async () => {
-    const schemaTestUnion = await toJsonSchema(
-      z.object({
-        testField: z.union([z.string(), z.null()]),
-      }),
-    )
+    const schemaTestUnion = await toJsonSchema(z.object({
+      testField: z.union([z.string(), z.null()]),
+    }))
     const normalized = normalizeNullableAnyOf(schemaTestUnion as JsonSchema)
     const testField = normalized.properties?.testField as JsonSchema
 
@@ -64,11 +67,9 @@ describe('tools/character/orchestrator/spark-command', () => {
   })
 
   it('deduplicates primitive types after normalization', async () => {
-    const schemaTestUnion = await toJsonSchema(
-      z.object({
-        testField: z.union([z.literal('force'), z.literal('soft'), z.literal(false)]),
-      }),
-    )
+    const schemaTestUnion = await toJsonSchema(z.object({
+      testField: z.union([z.literal('force'), z.literal('soft'), z.literal(false)]),
+    }))
     const normalized = normalizeNullableAnyOf(schemaTestUnion as JsonSchema)
     const testField = normalized.properties?.testField as JsonSchema
 
@@ -180,11 +181,16 @@ describe('tools/character/orchestrator/spark-command', () => {
     const contexts = getArraySchema(schema.properties?.contexts as JsonSchema)
     const contextItem = contexts?.items as JsonSchema
     const destinations = contextItem.properties?.destinations as JsonSchema
-    const destinationsFilter = findObjectSchema(destinations, (candidate) =>
-      Boolean(candidate.properties?.include || candidate.properties?.exclude),
+    const destinationsFilter = findObjectSchema(
+      destinations,
+      candidate => Boolean(candidate.properties?.include || candidate.properties?.exclude),
     )
 
-    expect(guidance?.required).toEqual(['type', 'persona', 'options'])
+    expect(guidance?.required).toEqual([
+      'type',
+      'persona',
+      'options',
+    ])
     expect(optionItem.required).toEqual([
       'label',
       'steps',
@@ -194,8 +200,19 @@ describe('tools/character/orchestrator/spark-command', () => {
       'fallback',
       'triggers',
     ])
-    expect(contextItem.required).toEqual(['lane', 'ideas', 'hints', 'strategy', 'text', 'destinations', 'metadata'])
-    expect(destinationsFilter?.required).toEqual(['include', 'exclude'])
+    expect(contextItem.required).toEqual([
+      'lane',
+      'ideas',
+      'hints',
+      'strategy',
+      'text',
+      'destinations',
+      'metadata',
+    ])
+    expect(destinationsFilter?.required).toEqual([
+      'include',
+      'exclude',
+    ])
   })
 
   it('builds and dispatches spark commands with generated ids', async () => {
@@ -204,87 +221,76 @@ describe('tools/character/orchestrator/spark-command', () => {
       sendSparkCommand,
     })
 
-    const result = await tools[0].execute(
-      {
-        destinations: ['minecraft'],
-        interrupt: 'soft',
-        priority: 'high',
-        intent: 'proposal',
-        ack: 'check this',
-        parentEventId: 'parent-1',
-        guidance: {
-          type: 'instruction',
-          persona: [{ traits: 'bravery', strength: 'high' }],
-          options: [
-            {
-              label: 'Move',
-              steps: ['Walk forward'],
-              rationale: 'Closer inspection',
-              possibleOutcome: null,
-              risk: null,
-              fallback: null,
-              triggers: null,
-            },
-          ],
-        },
-        contexts: [
-          {
-            lane: 'game',
-            ideas: null,
-            hints: null,
-            strategy: ContextUpdateStrategy.AppendSelf,
-            text: 'Zombie nearby',
-            destinations: ['memory'],
-            metadata: [
-              { key: 'threat', value: 'zombie' },
-              { key: 'urgent', value: true },
-            ],
-          },
+    const result = await tools[0].execute({
+      destinations: ['minecraft'],
+      interrupt: 'soft',
+      priority: 'high',
+      intent: 'proposal',
+      ack: 'check this',
+      parentEventId: 'parent-1',
+      guidance: {
+        type: 'instruction',
+        persona: [
+          { traits: 'bravery', strength: 'high' },
         ],
+        options: [{
+          label: 'Move',
+          steps: ['Walk forward'],
+          rationale: 'Closer inspection',
+          possibleOutcome: null,
+          risk: null,
+          fallback: null,
+          triggers: null,
+        }],
       },
-      { messages: [], toolCallId: 'tool-call-id' },
-    )
+      contexts: [{
+        lane: 'game',
+        ideas: null,
+        hints: null,
+        strategy: ContextUpdateStrategy.AppendSelf,
+        text: 'Zombie nearby',
+        destinations: ['memory'],
+        metadata: [
+          { key: 'threat', value: 'zombie' },
+          { key: 'urgent', value: true },
+        ],
+      }],
+    }, { messages: [], toolCallId: 'tool-call-id' })
 
     expect(sendSparkCommand).toHaveBeenCalledTimes(1)
-    expect(sendSparkCommand).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parentEventId: 'parent-1',
-        interrupt: 'soft',
-        priority: 'high',
-        intent: 'proposal',
-        ack: 'check this',
-        destinations: ['minecraft'],
-        guidance: {
-          type: 'instruction',
-          persona: {
-            bravery: 'high',
-          },
-          options: [
-            {
-              label: 'Move',
-              steps: ['Walk forward'],
-              rationale: 'Closer inspection',
-              possibleOutcome: undefined,
-              risk: undefined,
-              fallback: undefined,
-              triggers: undefined,
-            },
-          ],
+    expect(sendSparkCommand).toHaveBeenCalledWith(expect.objectContaining({
+      parentEventId: 'parent-1',
+      interrupt: 'soft',
+      priority: 'high',
+      intent: 'proposal',
+      ack: 'check this',
+      destinations: ['minecraft'],
+      guidance: {
+        type: 'instruction',
+        persona: {
+          bravery: 'high',
         },
-        contexts: [
-          expect.objectContaining({
-            lane: 'game',
-            strategy: ContextUpdateStrategy.AppendSelf,
-            text: 'Zombie nearby',
-            destinations: ['memory'],
-            metadata: {
-              threat: 'zombie',
-              urgent: true,
-            },
-          }),
-        ],
-      }),
-    )
+        options: [{
+          label: 'Move',
+          steps: ['Walk forward'],
+          rationale: 'Closer inspection',
+          possibleOutcome: undefined,
+          risk: undefined,
+          fallback: undefined,
+          triggers: undefined,
+        }],
+      },
+      contexts: [expect.objectContaining({
+        lane: 'game',
+        strategy: ContextUpdateStrategy.AppendSelf,
+        text: 'Zombie nearby',
+        destinations: ['memory'],
+        metadata: {
+          threat: 'zombie',
+          urgent: true,
+        },
+      })],
+    }))
 
     const command = sendSparkCommand.mock.calls[0][0]
     expect(command.id).toEqual(expect.any(String))
@@ -294,5 +300,29 @@ describe('tools/character/orchestrator/spark-command', () => {
     expect(command.contexts?.[0].contextId).toEqual(expect.any(String))
     expect(result).toContain('spark:command sent')
     expect(result).toContain(command.commandId)
+  })
+
+  it('reports a broadcast without crashing when the channel sender clears destinations', async () => {
+    // The real sendSparkCommand (stores/llm.ts) deletes command.destinations to broadcast to every
+    // authenticated peer; the success message must not then call .join on undefined.
+    const sendSparkCommand = vi.fn((command: { destinations?: unknown }) => {
+      delete command.destinations
+    })
+    const tools = await createSparkCommandTool({ sendSparkCommand })
+
+    const result = await tools[0].execute({
+      destinations: [],
+      interrupt: 'soft',
+      priority: 'normal',
+      intent: 'action',
+      ack: null,
+      parentEventId: null,
+      guidance: null,
+      contexts: null,
+    }, { messages: [], toolCallId: 'tool-call-id' })
+
+    expect(sendSparkCommand).toHaveBeenCalledOnce()
+    expect(result).toContain('spark:command sent')
+    expect(result).toContain('broadcast')
   })
 })

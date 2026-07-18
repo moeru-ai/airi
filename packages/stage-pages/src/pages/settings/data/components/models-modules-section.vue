@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '../status'
 
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
 import { DoubleCheckButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
@@ -9,14 +10,17 @@ import { createDataSettingsStatusHelpers } from '../status'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
+const { trackDataAction } = useAnalytics()
 const { deleteAllModels, resetModulesSettings } = useDataMaintenance()
 const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
 
 async function deleteModels() {
   try {
     await deleteAllModels()
+    trackDataAction({ action: 'models_cache_cleared' })
     emitStatus(t('settings.pages.data.status.models_deleted'))
-  } catch (error) {
+  }
+  catch (error) {
     handleActionError(error)
   }
 }
@@ -24,20 +28,17 @@ async function deleteModels() {
 function resetModules() {
   try {
     resetModulesSettings()
+    trackDataAction({ action: 'modules_settings_reset' })
     emitStatus(t('settings.pages.data.status.modules_reset'))
-  } catch (error) {
+  }
+  catch (error) {
     handleActionError(error)
   }
 }
 </script>
 
 <template>
-  <div
-    :class="[
-      'border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm',
-      'dark:border-neutral-800/60 dark:bg-neutral-900/60',
-    ]"
-  >
+  <div :class="['border-2 border-neutral-200/50 rounded-xl bg-white/70 p-4 shadow-sm', 'dark:border-neutral-800/60 dark:bg-neutral-900/60']">
     <div :class="['flex flex-col gap-3']">
       <div :class="['grid grid-cols-1 items-start gap-3 md:grid-cols-[minmax(0,1fr)_auto]']">
         <div :class="['flex flex-col gap-1 md:max-w-[560px]']">

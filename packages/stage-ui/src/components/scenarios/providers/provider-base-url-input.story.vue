@@ -9,36 +9,68 @@ const customUrl = ref('https://custom-api.example.com/v1/')
 </script>
 
 <template>
-  <Story title="Base URL Input" group="providers" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Base URL Input"
+    group="providers"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="empty" title="Empty">
+    <Variant
+      id="empty"
+      title="Empty"
+    >
       <div>
-        <ProviderBaseUrlInput v-model="emptyUrl" placeholder="https://api.example.com/v1/" />
+        <ProviderBaseUrlInput
+          v-model="emptyUrl"
+          placeholder="https://api.example.com/v1/"
+        />
       </div>
     </Variant>
 
-    <Variant id="default-url" title="Default URL">
+    <Variant
+      id="default-url"
+      title="Default URL"
+    >
       <div>
-        <ProviderBaseUrlInput v-model="defaultUrl" placeholder="https://api.openai.com/v1/" />
+        <ProviderBaseUrlInput
+          v-model="defaultUrl"
+          placeholder="https://api.openai.com/v1/"
+        />
       </div>
     </Variant>
 
-    <Variant id="custom-url" title="Custom URL">
+    <Variant
+      id="custom-url"
+      title="Custom URL"
+    >
       <div>
-        <ProviderBaseUrlInput v-model="customUrl" placeholder="https://api.example.com/v1/" />
+        <ProviderBaseUrlInput
+          v-model="customUrl"
+          placeholder="https://api.example.com/v1/"
+        />
       </div>
     </Variant>
 
-    <Variant id="required" title="Required">
+    <Variant
+      id="required"
+      title="Required"
+    >
       <div>
-        <ProviderBaseUrlInput v-model="emptyUrl" placeholder="https://api.example.com/v1/" required />
+        <ProviderBaseUrlInput
+          v-model="emptyUrl"
+          placeholder="https://api.example.com/v1/"
+          required
+        />
       </div>
     </Variant>
 
-    <Variant id="custom-label" title="Custom Label">
+    <Variant
+      id="custom-label"
+      title="Custom Label"
+    >
       <div>
         <ProviderBaseUrlInput
           v-model="emptyUrl"

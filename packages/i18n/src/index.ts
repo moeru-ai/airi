@@ -1,11 +1,11 @@
 export const all = {
-  en: 'English',
-  es: 'Español',
-  fr: 'Français',
-  ja: '日本語',
-  ko: '한국어',
-  ru: 'Русский',
-  vi: 'Tiếng Việt',
+  'en': 'English',
+  'es': 'Español',
+  'fr': 'Français',
+  'ja': '日本語',
+  'ko': '한국어',
+  'ru': 'Русский',
+  'vi': 'Tiếng Việt',
   'zh-Hans': '简体中文',
   'zh-Hant': '繁體中文',
 }
@@ -16,23 +16,23 @@ export const localeRemap: Record<string, string> = {
   'zh-HK': 'zh-Hant',
   'zh-Hant': 'zh-Hant',
   'zh-Hans': 'zh-Hans',
-  en: 'en',
+  'en': 'en',
   'en-US': 'en',
   'en-GB': 'en',
   'en-AU': 'en',
-  es: 'es',
+  'es': 'es',
   'es-ES': 'es',
   'es-MX': 'es',
   'es-AR': 'es',
-  fr: 'fr',
+  'fr': 'fr',
   'fr-FR': 'fr',
-  ja: 'ja',
+  'ja': 'ja',
   'ja-JP': 'ja',
-  ko: 'ko',
+  'ko': 'ko',
   'ko-KR': 'ko',
-  ru: 'ru',
+  'ru': 'ru',
   'ru-RU': 'ru',
-  vi: 'vi',
+  'vi': 'vi',
   'vi-VN': 'vi',
 }
 
@@ -43,5 +43,7 @@ export function resolveSupportedLocale(
 ): string {
   const normalizedLocale = localeRemap[locale ?? fallbackLocale] ?? locale ?? fallbackLocale
 
-  return supportedLocales.includes(normalizedLocale) ? normalizedLocale : fallbackLocale
+  return supportedLocales.includes(normalizedLocale)
+    ? normalizedLocale
+    : fallbackLocale
 }

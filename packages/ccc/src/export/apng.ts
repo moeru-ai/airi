@@ -1,3 +1,1 @@
-export function exportToAPNG() {
-  // noop
-}
+export function exportToAPNG() {}

@@ -3,12 +3,22 @@ import { Progress } from '@proj-airi/ui'
 </script>
 
 <template>
-  <Story title="Progress" group="misc" :layout="{ type: 'grid', width: '100%' }">
-    <Variant id="basic" title="Basic Progress">
+  <Story
+    title="Progress"
+    group="misc"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
+    <Variant
+      id="basic"
+      title="Basic Progress"
+    >
       <Progress :progress="50" />
     </Variant>
 
-    <Variant id="all-progresses" title="All Progresses">
+    <Variant
+      id="all-progresses"
+      title="All Progresses"
+    >
       <div flex flex-col gap-2>
         <Progress :progress="0" />
         <Progress :progress="10" />

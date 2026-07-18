@@ -7,10 +7,7 @@ import { isLinux, isMacOS, isWindows } from 'std-env'
 
 import { electron, electronAppOpenUserDataFolder, electronAppQuit } from '../../../shared/eventa'
 
-export function createAppService(params: {
-  context: ReturnType<typeof createContext>['context']
-  window: BrowserWindow
-}) {
+export function createAppService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   defineInvokeHandler(params.context, electron.app.isMacOS, () => isMacOS)
   defineInvokeHandler(params.context, electron.app.isWindows, () => isWindows)
   defineInvokeHandler(params.context, electron.app.isLinux, () => isLinux)

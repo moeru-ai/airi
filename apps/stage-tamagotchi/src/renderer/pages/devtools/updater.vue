@@ -3,12 +3,19 @@ import { useElectronAutoUpdater } from '@proj-airi/electron-vueuse'
 import { Button, Progress } from '@proj-airi/ui'
 import { computed } from 'vue'
 
-const { state: updateState, isBusy, checkForUpdates, downloadUpdate, quitAndInstall } = useElectronAutoUpdater()
+const {
+  state: updateState,
+  isBusy,
+  checkForUpdates,
+  downloadUpdate,
+  quitAndInstall,
+} = useElectronAutoUpdater()
 
 const diagnosticsEntries = computed(() => {
   const diagnostics = updateState.value.diagnostics
 
-  if (!diagnostics) return []
+  if (!diagnostics)
+    return []
 
   return [
     ['status', updateState.value.status],
@@ -69,13 +76,10 @@ const diagnosticsEntries = computed(() => {
       {{ updateState.error?.message }}
     </div>
 
-    <section
-      :class="[
-        'rounded-2xl border-2 p-4',
-        'border-neutral-200 bg-white/70 dark:border-neutral-700/60 dark:bg-neutral-950/40',
-      ]"
-    >
-      <div :class="['mb-3 text-sm text-neutral-600 dark:text-neutral-400']">Updater diagnostics</div>
+    <section :class="['rounded-2xl border-2 p-4', 'border-neutral-200 bg-white/70 dark:border-neutral-700/60 dark:bg-neutral-950/40']">
+      <div :class="['mb-3 text-sm text-neutral-600 dark:text-neutral-400']">
+        Updater diagnostics
+      </div>
 
       <div :class="['grid gap-2 text-sm text-neutral-800 dark:text-neutral-100']">
         <div

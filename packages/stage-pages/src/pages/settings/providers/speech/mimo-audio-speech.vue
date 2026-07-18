@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import { Alert, SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  Alert,
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
@@ -51,13 +55,11 @@ const modelOptions = computed(() => {
     { id: 'mimo-v2.5-tts-voiceclone', name: 'MiMo v2.5 TTS Voice Clone' },
   ]
 
-  return (providerModels.value.length > 0 ? providerModels.value : fallbackOptions).map((model) => ({
+  return (providerModels.value.length > 0 ? providerModels.value : fallbackOptions).map(model => ({
     value: model.id,
     label: model.name,
   }))
 })
-
-const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
 
 const model = computed({
   get: () => config.value?.model || defaultModel,
@@ -66,11 +68,15 @@ const model = computed({
   },
 })
 
+const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
+
 const isVoiceDesignModel = computed(() => model.value === 'mimo-v2.5-tts-voicedesign')
 const isVoiceCloneModel = computed(() => model.value === 'mimo-v2.5-tts-voiceclone')
 const stylePromptLabel = computed(() => {
-  if (isVoiceCloneModel.value) return 'Style prompt (optional)'
-  if (isVoiceDesignModel.value) return 'Voice design prompt'
+  if (isVoiceCloneModel.value)
+    return 'Style prompt (optional)'
+  if (isVoiceDesignModel.value)
+    return 'Voice design prompt'
   return 'Style prompt'
 })
 
@@ -100,7 +106,7 @@ const voiceSample = computed({
   },
 })
 
-const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 onMounted(async () => {
   ensureProviderConfig()
@@ -133,15 +139,25 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     throw new Error('Voice clone model requires a base64 audio sample in data URI format.')
   }
 
-  const voiceToUse =
-    modelToUse === 'mimo-v2.5-tts-voiceclone'
-      ? voiceSample.value.trim()
-      : voiceId || config.value?.voice || defaultVoice
+  const voiceToUse = modelToUse === 'mimo-v2.5-tts-voiceclone'
+    ? voiceSample.value.trim()
+    : voiceId || (config.value?.voice || defaultVoice)
 
-  return await speechStore.speech(provider, modelToUse, input, voiceToUse, requestConfig)
+  return await speechStore.speech(
+    provider,
+    modelToUse,
+    input,
+    voiceToUse,
+    requestConfig,
+  )
 }
 
-const { isValidating, isValid, validationMessage, forceValid } = useProviderValidation(providerId)
+const {
+  isValidating,
+  isValid,
+  validationMessage,
+  forceValid,
+} = useProviderValidation(providerId)
 </script>
 
 <template>
@@ -187,13 +203,13 @@ const { isValidating, isValid, validationMessage, forceValid } = useProviderVali
 
     <template #advanced-settings>
       <Alert type="info">
-        <template #title>MiMo model behavior</template>
+        <template #title>
+          MiMo model behavior
+        </template>
         <template #content>
           <div class="whitespace-pre-wrap break-words text-sm space-y-1">
             <div>`mimo-v2.5-tts` uses the preset voice list below.</div>
-            <div>
-              `mimo-v2.5-tts-voicedesign` uses the style prompt to design a new voice and does not accept `audio.voice`.
-            </div>
+            <div>`mimo-v2.5-tts-voicedesign` uses the style prompt to design a new voice and does not accept `audio.voice`.</div>
             <div>`mimo-v2.5-tts-voiceclone` uses the pasted voice sample and ignores the preset voice selector.</div>
           </div>
         </template>

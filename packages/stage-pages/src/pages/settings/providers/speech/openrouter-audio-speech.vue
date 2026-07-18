@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCombobox } from '@proj-airi/ui'
@@ -16,16 +19,17 @@ const providerId = 'openrouter-audio-speech'
 const defaultModel = 'openai/gpt-audio-mini'
 
 const model = computed({
-  get: () => (providers.value[providerId]?.model as string | undefined) || defaultModel,
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
   set: (value) => {
-    if (!providers.value[providerId]) providers.value[providerId] = {}
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
     providers.value[providerId].model = value
   },
 })
 
 const providerModels = computed(() => providersStore.getModelsForProvider(providerId))
 const isLoadingModels = computed(() => providersStore.isLoadingModels[providerId] || false)
-const apiKeyConfigured = computed(() => Boolean(providers.value[providerId]?.apiKey))
+const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
@@ -38,15 +42,15 @@ onMounted(async () => {
 })
 
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
-  const provider = await providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, unknown>>(providerId)
-  if (!provider) throw new Error('Failed to initialize speech provider')
+  const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
+  if (!provider)
+    throw new Error('Failed to initialize speech provider')
 
   const providerConfig = providersStore.getProviderConfig(providerId)
   const modelToUse = model.value || defaultModel
 
-  // speechStore.speech expects SpeechProviderWithExtraOptions; the provider instance is structurally compatible
   return await speechStore.speech(
-    provider as SpeechProviderWithExtraOptions<string, unknown>,
+    provider,
     modelToUse,
     input,
     voiceId,
@@ -62,7 +66,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
         v-model="model"
         label="Model"
         description="Select the audio-capable model to use for speech generation"
-        :options="providerModels.map((m) => ({ value: m.id, label: m.name }))"
+        :options="providerModels.map(m => ({ value: m.id, label: m.name }))"
         :disabled="isLoadingModels || providerModels.length === 0"
         placeholder="Select a model..."
       />
@@ -80,8 +84,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
-</route>
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
+  </route>

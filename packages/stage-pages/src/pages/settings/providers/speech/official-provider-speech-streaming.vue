@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { ProviderSettingsContainer, ProviderSettingsLayout, SpeechPlayground } from '@proj-airi/stage-ui/components'
+import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+import {
+  ProviderSettingsContainer,
+  ProviderSettingsLayout,
+  SpeechPlayground,
+} from '@proj-airi/stage-ui/components'
 import { getDefaultStreamingModel, streamingSynthesize } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -19,6 +24,7 @@ const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-speech-streaming'
 const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 const providerConfig = computed(() => providersStore.getProviderConfig(providerId))
 
@@ -37,7 +43,7 @@ const model = computed({
     providerConfig.value.model = val
   },
 })
-const modelOptions = computed(() => providerModels.value.map((m) => ({ label: m.name, value: m.id })))
+const modelOptions = computed(() => providerModels.value.map(m => ({ label: m.name, value: m.id })))
 
 const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
 const voicesLoading = ref(false)
@@ -46,7 +52,8 @@ async function loadVoices() {
   voicesLoading.value = true
   try {
     await speechStore.loadVoicesForProvider(providerId, model.value)
-  } finally {
+  }
+  finally {
     voicesLoading.value = false
   }
 }
@@ -58,7 +65,8 @@ onMounted(async () => {
   // default server-side, fall back to the first model the server returned
   // so the picker always has something selected.
   serverDefaultModel.value = getDefaultStreamingModel() ?? providerModels.value[0]?.id ?? null
-  if (!providerConfig.value.model && serverDefaultModel.value) providerConfig.value.model = serverDefaultModel.value
+  if (!providerConfig.value.model && serverDefaultModel.value)
+    providerConfig.value.model = serverDefaultModel.value
   await loadVoices()
 })
 
@@ -77,14 +85,16 @@ watch(model, async () => {
 // one `text` frame containing the static preview prompt.
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean): Promise<ArrayBuffer> {
   const requestedModel = model.value
-  if (!requestedModel) throw new Error('No streaming TTS model selected and server returned no default')
+  if (!requestedModel)
+    throw new Error('No streaming TTS model selected and server returned no default')
   // `model` looks like `volcengine/seed-tts-2.0`. The trailing path is
   // forwarded as Volcengine's `api_resource_id` so the upstream knows which
   // model variant to use; matches the wiring in `Stage.vue`. We require the
   // `<backend>/<resource>` shape and refuse anything else — silently picking
   // a fallback resource id hides config drift.
   const slashIndex = requestedModel.indexOf('/')
-  if (slashIndex < 0) throw new Error(`Streaming model id missing backend prefix: ${requestedModel}`)
+  if (slashIndex < 0)
+    throw new Error(`Streaming model id missing backend prefix: ${requestedModel}`)
   const apiResourceId = requestedModel.slice(slashIndex + 1)
   const result = await streamingSynthesize({
     model: requestedModel,
@@ -141,6 +151,7 @@ function handleLogin() {
               </span>
             </div>
             <button
+              v-if="!fluxPurchaseDisabled"
               type="button"
               class="rounded-full bg-primary-500/10 px-6 py-2 text-sm text-primary-600 font-semibold transition-all dark:bg-primary-400/10 hover:bg-primary-500 dark:text-primary-400 hover:text-white dark:hover:bg-primary-400 dark:hover:text-neutral-900"
               @click="router.push('/settings/flux')"
@@ -181,7 +192,9 @@ function handleLogin() {
       </div>
     </ProviderSettingsContainer>
   </ProviderSettingsLayout>
-  <div v-else class="p-8 text-center text-neutral-500">Provider is not available.</div>
+  <div v-else class="p-8 text-center text-neutral-500">
+    Provider is not available.
+  </div>
 </template>
 
 <route lang="yaml">

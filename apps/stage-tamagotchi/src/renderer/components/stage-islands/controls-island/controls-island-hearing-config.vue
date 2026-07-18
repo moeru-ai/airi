@@ -3,6 +3,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useAsyncState } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -10,14 +11,13 @@ import { onMounted, onUnmounted, watch } from 'vue'
 
 const show = defineModel('show', { type: Boolean, default: false })
 
+const hearingStore = useHearingStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { autoSendEnabled } = storeToRefs(hearingStore)
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
 const getMediaAccessStatus = useElectronEventaInvoke(electron.systemPreferences.getMediaAccessStatus)
-const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(
-  () => getMediaAccessStatus(['microphone']),
-  'not-determined',
-)
+const { state: mediaAccessStatus, execute: refreshMediaAccessStatus } = useAsyncState(() => getMediaAccessStatus(['microphone']), 'not-determined')
 
 const { audioContext, initialize, dispose, pause } = useAudioContextFromStream(stream)
 const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -32,20 +32,18 @@ const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 // That produced the "VAD still works, but no transcript arrives" failure after retoggling the mic.
 //
 // This component should only react to the current stream to drive analyzer UI state.
-watch(
-  [enabled, stream],
-  ([isEnabled, currentStream]) => {
-    if (isEnabled && currentStream) {
-      initialize().then(() => {
-        if (audioContext.value) startAnalyzer(audioContext.value)
-      })
-    } else {
-      stopAnalyzer()
-      pause()
-    }
-  },
-  { immediate: true },
-)
+watch([enabled, stream], ([isEnabled, currentStream]) => {
+  if (isEnabled && currentStream) {
+    initialize().then(() => {
+      if (audioContext.value)
+        return startAnalyzer(audioContext.value)
+    })
+  }
+  else {
+    stopAnalyzer()
+    pause()
+  }
+}, { immediate: true })
 
 onMounted(async () => {
   await refreshMediaAccessStatus()
@@ -63,6 +61,7 @@ onUnmounted(async () => {
 <template>
   <HearingConfigDialog
     v-model:show="show"
+    v-model:auto-send="autoSendEnabled"
     :granted="mediaAccessStatus !== 'denied' && mediaAccessStatus !== 'restricted'"
     :volume-level="volumeLevel"
   >

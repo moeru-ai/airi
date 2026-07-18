@@ -1,4 +1,8 @@
-import { MToonMaterialLoaderPlugin, MToonMaterialOutlineWidthMode, VRMLoaderPlugin } from '@pixiv/three-vrm'
+import {
+  MToonMaterialLoaderPlugin,
+  MToonMaterialOutlineWidthMode,
+  VRMLoaderPlugin,
+} from '@pixiv/three-vrm'
 import { VRMAnimationLoaderPlugin } from '@pixiv/three-vrm-animation'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
 
@@ -18,22 +22,27 @@ class AiriMToonMaterialLoaderPlugin extends MToonMaterialLoaderPlugin {
   override async beforeRoot() {
     await super.beforeRoot()
 
-    if (!AIRI_ALL_OUTLINE) return
+    if (!AIRI_ALL_OUTLINE)
+      return
 
     this._outlineFallbackSettings = this._resolveOutlineFallbackSettings()
   }
 
-  override extendMaterialParams(materialIndex: number, materialParams: Record<string, unknown>) {
+  override extendMaterialParams(materialIndex: number, materialParams: Record<string, any>) {
     const pending = super.extendMaterialParams(materialIndex, materialParams)
 
-    if (!AIRI_ALL_OUTLINE) return pending
+    if (!AIRI_ALL_OUTLINE)
+      return pending
 
     const extension = this._getMToonExtension(materialIndex)
-    if (!extension) return pending
+    if (!extension)
+      return pending
 
-    if (this._hasEnabledOutline(extension)) return pending
+    if (this._hasEnabledOutline(extension))
+      return pending
 
-    if (!this._outlineFallbackSettings) return pending
+    if (!this._outlineFallbackSettings)
+      return pending
 
     // NOTICE: We patch fallback outline params before three-vrm starts mesh setup so the upstream
     // `MToonMaterialLoaderPlugin` can keep using its own `_generateOutline()` path. This keeps the
@@ -45,23 +54,23 @@ class AiriMToonMaterialLoaderPlugin extends MToonMaterialLoaderPlugin {
   }
 
   private _hasEnabledOutline(extension: NonNullable<ReturnType<MToonMaterialLoaderPlugin['_getMToonExtension']>>) {
-    return (
-      typeof extension.outlineWidthMode === 'string' &&
-      extension.outlineWidthMode !== MToonMaterialOutlineWidthMode.None &&
-      typeof extension.outlineWidthFactor === 'number' &&
-      extension.outlineWidthFactor > 0
-    )
+    return typeof extension.outlineWidthMode === 'string'
+      && extension.outlineWidthMode !== MToonMaterialOutlineWidthMode.None
+      && typeof extension.outlineWidthFactor === 'number'
+      && extension.outlineWidthFactor > 0
   }
 
   private _resolveOutlineFallbackSettings() {
     const materials = (this.parser.json as { materials?: unknown[] }).materials
-    if (!materials?.length) return undefined
+    if (!materials?.length)
+      return undefined
 
     const groupedWidthFactors = new Map<MToonMaterialOutlineWidthMode, number[]>()
 
     for (let materialIndex = 0; materialIndex < materials.length; materialIndex++) {
       const extension = this._getMToonExtension(materialIndex)
-      if (!extension || !this._hasEnabledOutline(extension)) continue
+      if (!extension || !this._hasEnabledOutline(extension))
+        continue
 
       const mode = extension.outlineWidthMode as MToonMaterialOutlineWidthMode
       const widthFactors = groupedWidthFactors.get(mode) ?? []
@@ -69,22 +78,24 @@ class AiriMToonMaterialLoaderPlugin extends MToonMaterialLoaderPlugin {
       groupedWidthFactors.set(mode, widthFactors)
     }
 
-    if (groupedWidthFactors.size === 0) return undefined
+    if (groupedWidthFactors.size === 0)
+      return undefined
 
     let dominantMode: MToonMaterialOutlineWidthMode | undefined
     let dominantModeWidthFactors: number[] = []
 
     for (const [mode, widthFactors] of groupedWidthFactors) {
-      if (widthFactors.length <= dominantModeWidthFactors.length) continue
+      if (widthFactors.length <= dominantModeWidthFactors.length)
+        continue
 
       dominantMode = mode
       dominantModeWidthFactors = widthFactors
     }
 
-    if (!dominantMode || dominantModeWidthFactors.length === 0) return undefined
+    if (!dominantMode || dominantModeWidthFactors.length === 0)
+      return undefined
 
-    const widthFactorAverage =
-      dominantModeWidthFactors.reduce((sum, value) => sum + value, 0) / dominantModeWidthFactors.length
+    const widthFactorAverage = dominantModeWidthFactors.reduce((sum, value) => sum + value, 0) / dominantModeWidthFactors.length
 
     return {
       mode: dominantMode,
@@ -109,7 +120,7 @@ export function useVRMLoader() {
     return new VRMLoaderPlugin(parser, { mtoonMaterialPlugin })
   })
   // loader.register(parser => new VRMCoreLoaderPlugin(parser))
-  loader.register((parser) => new VRMAnimationLoaderPlugin(parser))
+  loader.register(parser => new VRMAnimationLoaderPlugin(parser))
 
   return loader
 }

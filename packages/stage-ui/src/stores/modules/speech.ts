@@ -1,7 +1,6 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
-import type { VoicePackParams, VoicePackSnapshot } from './airi-card'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -13,161 +12,28 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import {
-  getDefaultStreamingModel,
-  OFFICIAL_SPEECH_PROVIDER_ID,
-  OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
-  setupOfficialSpeechAutoPick,
-} from '../../libs/providers/providers/official'
+import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 
-// Type for Voice Pack speech input options
-interface VoicePackSpeechInputOptions {
-  text: string
-  voice: VoiceInfo
-  providerConfig?: Record<string, unknown>
-  params?: VoicePackParams
-  voicePack?: Pick<VoicePackSnapshot, 'packId' | 'costMultiplier'>
-  forceSSML?: boolean
-  supportsSSML?: boolean
-  supportsAdapterProsody?: boolean
-}
-
-// Type for Voice Pack speech input result
-interface VoicePackSpeechInput {
-  input: string
-  providerConfig: Record<string, unknown>
-}
-
 export function toSignedPercent(value: number): string {
-  if (value > 0) return `+${value}%`
-  if (value < 0) return `-${Math.abs(value)}%`
+  if (value > 0)
+    return `+${value}%`
+  if (value < 0)
+    return `-${Math.abs(value)}%`
   return '0%'
 }
 
-interface VoicePackSpeechInputOptions {
+interface SpeechInputOptions {
   text: string
   voice: VoiceInfo
   providerConfig?: Record<string, unknown>
-  params?: VoicePackParams
-  voicePack?: Pick<VoicePackSnapshot, 'packId' | 'costMultiplier'>
   forceSSML?: boolean
   supportsSSML?: boolean
-  supportsAdapterProsody?: boolean
 }
 
-interface VoicePackSpeechInput {
+interface SpeechInput {
   input: string
   providerConfig: Record<string, unknown>
-}
-
-const voicePackSupportedParams = new Set(['pitch', 'rate', 'volume'])
-
-/**
- * Normalizes a Voice Pack percent-style option.
- *
- * Before:
- * - "+20%"
- * - "-10%"
- * - 15
- *
- * After:
- * - 20
- * - -10
- * - 15
- */
-function normalizePercentOption(value: string | number | null | undefined, name: string): number | undefined {
-  if (value == null) return undefined
-
-  if (typeof value === 'number') {
-    if (Number.isFinite(value)) return value
-    throw new Error(`Voice Pack parameter "${name}" must be a finite number.`)
-  }
-
-  if (typeof value !== 'string') throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-
-  const trimmed = value.trim()
-  if (trimmed === '') return undefined
-
-  const normalized = trimmed.endsWith('%') ? trimmed.slice(0, -1).trim() : trimmed
-  if (normalized === '') throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-
-  const parsed = Number(normalized)
-  if (!Number.isFinite(parsed)) throw new Error(`Voice Pack parameter "${name}" must be a number or percent string.`)
-
-  return parsed
-}
-
-/**
- * Normalizes a Voice Pack rate option into provider speed.
- *
- * Before:
- * - "+20%"
- * - "-10%"
- * - 1.2
- *
- * After:
- * - 1.2
- * - 0.9
- * - 1.2
- */
-function normalizeRateOption(value: string | number | null | undefined): number | undefined {
-  if (value == null) return undefined
-
-  if (typeof value === 'number') {
-    if (Number.isFinite(value) && value > 0) return value
-    throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-  }
-
-  if (typeof value !== 'string')
-    throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-
-  const trimmed = value.trim()
-  if (trimmed === '') return undefined
-
-  if (trimmed.endsWith('%')) {
-    const percent = normalizePercentOption(trimmed, 'rate')
-    const speed = 1 + (percent ?? 0) / 100
-    if (speed > 0) return speed
-    throw new Error('Voice Pack parameter "rate" percent must resolve to a positive speed.')
-  }
-
-  const parsed = Number(trimmed)
-  if (Number.isFinite(parsed) && parsed > 0) return parsed
-
-  throw new Error('Voice Pack parameter "rate" must be a positive finite number or percent string.')
-}
-
-function assertSupportedVoicePackParams(params: VoicePackParams | undefined) {
-  if (!params) return
-
-  for (const [key, value] of Object.entries(params)) {
-    if (value == null) continue
-
-    if (!voicePackSupportedParams.has(key)) throw new Error(`Unsupported Voice Pack parameter "${key}".`)
-  }
-}
-
-/**
- * Creates a VoiceInfo from a Voice Pack snapshot for use in voice selection UI.
- *
- * Use when:
- * - Settings pages or stage scenes need to present a Voice Pack as a selectable voice.
- *
- * Expects:
- * - `activeSpeechProvider` is the currently selected speech provider id.
- */
-
-export function createVoicePackVoice(voicePack: VoicePackSnapshot, activeSpeechProvider: string): VoiceInfo {
-  return {
-    id: voicePack.voiceId,
-    name: voicePack.name,
-    description: voicePack.name,
-    previewURL: '',
-    languages: [{ code: 'en', title: 'English' }],
-    provider: activeSpeechProvider,
-    gender: 'neutral',
-  }
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -194,7 +60,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.findProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
   })
 
   const providerModels = computed(() => {
@@ -215,11 +81,10 @@ export const useSpeechStore = defineStore('speech', () => {
     }
 
     const query = modelSearchQuery.value.toLowerCase().trim()
-    return providerModels.value.filter(
-      (model) =>
-        model.name.toLowerCase().includes(query) ||
-        model.id.toLowerCase().includes(query) ||
-        (model.description && model.description.toLowerCase().includes(query)),
+    return providerModels.value.filter(model =>
+      model.name.toLowerCase().includes(query)
+      || model.id.toLowerCase().includes(query)
+      || (model.description && model.description.toLowerCase().includes(query)),
     )
   })
 
@@ -248,21 +113,20 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      const voices =
-        (await providersStore
-          .getProviderMetadata(provider)
-          .capabilities.listVoices?.(providersStore.getProviderConfig(provider), model)) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider), model) || []
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
         [provider]: voices,
       }
       return voices
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
       speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
       return []
-    } finally {
+    }
+    finally {
       isLoadingSpeechProviderVoices.value = false
     }
   }
@@ -286,17 +150,19 @@ export const useSpeechStore = defineStore('speech', () => {
   // across providers, and the per-surface reset may not have run yet). No-op
   // for non-streaming providers.
   function ensureStreamingDefaultModel() {
-    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) return
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+      return
     const streamingModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-    const hasValidSelection =
-      Boolean(activeSpeechModel.value) && streamingModels.some((m) => m.id === activeSpeechModel.value)
-    if (hasValidSelection) return
+    const hasValidSelection = !!activeSpeechModel.value && streamingModels.some(m => m.id === activeSpeechModel.value)
+    if (hasValidSelection)
+      return
     // Replace an empty/stale (non-streaming) selection with the server default.
     // When no default can be resolved yet (catalog not loaded), clear it to ''
     // so callers pass `undefined` (server returns the full streaming catalog)
     // rather than forwarding a stale non-streaming model id as `?model=`.
     const nextModel = getDefaultStreamingModel() ?? streamingModels[0]?.id ?? ''
-    if (activeSpeechModel.value === nextModel) return
+    if (activeSpeechModel.value === nextModel)
+      return
     activeSpeechModel.value = nextModel
     // The previously-selected voice belonged to the stale/empty model context,
     // so drop it; auto-pick re-picks a recommended voice for the new model.
@@ -306,47 +172,52 @@ export const useSpeechStore = defineStore('speech', () => {
   function ensureActiveSpeechModel() {
     ensureStreamingDefaultModel()
 
-    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID) return
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID)
+      return
 
     const models = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-    if (!models.length) return
+    if (!models.length)
+      return
 
-    const hasValidSelection = Boolean(activeSpeechModel.value) && models.some((m) => m.id === activeSpeechModel.value)
-    if (hasValidSelection) return
+    const hasValidSelection = !!activeSpeechModel.value && models.some(m => m.id === activeSpeechModel.value)
+    if (hasValidSelection)
+      return
 
-    activeSpeechModel.value = models[0]?.id ?? ''
+    const defaultModel = getDefaultSpeechModel()
+    activeSpeechModel.value = defaultModel && models.some(m => m.id === defaultModel)
+      ? defaultModel
+      : models[0]?.id ?? ''
     clearVoiceSelection()
   }
 
   // Watch for provider changes and load voices
-  watch(
-    activeSpeechProvider,
-    async (newProvider) => {
-      if (!newProvider) return
-      ensureActiveSpeechModel()
-      await loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
-      // Don't reset voice settings when changing providers to allow for persistence
-    },
-    {
-      // REVIEW: should we always load voices on init? What will happen when network is not available?
-      immediate: true,
-    },
-  )
+  watch(activeSpeechProvider, async (newProvider) => {
+    if (!newProvider)
+      return
+    ensureActiveSpeechModel()
+    await loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+    // Don't reset voice settings when changing providers to allow for persistence
+  }, {
+    // REVIEW: should we always load voices on init? What will happen when network is not available?
+    immediate: true,
+  })
 
   if (!activeSpeechProvider.value) {
     activeSpeechProvider.value = 'speech-noop'
   }
 
   watch(
-    () => providersStore.configuredSpeechProvidersMetadata.map((provider) => provider.id),
+    () => providersStore.configuredSpeechProvidersMetadata.map(provider => provider.id),
     (configuredProviderIds) => {
-      if (!activeSpeechProvider.value || activeSpeechProvider.value === 'speech-noop') return
+      if (!activeSpeechProvider.value || activeSpeechProvider.value === 'speech-noop')
+        return
 
       // NOTICE: only reset when the provider has actually been validated and found unconfigured.
       // Skip reset if validation hasn't run yet (validatedCredentialHash is undefined)
       // to avoid a race condition where immediate watcher fires before async validation completes.
       const runtimeState = providersStore.providerRuntimeState[activeSpeechProvider.value]
-      if (runtimeState && runtimeState.validatedCredentialHash === undefined) return
+      if (runtimeState && runtimeState.validatedCredentialHash === undefined)
+        return
 
       // NOTICE: clear stale selection when the currently selected speech provider
       // is no longer configured to avoid implicit fallback behavior from persisted state.
@@ -367,9 +238,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureActiveSpeechModel()
     loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined).then(() => {
       if (activeSpeechVoiceId.value) {
-        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(
-          (voice) => voice.id === activeSpeechVoiceId.value,
-        )
+        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
       }
     })
   })
@@ -385,37 +254,34 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureActiveSpeechModel()
   })
 
-  watch(
-    [activeSpeechVoiceId, availableVoices],
-    ([voiceId, voices]) => {
-      if (voiceId) {
-        // For OpenAI Compatible, create a custom voice object (no voices available from API)
-        if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-          // Always update to match voiceId (in case it changed)
-          activeSpeechVoice.value = {
-            id: voiceId,
-            name: voiceId,
-            description: voiceId,
-            previewURL: '',
-            languages: [{ code: 'en', title: 'English' }],
-            provider: activeSpeechProvider.value,
-            gender: 'neutral',
-          }
-        } else {
-          // For other providers, find voice in available voices
-          const foundVoice = voices[activeSpeechProvider.value]?.find((voice) => voice.id === voiceId)
-          // Only update if we found a voice, or if activeSpeechVoice is not set
-          if (foundVoice || !activeSpeechVoice.value) {
-            activeSpeechVoice.value = foundVoice
-          }
+  watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
+    if (voiceId) {
+      // For OpenAI Compatible, create a custom voice object (no voices available from API)
+      if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+        // Always update to match voiceId (in case it changed)
+        activeSpeechVoice.value = {
+          id: voiceId,
+          name: voiceId,
+          description: voiceId,
+          previewURL: '',
+          languages: [{ code: 'en', title: 'English' }],
+          provider: activeSpeechProvider.value,
+          gender: 'neutral',
         }
       }
-    },
-    {
-      immediate: true,
-      deep: true,
-    },
-  )
+      else {
+        // For other providers, find voice in available voices
+        const foundVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
+        // Only update if we found a voice, or if activeSpeechVoice is not set
+        if (foundVoice || !activeSpeechVoice.value) {
+          activeSpeechVoice.value = foundVoice
+        }
+      }
+    }
+  }, {
+    immediate: true,
+    deep: true,
+  })
 
   /**
    * Generate speech using the specified provider and settings
@@ -427,21 +293,21 @@ export const useSpeechStore = defineStore('speech', () => {
    * @param providerConfig Additional provider configuration
    * @returns ArrayBuffer containing the audio data
    */
-  async function speech<TConfig extends Record<string, unknown> = Record<string, unknown>>(
-    provider: SpeechProviderWithExtraOptions<string, TConfig>,
+  async function speech(
+    provider: SpeechProviderWithExtraOptions<string, any>,
     model: string,
     input: string,
     voice: string,
-    providerConfig: TConfig = {} as TConfig,
+    providerConfig: Record<string, any> = {},
   ): Promise<ArrayBuffer> {
-    const requestProviderConfig =
-      activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID ||
-      activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-        ? withAiriTtsAnalytics(providerConfig, {
-            trigger: 'manual',
-            source: 'manual_preview',
-          })
-        : providerConfig
+    const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+      || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+      ? withAiriTtsAnalytics(providerConfig, {
+          trigger: 'manual',
+          source: 'manual_preview',
+          voice_type: resolveVoiceType(voice),
+        })
+      : providerConfig
     const response = await generateSpeech({
       ...provider.speech(model, requestProviderConfig),
       input,
@@ -451,127 +317,100 @@ export const useSpeechStore = defineStore('speech', () => {
     return response
   }
 
-  function withAiriTtsAnalytics<T extends Record<string, unknown>>(
-    providerConfig: T,
-    analytics: { trigger: 'auto' | 'manual'; source: 'chat_auto_tts' | 'manual_preview' | 'settings_test' },
-  ): T {
+  function withAiriTtsAnalytics(
+    providerConfig: Record<string, any>,
+    analytics: {
+      trigger: 'auto' | 'manual'
+      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+    },
+  ): Record<string, any> {
     return {
       ...providerConfig,
       extraBody: {
         ...(providerConfig.extraBody as Record<string, unknown> | undefined),
         airi_analytics: analytics,
       },
-    } as T
+    }
   }
 
-  function generateSSML(text: string, voice: VoiceInfo, providerConfig?: Record<string, unknown>): string {
+  /**
+   * Classifies the active speech voice before forwarding analytics to the server.
+   */
+  function resolveVoiceType(voiceId: string): 'official_selected' | 'custom_configured' {
+    const catalogVoice = availableVoices.value[activeSpeechProvider.value]?.some(voice => voice.id === voiceId)
+    return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID && catalogVoice ? 'official_selected' : 'custom_configured'
+  }
+
+  function generateSSML(
+    text: string,
+    voice: VoiceInfo,
+    providerConfig?: Record<string, unknown>,
+  ): string {
     const pitch = providerConfig?.pitch
     const speed = providerConfig?.speed
     const volume = providerConfig?.volume
 
     const prosody = {
-      pitch: typeof pitch === 'number' ? toSignedPercent(pitch) : undefined,
-      rate: typeof speed === 'number' ? (speed !== 1.0 ? `${speed}` : '1') : undefined,
-      volume: typeof volume === 'number' ? toSignedPercent(volume) : undefined,
+      pitch: typeof pitch === 'number'
+        ? toSignedPercent(pitch)
+        : undefined,
+      rate: typeof speed === 'number'
+        ? speed !== 1.0
+          ? `${speed}`
+          : '1'
+        : undefined,
+      volume: typeof volume === 'number'
+        ? toSignedPercent(volume)
+        : undefined,
     }
 
-    const hasProsody = Object.values(prosody).some((value) => value != null)
+    const hasProsody = Object.values(prosody).some(value => value != null)
 
-    const ssmlXast = x(
-      'speak',
-      { version: '1.0', xmlns: 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' },
-      [
-        x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
-          hasProsody
-            ? x(
-                'prosody',
-                {
-                  pitch: prosody.pitch,
-                  rate: prosody.rate,
-                  volume: prosody.volume,
-                },
-                [text],
-              )
-            : text,
-        ]),
-      ],
-    )
+    const ssmlXast = x('speak', { 'version': '1.0', 'xmlns': 'http://www.w3.org/2001/10/synthesis', 'xml:lang': voice.languages[0]?.code || 'en-US' }, [
+      x('voice', { name: voice.id, gender: voice.gender || 'neutral' }, [
+        hasProsody
+          ? x('prosody', {
+              pitch: prosody.pitch,
+              rate: prosody.rate,
+              volume: prosody.volume,
+            }, [
+              text,
+            ])
+          : text,
+      ]),
+    ])
 
     return toXml(ssmlXast)
   }
 
-  function resolveVoicePackSpeechInput(options: VoicePackSpeechInputOptions): VoicePackSpeechInput {
+  function resolveSpeechInput(options: SpeechInputOptions): SpeechInput {
     const providerConfig = { ...options.providerConfig }
-
-    if (!options.params && !options.voicePack) {
-      return {
-        input:
-          options.forceSSML && options.supportsSSML
-            ? generateSSML(options.text, options.voice, providerConfig)
-            : options.text,
-        providerConfig,
-      }
-    }
-
-    assertSupportedVoicePackParams(options.params)
-
-    const pitch = normalizePercentOption(options.params?.pitch, 'pitch')
-    const volume = normalizePercentOption(options.params?.volume, 'volume')
-    const speed = normalizeRateOption(options.params?.rate)
-    const needsProsody = pitch != null || volume != null
-
-    if (speed != null) providerConfig.speed = speed
-
-    if (needsProsody && !options.supportsAdapterProsody && !options.forceSSML && !options.supportsSSML) {
-      throw new Error('Voice Pack pitch and volume parameters require an SSML-capable speech provider.')
-    }
-
-    if (options.voicePack) {
-      providerConfig.extraBody = {
-        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
-        voice_pack: {
-          pack_id: options.voicePack.packId,
-          cost_multiplier: options.voicePack.costMultiplier,
-          ...(needsProsody && options.supportsAdapterProsody ? { pitch, volume } : {}),
-        },
-      }
-    } else if (needsProsody && options.supportsAdapterProsody) {
-      providerConfig.extraBody = {
-        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
-        voice_pack: { pitch, volume },
-      }
-    }
-
-    if (!options.forceSSML && (!needsProsody || options.supportsAdapterProsody)) {
-      return {
-        input: options.text,
-        providerConfig,
-      }
-    }
-
-    const ssmlConfig = { ...providerConfig }
-    if (pitch != null) ssmlConfig.pitch = pitch
-    if (volume != null) ssmlConfig.volume = volume
+    const canUseSSML = options.supportsSSML === true
 
     return {
-      input: generateSSML(options.text, options.voice, ssmlConfig),
+      input: options.forceSSML === true && canUseSSML
+        ? generateSSML(options.text, options.voice, providerConfig)
+        : options.text,
       providerConfig,
     }
   }
 
   const configured = computed(() => {
-    if (activeSpeechProvider.value === 'speech-noop') return false
+    if (activeSpeechProvider.value === 'speech-noop')
+      return false
 
-    if (!activeSpeechProvider.value) return false
+    if (!activeSpeechProvider.value)
+      return false
 
-    let hasModel = Boolean(activeSpeechModel.value)
-    let hasVoice = Boolean(activeSpeechVoiceId.value)
+    let hasModel = !!activeSpeechModel.value
+    let hasVoice = !!activeSpeechVoiceId.value
 
     // For OpenAI Compatible providers, check provider config as fallback
     if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
       const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
-      hasModel ||= Boolean(providerConfig?.model)
-      hasVoice ||= Boolean(providerConfig?.voice)
+      hasModel ||= !!providerConfig?.model
+      hasVoice ||= !!providerConfig?.voice
     }
 
     return hasModel && hasVoice
@@ -622,7 +461,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureStreamingDefaultModel,
     ensureActiveSpeechModel,
     generateSSML,
-    resolveVoicePackSpeechInput,
+    resolveSpeechInput,
     resetState,
   }
 })

@@ -57,15 +57,14 @@ async function resolveArtifactFilename(target: string, version: string) {
     tag: [version],
   })
 
-  const artifact = filenames.find((entry) => !entry.optional && entry.extension !== 'blockmap')
-  if (!artifact) throw new Error(`Unable to determine artifact filename for target: ${target}`)
+  const artifact = filenames.find(entry => !entry.optional && entry.extension !== 'blockmap')
+  if (!artifact)
+    throw new Error(`Unable to determine artifact filename for target: ${target}`)
 
   return artifact.releaseArtifactFilename
 }
 
-export async function generateManifestFixtures(
-  options: GenerateManifestFixturesOptions,
-): Promise<GenerateManifestFixturesResult> {
+export async function generateManifestFixtures(options: GenerateManifestFixturesOptions): Promise<GenerateManifestFixturesResult> {
   const channelDir = join(options.rootDir, options.channel)
   const latestFilename = resolveLatestFilenameForTarget(options.target)
   const artifactFilename = await resolveArtifactFilename(options.target, options.version)
@@ -108,15 +107,11 @@ export async function generateManifestFixtures(
 
 async function main() {
   const cli = cac('generate-update-test-manifest')
-    .option('--root <path>', 'Root directory for generated server fixtures', {
-      default: 'scripts/update-test/fixtures/server',
-    })
+    .option('--root <path>', 'Root directory for generated server fixtures', { default: 'scripts/update-test/fixtures/server' })
     .option('--channel <channel>', 'Channel to generate', { default: 'stable' })
     .option('--target <target>', 'Target triple to generate fixtures for', { default: 'x86_64-pc-windows-msvc' })
     .option('--version <version>', 'Version to publish in the generated manifest', { default: '9.9.9-update-test.1' })
-    .option('--release-notes <notes>', 'Release notes content', {
-      default: 'Mock update for AIRI local updater verification.',
-    })
+    .option('--release-notes <notes>', 'Release notes content', { default: 'Mock update for AIRI local updater verification.' })
 
   const parsed = cli.parse()
   const result = await generateManifestFixtures({
@@ -127,8 +122,9 @@ async function main() {
     releaseNotes: String(parsed.options.releaseNotes),
   })
 
+  // eslint-disable-next-line no-console
   console.log(`Generated ${result.latestFilename} in ${result.channelDir}`)
-
+  // eslint-disable-next-line no-console
   console.log(`Artifact: ${result.artifactFilename}`)
 }
 

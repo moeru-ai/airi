@@ -25,19 +25,22 @@ export function extractMessageText(message: ChatHistoryItem): string {
     const assistant: ChatAssistantMessage = message
     if (Array.isArray(assistant.slices) && assistant.slices.length > 0) {
       const text = assistant.slices
-        .filter((slice): slice is { type: 'text'; text: string } => slice.type === 'text')
-        .map((slice) => slice.text)
+        .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
+        .map(slice => slice.text)
         .join('')
-      if (text) return text
+      if (text)
+        return text
     }
   }
-  if (typeof message.content === 'string') return message.content
+  if (typeof message.content === 'string')
+    return message.content
   if (Array.isArray(message.content)) {
     return message.content
       .map((part) => {
-        if (typeof part === 'string') return part
-        const isTextPart = part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part
-        if (isTextPart) return String(part.text ?? '')
+        if (typeof part === 'string')
+          return part
+        if (part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part)
+          return String(part.text ?? '')
         return ''
       })
       .join('')
@@ -62,9 +65,12 @@ export function extractMessageText(message: ChatHistoryItem): string {
  *   they describe a per-device runtime failure, not a server-acknowledged turn.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
-  if (message.role === 'tool') return false
-  if (message.role === 'system') return false
-  if (message.role === 'error') return false
+  if (message.role === 'tool')
+    return false
+  if (message.role === 'system')
+    return false
+  if (message.role === 'error')
+    return false
   return true
 }
 
@@ -83,12 +89,10 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
  *   that the wire format does not, so we synthesize minimal placeholders
  *   for them.
  */
-
 export function wireMessageToLocal(wire: WireMessage): ChatHistoryItem {
   // Server wire format only stores plain text content; we recreate the
   // local shape with empty tool_results / slices so downstream UI code can
   // assume the invariants documented in core-agent's ChatAssistantMessage.
-
   switch (wire.role) {
     case 'assistant': {
       const assistant: ChatAssistantMessage = {
@@ -175,7 +179,8 @@ export function mergeCloudMessagesIntoLocal(
 ): CloudMergeResult {
   const knownIds = new Set<string>()
   for (const message of currentMessages) {
-    if (message.id) knownIds.add(message.id)
+    if (message.id)
+      knownIds.add(message.id)
   }
 
   // Sort incoming messages by seq before appending so that out-of-order
@@ -186,20 +191,25 @@ export function mergeCloudMessagesIntoLocal(
   const additions: ChatHistoryItem[] = []
   let maxSeq = currentMaxSeq
   for (const wire of sortedWire) {
-    if (wire.seq > maxSeq) maxSeq = wire.seq
-    if (knownIds.has(wire.id)) continue
+    if (wire.seq > maxSeq)
+      maxSeq = wire.seq
+    if (knownIds.has(wire.id))
+      continue
     additions.push(wireMessageToLocal(wire))
   }
 
   // The server may report a higher seq than the highest message in the
   // payload (e.g. when messages were redacted upstream). Honour it.
-  if (typeof payload.toSeq === 'number' && payload.toSeq > maxSeq) maxSeq = payload.toSeq
+  if (typeof payload.toSeq === 'number' && payload.toSeq > maxSeq)
+    maxSeq = payload.toSeq
 
   if (additions.length === 0 && maxSeq === currentMaxSeq) {
     return { messages: currentMessages, maxSeq: currentMaxSeq, dirty: false }
   }
 
-  const messages = additions.length > 0 ? [...currentMessages, ...additions] : currentMessages
+  const messages = additions.length > 0
+    ? [...currentMessages, ...additions]
+    : currentMessages
 
   return { messages, maxSeq, dirty: true }
 }

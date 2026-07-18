@@ -3,7 +3,7 @@ export interface TraceEvent {
   name: string
   ts: number
   duration?: number
-  meta?: Record<string, unknown>
+  meta?: Record<string, any>
 }
 
 export type TraceSubscriber = (event: TraceEvent) => void
@@ -16,15 +16,15 @@ export interface PerfTracer {
   subscribe: (subscriber: TraceSubscriber) => () => void
   subscribeSafe: (
     subscriber: TraceSubscriber,
-    options?: { label?: string; onError?: (error: unknown, event: TraceEvent) => void },
+    options?: { label?: string, onError?: (error: unknown, event: TraceEvent) => void },
   ) => () => void
   emit: (event: TraceEvent) => void
-  mark: (tracerId: string, name: string, meta?: Record<string, unknown>) => void
+  mark: (tracerId: string, name: string, meta?: Record<string, any>) => void
   withMeasure: <T>(
     tracerId: string,
     name: string,
     fn: () => Promise<T> | T,
-    meta?: Record<string, unknown>,
+    meta?: Record<string, any>,
   ) => Promise<T>
 }
 
@@ -34,14 +34,17 @@ export function createPerfTracer(): PerfTracer {
   const subscribers = new Set<TraceSubscriber>()
 
   function push(event: TraceEvent, force = false) {
-    if (!enabled && !force) return
+    if (!enabled && !force)
+      return
 
-    for (const subscriber of subscribers) subscriber(event)
+    for (const subscriber of subscribers)
+      subscriber(event)
   }
 
   function recomputeEnabled() {
     let total = 0
-    for (const count of leases.values()) total += count
+    for (const count of leases.values())
+      total += count
     enabled = total > 0
   }
 
@@ -54,8 +57,10 @@ export function createPerfTracer(): PerfTracer {
 
   function release(token = '__default__') {
     const current = leases.get(token) ?? 0
-    if (current <= 1) leases.delete(token)
-    else leases.set(token, current - 1)
+    if (current <= 1)
+      leases.delete(token)
+    else
+      leases.set(token, current - 1)
     recomputeEnabled()
   }
 
@@ -75,14 +80,17 @@ export function createPerfTracer(): PerfTracer {
 
   function subscribeSafe(
     subscriber: TraceSubscriber,
-    options?: { label?: string; onError?: (error: unknown, event: TraceEvent) => void },
+    options?: { label?: string, onError?: (error: unknown, event: TraceEvent) => void },
   ) {
     const wrapped: TraceSubscriber = (event) => {
       try {
         subscriber(event)
-      } catch (error) {
-        if (options?.onError) options.onError(error, event)
-        else console.error(`[PerfTracer] subscriber${options?.label ? ` (${options.label})` : ''} threw`, error, event)
+      }
+      catch (error) {
+        if (options?.onError)
+          options.onError(error, event)
+        else
+          console.error(`[PerfTracer] subscriber${options?.label ? ` (${options.label})` : ''} threw`, error, event)
       }
     }
     return subscribe(wrapped)
@@ -92,42 +100,40 @@ export function createPerfTracer(): PerfTracer {
     push(event, false)
   }
 
-  function mark(tracerId: string, name: string, meta?: Record<string, unknown>) {
-    push(
-      {
-        tracerId,
-        name,
-        ts: performance.now(),
-        meta,
-      },
-      false,
-    )
+  function mark(tracerId: string, name: string, meta?: Record<string, any>) {
+    push({
+      tracerId,
+      name,
+      ts: performance.now(),
+      meta,
+    }, false)
   }
 
   async function withMeasure<T>(
     tracerId: string,
     name: string,
     fn: () => Promise<T> | T,
-    meta?: Record<string, unknown>,
+    meta?: Record<string, any>,
   ) {
     const shouldEmit = enabled
-    if (!shouldEmit) return fn()
+    if (!shouldEmit)
+      return fn()
 
     const start = performance.now()
     try {
       return await fn()
-    } finally {
+    }
+    finally {
       const disabledAtEnd = !enabled
-      push(
-        {
-          tracerId,
-          name,
-          ts: start,
-          duration: performance.now() - start,
-          meta: disabledAtEnd ? { ...meta, tracerDisabledDuringMeasure: true } : meta,
-        },
-        true,
-      )
+      push({
+        tracerId,
+        name,
+        ts: start,
+        duration: performance.now() - start,
+        meta: disabledAtEnd
+          ? { ...meta, tracerDisabledDuringMeasure: true }
+          : meta,
+      }, true)
     }
   }
 

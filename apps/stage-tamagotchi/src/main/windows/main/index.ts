@@ -16,14 +16,14 @@ import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
 
-import { is } from '@electron-toolkit/utils'
+import clickDragPlugin from 'electron-click-drag-plugin'
 
+import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
-import { BrowserWindow, ipcMain, shell } from 'electron'
-import clickDragPlugin from 'electron-click-drag-plugin'
+import { BrowserWindow, ipcMain } from 'electron'
 import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
@@ -33,22 +33,18 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
-import { transparentWindowConfig } from '../shared'
+import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
-  windows: optional(
-    array(
-      object({
-        title: optional(string()),
-        tag: string(),
-        x: optional(number()),
-        y: optional(number()),
-        width: optional(number()),
-        height: optional(number()),
-      }),
-    ),
-  ),
+  windows: optional(array(object({
+    title: optional(string()),
+    tag: string(),
+    x: optional(number()),
+    y: optional(number()),
+    width: optional(number()),
+    height: optional(number()),
+  }))),
 })
 
 type AppConfig = InferOutput<typeof appConfigSchema>
@@ -79,7 +75,7 @@ export async function setupMainWindow(params: {
 
   setupConfig()
 
-  const mainWindowConfig = getConfig().windows?.find((w) => w.title === 'AIRI' && w.tag === 'main')
+  const mainWindowConfig = getConfig().windows?.find(w => w.title === 'AIRI' && w.tag === 'main')
 
   const window = new BrowserWindow({
     title: 'AIRI',
@@ -114,8 +110,9 @@ export async function setupMainWindow(params: {
   if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
     try {
       window.webContents.openDevTools({ mode: 'detach' })
-    } catch {
-      // devtools unavailable — non-fatal
+    }
+    catch (err) {
+      console.error('failed to open devtools:', err)
     }
   }
 
@@ -125,7 +122,7 @@ export async function setupMainWindow(params: {
       config.windows = []
     }
 
-    const existingConfigIndex = config.windows.findIndex((w) => w.title === 'AIRI' && w.tag === 'main')
+    const existingConfigIndex = config.windows.findIndex(w => w.title === 'AIRI' && w.tag === 'main')
 
     if (existingConfigIndex === -1) {
       config.windows.push({
@@ -136,7 +133,8 @@ export async function setupMainWindow(params: {
         width: newBounds.width,
         height: newBounds.height,
       })
-    } else {
+    }
+    else {
       const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
 
       mainWindowConfig.x = newBounds.x
@@ -173,10 +171,7 @@ export async function setupMainWindow(params: {
   }
 
   window.on('ready-to-show', () => window!.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  protectPrivilegedWindowNavigation(window)
 
   await setupMainWindowElectronInvokes({
     window,
@@ -203,12 +198,13 @@ export async function setupMainWindow(params: {
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
   if (!isLinux) {
-    const handleStartDraggingWindow = () => {
+    function handleStartDraggingWindow() {
       try {
         const windowId = window.getNativeWindowHandle()
         clickDragPlugin.startDrag(windowId)
-      } catch (e) {
-        console.warn('Failed to start drag:', e)
+      }
+      catch (error) {
+        console.error(error)
       }
     }
 
@@ -218,11 +214,7 @@ export async function setupMainWindow(params: {
     ipcMain.setMaxListeners(0)
 
     const { context } = createContext(ipcMain, window)
-    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(
-      context,
-      electronStartDraggingWindow,
-      handleStartDraggingWindow,
-    )
+    const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
     window.on('closed', () => {
       cleanUpWindowDraggingInvokeHandler()

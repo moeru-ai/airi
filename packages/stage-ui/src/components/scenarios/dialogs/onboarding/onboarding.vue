@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ProviderMode } from '../../../../composables/use-analytics'
 import type { ProviderMetadata } from '../../../../stores/providers'
 import type {
   OnboardingStep,
@@ -9,56 +10,45 @@ import type {
 } from './types'
 
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 import StepProviderSelection from './step-provider-selection.vue'
 import StepWelcome from './step-welcome.vue'
 
-import { capturePosthogEvent } from '../../../../stores/analytics/posthog'
+import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { useProvidersStore } from '../../../../stores/providers'
 
-const props = withDefaults(
-  defineProps<{
-    extraSteps?: OnboardingStep[]
-  }>(),
-  {
-    extraSteps: () => [],
-  },
-)
-const emit = defineEmits<{
-  configured: []
-  skipped: []
-}>()
+interface Emits {
+  (e: 'configured'): void
+  (e: 'skipped'): void
+}
+
+const props = withDefaults(defineProps<{
+  extraSteps?: OnboardingStep[]
+}>(), {
+  extraSteps: () => [],
+})
+const emit = defineEmits<Emits>()
 const step = ref(0)
 const direction = ref<'next' | 'previous'>('next')
 const pendingProviderConfig = ref<ProviderConfigData | null>(null)
+const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCompleted } = useAnalytics()
 
 const providersStore = useProvidersStore()
 const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
-const { activeProvider } = storeToRefs(consciousnessStore)
+const {
+  activeProvider,
+} = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  const popular = [
-    'openai',
-    'azure-openai',
-    'anthropic',
-    'amazon-bedrock',
-    'google-generative-ai',
-    'groq',
-    'nvidia',
-    'openrouter-ai',
-    'ollama',
-    'deepseek',
-    'player2',
-    'openai-compatible',
-  ]
+  const popular = ['openai', 'azure-openai', 'anthropic', 'amazon-bedrock', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
   return allChatProvidersMetadata.value
-    .filter((provider) => popular.includes(provider.id))
+    .filter(provider => popular.includes(provider.id))
     .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
 })
 
@@ -67,7 +57,13 @@ const selectedProviderId = ref('')
 
 // Computed selected provider
 const selectedProvider = computed(() => {
-  return allChatProvidersMetadata.value.find((p) => p.id === selectedProviderId.value) || null
+  return allChatProvidersMetadata.value.find(p => p.id === selectedProviderId.value) || null
+})
+
+const selectedProviderType = computed<ProviderMode>(() => {
+  if (!selectedProviderId.value)
+    return 'unknown'
+  return selectedProviderId.value.startsWith('official-provider') ? 'official' : 'custom'
 })
 
 // Reset validation state when provider changes
@@ -84,17 +80,22 @@ const requestNextStep: OnboardingStepNextHandler = async (configData?: ProviderC
   await navigateNext()
 }
 
-async function saveProviderConfiguration(data: ProviderConfigData): Promise<void> {
-  if (!selectedProvider.value) return
+async function saveProviderConfiguration(data: ProviderConfigData) {
+  if (!selectedProvider.value)
+    return
 
   const config: Record<string, unknown> = {}
 
-  if (data.apiKey) config.apiKey = data.apiKey.trim()
-  if (data.baseUrl) config.baseUrl = data.baseUrl.trim()
-  if (data.accountId) config.accountId = data.accountId.trim()
+  if (data.apiKey)
+    config.apiKey = data.apiKey.trim()
+  if (data.baseUrl)
+    config.baseUrl = data.baseUrl.trim()
+  if (data.accountId)
+    config.accountId = data.accountId.trim()
   if (data.customFields) {
     for (const [key, value] of Object.entries(data.customFields)) {
-      if (value) config[key] = value.trim()
+      if (value)
+        config[key] = value.trim()
     }
   }
 
@@ -109,7 +110,8 @@ async function saveProviderConfiguration(data: ProviderConfigData): Promise<void
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
-  } catch (err) {
+  }
+  catch (err) {
     console.error('[onboarding] Failed to load models for provider:', err)
   }
 }
@@ -137,14 +139,15 @@ const allSteps = computed<OnboardingStep[]>(() => {
         selectedProvider: selectedProvider.value,
       }),
       beforeNext: async () => {
-        if (!pendingProviderConfig.value) return false
+        if (!pendingProviderConfig.value)
+          return false
 
         await saveProviderConfiguration(pendingProviderConfig.value)
         pendingProviderConfig.value = null
         return true
       },
     },
-    ...props.extraSteps.map((step) => ({
+    ...props.extraSteps.map(step => ({
       ...step,
       props: () => ({
         ...step.props?.(),
@@ -163,40 +166,54 @@ const currentStep = computed(() => allSteps.value[step.value] ?? null)
 const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
-function handleSave(): void {
-  capturePosthogEvent('onboarding_step_completed', { step: currentStep.value?.id ?? 'unknown' })
+async function handleSave() {
+  trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
+  trackOnboardingCompleted({
+    selected_provider_type: selectedProviderType.value,
+    selected_provider_id: selectedProviderId.value || undefined,
+    selected_use_case: 'unknown',
+  })
   emit('configured')
 }
 
-async function canPassGuard(guard?: OnboardingStepGuard): Promise<boolean> {
-  if (!guard) return true
+async function canPassGuard(guard?: OnboardingStepGuard) {
+  if (!guard)
+    return true
 
   return await guard()
 }
 
-async function navigateNext(): Promise<void> {
-  if (!currentStep.value) return
+async function navigateNext() {
+  if (!currentStep.value)
+    return
 
-  if (!(await canPassGuard(currentStep.value.beforeNext))) return
+  if (!(await canPassGuard(currentStep.value.beforeNext)))
+    return
 
   if (isLastStep.value) {
     await handleSave()
     return
   }
 
-  capturePosthogEvent('onboarding_step_completed', { step: currentStep.value.id })
+  trackOnboardingStepCompleted(currentStep.value.id)
   direction.value = 'next'
   step.value++
 }
 
-async function navigatePrevious(): Promise<void> {
-  if (!currentStep.value || step.value <= 0) return
+async function navigatePrevious() {
+  if (!currentStep.value || step.value <= 0)
+    return
 
-  if (!(await canPassGuard(currentStep.value.beforePrev))) return
+  if (!(await canPassGuard(currentStep.value.beforePrev)))
+    return
 
   direction.value = 'previous'
   step.value--
 }
+
+onMounted(() => {
+  trackOnboardingStarted({ entry: 'app_start' })
+})
 </script>
 
 <template>

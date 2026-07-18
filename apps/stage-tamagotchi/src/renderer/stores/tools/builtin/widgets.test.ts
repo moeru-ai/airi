@@ -41,14 +41,14 @@ interface CurlJsonResponse<T> {
 }
 
 function getObjectSchema(schema?: JsonSchema) {
-  if (!schema) return undefined
+  if (!schema)
+    return undefined
 
-  if (schema.type === 'object' || (Array.isArray(schema.type) && schema.type.includes('object'))) return schema
+  if (schema.type === 'object' || (Array.isArray(schema.type) && schema.type.includes('object')))
+    return schema
 
   const candidates = [...(schema.anyOf ?? []), ...(schema.oneOf ?? [])]
-  return candidates.find((candidate): candidate is JsonSchema =>
-    Boolean(candidate && typeof candidate === 'object' && !Array.isArray(candidate) && candidate.type === 'object'),
-  )
+  return candidates.find((candidate): candidate is JsonSchema => Boolean(candidate && typeof candidate === 'object' && !Array.isArray(candidate) && candidate.type === 'object'))
 }
 
 /**
@@ -62,7 +62,8 @@ function getObjectSchema(schema?: JsonSchema) {
  */
 function normalizeBaseUrl(value: string | undefined): string {
   let normalized = value?.trim() || 'https://aihubmix.com/v1/'
-  if (!normalized.endsWith('/')) normalized += '/'
+  if (!normalized.endsWith('/'))
+    normalized += '/'
   return normalized
 }
 
@@ -92,7 +93,14 @@ async function runCurlJson<T>(options: {
   // This test uses `curl` through `execFile` so we can still reproduce the provider-side
   // schema validation error inside Vitest without introducing shell interpolation or
   // hand-managed temporary files.
-  const args = ['--silent', '--show-error', '--write-out', '\n%{http_code}', '--url', options.url]
+  const args = [
+    '--silent',
+    '--show-error',
+    '--write-out',
+    '\n%{http_code}',
+    '--url',
+    options.url,
+  ]
 
   for (const header of options.headers ?? []) {
     args.push('--header', header)
@@ -112,13 +120,15 @@ async function runCurlJson<T>(options: {
   const output = result.stdout.trimEnd()
   const lastNewlineIndex = output.lastIndexOf('\n')
 
-  if (lastNewlineIndex < 0) throw new Error('curl did not emit an HTTP status line.')
+  if (lastNewlineIndex < 0)
+    throw new Error('curl did not emit an HTTP status line.')
 
   const rawBody = output.slice(0, lastNewlineIndex)
   const rawStatus = output.slice(lastNewlineIndex + 1)
   const status = Number.parseInt(rawStatus, 10)
 
-  if (!Number.isFinite(status)) throw new Error(`curl emitted an invalid HTTP status: ${rawStatus}`)
+  if (!Number.isFinite(status))
+    throw new Error(`curl emitted an invalid HTTP status: ${rawStatus}`)
 
   return {
     body: JSON.parse(rawBody) as T,
@@ -140,29 +150,37 @@ async function runCurlJson<T>(options: {
  * - A concrete chat model id to use with `/chat/completions`
  */
 async function resolveAihubmixModel(): Promise<string> {
-  if (configuredAihubmixModel) return configuredAihubmixModel
+  if (configuredAihubmixModel)
+    return configuredAihubmixModel
 
   const response = await runCurlJson<AihubmixModelListResponse>({
     url: new URL('models', aihubmixBaseUrl).toString(),
-    headers: [`Authorization: Bearer ${aihubmixApiKey}`],
+    headers: [
+      `Authorization: Bearer ${aihubmixApiKey}`,
+    ],
   })
   expect(response.status).toBe(200)
 
   const modelIds = (response.body.data ?? [])
-    .map((entry) => entry.id?.trim())
+    .map(entry => entry.id?.trim())
     .filter((value): value is string => Boolean(value))
 
-  const preferredModel = ['gpt-4o-mini', 'gpt-4.1-mini', 'gpt-4.1-nano', 'gpt-4o'].find((candidate) =>
-    modelIds.includes(candidate),
+  const preferredModel = [
+    'gpt-4o-mini',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'gpt-4o',
+  ].find(candidate => modelIds.includes(candidate))
+
+  if (preferredModel)
+    return preferredModel
+
+  const fallbackModel = modelIds.find(model =>
+    ['embed', 'embedding', 'tts', 'whisper', 'rerank'].every(fragment => !model.toLowerCase().includes(fragment)),
   )
 
-  if (preferredModel) return preferredModel
-
-  const fallbackModel = modelIds.find((model) =>
-    ['embed', 'embedding', 'tts', 'whisper', 'rerank'].every((fragment) => !model.toLowerCase().includes(fragment)),
-  )
-
-  if (!fallbackModel) throw new Error('Unable to resolve an AIHubMix chat model. Set AIHUBMIX_MODEL in .env.local.')
+  if (!fallbackModel)
+    throw new Error('Unable to resolve an AIHubMix chat model. Set AIHUBMIX_MODEL in .env.local.')
 
   return fallbackModel
 }
@@ -181,9 +199,10 @@ async function resolveAihubmixModel(): Promise<string> {
  */
 async function getStageWidgetsTool(): Promise<Tool> {
   const tools = await widgetsTools()
-  const stageWidgets = tools.find((tool) => tool.function.name === 'stage_widgets')
+  const stageWidgets = tools.find(tool => tool.function.name === 'stage_widgets')
 
-  if (!stageWidgets) throw new Error('Unable to resolve the stage_widgets tool definition.')
+  if (!stageWidgets)
+    throw new Error('Unable to resolve the stage_widgets tool definition.')
 
   return stageWidgets
 }
@@ -218,7 +237,14 @@ describe('widgets tool helpers', () => {
         'maxHeight',
       ])
       expect(schema.required).toContain('windowSize')
-      expect(windowSize?.required).toEqual(['width', 'height', 'minWidth', 'minHeight', 'maxWidth', 'maxHeight'])
+      expect(windowSize?.required).toEqual([
+        'width',
+        'height',
+        'minWidth',
+        'minHeight',
+        'maxWidth',
+        'maxHeight',
+      ])
       expect(windowSize?.required).toEqual(Object.keys(windowSizeProperties))
       expect((windowSizeProperties.minWidth as JsonSchema).type).toEqual(['number', 'null'])
       expect((windowSizeProperties.minHeight as JsonSchema).type).toEqual(['number', 'null'])
@@ -232,9 +258,7 @@ describe('widgets tool helpers', () => {
 
     describe('live AIHubMix repro', () => {
       if (!hasAihubmixApiKey) {
-        it.skip('aIHUBMIX_API_KEY must be set in apps/stage-tamagotchi/.env.local to run this test', () => {
-          /* skip requires a body */
-        })
+        it.skip('aIHUBMIX_API_KEY must be set in apps/stage-tamagotchi/.env.local to run this test', () => {})
         return
       }
 
@@ -258,7 +282,10 @@ describe('widgets tool helpers', () => {
         const response = await runCurlJson<AihubmixErrorResponse>({
           method: 'POST',
           url: new URL('chat/completions', aihubmixBaseUrl).toString(),
-          headers: [`Authorization: Bearer ${aihubmixApiKey}`, 'Content-Type: application/json'],
+          headers: [
+            `Authorization: Bearer ${aihubmixApiKey}`,
+            'Content-Type: application/json',
+          ],
           body: JSON.stringify({
             model,
             messages: [
@@ -290,7 +317,7 @@ describe('widgets tool helpers', () => {
     it('returns empty object for empty or undefined', () => {
       expect(normalizeComponentProps('   ')).toEqual({})
       expect(normalizeComponentProps(undefined)).toEqual({})
-      expect(normalizeComponentProps(null as unknown as undefined)).toEqual({})
+      expect(normalizeComponentProps(null as any)).toEqual({})
     })
 
     it('passes through object inputs', () => {
@@ -316,17 +343,14 @@ describe('widgets tool helpers', () => {
       const invokers = makeInvokers()
       vi.mocked(invokers.addWidget).mockResolvedValue('abc123')
 
-      const result = await executeWidgetAction(
-        {
-          action: 'spawn',
-          id: ' abc123 ',
-          componentName: 'weather',
-          componentProps: '{"city":"Tokyo"}',
-          size: 'm',
-          ttlSeconds: 2,
-        },
-        { invokers },
-      )
+      const result = await executeWidgetAction({
+        action: 'spawn',
+        id: ' abc123 ',
+        componentName: 'weather',
+        componentProps: '{"city":"Tokyo"}',
+        size: 'm',
+        ttlSeconds: 2,
+      }, { invokers })
 
       expect(result).toContain('abc123')
       expect(invokers.addWidget).toHaveBeenCalledTimes(1)
@@ -339,27 +363,48 @@ describe('widgets tool helpers', () => {
       })
     })
 
+    it('forwards always-on-top preference when spawning a widget', async () => {
+      const invokers = makeInvokers()
+      vi.mocked(invokers.addWidget).mockResolvedValue('pinned-widget')
+
+      await executeWidgetAction({
+        action: 'spawn',
+        id: ' pinned-widget ',
+        componentName: 'weather',
+        componentProps: '{"city":"Tokyo"}',
+        size: 'm',
+        ttlSeconds: 0,
+        alwaysOnTop: true,
+      }, { invokers })
+
+      expect(invokers.addWidget).toHaveBeenCalledWith({
+        id: 'pinned-widget',
+        componentName: 'weather',
+        componentProps: { city: 'Tokyo' },
+        size: 'm',
+        alwaysOnTop: true,
+        ttlMs: 0,
+      })
+    })
+
     it('forwards custom window sizing when spawning a widget', async () => {
       const invokers = makeInvokers()
       vi.mocked(invokers.addWidget).mockResolvedValue('sized-widget')
 
-      await executeWidgetAction(
-        {
-          action: 'spawn',
-          id: ' sized-widget ',
-          componentName: 'weather',
-          componentProps: '{"city":"Taipei"}',
-          size: 'l',
-          ttlSeconds: 0,
-          windowSize: {
-            width: 620,
-            height: 760,
-            minWidth: 480,
-            minHeight: 320,
-          },
+      await executeWidgetAction({
+        action: 'spawn',
+        id: ' sized-widget ',
+        componentName: 'weather',
+        componentProps: '{"city":"Taipei"}',
+        size: 'l',
+        ttlSeconds: 0,
+        windowSize: {
+          width: 620,
+          height: 760,
+          minWidth: 480,
+          minHeight: 320,
         },
-        { invokers },
-      )
+      } as any, { invokers })
 
       expect(invokers.addWidget).toHaveBeenCalledWith({
         id: 'sized-widget',
@@ -380,80 +425,72 @@ describe('widgets tool helpers', () => {
       const invokers = makeInvokers()
       vi.mocked(invokers.addWidget).mockResolvedValue('chess-main')
 
-      await executeWidgetAction(
-        {
-          action: 'spawn',
-          id: ' chess-main ',
-          componentName: 'extension-ui',
-          componentProps: JSON.stringify({
-            moduleId: 'chess-main',
-            title: 'Extension UI',
-            windowSize: {
-              width: 720,
-              height: 540,
-              minWidth: 480,
-            },
-            payload: {
-              side: 'white',
-            },
-          }),
-          size: 'm',
-          ttlSeconds: 0,
-        },
-        { invokers },
-      )
-
-      expect(invokers.addWidget).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'chess-main',
-          componentName: 'extension-ui',
-          componentProps: expect.objectContaining({
-            moduleId: 'chess-main',
-            title: 'Extension UI',
-            windowSize: {
-              width: 720,
-              height: 540,
-              minWidth: 480,
-            },
-            payload: {
-              side: 'white',
-            },
-          }),
+      await executeWidgetAction({
+        action: 'spawn',
+        id: ' chess-main ',
+        componentName: 'extension-ui',
+        componentProps: JSON.stringify({
+          moduleId: 'chess-main',
+          title: 'Extension UI',
           windowSize: {
             width: 720,
             height: 540,
             minWidth: 480,
           },
+          payload: {
+            side: 'white',
+          },
         }),
-      )
+        size: 'm',
+        ttlSeconds: 0,
+      }, { invokers })
+
+      expect(invokers.addWidget).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'chess-main',
+        componentName: 'extension-ui',
+        componentProps: expect.objectContaining({
+          moduleId: 'chess-main',
+          title: 'Extension UI',
+          windowSize: {
+            width: 720,
+            height: 540,
+            minWidth: 480,
+          },
+          payload: {
+            side: 'white',
+          },
+        }),
+        windowSize: {
+          width: 720,
+          height: 540,
+          minWidth: 480,
+        },
+      }))
     })
 
     it('sanitizes reserved extension-ui host props before dispatch', async () => {
       const invokers = makeInvokers()
       vi.mocked(invokers.addWidget).mockResolvedValue('guarded-main')
 
-      await executeWidgetAction(
-        {
-          action: 'spawn',
-          id: ' guarded-main ',
-          componentName: 'extension-ui',
-          componentProps: JSON.stringify({
-            moduleId: 'guarded-main',
-            title: 'Guarded Module',
-            modelValue: { injected: true },
-            module: { injected: true },
-            moduleConfig: { injected: true },
-            'model-value': { injected: true },
-            'module-config': { injected: true },
-            payload: {
-              safe: true,
-            },
-          }),
-          size: 'm',
-          ttlSeconds: 0,
-        },
-        { invokers },
-      )
+      await executeWidgetAction({
+        action: 'spawn',
+        id: ' guarded-main ',
+        componentName: 'extension-ui',
+        componentProps: JSON.stringify({
+          'moduleId': 'guarded-main',
+          'title': 'Guarded Module',
+          'modelValue': { injected: true },
+          'module': { injected: true },
+          'moduleConfig': { injected: true },
+          'model-value': { injected: true },
+          'module-config': { injected: true },
+          'payload': {
+            safe: true,
+          },
+        }),
+        size: 'm',
+        ttlSeconds: 0,
+      }, { invokers })
 
       const dispatched = vi.mocked(invokers.addWidget).mock.calls[0]?.[0]
       expect(dispatched).toBeDefined()
@@ -473,34 +510,29 @@ describe('widgets tool helpers', () => {
 
     it('updates props and trims id', async () => {
       const invokers = makeInvokers()
-      await executeWidgetAction(
-        {
-          action: 'update',
-          id: ' xyz ',
-          componentName: '',
-          componentProps: '{"foo":1}',
-          size: 'm',
-          ttlSeconds: 0,
-        },
-        { invokers },
-      )
+      await executeWidgetAction({
+        action: 'update',
+        id: ' xyz ',
+        componentName: '',
+        componentProps: '{"foo":1}',
+        size: 'm',
+        alwaysOnTop: false,
+        ttlSeconds: 0,
+      }, { invokers })
 
-      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 } })
+      expect(invokers.updateWidget).toHaveBeenCalledWith({ id: 'xyz', componentProps: { foo: 1 }, alwaysOnTop: false })
     })
 
     it('removes when id provided', async () => {
       const invokers = makeInvokers()
-      await executeWidgetAction(
-        {
-          action: 'remove',
-          id: 'rem-id',
-          componentName: '',
-          componentProps: '{}',
-          size: 's',
-          ttlSeconds: 0,
-        },
-        { invokers },
-      )
+      await executeWidgetAction({
+        action: 'remove',
+        id: 'rem-id',
+        componentName: '',
+        componentProps: '{}',
+        size: 's',
+        ttlSeconds: 0,
+      }, { invokers })
 
       expect(invokers.removeWidget).toHaveBeenCalledWith({ id: 'rem-id' })
     })
@@ -508,17 +540,14 @@ describe('widgets tool helpers', () => {
     it('opens window with prepared id', async () => {
       const invokers = makeInvokers()
       vi.mocked(invokers.prepareWindow).mockResolvedValue('prepared-id')
-      await executeWidgetAction(
-        {
-          action: 'open',
-          id: '  prepared-id ',
-          componentName: '',
-          componentProps: '{}',
-          size: 'l',
-          ttlSeconds: 0,
-        },
-        { invokers },
-      )
+      await executeWidgetAction({
+        action: 'open',
+        id: '  prepared-id ',
+        componentName: '',
+        componentProps: '{}',
+        size: 'l',
+        ttlSeconds: 0,
+      }, { invokers })
 
       expect(invokers.prepareWindow).toHaveBeenCalledWith({ id: 'prepared-id' })
       expect(invokers.openWindow).toHaveBeenCalledWith({ id: 'prepared-id' })
@@ -526,17 +555,14 @@ describe('widgets tool helpers', () => {
 
     it('clears widgets', async () => {
       const invokers = makeInvokers()
-      await executeWidgetAction(
-        {
-          action: 'clear',
-          id: '',
-          componentName: '',
-          componentProps: '{}',
-          size: 'm',
-          ttlSeconds: 0,
-        },
-        { invokers },
-      )
+      await executeWidgetAction({
+        action: 'clear',
+        id: '',
+        componentName: '',
+        componentProps: '{}',
+        size: 'm',
+        ttlSeconds: 0,
+      }, { invokers })
 
       expect(invokers.clearWidgets).toHaveBeenCalledTimes(1)
     })
@@ -544,49 +570,43 @@ describe('widgets tool helpers', () => {
 
   describe('extension-ui host helpers', () => {
     it('removes host-controlled render props from payload props', () => {
-      expect(
-        sanitizeExtensionUiRenderProps({
-          title: 'Override',
-          modelValue: { injected: true },
-          module: { injected: true },
-          moduleConfig: { injected: true },
-          'model-value': { injected: true },
-          'module-config': { injected: true },
-          safe: true,
-        }),
-      ).toEqual({
+      expect(sanitizeExtensionUiRenderProps({
+        'title': 'Override',
+        'modelValue': { injected: true },
+        'module': { injected: true },
+        'moduleConfig': { injected: true },
+        'model-value': { injected: true },
+        'module-config': { injected: true },
+        'safe': true,
+      })).toEqual({
         safe: true,
       })
     })
 
     it('requires a registered module before rendering a resolved widget', () => {
-      expect(
-        canRenderExtensionUi({
-          loading: false,
-          moduleSnapshot: undefined,
-          iframeSrc: 'https://example.com',
-        }),
-      ).toBe(false)
+      expect(canRenderExtensionUi({
+        loading: false,
+        moduleSnapshot: undefined,
+        iframeSrc: 'https://example.com',
+      })).toBe(false)
 
-      expect(
-        canRenderExtensionUi({
-          loading: false,
-          error: 'module missing',
-          moduleSnapshot: {
-            moduleId: 'module-1',
-            ownerSessionId: 'session-1',
-            ownerPluginId: 'plugin-1',
-            kitId: 'kit.widget',
-            kitModuleType: 'window',
-            state: 'active',
-            runtime: 'electron',
-            revision: 1,
-            updatedAt: Date.now(),
-            config: {},
-          },
-          iframeSrc: 'https://example.com',
-        }),
-      ).toBe(false)
+      expect(canRenderExtensionUi({
+        loading: false,
+        error: 'module missing',
+        moduleSnapshot: {
+          moduleId: 'module-1',
+          ownerSessionId: 'session-1',
+          ownerExtensionId: 'plugin-1',
+          kitId: 'kit.widget',
+          kitModuleType: 'window',
+          state: 'active',
+          runtime: 'electron',
+          revision: 1,
+          updatedAt: Date.now(),
+          config: {},
+        },
+        iframeSrc: 'https://example.com',
+      })).toBe(false)
     })
   })
 })

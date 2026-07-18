@@ -1,31 +1,25 @@
 <script setup lang="ts">
 import type { VoiceInfo } from '../../../stores/providers'
 
+import { errorMessageFrom } from '@moeru/std'
 import { FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { TestDummyMarker } from '../../gadgets'
 
-const props = withDefaults(
-  defineProps<{
-    // Input fields
-    defaultText?: string
-    availableVoices: VoiceInfo[]
+const props = defineProps<{
+  // Input fields
+  defaultText?: string
+  availableVoices: VoiceInfo[]
 
-    // Provider-specific handlers (provided from parent)
-    generateSpeech: (input: string, voice: string, useSSML: boolean) => Promise<ArrayBuffer>
+  // Provider-specific handlers (provided from parent)
+  generateSpeech: (input: string, voice: string, useSSML: boolean) => Promise<ArrayBuffer>
 
-    // Current state
-    apiKeyConfigured?: boolean
-    voicesLoading?: boolean
-  }>(),
-  {
-    defaultText: '',
-    apiKeyConfigured: false,
-    voicesLoading: false,
-  },
-)
+  // Current state
+  apiKeyConfigured?: boolean
+  voicesLoading?: boolean
+}>()
 
 const { t } = useI18n()
 
@@ -51,7 +45,7 @@ watch(
 )
 
 const voiceOptions = computed(() => {
-  return props.availableVoices.map((voice) => ({
+  return props.availableVoices.map(voice => ({
     value: voice.id,
     label: voice.name,
   }))
@@ -84,10 +78,12 @@ async function handleGenerateTestSpeech() {
         audioPlayer.value.play()
       }
     }, 100)
-  } catch (error) {
+  }
+  catch (error) {
     console.error('Error generating speech:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
-  } finally {
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
+  }
+  finally {
     isGenerating.value = false
   }
 }
@@ -152,13 +148,7 @@ defineExpose({
           border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
           transition="all duration-250 ease-in-out"
           bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-          h-24
-          w-full
-          rounded-lg
-          px-3
-          py-2
-          text-sm
-          outline-none
+          h-24 w-full rounded-lg px-3 py-2 text-sm outline-none
         />
       </template>
       <template v-else>
@@ -168,14 +158,7 @@ defineExpose({
           border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
           transition="all duration-250 ease-in-out"
           bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
-          h-48
-          w-full
-          rounded-lg
-          px-3
-          py-2
-          text-sm
-          font-mono
-          outline-none
+          h-48 w-full rounded-lg px-3 py-2 text-sm font-mono outline-none
         />
       </template>
 
@@ -189,42 +172,15 @@ defineExpose({
 
       <!-- Playground actions -->
       <button
-        border="neutral-800 dark:neutral-200 solid 2"
-        transition="border duration-250 ease-in-out"
-        rounded-lg
-        px-3
-        text="neutral-100 dark:neutral-900"
-        py-1.5
-        text-sm
-        :disabled="
-          isGenerating ||
-          voicesLoading ||
-          (!testText.trim() && !useSSML) ||
-          (useSSML && !ssmlText.trim()) ||
-          !selectedVoice ||
-          !apiKeyConfigured
-        "
-        :class="{
-          'opacity-50 cursor-not-allowed':
-            isGenerating ||
-            voicesLoading ||
-            (!testText.trim() && !useSSML) ||
-            (useSSML && !ssmlText.trim()) ||
-            !selectedVoice ||
-            !apiKeyConfigured,
-        }"
-        bg="neutral-700 dark:neutral-300"
-        @click="handleGenerateTestSpeech"
+        border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
+        rounded-lg px-3 text="neutral-100 dark:neutral-900" py-1.5 text-sm
+        :disabled="isGenerating || voicesLoading || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured"
+        :class="{ 'opacity-50 cursor-not-allowed': isGenerating || voicesLoading || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !selectedVoice || !apiKeyConfigured }"
+        bg="neutral-700 dark:neutral-300" @click="handleGenerateTestSpeech"
       >
         <div flex="~ row" items-center gap-2>
           <div i-solar:play-circle-bold-duotone />
-          <span>
-            {{
-              isGenerating
-                ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating')
-                : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label')
-            }}
-          </span>
+          <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
         </div>
       </button>
       <!-- Error messages -->
@@ -232,11 +188,7 @@ defineExpose({
         {{ t('settings.pages.providers.provider.elevenlabs.playground.validation.error-missing-api-key') }}
       </div>
       <div v-if="voicesLoading || !selectedVoice" class="mt-2 text-sm text-red-500">
-        {{
-          voicesLoading
-            ? t('settings.pages.modules.speech.sections.section.playground.select-voice.loading')
-            : t('settings.pages.modules.speech.sections.section.playground.select-voice.required')
-        }}
+        {{ voicesLoading ? t('settings.pages.modules.speech.sections.section.playground.select-voice.loading') : t('settings.pages.modules.speech.sections.section.playground.select-voice.required') }}
       </div>
       <div v-if="errorMessage" class="mt-2 text-sm text-red-500">
         {{ errorMessage }}

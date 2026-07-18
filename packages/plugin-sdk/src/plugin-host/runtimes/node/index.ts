@@ -1,32 +1,19 @@
-import type { ChannelHost } from '../../../channels/shared'
+import type { EventContext } from '@moeru/eventa'
 
 import type { PluginTransport } from '../../transports'
-import { createContext as createInMemoryContext } from '@moeru/eventa'
 
-import { createWebSocketHostChannel } from '../../../channels/remote/websocket'
+import { createContext } from '@moeru/eventa'
 
 export * from '../../core'
 export * from '../../shared'
 export * from '../../transports'
 export * from './loaders'
 
-function createNodeWebSocket(url: string, protocols?: string[]): WebSocket {
-  const WebSocketConstructor = globalThis.WebSocket
-
-  if (typeof WebSocketConstructor !== 'function') {
-    throw new TypeError(
-      'Node runtime WebSocket transport requires globalThis.WebSocket. Use Node 22+ or install a WebSocket polyfill before creating the plugin context.',
-    )
-  }
-
-  return protocols && protocols.length > 0 ? new WebSocketConstructor(url, protocols) : new WebSocketConstructor(url)
-}
-
 /**
- * Creates the Eventa context used by node-side plugin host sessions.
+ * Creates the Eventa context used by node-side extension host sessions.
  *
  * Use when:
- * - Bootstrapping a node runtime plugin session
+ * - Bootstrapping a node runtime extension session
  *
  * Expects:
  * - `transport` describes a transport supported by the node runtime
@@ -34,12 +21,12 @@ function createNodeWebSocket(url: string, protocols?: string[]): WebSocket {
  * Returns:
  * - A node-compatible Eventa context, or throws if the transport is not implemented
  */
-export function createPluginContext(transport: PluginTransport): ChannelHost {
+export function createPluginContext(transport: PluginTransport): EventContext<any, any> {
   switch (transport.kind) {
     case 'in-memory':
-      return createInMemoryContext()
+      return createContext()
     case 'websocket':
-      return createWebSocketHostChannel(createNodeWebSocket(transport.url, transport.protocols))
+      throw new Error('WebSocket transport is not implemented for node runtime yet.')
     case 'node-worker':
       throw new Error('Node worker transport is not implemented yet.')
     case 'electron':

@@ -4,7 +4,10 @@ export type { AgentLLMPort } from './contracts/llm-port'
 export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
 
-export { buildContextPromptMessage, formatContextPromptText } from './messages/context-prompt'
+export {
+  buildContextPromptMessage,
+  formatContextPromptText,
+} from './messages/context-prompt'
 export type { ContextSnapshot } from './messages/context-prompt'
 export { formatTimePrefix } from './messages/datetime-prefix'
 export { createChatHooks } from './runtime/agent-hooks'
@@ -32,11 +35,15 @@ export {
   streamOptionsContentArrayCompatibilityOk,
   streamOptionsToolsCompatibilityOk,
 } from './runtime/llm-service'
-export { stripMarkdownFromSpeech } from './runtime/markdown-stripper'
-export { categorizeResponse, createStreamingCategorizer } from './runtime/response-categoriser'
-export type { CategorizedResponse, CategorizedSegment, ResponseCategory } from './runtime/response-categoriser'
-export { stripUnreadableSymbols } from './runtime/unreadable-symbols-stripper'
-export type { StripUnreadableSymbolsOptions } from './runtime/unreadable-symbols-stripper'
+export {
+  categorizeResponse,
+  createStreamingCategorizer,
+} from './runtime/response-categoriser'
+export type {
+  CategorizedResponse,
+  CategorizedSegment,
+  ResponseCategory,
+} from './runtime/response-categoriser'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'
 export type {
   ChatAssistantMessage,
@@ -53,4 +60,9 @@ export type {
   StreamingAssistantMessage,
 } from './types/chat'
 
-export type { BuiltinToolsResolver, StreamEvent, StreamFromOptions, StreamOptions } from './types/llm'
+export type {
+  BuiltinToolsResolver,
+  StreamEvent,
+  StreamFromOptions,
+  StreamOptions,
+} from './types/llm'

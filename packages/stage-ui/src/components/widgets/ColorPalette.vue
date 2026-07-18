@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
 
-import { DEFAULT_THEME_COLORS_HUE, useSettingsTheme } from '../../stores/settings'
+import { DEFAULT_THEME_COLORS_HUE, useSettings } from '../../stores/settings'
 
 interface Color {
   hex?: string
@@ -12,7 +12,7 @@ defineProps<{
   colors: Color[]
 }>()
 
-const settings = useSettingsTheme()
+const settings = useSettings()
 </script>
 
 <template>
@@ -21,10 +21,7 @@ const settings = useSettingsTheme()
       <TooltipRoot>
         <TooltipTrigger
           transition="all ease-in-out duration-250"
-          size-8
-          cursor-pointer
-          rounded-full
-          bg-primary-500
+          size-8 cursor-pointer rounded-full bg-primary-500
           :style="hex ? { background: hex } : { '--chromatic-hue': DEFAULT_THEME_COLORS_HUE }"
           :class="settings.isColorSelectedForPrimary(hex) ? 'scale-120 md:scale-150 mx-1' : 'hover:scale-110'"
           @click="settings.applyPrimaryColorFrom(hex)"

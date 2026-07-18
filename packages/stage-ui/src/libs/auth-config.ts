@@ -9,8 +9,9 @@ function getEnvStatus() {
     return { isAndroidNative: false, isNative: false }
   }
 
-  const capacitor = (window as unknown as { Capacitor?: { getPlatform: () => string } }).Capacitor
-  const isAndroidNative = capacitor?.getPlatform() === 'android'
+  // @ts-expect-error Capacitor is injected by the native runtime when available.
+  const capacitor = window.Capacitor
+  const isAndroidNative = !!(capacitor?.getPlatform?.() === 'android')
   const isNative = !!capacitor || isAndroidNative
 
   return { isAndroidNative, isNative }
@@ -46,6 +47,7 @@ function getRedirectOrigin() {
 const { isNative } = getEnvStatus()
 const origin = getRedirectOrigin()
 
-export const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || (isNative ? 'airi-stage-pocket' : 'airi-stage-web')
+export const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID
+  || (isNative ? 'airi-stage-pocket' : 'airi-stage-web')
 
 export const OIDC_REDIRECT_URI = `${origin}/auth/callback`

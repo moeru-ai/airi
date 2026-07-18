@@ -40,7 +40,8 @@ function createMockWindow(): MockWindow {
   let closedHandler: (() => void) | undefined
   return {
     on: vi.fn((event: string, handler: () => void) => {
-      if (event === 'closed') closedHandler = handler
+      if (event === 'closed')
+        closedHandler = handler
     }),
     close() {
       closedHandler?.()
@@ -61,10 +62,7 @@ function asBrowserWindow(window: MockWindow): BrowserWindow {
   return window as unknown as BrowserWindow
 }
 
-function registerMockWindow(
-  service: { registerWindow: (params: { context: EventaContext; window: BrowserWindow }) => void },
-  ctx: MockContext,
-): MockWindow {
+function registerMockWindow(service: { registerWindow: (params: { context: EventaContext, window: BrowserWindow }) => void }, ctx: MockContext): MockWindow {
   const window = createMockWindow()
   service.registerWindow({
     context: asEventaContext(ctx),
@@ -122,11 +120,7 @@ async function setupMocks() {
     const actual = await importOriginal<typeof import('@moeru/eventa')>()
     return {
       ...actual,
-      defineInvokeHandler: (
-        context: MockContext,
-        eventa: { sendEvent: { id: string } },
-        handler: (payload: unknown) => unknown,
-      ) => {
+      defineInvokeHandler: (context: MockContext, eventa: { sendEvent: { id: string } }, handler: (payload: unknown) => unknown) => {
         // `defineInvokeEventa('foo')` returns `{ sendEvent: { id: 'foo-send' }, ... }`;
         // strip the `-send` suffix so test lookups match the contract name.
         const id = eventa.sendEvent.id.replace(/-send$/, '')
@@ -147,12 +141,6 @@ async function setupMocks() {
       }),
     }),
   }))
-
-  // Stub XDG_SESSION_TYPE so the uiohook driver doesn't bail out on
-  // Wayland (the test machine may run under native Wayland). The env
-  // var is snapshot at module instantiation, so this must happen before
-  // the dynamic import below.
-  vi.stubEnv('XDG_SESSION_TYPE', 'x11')
 
   const { setupGlobalShortcutService } = await import('./global-shortcut')
 
@@ -182,7 +170,7 @@ describe('setupGlobalShortcutService', () => {
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')
     expect(handler).toBeDefined()
 
-    const result = handler!(exampleBinding('toggle')) as { id: string; ok: boolean }
+    const result = handler!(exampleBinding('toggle')) as { id: string, ok: boolean }
     expect(result).toEqual({ id: 'toggle', ok: true })
     expect(m.registerMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+K', expect.any(Function))
   })
@@ -194,7 +182,7 @@ describe('setupGlobalShortcutService', () => {
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string; ok: boolean }
+    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean }
     expect(result).toEqual({ id: 'ptt', ok: true })
     expect(m.registerMock).not.toHaveBeenCalled()
   })
@@ -207,7 +195,7 @@ describe('setupGlobalShortcutService', () => {
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler(exampleBinding('toggle')) as { id: string; ok: boolean; reason?: string }
+    const result = handler(exampleBinding('toggle')) as { id: string, ok: boolean, reason?: string }
     expect(result).toEqual({ id: 'toggle', ok: false, reason: ShortcutFailureReasons.Conflict })
   })
 
@@ -223,12 +211,67 @@ describe('setupGlobalShortcutService', () => {
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
     const first = handler(exampleBinding('toggle', 'KeyK')) as { ok: boolean }
-    const second = handler(exampleBinding('toggle', 'KeyZ')) as { id: string; ok: boolean; reason?: string }
+    const second = handler(exampleBinding('toggle', 'KeyZ')) as { id: string, ok: boolean, reason?: string }
 
     expect(first.ok).toBe(true)
     expect(second).toEqual({ id: 'toggle', ok: false, reason: ShortcutFailureReasons.DuplicateId })
     expect(m.registerMock).toHaveBeenCalledTimes(1)
     expect(m.unregisterMock).not.toHaveBeenCalled()
+  })
+
+  it('rebinds main-owned shortcuts transactionally', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: vi.fn(),
+    })
+    const secondTriggered = vi.fn()
+    const success = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyB'),
+      onTriggered: secondTriggered,
+    })
+
+    expect(success).toEqual({ id: 'spotlight', ok: true })
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+B')?.()
+    expect(secondTriggered).toHaveBeenCalledTimes(1)
+
+    const oldTriggered = vi.fn()
+    service.registerMainShortcut({ binding: exampleBinding('spotlight', 'KeyA'), onTriggered: oldTriggered })
+    m.unregisterMock.mockClear()
+    m.registerMock.mockImplementationOnce(() => false)
+    const result = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyC'),
+      onTriggered: vi.fn(),
+    })
+
+    expect(result).toEqual({ id: 'spotlight', ok: false, reason: ShortcutFailureReasons.Conflict })
+    expect(m.unregisterMock).not.toHaveBeenCalled()
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+A')?.()
+    expect(oldTriggered).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces the callback when rebinding a main-owned shortcut to the same accelerator', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const oldTriggered = vi.fn()
+    const nextTriggered = vi.fn()
+
+    service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: oldTriggered,
+    })
+    const result = service.registerMainShortcut({
+      binding: exampleBinding('spotlight', 'KeyA'),
+      onTriggered: nextTriggered,
+    })
+
+    expect(result).toEqual({ id: 'spotlight', ok: true })
+    expect(m.unregisterMock).toHaveBeenCalledWith('CmdOrCtrl+Shift+A')
+    m.triggerCallbacks.get('CmdOrCtrl+Shift+A')?.()
+    expect(oldTriggered).not.toHaveBeenCalled()
+    expect(nextTriggered).toHaveBeenCalledTimes(1)
   })
 
   it('allows re-register after explicit unregister', async () => {
@@ -299,7 +342,7 @@ describe('setupGlobalShortcutService', () => {
 
     const list = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:list')!
     const result = list(undefined) as ShortcutBinding[]
-    expect(result.map((b) => b.id).sort()).toEqual(['a', 'b'])
+    expect(result.map(b => b.id).sort()).toEqual(['a', 'b'])
   })
 
   it('unregisterAll only unregisters bindings owned by this service', async () => {

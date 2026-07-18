@@ -45,7 +45,7 @@ type PersistedSchema = BaseSchema<unknown, unknown, BaseIssue<unknown>>
 function parseWithSchema<TSchema extends PersistedSchema>(
   raw: string,
   schema: TSchema,
-): { value?: InferOutput<TSchema>; issues?: InferIssue<TSchema>[] } {
+): { value?: InferOutput<TSchema>, issues?: InferIssue<TSchema>[] } {
   const parsed = safeDestr<unknown>(raw)
   const result = safeParse(schema, parsed)
   if (result.success) {
@@ -84,7 +84,8 @@ export function createConfig<TSchema extends PersistedSchema>(
       const tmpPath = `${path}.${randomUUID()}.tmp`
       await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
       await rename(tmpPath, path)
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to save config', error)
     }
   }, 250)
@@ -94,13 +95,12 @@ export function createConfig<TSchema extends PersistedSchema>(
       const path = configPath()
       await ensureConfigDirectory(path)
       if (existsSync(path)) {
-        await copyFile(path, `${path}.bak`).catch((err) =>
-          console.warn('Failed to create backup for config:', path, err),
-        )
+        await copyFile(path, `${path}.bak`).catch(err => console.warn('Failed to create backup for config:', path, err))
       }
       await writeFile(path, JSON.stringify(value))
       return true
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to heal config', error)
       return false
     }
@@ -150,7 +150,8 @@ export function createConfig<TSchema extends PersistedSchema>(
         })
       }
       return diagnostics
-    } catch (error) {
+    }
+    catch (error) {
       const fallback = options?.default
       const diagnostics = recordDiagnostics({
         status: 'read-error',

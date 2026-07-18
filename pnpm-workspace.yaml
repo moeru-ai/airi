@@ -1,9 +1,6 @@
 catalogMode: prefer
 shellEmulator: true
-trustPolicy: no-downgrade
-
 packages:
-  - core
   - packages/**
   - plugins/**
   - integrations/**
@@ -23,10 +20,20 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
+patchedDependencies:
+  '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
+  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
+  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
+  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
+  mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
+  pixi-live2d-display: patches/pixi-live2d-display.patch
+  sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
+  uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@antfu/eslint-config': ^8.2.0
-  '@anthropic-ai/claude-code': ^2.1.114
+  '@anthropic-ai/claude-code': ^2.1.204
   '@arethetypeswrong/core': ^0.18.2
   '@ax-llm/ax': ^19.0.43
   '@better-auth/cli': ^1.4.21
@@ -99,7 +106,7 @@ catalog:
   '@mdit/plugin-tasklist': ^0.23.2
   '@mediapipe/tasks-vision': ^0.10.34
   '@modelcontextprotocol/sdk': ^1.29.0
-  '@moeru/eslint-config': 0.1.0-beta.15
+  '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.0-beta.8
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
@@ -155,14 +162,12 @@ catalog:
   '@radix-ui/colors': ^3.0.0
   '@ricky0123/vad-web': ^0.0.30
   '@rive-app/canvas-lite': ^2.37.2
-  '@sentry/electron': ^6.1.0
   '@shikijs/markdown-it': ^4.0.2
   '@shikijs/rehype': ^4.0.2
   '@shopify/draggable': ^1.2.1
   '@snazzah/davey': ^0.1.11
   '@stdlib/string-base-kebabcase': ^0.2.3
   '@takumi-rs/image-response': 1.0.0-beta.20
-  '@tauri-apps/api': ^2.11.1
   '@tresjs/cientos': ^5.7.0
   '@tresjs/core': ^5.8.0
   '@tresjs/post-processing': ^3.7.1
@@ -183,7 +188,6 @@ catalog:
   '@types/ws': ^8.18.1
   '@types/xast': ^2.0.4
   '@types/yauzl': ^2.10.3
-  '@unocss/core': '>=66'
   '@unocss/eslint-config': ^66.6.8
   '@unocss/eslint-plugin': ^66.6.8
   '@unocss/preset-mini': ^66.6.8
@@ -195,7 +199,7 @@ catalog:
   '@vue-macros/volar': ^3.1.2
   '@vue/test-utils': ^2.4.6
   '@vue/tsconfig': ^0.9.1
-  '@vueuse/core': 14.1.0
+  '@vueuse/core': ^14.2.1
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.2.1
   '@webgpu/types': ^0.1.69
@@ -228,7 +232,6 @@ catalog:
   capacitor-native-settings: ^8.1.0
   chess.js: ^1.4.0
   clustr: ^1.0.2
-  cockatiel: ^3.2.1
   colorjs.io: ^0.6.1
   crossws: ^0.4.5
   csstype: ^3.2.3
@@ -251,11 +254,8 @@ catalog:
   electron-vite: ^5.0.0
   embla-carousel-autoplay: 9.0.0-rc01
   embla-carousel-vue: 9.0.0-rc02
-  es-toolkit: 1.43.0
+  es-toolkit: ^1.45.1
   eslint: ^10.2.1
-  eslint-import-resolver-node: ^0.4.0
-  eslint-import-resolver-typescript: ^4.4.5
-  eslint-plugin-boundaries: ^6.0.2
   eslint-plugin-oxlint: ^1.60.0
   eventemitter3: ^5.0.4
   floating-vue: ^5.2.2
@@ -276,7 +276,6 @@ catalog:
   is-network-error: ^1.3.1
   isolated-vm: ^6.1.2
   jose: ^6.2.2
-  jscpd: ^4.0.0
   jsdom: ^29.0.2
   jszip: ^3.10.1
   knip: ^6.4.1
@@ -287,7 +286,6 @@ catalog:
   mark.js: ^8.11.1
   markdown-it: ^14.1.1
   markdown-it-anchor: ^9.2.0
-  marked: ^15.0.12
   mediabunny: ^1.40.1
   meow: ^14.1.0
   meta-png: ^1.0.6
@@ -303,7 +301,7 @@ catalog:
   mkcert: ^3.2.0
   motion-v: ^2.2.1
   nano-staged: ^1.0.2
-  nanoid: 5.1.6
+  nanoid: ^5.1.9
   node-pty: ^1.1.0
   node-vibrant: ^4.0.4
   nprogress: ^0.2.0
@@ -323,8 +321,8 @@ catalog:
   postcss: ^8.5.10
   postgres: ^3.4.9
   posthog-js: 1.306.1
+  posthog-node: ^5.39.4
   postprocessing: ^6.39.1
-  prettier: ^3.8.4
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0
   prismarine-item: ^1.18.0
@@ -335,7 +333,7 @@ catalog:
   rehype-katex: ^7.0.1
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
-  reka-ui: ^2.9.2
+  reka-ui: ^2.9.6
   remark-math: ^6.0.0
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2
@@ -353,7 +351,6 @@ catalog:
   stockfish: ^18.0.7
   stripe: ^22.0.2
   superjson: ^2.2.6
-  syncpack: ^13.0.4
   taze: ^19.11.0
   telegram: ^2.26.22
   three: ^0.184.0
@@ -362,7 +359,6 @@ catalog:
   tsdown: ^0.21.9
   tsx: ^4.21.0
   turbo: ^2.9.6
-  typedoc: ^0.28.19
   typescript: ^5.9.3
   uiohook-napi: ^1.5.5
   uncrypto: ^0.1.3
@@ -381,7 +377,7 @@ catalog:
   unstorage: ^1.17.5
   uqr: ^0.1.3
   uuid: ^13.0.0
-  valibot: 1.2.0
+  valibot: ^1.3.1
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
   vieval: ^0.0.5
@@ -400,7 +396,7 @@ catalog:
   vue-i18n: ^11.3.2
   vue-macros: ^3.1.2
   vue-router: ^5.0.4
-  vue-sonner: 2.0.9
+  vue-sonner: ^2.0.9
   vue-tsc: ^3.2.6
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
@@ -412,62 +408,23 @@ catalog:
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
   xsschema: 0.5.0-beta.2
-  xstate: ^5.30.0
   yaml: ^2.8.3
   yauzl: ^3.3.0
   zod: ^4.3.6
   zod-to-json-schema: ^3.25.2
 catalogs:
-  capacitor-cli-8-0-0:
-    '@capacitor/cli': ^8.0.0
-  electron-gte-39-lt-41:
-    electron: '>=39 <41'
-  electron-gte-40-lt-42:
-    electron: '>=40 <42'
-  es-toolkit-1-45-1:
-    es-toolkit: ^1.45.1
-  guiiai-logg-gte-1-lt-2:
-    '@guiiai/logg': '>=1 <2'
-  nanoid-5-1-9:
-    nanoid: ^5.1.9
-  proj-airi-unocss-preset-chromatic-1-0-2:
-    '@proj-airi/unocss-preset-chromatic': ^1.0.2
-  reka-ui-2-9-6:
-    reka-ui: ^2.9.6
-  unocss-66-6-7:
-    unocss: ^66.6.7
-  unocss-preset-web-fonts-gte-66:
-    '@unocss/preset-web-fonts': '>=66'
-  unocss-reset-66-6-7:
-    '@unocss/reset': ^66.6.7
-  valibot-1-3-1:
-    valibot: ^1.3.1
-  vite-6-4-2:
-    vite: ^6.4.2
-  vite-7-0-0-or-8-0-0-beta-0:
-    vite: ^7.0.0 || ^8.0.0-beta.0
-  vitejs-plugin-vue-6-0-5:
-    '@vitejs/plugin-vue': ^6.0.5
   vitest:
     '@vitest/browser-playwright': ^4.1.4
     '@vitest/coverage-v8': ^4.1.4
     vitest: ^4.1.4
-  vue-gte-3:
-    vue: '>=3'
-
-  vue-macros-volar-3-0-0-beta-8:
-    '@vue-macros/volar': 3.0.0-beta.8
-  vue-sonner-2-0-9:
-    vue-sonner: ^2.0.9
-  vueuse-core-14-2-1:
-    '@vueuse/core': ^14.2.1
   xsai:
     unspeech: ^0.1.14
+
 ignoredBuiltDependencies:
   - '@ax-llm/ax'
   - '@prisma/client'
   - better-sqlite3
-  - simple-git-hooks # [workaround] postinstall script bundled in simple-git-hooks fails to execute with `enableGlobalVirtualStore: true`. Using local postinstall script to run `npx simple-git-hooks` instead.
+  - simple-git-hooks # [workaround] With `shellEmulator: true`, simple-git-hooks install may fail when no .git dir exists.
 
 onlyBuiltDependencies:
   - '@anthropic-ai/claude-code'
@@ -503,7 +460,7 @@ packageExtensions:
       vue: '*'
   '@huggingface/transformers':
     optionalDependencies:
-      onnxruntime-common: '*'
+      'onnxruntime-common': '*'
   '@intlify/unplugin-vue-i18n':
     peerDependencies:
       vite: '*'
@@ -525,10 +482,10 @@ packageExtensions:
   '@unocss/eslint-plugin':
     peerDependencies:
       '@typescript-eslint/types': '*'
-  vitepress:
+  'vitepress':
     peerDependencies:
       vite: '*'
       vue: '*'
-  vue-sonner:
+  'vue-sonner':
     peerDependencies:
-      vue: ^3.2.0
+      vue: '^3.2.0'

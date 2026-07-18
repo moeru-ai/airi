@@ -38,14 +38,14 @@ describe('store character', () => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
 
-    setCharacterLlmMarkerParserFactoryForTest((options) => ({
+    setCharacterLlmMarkerParserFactoryForTest(options => ({
       async consume(textPart: string) {
         parserConsumeSpy(textPart)
-        if (textPart) await options.onLiteral?.(textPart)
+        if (textPart)
+          await options.onLiteral?.(textPart)
       },
-      end() {
+      async end() {
         parserEndSpy()
-        return Promise.resolve()
       },
     }))
 
@@ -74,6 +74,10 @@ describe('store character', () => {
             consciousness: {
               provider: 'mock-provider',
               model: 'mock-model',
+            },
+            vision: {
+              provider: 'mock-vision-provider',
+              model: 'mock-vision-model',
             },
             speech: {
               provider: 'mock-speech-provider',

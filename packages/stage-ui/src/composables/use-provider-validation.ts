@@ -1,5 +1,7 @@
 import type { RemovableRef } from '@vueuse/core'
 
+import type { ProviderConfigStep, ProviderMode } from './use-analytics'
+
 import { errorMessageFrom } from '@moeru/std'
 import { useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -8,26 +10,41 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 import { useProvidersStore } from '../stores/providers'
+import { useAnalytics } from './use-analytics'
+
+/**
+ * Classifies provider ids into bounded analytics buckets.
+ */
+function providerModeForAnalytics(providerId: string): ProviderMode {
+  if (!providerId)
+    return 'unknown'
+
+  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider')
+    ? 'official'
+    : 'custom'
+}
 
 export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
   const providersStore = useProvidersStore()
-  // NOTICE: Provider config record uses Record<string, unknown> because the store
-  // values are dynamically typed per-provider (apiKey, baseUrl, accountId, etc.).
-  const { providers } = storeToRefs(providersStore) as {
-    providers: RemovableRef<Record<string, Record<string, unknown>>>
-  }
+  const {
+    trackProviderConfigFailed,
+    trackProviderConfigStarted,
+    trackProviderConfigSucceeded,
+  } = useAnalytics()
+  const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
 
   const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
 
   // --- Internal Computed Properties for Credentials ---
-  const credentials = computed(() => (providers.value[providerId] || {}) as Record<string, string>)
+  const credentials = computed(() => providers.value[providerId] || {})
 
   const apiKey = computed({
     get: () => credentials.value.apiKey || '',
     set: (value) => {
-      if (!providers.value[providerId]) providers.value[providerId] = {}
+      if (!providers.value[providerId])
+        providers.value[providerId] = {}
       providers.value[providerId].apiKey = value
     },
   })
@@ -35,7 +52,8 @@ export function useProviderValidation(providerId: string) {
   const baseUrl = computed({
     get: () => credentials.value.baseUrl || '',
     set: (value) => {
-      if (!providers.value[providerId]) providers.value[providerId] = {}
+      if (!providers.value[providerId])
+        providers.value[providerId] = {}
       providers.value[providerId].baseUrl = value
     },
   })
@@ -43,7 +61,8 @@ export function useProviderValidation(providerId: string) {
   const accountId = computed({
     get: () => credentials.value.accountId || '',
     set: (value) => {
-      if (!providers.value[providerId]) providers.value[providerId] = {}
+      if (!providers.value[providerId])
+        providers.value[providerId] = {}
       providers.value[providerId].accountId = value
     },
   })
@@ -55,23 +74,38 @@ export function useProviderValidation(providerId: string) {
   const validationMessage = ref('')
 
   // Manual chat ping check state (settings pages only)
-  const hasManualValidators = computed(() => Boolean(providerMetadata.value?.validators.chatPingCheckAvailable))
+  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.chatPingCheckAvailable)
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
   const manualTestMessage = ref('')
 
+  /**
+   * Builds the stable provider analytics fields shared by validation events.
+   */
+  function providerConfigAnalyticsBase(step: ProviderConfigStep) {
+    return {
+      provider_id: providerId,
+      provider_mode: providerModeForAnalytics(providerId),
+      step,
+    }
+  }
+
   async function validateConfiguration() {
-    if (!providerMetadata.value) return
+    if (!providerMetadata.value)
+      return
 
     isValidating.value++
     validationMessage.value = ''
     const startValidationTimestamp = performance.now()
+    trackProviderConfigStarted(providerConfigAnalyticsBase('settings_auto_validate'))
     let finalValidationMessage = ''
 
     try {
-      const config = { ...credentials.value } as Record<string, string>
-      if (config.apiKey) config.apiKey = config.apiKey.trim()
-      if (config.baseUrl) config.baseUrl = config.baseUrl.trim()
+      const config = { ...credentials.value }
+      if (config.apiKey)
+        config.apiKey = config.apiKey.trim()
+      if (config.baseUrl)
+        config.baseUrl = config.baseUrl.trim()
 
       // Settings pages always skip chat ping check during automatic validation
       // to avoid unexpected API billing. Users can trigger it manually.
@@ -80,7 +114,14 @@ export function useProviderValidation(providerId: string) {
       })
       isValid.value = validationResult.valid
 
-      if (!isValid.value) finalValidationMessage = validationResult.reason
+      if (!isValid.value) {
+        finalValidationMessage = validationResult.reason
+        trackProviderConfigFailed({
+          ...providerConfigAnalyticsBase('settings_auto_validate'),
+          error_code: 'validation_failed',
+          duration_ms: Math.round(performance.now() - startValidationTimestamp),
+        })
+      }
 
       // When a provider validates successfully on its settings page,
       // mark it as added so it appears in the model selector (e.g. Consciousness module).
@@ -88,43 +129,76 @@ export function useProviderValidation(providerId: string) {
       // need an API key, yet should be selectable after successful validation.
       if (isValid.value) {
         providersStore.markProviderAdded(providerId)
+        trackProviderConfigSucceeded({
+          ...providerConfigAnalyticsBase('settings_auto_validate'),
+          duration_ms: Math.round(performance.now() - startValidationTimestamp),
+        })
       }
-    } catch (error) {
+    }
+    catch (error) {
       isValid.value = false
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
-    } finally {
-      setTimeout(
-        () => {
-          isValidating.value--
-          validationMessage.value = finalValidationMessage
-        },
-        Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)),
-      )
+      trackProviderConfigFailed({
+        ...providerConfigAnalyticsBase('settings_auto_validate'),
+        error_code: 'provider_error',
+        duration_ms: Math.round(performance.now() - startValidationTimestamp),
+      })
+    }
+    finally {
+      setTimeout(() => {
+        isValidating.value--
+        validationMessage.value = finalValidationMessage
+      }, Math.max(0, debounceTime - (performance.now() - startValidationTimestamp)))
     }
   }
 
   async function runManualTest() {
-    if (!providerMetadata.value) return
+    if (!providerMetadata.value)
+      return
 
     isManualTesting.value = true
     manualTestMessage.value = ''
+    const startedAt = performance.now()
+    trackProviderConfigStarted(providerConfigAnalyticsBase('manual_chat_ping'))
 
     try {
-      const config = { ...credentials.value } as Record<string, string>
-      if (config.apiKey) config.apiKey = config.apiKey.trim()
-      if (config.baseUrl) config.baseUrl = config.baseUrl.trim()
+      const config = { ...credentials.value }
+      if (config.apiKey)
+        config.apiKey = config.apiKey.trim()
+      if (config.baseUrl)
+        config.baseUrl = config.baseUrl.trim()
 
       const result = await providerMetadata.value.validators.validateProviderConfig(config, {
         onlyChatPingCheck: true,
       })
       manualTestPassed.value = result.valid
-      if (!result.valid) manualTestMessage.value = result.reason
-    } catch (error) {
+      if (result.valid) {
+        trackProviderConfigSucceeded({
+          ...providerConfigAnalyticsBase('manual_chat_ping'),
+          duration_ms: Math.round(performance.now() - startedAt),
+        })
+      }
+      else {
+        manualTestMessage.value = result.reason
+        trackProviderConfigFailed({
+          ...providerConfigAnalyticsBase('manual_chat_ping'),
+          error_code: 'validation_failed',
+          duration_ms: Math.round(performance.now() - startedAt),
+        })
+      }
+    }
+    catch (error) {
       manualTestPassed.value = false
       manualTestMessage.value = errorMessageFrom(error) ?? 'Generic error (e56ae24f)'
-    } finally {
+      trackProviderConfigFailed({
+        ...providerConfigAnalyticsBase('manual_chat_ping'),
+        error_code: 'provider_error',
+        duration_ms: Math.round(performance.now() - startedAt),
+      })
+    }
+    finally {
       isManualTesting.value = false
     }
   }
@@ -136,8 +210,7 @@ export function useProviderValidation(providerId: string) {
     // Only check auth credential fields — excludes config-only fields like region, endpoint
     const hasAnyCredential = AUTH_FIELDS.some((field) => {
       const v = config[field]
-      const isPresent = v !== null && v !== undefined
-      return isPresent && String(v).trim() !== ''
+      return v !== null && v !== undefined && String(v).trim() !== ''
     })
     if (!hasAnyCredential) {
       isValid.value = false
@@ -151,27 +224,20 @@ export function useProviderValidation(providerId: string) {
   onMounted(() => {
     providersStore.initializeProvider(providerId)
     const config = credentials.value as Record<string, unknown>
-    if (
-      AUTH_FIELDS.some((field) => {
-        const v = config[field]
-        const isPresent = v !== null && v !== undefined
-        return isPresent && String(v).trim() !== ''
-      })
-    ) {
+    if (AUTH_FIELDS.some((field) => {
+      const v = config[field]
+      return v !== null && v !== undefined && String(v).trim() !== ''
+    })) {
       validateConfiguration()
     }
   })
 
-  watch(
-    credentials,
-    () => {
-      debouncedValidateConfiguration()
-      // Reset manual test state when credentials change
-      manualTestPassed.value = false
-      manualTestMessage.value = ''
-    },
-    { deep: true },
-  )
+  watch(credentials, () => {
+    debouncedValidateConfiguration()
+    // Reset manual test state when credentials change
+    manualTestPassed.value = false
+    manualTestMessage.value = ''
+  }, { deep: true })
 
   function handleResetSettings() {
     const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}

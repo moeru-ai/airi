@@ -32,9 +32,7 @@ describe('image_journal config snapshot', () => {
       defaultPromptPrefix: { value: 'anime style' },
       providerOptions: { value: { seed: 42 } },
       comfyuiServerUrl: { value: 'http://localhost:8188' },
-      comfyuiSavedWorkflows: {
-        value: [{ id: 'wf-1', name: 'Workflow 1', workflow: {}, exposedFields: {} }],
-      },
+      comfyuiSavedWorkflows: { value: [{ id: 'wf-1' }] },
       comfyuiActiveWorkflow: { value: 'wf-1' },
       replicateApiKey: { value: 'r8_xxx' },
       replicateDefaultModel: { value: 'black-forest-labs/flux-schnell' },
@@ -52,7 +50,7 @@ describe('image_journal config snapshot', () => {
       options: { seed: 42 },
       globals: {
         comfyuiServerUrl: 'http://localhost:8188',
-        comfyuiSavedWorkflows: [{ id: 'wf-1', name: 'Workflow 1', workflow: {}, exposedFields: {} }],
+        comfyuiSavedWorkflows: [{ id: 'wf-1' }],
         comfyuiActiveWorkflow: 'wf-1',
         replicateApiKey: 'r8_xxx',
         replicateDefaultModel: 'black-forest-labs/flux-schnell',

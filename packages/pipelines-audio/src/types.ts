@@ -83,6 +83,7 @@ export interface PlaybackInterruptEvent<TAudio> {
 export interface PlaybackRejectEvent<TAudio> {
   item: PlaybackItem<TAudio>
   reason: string
+  rejectedAt?: number
 }
 
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
@@ -121,10 +122,10 @@ export interface SpeechPipelineEvents<TAudio> {
   onPlaybackReject: (event: PlaybackRejectEvent<TAudio>) => void
   onIntentStart: (intentId: string) => void
   onIntentEnd: (intentId: string) => void
-  onIntentCancel: (event: { intentId: string; reason?: string }) => void
+  onIntentCancel: (event: { intentId: string, reason?: string }) => void
   onTurnStart: (turnId: string) => void
   onTurnEnd: (turnId: string) => void
-  onTurnCancel: (event: { turnId: string; reason?: string }) => void
+  onTurnCancel: (event: { turnId: string, reason?: string }) => void
 }
 
 export interface LoggerLike {

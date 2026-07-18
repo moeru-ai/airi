@@ -6,9 +6,9 @@ import { useAsyncState } from '@vueuse/core'
 import { onUnmounted, watch } from 'vue'
 import { createWLipSyncNode } from 'wlipsync'
 
-import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
-
 import profile from '../../assets/lip-sync-profile.json' with { type: 'json' }
+
+import { useAudioContext } from '../../../../stage-ui/src/stores/audio'
 
 export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, AudioBufferSourceNode | undefined>) {
   const { audioContext } = useAudioContext()
@@ -25,7 +25,7 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
     O: 'oh',
     U: 'ou',
   }
-  const RAW_TO_LIP: Record<(typeof RAW_KEYS)[number], LipKey> = {
+  const RAW_TO_LIP: Record<typeof RAW_KEYS[number], LipKey> = {
     A: 'A',
     E: 'E',
     I: 'I',
@@ -43,31 +43,26 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
   const IDLE_MS = 160
   let lastActiveAt = 0
 
-  watch(
-    [isReady, audioNode],
-    ([ready, newAudioNode], [, oldAudioNode]) => {
-      if (oldAudioNode && oldAudioNode !== newAudioNode) {
-        try {
-          oldAudioNode.disconnect()
-        } catch (error) {
-          console.error('[LipSync] Failed to disconnect old audio node:', error)
-        }
-      }
-      if (!ready || !newAudioNode || !lipSyncNode.value) return
-
+  watch([isReady, audioNode], ([ready, newAudioNode], [, oldAudioNode]) => {
+    if (oldAudioNode && oldAudioNode !== newAudioNode) {
       try {
-        newAudioNode.connect(lipSyncNode.value)
-      } catch (error) {
-        console.error('[LipSync] Failed to connect new audio node:', error)
+        oldAudioNode.disconnect()
       }
-    },
-    { immediate: true },
-  )
+      catch {}
+    }
+    if (!ready || !newAudioNode || !lipSyncNode.value)
+      return
+    try {
+      newAudioNode.connect(lipSyncNode.value)
+    }
+    catch {}
+  }, { immediate: true })
   onUnmounted(() => audioNode.value?.disconnect())
 
   function update(vrm?: VRMCore, delta = 0.016) {
     const node = lipSyncNode.value
-    if (!vrm?.expressionManager || !node) return
+    if (!vrm?.expressionManager || !node)
+      return
 
     const vol = node.volume ?? 0
     const amp = Math.min(vol * 0.9, 1) ** 0.7
@@ -94,7 +89,8 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
         runner = winner
         winnerVal = val
         winner = key
-      } else if (val > runnerVal) {
+      }
+      else if (val > runnerVal) {
         runnerVal = val
         runner = key
       }
@@ -103,8 +99,10 @@ export function useVRMLipSync(audioNode: Ref<AudioBufferSourceNode | undefined, 
     // Detect pause or keep silence
     const now = performance.now()
     let silent = amp < SILENCE_VOL || winnerVal < SILENCE_GAIN
-    if (!silent) lastActiveAt = now
-    if (now - lastActiveAt > IDLE_MS) silent = true
+    if (!silent)
+      lastActiveAt = now
+    if (now - lastActiveAt > IDLE_MS)
+      silent = true
 
     // winner + runner weights
     const target: Record<LipKey, number> = { A: 0, E: 0, I: 0, O: 0, U: 0 }

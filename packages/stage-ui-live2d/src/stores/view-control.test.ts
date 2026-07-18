@@ -35,22 +35,22 @@ describe('useL2dViewControl', () => {
     })
 
     it('should clamp values to max', () => {
-      supportedControl.forEach((key) => composable.set(key, Number.MAX_VALUE))
+      supportedControl.forEach(key => composable.set(key, Number.MAX_VALUE))
       expect(composable.position.value.x).toBe(defaultControlConfig.x.max)
       expect(composable.position.value.y).toBe(defaultControlConfig.y.max)
       expect(composable.scale.value).toBe(defaultControlConfig.scale.max)
     })
 
     it('should clamp values to min', () => {
-      supportedControl.forEach((key) => composable.set(key, -Number.MAX_VALUE))
+      supportedControl.forEach(key => composable.set(key, -Number.MAX_VALUE))
       expect(composable.position.value.x).toBe(defaultControlConfig.x.min)
       expect(composable.position.value.y).toBe(defaultControlConfig.y.min)
       expect(composable.scale.value).toBe(defaultControlConfig.scale.min)
     })
 
     it('should reset to default when value is omitted', () => {
-      supportedControl.forEach((k) => composable.set(k, defaultControlConfig[k].default + 1))
-      supportedControl.forEach((k) => composable.set(k))
+      supportedControl.forEach(k => composable.set(k, defaultControlConfig[k].default + 1))
+      supportedControl.forEach(k => composable.set(k))
       expect(composable.position.value.x).toBe(defaultControlConfig.x.default)
       expect(composable.position.value.y).toBe(defaultControlConfig.y.default)
       expect(composable.scale.value).toBe(defaultControlConfig.scale.default)

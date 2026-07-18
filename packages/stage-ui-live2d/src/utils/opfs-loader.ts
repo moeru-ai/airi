@@ -1,8 +1,44 @@
-import type { Live2DFactoryContext, Middleware, ModelSettings } from 'pixi-live2d-display/cubism4'
+import type { Live2DFactoryContext, Middleware } from 'pixi-live2d-display/cubism4'
+
+import JSZip from 'jszip'
 
 interface OPFSContext extends Live2DFactoryContext {
   opfsKey?: string
   opfsUrl?: string
+  opfsZipBlob?: Blob
+}
+
+interface OPFSCacheMeta {
+  sourceUrl?: string
+  version?: number
+}
+
+/**
+ * Cache schema version for OPFS-stored Live2D zip directories.
+ *
+ * Increment when the persisted directory shape changes.
+ */
+const live2DOpfsCacheVersion = 2
+
+interface IgnoredArchivePathSegmentRule {
+  matches: (segment: string) => boolean
+}
+
+const ignoredArchivePathSegmentRules: IgnoredArchivePathSegmentRule[] = [
+  { matches: segment => segment === '__MACOSX' },
+  { matches: segment => segment.startsWith('._') },
+]
+
+function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
+  return filePath
+    .split('/')
+    .some(segment => ignoredArchivePathSegmentRules.some(rule => rule.matches(segment)))
+}
+
+function blobFromBytes(data: Uint8Array): Blob {
+  const buffer = new ArrayBuffer(data.byteLength)
+  new Uint8Array(buffer).set(data)
+  return new Blob([buffer])
 }
 
 declare global {
@@ -11,279 +47,241 @@ declare global {
   }
 }
 
-async function readDirectoryRecursive(dir: FileSystemDirectoryHandle, pathPrefix: string): Promise<File[]> {
-  const files: File[] = []
-  for await (const entry of dir.values()) {
-    if (entry.kind === 'file') {
-      const fileHandle = entry as FileSystemFileHandle
-      const file = await fileHandle.getFile()
-      if (file.name === '__meta.json') continue
-      // live2d-display expects this
-      Object.defineProperty(file, 'webkitRelativePath', {
-        value: pathPrefix + file.name,
-        writable: false,
-        configurable: true,
-      })
-      files.push(file)
-    } else if (entry.kind === 'directory') {
-      const newPrefix = `${pathPrefix + entry.name}/`
-      const subFiles = await readDirectoryRecursive(entry as FileSystemDirectoryHandle, newPrefix)
-      files.push(...subFiles)
+export class OPFSCache {
+  static async clearAll(): Promise<void> {
+    try {
+      const root = await navigator.storage.getDirectory()
+      for await (const entry of root.values()) {
+        await root.removeEntry(entry.name, { recursive: true })
+      }
+    }
+    catch (e) {
+      console.error('[OPFS] Failed to clear cache:', e)
     }
   }
-  return files
-}
 
-async function resolveDirectory(root: FileSystemDirectoryHandle, path: string): Promise<FileSystemDirectoryHandle> {
-  let currentDir = root
-  if (!path || path === '.' || path === './') return currentDir
-
-  const parts = path.split('/').filter((p) => p && p !== '.')
-  for (const part of parts) {
-    currentDir = await currentDir.getDirectoryHandle(part, { create: true })
-  }
-  return currentDir
-}
-
-async function writeFile(root: FileSystemDirectoryHandle, filePath: string, content: Blob | string): Promise<void> {
-  const parts = filePath.split('/')
-  const fileName = parts.pop()!
-  const dirPath = parts.join('/')
-
-  const dirHandle = await resolveDirectory(root, dirPath)
-  const fileHandle = await dirHandle.getFileHandle(fileName, { create: true })
-  const writable = await fileHandle.createWritable()
-  await writable.write(content)
-  await writable.close()
-}
-
-async function readMeta(dirHandle: FileSystemDirectoryHandle) {
-  try {
-    const metaHandle = await dirHandle.getFileHandle('__meta.json', { create: false })
-    const metaFile = await metaHandle.getFile()
-    const metaText = await metaFile.text()
-    return JSON.parse(metaText) as { sourceUrl?: string }
-  } catch {
-    return null
-  }
-}
-
-export async function clearAll(): Promise<void> {
-  try {
-    const root = await navigator.storage.getDirectory()
-    for await (const entry of root.values()) {
-      await root.removeEntry(entry.name, { recursive: true })
+  static async readDirectoryRecursive(dir: FileSystemDirectoryHandle, pathPrefix: string): Promise<File[]> {
+    const files: File[] = []
+    for await (const entry of dir.values()) {
+      if (entry.kind === 'file') {
+        const fileHandle = entry as FileSystemFileHandle
+        const file = await fileHandle.getFile()
+        const relativePath = pathPrefix + file.name
+        if (file.name === '__meta.json' || shouldIgnoreLive2DArchiveEntry(relativePath))
+          continue
+        // live2d-display expects this
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: relativePath,
+        })
+        files.push(file)
+      }
+      else if (entry.kind === 'directory') {
+        const newPrefix = `${pathPrefix + entry.name}/`
+        const subFiles = await OPFSCache.readDirectoryRecursive(entry as FileSystemDirectoryHandle, newPrefix)
+        files.push(...subFiles)
+      }
     }
-  } catch (e) {
-    const _logger = (..._a: unknown[]) => void 0
-    _logger('[OPFS] Failed to clear cache:', e)
+    return files
   }
-}
 
-export async function get(key: string, sourceUrl: string): Promise<File[] | null> {
-  try {
-    const root = await navigator.storage.getDirectory()
-    const dirHandle = await root.getDirectoryHandle(key, { create: false })
-    const _logger = (..._a: unknown[]) => void 0
-    _logger(`[OPFS] Cache hit for ${key}`)
+  static async resolveDirectory(root: FileSystemDirectoryHandle, path: string): Promise<FileSystemDirectoryHandle> {
+    let currentDir = root
+    if (!path || path === '.' || path === './')
+      return currentDir
 
-    const meta = await readMeta(dirHandle)
-    if (meta?.sourceUrl && meta.sourceUrl !== sourceUrl) {
-      // NOTICE: Skip cache when the requested URL changes while the key stays the same.
-      // This avoids serving a stale model when ids are reused or props are out of sync.
-      const _logger = (..._a: unknown[]) => void 0
-      _logger(`[OPFS] Cache mismatch for ${key}, source url changed`)
-      await root.removeEntry(dirHandle.name, { recursive: true }) // actually invalidates cache
+    const parts = path.split('/').filter(p => p && p !== '.')
+    for (const part of parts) {
+      currentDir = await currentDir.getDirectoryHandle(part, { create: true })
+    }
+    return currentDir
+  }
+
+  private static async clearDirectory(dirHandle: FileSystemDirectoryHandle): Promise<void> {
+    const entryNames: string[] = []
+
+    // OPFS writes mirror the source zip exactly, so stale files from a previous
+    // failed or superseded save must be removed before writing fresh entries.
+    for await (const entry of dirHandle.values()) {
+      entryNames.push(entry.name)
+    }
+
+    await Promise.all(entryNames.map(name => dirHandle.removeEntry(name, { recursive: true })))
+  }
+
+  static async writeFile(root: FileSystemDirectoryHandle, filePath: string, content: Blob | string): Promise<void> {
+    const parts = filePath.split('/')
+    const fileName = parts.pop()!
+    const dirPath = parts.join('/')
+
+    const dirHandle = await OPFSCache.resolveDirectory(root, dirPath)
+    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true })
+    const writable = await fileHandle.createWritable()
+    await writable.write(content)
+    await writable.close()
+  }
+
+  static async readMeta(dirHandle: FileSystemDirectoryHandle) {
+    try {
+      const metaHandle = await dirHandle.getFileHandle('__meta.json', { create: false })
+      const metaFile = await metaHandle.getFile()
+      const metaText = await metaFile.text()
+      return JSON.parse(metaText) as OPFSCacheMeta
+    }
+    catch {
       return null
     }
+  }
 
-    const files = await readDirectoryRecursive(dirHandle, '')
+  static async get(key: string, sourceUrl: string): Promise<File[] | null> {
+    try {
+      const root = await navigator.storage.getDirectory()
+      const dirHandle = await root.getDirectoryHandle(key, { create: false })
+      // eslint-disable-next-line no-console
+      console.debug(`[OPFS] Cache hit for ${key}`)
 
-    if (files.length > 0) {
-      return files
+      const meta = await OPFSCache.readMeta(dirHandle)
+      if (meta?.version !== live2DOpfsCacheVersion) {
+        // NOTICE: Rebuild caches created before OPFS stored the full zip directory.
+        // Older caches may contain a reconstructed model3.json instead of the
+        // original archive settings file.
+        // Source/context: OPFSCache.saveMiddleware settings reconstruction.
+        // Removal condition: old OPFS caches no longer need migration support.
+        // eslint-disable-next-line no-console
+        console.debug(`[OPFS] Cache mismatch for ${key}, schema version changed`)
+        await root.removeEntry(dirHandle.name, { recursive: true })
+        return null
+      }
+
+      const shouldValidateSourceUrl = !sourceUrl.startsWith('blob:')
+      if (shouldValidateSourceUrl && meta.sourceUrl && meta.sourceUrl !== sourceUrl) {
+        // NOTICE: Skip cache when the requested URL changes while the key stays the same.
+        // This avoids serving a stale model when ids are reused or props are out of sync.
+        // eslint-disable-next-line no-console
+        console.debug(`[OPFS] Cache mismatch for ${key}, source url changed`)
+        await root.removeEntry(dirHandle.name, { recursive: true }) // actually invalidates cache
+        return null
+      }
+
+      const files = await OPFSCache.readDirectoryRecursive(dirHandle, '')
+
+      if (files.length > 0) {
+        return files
+      }
     }
-  } catch {
-    // Cache Miss - expected when key doesn't exist
-  }
-  return null
-}
-
-export async function save(key: string, files: File[], sourceUrl?: string): Promise<void> {
-  const _logger = (..._a: unknown[]) => void 0
-  _logger(`[OPFS] Saving ${files.length} files to ${key}`)
-
-  try {
-    const root = await navigator.storage.getDirectory()
-    const dirHandle = await root.getDirectoryHandle(key, { create: true })
-
-    const writePromises: Promise<void>[] = []
-
-    for (const file of files) {
-      const relativePath = file.webkitRelativePath || file.name
-      writePromises.push(writeFile(dirHandle, relativePath, file))
+    catch {
+      // Cache Miss
     }
-
-    await Promise.all(writePromises)
-    if (sourceUrl) {
-      await writeFile(dirHandle, '__meta.json', JSON.stringify({ sourceUrl }))
-    }
-    const _logger = (..._a: unknown[]) => void 0
-    _logger(`[OPFS] Saved to cache`)
-  } catch (e) {
-    const _logger = (..._a: unknown[]) => void 0
-    _logger('[OPFS] Failed to save to cache:', e)
-  }
-}
-
-// Runs before ZipLoader to check if the file is already cached
-export const checkMiddleware: Middleware<OPFSContext> = async (context, next) => {
-  const source = context.source
-  let key: string | undefined
-  let blobUrl: string | undefined
-
-  // In Model.vue, we pass {id, url} to the loader, extract them here
-  if (typeof source === 'object' && source !== null && 'id' in source && 'url' in source) {
-    key = source.id
-    blobUrl = source.url
-  } else {
-    return next()
+    return null
   }
 
-  // check if url is blob or zip, pass through if not
-  if (!key || !blobUrl || (!blobUrl.startsWith('blob:') && !blobUrl.endsWith('.zip'))) {
-    context.source = blobUrl
-    return next()
-  }
+  /**
+   * Persists every non-directory entry from a Live2D zip into OPFS.
+   *
+   * Use when:
+   * - Caching a loaded Live2D zip for later FileLoader replay
+   * - Preserving the original model3.json and archive paths exactly
+   *
+   * Expects:
+   * - `zipBlob` is the original archive blob fetched by checkMiddleware
+   * - ZIP entry paths are already the physical paths to persist
+   *
+   * Returns:
+   * - A completed OPFS directory write, or logs and returns on cache write failure
+   */
+  static async save(key: string, zipBlob: Blob, sourceUrl?: string): Promise<void> {
+    try {
+      const zip = await JSZip.loadAsync(await zipBlob.arrayBuffer())
+      const fileEntries = Object.values(zip.files)
+        .filter(file => !file.dir && !shouldIgnoreLive2DArchiveEntry(file.name))
 
-  const files = await get(key, blobUrl)
+      // eslint-disable-next-line no-console
+      console.debug(`[OPFS] Saving ${fileEntries.length} zip entries to ${key}`)
 
-  if (files) {
-    // cache hit
-    context.source = files
-    return next()
-  }
+      const root = await navigator.storage.getDirectory()
+      const dirHandle = await root.getDirectoryHandle(key, { create: true })
+      await OPFSCache.clearDirectory(dirHandle)
 
-  // cache miss
-  const _logger = (..._a: unknown[]) => void 0
-  _logger(`[OPFS] Cache miss for ${key}`)
-  context.opfsKey = key
-  context.opfsUrl = blobUrl
-
-  try {
-    const res = await fetch(blobUrl)
-    const blob = await res.blob()
-    const fileName = `${key}.zip`
-    context.source = [new File([blob], fileName)]
-  } catch (e) {
-    const _logger = (..._a: unknown[]) => void 0
-    _logger(`[OPFS] Failed to fetch blob for ${key}`, e)
-    throw e
-  }
-
-  return next()
-}
-
-// Runs after ZipLoader to cache the files
-export const saveMiddleware: Middleware<OPFSContext> = async (context, next) => {
-  if (!context.opfsKey || !Array.isArray(context.source)) {
-    return next()
-  }
-
-  const files = context.source as File[]
-
-  if (files.length === 0 || !(files[0] instanceof File)) {
-    return next()
-  }
-
-  const settingsFile = files.find((f) => f.name.endsWith('.model.json') || f.name.endsWith('.model3.json'))
-  if (!settingsFile) {
-    // reconstruct settings files from ModelSettings
-    const settings: ModelSettings = (files as unknown as { settings: ModelSettings }).settings
-    if (settings) {
-      const _logger = (..._a: unknown[]) => void 0
-      _logger('[OPFS] Reconstructing settings file...')
-      const settingsText = encodeModelSettings(settings.json as Record<string, unknown>)
-      const settingsFilePath = settings.url || 'model.model3.json'
-      const newSettingsFile = new File([settingsText], settingsFilePath)
-      Object.defineProperty(newSettingsFile, 'webkitRelativePath', {
-        value: encodeURI(settingsFilePath),
-        writable: false,
-        configurable: true,
+      const writePromises = fileEntries.map(async (file) => {
+        const data = await file.async('uint8array')
+        return OPFSCache.writeFile(dirHandle, file.name, blobFromBytes(data))
       })
-      files.push(newSettingsFile)
+
+      await Promise.all(writePromises)
+      await OPFSCache.writeFile(dirHandle, '__meta.json', JSON.stringify({
+        sourceUrl,
+        version: live2DOpfsCacheVersion,
+      }))
+      // eslint-disable-next-line no-console
+      console.debug(`[OPFS] Saved to cache`)
     }
-    delete (context.source as unknown as { settings?: ModelSettings }).settings
+    catch (e) {
+      console.error('[OPFS] Failed to save to cache:', e)
+    }
   }
-  await save(context.opfsKey, files, context.opfsUrl)
 
-  return next()
-}
+  // Runs before ZipLoader to check if the file is already cached
+  static checkMiddleware: Middleware<OPFSContext> = async (context, next) => {
+    const source = context.source
+    let key: string | undefined
+    let blobUrl: string | undefined
 
-// Backward-compatible namespace export for existing consumers
-export const OPFSCache = {
-  clearAll,
-  get,
-  save,
-  checkMiddleware,
-  saveMiddleware,
-} as const
+    // In Model.vue, we pass {id, url} to the loader, extract them here
+    if (
+      typeof source === 'object'
+      && source !== null
+      && 'id' in source
+      && 'url' in source
+    ) {
+      key = source.id
+      blobUrl = source.url
+    }
+    else {
+      return next()
+    }
 
-function encodeProperty(obj: Record<string, unknown>, path: string): void {
-  let cursor: unknown = obj
-  const propPath = path.split('.')
-  // will lose reference when access to the last level
-  while (
-    propPath.length > 1 &&
-    cursor !== null &&
-    cursor !== undefined &&
-    typeof cursor === 'object' &&
-    propPath[0] in (cursor as Record<string, unknown>)
-  ) {
-    cursor = (cursor as Record<string, unknown>)[propPath.shift()!]
+    // check if url is blob or zip, pass through if not
+    if (!key || !blobUrl || (!blobUrl.startsWith('blob:') && !blobUrl.endsWith('.zip'))) {
+      context.source = blobUrl
+      return next()
+    }
+
+    const files = await OPFSCache.get(key, blobUrl)
+
+    if (files) {
+      // cache hit
+      context.source = files
+      return next()
+    }
+
+    // cache miss
+    // eslint-disable-next-line no-console
+    console.debug(`[OPFS] Cache miss for ${key}`)
+    context.opfsKey = key
+    context.opfsUrl = blobUrl
+
+    try {
+      const res = await fetch(blobUrl)
+      const blob = await res.blob()
+      const fileName = `${key}.zip`
+      context.opfsZipBlob = blob
+      context.source = [new File([blob], fileName)]
+    }
+    catch (e) {
+      console.error(`[OPFS] Failed to fetch blob for ${key}`, e)
+      throw e
+    }
+
+    return next()
   }
-  if (
-    cursor === null ||
-    cursor === undefined ||
-    (cursor as Record<string, unknown>)[propPath[0]] === null ||
-    (cursor as Record<string, unknown>)[propPath[0]] === undefined
-  ) {
-    return
+
+  // Runs after ZipLoader to cache the files
+  static saveMiddleware: Middleware<OPFSContext> = async (context, next) => {
+    if (!context.opfsKey || !context.opfsZipBlob) {
+      return next()
+    }
+
+    await OPFSCache.save(context.opfsKey, context.opfsZipBlob, context.opfsUrl)
+
+    return next()
   }
-  if (typeof (cursor as Record<string, unknown>)[propPath[0]] === 'string') {
-    ;(cursor as Record<string, unknown>)[propPath[0]] = encodeURI(
-      (cursor as Record<string, unknown>)[propPath[0]] as string,
-    )
-  }
-  if (
-    Array.isArray((cursor as Record<string, unknown>)[propPath[0]]) &&
-    typeof ((cursor as Record<string, unknown>)[propPath[0]] as unknown[])[0] === 'string'
-  ) {
-    ;(cursor as Record<string, unknown>)[propPath[0]] = (
-      (cursor as Record<string, unknown>)[propPath[0]] as string[]
-    ).map((s: string) => encodeURI(s))
-  }
-}
-// TODO: find all file paths and encode them by recursively visiting the settings
-function encodeModelSettings(input: Record<string, unknown>): string {
-  const settings = JSON.parse(JSON.stringify(input))
-  const propertyToEncode = [
-    'FileReferences.DisplayInfo',
-    'FileReferences.Moc',
-    'FileReferences.Textures',
-    'FileReferences.Physics',
-    'url',
-  ]
-  propertyToEncode.forEach((k) => encodeProperty(settings, k))
-  settings?.FileReferences?.Expressions?.map((exp: { Name: string; File: string }) => {
-    exp.File = encodeURI(exp.File)
-    return exp
-  })
-  Object.keys(settings?.FileReferences?.Motions ?? {}).forEach((k) => {
-    if (!Array.isArray(settings?.FileReferences?.Motions[k])) return // not sure whether 'Motions' is of type Record<string,[]>, assume it is for now.
-    settings?.FileReferences?.Motions[k].map((exp: { File: string }) => {
-      exp.File = encodeURI(exp.File)
-      return exp
-    })
-  })
-  return JSON.stringify(settings)
 }

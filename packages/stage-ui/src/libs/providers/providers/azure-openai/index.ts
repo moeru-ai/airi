@@ -16,9 +16,16 @@ const CHAT_COMPLETIONS_PATH_REGEX = /\/chat\/completions\/?$/i
 const TRAILING_SLASH_REGEX = /\/$/
 
 const azureOpenAIConfigSchema = z.object({
-  apiKey: z.string('API Key'),
-  baseUrl: z.string('Base URL').optional().default(DEFAULT_AZURE_BASE_URL),
-  completionsApiVersion: z.string('Completions API Version').optional().default(DEFAULT_COMPLETIONS_API_VERSION),
+  apiKey: z
+    .string('API Key'),
+  baseUrl: z
+    .string('Base URL')
+    .optional()
+    .default(DEFAULT_AZURE_BASE_URL),
+  completionsApiVersion: z
+    .string('Completions API Version')
+    .optional()
+    .default(DEFAULT_COMPLETIONS_API_VERSION),
 })
 
 type AzureOpenAIConfig = z.input<typeof azureOpenAIConfigSchema>
@@ -41,8 +48,8 @@ function resolveProviderBaseUrl(input: string): string {
     if (DEPLOYMENT_CHAT_COMPLETIONS_PATH_REGEX.test(parsed.pathname) || OPENAI_PATH_REGEX.test(parsed.pathname)) {
       return `${parsed.origin}/openai/v1`
     }
-  } catch {
-    // noop
+  }
+  catch {
   }
 
   return trimmed.endsWith('/') ? trimmed.slice(0, -1) : trimmed
@@ -72,14 +79,14 @@ function parseAzureEndpointHints(baseUrl: string | undefined): AzureEndpointHint
       origin: parsed.origin,
       apiVersionFromUrl,
     }
-  } catch {
+  }
+  catch {
     return { origin: FALLBACK_AZURE_ORIGIN }
   }
 }
 
 function resolveCompletionsApiVersion(config: AzureOpenAIConfig, hints: AzureEndpointHints): string {
-  const versionFromUrl = hints.apiVersionFromUrl || config.completionsApiVersion
-  return (versionFromUrl || DEFAULT_COMPLETIONS_API_VERSION).trim()
+  return (hints.apiVersionFromUrl || config.completionsApiVersion || DEFAULT_COMPLETIONS_API_VERSION).trim()
 }
 
 function resolveConfiguredDeployments(config: AzureOpenAIConfig): string[] {
@@ -87,22 +94,11 @@ function resolveConfiguredDeployments(config: AzureOpenAIConfig): string[] {
   return endpointHints.completionsDeployment ? [endpointHints.completionsDeployment] : []
 }
 
-interface ChatCompletionsRequestBody {
-  messages?: unknown[]
-  max_completion_tokens?: number
-  max_output_tokens?: number
-  max_tokens?: number
-  input?: unknown
-  model?: string
-  [key: string]: unknown
-}
-
-function mapChatBodyToCompletions(body: ChatCompletionsRequestBody | null): Record<string, unknown> {
-  const safeBody: ChatCompletionsRequestBody = body ?? {}
+function mapChatBodyToCompletions(body: any): Record<string, unknown> {
   const mappedBody: Record<string, unknown> = {
-    ...safeBody,
-    messages: safeBody.messages,
-    max_completion_tokens: safeBody.max_completion_tokens ?? safeBody.max_output_tokens ?? safeBody.max_tokens,
+    ...body,
+    messages: body?.messages,
+    max_completion_tokens: body?.max_completion_tokens ?? body?.max_output_tokens ?? body?.max_tokens,
   }
 
   delete mappedBody.input
@@ -116,51 +112,44 @@ function createAzureOpenAIFetch(config: AzureOpenAIConfig) {
   const completionsApiVersion = resolveCompletionsApiVersion(config, endpointHints)
   const apiKey = (config.apiKey || '').trim()
 
-  return (input: RequestInfo | URL, init?: RequestInit) => {
-    return (async () => {
-      const request = new Request(input, init)
-      const url = new URL(request.url)
-      const isChatCompletionsCall =
-        request.method.toUpperCase() === 'POST' && CHAT_COMPLETIONS_PATH_REGEX.test(url.pathname)
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init)
+    const url = new URL(request.url)
+    const isChatCompletionsCall = request.method.toUpperCase() === 'POST' && CHAT_COMPLETIONS_PATH_REGEX.test(url.pathname)
 
-      if (!isChatCompletionsCall) {
-        return fetch(request)
-      }
+    if (!isChatCompletionsCall) {
+      return fetch(request)
+    }
 
-      const requestBody = await request
-        .clone()
-        .json()
-        .catch(() => null)
-      if (!requestBody) {
-        return fetch(request)
-      }
+    const requestBody = await request.clone().json().catch(() => null)
+    if (!requestBody) {
+      return fetch(request)
+    }
 
-      const deployment =
-        endpointHints.completionsDeployment || (typeof requestBody?.model === 'string' ? requestBody.model.trim() : '')
-      if (!deployment) {
-        return fetch(request)
-      }
+    const deployment = endpointHints.completionsDeployment || (typeof requestBody?.model === 'string' ? requestBody.model.trim() : '')
+    if (!deployment) {
+      return fetch(request)
+    }
 
-      const completionsUrl = endpointHints.completionsUrl
-        ? new URL(endpointHints.completionsUrl)
-        : new URL(`${endpointHints.origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions`)
+    const completionsUrl = endpointHints.completionsUrl
+      ? new URL(endpointHints.completionsUrl)
+      : new URL(`${endpointHints.origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions`)
 
-      if (!completionsUrl.searchParams.get('api-version')) {
-        completionsUrl.searchParams.set('api-version', completionsApiVersion)
-      }
+    if (!completionsUrl.searchParams.get('api-version')) {
+      completionsUrl.searchParams.set('api-version', completionsApiVersion)
+    }
 
-      const headers = new Headers(request.headers)
-      headers.set('api-key', apiKey)
-      headers.set('content-type', 'application/json')
+    const headers = new Headers(request.headers)
+    headers.set('api-key', apiKey)
+    headers.set('content-type', 'application/json')
 
-      const mappedBody = mapChatBodyToCompletions(requestBody)
-      return fetch(completionsUrl.toString(), {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(mappedBody),
-        signal: request.signal,
-      })
-    })()
+    const mappedBody = mapChatBodyToCompletions(requestBody)
+    return fetch(completionsUrl.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(mappedBody),
+      signal: request.signal,
+    })
   }
 }
 
@@ -174,103 +163,102 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
   tasks: ['chat'],
   icon: 'i-simple-icons:microsoftazure',
   extraMethods: {
-    listModels: (config, _provider) => {
-      return Promise.resolve(
-        resolveConfiguredDeployments(config).map((model) => ({
-          id: model,
-          name: model,
-          provider: AZURE_OPENAI_PROVIDER_ID,
-          description: 'Azure deployment',
-        })),
-      )
+    listModels: async (config, _provider) => {
+      return resolveConfiguredDeployments(config).map(model => ({
+        id: model,
+        name: model,
+        provider: AZURE_OPENAI_PROVIDER_ID,
+        description: 'Azure deployment',
+      }))
     },
   },
 
-  createProviderConfig: ({ t }) =>
-    azureOpenAIConfigSchema.extend({
-      apiKey: azureOpenAIConfigSchema.shape.apiKey.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-        type: 'password',
-      }),
-      baseUrl: azureOpenAIConfigSchema.shape.baseUrl.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: 'Azure endpoint or full Chat Completions URL. Full URL is recommended.',
-        placeholderLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
-        ),
-      }),
-      completionsApiVersion: azureOpenAIConfigSchema.shape.completionsApiVersion.meta({
-        labelLocalized: 'Completions API Version',
-        descriptionLocalized: 'Used for Azure Chat Completions API requests.',
-        placeholderLocalized: '2024-04-01-preview',
-        section: 'advanced',
-      }),
+  createProviderConfig: ({ t }) => azureOpenAIConfigSchema.extend({
+    apiKey: azureOpenAIConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
     }),
+    baseUrl: azureOpenAIConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: 'Azure endpoint or full Chat Completions URL. Full URL is recommended.',
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+    completionsApiVersion: azureOpenAIConfigSchema.shape.completionsApiVersion.meta({
+      labelLocalized: 'Completions API Version',
+      descriptionLocalized: 'Used for Azure Chat Completions API requests.',
+      placeholderLocalized: '2024-04-01-preview',
+      section: 'advanced',
+    }),
+  }),
   createProvider(config) {
     const normalizedBaseUrl = resolveProviderBaseUrl(config.baseUrl || DEFAULT_AZURE_BASE_URL)
-    const provider = createOpenAI(config.apiKey || '', normalizedBaseUrl)
+    const provider = createOpenAI(config.apiKey || '', normalizedBaseUrl) as any
     const fetch = createAzureOpenAIFetch(config)
 
     return {
       ...provider,
-      model: (...args: Parameters<typeof provider.model>) => ({
+      model: (...args: any[]) => ({
         ...provider.model(...args),
         fetch,
       }),
-      chat: (model: string) => ({
-        ...provider.chat(model),
+      chat: (...args: any[]) => ({
+        ...provider.chat(...args),
         fetch,
       }),
-      embed: (model: string) => ({
-        ...provider.embed(model),
+      embed: (...args: any[]) => ({
+        ...provider.embed(...args),
         fetch,
       }),
-      image: (model: string) => ({
-        ...provider.image(model),
+      image: (...args: any[]) => ({
+        ...provider.image(...args),
         fetch,
       }),
-      speech: (model: string) => ({
-        ...provider.speech(model),
+      speech: (...args: any[]) => ({
+        ...provider.speech(...args),
         fetch,
       }),
-      transcription: (model: string) => ({
-        ...provider.transcription(model),
+      transcription: (...args: any[]) => ({
+        ...provider.transcription(...args),
         fetch,
       }),
     }
   },
 
   validationRequiredWhen(config) {
-    return Boolean(config.apiKey?.trim())
+    return !!config.apiKey?.trim()
   },
   validators: {
     validateConfig: [
       ({ t }) => ({
         id: 'azure-openai:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: (config) => {
+        validator: async (config) => {
           const errors: Array<{ error: unknown }> = []
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
-          if (!apiKey) errors.push({ error: new Error('API key is required.') })
+          if (!apiKey)
+            errors.push({ error: new Error('API key is required.') })
 
           if (!baseUrl) {
             errors.push({ error: new Error('Base URL is required.') })
-          } else {
+          }
+          else {
             try {
               const parsed = new URL(baseUrl)
-              if (!parsed.host) errors.push({ error: new Error('Base URL is not absolute. Check your input.') })
-            } catch {
+              if (!parsed.host)
+                errors.push({ error: new Error('Base URL is not absolute. Check your input.') })
+            }
+            catch {
               errors.push({ error: new Error('Base URL is invalid. It must be an absolute URL.') })
             }
           }
 
           return {
             errors,
-            reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
+            reason: errors.length > 0 ? errors.map(item => (item.error as Error).message).join(', ') : '',
             reasonKey: '',
             valid: errors.length === 0,
           }
@@ -281,7 +269,7 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
       ({ t }) => ({
         id: 'azure-openai:check-completions-connectivity',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
-        validator: (config) => {
+        validator: async (config) => {
           const errors: Array<{ error: unknown }> = []
 
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
@@ -291,111 +279,93 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig>({
           const deployment = endpointHints.completionsDeployment || ''
 
           if (!apiKey || !baseUrlRaw) {
-            return Promise.resolve({
+            return {
               errors: [{ error: new Error('API key and Base URL are required.') }],
               reason: 'API key and Base URL are required.',
               reasonKey: '',
               valid: false,
-            })
+            }
           }
 
-          const resultPromise = !deployment
-            ? (() => {
-                const normalizedBaseUrl = resolveProviderBaseUrl(baseUrlRaw)
-                const modelsUrl = new URL(`${normalizedBaseUrl.replace(TRAILING_SLASH_REGEX, '')}/models`)
-                return fetch(modelsUrl.toString(), {
-                  method: 'GET',
-                  headers: { 'api-key': apiKey },
-                }).then(async (response) => {
-                  if (response.status === 401 || response.status === 403) {
-                    const responseText = await response.text()
-                    errors.push({
-                      error: new Error(
-                        `Authentication failed (${response.status}). Check API key / endpoint. Response: ${responseText || 'empty'}`,
-                      ),
-                    })
-                  } else if (response.status >= 500) {
-                    const responseText = await response.text()
-                    errors.push({
-                      error: new Error(`Server error (${response.status}). Response: ${responseText || 'empty'}`),
-                    })
-                  }
-                })
-              })()
-            : (() => {
-                const completionsUrl = endpointHints.completionsUrl
-                  ? new URL(endpointHints.completionsUrl)
-                  : new URL(
-                      `${endpointHints.origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions`,
-                    )
+          try {
+            if (!deployment) {
+              const normalizedBaseUrl = resolveProviderBaseUrl(baseUrlRaw)
+              const modelsUrl = new URL(`${normalizedBaseUrl.replace(TRAILING_SLASH_REGEX, '')}/models`)
+              const response = await fetch(modelsUrl.toString(), {
+                method: 'GET',
+                headers: {
+                  'api-key': apiKey,
+                },
+              })
 
-                if (!completionsUrl.searchParams.get('api-version')) {
-                  completionsUrl.searchParams.set('api-version', completionsApiVersion)
+              if (response.status === 401 || response.status === 403) {
+                const responseText = await response.text()
+                errors.push({ error: new Error(`Authentication failed (${response.status}). Check API key / endpoint. Response: ${responseText || 'empty'}`) })
+              }
+              else if (response.status >= 500) {
+                const responseText = await response.text()
+                errors.push({ error: new Error(`Server error (${response.status}). Response: ${responseText || 'empty'}`) })
+              }
+            }
+            else {
+              const completionsUrl = endpointHints.completionsUrl
+                ? new URL(endpointHints.completionsUrl)
+                : new URL(`${endpointHints.origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions`)
+
+              if (!completionsUrl.searchParams.get('api-version')) {
+                completionsUrl.searchParams.set('api-version', completionsApiVersion)
+              }
+
+              const response = await fetch(completionsUrl.toString(), {
+                method: 'POST',
+                headers: {
+                  'api-key': apiKey,
+                  'content-type': 'application/json',
+                },
+                body: JSON.stringify({
+                  model: deployment,
+                  messages: [{ role: 'user', content: 'ping' }],
+                  max_tokens: 1,
+                }),
+              })
+
+              if (response.status >= 400) {
+                const responseText = await response.text()
+
+                if (response.status === 400) {
+                  return {
+                    errors,
+                    reason: '',
+                    reasonKey: '',
+                    valid: true,
+                  }
                 }
 
-                return fetch(completionsUrl.toString(), {
-                  method: 'POST',
-                  headers: {
-                    'api-key': apiKey,
-                    'content-type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    model: deployment,
-                    messages: [{ role: 'user', content: 'ping' }],
-                    max_tokens: 1,
-                  }),
-                }).then(async (response) => {
-                  if (response.status >= 400) {
-                    const responseText = await response.text()
+                if (response.status === 401 || response.status === 403) {
+                  errors.push({ error: new Error(`Authentication failed (${response.status}). Check API key / endpoint. Response: ${responseText || 'empty'}`) })
+                }
+                else if (response.status === 404) {
+                  errors.push({ error: new Error(`Deployment or endpoint not found (${response.status}). Check Base URL and API version. Response: ${responseText || 'empty'}`) })
+                }
+                else if (response.status >= 500) {
+                  errors.push({ error: new Error(`Server error (${response.status}). Response: ${responseText || 'empty'}`) })
+                }
+                else {
+                  errors.push({ error: new Error(`Completions connectivity check returned ${response.status}. Response: ${responseText || 'empty'}`) })
+                }
+              }
+            }
+          }
+          catch (error) {
+            errors.push({ error: new Error(`Connectivity check failed: ${errorMessageFrom(error) || 'Unknown error.'}`) })
+          }
 
-                    if (response.status === 400) {
-                      return {
-                        errors,
-                        reason: '',
-                        reasonKey: '',
-                        valid: true,
-                      }
-                    }
-
-                    if (response.status === 401 || response.status === 403) {
-                      errors.push({
-                        error: new Error(
-                          `Authentication failed (${response.status}). Check API key / endpoint. Response: ${responseText || 'empty'}`,
-                        ),
-                      })
-                    } else if (response.status === 404) {
-                      errors.push({
-                        error: new Error(
-                          `Deployment or endpoint not found (${response.status}). Check Base URL and API version. Response: ${responseText || 'empty'}`,
-                        ),
-                      })
-                    } else if (response.status >= 500) {
-                      errors.push({
-                        error: new Error(`Server error (${response.status}). Response: ${responseText || 'empty'}`),
-                      })
-                    } else {
-                      errors.push({
-                        error: new Error(
-                          `Completions connectivity check returned ${response.status}. Response: ${responseText || 'empty'}`,
-                        ),
-                      })
-                    }
-                  }
-                })
-              })()
-
-          return resultPromise
-            .catch((error) => {
-              errors.push({
-                error: new Error(`Connectivity check failed: ${errorMessageFrom(error) || 'Unknown error.'}`),
-              })
-            })
-            .then(() => ({
-              errors,
-              reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
-              reasonKey: '',
-              valid: errors.length === 0,
-            }))
+          return {
+            errors,
+            reason: errors.length > 0 ? errors.map(item => (item.error as Error).message).join(', ') : '',
+            reasonKey: '',
+            valid: errors.length === 0,
+          }
         },
       }),
     ],

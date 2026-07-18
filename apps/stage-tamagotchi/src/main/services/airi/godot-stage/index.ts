@@ -1,3 +1,6 @@
+import type { ChildProcessByStdio } from 'node:child_process'
+import type { Readable } from 'node:stream'
+
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type {
   StageViewErrorPayload,
@@ -5,20 +8,20 @@ import type {
   StageViewRequestAckPayload,
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
-
 import type { BrowserWindow } from 'electron'
-import type { ChildProcessByStdio } from 'node:child_process'
-import type { Readable } from 'node:stream'
 import type { InferOutput } from 'valibot'
 
-import type { ElectronGodotStageSceneInputPayload, ElectronGodotStageStatus } from '../../../../shared/eventa'
+import type {
+  ElectronGodotStageSceneInputPayload,
+  ElectronGodotStageStatus,
+} from '../../../../shared/eventa'
+
+import process from 'node:process'
 
 import { spawn } from 'node:child_process'
-
 import { randomUUID } from 'node:crypto'
 import { access, mkdir, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
-import process from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -154,7 +157,8 @@ function createListenerChannel<T>(onListenerError: (error: unknown) => void): Li
       for (const listener of listeners) {
         try {
           listener(payload)
-        } catch (error) {
+        }
+        catch (error) {
           onListenerError(error)
         }
       }
@@ -183,11 +187,8 @@ function createSocketEnvelope(type: string, payload?: unknown) {
 
 function waitForProcessExit(exitPromise: Promise<void>, timeoutMs: number) {
   return Promise.race([
-    exitPromise.then(
-      () => true,
-      () => false,
-    ),
-    new Promise<boolean>((resolve) => setTimeout(resolve, timeoutMs, false)),
+    exitPromise.then(() => true, () => false),
+    new Promise<boolean>(resolve => setTimeout(resolve, timeoutMs, false)),
   ])
 }
 
@@ -208,7 +209,8 @@ function normalizeFileName(fileName: string) {
 function parseSocketMessage(message: GodotStageMessage): GodotStageSocketEnvelope {
   const parsed = safeDestr<unknown>(message.text(), { strict: true })
   const result = safeParse(godotStageSocketEnvelopeSchema, parsed)
-  if (!result.success) throw new Error('Invalid Godot stage WebSocket envelope.')
+  if (!result.success)
+    throw new Error('Invalid Godot stage WebSocket envelope.')
 
   return result.output
 }
@@ -224,7 +226,8 @@ function getPayloadMessage(payload: unknown) {
 
 function parseSceneInputPayload(payload: unknown): ElectronGodotStageSceneInputPayload {
   const result = safeParse(godotStageSceneInputPayloadSchema, payload)
-  if (!result.success) throw new Error('Invalid Godot stage scene input payload.')
+  if (!result.success)
+    throw new Error('Invalid Godot stage scene input payload.')
 
   return result.output
 }
@@ -249,6 +252,15 @@ function resolveGodotStageDebugLaunchOptions() {
   }
 }
 
+function resolveGodotStageProcessEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    AIRI_GODOT_STAGE_DEV_MODE: app.isPackaged
+      ? process.env.AIRI_GODOT_STAGE_DEV_MODE ?? '0'
+      : process.env.AIRI_GODOT_STAGE_DEV_MODE ?? '1',
+  }
+}
+
 interface GodotBinaryResolution {
   executable: string
   mode: 'engine' | 'exported'
@@ -264,9 +276,8 @@ async function resolveGodotProjectPath() {
     try {
       await access(join(projectPath, 'project.godot'))
       return projectPath
-    } catch {
-      // noop
     }
+    catch {}
 
     const parentDirectory = dirname(currentDirectory)
     if (parentDirectory === currentDirectory) {
@@ -286,9 +297,11 @@ async function resolveExportedGodotBinary(): Promise<string | undefined> {
 
   if (platform === 'win32') {
     binaryName = 'godot-stage.exe'
-  } else if (platform === 'darwin') {
+  }
+  else if (platform === 'darwin') {
     binaryName = join('godot-stage.app', 'Contents', 'MacOS', 'godot-stage')
-  } else {
+  }
+  else {
     binaryName = 'godot-stage'
   }
 
@@ -297,7 +310,8 @@ async function resolveExportedGodotBinary(): Promise<string | undefined> {
   try {
     await access(binaryPath)
     return binaryPath
-  } catch {
+  }
+  catch {
     return undefined
   }
 }
@@ -306,23 +320,24 @@ async function validateConfiguredGodotEnginePath(executable: string) {
   let executableStats
   try {
     executableStats = await stat(executable)
-  } catch (error) {
+  }
+  catch (error) {
     throw new Error(
-      'GODOT4 points to a missing Godot executable.\n' +
-        `Configured path: ${executable}\n` +
-        'Set GODOT4 to the absolute path of your Godot 4.x .NET/Mono executable before starting dev mode.\n' +
-        `Original error: ${errorMessageFrom(error) ?? 'unknown error'}`,
+      'GODOT4 points to a missing Godot executable.\n'
+      + `Configured path: ${executable}\n`
+      + 'Set GODOT4 to the absolute path of your Godot 4.x .NET/Mono executable before starting dev mode.\n'
+      + `Original error: ${errorMessageFrom(error) ?? 'unknown error'}`,
     )
   }
 
   if (!executableStats.isFile()) {
     throw new Error(
-      'GODOT4 must point to the Godot executable file, not a directory or app bundle.\n' +
-        `Configured path: ${executable}\n` +
-        'Examples:\n' +
-        '  Windows: C:\\Path\\To\\Godot_v4.x-stable_mono_win64.exe\n' +
-        '  macOS: /Applications/Godot_mono.app/Contents/MacOS/Godot\n' +
-        '  Linux: /path/to/Godot_v4.x-stable_mono_linux.x86_64',
+      'GODOT4 must point to the Godot executable file, not a directory or app bundle.\n'
+      + `Configured path: ${executable}\n`
+      + 'Examples:\n'
+      + '  Windows: C:\\Path\\To\\Godot_v4.x-stable_mono_win64.exe\n'
+      + '  macOS: /Applications/Godot_mono.app/Contents/MacOS/Godot\n'
+      + '  Linux: /path/to/Godot_v4.x-stable_mono_linux.x86_64',
     )
   }
 }
@@ -334,17 +349,20 @@ async function resolveGodotBinary(): Promise<GodotBinaryResolution> {
       return { executable: exported, mode: 'exported' }
     }
 
-    throw new Error(`Godot stage exported binary not found. Expected at: ${join(process.resourcesPath, 'godot-stage')}`)
+    throw new Error(
+      'Godot stage exported binary not found. '
+      + `Expected at: ${join(process.resourcesPath, 'godot-stage')}`,
+    )
   }
 
   const envPath = process.env.GODOT4?.trim()
   if (!envPath) {
     throw new Error(
-      'GODOT4 is required to start Godot Stage in development mode.\n' +
-        'Set GODOT4 to the absolute path of your Godot 4.x .NET/Mono executable, then restart the Electron dev app.\n' +
-        'Examples:\n' +
-        '  PowerShell: $env:GODOT4 = "C:\\Path\\To\\Godot_v4.x-stable_mono_win64.exe"\n' +
-        '  Bash: export GODOT4="/path/to/godot"',
+      'GODOT4 is required to start Godot Stage in development mode.\n'
+      + 'Set GODOT4 to the absolute path of your Godot 4.x .NET/Mono executable, then restart the Electron dev app.\n'
+      + 'Examples:\n'
+      + '  PowerShell: $env:GODOT4 = "C:\\Path\\To\\Godot_v4.x-stable_mono_win64.exe"\n'
+      + '  Bash: export GODOT4="/path/to/godot"',
     )
   }
 
@@ -365,14 +383,14 @@ async function resolveGodotBinary(): Promise<GodotBinaryResolution> {
 export function createGodotStageManager(): GodotStageManager {
   const log = useLogg('main/godot-stage').useGlobalConfig()
   const lifecycleMutex = new Mutex()
-  const statusListeners = createListenerChannel<ElectronGodotStageStatus>((error) =>
-    log.withError(error).warn('failed to publish Godot stage status change'),
+  const statusListeners = createListenerChannel<ElectronGodotStageStatus>(
+    error => log.withError(error).warn('failed to publish Godot stage status change'),
   )
-  const viewErrorListeners = createListenerChannel<StageViewErrorPayload>((error) =>
-    log.withError(error).warn('failed to publish Godot stage view-state error'),
+  const viewErrorListeners = createListenerChannel<StageViewErrorPayload>(
+    error => log.withError(error).warn('failed to publish Godot stage view-state error'),
   )
-  const viewSnapshotListeners = createListenerChannel<StageViewSnapshotPayload>((error) =>
-    log.withError(error).warn('failed to publish Godot stage view-state snapshot'),
+  const viewSnapshotListeners = createListenerChannel<StageViewSnapshotPayload>(
+    error => log.withError(error).warn('failed to publish Godot stage view-state snapshot'),
   )
   let currentStatus = createInitialStatus()
   let currentProcess: GodotStageProcess | undefined
@@ -453,10 +471,7 @@ export function createGodotStageManager(): GodotStageManager {
     return true
   }
 
-  function sendViewRequest(
-    type: 'host.view.patch' | 'host.view.request_snapshot',
-    payload: Record<string, unknown> = {},
-  ) {
+  function sendViewRequest(type: 'host.view.patch' | 'host.view.request_snapshot', payload: Record<string, unknown> = {}) {
     if (currentStatus.state !== 'running') {
       throw new Error('Godot stage is not running.')
     }
@@ -522,7 +537,8 @@ export function createGodotStageManager(): GodotStageManager {
       case 'stage.view.snapshot': {
         try {
           broadcastViewSnapshot(parseStageViewSnapshotPayload(message.payload))
-        } catch (error) {
+        }
+        catch (error) {
           broadcastInvalidViewPayloadError(error)
         }
         return
@@ -530,7 +546,8 @@ export function createGodotStageManager(): GodotStageManager {
       case 'stage.view.error': {
         try {
           broadcastViewError(parseStageViewErrorPayload(message.payload))
-        } catch (error) {
+        }
+        catch (error) {
           broadcastInvalidViewPayloadError(error)
         }
         return
@@ -551,38 +568,36 @@ export function createGodotStageManager(): GodotStageManager {
     const token = randomUUID()
     const appServer = new H3()
 
-    appServer.get(
-      '/ws',
-      defineWebSocketHandler({
-        open: (peer) => {
-          const requestUrl = peer.request.url ?? ''
-          const url = new URL(requestUrl, `ws://${host}:${port}`)
-          if (url.searchParams.get('token') !== token) {
-            peer.close?.()
-            return
-          }
+    appServer.get('/ws', defineWebSocketHandler({
+      open: (peer) => {
+        const requestUrl = peer.request.url ?? ''
+        const url = new URL(requestUrl, `ws://${host}:${port}`)
+        if (url.searchParams.get('token') !== token) {
+          peer.close?.()
+          return
+        }
 
-          currentSocketPeer = peer
-          log.withFields({ peer: peer.id }).debug('Godot websocket connected')
-        },
-        message: (_peer, message) => {
-          try {
-            handleSocketMessage(parseSocketMessage(message))
-          } catch (error) {
-            log.withError(error).warn('failed to parse Godot websocket message')
-          }
-        },
-        close: (peer) => {
-          if (currentSocketPeer?.id === peer.id) {
-            currentSocketPeer = undefined
-          }
-        },
-      }),
-    )
+        currentSocketPeer = peer
+        log.withFields({ peer: peer.id }).debug('Godot websocket connected')
+      },
+      message: (_peer, message) => {
+        try {
+          handleSocketMessage(parseSocketMessage(message))
+        }
+        catch (error) {
+          log.withError(error).warn('failed to parse Godot websocket message')
+        }
+      },
+      close: (peer) => {
+        if (currentSocketPeer?.id === peer.id) {
+          currentSocketPeer = undefined
+        }
+      },
+    }))
 
     const server = serve(appServer, {
       // @ts-expect-error - h3 does not extend the crossws response type.
-      plugins: [ws({ resolve: async (req) => (await appServer.fetch(req)).crossws })],
+      plugins: [ws({ resolve: async req => (await appServer.fetch(req)).crossws })],
       port,
       hostname: host,
       manual: true,
@@ -606,8 +621,8 @@ export function createGodotStageManager(): GodotStageManager {
   }
 
   function attachProcessListeners(processHandle: GodotStageProcess) {
-    pipeProcessLog(processHandle.stdout, (message) => log.log(message))
-    pipeProcessLog(processHandle.stderr, (message) => log.warn(message))
+    pipeProcessLog(processHandle.stdout, message => log.log(message))
+    pipeProcessLog(processHandle.stderr, message => log.warn(message))
 
     processHandle.on('error', (error) => {
       if (currentProcess !== processHandle) {
@@ -627,13 +642,11 @@ export function createGodotStageManager(): GodotStageManager {
 
     processHandle.on('close', (code, signal) => {
       if (currentProcess !== processHandle) {
-        log
-          .withFields({
-            code,
-            pid: processHandle.pid ?? null,
-            signal,
-          })
-          .debug('ignored stale Godot stage process close')
+        log.withFields({
+          code,
+          pid: processHandle.pid ?? null,
+          signal,
+        }).debug('ignored stale Godot stage process close')
         return
       }
 
@@ -650,7 +663,8 @@ export function createGodotStageManager(): GodotStageManager {
           pid: null,
           lastError: undefined,
         })
-      } else {
+      }
+      else {
         setStatus({
           state: 'error',
           pid: null,
@@ -737,23 +751,27 @@ export function createGodotStageManager(): GodotStageManager {
             const godotProjectPath = await resolveGodotProjectPath()
             spawnArgs = ['--path', godotProjectPath, ...sidecarArgs]
             spawnCwd = godotProjectPath
-          } else {
+          }
+          else {
             spawnArgs = sidecarArgs
           }
 
-          log
-            .withFields({
-              executable: godotBinary.executable,
-              mode: godotBinary.mode,
-              remoteDebugUri: debugLaunchOptions.remoteDebugUri,
-            })
-            .log('spawning Godot stage')
+          log.withFields({
+            executable: godotBinary.executable,
+            mode: godotBinary.mode,
+            remoteDebugUri: debugLaunchOptions.remoteDebugUri,
+          }).log('spawning Godot stage')
 
-          const processHandle = spawn(godotBinary.executable, spawnArgs, {
-            cwd: spawnCwd,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            windowsHide: false,
-          })
+          const processHandle = spawn(
+            godotBinary.executable,
+            spawnArgs,
+            {
+              cwd: spawnCwd,
+              env: resolveGodotStageProcessEnv(),
+              stdio: ['ignore', 'pipe', 'pipe'],
+              windowsHide: false,
+            },
+          )
 
           spawnedProcess = processHandle
           currentProcess = processHandle
@@ -767,13 +785,16 @@ export function createGodotStageManager(): GodotStageManager {
 
           try {
             await readyDeferred.promise
-          } finally {
-            if (currentReady === readyDeferred) currentReady = undefined
+          }
+          finally {
+            if (currentReady === readyDeferred)
+              currentReady = undefined
             clearTimeout(readyTimeout)
           }
 
           return currentStatus
-        } catch (error) {
+        }
+        catch (error) {
           if (spawnedProcess && currentProcess === spawnedProcess) {
             await stopProcessAfterFailedStart()
           }
@@ -818,14 +839,16 @@ export function createGodotStageManager(): GodotStageManager {
             activeProcess.kill()
             await exitPromise.catch(() => {})
           }
-        } catch (error) {
+        }
+        catch (error) {
           setStatus({
             state: 'error',
             pid: activeProcess.pid ?? null,
             lastError: errorMessageFrom(error) ?? 'Failed to stop Godot stage.',
           })
           throw error
-        } finally {
+        }
+        finally {
           await stopSocketRuntime()
         }
 
@@ -890,10 +913,8 @@ export function createGodotStageManager(): GodotStageManager {
 export function setupGodotStageManager() {
   const manager = createGodotStageManager()
 
-  onAppBeforeQuit(() => {
-    manager.stop().catch(() => {
-      /* noop — ignore stop errors on quit */
-    })
+  onAppBeforeQuit(async () => {
+    await manager.stop()
   })
 
   return manager
@@ -936,16 +957,10 @@ export function createGodotStageService(params: {
     defineInvokeHandler(params.context, electronGodotStageStart, () => params.manager.start()),
     defineInvokeHandler(params.context, electronGodotStageStop, () => params.manager.stop()),
     defineInvokeHandler(params.context, electronGodotStageGetStatus, () => params.manager.getStatus()),
-    defineInvokeHandler(params.context, electronGodotStageApplySceneInput, (payload) =>
-      params.manager.applySceneInput(payload),
-    ),
+    defineInvokeHandler(params.context, electronGodotStageApplySceneInput, payload => params.manager.applySceneInput(payload)),
     defineInvokeHandler(params.context, electronGodotStageGetViewSnapshot, () => params.manager.getViewSnapshot()),
-    defineInvokeHandler(params.context, electronGodotStageApplyViewPatch, (payload) =>
-      params.manager.applyViewPatch(payload),
-    ),
-    defineInvokeHandler(params.context, electronGodotStageRequestViewSnapshot, () =>
-      params.manager.requestViewSnapshot(),
-    ),
+    defineInvokeHandler(params.context, electronGodotStageApplyViewPatch, payload => params.manager.applyViewPatch(payload)),
+    defineInvokeHandler(params.context, electronGodotStageRequestViewSnapshot, () => params.manager.requestViewSnapshot()),
   ]
 
   const cleanup = () => {

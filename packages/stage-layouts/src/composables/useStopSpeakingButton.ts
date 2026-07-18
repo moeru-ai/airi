@@ -1,27 +1,35 @@
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 /**
- * Composable that provides stop-speaking button state and action for chat surfaces.
+ * Connects chat UI stop-speaking controls to the active stage speech output host.
  *
  * Use when:
- * - Rendering a chat UI that needs a stop-speaking button during TTS playback.
+ * - Chat input UI needs to stop assistant TTS playback without cancelling text generation.
+ *
+ * Expects:
+ * - A Stage instance is mounted and consumes speech output stop requests.
  *
  * Returns:
- * - `showStopSpeakingButton`: computed ref that is true while the character is speaking.
- * - `stopSpeakingFromChat`: function that requests the speech pipeline to stop.
+ * - Visibility state for the button and a click handler for manual chat stops.
  */
 export function useStopSpeakingButton() {
-  const speakingStore = useSpeakingStore()
+  const { nowSpeaking } = storeToRefs(useSpeakingStore())
   const speechOutputControlStore = useSpeechOutputControlStore()
+  const { trackTtsStopClicked } = useAnalytics()
 
-  const showStopSpeakingButton = computed(() => speakingStore.nowSpeaking)
+  const showStopSpeakingButton = computed(() => nowSpeaking.value)
 
   function stopSpeakingFromChat() {
-    speechOutputControlStore.requestStop('manual-chat')
+    trackTtsStopClicked({ reason: 'manual-chat' })
+    speechOutputControlStore.requestStopSpeaking('manual-chat')
   }
 
-  return { showStopSpeakingButton, stopSpeakingFromChat }
+  return {
+    showStopSpeakingButton,
+    stopSpeakingFromChat,
+  }
 }

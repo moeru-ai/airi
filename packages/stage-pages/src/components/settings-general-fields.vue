@@ -7,22 +7,19 @@ import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const props = withDefaults(
-  defineProps<{
-    needsControlsIslandIconSizeSetting?: boolean
-  }>(),
-  {
-    needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
-  },
-)
+const props = withDefaults(defineProps<{
+  needsControlsIslandIconSizeSetting?: boolean
+}>(), {
+  needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+})
 
 const settings = useSettings()
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
 const analyticsToggleValue = computed({
-  get: () => (showAnalyticsSettings.value ? settings.analyticsEnabled : false),
-  set: (value: boolean) => (settings.analyticsEnabled = value),
+  get: () => showAnalyticsSettings.value ? settings.analyticsEnabled : false,
+  set: (value: boolean) => settings.analyticsEnabled = value,
 })
 
 const { t } = useI18n()
@@ -42,7 +39,7 @@ const languages = computed(() => {
       :class="['mb-2']"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 2 * 10"
+      :duration="250 + (2 * 10)"
       :delay="2 * 50"
       :label="t('settings.theme.title')"
       :description="t('settings.theme.description')"
@@ -53,7 +50,7 @@ const languages = computed(() => {
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 3 * 10"
+      :duration="250 + (3 * 10)"
       :delay="3 * 50"
       :class="['transition-all', 'ease-in-out', 'duration-250']"
       :label="t('settings.language.title')"
@@ -68,7 +65,7 @@ const languages = computed(() => {
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 4 * 10"
+      :duration="250 + (4 * 10)"
       :delay="4 * 50"
       :class="['transition-all', 'ease-in-out', 'duration-250']"
       :label="t('settings.controls-island.icon-size.title')"
@@ -86,7 +83,7 @@ const languages = computed(() => {
       :disabled="!showAnalyticsSettings"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 5 * 10"
+      :duration="250 + (5 * 10)"
       :delay="5 * 50"
       :label="t('settings.analytics.toggle.title')"
     >
@@ -102,15 +99,10 @@ const languages = computed(() => {
               :class="['underline', 'decoration-dotted']"
             >
               {{ t('settings.analytics.notice.privacyLink') }}
-            </a>
-            .
+            </a>.
           </p>
           <p>
-            {{
-              showAnalyticsSettings
-                ? t('settings.analytics.notice.settingsHint')
-                : t('settings.analytics.disabled.title')
-            }}
+            {{ showAnalyticsSettings ? t('settings.analytics.notice.settingsHint') : t('settings.analytics.disabled.title') }}
           </p>
         </div>
       </template>
@@ -120,18 +112,7 @@ const languages = computed(() => {
 
     <div
       v-motion
-      :class="[
-        'text-neutral-200/50',
-        'dark:text-neutral-600/20',
-        'pointer-events-none',
-        'fixed',
-        'top-[65dvh]',
-        'right--15',
-        'z--1',
-        'flex',
-        'items-center',
-        'justify-center',
-      ]"
+      :class="['text-neutral-200/50', 'dark:text-neutral-600/20', 'pointer-events-none', 'fixed', 'top-[65dvh]', 'right--15', 'z--1', 'flex', 'items-center', 'justify-center']"
       :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
       :enter="{ scale: 1, opacity: 1, rotate: 0 }"
       :duration="250"

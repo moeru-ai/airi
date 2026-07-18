@@ -10,7 +10,10 @@ vi.mock('./chat-sync', () => ({
 }))
 
 describe('createChatSyncWindowLifecycle', async () => {
-  const { createChatSyncWindowLifecycle, resolveInitialChatSyncRoutePath } = await import('./chat-sync-lifecycle')
+  const {
+    createChatSyncWindowLifecycle,
+    resolveInitialChatSyncRoutePath,
+  } = await import('./chat-sync-lifecycle')
 
   beforeEach(() => {
     chatSyncStoreMock.dispose.mockClear()
@@ -31,6 +34,16 @@ describe('createChatSyncWindowLifecycle', async () => {
   it('issue #1743: resolves chat windows from the initial hash before router readiness', () => {
     // https://github.com/moeru-ai/airi/issues/1743
     const lifecycle = createChatSyncWindowLifecycle('/', '#/chat')
+
+    lifecycle.initialize()
+    lifecycle.dispose()
+
+    expect(chatSyncStoreMock.initialize).toHaveBeenCalledWith('follower')
+    expect(chatSyncStoreMock.dispose).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolves spotlight windows as followers', () => {
+    const lifecycle = createChatSyncWindowLifecycle('/', '#/spotlight')
 
     lifecycle.initialize()
     lifecycle.dispose()

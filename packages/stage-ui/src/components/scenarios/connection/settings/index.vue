@@ -14,7 +14,8 @@ const websocketUrlModel = computed({
     return websocketUrl.value
   },
   set(value: string | undefined) {
-    if (value === undefined) return
+    if (value === undefined)
+      return
 
     websocketUrl.value = value
   },

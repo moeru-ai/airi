@@ -45,7 +45,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "vue": "catalog:vue-gte-3"
+    "vue": ">=3"
   },
   "peerDependenciesMeta": {
     "vue": {

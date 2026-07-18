@@ -31,7 +31,11 @@ function saveSettings() {
     />
 
     <div>
-      <Button :label="t('settings.common.save')" variant="primary" @click="saveSettings" />
+      <Button
+        :label="t('settings.common.save')"
+        variant="primary"
+        @click="saveSettings"
+      />
     </div>
 
     <div v-if="configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">

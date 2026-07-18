@@ -1,4 +1,4 @@
-import { defineInvokeEventa } from '@moeru/eventa'
+import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
 /**
  * Renderer-facing plugin tool descriptor used by agent tooling UIs.
@@ -35,7 +35,7 @@ export interface ElectronPluginToolDescriptor {
  * - N/A
  */
 export interface ElectronPluginXsaiToolDefinition {
-  ownerPluginId: string
+  ownerExtensionId: string
   name: string
   description: string
   parameters: Record<string, unknown>
@@ -54,7 +54,7 @@ export interface ElectronPluginXsaiToolDefinition {
  * - N/A
  */
 export interface ElectronPluginToolsetPromptDefinition {
-  ownerPluginId: string
+  ownerExtensionId: string
   id: string
   prompt: {
     id: string
@@ -80,17 +80,28 @@ export interface ElectronPluginXsaiToolsetDefinition {
   prompts: ElectronPluginToolsetPromptDefinition[]
 }
 
-export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>(
-  'eventa:invoke:electron:plugins:tools:list',
-)
-export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>(
-  'eventa:invoke:electron:plugins:tools:list-xsai',
-)
-export const electronPluginInvokeTool = defineInvokeEventa<
-  unknown,
-  {
-    ownerPluginId: string
-    name: string
-    input: unknown
-  }
->('eventa:invoke:electron:plugins:tools:invoke')
+/**
+ * Describes why plugin-backed runtime tools should be refreshed.
+ *
+ * Use when:
+ * - The main process notifies renderers after plugin lifecycle changes
+ *
+ * Expects:
+ * - `extensionId` is present when the change is scoped to one extension
+ *
+ * Returns:
+ * - N/A
+ */
+export interface ElectronPluginToolsChangedPayload {
+  reason: 'loaded' | 'load-enabled' | 'unloaded' | 'enabled-state-changed'
+  extensionId?: string
+}
+
+export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
+export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>('eventa:invoke:electron:plugins:tools:list-xsai')
+export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
+  ownerExtensionId: string
+  name: string
+  input: unknown
+}>('eventa:invoke:electron:plugins:tools:invoke')
+export const electronPluginToolsChanged = defineEventa<ElectronPluginToolsChangedPayload>('eventa:event:electron:plugins:tools:changed')

@@ -1,25 +1,18 @@
 <script setup lang="ts">
-import type { Slot } from 'vue'
 import { computed, useSlots } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    type?: 'error' | 'warning' | 'success' | 'info' | 'loading'
-  }>(),
-  {
-    type: undefined,
-  },
-)
+const props = defineProps<{
+  type?: 'error' | 'warning' | 'success' | 'info' | 'loading'
+}>()
 
 defineSlots<{
-  title: Slot
-  content: Slot
+  title: (props: any) => any
+  content: (props: any) => any
 }>()
 
 const slots = useSlots()
 
 const containerClass = computed(() => {
-  // eslint-disable-next-line default-case
   switch (props.type) {
     case 'error':
       return ' bg-red-50/50 dark:bg-red-900/20'
@@ -36,7 +29,6 @@ const containerClass = computed(() => {
 })
 
 const iconClass = computed(() => {
-  // eslint-disable-next-line default-case
   switch (props.type) {
     case 'error':
       return 'i-solar:close-circle-bold-duotone text-red-400 dark:text-red-400'
@@ -53,7 +45,6 @@ const iconClass = computed(() => {
 })
 
 const titleClass = computed(() => {
-  // eslint-disable-next-line default-case
   switch (props.type) {
     case 'error':
       return 'text-red-600 dark:text-red-400'

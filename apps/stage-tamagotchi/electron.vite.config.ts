@@ -1,20 +1,20 @@
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
-import { Download } from '@proj-airi/unplugin-fetch'
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
-import { defineConfig } from 'electron-vite'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 import Yaml from 'unplugin-yaml/vite'
 import Inspect from 'vite-plugin-inspect'
 import VitePluginVueDevTools from 'vite-plugin-vue-devtools'
-
 import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
+
+import { Download } from '@proj-airi/unplugin-fetch'
+import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
+import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
@@ -26,11 +26,8 @@ export default defineConfig({
         include: [
           // Native modules that have `__dirname` usages. Externalize to avoid bundling
           // them into ESM and causing issues in runtime.
-          'electron',
           'electron-click-drag-plugin',
           'uiohook-napi',
-          // Test-only workspace package; not part of the Electron app.
-          '@proj-airi/vishot-runtime',
         ],
       },
     },
@@ -52,7 +49,6 @@ export default defineConfig({
                   if (moduleId.includes('node_modules/debug')) {
                     return 'vendor-debug'
                   }
-                  return undefined
                 },
               },
               {
@@ -62,7 +58,6 @@ export default defineConfig({
                   if (moduleId.includes('node_modules/h3')) {
                     return 'vendor-h3'
                   }
-                  return undefined
                 },
               },
             ],
@@ -77,12 +72,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@proj-airi/i18n': resolve(join(import.meta.dirname, '..', '..', 'packages', 'i18n', 'src')),
-        '@proj-airi/server-runtime/server': resolve(
-          join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'server', 'index.ts'),
-        ),
-        '@proj-airi/server-runtime': resolve(
-          join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'index.ts'),
-        ),
+        '@proj-airi/server-runtime/server': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'server', 'index.ts')),
+        '@proj-airi/server-runtime': resolve(join(import.meta.dirname, '..', '..', 'packages', 'server-runtime', 'src', 'index.ts')),
       },
     },
   },
@@ -91,7 +82,7 @@ export default defineConfig({
     build: {
       lib: {
         entry: {
-          index: resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
+          'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'preload', 'beat-sync.ts')),
         },
       },
@@ -108,7 +99,7 @@ export default defineConfig({
     build: {
       rolldownOptions: {
         input: {
-          main: resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
+          'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
         },
       },
@@ -151,9 +142,7 @@ export default defineConfig({
         // concatenates sub-paths without a file extension, so bare .ts files at the
         // stores/ root (e.g. mcp-tool-bridge.ts) are not found.  Add explicit aliases
         // for each such file that the renderer imports from @proj-airi/stage-ui.
-        '@proj-airi/stage-ui/stores/mcp-tool-bridge': resolve(
-          join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'mcp-tool-bridge.ts'),
-        ),
+        '@proj-airi/stage-ui/stores/mcp-tool-bridge': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'stores', 'mcp-tool-bridge.ts')),
         '@proj-airi/stage-ui': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src')),
         '@proj-airi/stage-pages': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src')),
         '@proj-airi/stage-shared': resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-shared', 'src')),
@@ -163,7 +152,7 @@ export default defineConfig({
     server: {
       fs: {
         // To mute errors like:
-        // The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
+        //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
         //
         // See: https://vite.dev/config/server-options#server-fs-strict
         strict: false,
@@ -173,16 +162,6 @@ export default defineConfig({
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
         ],
-      },
-      // Proxy OpenAI-compatible API calls to the backend so the browser
-      // never makes a cross-origin request directly to localhost:3001.
-      // In production (packaged Electron) this is a non-issue because the
-      // renderer runs in Electron's webview, not a browser.
-      proxy: {
-        '/v1': {
-          target: 'http://localhost:3001',
-          changeOrigin: true,
-        },
       },
     },
 
@@ -201,14 +180,14 @@ export default defineConfig({
       {
         name: 'proj-airi:defines',
         config(ctx) {
-          const define: Record<string, string> = {
-            'import.meta.env.RUNTIME_ENVIRONMENT': "'electron'",
+          const define: Record<string, any> = {
+            'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
           }
           if (ctx.mode === 'development') {
-            define['import.meta.env.URL_MODE'] = "'server'"
+            define['import.meta.env.URL_MODE'] = '\'server\''
           }
           if (ctx.mode === 'production') {
-            define['import.meta.env.URL_MODE'] = "'file'"
+            define['import.meta.env.URL_MODE'] = '\'file\''
           }
 
           return { define }
@@ -235,7 +214,7 @@ export default defineConfig({
         routesFolder: [
           {
             src: resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
-            exclude: (base) => [
+            exclude: base => [
               ...base,
               '**/settings/account/index.vue',
               '**/settings/connection/index.vue',
@@ -273,26 +252,10 @@ export default defineConfig({
       }),
 
       DownloadLive2DSDK(),
-      Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', {
-        parentDir: stageUIAssetsRoot,
-        cacheDir: sharedCacheDir,
-      }),
-      Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', {
-        parentDir: stageUIAssetsRoot,
-        cacheDir: sharedCacheDir,
-      }),
-      Download(
-        'https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm',
-        'AvatarSample_A.vrm',
-        'vrm/models/AvatarSample-A',
-        { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir },
-      ),
-      Download(
-        'https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm',
-        'AvatarSample_B.vrm',
-        'vrm/models/AvatarSample-B',
-        { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir },
-      ),
+      Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     ],
   },
 })

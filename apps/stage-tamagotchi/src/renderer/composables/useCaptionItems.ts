@@ -1,8 +1,8 @@
 import { readonly, shallowRef } from 'vue'
 
-export type CaptionChannelEvent =
-  | { type: 'caption-speaker'; text: string }
-  | { type: 'caption-assistant'; text: string }
+export type CaptionChannelEvent
+  = | { type: 'caption-speaker', text: string }
+    | { type: 'caption-assistant', text: string }
 
 export interface CaptionItem {
   /** Stable render key and timer owner for one broadcast caption event. */
@@ -48,7 +48,8 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
 
   function clearTimer(id: CaptionItem['id']) {
     const timer = expiryTimers.get(id)
-    if (!timer) return
+    if (!timer)
+      return
 
     clearTimeout(timer)
     expiryTimers.delete(id)
@@ -56,15 +57,15 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
 
   function remove(id: CaptionItem['id']) {
     clearTimer(id)
-    items.value = items.value.filter((item) => item.id !== id)
+    items.value = items.value.filter(item => item.id !== id)
   }
 
   function clearType(type: CaptionChannelEvent['type']) {
-    const matchedItems = items.value.filter((item) => item.type === type)
+    const matchedItems = items.value.filter(item => item.type === type)
     for (const item of matchedItems) {
       clearTimer(item.id)
     }
-    items.value = items.value.filter((item) => item.type !== type)
+    items.value = items.value.filter(item => item.type !== type)
   }
 
   function add(event: CaptionChannelEvent) {
@@ -79,12 +80,9 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
       text: event.text,
     }
     items.value = [...items.value, item]
-    expiryTimers.set(
-      item.id,
-      setTimeout(() => {
-        remove(item.id)
-      }, ttlMs),
-    )
+    expiryTimers.set(item.id, setTimeout(() => {
+      remove(item.id)
+    }, ttlMs))
   }
 
   function dispose() {

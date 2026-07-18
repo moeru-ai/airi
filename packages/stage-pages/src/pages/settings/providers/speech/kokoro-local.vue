@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
-import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import {
+  SpeechPlayground,
+  SpeechProviderSettings,
+} from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
@@ -47,7 +50,8 @@ const modelsLoading = computed(() => {
 const model = computed({
   get(): string {
     const currentValue = providerConfig.value?.model as string
-    if (currentValue) return currentValue
+    if (currentValue)
+      return currentValue
 
     return getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
   },
@@ -59,7 +63,7 @@ const model = computed({
 
 // Model options for the dropdown
 const modelOptions = computed(() => {
-  return providerModels.value.map((m) => ({
+  return providerModels.value.map(m => ({
     label: m.name,
     value: m.id,
   }))
@@ -68,21 +72,17 @@ const modelOptions = computed(() => {
 // Generate speech with Kokoro-specific parameters
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   try {
-    const provider = (await providersStore.getProviderInstance(providerId)) as SpeechProviderWithExtraOptions<
-      string,
-      unknown
-    >
+    const provider = await providersStore.getProviderInstance(providerId) as SpeechProvider
     if (!provider) {
       console.error('[Kokoro Playground] Failed to get provider instance')
       throw new Error('Failed to initialize speech provider')
     }
 
     const config = providersStore.getProviderConfig(providerId)
-    const selectedModel = (config.model as string | undefined) || defaultModel
+    const selectedModel = config.model as string | undefined || defaultModel
 
-    // speechStore.speech expects SpeechProviderWithExtraOptions; the provider instance is structurally compatible
     const result = await speechStore.speech(
-      provider as SpeechProviderWithExtraOptions<string, unknown>,
+      provider,
       selectedModel,
       input,
       voiceId,
@@ -92,7 +92,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     )
 
     return result
-  } catch (error) {
+  }
+  catch (error) {
     console.error('[Kokoro Playground] Error generating speech:', error)
     throw error
   }
@@ -103,7 +104,7 @@ onMounted(async () => {
   // NOTICE: Uses synchronous check for initial render. The cached result from
   // detectWebGPU() is populated by the providers store during initialization.
   const capabilities = getCachedWebGPUCapabilities()
-  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && Boolean(navigator.gpu))
+  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
   fp16Supported.value = capabilities?.fp16Supported ?? false
 
   try {
@@ -125,17 +126,17 @@ onMounted(async () => {
       // Load the initial model
       if (metadata.capabilities.loadModel) {
         await metadata.capabilities.loadModel(config, {
-          onProgress: async (_progress) => {
-            /* progress tracking not yet implemented in UI */
-          },
+          onProgress: async (_progress) => {},
         })
       }
 
       await speechStore.loadVoicesForProvider(providerId)
-    } else {
+    }
+    else {
       console.error('Failed to validate Kokoro provider config', config, validationResult)
     }
-  } finally {
+  }
+  finally {
     voicesLoading.value = false
   }
 })
@@ -153,17 +154,17 @@ watch(model, async (newValue) => {
       if (validationResult.valid && metadata.capabilities.loadModel) {
         // Load the model using the capability with progress tracking
         await metadata.capabilities.loadModel(config, {
-          onProgress: async (_progress) => {
-            /* progress tracking not yet implemented in UI */
-          },
+          onProgress: async (_progress) => {},
         })
 
         // Then reload voices
         await speechStore.loadVoicesForProvider(providerId)
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('[Kokoro Settings] Error in model watcher:', error)
-    } finally {
+    }
+    finally {
       voicesLoading.value = false
     }
   }
@@ -171,7 +172,10 @@ watch(model, async (newValue) => {
 </script>
 
 <template>
-  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
+  <SpeechProviderSettings
+    :provider-id="providerId"
+    :default-model="defaultModel"
+  >
     <template #voice-settings>
       <!-- Model Selection -->
       <div class="space-y-3">
@@ -205,8 +209,8 @@ watch(model, async (newValue) => {
 </template>
 
 <route lang="yaml">
-meta:
-  layout: settings
-  stageTransition:
-    name: slide
+  meta:
+    layout: settings
+    stageTransition:
+      name: slide
 </route>

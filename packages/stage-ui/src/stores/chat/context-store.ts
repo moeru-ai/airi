@@ -55,18 +55,16 @@ export const useChatContextStore = defineStore('chat-context', () => {
   }
 
   function getContextBucketsSnapshot() {
-    return Object.entries(registry.activeContexts()).map(
-      ([sourceKey, messages]) =>
-        ({
-          sourceKey,
-          entryCount: messages.length,
-          latestCreatedAt: messages.reduce<number | undefined>((latest, message) => {
-            if (!latest) return message.createdAt
-            return Math.max(latest, message.createdAt)
-          }, undefined),
-          messages,
-        }) satisfies ContextBucketSnapshot,
-    )
+    return Object.entries(registry.activeContexts()).map(([sourceKey, messages]) => ({
+      sourceKey,
+      entryCount: messages.length,
+      latestCreatedAt: messages.reduce<number | undefined>((latest, message) => {
+        if (!latest)
+          return message.createdAt
+        return Math.max(latest, message.createdAt)
+      }, undefined),
+      messages,
+    } satisfies ContextBucketSnapshot))
   }
 
   return {

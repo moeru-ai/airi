@@ -6,20 +6,17 @@ import { computed } from 'vue'
 
 import { MarkdownRenderer } from '../../../markdown'
 
-const props = withDefaults(
-  defineProps<{
-    message: ChatAssistantMessage
-    variant?: 'desktop' | 'mobile'
-  }>(),
-  {
-    variant: undefined,
-  },
-)
+const props = defineProps<{
+  message: ChatAssistantMessage
+  variant?: 'desktop' | 'mobile'
+}>()
 
 const reasoningContent = computed(() => props.message.categorization?.reasoning?.trim() ?? '')
 const hasReasoning = computed(() => reasoningContent.value.length > 0)
 
-const containerClasses = computed(() => [props.variant === 'mobile' ? 'text-xs' : 'text-sm'])
+const containerClasses = computed(() => [
+  props.variant === 'mobile' ? 'text-xs' : 'text-sm',
+])
 </script>
 
 <template>

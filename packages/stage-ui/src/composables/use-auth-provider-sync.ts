@@ -1,20 +1,24 @@
 import { nextTick } from 'vue'
 
 import { initializeAuth } from '../libs/auth'
-import { getStreamingTtsAvailable } from '../libs/providers'
+import { getStreamingTtsAvailable, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthStore } from '../stores/auth'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
+import { useVisionStore } from '../stores/modules/vision'
 import { useProvidersStore } from '../stores/providers'
+import { useAnalytics } from './use-analytics'
 
 /**
  * Provider IDs to auto-activate on sign-in.
  * Edit this list to enable/disable official providers.
  */
-const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string; module: 'consciousness' | 'speech' | 'hearing' }> = [
+const AUTH_ACTIVATED_PROVIDERS: Array<{ id: string, module: 'consciousness' | 'speech' | 'hearing' | 'vision' }> = [
   { id: 'official-provider', module: 'consciousness' },
+  { id: 'vision-official-provider', module: 'vision' },
   { id: 'official-provider-speech', module: 'speech' },
+  { id: OFFICIAL_TRANSCRIPTION_PROVIDER_ID, module: 'hearing' },
 ]
 
 // The streaming TTS provider is NOT in the static list above because its
@@ -28,6 +32,9 @@ const STREAMING_SPEECH_PROVIDER_ID = 'official-provider-speech-streaming'
 /**
  * Glue layer: uses auth lifecycle hooks to activate/deactivate
  * official providers. Providers themselves know nothing about auth.
+ *
+ * Call once from each app renderer root so direct sign-in routes and
+ * auxiliary windows do not depend on the transient Stage scene lifecycle.
  */
 export function useAuthProviderSync() {
   initializeAuth()
@@ -35,19 +42,47 @@ export function useAuthProviderSync() {
   const authStore = useAuthStore()
   const providersStore = useProvidersStore()
   const consciousnessStore = useConsciousnessStore()
+  const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
+  const { trackOfficialProviderSelected } = useAnalytics()
 
-  // Track whether the sync has already fired in this session to avoid
-  // re-running on every page navigation (onAuthenticated fires immediately
-  // if already signed in when the hook is registered).
+  // Track the completed and in-flight work separately. Authentication can be
+  // announced more than once while a catalog request is still pending; those
+  // notifications share one task, while a failed task remains retryable.
   let hasSynced = false
+  let authGeneration = 0
+  let syncInFlight: Promise<void> | undefined
 
   authStore.onAuthenticated(async () => {
-    if (hasSynced) return
-    hasSynced = true
+    if (hasSynced)
+      return
 
-    const toActivate = AUTH_ACTIVATED_PROVIDERS.filter((p) => providersStore.getProviderMetadata(p.id) != null)
+    if (syncInFlight)
+      return syncInFlight
+
+    const generation = authGeneration
+    const task = syncAuthenticatedProviders(generation)
+    syncInFlight = task
+
+    try {
+      await task
+      if (generation === authGeneration)
+        hasSynced = true
+    }
+    finally {
+      if (syncInFlight === task)
+        syncInFlight = undefined
+    }
+  })
+
+  async function syncAuthenticatedProviders(generation: number) {
+    if (generation !== authGeneration)
+      return
+
+    const toActivate = AUTH_ACTIVATED_PROVIDERS.filter(
+      p => providersStore.getProviderMetadata(p.id) != null,
+    )
 
     for (const { id } of toActivate) {
       providersStore.forceProviderConfigured(id)
@@ -61,6 +96,19 @@ export function useAuthProviderSync() {
           if (!consciousnessStore.activeProvider) {
             consciousnessStore.activeProvider = id
             consciousnessStore.activeModel = 'auto'
+            trackOfficialProviderSelected({
+              provider_id: id,
+              provider_mode: 'official',
+              source: 'default_auto',
+              auto_selected: true,
+              model_id: 'auto',
+            })
+          }
+          break
+        case 'vision':
+          if (!visionStore.activeProvider) {
+            visionStore.activeProvider = id
+            visionStore.activeModel = 'auto'
           }
           break
         case 'speech':
@@ -84,15 +132,23 @@ export function useAuthProviderSync() {
         toActivate.map(({ id, module }) =>
           module === 'consciousness'
             ? consciousnessStore.loadModelsForProvider(id)
-            : providersStore.fetchModelsForProvider(id),
+            : module === 'vision'
+              ? visionStore.loadModelsForProvider(id)
+              : providersStore.fetchModelsForProvider(id),
         ),
       )
-    } catch (err) {
+    }
+    catch (err) {
       console.error('error loading models for official providers', err)
     }
 
+    // Logout may happen while provider catalogs are loading. The logout hook
+    // owns cleanup, so stale work must not re-enable streaming TTS afterward.
+    if (generation !== authGeneration)
+      return
+
     await syncStreamingSpeechProvider()
-  })
+  }
 
   // Bootstrap the streaming TTS provider from the server's availability signal.
   // Probing populates `getStreamingTtsAvailable()` (and the default model /
@@ -101,7 +157,8 @@ export function useAuthProviderSync() {
   // settings card + picker); force-configure makes it selectable. It is never
   // set as the active speech provider — the HTTP TTS provider stays default.
   async function syncStreamingSpeechProvider() {
-    if (providersStore.getProviderMetadata(STREAMING_SPEECH_PROVIDER_ID) == null) return
+    if (providersStore.getProviderMetadata(STREAMING_SPEECH_PROVIDER_ID) == null)
+      return
 
     await providersStore.fetchModelsForProvider(STREAMING_SPEECH_PROVIDER_ID)
 
@@ -116,10 +173,7 @@ export function useAuthProviderSync() {
       // it's confirmed available.
       if (speechStore.activeSpeechProvider === STREAMING_SPEECH_PROVIDER_ID) {
         speechStore.ensureStreamingDefaultModel()
-        await speechStore.loadVoicesForProvider(
-          STREAMING_SPEECH_PROVIDER_ID,
-          speechStore.activeSpeechModel || undefined,
-        )
+        await speechStore.loadVoicesForProvider(STREAMING_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel || undefined)
       }
       return
     }
@@ -133,13 +187,15 @@ export function useAuthProviderSync() {
   }
 
   function clearActiveStreamingSelection() {
-    if (speechStore.activeSpeechProvider !== STREAMING_SPEECH_PROVIDER_ID) return
+    if (speechStore.activeSpeechProvider !== STREAMING_SPEECH_PROVIDER_ID)
+      return
     speechStore.activeSpeechProvider = ''
     speechStore.activeSpeechModel = ''
     speechStore.activeSpeechVoiceId = ''
   }
 
   authStore.onLogout(() => {
+    authGeneration++
     hasSynced = false
 
     for (const { id } of AUTH_ACTIVATED_PROVIDERS) {
@@ -162,6 +218,12 @@ export function useAuthProviderSync() {
           if (consciousnessStore.activeProvider === id) {
             consciousnessStore.activeProvider = ''
             consciousnessStore.activeModel = ''
+          }
+          break
+        case 'vision':
+          if (visionStore.activeProvider === id) {
+            visionStore.activeProvider = ''
+            visionStore.activeModel = ''
           }
           break
         case 'speech':

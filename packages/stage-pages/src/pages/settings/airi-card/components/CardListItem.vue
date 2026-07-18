@@ -12,25 +12,18 @@ interface Props {
   voiceModel: string
 }
 
-withDefaults(defineProps<Props>(), {
-  description: '',
-})
+defineProps<Props>()
 const emit = defineEmits<{
-  select: []
-  activate: []
-  delete: []
-  edit: []
+  (e: 'select'): void
+  (e: 'activate'): void
+  (e: 'delete'): void
+  (e: 'edit'): void
 }>()
 </script>
 
 <template>
   <CursorFloating
-    relative
-    min-h-120px
-    flex="~ col"
-    cursor-pointer
-    overflow-hidden
-    rounded-xl
+    relative min-h-120px flex="~ col" cursor-pointer overflow-hidden rounded-xl
     :class="[
       isSelected
         ? 'border-2 border-primary-400 dark:border-primary-600'
@@ -45,14 +38,7 @@ const emit = defineEmits<{
   >
     <!-- Card content -->
     <div
-      relative
-      flex="~ col 1"
-      justify-between
-      gap-3
-      overflow-hidden
-      rounded-lg
-      bg="white dark:neutral-900"
-      p-5
+      relative flex="~ col 1" justify-between gap-3 overflow-hidden rounded-lg bg="white dark:neutral-900" p-5
       transition="all ease-in-out duration-400"
       after="content-empty absolute inset-0 z--2 w-full h-full bg-dotted-[neutral-200/80] bg-size-10px mask-image-[linear-gradient(165deg,white_30%,transparent_50%)] transition-all duration-400 ease-in-out"
       hover="after:bg-dotted-[primary-300/50] dark:after:bg-dotted-[primary-200/20] text-primary-600/80 dark:text-primary-300/80"
@@ -64,12 +50,7 @@ const emit = defineEmits<{
         </h3>
         <div flex shrink-0 items-center gap-2>
           <button
-            rounded-lg
-            p-1
-            text-neutral-500
-            transition-colors
-            dark:text-neutral-400
-            hover="bg-neutral-200 dark:bg-neutral-700/50"
+            rounded-lg p-1 text-neutral-500 transition-colors dark:text-neutral-400 hover="bg-neutral-200 dark:bg-neutral-700/50"
             title="Edit card"
             @click.stop="emit('edit')"
           >
@@ -105,10 +86,7 @@ const emit = defineEmits<{
     <!-- Card actions -->
     <div flex items-center justify-end px-2 py-1.5>
       <button
-        rounded-lg
-        p-1.5
-        transition-colors
-        hover="bg-neutral-200 dark:bg-neutral-700/50"
+        rounded-lg p-1.5 transition-colors hover="bg-neutral-200 dark:bg-neutral-700/50"
         :disabled="isActive"
         @click.stop="emit('activate')"
       >
@@ -123,10 +101,7 @@ const emit = defineEmits<{
 
       <button
         v-if="id !== 'default'"
-        rounded-lg
-        p-1.5
-        transition-colors
-        hover="bg-neutral-200 dark:bg-neutral-700/50"
+        rounded-lg p-1.5 transition-colors hover="bg-neutral-200 dark:bg-neutral-700/50"
         @click.stop="emit('delete')"
       >
         <div i-solar:trash-bin-trash-linear text="neutral-500 dark:neutral-400" />

@@ -1,65 +1,62 @@
 import type { ComposerTranslation } from 'vue-i18n'
 
-import type { ModelInfo, ProviderDefinition } from '../../libs/providers/types'
-import type { ProviderValidationPlan, ProviderValidationStep } from '../../libs/providers/validators/run'
+import type { ProviderDefinition, ProviderValidationPlan } from '../../libs'
 import type { ProviderMetadata } from '../providers'
 
 import { listModels } from '@xsai/model'
 
+import { resolveProviderSourceMetadata } from '../../libs/providers/source-metadata'
 import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/providers/types'
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
-  if (
-    tasks.some((task) => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))
-  ) {
+  if (tasks.some(task => ['vision', 'image-understanding', 'image-to-text', 'multimodal'].includes(task.toLowerCase()))) {
+    return 'vision'
+  }
+  if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))) {
     return 'transcription'
   }
-  if (tasks.some((task) => ['text-to-speech', 'speech', 'tts'].includes(task.toLowerCase()))) {
+  if (tasks.some(task => ['text-to-speech', 'speech', 'tts'].includes(task.toLowerCase()))) {
     return 'speech'
   }
-  if (tasks.some((task) => ['embed', 'embedding'].includes(task.toLowerCase()))) {
+  if (tasks.some(task => ['embed', 'embedding'].includes(task.toLowerCase()))) {
     return 'embed'
   }
 
   return 'chat'
 }
 
-function extractSchemaDefaults<TConfig>(definition: ProviderDefinition<TConfig>, t: ComposerTranslation) {
+function extractSchemaDefaults(definition: ProviderDefinition<any>, t: ComposerTranslation) {
   const defaults: Record<string, unknown> = {}
 
   try {
-    const schema = definition.createProviderConfig({ t })
-    const shape = (schema as { shape?: Record<string, unknown> })?.shape
+    const schema = definition.createProviderConfig({ t }) as any
+    const shape = schema?.shape
 
     // Zod object-level parsing fails when required fields (for example apiKey) are missing.
     // Extract each field default individually to preserve default base URLs.
     if (shape && typeof shape === 'object') {
       for (const [key, fieldSchema] of Object.entries(shape)) {
-        const parsedField = (
-          fieldSchema as { safeParse?: (value: unknown) => { success: boolean; data?: unknown } }
-        )?.safeParse?.(undefined)
+        const parsedField = (fieldSchema as any)?.safeParse?.(undefined)
         if (parsedField?.success) {
           defaults[key] = parsedField.data
         }
       }
     }
 
-    const parsed = (schema as { safeParse?: (value: unknown) => { success: boolean; data?: unknown } })?.safeParse?.({})
+    const parsed = schema?.safeParse?.({})
     if (parsed?.success && typeof parsed.data === 'object' && parsed.data !== null) {
       Object.assign(defaults, parsed.data as Record<string, unknown>)
     }
-  } catch {
-    // noop
+  }
+  catch {
   }
 
   return defaults
 }
 
 function buildConfigValidationResult(plan: ProviderValidationPlan) {
-  const invalidSteps = plan.steps.filter(
-    (step: ProviderValidationStep) => step.kind === 'config' && step.status === 'invalid',
-  )
+  const invalidSteps = plan.steps.filter(step => step.kind === 'config' && step.status === 'invalid')
   if (invalidSteps.length === 0) {
     return {
       errors: [],
@@ -68,34 +65,36 @@ function buildConfigValidationResult(plan: ProviderValidationPlan) {
     }
   }
 
-  const reasons = invalidSteps.map((step: ProviderValidationStep) => step.reason).filter(Boolean)
+  const reasons = invalidSteps.map(step => step.reason).filter(Boolean)
   return {
-    errors: invalidSteps.map((step: ProviderValidationStep) => new Error(step.reason || `${step.id} is invalid`)),
+    errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
     reason: reasons.join('; '),
     valid: false,
   }
 }
 
-function mapModelsToMetadataModels(providerId: string, models: ModelInfo[]) {
-  return models.map((model: ModelInfo) => {
+function mapModelsToMetadataModels(providerId: string, models: any[]) {
+  return models.map((model: any) => {
     return {
       id: model.id,
-      name: model.name || model.id,
+      name: model.name || model.display_name || model.id,
       provider: providerId,
       description: model.description || '',
-      contextLength: model.contextLength ?? 0,
-      deprecated: model.deprecated ?? false,
+      contextLength: model.context_length || 0,
+      deprecated: false,
     }
   })
 }
 
 function appendUniqueReason(reasons: string[], next: string) {
-  if (!next) return
-  if (!reasons.includes(next)) reasons.push(next)
+  if (!next)
+    return
+  if (!reasons.includes(next))
+    reasons.push(next)
 }
 
-export function convertProviderDefinitionToMetadata<TConfig>(
-  definition: ProviderDefinition<TConfig>,
+export function convertProviderDefinitionToMetadata(
+  definition: ProviderDefinition<any>,
   t: ComposerTranslation,
   options: {
     fallbackDefaultOptions?: ProviderMetadata['defaultOptions']
@@ -104,6 +103,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
   const keyExtractor = (input: string): string => input
   const category = getCategoryFromTasks(definition.tasks)
   const schemaDefaults = extractSchemaDefaults(definition, t)
+  const providerSourceMetadata = resolveProviderSourceMetadata(definition)
   return {
     id: definition.id,
     order: definition.order,
@@ -116,6 +116,7 @@ export function convertProviderDefinitionToMetadata<TConfig>(
     icon: definition.icon,
     iconColor: definition.iconColor,
     iconImage: definition.iconImage,
+    ...providerSourceMetadata,
     isAvailableBy: definition.isAvailableBy,
     requiresCredentials: definition.requiresCredentials,
     onboardingFields: definition.onboardingFields?.({ t }),
@@ -126,120 +127,116 @@ export function convertProviderDefinitionToMetadata<TConfig>(
 
       return options.fallbackDefaultOptions?.() || {}
     },
-    createProvider: async (config: TConfig) => await definition.createProvider(config),
+    createProvider: async config => await definition.createProvider(config as any) as any,
     capabilities: {
       listModels: definition.extraMethods?.listModels
-        ? async (config: TConfig) => {
-            const provider = await definition.createProvider(config)
-            try {
-              const models = await definition.extraMethods!.listModels!(config, provider)
-              return mapModelsToMetadataModels(definition.id, models)
-            } finally {
-              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-            }
+        ? async (config) => {
+          const provider = await definition.createProvider(config as any)
+          try {
+            const models = await definition.extraMethods!.listModels!(config as any, provider)
+            return mapModelsToMetadataModels(definition.id, models as any[])
           }
-        : async (config: TConfig) => {
-            const provider = await definition.createProvider(config)
-            try {
-              if (isModelProvider(provider)) {
-                const models = await listModels(provider.model())
-                return mapModelsToMetadataModels(definition.id, models as unknown as ModelInfo[])
-              }
+          finally {
+            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+          }
+        }
+        : async (config) => {
+          const provider = await definition.createProvider(config as any)
+          try {
+            if (isModelProvider(provider)) {
+              const models = await listModels(provider.model())
+              return mapModelsToMetadataModels(definition.id, models as any[])
+            }
 
-              const baseUrlRaw = (config as { baseUrl?: unknown }).baseUrl
-              const baseUrl = typeof baseUrlRaw === 'string' ? baseUrlRaw.trim() : ''
-              const apiKeyRaw = (config as { apiKey?: unknown }).apiKey
-              const apiKey = typeof apiKeyRaw === 'string' ? apiKeyRaw.trim() : ''
-              if (!baseUrl) return []
-
-              const models = await listModels({
-                baseURL: baseUrl,
-                ...(apiKey ? { apiKey } : {}),
-              })
-              return mapModelsToMetadataModels(definition.id, models as unknown as ModelInfo[])
-            } catch {
+            const baseUrl = typeof (config as any).baseUrl === 'string' ? (config as any).baseUrl.trim() : ''
+            const apiKey = typeof (config as any).apiKey === 'string' ? (config as any).apiKey.trim() : ''
+            if (!baseUrl)
               return []
-            } finally {
-              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-            }
-          },
-      listVoices: definition.extraMethods?.listVoices
-        ? async (config: TConfig, model?: string) => {
-            const provider = await definition.createProvider(config)
-            try {
-              return await definition.extraMethods!.listVoices!(config, provider, model)
-            } finally {
-              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-            }
+
+            const models = await listModels({
+              baseURL: baseUrl,
+              ...(apiKey ? { apiKey } : {}),
+            })
+            return mapModelsToMetadataModels(definition.id, models as any[])
           }
+          catch {
+            return []
+          }
+          finally {
+            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+          }
+        },
+      listVoices: definition.extraMethods?.listVoices
+        ? async (config, model) => {
+          const provider = await definition.createProvider(config as any)
+          try {
+            return await definition.extraMethods!.listVoices!(config as any, provider, model)
+          }
+          finally {
+            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+          }
+        }
         : undefined,
       loadModel: definition.extraMethods?.loadModel
-        ? async (config: TConfig, hooks?: { onProgress?: (progress: unknown) => Promise<void> | void }) => {
-            const provider = await definition.createProvider(config)
-            try {
-              await definition.extraMethods!.loadModel!(config, provider, hooks)
-            } finally {
-              await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
-            }
+        ? async (config, hooks) => {
+          const provider = await definition.createProvider(config as any)
+          try {
+            await definition.extraMethods!.loadModel!(config as any, provider, hooks)
           }
+          finally {
+            await (provider as { dispose?: () => Promise<void> | void }).dispose?.()
+          }
+        }
         : undefined,
     },
     validators: {
-      chatPingCheckAvailable:
-        !definition.disableChatPingCheckUI &&
-        (definition.validators?.validateProvider || []).some((creator) =>
-          creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID),
-        ),
-      validateProviderConfig: async (
-        config: Record<string, unknown>,
-        options?: { skipChatPingCheck?: boolean; onlyChatPingCheck?: boolean },
-      ) => {
+      chatPingCheckAvailable: !definition.disableChatPingCheckUI
+        && (definition.validators?.validateProvider || [])
+          .some(creator => creator({ t }).id.includes(CHAT_COMPLETIONS_VALIDATOR_ID)),
+      validateProviderConfig: async (config, options) => {
         // onlyChatPingCheck: skip all validators except chat completions.
         // Used by the manual "Test Generation" button on settings pages.
         if (options?.onlyChatPingCheck) {
           const plan = getValidatorsOfProvider({
-            definition: definition as ProviderDefinition,
+            definition,
             config,
             schemaDefaults,
             contextOptions: { t },
           })
           plan.configValidators = []
-          plan.providerValidators = plan.providerValidators.filter((v) => v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
-          plan.steps = plan.steps.filter((s) => s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.providerValidators = plan.providerValidators.filter(v => v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter(s => s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
 
           if (plan.providerValidators.length === 0) {
             return { errors: [], reason: '', valid: true }
           }
 
           await validateProvider(plan, { t })
-          const invalidSteps = plan.steps.filter((step) => step.status === 'invalid')
+          const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
           return {
-            errors: invalidSteps.map((step) => new Error(step.reason || `${step.id} is invalid`)),
-            reason: invalidSteps
-              .map((step) => step.reason)
-              .filter(Boolean)
-              .join('; '),
+            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
+            reason: invalidSteps.map(step => step.reason).filter(Boolean).join('; '),
             valid: invalidSteps.length === 0,
           }
         }
 
         const plan = getValidatorsOfProvider({
-          definition: definition as ProviderDefinition,
+          definition,
           config,
           schemaDefaults,
           contextOptions: { t },
         })
 
         if (options?.skipChatPingCheck) {
-          plan.providerValidators = plan.providerValidators.filter((v) => !v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
-          plan.steps = plan.steps.filter((s) => !s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.providerValidators = plan.providerValidators.filter(v => !v.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
+          plan.steps = plan.steps.filter(s => !s.id.includes(CHAT_COMPLETIONS_VALIDATOR_ID))
         }
 
         // Run full validation pipeline (config + provider validators) only when required.
         // This preserves strict config checks while avoiding unnecessary network checks.
         if (plan.shouldValidate) {
           await validateProvider(plan, { t })
-          const invalidSteps = plan.steps.filter((step) => step.status === 'invalid')
+          const invalidSteps = plan.steps.filter(step => step.status === 'invalid')
           if (invalidSteps.length === 0) {
             return {
               errors: [],
@@ -248,25 +245,23 @@ export function convertProviderDefinitionToMetadata<TConfig>(
             }
           }
 
-          const reasons = invalidSteps.map((step) => step.reason).filter(Boolean)
-          const hasMissingBaseUrlError = reasons.some((reason) => reason.includes('Base URL is required'))
+          const reasons = invalidSteps.map(step => step.reason).filter(Boolean)
+          const hasMissingBaseUrlError = reasons.some(reason => reason.includes('Base URL is required'))
           const defaultBaseUrl = typeof schemaDefaults.baseUrl === 'string' ? schemaDefaults.baseUrl.trim() : ''
           if (hasMissingBaseUrlError && defaultBaseUrl) {
             appendUniqueReason(reasons, `Default to ${defaultBaseUrl}.`)
           }
 
-          const connectivityFailed = invalidSteps.some((step) => step.id === 'openai-compatible:check-connectivity')
+          const connectivityFailed = invalidSteps.some(step => step.id === 'openai-compatible:check-connectivity')
           if (connectivityFailed) {
-            const troubleshooting =
-              definition.business?.({ t })?.troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content ||
-              ''
+            const troubleshooting = definition.business?.({ t })?.troubleshooting?.validators?.openaiCompatibleCheckConnectivity?.content || ''
             if (troubleshooting) {
               appendUniqueReason(reasons, troubleshooting)
             }
           }
 
           return {
-            errors: invalidSteps.map((step) => new Error(step.reason || `${step.id} is invalid`)),
+            errors: invalidSteps.map(step => new Error(step.reason || `${step.id} is invalid`)),
             reason: reasons.join('; '),
             valid: false,
           }
@@ -283,11 +278,11 @@ export function convertProviderDefinitionToMetadata<TConfig>(
           supportsStreamInput: definition.capabilities.transcription.streamInput,
         }
       : undefined,
-  } as unknown as ProviderMetadata
+  }
 }
 
-export function convertProviderDefinitionsToMetadata<TConfig>(
-  definitions: ProviderDefinition<TConfig>[],
+export function convertProviderDefinitionsToMetadata(
+  definitions: ProviderDefinition<any>[],
   t: ComposerTranslation,
   currentMetadata: Record<string, ProviderMetadata>,
 ) {

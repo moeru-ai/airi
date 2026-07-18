@@ -12,11 +12,9 @@ describe('generateManifestFixtures', () => {
   const roots: string[] = []
 
   afterEach(async () => {
-    await Promise.all(
-      roots.map(async (root) => {
-        await import('node:fs/promises').then(({ rm }) => rm(root, { recursive: true, force: true }))
-      }),
-    )
+    await Promise.all(roots.map(async (root) => {
+      await import('node:fs/promises').then(({ rm }) => rm(root, { recursive: true, force: true }))
+    }))
     roots.length = 0
   })
 

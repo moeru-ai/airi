@@ -1,7 +1,7 @@
 import type { CapabilityDescriptor } from '../../../../plugin/apis/protocol'
 
 /**
- * Tracks capability lifecycle state and waits for readiness across plugin sessions.
+ * Tracks capability lifecycle state and waits for readiness across extension sessions.
  *
  * Use when:
  * - The host needs to announce, ready, degrade, or withdraw named capabilities
@@ -86,7 +86,7 @@ export class DependencyService {
   }
 
   async waitForMany(keys: string[], timeoutMs: number = 15000) {
-    await Promise.all(keys.map(async (key) => await this.waitFor(key, timeoutMs)))
+    await Promise.all(keys.map(async key => await this.waitFor(key, timeoutMs)))
   }
 
   async waitFor(key: string, timeoutMs: number = 15000) {

@@ -66,7 +66,7 @@ const filteredItems = computed(() => {
   let result = [...props.items]
 
   // If a custom value is selected (and not present in items), add it to the list temporarily
-  if (modelValue.value && !props.items.some((i) => i.id.toLowerCase() === modelValue.value.toLowerCase())) {
+  if (modelValue.value && !props.items.some(i => i.id.toLowerCase() === modelValue.value.toLowerCase())) {
     result.unshift({
       id: modelValue.value,
       name: modelValue.value,
@@ -77,16 +77,16 @@ const filteredItems = computed(() => {
 
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    result = result.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) || (item.description && item.description.toLowerCase().includes(query)),
+    result = result.filter(item =>
+      item.name.toLowerCase().includes(query)
+      || (item.description && item.description.toLowerCase().includes(query)),
     )
   }
 
   // Add "Use custom: ..." option if searching and custom input is allowed
   if (props.allowCustom && searchQuery.value) {
     const query = searchQuery.value
-    const exactMatch = result.some((i) => i.id.toLowerCase() === query.toLowerCase())
+    const exactMatch = result.some(i => i.id.toLowerCase() === query.toLowerCase())
     if (!exactMatch) {
       result.push({
         id: query,
@@ -116,11 +116,13 @@ const layout = computed(() => {
   let scrollContainer: string
   if (props.listClass) {
     scrollContainer = `mb-2 ${props.listClass}`
-  } else if (expanded) {
+  }
+  else if (expanded) {
     scrollContainer = fill
       ? 'mb-2 min-h-0 flex-1 overflow-y-auto'
       : 'mb-2 max-h-[calc(100dvh-22lh)] overflow-y-auto snap-y snap-proximity'
-  } else {
+  }
+  else {
     scrollContainer = fill ? 'mb-2 flex-shrink-0' : 'mb-2'
   }
 
@@ -144,9 +146,18 @@ function updateCustomValue(value: string) {
 </script>
 
 <template>
-  <div :class="['radio-card-detail-many-select', layout.root, isListExpanded ? props.expandedClass : '']">
+  <div
+    :class="[
+      'radio-card-detail-many-select',
+      layout.root,
+      isListExpanded ? props.expandedClass : '',
+    ]"
+  >
     <!-- Search bar -->
-    <div v-if="searchable" :class="['relative inline-flex w-full flex-shrink-0 items-center']">
+    <div
+      v-if="searchable"
+      :class="['relative inline-flex w-full flex-shrink-0 items-center']"
+    >
       <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
         <div class="i-solar:magnifer-line-duotone text-neutral-500 dark:text-neutral-400" />
       </div>
@@ -159,18 +170,19 @@ function updateCustomValue(value: string) {
           'focus:border-primary-100 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-primary-400/50',
         ]"
         :placeholder="searchPlaceholder"
-      />
+      >
     </div>
 
     <!-- Items list with search results info -->
-    <div :class="['mt-4', layout.itemsArea]">
+    <div
+      :class="[
+        'mt-4',
+        layout.itemsArea,
+      ]"
+    >
       <!-- Search results info -->
       <div v-if="searchQuery" class="text-sm text-neutral-500 dark:text-neutral-400">
-        {{
-          searchResultsText
-            .replace('{count}', filteredItems.length.toString())
-            .replace('{total}', items.length.toString())
-        }}
+        {{ searchResultsText.replace('{count}', filteredItems.length.toString()).replace('{total}', items.length.toString()) }}
       </div>
 
       <!-- No search results -->

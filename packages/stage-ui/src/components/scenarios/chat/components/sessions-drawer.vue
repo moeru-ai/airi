@@ -79,7 +79,7 @@ interface SessionRow {
  */
 const ownedSessions = computed(() => {
   const effectiveUserId = userId.value || 'local'
-  return Object.values(sessionMetas.value).filter((meta) => meta.userId === effectiveUserId)
+  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId)
 })
 
 /**
@@ -93,13 +93,16 @@ const ownedSessions = computed(() => {
  * - "Tell me about the moon today"
  */
 function previewFor(meta: ChatSessionMeta): string {
-  if (meta.title) return meta.title
+  if (meta.title)
+    return meta.title
 
   const messages = sessionMessages.value[meta.sessionId] ?? []
   for (const message of messages) {
-    if (message.role === 'system') continue
+    if (message.role === 'system')
+      continue
     const trimmed = extractMessageText(message).replace(/\s+/g, ' ').trim()
-    if (trimmed) return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
+    if (trimmed)
+      return trimmed.length > 80 ? `${trimmed.slice(0, 80)}…` : trimmed
   }
 
   return t('stage.chat.sessions.new-chat-fallback')
@@ -137,25 +140,26 @@ function formatUpdatedAt(ts: number): string {
 }
 
 const rows = computed<SessionRow[]>(() => {
-  const list = ownedSessions.value.map<SessionRow>((meta) => ({
-    meta,
-    preview: previewFor(meta),
-    isActive: meta.sessionId === activeSessionId.value,
-    updatedAtLabel: formatUpdatedAt(meta.updatedAt),
-  }))
+  const list = ownedSessions.value
+    .map<SessionRow>(meta => ({
+      meta,
+      preview: previewFor(meta),
+      isActive: meta.sessionId === activeSessionId.value,
+      updatedAtLabel: formatUpdatedAt(meta.updatedAt),
+    }))
   // Most-recent first; the active session usually ends up at the top after a
   // fresh send because `persistSession` bumps `updatedAt`.
   list.sort((a, b) => b.meta.updatedAt - a.meta.updatedAt)
   return list
 })
 
-function selectSession(sessionId: string) {
-  const selectedRow = rows.value.find((row) => row.meta.sessionId === sessionId)
+async function selectSession(sessionId: string) {
+  const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
   if (sessionId !== activeSessionId.value && selectedRow) {
     trackChatSessionSelected({
       source: 'sessions_drawer',
-      message_count: (sessionMessages.value[sessionId] ?? []).filter((message) => message.role !== 'system').length,
-      cloud_synced: Boolean(selectedRow.meta.cloudChatId),
+      message_count: (sessionMessages.value[sessionId] ?? []).filter(message => message.role !== 'system').length,
+      cloud_synced: !!selectedRow.meta.cloudChatId,
     })
   }
   chatSession.setActiveSession(sessionId)
@@ -163,7 +167,8 @@ function selectSession(sessionId: string) {
 }
 
 async function startNewSession() {
-  if (isCreatingSession.value) return
+  if (isCreatingSession.value)
+    return
   isCreatingSession.value = true
   try {
     const characterId = activeCardId.value || 'default'
@@ -175,7 +180,8 @@ async function startNewSession() {
     // (PostHog can compute it from per-user event ordering).
     trackChatSessionStarted(activeModel.value || 'unknown')
     showDialog.value = false
-  } finally {
+  }
+  finally {
     isCreatingSession.value = false
   }
 }
@@ -199,25 +205,27 @@ let openGeneration = 0
 // fallback. `loadSession` is idempotent (`loadedSessions` set), so reopening
 // the drawer is cheap.
 watch(showDialog, async (open) => {
-  if (!open) return
+  if (!open)
+    return
   openGeneration += 1
   const myGeneration = openGeneration
   // Touch `rows` first so reactive labels reflect a fresh `Date.now()`.
   void rows.value
-  const knownSessionIds = ownedSessions.value.map((meta) => meta.sessionId)
+  const knownSessionIds = ownedSessions.value.map(meta => meta.sessionId)
   // Bounded concurrency keeps a long history list from spawning a hundred
   // simultaneous IndexedDB transactions; 4 in flight is plenty for a list
   // that the user is about to scroll.
   const batchSize = 4
   for (let i = 0; i < knownSessionIds.length; i += batchSize) {
-    if (myGeneration !== openGeneration || !showDialog.value) return
-    await Promise.all(knownSessionIds.slice(i, i + batchSize).map((id) => chatSession.loadSession(id)))
+    if (myGeneration !== openGeneration || !showDialog.value)
+      return
+    await Promise.all(knownSessionIds.slice(i, i + batchSize).map(id => chatSession.loadSession(id)))
   }
 })
 </script>
 
 <template>
-  <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="(value) => (showDialog = value)">
+  <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
     <slot name="trigger" />
     <DialogPortal>
       <DialogOverlay
@@ -272,10 +280,7 @@ watch(showDialog, async (open) => {
                   <span :class="['truncate flex-1']">{{ row.preview }}</span>
                   <span
                     v-if="row.meta.cloudChatId"
-                    :class="[
-                      'shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5',
-                      'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-                    ]"
+                    :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
                     :title="t('stage.chat.sessions.cloud-badge')"
                   >
                     cloud
@@ -305,7 +310,7 @@ watch(showDialog, async (open) => {
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
-  <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="(value) => (showDialog = value)">
+  <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="value => showDialog = value">
     <DrawerPortal>
       <DrawerOverlay :class="['fixed inset-0']" />
       <DrawerContent
@@ -317,9 +322,7 @@ watch(showDialog, async (open) => {
           'rounded-t-[32px] outline-none backdrop-blur-md',
           'bg-neutral-50/95 dark:bg-neutral-900/95',
         ]"
-        :style="{
-          paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px`,
-        }"
+        :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
       >
         <DrawerHandle :class="['[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600']" />
         <div :class="['flex items-center justify-between px-4 pt-3 pb-2']">
@@ -362,10 +365,7 @@ watch(showDialog, async (open) => {
                 <span :class="['truncate flex-1']">{{ row.preview }}</span>
                 <span
                   v-if="row.meta.cloudChatId"
-                  :class="[
-                    'shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5',
-                    'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
-                  ]"
+                  :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
                   :title="t('stage.chat.sessions.cloud-badge')"
                 >
                   cloud

@@ -29,7 +29,8 @@ const themePresets = computed(() => {
   return themePresetOrder
     .map((key) => {
       const preset = presets[key]
-      if (!preset) return null
+      if (!preset)
+        return null
 
       const presetColors = (COLOR_PRESETS as Record<string, Record<string, string | null>>)[key] || {}
       const colors = Object.entries(preset.colors ?? {}).map(([colorKey, name]) => {
@@ -61,26 +62,26 @@ const themePresets = computed(() => {
     icon="i-solar:pallete-2-bold-duotone"
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + 4 * 10"
+    :duration="250 + (4 * 10)"
     :delay="4 * 50"
     transition="all ease-in-out duration-250"
   >
     <div
-      v-motion
-      flex
-      items-center
+      v-motion flex items-center
       justify-between
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 5 * 10"
+      :duration="250 + (5 * 10)"
       :delay="5 * 50"
       transition="all ease-in-out duration-250"
     >
-      <span text-lg font-normal>
-        {{ $t('settings.pages.system.sections.section.custom-color.fields.field.primary-color.label') }}
-      </span>
+      <span text-lg font-normal>{{ $t('settings.pages.system.sections.section.custom-color.fields.field.primary-color.label') }}</span>
       <label relative flex cursor-pointer items-center gap-2>
-        <input v-model="settings.themeColorsHueDynamic" type="checkbox" class="peer sr-only" />
+        <input
+          v-model="settings.themeColorsHueDynamic"
+          type="checkbox"
+          class="peer sr-only"
+        >
         <div
           class="h-6 w-11 rounded-full bg-neutral-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white dark:bg-neutral-600 peer-checked:bg-primary-500 after:transition-all after:content-[''] peer-checked:after:translate-x-full peer-checked:after:border-white"
         />
@@ -92,7 +93,7 @@ const themePresets = computed(() => {
       v-motion
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 6 * 10"
+      :duration="250 + (6 * 10)"
       :delay="6 * 50"
       :disabled="settings.themeColorsHueDynamic"
     />
@@ -101,7 +102,7 @@ const themePresets = computed(() => {
       class="color-bar text-[10px] md:text-base sm:text-xs"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 7 * 10"
+      :duration="250 + (7 * 10)"
       :delay="7 * 50"
       transition="all ease-in-out duration-250"
     >
@@ -116,7 +117,7 @@ const themePresets = computed(() => {
         text-white
         :initial="{ opacity: 0, y: 10 }"
         :enter="{ opacity: 1, y: 0 }"
-        :duration="250 + 8 * 10"
+        :duration="250 + (8 * 10)"
         :delay="8 * 50"
         transition="all ease-in-out duration-250"
       >
@@ -132,7 +133,7 @@ const themePresets = computed(() => {
       class="color-bar transparency-grid text-[10px] md:text-base sm:text-xs"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 9 * 10"
+      :duration="250 + (9 * 10)"
       :delay="9 * 50"
       transition="all ease-in-out duration-250"
     >
@@ -152,12 +153,11 @@ const themePresets = computed(() => {
 
   <Section
     v-motion
-    mb-2
-    :title="t('settings.pages.system.sections.section.theme-presets.title')"
+    mb-2 :title="t('settings.pages.system.sections.section.theme-presets.title')"
     icon="i-solar:magic-stick-2-bold-duotone"
     :initial="{ opacity: 0, y: 10 }"
     :enter="{ opacity: 1, y: 0 }"
-    :duration="250 + 10 * 10"
+    :duration="250 + (10 * 10)"
     :delay="10 * 50"
     transition="all ease-in-out duration-250"
   >
@@ -170,8 +170,8 @@ const themePresets = computed(() => {
       hover="bg-neutral-200 dark:bg-neutral-700"
       :initial="{ opacity: 0, y: 10 }"
       :enter="{ opacity: 1, y: 0 }"
-      :duration="250 + 11 * 10 + i * 10"
-      :delay="11 * 50 + i * 50"
+      :duration="250 + (11 * 10) + (i * 10)"
+      :delay="11 * 50 + (i * 50)"
       transition="all ease-in-out duration-250"
     >
       <div>
@@ -186,18 +186,12 @@ const themePresets = computed(() => {
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20"
-    pointer-events-none
-    fixed
-    top="[65dvh]"
-    right--15
-    z--1
+    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
+    fixed top="[65dvh]" right--15 z--1
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
     :duration="250"
-    flex
-    items-center
-    justify-center
+    flex items-center justify-center
   >
     <div text="60" i-solar:pallete-2-bold-duotone />
   </div>
@@ -217,9 +211,9 @@ const themePresets = computed(() => {
 }
 
 .transparency-grid {
-  background-image:
-    linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-image: linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
   background-size: 20px 20px;
   background-position:
     0 0,

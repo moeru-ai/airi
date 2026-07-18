@@ -22,13 +22,10 @@
  * ```
  */
 
-// System-level file logger — console calls here are intentional:
-// they bootstrap logging before the @guiiai/logg global hook is registered
-// and remain as a fallback if file writes fail.
-
 import { mkdir, open, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { app } from 'electron'
 
 // ============================================================================
@@ -36,16 +33,6 @@ import { app } from 'electron'
 // ============================================================================
 
 const LOG_FILE_PREFIX = 'airi-tamagotchi'
-
-// ============================================================================
-// Internal utilities
-// ============================================================================
-
-function _logger(...args: unknown[]) {
-  // Route through console so system init/failure messages are visible
-  // in the Electron main process stderr even before logg is configured.
-  console.error('[FileLogger]', ...args)
-}
 
 // ============================================================================
 // Public Types
@@ -73,8 +60,8 @@ export interface FileLoggerHandle {
 export const nullFileLoggerHandle: FileLoggerHandle = {
   logFilePath: null,
   logFileFd: null,
-  appendLog: (_content: string) => Promise.resolve(),
-  close: () => Promise.resolve(),
+  appendLog: async () => {},
+  close: async () => {},
 }
 
 // ============================================================================
@@ -85,7 +72,7 @@ export const nullFileLoggerHandle: FileLoggerHandle = {
  * Extracts a human-readable error message from an unknown error object.
  */
 function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return errorMessageFromValue(error)
 }
 
 /**
@@ -105,9 +92,10 @@ async function ensureLogsDirectory(): Promise<string | null> {
     const logsDir = join(app.getPath('userData'), 'logs')
     await mkdir(logsDir, { recursive: true })
     return logsDir
-  } catch (error) {
+  }
+  catch (error) {
     const message = getErrorMessage(error)
-    _logger(`[FileLogger] Failed to create logs directory: ${message}`)
+    console.error(`[FileLogger] Failed to create logs directory: ${message}`)
     return null
   }
 }
@@ -119,7 +107,8 @@ async function getLogFileSize(filePath: string): Promise<number | null> {
   try {
     const stats = await stat(filePath)
     return stats.size
-  } catch {
+  }
+  catch {
     return null
   }
 }
@@ -159,9 +148,9 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
     const sessionStartMessage = `[FileLogger] Initialized - logging to: ${logFilePath}\n`
     await fileHandle.appendFile(sessionStartMessage)
 
-    _logger(`[FileLogger] Session logs: ${logFilePath}`)
+    console.info(`[FileLogger] Session logs: ${logFilePath}`)
 
-    const appendLog = async (content: string) => {
+    async function appendLog(content: string) {
       if (isFileClosed) {
         return
       }
@@ -170,13 +159,14 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
 
       try {
         await fileHandle.appendFile(normalizedContent)
-      } catch (error) {
+      }
+      catch (error) {
         const message = getErrorMessage(error)
-        _logger(`[FileLogger] Failed to write log: ${message}`)
+        console.error(`[FileLogger] Failed to write log: ${message}`)
       }
     }
 
-    const close = async () => {
+    async function close() {
       if (isFileClosed) {
         return
       }
@@ -184,21 +174,23 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
       try {
         await fileHandle.close()
         isFileClosed = true
-        _logger('[FileLogger] File closed successfully')
-      } catch (error) {
+        console.info('[FileLogger] File closed successfully')
+      }
+      catch (error) {
         const message = getErrorMessage(error)
-        _logger(`[FileLogger] Failed to close log file: ${message}`)
+        console.error(`[FileLogger] Failed to close log file: ${message}`)
       }
 
       const size = await getLogFileSize(logFilePath)
       const sizeInfo = size !== null ? ` (${(size / 1024).toFixed(2)} KB)` : ''
-      _logger(`[FileLogger] Session log file: ${logFilePath}${sizeInfo}`)
+      console.info(`[FileLogger] Session log file: ${logFilePath}${sizeInfo}`)
     }
 
     return { logFilePath, logFileFd, appendLog, close }
-  } catch (error) {
+  }
+  catch (error) {
     const message = getErrorMessage(error)
-    _logger(`[FileLogger] Failed to create log file - logging to console only: ${message}`)
+    console.error(`[FileLogger] Failed to create log file - logging to console only: ${message}`)
     return nullFileLoggerHandle
   }
 }

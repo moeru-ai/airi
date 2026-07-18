@@ -3,26 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 const serverSdkMocks = vi.hoisted(() => {
-  interface MockClientOptions {
-    token?: string
-    heartbeat?: { readTimeout: number; pingInterval: number }
-    onClose?: (code?: number, reason?: string) => void
-    onReady?: () => void
-    onError?: (error: unknown) => void
-    onStateChange?: (state: { previousStatus: string; status: string }) => void
-  }
-
   class MockClient {
     static instances: MockClient[] = []
 
-    readonly listeners = new Map<string, Set<(event: unknown) => void | Promise<void>>>()
-    readonly sent: unknown[] = []
+    readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
+    readonly sent: any[] = []
 
-    constructor(public readonly options: MockClientOptions) {
+    constructor(public readonly options: Record<string, any>) {
       MockClient.instances.push(this)
     }
 
-    onEvent(type: string, callback: (event: unknown) => void | Promise<void>) {
+    onEvent(type: string, callback: (event: any) => void | Promise<void>) {
       let callbacks = this.listeners.get(type)
       if (!callbacks) {
         callbacks = new Set()
@@ -36,7 +27,7 @@ const serverSdkMocks = vi.hoisted(() => {
       }
     }
 
-    offEvent(type: string, callback?: (event: unknown) => void | Promise<void>) {
+    offEvent(type: string, callback?: (event: any) => void | Promise<void>) {
       const callbacks = this.listeners.get(type)
       if (!callbacks) {
         return
@@ -53,7 +44,7 @@ const serverSdkMocks = vi.hoisted(() => {
       this.listeners.delete(type)
     }
 
-    send(event: unknown) {
+    send(event: any) {
       this.sent.push(event)
       return true
     }
@@ -62,7 +53,7 @@ const serverSdkMocks = vi.hoisted(() => {
       this.options.onClose?.(code, reason)
     }
 
-    emit(type: string, data: unknown) {
+    emit(type: string, data: any) {
       const event = { type, data }
       for (const callback of this.listeners.get(type) ?? []) {
         void callback(event)
@@ -89,8 +80,8 @@ const serverSdkMocks = vi.hoisted(() => {
       this.options.onError?.(error)
     }
 
-    simulateStateChange(_previousStatus: string, status: string) {
-      this.options.onStateChange?.({ previousStatus: _previousStatus, status })
+    simulateStateChange(previousStatus: string, status: string) {
+      this.options.onStateChange?.({ previousStatus, status })
     }
   }
 
@@ -145,7 +136,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'spark:notify',
       data: { message: 'before-init' },
-    } as unknown as Parameters<typeof store.send>[0])
+    } as any)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
@@ -155,14 +146,12 @@ describe('channel-server store reconnect', () => {
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
-    expect(client.sent).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'spark:notify',
-          data: { message: 'before-init' },
-        }),
-      ]),
-    )
+    expect(client.sent).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'spark:notify',
+        data: { message: 'before-init' },
+      }),
+    ]))
 
     client.simulateTransientDisconnect()
 
@@ -171,7 +160,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'spark:notify',
       data: { message: 'queued-during-disconnect' },
-    } as unknown as Parameters<typeof store.send>[0])
+    } as any)
 
     expect(store.pendingSendCount).toBe(1)
 
@@ -179,14 +168,12 @@ describe('channel-server store reconnect', () => {
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
-    expect(client.sent).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'spark:notify',
-          data: { message: 'queued-during-disconnect' },
-        }),
-      ]),
-    )
+    expect(client.sent).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'spark:notify',
+        data: { message: 'queued-during-disconnect' },
+      }),
+    ]))
   })
 
   it('uses explicit heartbeat settings to avoid client/server timeout mismatch', async () => {
@@ -243,9 +230,7 @@ describe('channel-server store reconnect', () => {
   it('continues invoking remaining onReconnected callbacks when one throws', async () => {
     const store = useModsServerChannelStore()
     const successfulCallback = vi.fn()
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
-      /* noop */
-    })
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     store.onReconnected(() => {
       throw new Error('boom')
@@ -313,9 +298,7 @@ describe('channel-server store reconnect', () => {
 
   it('keeps the initialize lock on recoverable onError so auto-reconnect does not spawn a second client', () => {
     const store = useModsServerChannelStore()
-    const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {
-      /* noop */
-    })
+    const consoleDebugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {})
 
     const firstInitializePromise = store.initialize({ token: 'secret' })
     const firstClient = serverSdkMocks.MockClient.instances[0]
@@ -346,7 +329,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'spark:notify',
       data: { message: 'reconnect-authenticated-queued' },
-    } as unknown as Parameters<typeof store.send>[0])
+    } as any)
 
     expect(store.pendingSendCount).toBe(1)
 
@@ -359,14 +342,12 @@ describe('channel-server store reconnect', () => {
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
-    expect(client.sent).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: 'spark:notify',
-          data: { message: 'reconnect-authenticated-queued' },
-        }),
-      ]),
-    )
+    expect(client.sent).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'spark:notify',
+        data: { message: 'reconnect-authenticated-queued' },
+      }),
+    ]))
   })
 
   it('does not reconnect while the url scheme is not valid', async () => {

@@ -1,7 +1,5 @@
 <script setup lang="ts">
-const props = withDefaults(defineProps<{ buttonStyle?: string }>(), {
-  buttonStyle: '',
-})
+const props = defineProps<{ buttonStyle?: string }>()
 </script>
 
 <template>

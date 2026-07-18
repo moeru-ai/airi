@@ -7,5 +7,8 @@ const factorioStore = useFactorioStore()
 </script>
 
 <template>
-  <GamingModuleSettings :store="factorioStore" i18n-key-prefix="settings.pages.modules.gaming-factorio" />
+  <GamingModuleSettings
+    :store="factorioStore"
+    i18n-key-prefix="settings.pages.modules.gaming-factorio"
+  />
 </template>

@@ -14,22 +14,24 @@ const mediaStream = ref<MediaStream | null>(null)
 const voice = computed(() => ({
   id: 'lNxY9WuCBCZCISASyJ55',
   name: 'Myriam',
-  previewURL:
-    'https://storage.googleapis.com/eleven-public-prod/MCJE2vSmnChGnvdoSpbNO0dcNQw2/voices/MRCOs26Xkzk5vmsL1Q0D/b0a09f0d-6a02-486f-af95-94a0e5306dbd.mp3',
+  previewURL: 'https://storage.googleapis.com/eleven-public-prod/MCJE2vSmnChGnvdoSpbNO0dcNQw2/voices/MRCOs26Xkzk5vmsL1Q0D/b0a09f0d-6a02-486f-af95-94a0e5306dbd.mp3',
   customizable: true,
   labels: {
     gender: 'Female',
     age: 'Young',
     accent: 'American',
   },
-  languages: [{ name: 'English', code: 'en-US' }],
+  languages: [
+    { name: 'English', code: 'en-US' },
+  ],
 }))
 
 // Toggle playback function
 function togglePlayback(voice: { id: string }) {
   if (currentlyPlayingId.value === voice.id) {
     stopAudio()
-  } else {
+  }
+  else {
     playAudio(voice.id)
   }
 }
@@ -48,12 +50,7 @@ function playAudio(voiceId: string) {
   // Set up audio context and stream when audio can play
   audioElement.value.oncanplay = () => {
     try {
-      const AudioCtx = window.AudioContext || ((window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext)
-      if (!AudioCtx) {
-        console.error('Web Audio API not supported')
-        return
-      }
-      const audioContext = new AudioCtx()
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
 
       // Create audio analyzer for visualization
       const analyzer = audioContext.createAnalyser()
@@ -94,7 +91,7 @@ function playAudio(voiceId: string) {
           const progress = time / duration
 
           // Create some variation in the visualization
-          oscillator.frequency.value = 220 + 880 * Math.sin(progress * Math.PI * 2)
+          oscillator.frequency.value = 220 + (880 * Math.sin(progress * Math.PI * 2))
         }
       }
 
@@ -102,7 +99,8 @@ function playAudio(voiceId: string) {
       audioElement.value!.onended = () => {
         stopAudio()
       }
-    } catch (error) {
+    }
+    catch (error) {
       console.error('Failed to create audio stream:', error)
       // Fallback to just playing audio without visualization
       currentlyPlayingId.value = voiceId
@@ -137,12 +135,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Story title="Voice Card" group="menu" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Voice Card"
+    group="menu"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="default" title="Default Voice Card">
+    <Variant
+      id="default"
+      title="Default Voice Card"
+    >
       <div class="w-full">
         <VoiceCard
           v-model:voice-id="selectedVoiceId"

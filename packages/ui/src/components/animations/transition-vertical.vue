@@ -63,7 +63,9 @@ function prepareElement(element: HTMLElement, initialStyle: initialStyle) {
   element.style.visibility = initialStyle.visibility
   element.style.height = closed
   element.style.overflow = 'hidden'
-  return initialStyle.height && initialStyle.height !== closed ? initialStyle.height : height
+  return initialStyle.height && initialStyle.height !== closed
+    ? initialStyle.height
+    : height
 }
 
 function animateTransition(
@@ -108,12 +110,15 @@ function getEnterKeyframes(height: string, initialStyle: initialStyle) {
   ]
 }
 
-function cancelAnimation(el: HTMLElement, overflow: string, done: () => void) {
-  if (el !== lastElement) return false
-  if (!animation) return false
-  if (animation.playState !== 'running') return false
+function cancelAnimation(HTMLElement: HTMLElement, overflow: string, done: () => void) {
+  if (HTMLElement !== lastElement)
+    return false
+  if (!animation)
+    return false
+  if (animation.playState !== 'running')
+    return false
   animation.onfinish = () => {
-    el.style.overflow = overflow
+    HTMLElement.style.overflow = overflow
     done()
   }
   animation.reverse()
@@ -121,25 +126,27 @@ function cancelAnimation(el: HTMLElement, overflow: string, done: () => void) {
 }
 
 function enterTransition(element: Element, done: () => void) {
-  const htmlEl = element as HTMLElement
-  const initialStyle = getElementStyle(htmlEl)
-  if (cancelAnimation(htmlEl, initialStyle.overflow, done)) return
-  const height = prepareElement(htmlEl, initialStyle)
+  const HTMLElement = element as HTMLElement
+  const initialStyle = getElementStyle(HTMLElement)
+  if (cancelAnimation(HTMLElement, initialStyle.overflow, done))
+    return
+  const height = prepareElement(HTMLElement, initialStyle)
   const keyframes = getEnterKeyframes(height, initialStyle)
   const options = { duration: props.duration, easing: props.easingEnter }
-  animateTransition(htmlEl, initialStyle, done, keyframes, options)
+  animateTransition(HTMLElement, initialStyle, done, keyframes, options)
 }
 
 function leaveTransition(element: Element, done: () => void) {
-  const htmlEl = element as HTMLElement
-  const initialStyle = getElementStyle(htmlEl)
-  if (cancelAnimation(htmlEl, initialStyle.overflow, done)) return
-  const { height } = getComputedStyle(htmlEl)
-  htmlEl.style.height = height
-  htmlEl.style.overflow = 'hidden'
+  const HTMLElement = element as HTMLElement
+  const initialStyle = getElementStyle(HTMLElement)
+  if (cancelAnimation(HTMLElement, initialStyle.overflow, done))
+    return
+  const { height } = getComputedStyle(HTMLElement)
+  HTMLElement.style.height = height
+  HTMLElement.style.overflow = 'hidden'
   const keyframes = getEnterKeyframes(height, initialStyle).reverse()
   const options = { duration: props.duration, easing: props.easingLeave }
-  animateTransition(htmlEl, initialStyle, done, keyframes, options)
+  animateTransition(HTMLElement, initialStyle, done, keyframes, options)
 }
 </script>
 

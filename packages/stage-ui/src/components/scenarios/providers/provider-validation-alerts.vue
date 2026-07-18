@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../misc/alert.vue'
@@ -18,25 +17,6 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-
-const isValidationFailed = computed(
-  () => !props.isValid && props.isValidating === 0 && Boolean(props.validationMessage),
-)
-const isManualTestNeeded = computed(
-  () =>
-    props.isValid &&
-    props.isValidating === 0 &&
-    props.hasManualValidators &&
-    !props.manualTestPassed &&
-    !props.manualTestMessage,
-)
-const isFullSuccess = computed(
-  () => props.isValid && props.isValidating === 0 && (!props.hasManualValidators || props.manualTestPassed),
-)
-const isManualTestFailed = computed(
-  () =>
-    props.hasManualValidators && !props.manualTestPassed && Boolean(props.manualTestMessage) && !props.isManualTesting,
-)
 </script>
 
 <template>
@@ -47,17 +27,13 @@ const isManualTestFailed = computed(
     </template>
   </Alert>
   <!-- Validation Error -->
-  <Alert v-else-if="isValidationFailed" type="error">
+  <Alert v-else-if="!isValid && isValidating === 0 && validationMessage" type="error">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
         <button
           type="button"
-          :class="[
-            'ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors',
-            'bg-red-100 text-red-600 hover:bg-red-200',
-            'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40',
-          ]"
+          :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
           @click="props.onForceValid"
         >
           {{ t('settings.pages.providers.common.continueAnyway') }}
@@ -71,7 +47,7 @@ const isManualTestFailed = computed(
     </template>
   </Alert>
   <!-- Partial: auto validation passed, manual test not yet attempted -->
-  <Alert v-else-if="isManualTestNeeded" type="info">
+  <Alert v-else-if="isValid && isValidating === 0 && hasManualValidators && !manualTestPassed && !manualTestMessage" type="info">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationPartial') }}</span>
@@ -79,27 +55,14 @@ const isManualTestFailed = computed(
           <button
             type="button"
             :disabled="isManualTesting"
-            :class="[
-              'rounded px-2 py-0.5 text-xs font-medium transition-colors',
-              'bg-blue-100 text-blue-600 hover:bg-blue-200',
-              'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40',
-              isManualTesting ? 'cursor-not-allowed opacity-50' : '',
-            ]"
+            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40', isManualTesting ? 'cursor-not-allowed opacity-50' : '']"
             @click="props.onRunTest"
           >
-            {{
-              isManualTesting
-                ? t('settings.dialogs.onboarding.testGenerationRunning')
-                : t('settings.dialogs.onboarding.testGeneration')
-            }}
+            {{ isManualTesting ? t('settings.dialogs.onboarding.testGenerationRunning') : t('settings.dialogs.onboarding.testGeneration') }}
           </button>
           <button
             type="button"
-            :class="[
-              'rounded px-2 py-0.5 text-xs font-medium transition-colors',
-              'bg-blue-100 text-blue-600 hover:bg-blue-200',
-              'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40',
-            ]"
+            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
             @click="props.onGoToModelSelection"
           >
             {{ t('settings.pages.providers.common.goToModelSelection') }}
@@ -109,17 +72,13 @@ const isManualTestFailed = computed(
     </template>
   </Alert>
   <!-- Full success -->
-  <Alert v-else-if="isFullSuccess" type="success">
+  <Alert v-else-if="isValid && isValidating === 0 && (!hasManualValidators || manualTestPassed)" type="success">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
         <button
           type="button"
-          :class="[
-            'ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors',
-            'bg-green-100 text-green-600 hover:bg-green-200',
-            'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40',
-          ]"
+          :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-green-100 text-green-600 hover:bg-green-200', 'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40']"
           @click="props.onGoToModelSelection"
         >
           {{ t('settings.pages.providers.common.goToModelSelection') }}
@@ -128,29 +87,21 @@ const isManualTestFailed = computed(
     </template>
   </Alert>
   <!-- Manual test failed -->
-  <Alert v-else-if="isManualTestFailed" type="error">
+  <Alert v-else-if="hasManualValidators && !manualTestPassed && manualTestMessage && !isManualTesting" type="error">
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
         <div :class="['flex items-center gap-2']">
           <button
             type="button"
-            :class="[
-              'rounded px-2 py-0.5 text-xs font-medium transition-colors',
-              'bg-red-100 text-red-600 hover:bg-red-200',
-              'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40',
-            ]"
+            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
             @click="props.onRunTest"
           >
             {{ t('settings.dialogs.onboarding.retryPingCheck') }}
           </button>
           <button
             type="button"
-            :class="[
-              'rounded px-2 py-0.5 text-xs font-medium transition-colors',
-              'bg-red-100 text-red-600 hover:bg-red-200',
-              'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40',
-            ]"
+            :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
             @click="props.onForceValid"
           >
             {{ t('settings.pages.providers.common.continueAnyway') }}

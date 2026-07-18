@@ -2,24 +2,14 @@
 import { useDebounce } from '@vueuse/core'
 import { ref } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    class?: string | string[] | null
-    isDraggingClasses?: string | string[] | null
-    isNotDraggingClasses?: string | string[] | null
-    accept?: string
-    multiple?: boolean
-    modelValue?: File[]
-  }>(),
-  {
-    class: null,
-    isDraggingClasses: null,
-    isNotDraggingClasses: null,
-    accept: '',
-    multiple: false,
-    modelValue: () => [],
-  },
-)
+const props = defineProps<{
+  class?: string | string[] | null
+  isDraggingClasses?: string | string[] | null
+  isNotDraggingClasses?: string | string[] | null
+  accept?: string
+  multiple?: boolean
+  modelValue?: File[]
+}>()
 
 const emit = defineEmits<{
   'update:modelValue': [files: File[]]
@@ -33,10 +23,14 @@ const isDraggingDebounced = useDebounce(isDragging, 150)
 
 function handleFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  if (!input.files) return
+  if (!input.files)
+    return
 
-  // FileList is not iterable in all TS lib targets; use Array.from
-  files.value = Array.from(input.files)
+  files.value = []
+
+  for (let i = 0; i < input.files.length; i++) {
+    files.value.push(input.files[i])
+  }
 
   emit('update:modelValue', files.value)
 
@@ -58,8 +52,8 @@ function handleFileChange(e: Event) {
       'cursor-pointer',
       props.class,
       isDragging
-        ? [...(Array.isArray(isDraggingClasses) ? isDraggingClasses : [isDraggingClasses])]
-        : [...(Array.isArray(isNotDraggingClasses) ? isNotDraggingClasses : [isNotDraggingClasses])],
+        ? [...Array.isArray(isDraggingClasses) ? isDraggingClasses : [isDraggingClasses]]
+        : [...Array.isArray(isNotDraggingClasses) ? isNotDraggingClasses : [isNotDraggingClasses]],
     ]"
     @dragover="isDragging = true"
     @dragleave="isDragging = false"
@@ -70,7 +64,7 @@ function handleFileChange(e: Event) {
       :multiple="multiple"
       class="absolute inset-0 h-0 w-0 cursor-pointer appearance-none opacity-0"
       @change="handleFileChange"
-    />
+    >
     <slot :is-dragging="isDraggingDebounced" :first-file="firstFile" :files="files" />
   </label>
 </template>

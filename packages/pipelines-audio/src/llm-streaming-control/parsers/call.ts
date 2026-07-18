@@ -1,11 +1,14 @@
-import type { LlmStreamingControlCallManifest, LlmStreamingControlParser, LlmStreamingControlTokenCall } from '../types'
+import type {
+  LlmStreamingControlCallManifest,
+  LlmStreamingControlParser,
+  LlmStreamingControlTokenCall,
+} from '../types'
 
 const callTokenPrefix = '<|CALL '
 const markerSuffix = '|>'
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
-  const isNonNullObject = typeof value === 'object' && value !== null
-  return isNonNullObject && !Array.isArray(value)
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 function renderCallManifestExamples(manifest: LlmStreamingControlCallManifest): string[] {
@@ -13,7 +16,9 @@ function renderCallManifestExamples(manifest: LlmStreamingControlCallManifest): 
     return manifest.examples
   }
 
-  return [`<|CALL ["${manifest.name}"]|>`]
+  return [
+    `<|CALL ["${manifest.name}"]|>`,
+  ]
 }
 
 /**
@@ -80,7 +85,8 @@ export function tokenCall(): LlmStreamingControlParser<LlmStreamingControlTokenC
       let parsed: unknown
       try {
         parsed = JSON.parse(rawPayload)
-      } catch {
+      }
+      catch {
         return undefined
       }
 

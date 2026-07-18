@@ -3,31 +3,22 @@ import { ref, watch } from 'vue'
 
 import { InputKeyValue } from '../input'
 
-const props = withDefaults(
-  defineProps<{
-    label?: string
-    description?: string
-    keyPlaceholder?: string
-    valuePlaceholder?: string
-    required?: boolean
-    inputClass?: string
-  }>(),
-  {
-    label: '',
-    description: '',
-    keyPlaceholder: '',
-    valuePlaceholder: '',
-    required: false,
-    inputClass: '',
-  },
-)
+const props = defineProps<{
+  label?: string
+  description?: string
+  name?: string
+  keyPlaceholder?: string
+  valuePlaceholder?: string
+  required?: boolean
+  inputClass?: string
+}>()
 
 const emit = defineEmits<{
   (e: 'remove', index: number): void
   (e: 'add', key: string, value: string): void
 }>()
 
-const keyValues = defineModel<{ key: string; value: string }[]>({ required: true })
+const keyValues = defineModel<{ key: string, value: string }[]>({ required: true })
 const inputKey = ref('')
 const inputValue = ref('')
 
@@ -53,7 +44,11 @@ watch([inputKey, inputValue], () => {
         </div>
       </div>
       <div v-auto-animate class="flex flex-col gap-2">
-        <div v-for="(keyValue, index) in keyValues" :key="index" class="w-full flex items-center gap-2">
+        <div
+          v-for="(keyValue, index) in keyValues"
+          :key="index"
+          class="w-full flex items-center gap-2"
+        >
           <InputKeyValue
             v-model:property-key="keyValue.key"
             v-model:property-value="keyValue.value"

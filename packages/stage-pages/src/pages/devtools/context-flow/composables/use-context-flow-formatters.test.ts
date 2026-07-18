@@ -30,7 +30,7 @@ describe('useContextFlowFormatters', () => {
     }
 
     const items = buildPreviewItems(entry)
-    expect(items.map((item) => item.label)).toEqual(['Text', 'Destinations'])
+    expect(items.map(item => item.label)).toEqual(['Text', 'Destinations'])
     expect(items[0]?.value).toContain('Hello world')
     expect(items[1]?.value).toContain('character')
   })

@@ -1,17 +1,16 @@
-<script setup lang="ts" generic="T extends object">
+<script setup lang="ts" generic="T extends Record<string, any> | any">
 import { computed, useSlots } from 'vue'
 
-const props = withDefaults(
-  defineProps<{
-    steps: T[]
-    stepKey?: keyof T | string
-  }>(),
-  {
-    stepKey: 'id' as keyof T | string,
-  },
-)
+const props = withDefaults(defineProps<{
+  steps: T[]
+  stepKey?: keyof T | string
+}>(), {
+  stepKey: 'id',
+})
 
-const emit = defineEmits<{ finish: [] }>()
+const emit = defineEmits<{
+  (e: 'finish'): void
+}>()
 
 const value = defineModel<number>({ required: false, default: 0 })
 
@@ -21,12 +20,8 @@ const isFirstStep = computed(() => value.value === 0)
 const isLastStep = computed(() => value.value === props.steps.length - 1)
 
 function getKey(step: T, index: number): string | number {
-  const key = props.stepKey
-  if (key != null && key in step) {
-    const val = (step as unknown as Record<string | number | symbol, unknown>)[key]
-    if (typeof val === 'string' || typeof val === 'number') {
-      return val
-    }
+  if (typeof step === 'object' && step !== null && props.stepKey in step) {
+    return (step as any)[props.stepKey]
   }
   return index // Fallback to index
 }
@@ -40,7 +35,8 @@ function back() {
 function next() {
   if (isLastStep.value) {
     emit('finish')
-  } else {
+  }
+  else {
     value.value++
   }
 }
@@ -64,7 +60,9 @@ function goToStep(index: number) {
         <slot name="header" />
       </div>
       <div v-else>
-        <p class="text-xs text-neutral-500/50 dark:text-neutral-400">Step {{ value + 1 }} of {{ steps.length }}</p>
+        <p class="text-xs text-neutral-500/50 dark:text-neutral-400">
+          Step {{ value + 1 }} of {{ steps.length }}
+        </p>
       </div>
 
       <!-- Current Step Content -->
@@ -73,38 +71,17 @@ function goToStep(index: number) {
         <div
           v-if="index === value"
           v-motion
-          :initial="{
-            opacity: 0,
-            filter: 'blur(1px)',
-            x: 10,
-            transition: { type: 'keyframes', duration: 500, ease: 'easeInOut' },
-          }"
-          :enter="{
-            opacity: 1,
-            filter: 'blur(0px)',
-            x: 0,
-            transition: { type: 'keyframes', duration: 500, ease: 'easeInOut' },
-          }"
-          :leave="{
-            opacity: 0,
-            filter: 'blur(1px)',
-            x: -10,
-            transition: { type: 'keyframes', duration: 500, ease: 'easeInOut' },
-          }"
+          :initial="{ opacity: 0, filter: 'blur(1px)', x: 10, transition: { type: 'keyframes', duration: 500, ease: 'easeInOut' } }"
+          :enter="{ opacity: 1, filter: 'blur(0px)', x: 0, transition: { type: 'keyframes', duration: 500, ease: 'easeInOut' } }"
+          :leave="{ opacity: 0, filter: 'blur(1px)', x: -10, transition: { type: 'keyframes', duration: 500, ease: 'easeInOut' } }"
         >
           <slot name="step" :step="step" :index="index" :is-active="index === value">
             <!-- Default step rendering -->
             <div class="flex flex-col gap-1">
-              <p
-                v-if="typeof step === 'object' && step !== null && 'title' in step"
-                class="mb-4 pb-0 pt-0 text-xl text-primary-600 font-normal dark:text-primary-300"
-              >
+              <p v-if="typeof step === 'object' && step !== null && 'title' in step" class="mb-4 pb-0 pt-0 text-xl text-primary-600 font-normal dark:text-primary-300">
                 {{ step.title }}
               </p>
-              <p
-                v-if="typeof step === 'object' && step !== null && 'description' in step"
-                class="text-sm text-neutral-600 dark:text-neutral-300"
-              >
+              <p v-if="typeof step === 'object' && step !== null && 'description' in step" class="text-sm text-neutral-600 dark:text-neutral-300">
                 {{ step.description }}
               </p>
               <!-- Fallback if step is not an object with title/description -->
@@ -132,9 +109,7 @@ function goToStep(index: number) {
               <div
                 class="size-2 cursor-pointer rounded-full transition-all duration-200"
                 :class="[
-                  index === value
-                    ? 'bg-primary-500 scale-125'
-                    : 'bg-neutral-300 dark:bg-neutral-600 hover:bg-neutral-400',
+                  index === value ? 'bg-primary-500 scale-125' : 'bg-neutral-300 dark:bg-neutral-600 hover:bg-neutral-400',
                   index < value ? 'bg-primary-300 dark:bg-primary-700 opacity-70' : '',
                 ]"
                 :title="`Step ${index + 1}${typeof step === 'object' && step !== null && 'title' in step ? `: ${step.title}` : ''}`"

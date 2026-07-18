@@ -9,9 +9,12 @@ type OllamaThinkValue = boolean | 'high' | 'low' | 'medium'
 type OllamaThinkingMode = 'auto' | 'disable' | 'enable' | 'high' | 'low' | 'medium'
 
 const ollamaConfigSchema = z.object({
-  baseUrl: z.string().default('http://localhost:11434/v1/'),
-  thinkingMode: z.enum(['auto', 'disable', 'enable', 'low', 'medium', 'high']).default('auto'),
-  headers: z.record(z.string(), z.string()).optional(),
+  baseUrl: z.string()
+    .default('http://localhost:11434/v1/'),
+  thinkingMode: z.enum(['auto', 'disable', 'enable', 'low', 'medium', 'high'])
+    .default('auto'),
+  headers: z.record(z.string(), z.string())
+    .optional(),
 })
 
 type OllamaConfig = z.input<typeof ollamaConfigSchema>
@@ -66,22 +69,17 @@ export const providerOllama = defineProvider<OllamaConfig>({
   tasks: ['chat'],
   icon: 'i-lobe-icons:ollama',
 
-  createProviderConfig: ({ t }) =>
-    ollamaConfigSchema.extend({
-      baseUrl: ollamaConfigSchema.shape.baseUrl.meta({
+  createProviderConfig: ({ t }) => ollamaConfigSchema.extend({
+    baseUrl: ollamaConfigSchema.shape.baseUrl
+      .meta({
         labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
-        ),
-        placeholderLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
-        ),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
       }),
-      thinkingMode: ollamaConfigSchema.shape.thinkingMode.meta({
+    thinkingMode: ollamaConfigSchema.shape.thinkingMode
+      .meta({
         labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description',
-        ),
+        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description'),
         section: 'advanced',
         type: 'select',
         options: [
@@ -111,13 +109,14 @@ export const providerOllama = defineProvider<OllamaConfig>({
           },
         ],
       }),
-      headers: ollamaConfigSchema.shape.headers.meta({
+    headers: ollamaConfigSchema.shape.headers
+      .meta({
         labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.headers.label'),
         descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.headers.description'),
         section: 'advanced',
         type: 'key-values',
       }),
-    }),
+  }),
   createProvider(config) {
     const baseProvider = createOllama('', config.baseUrl)
 
@@ -127,7 +126,8 @@ export const providerOllama = defineProvider<OllamaConfig>({
         const chatOptions = baseProvider.chat(model)
         const think = resolveOllamaThink(model, config.thinkingMode)
 
-        if (think === undefined) return chatOptions
+        if (think === undefined)
+          return chatOptions
 
         return { ...chatOptions, think }
       },
@@ -139,36 +139,35 @@ export const providerOllama = defineProvider<OllamaConfig>({
       ({ t }) => ({
         id: 'ollama:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
-        validator: (config) => {
+        validator: async (config) => {
           const errors: Array<{ error: unknown }> = []
           const baseUrl = typeof config.baseUrl === 'string' ? config.baseUrl.trim() : ''
 
-          if (!baseUrl) errors.push({ error: new Error('Base URL is required.') })
+          if (!baseUrl)
+            errors.push({ error: new Error('Base URL is required.') })
 
           if (baseUrl) {
             try {
               const parsed = new URL(baseUrl)
-              if (!parsed.host) errors.push({ error: new Error('Base URL is not absolute. Check your input.') })
-            } catch {
+              if (!parsed.host)
+                errors.push({ error: new Error('Base URL is not absolute. Check your input.') })
+            }
+            catch {
               errors.push({ error: new Error('Base URL is invalid. It must be an absolute URL.') })
             }
           }
 
-          return Promise.resolve({
+          return {
             errors,
-            reason: errors.length > 0 ? errors.map((item) => (item.error as Error).message).join(', ') : '',
+            reason: errors.length > 0 ? errors.map(item => (item.error as Error).message).join(', ') : '',
             reasonKey: '',
             valid: errors.length === 0,
-          })
+          }
         },
       }),
     ],
     validateProvider: createOpenAICompatibleValidators({
-      checks: [
-        ProviderValidationCheck.Connectivity,
-        ProviderValidationCheck.ModelList,
-        ProviderValidationCheck.ChatCompletions,
-      ],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
       schedule: {
         mode: 'interval',
         intervalMs: 15_000,
@@ -181,12 +180,8 @@ export const providerOllama = defineProvider<OllamaConfig>({
     troubleshooting: {
       validators: {
         openaiCompatibleCheckConnectivity: {
-          label: t(
-            'settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.label',
-          ),
-          content: t(
-            'settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.content',
-          ),
+          label: t('settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.label'),
+          content: t('settings.pages.providers.catalog.edit.providers.provider.ollama.troubleshooting.validators.openai-compatible-check-connectivity.content'),
         },
       },
     },

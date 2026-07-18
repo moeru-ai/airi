@@ -13,26 +13,23 @@ import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
-const props = withDefaults(
-  defineProps<{
-    cursorPosition?: Live2DEyeFocusSource
-    modelSrc?: string
-    modelId?: string
+const props = withDefaults(defineProps<{
+  cursorPosition?: Live2DEyeFocusSource
+  modelSrc?: string
+  modelId?: string
 
-    paused?: boolean
-    mouthOpenSize?: number
-    nowSpeaking?: boolean
-    themeColorsHue?: number
-    themeColorsHueDynamic?: boolean
-  }>(),
-  {
-    paused: false,
-    mouthOpenSize: 0,
-    nowSpeaking: false,
-    themeColorsHue: 220.44,
-    themeColorsHueDynamic: false,
-  },
-)
+  paused?: boolean
+  mouthOpenSize?: number
+  nowSpeaking?: boolean
+  themeColorsHue?: number
+  themeColorsHueDynamic?: boolean
+}>(), {
+  paused: false,
+  mouthOpenSize: 0,
+  nowSpeaking: false,
+  themeColorsHue: 220.44,
+  themeColorsHueDynamic: false,
+})
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
@@ -64,26 +61,24 @@ const mouseFocus = useLive2DEyeFocusFor({
   source: activeCursorPosition,
 })
 
-watch(
-  () => props.cursorPosition,
-  (cursorPosition) => {
-    activeCursorPosition.value = cursorPosition ? { ...cursorPosition } : null
-    if (clearCursorFocusTimeout) clearTimeout(clearCursorFocusTimeout)
-    clearCursorFocusTimeout = setTimeout(() => {
-      activeCursorPosition.value = null
-    }, 1000)
-  },
-)
+watch(() => props.cursorPosition, (cursorPosition) => {
+  activeCursorPosition.value = cursorPosition ? { ...cursorPosition } : null
+  if (clearCursorFocusTimeout)
+    clearTimeout(clearCursorFocusTimeout)
+  clearCursorFocusTimeout = setTimeout(() => {
+    activeCursorPosition.value = null
+  }, 1000)
+})
 
 onUnmounted(() => {
-  if (clearCursorFocusTimeout) {
+  if (clearCursorFocusTimeout)
     clearTimeout(clearCursorFocusTimeout)
-  }
 })
 
 watch([componentStateModel, componentStateCanvas], () => {
-  componentState.value =
-    componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted' ? 'mounted' : 'loading'
+  componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
+    ? 'mounted'
+    : 'loading'
 })
 
 defineExpose({

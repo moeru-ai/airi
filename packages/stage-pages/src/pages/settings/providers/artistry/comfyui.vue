@@ -14,17 +14,19 @@ import { useI18n } from 'vue-i18n'
 const artistryStore = useArtistryStore()
 const { t } = useI18n()
 
-const { comfyuiServerUrl, comfyuiSavedWorkflows, comfyuiActiveWorkflow } = storeToRefs(artistryStore)
+const {
+  comfyuiServerUrl,
+  comfyuiSavedWorkflows,
+  comfyuiActiveWorkflow,
+} = storeToRefs(artistryStore)
 
 const expandedWorkflow = ref<string | null>(null)
 
 // TODO: perhaps electron-vueuse should be ported for this?
 function getElectronIpcRenderer() {
-  return (
-    window as Window & {
-      electron?: { ipcRenderer?: unknown }
-    }
-  ).electron?.ipcRenderer
+  return (window as Window & {
+    electron?: { ipcRenderer?: unknown }
+  }).electron?.ipcRenderer
 }
 
 // --- Connection test ---
@@ -40,7 +42,8 @@ async function testConnection() {
   try {
     if (isStageTamagotchi()) {
       const ipcRenderer = getElectronIpcRenderer()
-      if (!ipcRenderer) throw new Error('Electron IPC is not available in this renderer context')
+      if (!ipcRenderer)
+        throw new Error('Electron IPC is not available in this renderer context')
 
       // Proxy through main process to bypass CORS.
       const { context } = createContext(ipcRenderer as Parameters<typeof createContext>[0])
@@ -49,30 +52,30 @@ async function testConnection() {
         url: comfyuiServerUrl.value,
       })
       if (result.ok) {
-        connectionInfo.value =
-          result.info || t('settings.pages.providers.provider.comfyui.settings.connection.connected')
+        connectionInfo.value = result.info || t('settings.pages.providers.provider.comfyui.settings.connection.connected')
         connectionStatus.value = 'connected'
-      } else {
+      }
+      else {
         connectionInfo.value = result.info || t('settings.pages.providers.provider.comfyui.settings.connection.failed')
         connectionStatus.value = 'failed'
       }
-    } else {
+    }
+    else {
       // Browser fallback (subject to CORS)
       const url = comfyuiServerUrl.value.replace(/\/+$/, '')
       const resp = await fetch(`${url}/system_stats`, { mode: 'cors' })
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      if (!resp.ok)
+        throw new Error(`HTTP ${resp.status}`)
 
-      const data = (await resp.json()) as { devices?: Array<{ name?: string }> }
-      const gpus =
-        data.devices?.map((d) => d.name).join(', ') ||
-        t('settings.pages.providers.provider.comfyui.settings.connection.unknown_gpu')
+      const data = await resp.json() as { devices?: Array<{ name?: string }> }
+      const gpus = data.devices?.map(d => d.name).join(', ') || t('settings.pages.providers.provider.comfyui.settings.connection.unknown_gpu')
       connectionInfo.value = `${t('settings.pages.providers.provider.comfyui.settings.connection.connected')} — ${gpus}`
       connectionStatus.value = 'connected'
     }
-  } catch (e: unknown) {
-    const errorMessage =
-      errorMessageFrom(e) ?? t('settings.pages.providers.provider.comfyui.settings.connection.unknown_error')
+  }
+  catch (e: unknown) {
+    const errorMessage = errorMessageFrom(e) ?? t('settings.pages.providers.provider.comfyui.settings.connection.unknown_error')
     connectionInfo.value = `${t('settings.pages.providers.provider.comfyui.settings.connection.error_prefix')}: ${errorMessage}`
     connectionStatus.value = 'failed'
     if (errorMessage.includes('fetch') || errorMessage.includes('CORS')) {
@@ -84,11 +87,9 @@ async function testConnection() {
 // --- Workflow Manager ---
 const showUploadSection = ref(false)
 const uploadError = ref('')
-const parsedWorkflow = ref<{
-  nodes: Array<{ id: string; title: string; type: string; inputs: Record<string, unknown> }>
-} | null>(null)
+const parsedWorkflow = ref<{ nodes: Array<{ id: string, title: string, type: string, inputs: Record<string, any> }> } | null>(null)
 const pendingWorkflowName = ref('')
-const pendingWorkflowRaw = ref<Record<string, unknown> | null>(null)
+const pendingWorkflowRaw = ref<Record<string, any> | null>(null)
 const selectedFields = ref<Record<string, Set<string>>>({})
 
 function handleFileUpload(event: Event) {
@@ -99,7 +100,8 @@ function handleFileUpload(event: Event) {
 
   const input = event.target as HTMLInputElement
   const file = input?.files?.[0]
-  if (!file) return
+  if (!file)
+    return
 
   const reader = new FileReader()
   reader.onload = (e) => {
@@ -109,12 +111,11 @@ function handleFileUpload(event: Event) {
       pendingWorkflowName.value = file.name.replace(/.json$/, '')
 
       // Parse nodes from API format (flat object of nodeId -> node)
-      type ComfyUINode = { _meta?: { title?: string }; class_type?: string; inputs?: Record<string, unknown> }
-      const nodes: Array<{ id: string; title: string; type: string; inputs: Record<string, unknown> }> = []
-      for (const [nodeId, node] of Object.entries(json as Record<string, ComfyUINode>)) {
+      const nodes: Array<{ id: string, title: string, type: string, inputs: Record<string, any> }> = []
+      for (const [nodeId, node] of Object.entries(json as Record<string, any>)) {
         const title = node._meta?.title || node.class_type || `Node ${nodeId}`
         const type = node.class_type || 'Unknown'
-        const inputs: Record<string, unknown> = {}
+        const inputs: Record<string, any> = {}
         for (const [key, val] of Object.entries(node.inputs || {})) {
           // Skip link arrays (connections to other nodes)
           if (!Array.isArray(val)) {
@@ -128,7 +129,8 @@ function handleFileUpload(event: Event) {
       }
 
       parsedWorkflow.value = { nodes }
-    } catch (err: unknown) {
+    }
+    catch (err: unknown) {
       uploadError.value = `${t('settings.pages.providers.provider.comfyui.settings.upload.invalid_json')}: ${errorMessageFrom(err)}`
     }
   }
@@ -137,10 +139,12 @@ function handleFileUpload(event: Event) {
 
 function toggleField(nodeTitle: string, fieldName: string) {
   const set = selectedFields.value[nodeTitle]
-  if (!set) return
+  if (!set)
+    return
   if (set.has(fieldName)) {
     set.delete(fieldName)
-  } else {
+  }
+  else {
     set.add(fieldName)
   }
 }
@@ -158,7 +162,8 @@ const totalExposed = computed(() => {
 })
 
 function saveWorkflow() {
-  if (!pendingWorkflowRaw.value || !pendingWorkflowName.value.trim()) return
+  if (!pendingWorkflowRaw.value || !pendingWorkflowName.value.trim())
+    return
 
   const exposedFields: Record<string, string[]> = {}
   for (const [title, fields] of Object.entries(selectedFields.value)) {
@@ -176,10 +181,11 @@ function saveWorkflow() {
     exposedFields,
   }
 
-  const existing = comfyuiSavedWorkflows.value.findIndex((w) => w.id === id)
+  const existing = comfyuiSavedWorkflows.value.findIndex(w => w.id === id)
   if (existing >= 0) {
     comfyuiSavedWorkflows.value[existing] = template
-  } else {
+  }
+  else {
     comfyuiSavedWorkflows.value = [...comfyuiSavedWorkflows.value, template]
   }
 
@@ -197,32 +203,32 @@ function saveWorkflow() {
 }
 
 function removeWorkflow(id: string) {
-  comfyuiSavedWorkflows.value = comfyuiSavedWorkflows.value.filter((w) => w.id !== id)
+  comfyuiSavedWorkflows.value = comfyuiSavedWorkflows.value.filter(w => w.id !== id)
   if (comfyuiActiveWorkflow.value === id) {
     comfyuiActiveWorkflow.value = comfyuiSavedWorkflows.value[0]?.id || ''
   }
 }
 
-function formatValue(val: unknown): string {
-  if (typeof val === 'string') return val.length > 40 ? `"${val.slice(0, 37)}..."` : `"${val}"`
-  if (typeof val === 'number') return String(val)
-  if (typeof val === 'boolean') return String(val)
+function formatValue(val: any): string {
+  if (typeof val === 'string')
+    return val.length > 40 ? `"${val.slice(0, 37)}..."` : `"${val}"`
+  if (typeof val === 'number')
+    return String(val)
+  if (typeof val === 'boolean')
+    return String(val)
   return JSON.stringify(val)
 }
 
 function generateExampleJson(wf: ComfyUIWorkflowTemplate) {
-  const example: Record<string, unknown> = {
+  const example: Record<string, any> = {
     template: wf.id,
   }
   for (const [nodeTitle, fields] of Object.entries(wf.exposedFields)) {
     example[nodeTitle] = {}
     for (const field of fields) {
-      const nodeId = Object.keys(wf.workflow).find(
-        (id) => ((wf.workflow[id] as { _meta?: { title?: string }; class_type?: string })._meta?.title || (wf.workflow[id] as { _meta?: { title?: string }; class_type?: string }).class_type) === nodeTitle,
-      )
-      type WorkflowNode = { inputs?: Record<string, unknown> }
-      const val = nodeId ? (wf.workflow[nodeId] as WorkflowNode).inputs?.[field] : '...'
-      ;(example[nodeTitle] as Record<string, unknown>)[field] = val
+      const nodeId = Object.keys(wf.workflow).find(id => (wf.workflow[id]._meta?.title || wf.workflow[id].class_type) === nodeTitle)
+      const val = nodeId ? wf.workflow[nodeId].inputs[field] : '...'
+      example[nodeTitle][field] = val
     }
   }
   return JSON.stringify(example, null, 2)
@@ -300,11 +306,9 @@ function copyToClipboard(text: string) {
           :disabled="connectionStatus === 'testing'"
           @click="testConnection"
         >
-          {{
-            connectionStatus === 'testing'
-              ? t('settings.pages.providers.provider.comfyui.settings.connection.testing')
-              : t('settings.pages.providers.provider.comfyui.settings.connection.test')
-          }}
+          {{ connectionStatus === 'testing'
+            ? t('settings.pages.providers.provider.comfyui.settings.connection.testing')
+            : t('settings.pages.providers.provider.comfyui.settings.connection.test') }}
         </Button>
       </div>
       <div
@@ -319,7 +323,10 @@ function copyToClipboard(text: string) {
       </div>
 
       <!-- CORS Troubleshooting -->
-      <div v-if="isCorsError" class="flex flex-col gap-2 border-2 border-amber-500/20 rounded-xl bg-amber-500/10 p-4">
+      <div
+        v-if="isCorsError"
+        class="flex flex-col gap-2 border-2 border-amber-500/20 rounded-xl bg-amber-500/10 p-4"
+      >
         <div class="flex items-center gap-2 text-sm text-amber-600 font-bold dark:text-amber-400">
           <div i-solar:shield-warning-bold-duotone />
           {{ t('settings.pages.providers.provider.comfyui.settings.cors.title') }}
@@ -327,9 +334,7 @@ function copyToClipboard(text: string) {
         <p class="text-xs text-neutral-600 leading-relaxed dark:text-neutral-400">
           {{ t('settings.pages.providers.provider.comfyui.settings.cors.description') }}
         </p>
-        <div
-          class="break-all rounded bg-black/5 p-2 text-[10px] text-neutral-500 font-mono dark:bg-black/20 dark:text-neutral-400"
-        >
+        <div class="break-all rounded bg-black/5 p-2 text-[10px] text-neutral-500 font-mono dark:bg-black/20 dark:text-neutral-400">
           {{ t('settings.pages.providers.provider.comfyui.settings.cors.command') }}
         </div>
       </div>
@@ -341,28 +346,23 @@ function copyToClipboard(text: string) {
         <h3 class="text-lg text-neutral-700 font-medium dark:text-neutral-300">
           {{ t('settings.pages.providers.provider.comfyui.settings.workflows.title') }}
         </h3>
-        <Button variant="secondary" size="sm" @click="showUploadSection = !showUploadSection">
-          {{
-            showUploadSection
-              ? t('settings.pages.providers.provider.comfyui.settings.workflows.cancel_upload')
-              : t('settings.pages.providers.provider.comfyui.settings.workflows.upload')
-          }}
+        <Button
+          variant="secondary"
+          size="sm"
+          @click="showUploadSection = !showUploadSection"
+        >
+          {{ showUploadSection
+            ? t('settings.pages.providers.provider.comfyui.settings.workflows.cancel_upload')
+            : t('settings.pages.providers.provider.comfyui.settings.workflows.upload') }}
         </Button>
       </div>
 
       <!-- Workflow List -->
-      <div
-        v-if="comfyuiSavedWorkflows.length === 0 && !showUploadSection"
-        class="text-sm text-neutral-400 italic dark:text-neutral-500"
-      >
+      <div v-if="comfyuiSavedWorkflows.length === 0 && !showUploadSection" class="text-sm text-neutral-400 italic dark:text-neutral-500">
         {{ t('settings.pages.providers.provider.comfyui.settings.workflows.empty') }}
       </div>
 
-      <div
-        v-for="wf in comfyuiSavedWorkflows"
-        :key="wf.id"
-        class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700"
-      >
+      <div v-for="wf in comfyuiSavedWorkflows" :key="wf.id" class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700">
         <div class="flex items-center gap-3">
           <input
             type="radio"
@@ -370,32 +370,32 @@ function copyToClipboard(text: string) {
             name="active-workflow"
             class="accent-indigo-500"
             @change="comfyuiActiveWorkflow = wf.id"
-          />
-          <div class="flex-1 cursor-pointer" @click="expandedWorkflow = expandedWorkflow === wf.id ? null : wf.id">
+          >
+          <div class="flex-1 cursor-pointer" @click="expandedWorkflow = (expandedWorkflow === wf.id ? null : wf.id)">
             <div class="flex items-center gap-2 text-sm text-neutral-800 font-medium dark:text-neutral-200">
               {{ wf.name }}
               <div v-if="expandedWorkflow === wf.id" class="i-solar:alt-arrow-down-linear text-xs opacity-50" />
               <div v-else class="i-solar:alt-arrow-right-linear text-xs opacity-50" />
             </div>
             <div class="text-xs text-neutral-400 dark:text-neutral-500">
-              {{
-                t('settings.pages.providers.provider.comfyui.settings.workflows.summary', {
-                  nodes: Object.keys(wf.workflow).length,
-                  fields: Object.values(wf.exposedFields).reduce((n, arr) => n + arr.length, 0),
-                })
-              }}
+              {{ t('settings.pages.providers.provider.comfyui.settings.workflows.summary', {
+                nodes: Object.keys(wf.workflow).length,
+                fields: Object.values(wf.exposedFields).reduce((n, arr) => n + arr.length, 0),
+              }) }}
             </div>
           </div>
-          <Button variant="ghost" size="sm" class="!text-red-400 hover:!text-red-500" @click="removeWorkflow(wf.id)">
+          <Button
+            variant="ghost"
+            size="sm"
+            class="!text-red-400 hover:!text-red-500"
+            @click="removeWorkflow(wf.id)"
+          >
             {{ t('settings.pages.providers.provider.comfyui.settings.workflows.remove') }}
           </Button>
         </div>
 
         <!-- Expanded Details -->
-        <div
-          v-if="expandedWorkflow === wf.id"
-          class="mt-2 flex flex-col gap-5 border-t border-neutral-100 pb-2 pl-7 pt-4 dark:border-neutral-800"
-        >
+        <div v-if="expandedWorkflow === wf.id" class="mt-2 flex flex-col gap-5 border-t border-neutral-100 pb-2 pl-7 pt-4 dark:border-neutral-800">
           <!-- Exposed Fields Visualization -->
           <div class="flex flex-col gap-2">
             <div class="text-[10px] text-neutral-400 font-bold tracking-wider uppercase dark:text-neutral-500">
@@ -403,17 +403,11 @@ function copyToClipboard(text: string) {
             </div>
             <div class="flex flex-wrap gap-3">
               <div v-for="(fields, nodeTitle) in wf.exposedFields" :key="nodeTitle" class="flex flex-col gap-1.5">
-                <div
-                  class="self-start rounded bg-neutral-100 px-1.5 py-0.5 text-[9px] text-neutral-500 font-mono dark:bg-neutral-800 dark:text-neutral-400"
-                >
+                <div class="self-start rounded bg-neutral-100 px-1.5 py-0.5 text-[9px] text-neutral-500 font-mono dark:bg-neutral-800 dark:text-neutral-400">
                   {{ nodeTitle }}
                 </div>
                 <div class="flex flex-wrap gap-1 pl-1">
-                  <div
-                    v-for="f in fields"
-                    :key="f"
-                    class="group relative flex items-center gap-1.5 text-[10px] text-indigo-600 font-medium dark:text-indigo-400"
-                  >
+                  <div v-for="f in fields" :key="f" class="group relative flex items-center gap-1.5 text-[10px] text-indigo-600 font-medium dark:text-indigo-400">
                     <div class="size-1 rounded-full bg-indigo-400" />
                     {{ f }}
                   </div>
@@ -423,15 +417,17 @@ function copyToClipboard(text: string) {
           </div>
 
           <!-- Integration Snippet -->
-          <div
-            class="flex flex-col gap-3 border border-indigo-500/10 rounded-xl bg-neutral-900/5 p-4 dark:bg-indigo-500/5"
-          >
+          <div class="flex flex-col gap-3 border border-indigo-500/10 rounded-xl bg-neutral-900/5 p-4 dark:bg-indigo-500/5">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2 text-xs text-indigo-600 font-bold dark:text-indigo-400">
                 <div i-solar:code-bold-duotone />
                 {{ t('settings.pages.providers.provider.comfyui.settings.workflows.config_snippet') }}
               </div>
-              <Button variant="secondary" size="sm" @click="copyToClipboard(generateExampleJson(wf))">
+              <Button
+                variant="secondary"
+                size="sm"
+                @click="copyToClipboard(generateExampleJson(wf))"
+              >
                 {{ t('settings.pages.providers.provider.comfyui.settings.workflows.copy_json') }}
               </Button>
             </div>
@@ -441,22 +437,14 @@ function copyToClipboard(text: string) {
                 <span class="text-indigo-500 dark:text-indigo-400">{</span>
               </div>
               <div class="pl-4">
-                <span class="text-emerald-600 dark:text-emerald-400">"template"</span>
-                :
-                <span class="text-amber-600">"{{ wf.id }}"</span>
-                ,
+                <span class="text-emerald-600 dark:text-emerald-400">"template"</span>: <span class="text-amber-600">"{{ wf.id }}"</span>,
               </div>
               <div v-for="(fields, nodeTitle, index) in wf.exposedFields" :key="nodeTitle" class="pl-4">
-                <span class="text-emerald-600 dark:text-emerald-400">"{{ nodeTitle }}"</span>
-                : {
+                <span class="text-emerald-600 dark:text-emerald-400">"{{ nodeTitle }}"</span>: {
                 <div v-for="(f, fIndex) in fields" :key="f" class="pl-4">
-                  <span class="text-emerald-600 dark:text-emerald-400">"{{ f }}"</span>
-                  :
-                  <span class="text-blue-500">"..."</span>
-                  {{ fIndex < fields.length - 1 ? ',' : '' }}
+                  <span class="text-emerald-600 dark:text-emerald-400">"{{ f }}"</span>: <span class="text-blue-500">"..."</span>{{ fIndex < fields.length - 1 ? ',' : '' }}
                 </div>
-                }
-                <span>{{ index < Object.keys(wf.exposedFields).length - 1 ? ',' : '' }}</span>
+                }<span>{{ index < Object.keys(wf.exposedFields).length - 1 ? ',' : '' }}</span>
               </div>
               <div class="flex gap-2">
                 <span class="text-indigo-500 dark:text-indigo-400">}</span>
@@ -472,16 +460,20 @@ function copyToClipboard(text: string) {
       </div>
 
       <!-- Upload Section -->
-      <div
-        v-if="showUploadSection"
-        class="flex flex-col gap-4 border-2 border-indigo-300 rounded-xl border-dashed p-5 dark:border-indigo-700"
-      >
+      <div v-if="showUploadSection" class="flex flex-col gap-4 border-2 border-indigo-300 rounded-xl border-dashed p-5 dark:border-indigo-700">
         <div class="flex flex-col items-center gap-2">
-          <div class="text-3xl text-indigo-400">📋</div>
+          <div class="text-3xl text-indigo-400">
+            📋
+          </div>
           <div class="text-sm text-neutral-600 dark:text-neutral-400">
             {{ t('settings.pages.providers.provider.comfyui.settings.upload.prompt') }}
           </div>
-          <input type="file" accept=".json" class="text-sm" @change="handleFileUpload" />
+          <input
+            type="file"
+            accept=".json"
+            class="text-sm"
+            @change="handleFileUpload"
+          >
         </div>
 
         <div v-if="uploadError" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-500">
@@ -522,7 +514,7 @@ function copyToClipboard(text: string) {
                     class="accent-indigo-500"
                     :checked="isFieldSelected(node.title, String(field))"
                     @change="toggleField(node.title, String(field))"
-                  />
+                  >
                   <span class="text-neutral-600 font-mono dark:text-neutral-400">{{ field }}</span>
                   <span class="truncate text-neutral-400 dark:text-neutral-500">= {{ formatValue(val) }}</span>
                 </label>
@@ -531,11 +523,7 @@ function copyToClipboard(text: string) {
           </div>
 
           <div class="mt-2 flex items-center justify-between">
-            <span class="text-xs text-neutral-400">
-              {{
-                t('settings.pages.providers.provider.comfyui.settings.upload.fields_exposed', { count: totalExposed })
-              }}
-            </span>
+            <span class="text-xs text-neutral-400">{{ t('settings.pages.providers.provider.comfyui.settings.upload.fields_exposed', { count: totalExposed }) }}</span>
             <Button
               variant="primary"
               size="sm"

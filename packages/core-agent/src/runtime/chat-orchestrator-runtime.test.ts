@@ -2,7 +2,7 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
-import type { StreamEvent } from '../types/llm'
+import type { StreamEvent, StreamOptions } from '../types/llm'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
@@ -35,25 +35,21 @@ function createHarness() {
   const assistantTurns: unknown[] = []
   const stateChanges: unknown[] = []
   const telemetry = {
+    chatActivationStarted: [] as unknown[],
+    chatActivationSucceeded: [] as unknown[],
+    chatActivationFailed: [] as unknown[],
     messageSendStarted: [] as unknown[],
     llmRequestStarted: [] as unknown[],
     llmFirstToken: [] as unknown[],
     assistantResponseRendered: [] as unknown[],
+    llmGeneration: [] as unknown[],
     messageRound: [] as unknown[],
+    messageRoundFailed: [] as unknown[],
   }
-  const stream = vi.fn(
-    async (
-      _model: string,
-      _chatProvider: ChatProvider,
-      _messages: Message[],
-      options?: {
-        onStreamEvent?: (event: StreamEvent) => Promise<void> | void
-      },
-    ) => {
-      await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
-      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
-    },
-  )
+  const stream = vi.fn(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options?: StreamOptions) => {
+    await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
+    await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+  })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
@@ -65,7 +61,7 @@ function createHarness() {
       ensureSession: (sessionId) => {
         sessionMessages[sessionId] ??= []
       },
-      getSessionMessages: (sessionId) => sessionMessages[sessionId] ?? [],
+      getSessionMessages: sessionId => sessionMessages[sessionId] ?? [],
       appendSessionMessage: (sessionId, message) => {
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
@@ -77,7 +73,7 @@ function createHarness() {
       snapshot: () => structuredClone(contextSnapshot),
     },
     foregroundStream: {
-      patch: (message) => foregroundPatches.push(message),
+      patch: message => foregroundPatches.push(message),
       reset: () => foregroundResets.push({ role: 'assistant', content: '', slices: [], tool_results: [] }),
     },
     llm: {
@@ -89,18 +85,23 @@ function createHarness() {
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
-    onLifecycle: (record) => lifecycleRecords.push(record),
-    onPromptProjection: (payload) => promptProjections.push(payload),
-    onUserMessageAppended: (event) => userAppended.push(event),
-    onAssistantMessageAppended: (event) => assistantAppended.push(event),
-    onUserTurnReady: (event) => userTurns.push(event),
-    onAssistantTurnReady: (event) => assistantTurns.push(event),
-    onStateChange: (state) => stateChanges.push(state),
-    onMessageSendStarted: (event) => telemetry.messageSendStarted.push(event),
-    onLlmRequestStarted: (event) => telemetry.llmRequestStarted.push(event),
-    onLlmFirstToken: (event) => telemetry.llmFirstToken.push(event),
-    onAssistantResponseRendered: (event) => telemetry.assistantResponseRendered.push(event),
-    onMessageRound: (event) => telemetry.messageRound.push(event),
+    onLifecycle: record => lifecycleRecords.push(record),
+    onPromptProjection: payload => promptProjections.push(payload),
+    onUserMessageAppended: event => userAppended.push(event),
+    onAssistantMessageAppended: event => assistantAppended.push(event),
+    onUserTurnReady: event => userTurns.push(event),
+    onAssistantTurnReady: event => assistantTurns.push(event),
+    onStateChange: state => stateChanges.push(state),
+    onChatActivationStarted: event => telemetry.chatActivationStarted.push(event),
+    onChatActivationSucceeded: event => telemetry.chatActivationSucceeded.push(event),
+    onChatActivationFailed: event => telemetry.chatActivationFailed.push(event),
+    onMessageSendStarted: event => telemetry.messageSendStarted.push(event),
+    onLlmRequestStarted: event => telemetry.llmRequestStarted.push(event),
+    onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
+    onAssistantResponseRendered: event => telemetry.assistantResponseRendered.push(event),
+    onLlmGeneration: event => telemetry.llmGeneration.push(event),
+    onMessageRound: event => telemetry.messageRound.push(event),
+    onMessageRoundFailed: event => telemetry.messageRoundFailed.push(event),
   })
 
   return {
@@ -195,7 +196,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -227,13 +228,11 @@ describe('createChatOrchestratorRuntime', () => {
         text: '\n[Context]\n- system:weather: sunny',
       },
     ])
-    expect(harness.lifecycleRecords).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ phase: 'before-compose' }),
-        expect.objectContaining({ phase: 'prompt-context-built' }),
-        expect.objectContaining({ phase: 'after-compose' }),
-      ]),
-    )
+    expect(harness.lifecycleRecords).toEqual(expect.arrayContaining([
+      expect.objectContaining({ phase: 'before-compose' }),
+      expect.objectContaining({ phase: 'prompt-context-built' }),
+      expect.objectContaining({ phase: 'after-compose' }),
+    ]))
     expect(harness.promptProjections).toHaveLength(1)
   })
 
@@ -249,7 +248,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -276,7 +275,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = messages
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'hello' })
-      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
     })
 
     await harness.runtime.ingest('hello from user', {
@@ -298,6 +297,16 @@ describe('createChatOrchestratorRuntime', () => {
   it('emits telemetry milestones for a successful voice-backed message round', async () => {
     const harness = createHarness()
     harness.monotonicNow.set([100, 150, 250, 400, 460])
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      await options?.onUsage?.({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
 
     await harness.runtime.ingest('hello from voice', {
       model: 'gpt-test',
@@ -310,37 +319,169 @@ describe('createChatOrchestratorRuntime', () => {
       },
     })
 
-    expect(harness.telemetry.messageSendStarted).toEqual([
-      {
-        source: 'voice',
-        model: 'gpt-test',
-      },
-    ])
-    expect(harness.telemetry.llmRequestStarted).toEqual([
-      {
-        model: 'gpt-test',
-        provider: 'mock-provider',
-        hasVoice: true,
-      },
-    ])
-    expect(harness.telemetry.llmFirstToken).toEqual([
-      {
-        model: 'gpt-test',
-        ttfbMs: 100,
-      },
-    ])
-    expect(harness.telemetry.assistantResponseRendered).toEqual([
-      {
-        model: 'gpt-test',
-        latencyMs: 250,
-      },
-    ])
-    expect(harness.telemetry.messageRound).toEqual([
-      {
-        durationMs: 360,
-        hasVoice: true,
-        model: 'gpt-test',
-      },
+    expect(harness.telemetry.messageSendStarted).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      source: 'voice',
+      model: 'gpt-test',
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.llmRequestStarted).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      hasVoice: true,
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.llmFirstToken).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      model: 'gpt-test',
+      ttfbMs: 100,
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.assistantResponseRendered).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      model: 'gpt-test',
+      latencyMs: 250,
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.llmGeneration).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      inputTokens: 12,
+      outputTokens: 8,
+      totalTokens: 20,
+      usageSource: 'reported',
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.messageRound).toEqual([{
+      conversationId: 'session-1',
+      roundId: 'user-id',
+      durationMs: 360,
+      hasVoice: true,
+      inputTokens: 12,
+      model: 'gpt-test',
+      outputTokens: 8,
+      totalTokens: 20,
+      turnIndex: 1,
+      usageSource: 'reported',
+    }])
+    expect(harness.telemetry.chatActivationStarted).toEqual([{
+      conversationId: 'session-1',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      roundId: 'user-id',
+      source: 'voice',
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([{
+      conversationId: 'session-1',
+      durationMs: 360,
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      roundId: 'user-id',
+      source: 'voice',
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.chatActivationFailed).toEqual([])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Activation callbacks were emitted for every chat round, so production
+  // `chat_activation_*` volume tracked message traffic instead of the first
+  // successful assistant response in a conversation.
+  it('emits activation milestones only until the conversation gets its first assistant response', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('first turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    await harness.runtime.ingest('second turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
+    expect(harness.telemetry.messageSendStarted).toHaveLength(2)
+    expect(harness.telemetry.messageRound).toHaveLength(2)
+  })
+
+  /**
+   * @example
+   * await expect(runtime.ingest('hello', { model, chatProvider })).rejects.toThrow('provider rejected')
+   */
+  it('emits chat activation failure telemetry without raw provider messages', async () => {
+    const harness = createHarness()
+    harness.stream.mockRejectedValueOnce(new Error('provider rejected with sensitive details'))
+
+    await expect(harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('provider rejected')
+
+    expect(harness.telemetry.chatActivationStarted).toEqual([{
+      conversationId: 'session-1',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      roundId: 'user-id',
+      source: 'text',
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([])
+    expect(harness.telemetry.chatActivationFailed).toEqual([{
+      conversationId: 'session-1',
+      errorCode: 'llm_response_failed',
+      failureStage: 'llm_response',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      roundId: 'user-id',
+      source: 'text',
+      turnIndex: 1,
+    }])
+    expect(harness.telemetry.messageRoundFailed).toEqual([{
+      conversationId: 'session-1',
+      errorCode: 'llm_response_failed',
+      failureStage: 'llm_response',
+      model: 'gpt-test',
+      provider: 'mock-provider',
+      roundId: 'user-id',
+      source: 'text',
+      turnIndex: 1,
+    }])
+  })
+
+  it('emits a round failure for later turns without repeating activation failure', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('first turn succeeds', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    harness.stream.mockRejectedValueOnce(new Error('later turn rejected'))
+
+    await expect(harness.runtime.ingest('second turn fails', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('later turn rejected')
+
+    expect(harness.telemetry.chatActivationFailed).toEqual([])
+    expect(harness.telemetry.messageRoundFailed).toEqual([
+      expect.objectContaining({
+        conversationId: 'session-1',
+        errorCode: 'llm_response_failed',
+        failureStage: 'llm_response',
+        roundId: expect.any(String),
+        turnIndex: 2,
+      }),
     ])
   })
 
@@ -522,7 +663,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
-      await options?.onStreamEvent?.({ type: 'finish', reason: 'stop' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
     })
 
     await harness.runtime.ingest('see image', {

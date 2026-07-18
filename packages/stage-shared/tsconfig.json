@@ -2,11 +2,17 @@
   "compilerOptions": {
     "target": "ESNext",
     "jsx": "preserve",
-    "lib": ["DOM", "ESNext"],
+    "lib": [
+      "DOM",
+      "ESNext"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
-    "types": ["vitest", "vite/client"],
+    "types": [
+      "vitest",
+      "vite/client"
+    ],
     "allowJs": true,
     "strict": true,
     "strictNullChecks": true,
@@ -19,9 +25,20 @@
     "skipLibCheck": true
   },
   "vueCompilerOptions": {
-    "plugins": ["@vue-macros/volar/define-models", "@vue-macros/volar/define-slots"],
+    "plugins": [
+      "@vue-macros/volar/define-models",
+      "@vue-macros/volar/define-slots"
+    ],
     "skipTemplateCodegen": false
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
-  "exclude": ["dist", "node_modules", "src/electron-renderer.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "src/electron-renderer.d.ts"
+  ]
 }

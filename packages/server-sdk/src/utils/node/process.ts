@@ -19,6 +19,7 @@ process.on('uncaughtException', (e) => {
 
 export function runUntilSignal() {
   setTimeout(() => {
-    if (running) runUntilSignal()
+    if (running)
+      runUntilSignal()
   }, 10)
 }

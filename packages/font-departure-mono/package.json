@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/font-departure-mono",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.2",
   "description": "Essential CSS for font, Departure Mono, used by Project AIRI",
   "author": {
     "name": "Tobias Fried",
@@ -16,30 +16,14 @@
     "directory": "packages/font-departure-mono"
   },
   "exports": {
-    ".": {
-      "default": "./dist/index.css"
-    },
-    "./index.css": {
-      "default": "./dist/index.css"
-    },
-    "./files/*": {
-      "default": "./dist/files/*"
-    },
-    "./files/*.ttf": {
-      "default": "./dist/files/*.ttf"
-    },
-    "./files/*.otf": {
-      "default": "./dist/files/*.otf"
-    },
-    "./files/*.woff": {
-      "default": "./dist/files/*.woff"
-    },
-    "./files/*.woff2": {
-      "default": "./dist/files/*.woff2"
-    },
-    "./*": {
-      "default": "./*.css"
-    }
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
+    "./files/*.otf": { "default": "./dist/files/*.otf" },
+    "./files/*.woff": { "default": "./dist/files/*.woff" },
+    "./files/*.woff2": { "default": "./dist/files/*.woff2" },
+    "./*": { "default": "./*.css" }
   },
   "main": "./dist/index.css",
   "scripts": {

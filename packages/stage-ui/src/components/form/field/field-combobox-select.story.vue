@@ -41,12 +41,19 @@ const richOptions = [
 </script>
 
 <template>
-  <Story title="Field Combobox Select" group="form" :layout="{ type: 'grid', width: '100%' }">
+  <Story
+    title="Field Combobox Select"
+    group="form"
+    :layout="{ type: 'grid', width: '100%' }"
+  >
     <template #controls>
       <ThemeColorsHueControl />
     </template>
 
-    <Variant id="simple" title="Simple (Plain Value)">
+    <Variant
+      id="simple"
+      title="Simple (Plain Value)"
+    >
       <div :class="['max-w-110', 'w-full', 'flex', 'flex-col', 'gap-3']">
         <FieldCombobox
           v-model="basicValue"
@@ -61,7 +68,10 @@ const richOptions = [
       </div>
     </Variant>
 
-    <Variant id="custom-option" title="Complex (Custom Option Rendering)">
+    <Variant
+      id="custom-option"
+      title="Complex (Custom Option Rendering)"
+    >
       <div :class="['max-w-110', 'w-full', 'flex', 'flex-col', 'gap-3']">
         <FieldCombobox
           v-model="customValue"
@@ -74,26 +84,25 @@ const richOptions = [
           <template #option="{ option }">
             <div :class="['min-w-0', 'flex', 'w-full', 'items-center', 'justify-between', 'gap-3', 'py-1']">
               <div :class="['min-w-0', 'flex', 'items-center', 'gap-2']">
-                <span v-if="option.icon" :class="['size-4 shrink-0', 'text-current', option.icon]" />
+                <span
+                  v-if="option.icon"
+                  :class="[
+                    'size-4 shrink-0',
+                    'text-current',
+                    option.icon,
+                  ]"
+                />
                 <div :class="['min-w-0', 'flex', 'flex-col']">
                   <span :class="['truncate']">{{ option.label }}</span>
-                  <span v-if="option.description" :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <span
+                    v-if="option.description"
+                    :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']"
+                  >
                     {{ option.description }}
                   </span>
                 </div>
               </div>
-              <span
-                :class="[
-                  'rounded-full',
-                  'bg-primary-400/12',
-                  'dark:bg-primary-400/18',
-                  'px-2',
-                  'py-0.5',
-                  'text-xs',
-                  'text-primary-700',
-                  'dark:text-primary-200',
-                ]"
-              >
+              <span :class="['rounded-full', 'bg-primary-400/12', 'dark:bg-primary-400/18', 'px-2', 'py-0.5', 'text-xs', 'text-primary-700', 'dark:text-primary-200']">
                 {{ option.value }}
               </span>
             </div>
@@ -105,7 +114,10 @@ const richOptions = [
       </div>
     </Variant>
 
-    <Variant id="custom-empty" title="Custom Empty State">
+    <Variant
+      id="custom-empty"
+      title="Custom Empty State"
+    >
       <div :class="['max-w-110', 'w-full', 'flex', 'flex-col', 'gap-3']">
         <FieldCombobox
           v-model="emptyValue"
@@ -115,18 +127,7 @@ const richOptions = [
           placeholder="Try typing a non-existing item..."
         >
           <template #empty>
-            <div
-              :class="[
-                'flex',
-                'items-center',
-                'gap-2',
-                'px-2',
-                'py-2',
-                'text-xs',
-                'text-neutral-500',
-                'dark:text-neutral-400',
-              ]"
-            >
+            <div :class="['flex', 'items-center', 'gap-2', 'px-2', 'py-2', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
               <span i-solar:magnifer-zoom-out-linear class="size-4" />
               <span>No items match your search.</span>
             </div>

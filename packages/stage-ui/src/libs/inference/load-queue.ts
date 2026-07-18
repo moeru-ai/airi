@@ -42,7 +42,12 @@ export interface LoadQueue {
    * the loader completes. If another load is in progress, this
    * one waits in a priority queue.
    */
-  enqueue: <T>(modelId: string, priority: number, loader: () => Promise<T>, options?: EnqueueOptions) => Promise<T>
+  enqueue: <T>(
+    modelId: string,
+    priority: number,
+    loader: () => Promise<T>,
+    options?: EnqueueOptions,
+  ) => Promise<T>
 
   /** Model IDs waiting in the queue */
   readonly pending: string[]
@@ -56,11 +61,11 @@ export interface LoadQueue {
 // ---------------------------------------------------------------------------
 
 export function createLoadQueue(): LoadQueue {
-  const queue: QueueEntry<unknown>[] = []
+  const queue: QueueEntry<any>[] = []
   let active: string | null = null
   let running = false
 
-  function detachAbortHandler(entry: QueueEntry<unknown>): void {
+  function detachAbortHandler(entry: QueueEntry<any>): void {
     if (entry.signal && entry.abortHandler) {
       entry.signal.removeEventListener('abort', entry.abortHandler)
       entry.abortHandler = undefined
@@ -68,7 +73,8 @@ export function createLoadQueue(): LoadQueue {
   }
 
   async function processQueue(): Promise<void> {
-    if (running) return
+    if (running)
+      return
     running = true
 
     while (queue.length > 0) {
@@ -91,7 +97,8 @@ export function createLoadQueue(): LoadQueue {
         const result = await entry.loader()
         detachAbortHandler(entry)
         entry.resolve(result)
-      } catch (error) {
+      }
+      catch (error) {
         detachAbortHandler(entry)
         entry.reject(error)
       }
@@ -108,11 +115,11 @@ export function createLoadQueue(): LoadQueue {
     options?: EnqueueOptions,
   ): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      const entry: QueueEntry<unknown> = {
+      const entry: QueueEntry<T> = {
         modelId,
         priority,
         loader,
-        resolve: resolve as (value: unknown) => void,
+        resolve,
         reject,
         signal: options?.signal,
       }
@@ -138,18 +145,14 @@ export function createLoadQueue(): LoadQueue {
       }
 
       queue.push(entry)
-      void processQueue()
+      processQueue()
     })
   }
 
   return {
     enqueue,
-    get pending() {
-      return queue.map((e) => e.modelId)
-    },
-    get active() {
-      return active
-    },
+    get pending() { return queue.map(e => e.modelId) },
+    get active() { return active },
   }
 }
 

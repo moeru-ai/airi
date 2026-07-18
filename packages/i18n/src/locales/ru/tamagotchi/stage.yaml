@@ -8,27 +8,28 @@ docs:
     navbar:
       appearance:
         title: Внешний вид
-controls-island:
-  fade-on-hover:
+'controls-island':
+  'fade-on-hover':
     enable: Скрывать при наведении
     disable: Всегда показывать
-  open-settings: Открыть настройки
-  open-chat: Открыть чат
-  refresh: Обновить результаты
-  open-hearing-controls: Управление слухом
-  drag-to-move-window: Перетащите окно
-  switch-to-light-mode: Переключить на светлую тему
-  switch-to-dark-mode: Переключить на темную тему
-  pin-on-top: Прикрепить на верх
-  unpin-from-top: Открепить сверху
-  switch-profile: Переключить профиль
-  close: Закрыть
-  expand: Развернуть
-  collapse: Свернуть
-  login: Войти
-  logging-in: Выполняется вход...
-  account: Аккаунт
-  logout: Выйти
+  'open-settings': Открыть настройки
+  'open-chat': Открыть чат
+  'refresh': Обновить результаты
+  'center-main-window': Переместить в центр экрана
+  'open-hearing-controls': Управление слухом
+  'drag-to-move-window': Перетащите окно
+  'switch-to-light-mode': Переключить на светлую тему
+  'switch-to-dark-mode': Переключить на темную тему
+  'pin-on-top': Прикрепить на верх
+  'unpin-from-top': Открепить сверху
+  'switch-profile': Переключить профиль
+  'close': Закрыть
+  'expand': Развернуть
+  'collapse': Свернуть
+  'login': Войти
+  'logging-in': Выполняется вход...
+  'account': Аккаунт
+  'logout': Выйти
 widgets:
   close: Закрыть виджет
   empty:
@@ -37,7 +38,7 @@ widgets:
   loading: Загрузка виджета…
   waiting: Ожидание данных виджета "{id}"…
 notice:
-  fade-on-hover:
+  'fade-on-hover':
     title: Исчезать при наведении
     intro: Автоматически делает персонажа прозрачнее, когда курсор рядом. Меньше отвлекает, но остаётся видимым.
     opacity: После включения непрозрачность падает до {value} для {targets}, когда курсор рядом.

@@ -4,8 +4,11 @@ import type { BrowserWindow } from 'electron'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { generateCodeChallenge, generateCodeVerifier, generateState } from '@proj-airi/stage-shared/auth'
-import * as Sentry from '@sentry/electron/main'
+import {
+  generateCodeChallenge,
+  generateCodeVerifier,
+  generateState,
+} from '@proj-airi/stage-shared/auth'
 import { shell } from 'electron'
 
 import {
@@ -32,7 +35,7 @@ let closeLoopback: (() => void) | null = null
 let signingInFlight = false
 
 export interface WindowAuthManager {
-  registerWindow: (params: { context: MainContext; window: BrowserWindow }) => void
+  registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
   broadcastAuthCallback: (tokens: TokenExchangeResult) => void
   broadcastAuthError: (error: string) => void
 }
@@ -85,9 +88,7 @@ export function createAuthService(params: {
     }
 
     if (signingInFlight) {
-      log
-        .withFields({ windowId: params.window.webContents.id })
-        .warn('Replacing in-flight OIDC login attempt with a new request')
+      log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
       closeLoopback?.()
       closeLoopback = null
       signingInFlight = false
@@ -104,7 +105,7 @@ export function createAuthService(params: {
       const state = generateState()
 
       // Start loopback server to receive the callback
-      const loopback = await startLoopbackServer()
+      const loopback = await startLoopbackServer(state)
       closeLoopback = loopback.close
 
       // Use the server-side relay as redirect_uri. The relay page serves HTML
@@ -133,23 +134,10 @@ export function createAuthService(params: {
 
       // Wait for the callback in the background
       loopback.result
-        .then(({ code, state: returnedState }) => {
-          if (returnedState !== state) {
-            log.warn('State mismatch — possible CSRF attack')
-            params.windowAuthManager.broadcastAuthError('State mismatch')
-            return
-          }
-
-          exchangeCode(code, codeVerifier, redirectUri)
-            .then((tokens) => {
-              identifyUserForErrorTracking(tokens.idToken)
-              params.windowAuthManager.broadcastAuthCallback(tokens)
-              log.log('OIDC token exchange successful')
-            })
-            .catch((err) => {
-              log.withError(err).error('OIDC token exchange failed')
-              params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC token exchange failed')
-            })
+        .then(async ({ code }) => {
+          const tokens = await exchangeCode(code, codeVerifier, redirectUri)
+          params.windowAuthManager.broadcastAuthCallback(tokens)
+          log.log('OIDC token exchange successful')
         })
         .catch((err) => {
           log.withError(err).error('OIDC signing in failed')
@@ -159,7 +147,8 @@ export function createAuthService(params: {
           closeLoopback = null
           signingInFlight = false
         })
-    } catch (err) {
+    }
+    catch (err) {
       closeLoopback = null
       signingInFlight = false
       log.withError(err).error('Failed to start OIDC signing in flow')
@@ -167,8 +156,7 @@ export function createAuthService(params: {
     }
   })
 
-  // returns Promise for interface compatibility
-  defineInvokeHandler(params.context, electronAuthLogout, (_, options) => {
+  defineInvokeHandler(params.context, electronAuthLogout, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
     }
@@ -176,10 +164,6 @@ export function createAuthService(params: {
     closeLoopback?.()
     closeLoopback = null
     signingInFlight = false
-
-    // Clear Sentry user context on logout so subsequent errors are not
-    // associated with the previous user's session.
-    Sentry.setUser(null)
   })
 }
 
@@ -213,50 +197,11 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
     throw new Error(`Token exchange failed (${response.status}): ${text}`)
   }
 
-  const data = (await response.json()) as Record<string, unknown>
+  const data = await response.json() as Record<string, unknown>
   return {
     accessToken: data.access_token as string,
     refreshToken: data.refresh_token as string | undefined,
     idToken: data.id_token as string | undefined,
     expiresIn: data.expires_in as number,
-  }
-}
-
-/**
- * Extracts the `sub` claim from an opaque OIDC idToken and feeds it
- * to Sentry so crash reports can be associated with a specific user.
- *
- * We avoid using PII (email/name) in the `id` field per privacy-by-design:
- * the `sub` is an opaque, non-reversible identifier.
- */
-function identifyUserForErrorTracking(idToken?: string): void {
-  if (!idToken) {
-    return
-  }
-
-  try {
-    // JWT: header.payload-signature — extract the payload
-    const parts = idToken.split('.')
-    if (parts.length !== 3) {
-      return
-    }
-
-    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString('utf8')) as {
-      sub?: string
-      preferred_username?: string
-    }
-    const id = payload.sub
-    if (!id) {
-      return
-    }
-
-    Sentry.setUser({
-      id,
-      // `preferred_username` is non-PII-ish (a username, not an email),
-      // useful for support workflows.
-      username: payload.preferred_username,
-    })
-  } catch (err) {
-    log.withError(err).warn('Failed to decode OIDC idToken for Sentry user')
   }
 }

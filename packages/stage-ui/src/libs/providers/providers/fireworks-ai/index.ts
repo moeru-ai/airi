@@ -6,8 +6,12 @@ import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const fireworksConfigSchema = z.object({
-  apiKey: z.string('API Key'),
-  baseUrl: z.string('Base URL').optional().default('https://api.fireworks.ai/inference/v1/'),
+  apiKey: z
+    .string('API Key'),
+  baseUrl: z
+    .string('Base URL')
+    .optional()
+    .default('https://api.fireworks.ai/inference/v1/'),
 })
 
 type FireworksConfig = z.input<typeof fireworksConfigSchema>
@@ -22,38 +26,29 @@ export const providerFireworksAI = defineProvider<FireworksConfig>({
   icon: 'i-lobe-icons:fireworks',
   iconColor: 'i-lobe-icons:fireworks-color',
 
-  createProviderConfig: ({ t }) =>
-    fireworksConfigSchema.extend({
-      apiKey: fireworksConfigSchema.shape.apiKey.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
-        descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
-        placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
-        type: 'password',
-      }),
-      baseUrl: fireworksConfigSchema.shape.baseUrl.meta({
-        labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
-        descriptionLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description',
-        ),
-        placeholderLocalized: t(
-          'settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder',
-        ),
-      }),
+  createProviderConfig: ({ t }) => fireworksConfigSchema.extend({
+    apiKey: fireworksConfigSchema.shape.apiKey.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
+      type: 'password',
     }),
+    baseUrl: fireworksConfigSchema.shape.baseUrl.meta({
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
+      placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
+    }),
+  }),
   createProvider(config) {
     return createFireworks(config.apiKey, config.baseUrl)
   },
 
   validationRequiredWhen(config) {
-    return Boolean(config.apiKey?.trim())
+    return !!config.apiKey?.trim()
   },
   validators: {
     ...createOpenAICompatibleValidators({
-      checks: [
-        ProviderValidationCheck.Connectivity,
-        ProviderValidationCheck.ModelList,
-        ProviderValidationCheck.ChatCompletions,
-      ],
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
 })
