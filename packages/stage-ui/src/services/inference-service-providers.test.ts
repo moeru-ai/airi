@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { parse as parseSchema } from 'zod/v4/core'
 
 import { ATLASCLOUD_DEFAULT_BASE_URL, providerAtlasCloud } from '../libs/providers/providers/atlascloud'
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
@@ -31,10 +32,10 @@ describe('services inference-service-providers', () => {
   it('lists Atlas Cloud as a built-in OpenAI-compatible provider', () => {
     const definitions = inferenceServiceProvidersService.listDefinitions()
     const definition = definitions.find(definition => definition.id === providerAtlasCloud.id)
-    const schema = providerAtlasCloud.createProviderConfig({ t: ((key: string) => key) as any })
+    const schema = providerAtlasCloud.createProviderConfig({ t: (key: string) => key })
 
     expect(definition?.name).toBe('Atlas Cloud')
-    expect(schema.parse({ apiKey: 'test-key' })).toEqual({
+    expect(parseSchema(schema, { apiKey: 'test-key' })).toEqual({
       apiKey: 'test-key',
       baseUrl: ATLASCLOUD_DEFAULT_BASE_URL,
     })
