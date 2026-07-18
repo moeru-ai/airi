@@ -1902,7 +1902,7 @@ Die Zukunft deines Desktops schreibt sich nicht von allein.
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1207" height="1303" alt="anima-logo-pl-v8" src="https://github.com/user-attachments/assets/d28bc5a6-4288-4ee5-bd6c-61bbb19a58ce" />  
+<img width="1206" height="1305" alt="anima-logo-pl-v8 1" src="https://github.com/user-attachments/assets/81f62662-90fc-4818-9080-0f90a8f6d6ae" />
   <sub>
 <h2>
 
@@ -2030,8 +2030,6 @@ Efekt:
 Ta migracja otwiera drogę do przyszłych wersji AIRI dla Androida i iOS.
 
 ## ✌🏻 Podziękowania
-
-<img width="1206" height="1305" alt="anima-logo-pl-v8 1" src="https://github.com/user-attachments/assets/81f62662-90fc-4818-9080-0f90a8f6d6ae" />
 
 * Oryginalny projekt:
 
