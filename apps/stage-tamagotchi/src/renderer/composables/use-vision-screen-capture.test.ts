@@ -97,6 +97,42 @@ describe('useVisionScreenCapture', async () => {
     expect(getUserMediaMock).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // stopStream() cannot stop a desktop stream that has not been assigned yet.
+  // If acquisition resolves after Companion Mode is disabled, the late stream
+  // must stop itself before it becomes the active preview stream.
+  it('stops a selected-source stream that resolves after acquisition is aborted', async () => {
+    const late = createVideoStream()
+    let resolveAcquisition!: (stream: MediaStream) => void
+    const acquisition = new Promise<MediaStream>((resolve) => {
+      resolveAcquisition = resolve
+    })
+    selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {
+      expect(selectSource([{ id: 'screen:1:0', name: 'Screen 1' }])).toBe('screen:1:0')
+      return await useStream()
+    })
+    getDisplayMediaMock.mockReturnValue(acquisition)
+
+    const screenCapture = useVisionScreenCapture({
+      types: ['screen'],
+      thumbnailSize: { width: 0, height: 0 },
+    } satisfies SourcesOptions)
+    screenCapture.activeSourceId.value = 'screen:1:0'
+    const abortController = new AbortController()
+
+    const start = screenCapture.startStream(abortController.signal)
+    await vi.waitFor(() => expect(getDisplayMediaMock).toHaveBeenCalledTimes(1))
+
+    const abortReason = new Error('Companion Mode stopped')
+    abortController.abort(abortReason)
+    resolveAcquisition(late.stream)
+
+    await expect(start).rejects.toBe(abortReason)
+    expect(late.track.stop).toHaveBeenCalledTimes(1)
+    expect(screenCapture.activeStream.value).toBeNull()
+  })
+
   it('falls back to Electron desktop constraints when selected getDisplayMedia fails', async () => {
     const { stream } = createVideoStream()
     selectWithSourceMock.mockImplementation(async (selectSource, useStream) => {

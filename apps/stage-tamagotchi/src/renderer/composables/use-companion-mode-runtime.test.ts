@@ -217,10 +217,13 @@ describe('useCompanionModeRuntime', async () => {
       workloadId: 'screen:interpret',
       abortSignal: expect.any(AbortSignal),
     }))
-    expect(requestIngest).toHaveBeenCalledWith(expect.objectContaining({
-      text: expect.stringContaining('The user is viewing a code editor.'),
-      hidden: true,
-    }))
+    expect(requestIngest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('The user is viewing a code editor.'),
+        hidden: true,
+      }),
+      { abortSignal: expect.any(AbortSignal) },
+    )
     expect(requestIngest.mock.calls[0]?.[0]).not.toHaveProperty('attachments')
     expect(companionStore.recordCapture).toHaveBeenCalledTimes(1)
   })
@@ -284,6 +287,31 @@ describe('useCompanionModeRuntime', async () => {
     await vi.waitFor(() => expect(receivedSignal?.aborted).toBe(true))
 
     expect(requestIngest).not.toHaveBeenCalled()
+    expect(companionStore.recordCapture).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // The runtime previously discarded only the result of a late hidden chat
+  // send. The provider request itself remained active and could still append
+  // and speak an assistant response after Companion Mode was disabled.
+  it('aborts active hidden chat ingest when Companion Mode is disabled', async () => {
+    const chat = deferred<void>()
+    let receivedSignal: AbortSignal | undefined
+    requestIngest.mockImplementation((_payload, options) => {
+      receivedSignal = options?.abortSignal
+      options?.abortSignal?.addEventListener('abort', () => {
+        chat.reject(options.abortSignal.reason)
+      }, { once: true })
+      return chat.promise
+    })
+    await mountRuntime()
+    await vi.waitFor(() => expect(requestIngest).toHaveBeenCalledTimes(1))
+
+    companionStore.enabled.value = false
+    await nextTick()
+    await vi.waitFor(() => expect(receivedSignal?.aborted).toBe(true))
+
     expect(companionStore.recordCapture).not.toHaveBeenCalled()
   })
 

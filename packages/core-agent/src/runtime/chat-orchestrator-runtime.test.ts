@@ -524,6 +524,39 @@ describe('createChatOrchestratorRuntime', () => {
     await firstSend
   })
 
+  it('rejects an aborted queued send without starting its provider request', async () => {
+    const harness = createHarness()
+    let releaseFirstSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+
+    const firstSend = harness.runtime.ingest('hold queue', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    const abortController = new AbortController()
+    const secondSend = harness.runtime.ingest('cancel hidden observation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+      abortSignal: abortController.signal,
+    })
+
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() => expect(harness.runtime.getPendingQueuedSendCount()).toBe(1))
+    await vi.waitFor(() => expect(releaseFirstSend).toBeTypeOf('function'))
+    const abortReason = new Error('Companion Mode stopped')
+    abortController.abort(abortReason)
+    releaseFirstSend?.()
+
+    await firstSend
+    await expect(secondSend).rejects.toBe(abortReason)
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+  })
+
   /**
    * @example
    * A queued send rejects if its captured session generation becomes stale.
@@ -769,6 +802,45 @@ describe('createChatOrchestratorRuntime', () => {
     })
     expect(harness.userAppended).toEqual([])
     expect(harness.userTurns).toEqual([])
+  })
+
+  // ROOT CAUSE:
+  //
+  // A stale-run check in Companion Mode could ignore a late result, but the
+  // core send still finalized and appended its hidden assistant response.
+  // Cancellation must reach the provider and remain authoritative even when
+  // a provider resolves normally after the signal has aborted.
+  it('does not finalize an active hidden send after its abort signal fires', async () => {
+    const harness = createHarness()
+    let releaseStream: (() => void) | undefined
+    let receivedOptions: StreamOptions | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      receivedOptions = options
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'late screen reply' })
+      await new Promise<void>((resolve) => {
+        releaseStream = resolve
+      })
+    })
+    const abortController = new AbortController()
+
+    const send = harness.runtime.ingest('hidden screen prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+      abortSignal: abortController.signal,
+    })
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+
+    const abortReason = new Error('Companion Mode stopped')
+    abortController.abort(abortReason)
+    releaseStream?.()
+
+    await expect(send).rejects.toBe(abortReason)
+    expect(receivedOptions?.abortSignal).toBe(abortController.signal)
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system'])
+    expect(harness.assistantAppended).toEqual([])
+    expect(harness.assistantTurns).toEqual([])
+    expect(harness.foregroundResets).toHaveLength(1)
   })
 
   // ROOT CAUSE:

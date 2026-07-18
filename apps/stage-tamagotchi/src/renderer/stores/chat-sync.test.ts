@@ -356,6 +356,31 @@ describe('useChatSyncStore', async () => {
     store.dispose()
   })
 
+  it('passes an abort signal through the local authority ingest path', async () => {
+    mockState.ingest.mockResolvedValueOnce(undefined)
+    const store = useChatSyncStore()
+    store.initialize('authority')
+    const abortController = new AbortController()
+
+    await store.requestIngest({
+      text: 'hidden companion observation',
+      hidden: true,
+    }, {
+      abortSignal: abortController.signal,
+    })
+
+    expect(mockState.ingest).toHaveBeenCalledWith(
+      'hidden companion observation',
+      expect.objectContaining({
+        hiddenUserMessage: true,
+        abortSignal: abortController.signal,
+      }),
+      undefined,
+    )
+
+    store.dispose()
+  })
+
   it('rewinds from the source user turn when retry targets an assistant message', async () => {
     mockState.sessionMessages.value['session-1'] = [
       { role: 'system', content: 'init' },

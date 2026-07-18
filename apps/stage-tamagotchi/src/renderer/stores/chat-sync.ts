@@ -51,6 +51,11 @@ interface IngestCommandPayload {
   hidden?: boolean
 }
 
+interface IngestRequestOptions {
+  /** Supported only by the local authority path; AbortSignal is not serializable. */
+  abortSignal?: AbortSignal
+}
+
 interface SpotlightIngestPayload {
   text: string
 }
@@ -326,7 +331,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return assistant ? extractMessageText(assistant) : ''
   }
 
-  async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+  async function executeIngest(payload: IngestCommandPayload, abortSignal?: AbortSignal): Promise<void> {
+    if (abortSignal?.aborted)
+      throw abortSignal.reason ?? new DOMException('Chat ingest aborted', 'AbortError')
+
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
@@ -334,6 +342,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     const chatProvider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    if (abortSignal?.aborted)
+      throw abortSignal.reason ?? new DOMException('Chat ingest aborted', 'AbortError')
     if (!chatProvider) {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
     }
@@ -345,7 +355,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       input: payload.input,
       tools: resolveTools(payload.toolset),
       hiddenUserMessage: payload.hidden,
-    } as Parameters<typeof chatOrchestrator.ingest>[1] & { hiddenUserMessage?: boolean }
+      abortSignal,
+    } as Parameters<typeof chatOrchestrator.ingest>[1]
 
     await chatOrchestrator.ingest(payload.text, sendOptions, payload.sessionId)
   }
@@ -620,10 +631,14 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
-  async function requestIngest(payload: IngestCommandPayload) {
+  async function requestIngest(payload: IngestCommandPayload, options?: IngestRequestOptions) {
     if (mode.value === 'authority') {
-      await executeIngest(payload)
+      await executeIngest(payload, options?.abortSignal)
       return
+    }
+
+    if (options?.abortSignal) {
+      throw new Error('Abortable chat ingest requires the local authority window')
     }
 
     return await dispatch<void>({

@@ -128,6 +128,19 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     return String(error)
   }
 
+  function captureAbortReason(signal: AbortSignal) {
+    return signal.reason ?? new DOMException('Screen capture aborted', 'AbortError')
+  }
+
+  function throwIfCaptureAborted(signal?: AbortSignal) {
+    if (signal?.aborted)
+      throw captureAbortReason(signal)
+  }
+
+  function stopMediaStream(stream: MediaStream) {
+    stream.getTracks().forEach(track => track.stop())
+  }
+
   function shouldRetrySelectedSourceCapture(error: unknown) {
     if (error instanceof DOMException)
       return error.name === 'NotReadableError'
@@ -135,14 +148,31 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     return /notreadableerror|could not start video source/i.test(formatCaptureError(error))
   }
 
-  function waitForSelectedSourceCaptureRetry() {
-    return new Promise<void>(resolve => setTimeout(resolve, SELECTED_SOURCE_CAPTURE_RETRY_DELAY_MS))
+  function waitForSelectedSourceCaptureRetry(signal?: AbortSignal) {
+    throwIfCaptureAborted(signal)
+
+    return new Promise<void>((resolve, reject) => {
+      let timeoutHandle: ReturnType<typeof setTimeout>
+      const handleAbort = () => {
+        clearTimeout(timeoutHandle)
+        reject(captureAbortReason(signal!))
+      }
+      timeoutHandle = setTimeout(() => {
+        signal?.removeEventListener('abort', handleAbort)
+        resolve()
+      }, SELECTED_SOURCE_CAPTURE_RETRY_DELAY_MS)
+      signal?.addEventListener('abort', handleAbort, { once: true })
+    })
   }
 
-  async function requestSelectedSourceStreamOnce(sourceId: string) {
+  async function requestSelectedSourceStreamOnce(sourceId: string, signal?: AbortSignal) {
+    throwIfCaptureAborted(signal)
+
     return await selectWithSource(
       sources => selectExistingSource(sources, sourceId),
       async () => {
+        throwIfCaptureAborted(signal)
+
         try {
           // Electron's display-media request handler receives the selected
           // source lease above, so this bypasses the browser picker while using
@@ -150,6 +180,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
           return await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
         }
         catch (displayMediaError) {
+          throwIfCaptureAborted(signal)
           console.warn('[screen-capture] Selected getDisplayMedia failed, falling back to Electron desktop constraints:', displayMediaError)
 
           try {
@@ -168,9 +199,9 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     )
   }
 
-  async function requestSelectedSourceStream(sourceId: string) {
+  async function requestSelectedSourceStream(sourceId: string, signal?: AbortSignal) {
     try {
-      return await requestSelectedSourceStreamOnce(sourceId)
+      return await requestSelectedSourceStreamOnce(sourceId, signal)
     }
     catch (firstError) {
       // Windows can keep a just-ended desktop stream alive briefly. Retrying
@@ -180,8 +211,8 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
         throw firstError
 
       console.warn('[screen-capture] Selected source was temporarily unreadable; retrying once:', firstError)
-      await waitForSelectedSourceCaptureRetry()
-      return await requestSelectedSourceStreamOnce(sourceId)
+      await waitForSelectedSourceCaptureRetry(signal)
+      return await requestSelectedSourceStreamOnce(sourceId, signal)
     }
   }
 
@@ -227,7 +258,9 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     }
   }
 
-  async function startStream() {
+  async function startStream(abortSignal?: AbortSignal) {
+    throwIfCaptureAborted(abortSignal)
+
     const sourceId = activeSourceId.value
     if (!sourceId)
       throw new Error('No active source selected')
@@ -237,10 +270,22 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
     clearActiveStream()
 
-    const stream = await requestSelectedSourceStream(sourceId)
+    const stream = await requestSelectedSourceStream(sourceId, abortSignal)
+
+    // stopStream() may have run while Electron or getDisplayMedia was still
+    // resolving. Never publish that late native stream, and stop this exact
+    // stream so a newer run's active stream remains untouched.
+    if (abortSignal?.aborted) {
+      stopMediaStream(stream)
+      throw captureAbortReason(abortSignal)
+    }
+    if (activeSourceId.value !== sourceId) {
+      stopMediaStream(stream)
+      throw new Error('Selected capture source changed before its stream became active')
+    }
 
     if (!isActiveStream(stream)) {
-      stream.getTracks().forEach(track => track.stop())
+      stopMediaStream(stream)
       throw new Error('Selected source did not provide a live video track')
     }
 

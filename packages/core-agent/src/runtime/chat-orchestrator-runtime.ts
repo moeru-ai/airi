@@ -62,6 +62,8 @@ export interface ChatOrchestratorSendOptions {
   input?: ChatStreamEventContext['input']
   /** Send this turn to the provider without persisting/rendering the user message. */
   hiddenUserMessage?: boolean
+  /** Cancels queued or active work for this send, including provider streaming and finalization. */
+  abortSignal?: AbortSignal
 }
 
 interface QueuedSend {
@@ -70,6 +72,7 @@ interface QueuedSend {
   generation: number
   sessionId: string
   cancelled?: boolean
+  abortListener?: () => void
   deferred: {
     resolve: () => void
     reject: (error: unknown) => void
@@ -328,6 +331,15 @@ function defaultCreateId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
+function chatSendAbortReason(signal: AbortSignal) {
+  if (signal.reason !== undefined)
+    return signal.reason
+
+  const error = new Error('Chat send aborted')
+  error.name = 'AbortError'
+  return error
+}
+
 /**
  * Creates the core chat orchestrator runtime used behind UI facades.
  *
@@ -464,7 +476,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     })
 
     const isStaleGeneration = () => deps.session.getSessionGeneration(sessionId) !== generation
-    const shouldAbort = () => isStaleGeneration()
+    const isSignalAborted = () => options.abortSignal?.aborted === true
+    const shouldAbort = () => isStaleGeneration() || isSignalAborted()
+    const throwIfSignalAborted = () => {
+      if (options.abortSignal?.aborted)
+        throw chatSendAbortReason(options.abortSignal)
+    }
+    throwIfSignalAborted()
     if (shouldAbort())
       return
 
@@ -613,7 +631,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
-          if (isStaleGeneration())
+          if (shouldAbort())
             return
 
           const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
@@ -728,6 +746,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
+        abortSignal: options.abortSignal,
         headers,
         requestCorrelation: {
           conversationId: correlation.conversationId,
@@ -749,6 +768,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           })
         },
         onStreamEvent: async (event: StreamEvent) => {
+          if (shouldAbort())
+            return
+
           switch (event.type) {
             case 'tool-call':
               toolCallQueue.enqueue({
@@ -813,7 +835,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
       })
 
+      throwIfSignalAborted()
+      if (isStaleGeneration())
+        return
+
       await parser.end()
+      throwIfSignalAborted()
+      if (isStaleGeneration())
+        return
+
       if (shouldTrackUserChatTelemetry) {
         deps.onAssistantResponseRendered?.({
           ...correlation,
@@ -822,7 +852,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         })
       }
 
-      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+      if (!shouldAbort() && buildingMessage.slices.length > 0) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         deps.onAssistantMessageAppended?.({
@@ -874,6 +904,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
     }
     catch (error) {
+      if (isSignalAborted()) {
+        resetForegroundStream(sessionId)
+        throw chatSendAbortReason(options.abortSignal!)
+      }
+
       console.error('Error sending message:', error)
       if (shouldTrackUserChatTelemetry) {
         deps.onMessageRoundFailed?.({
@@ -908,8 +943,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       async ({ data }) => {
         const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
 
-        if (cancelled)
+        if (cancelled) {
+          if (data.abortListener)
+            options.abortSignal?.removeEventListener('abort', data.abortListener)
           return
+        }
+
+        if (options.abortSignal?.aborted) {
+          if (data.abortListener)
+            options.abortSignal.removeEventListener('abort', data.abortListener)
+          deferred.reject(chatSendAbortReason(options.abortSignal))
+          return
+        }
 
         if (deps.session.getSessionGeneration(sessionId) !== generation) {
           deferred.reject(new Error('Chat session was reset before send could start'))
@@ -922,6 +967,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
         catch (error) {
           deferred.reject(error)
+        }
+        finally {
+          if (data.abortListener)
+            options.abortSignal?.removeEventListener('abort', data.abortListener)
         }
       },
     ],
@@ -946,13 +995,32 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const generation = deps.session.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      if (options.abortSignal?.aborted) {
+        reject(chatSendAbortReason(options.abortSignal))
+        return
+      }
+
+      const queuedSend: QueuedSend = {
         sendingMessage,
         options,
         generation,
         sessionId,
         deferred: { resolve, reject },
-      })
+      }
+      if (options.abortSignal) {
+        queuedSend.abortListener = () => {
+          if (queuedSend.cancelled)
+            return
+
+          queuedSend.cancelled = true
+          queuedSend.deferred.reject(chatSendAbortReason(options.abortSignal!))
+          pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+          emitStateChange()
+        }
+        options.abortSignal.addEventListener('abort', queuedSend.abortListener, { once: true })
+      }
+
+      sendQueue.enqueue(queuedSend)
     })
   }
 
@@ -962,6 +1030,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
+      if (queued.abortListener)
+        queued.options.abortSignal?.removeEventListener('abort', queued.abortListener)
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
 
