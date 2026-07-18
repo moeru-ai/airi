@@ -1902,7 +1902,7 @@ Die Zukunft deines Desktops schreibt sich nicht von allein.
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1206" height="1305" alt="anima-logo-pl-v8 2" src="https://github.com/user-attachments/assets/b3028209-3d4b-413b-ad8e-f1d2506e79f4" />  
+<img width="1206" height="1305" alt="anima-logo-pl-v8 1" src="https://github.com/user-attachments/assets/81f62662-90fc-4818-9080-0f90a8f6d6ae" />
   <sub>
 <h2>
 
