@@ -1034,7 +1034,7 @@ Esta migración también es el primer paso para builds nativos de AIRI en Androi
 <a href="https://github.com/animaios/anima#-readme_locale_kk_kz-">
   <img src="https://img.shields.io/badge/оқы-Қазақша%20-00A86B" alt="Қазақша README">
 </a>
-<img width="1203" height="1308" alt="anima-logo-fr-v6" src="https://github.com/user-attachments/assets/4e86b729-4ca9-4062-8865-e9086ec8ce5c" />
+<img width="1203" height="1308" alt="anima-logo-fr-v7" src="https://github.com/user-attachments/assets/a110a42d-f225-4a0e-a50d-e2150421e12a" />  
   <sub>
     <p>
     <h2>
