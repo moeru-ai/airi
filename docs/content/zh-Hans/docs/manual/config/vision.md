@@ -9,8 +9,12 @@ description: 为 AIRI 的视觉模块选择图像理解服务商和模型
 同一服务商通常同时提供聊天和图像理解模型。复用凭据可减少重复配置；你仍需选择一个明确支持图像输入的模型，纯文本模型无法完成视觉任务。
 :::
 
-::: warning 需要先启用 vision capture
-需要先到「系统 → 开发者 → vision capture」启用此功能。
+::: warning 使用屏幕视觉前，需要启动 Vision Capture
+仅配置视觉服务商和模型时，无需开启此工具。
+
+如需让 AIRI 分析屏幕或窗口，请前往「系统 → 开发者 → Vision Capture」：授予屏幕录制权限，选择要捕获的窗口或显示器，然后点击「Start ticker」。如需将识别结果提供给 AIRI 对话，再开启「Publish to character」。
+
+Vision Capture 是当前的桌面端调试／开发工作流；离开该页面会停止捕获循环。完整说明见[桌面端开发者工具](../../contributing/desktop-developer-tools#vision-capture)。
 :::
 
 ## 第一步：选择视觉服务商
