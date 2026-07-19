@@ -9,8 +9,3 @@ watchPatterns = [
 
 [deploy]
 startCommand = "pnpm -F @proj-airi/server start"
-# NOTICE: Legacy `/health` was removed; probes must use `/livez` (always 200 once
-# listening). Code-as-config overrides a stale dashboard healthcheck path that
-# would fail every deploy after the /livez migration.
-healthcheckPath = "/livez"
-healthcheckTimeout = 300
