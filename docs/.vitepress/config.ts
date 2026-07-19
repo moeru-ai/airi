@@ -303,13 +303,14 @@ export default defineConfig<ThemeConfig>({
                 items: [
                   { text: '配置指南', link: withBase('/zh-Hans/docs/manual/config/') },
                   { text: '通用说明', link: withBase('/zh-Hans/docs/manual/config/common') },
-                  { text: '聊天模型', link: withBase('/zh-Hans/docs/manual/config/llm') },
-                  { text: '语音输入与输出', link: withBase('/zh-Hans/docs/manual/config/audio') },
-                  { text: '视觉理解', link: withBase('/zh-Hans/docs/manual/config/vision') },
-                  { text: '艺术创作', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/') },
-                  { text: '支持的服务商目录', link: withBase('/zh-Hans/docs/manual/config/providers/catalog') },
-                  { text: '配置服务来源', collapsed: true, items: [
-                    { text: '聊天', collapsed: true, items: [
+                  { text: '功能配置', collapsed: true, items: [
+                    { text: '聊天模型', link: withBase('/zh-Hans/docs/manual/config/llm') },
+                    { text: '语音输入与输出', link: withBase('/zh-Hans/docs/manual/config/audio') },
+                    { text: '视觉理解', link: withBase('/zh-Hans/docs/manual/config/vision') },
+                    { text: '网络搜索', link: withBase('/zh-Hans/docs/manual/config/web-search') },
+                  ] },
+                  { text: '服务商', collapsed: true, items: [
+                    { text: '聊天服务商', collapsed: true, items: [
                       { text: 'AIRI 官方提供商', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/official') },
                       { text: 'AIHubMix', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/aihubmix') },
                       { text: 'Amazon Bedrock', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/amazon-bedrock') },
@@ -327,9 +328,9 @@ export default defineConfig<ThemeConfig>({
                       { text: 'OpenRouter', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openrouter') },
                       { text: 'Ollama', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/ollama') },
                       { text: '深度求索 DeepSeek', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/deepseek') },
-                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openai') },
+                      { text: 'OpenAI 与兼容 API', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/openai') },
                       { text: '302.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/302ai') },
-                      { text: 'fireworks', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/fireworks') },
+                      { text: 'Fireworks AI', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/fireworks') },
                       { text: 'Featherless.ai', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/featherless') },
                       { text: 'Groq', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/groq') },
                       { text: 'MiniMax', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/minimax') },
@@ -338,7 +339,7 @@ export default defineConfig<ThemeConfig>({
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/mimo') },
                       { text: 'ModelScope', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/modelscope') },
                       { text: '月之暗面', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/moonshot') },
-                      { text: 'Nvidia NIM', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/nvidia') },
+                      { text: 'NVIDIA NIM', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/nvidia') },
                       { text: 'n1n', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/n1n') },
                       { text: 'Novita', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/novita') },
                       { text: 'Perplexity', link: withBase('/zh-Hans/docs/manual/config/providers/consciousness/perplexity') },
@@ -360,7 +361,7 @@ export default defineConfig<ThemeConfig>({
                       { text: 'Microsoft Azure Speech', link: withBase('/zh-Hans/docs/manual/config/providers/speech/azure-speech') },
                       { text: 'MiniMax Speech', link: withBase('/zh-Hans/docs/manual/config/providers/speech/minimax') },
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/speech/mimo') },
-                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openai') },
+                      { text: 'OpenAI 与兼容 API', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openai') },
                       { text: 'OpenRouter', link: withBase('/zh-Hans/docs/manual/config/providers/speech/openrouter') },
                       { text: 'Player2 Speech', link: withBase('/zh-Hans/docs/manual/config/providers/speech/player2') },
                       { text: '火山引擎', link: withBase('/zh-Hans/docs/manual/config/providers/speech/volcengine') },
@@ -373,14 +374,36 @@ export default defineConfig<ThemeConfig>({
                       { text: 'CometAPI', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/comet-api') },
                       { text: '桌面端本地语音识别', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/desktop-local') },
                       { text: '小米 MiMo', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/mimo') },
-                      { text: 'OpenAI (和兼容 API)', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/openai') },
+                      { text: 'OpenAI 与兼容 API', link: withBase('/zh-Hans/docs/manual/config/providers/transcription/openai') },
                     ] },
-                    { text: '艺术创作', collapsed: true, items: [
+                    { text: '艺术创作服务商', collapsed: true, items: [
                       { text: 'ComfyUI（本地工作流）', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/comfyui') },
-                      { text: 'Replicate', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/replicate') },
                       { text: 'Nano Banana', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/nanobanana') },
+                      { text: 'Replicate', link: withBase('/zh-Hans/docs/manual/config/providers/artistry/replicate') },
                     ] },
                   ] },
+                ],
+              },
+              {
+                text: '集成服务',
+                icon: 'lucide:plug',
+                items: [
+                  {
+                    text: '游戏',
+                    items: [
+                      { text: 'Minecraft 智能体', link: withBase('/zh-Hans/docs/integrations/minecraft') },
+                      { text: '异星工厂', link: withBase('/zh-Hans/docs/integrations/factorio') },
+                    ],
+                  },
+                  {
+                    text: '消息平台',
+                    items: [
+                      { text: 'Satori 机器人', link: withBase('/zh-Hans/docs/integrations/satori') },
+                      { text: 'Telegram 机器人', link: withBase('/zh-Hans/docs/integrations/telegram') },
+                      { text: 'Discord 机器人', link: withBase('/zh-Hans/docs/integrations/discord') },
+                      { text: 'X / Twitter', link: withBase('/zh-Hans/docs/integrations/x') },
+                    ],
+                  },
                 ],
               },
               {
@@ -394,15 +417,6 @@ export default defineConfig<ThemeConfig>({
                       { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
                       { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
                       { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
-                    ],
-                  },
-                  {
-                    text: '游戏与社交平台',
-                    items: [
-                      { text: 'Minecraft', link: withBase('/zh-Hans/docs/contributing/services/minecraft') },
-                      { text: 'Satori Bot', link: withBase('/zh-Hans/docs/contributing/services/satori') },
-                      { text: 'Telegram Bot', link: withBase('/zh-Hans/docs/contributing/services/telegram') },
-                      { text: 'Discord Bot', link: withBase('/zh-Hans/docs/contributing/services/discord') },
                     ],
                   },
                   {

@@ -8,49 +8,31 @@ description: 参与并贡献 Project AIRI
 ## 前置准备
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 23+](https://nodejs.org/en/download/)
+- [Node.js 当前 LTS 版本](https://nodejs.org/en/download/)
 - [corepack](https://github.com/nodejs/corepack)
 - [pnpm](https://pnpm.io/installation)
 
 <details>
 <summary>Windows 平台相关设置</summary>
 
-0. 下载 [Visual Studio](https://visualstudio.microsoft.com/downloads/), 根据这个教程安装 https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
-
-   > 安装时请确保勾选了 Windows SDK 和 MSVC C++ build tools
-
-::: tip
-
-建议使用Visual Studio 2022 版以达到更好的兼容性
-
-:::
-
-1. 打开 PowerShell
-2. 安装 [`scoop`](https://scoop.sh/)
+1. 打开 PowerShell。
+2. 安装 [`scoop`](https://scoop.sh/)。
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. 通过 `scoop` 安装 `git`, Node.js, `rustup` 和 `msvc`
+3. 通过 `scoop` 安装 `git` 和 Node.js。
 
    ```powershell
-   scoop install git nodejs rustup
-
-   # Rust 相关依赖
-   # 如果你不打算涉及 crates 或者 apps/tamagotchi 的开发，该步骤可跳过
-   scoop install main/rust-msvc
-   # Windows 平台所需内容
-   rustup toolchain install stable-x86_64-pc-windows-msvc
-   rustup default stable-x86_64-pc-windows-msvc
+   scoop install git nodejs
    ```
 
 4. 通过 `corepack` 安装 `pnpm`
 
    ```powershell
    corepack enable
-   corepack prepare pnpm@latest --activate
    ```
 
 </details>
@@ -69,7 +51,6 @@ description: 参与并贡献 Project AIRI
 
    ```shell
    corepack enable
-   corepack prepare pnpm@latest --activate
    ```
 
 </details>
@@ -77,25 +58,14 @@ description: 参与并贡献 Project AIRI
 <details>
 <summary>Linux setup</summary>
 
-0. 打开 Terminal
-1. 请按照该说明的内容 [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) 安装 `node`
+0. 打开 Terminal。
+1. 从 [Node.js 官网](https://nodejs.org/en/download/) 安装当前 LTS 版本。
 2. 请参考该页面 [Git](https://git-scm.com/downloads/linux) 安装 `git`
 3. 通过 `corepack` 安装 `pnpm`
 
    ```shell
    corepack enable
-   corepack prepare pnpm@latest --activate
    ```
-4. 如果你想进行桌面端的开发，你还需要下载如下依赖：
-   ```shell
-   sudo apt install \
-      libssl-dev \
-      libglib2.0-dev \
-      libgtk-3-dev \
-      libjavascriptcoregtk-4.1-dev \
-      libwebkit2gtk-4.1-dev
-   ```
-
 </details>
 
 ## 如果你之前已经参与并贡献过本项目
@@ -143,10 +113,6 @@ git checkout -b <your-branch-name>
 ```shell
 corepack enable
 pnpm install
-
-# Rust相关依赖
-# 如果你不打算涉及 crates 或者 apps/tamagotchi 的开发，该步骤可跳过
-cargo fetch
 ```
 
 ::: tip
@@ -164,24 +130,6 @@ npm i -g @antfu/ni
 - 用 `nr` 来替代 `pnpm run`、`npm run` 和 `yarn run` 命令。
 
 你无需费心选择包管理器， `ni` 会自动适配。
-:::
-
-::: warning Visual Studio 2026 兼容提示
-
-如果你使用的 Visual Studio 为 2026 版，安装依赖时可能会报错
-
-```shell
-gyp ERR! stack Error: Could not find any Visual Studio installation to use
-gyp ERR! stack Error: Could not find any Visual Studio installation to use
-```
-
-这是因为编译工具链使用的 node-gyp 暂未兼容新版 Visual Studio 2026。在 Powershell 中按如下操作强制指定新版 node-gyp 即可通过编译
-
-```shell
-npm i -g "node-gyp@>=12.2.0"
-$env:npm_config_node_gyp = (Join-Path (npm root -g) "node-gyp\bin\node-gyp.js")
-```
-
 :::
 
 ## 提交代码（Commit）
