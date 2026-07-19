@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import type { ObjectDirective } from 'vue'
+
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
@@ -58,11 +60,7 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 const isCreatingSession = ref(false)
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-onMounted(() => {
-  screenSafeArea.update()
-  document.addEventListener('click', handleDrawerAction, true)
-})
-onBeforeUnmount(() => document.removeEventListener('click', handleDrawerAction, true))
+onMounted(() => screenSafeArea.update())
 
 interface SessionRow {
   meta: ChatSessionMeta
@@ -200,36 +198,69 @@ async function deleteRow(event: Event, sessionId: string) {
 }
 
 /**
- * Runs mobile drawer actions from a native listener because Vaul's slotted
- * content does not reliably retain Vue's synthetic click listeners in the
- * Electron renderer. Capture on document sees each marked action before the
- * drawer's focus and gesture layers can consume the event.
+ * Preserves native action listeners through Vaul's slotted drawer content.
+ * The directive owns only the DOM-event boundary; session state still flows
+ * through the store actions above.
  */
-function handleDrawerAction(event: MouseEvent) {
-  if (!(event.target instanceof Element))
-    return
+function stopDrawerRelease(event: Event) {
+  // Vaul's DrawerContent listens for pointerup even with `handleOnly`; without
+  // this, it closes and unmounts the drawer before the browser emits `click`.
+  event.stopPropagation()
+}
 
-  const action = event.target.closest<HTMLElement>('[data-chat-session-action]')
-  if (!action)
-    return
+const vDrawerReleaseGuard: ObjectDirective<HTMLElement> = {
+  mounted(element) {
+    element.addEventListener('pointerup', stopDrawerRelease, { capture: true })
+  },
+  beforeUnmount(element) {
+    element.removeEventListener('pointerup', stopDrawerRelease, { capture: true })
+  },
+}
 
-  const sessionId = action.dataset.sessionId
-  if (action.dataset.chatSessionAction === 'new') {
-    void startNewSession()
-    return
-  }
+const vNewSessionAction: ObjectDirective<HTMLButtonElement> = {
+  mounted(element) {
+    element.addEventListener('pointerup', stopDrawerRelease)
+    element.addEventListener('click', startNewSession)
+  },
+  beforeUnmount(element) {
+    element.removeEventListener('pointerup', stopDrawerRelease)
+    element.removeEventListener('click', startNewSession)
+  },
+}
 
-  if (!sessionId)
-    return
+const selectSessionHandlers = new WeakMap<HTMLButtonElement, EventListener>()
+const vSelectSessionAction: ObjectDirective<HTMLButtonElement, string> = {
+  mounted(element, binding) {
+    const handler = () => void selectSession(binding.value)
+    selectSessionHandlers.set(element, handler)
+    element.addEventListener('pointerup', stopDrawerRelease)
+    element.addEventListener('click', handler)
+  },
+  beforeUnmount(element) {
+    const handler = selectSessionHandlers.get(element)
+    if (handler)
+      element.removeEventListener('click', handler)
+    element.removeEventListener('pointerup', stopDrawerRelease)
+  },
+}
 
-  if (action.dataset.chatSessionAction === 'delete') {
-    event.stopPropagation()
-    void chatSession.deleteSession(sessionId)
-    return
-  }
-
-  if (action.dataset.chatSessionAction === 'select')
-    void selectSession(sessionId)
+const deleteSessionHandlers = new WeakMap<HTMLButtonElement, EventListener>()
+const vDeleteSessionAction: ObjectDirective<HTMLButtonElement, string> = {
+  mounted(element, binding) {
+    const handler = (event: Event) => {
+      event.stopPropagation()
+      void chatSession.deleteSession(binding.value)
+    }
+    deleteSessionHandlers.set(element, handler)
+    element.addEventListener('pointerup', stopDrawerRelease)
+    element.addEventListener('click', handler)
+  },
+  beforeUnmount(element) {
+    const handler = deleteSessionHandlers.get(element)
+    if (handler)
+      element.removeEventListener('click', handler)
+    element.removeEventListener('pointerup', stopDrawerRelease)
+  },
 }
 
 // Per-open generation counter. The batch loadSession loop checks this before
@@ -369,12 +400,13 @@ watch(showDialog, async (open) => {
         :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
       >
         <DrawerHandle :class="['[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600']" />
-        <div :class="['flex flex-1 min-h-0 flex-col']">
+        <div v-drawer-release-guard :class="['flex flex-1 min-h-0 flex-col']">
           <div :class="['flex items-center justify-between px-4 pt-3 pb-2']">
             <DrawerTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
               {{ t('stage.chat.sessions.title') }}
             </DrawerTitle>
             <button
+              v-new-session-action
               type="button"
               :class="[
                 'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
@@ -404,6 +436,7 @@ watch(showDialog, async (open) => {
               ]"
             >
               <button
+                v-select-session-action="row.meta.sessionId"
                 type="button"
                 :class="['w-full text-left px-3 py-3 outline-none flex flex-col gap-1']"
                 data-chat-session-action="select"
@@ -425,6 +458,7 @@ watch(showDialog, async (open) => {
                 </div>
               </button>
               <button
+                v-delete-session-action="row.meta.sessionId"
                 type="button"
                 :class="[
                   'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
