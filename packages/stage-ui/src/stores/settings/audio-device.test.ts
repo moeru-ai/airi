@@ -9,6 +9,7 @@ const storageMock = vi.hoisted(() => ({
 
 const audioDeviceMock = vi.hoisted(() => ({
   audioInputs: { value: [] as MediaDeviceInfo[] },
+  permissionGranted: undefined as unknown as { value: boolean },
   selectedAudioInput: { value: '' },
   startStream: vi.fn(),
   stopStream: vi.fn(),
@@ -38,11 +39,13 @@ vi.mock('@proj-airi/stage-shared/composables', async () => {
 
 vi.mock('../../composables/audio', async () => {
   const vue = await vi.importActual<typeof import('vue')>('vue')
+  audioDeviceMock.permissionGranted = vue.ref(false)
 
   return {
     useAudioDevice: () => ({
       audioInputs: audioDeviceMock.audioInputs,
       deviceConstraints: vue.computed(() => ({ audio: true })),
+      permissionGranted: audioDeviceMock.permissionGranted,
       selectedAudioInput: audioDeviceMock.selectedAudioInput,
       startStream: audioDeviceMock.startStream,
       stopStream: audioDeviceMock.stopStream,
@@ -67,6 +70,8 @@ describe('store settings-audio-devices', () => {
     setActivePinia(createTestingPinia({ createSpy: vi.fn, stubActions: false }))
     storageMock.values.clear()
     audioDeviceMock.audioInputs.value = []
+    if (audioDeviceMock.permissionGranted)
+      audioDeviceMock.permissionGranted.value = false
     audioDeviceMock.selectedAudioInput.value = ''
     vi.resetAllMocks()
   })
@@ -98,6 +103,24 @@ describe('store settings-audio-devices', () => {
     expect(startedWith).toEqual(['microphone-1'])
     expect(store.selectedAudioInput).toBe('microphone-1')
     expect(storageMock.values.get('settings/audio/input')).toBe('microphone-1')
+  })
+
+  it('exposes permission state from the audio device that owns selection', async () => {
+    audioDeviceMock.audioInputs.value = [createAudioInput('microphone-1')]
+    audioDeviceMock.selectedAudioInput.value = 'microphone-1'
+    audioDeviceMock.askPermission.mockImplementation(async () => {
+      audioDeviceMock.permissionGranted.value = true
+    })
+
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+
+    expect(store.permissionGranted).toBe(false)
+
+    await store.askPermission()
+
+    expect(store.permissionGranted).toBe(true)
+    expect(store.selectedAudioInput).toBe('microphone-1')
   })
 
   /** @example A rapid off/on toggle keeps using the pending browser microphone request. */
