@@ -1,4 +1,4 @@
-import type { Pool, PoolClient } from 'pg'
+import type { Pool } from 'pg'
 
 import type { Env } from './env'
 
@@ -51,7 +51,7 @@ export function createDrizzle(env: DrizzleEnv) {
  * and unlock on another connection would leave the lock held.
  */
 export async function withSessionAdvisoryLock<T>(
-  client: Pick<PoolClient, 'query'>,
+  client: { query: (text: string, values?: unknown[]) => Promise<unknown> },
   lockKey: number,
   run: () => Promise<T>,
 ): Promise<T> {
