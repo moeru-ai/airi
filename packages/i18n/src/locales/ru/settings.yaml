@@ -411,6 +411,14 @@ pages:
         export: Экспорт чатов
         import: Импорт чатов
         delete: Удалить все сеансы чата
+      settings:
+        title: Настройки
+        description: Экспорт или импорт настроек приложения, модулей и провайдеров в виде JSON-резервной копии.
+        export: Экспорт настроек
+        import: Импорт настроек
+        include_secrets: Включить API-ключи и токены
+        include_secrets_description: Секреты экспортируются в открытом виде. Храните файл резервной копии в безопасности.
+        export_secrets_confirm: Экспортировать с секретами?
       models:
         title: Модели
         description: Удалить импортированные модели Live2D/VRM.
@@ -447,6 +455,8 @@ pages:
       imported: Чат сеансов импортирован.
       import_error: Не удалось импортировать чаты. Проверьте формат файла.
       chats_deleted: Чат сеансы удалены.
+      settings_exported: Настройки экспортированы.
+      settings_imported: Настройки импортированы. Перезагрузка…
       models_deleted: Модели удалены.
       modules_reset: Настройки модуля сброшены.
       providers_reset: Настройки провайдера сброшены.

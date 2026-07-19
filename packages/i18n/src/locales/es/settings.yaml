@@ -411,6 +411,14 @@ pages:
         export: Exportar conversaciones
         import: Importar conversaciones
         delete: Borrar todas las conversaciones
+      settings:
+        title: Ajustes
+        description: Exporta o importa los ajustes de la aplicación, módulos y proveedores como copia de seguridad JSON.
+        export: Exportar ajustes
+        import: Importar ajustes
+        include_secrets: Incluir claves API y tokens
+        include_secrets_description: Los secretos se exportan en texto plano. Guarda el archivo de copia en un lugar seguro.
+        export_secrets_confirm: ¿Exportar con secretos?
       models:
         title: Modelos
         description: Borrar modelos Live2D/VRM importados.
@@ -447,6 +455,8 @@ pages:
       imported: Sesiones de chat importadas.
       import_error: Error al importar las sesiones de chat. Por favor, compruebe el formato del archivo.
       chats_deleted: Sesiones de chat borradas.
+      settings_exported: Ajustes exportados.
+      settings_imported: Ajustes importados. Recargando…
       models_deleted: Modelo eliminado.
       modules_reset: Ajustes del módulo restablecidos.
       providers_reset: Ajustes del proveedor restablecidos.

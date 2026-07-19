@@ -1173,7 +1173,7 @@ export function useAnalytics() {
    * succeeded — a failed wipe is not a churn signal.
    */
   function trackDataAction(properties: {
-    action: 'chats_exported' | 'chats_imported' | 'chats_cleared' | 'app_data_cleared' | 'models_cache_cleared' | 'modules_settings_reset' | 'provider_settings_reset' | 'desktop_state_reset'
+    action: 'chats_exported' | 'chats_imported' | 'chats_cleared' | 'app_data_cleared' | 'models_cache_cleared' | 'modules_settings_reset' | 'provider_settings_reset' | 'desktop_state_reset' | 'settings_exported' | 'settings_imported'
   }) {
     if (!canCapture())
       return

@@ -411,6 +411,14 @@ pages:
         export: 채팅 내보내기
         import: 채팅 가져오기
         delete: 모든 채팅 세션 삭제
+      settings:
+        title: 설정
+        description: 앱 설정, 모듈 설정, 프로바이더 구성을 JSON 백업으로 내보내거나 가져옵니다.
+        export: 설정 내보내기
+        import: 설정 가져오기
+        include_secrets: API 키 및 토큰 포함
+        include_secrets_description: 시크릿은 평문으로 내보내집니다. 백업 파일을 안전하게 보관하세요.
+        export_secrets_confirm: 시크릿을 포함하여 내보낼까요?
       models:
         title: 모델
         description: 가져온 Live2D/VRM 모델을 삭제합니다.
@@ -447,6 +455,8 @@ pages:
       imported: 채팅 세션을 가져왔습니다.
       import_error: 채팅 세션을 가져오지 못했습니다. 파일 형식을 확인해 주세요.
       chats_deleted: 채팅 세션이 삭제되었습니다.
+      settings_exported: 설정을 내보냈습니다.
+      settings_imported: 설정을 가져왔습니다. 새로고침 중…
       models_deleted: 모델이 삭제되었습니다.
       modules_reset: 모듈 설정이 초기화되었습니다.
       providers_reset: 제공자 설정이 초기화되었습니다.
