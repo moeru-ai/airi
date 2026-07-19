@@ -536,7 +536,7 @@ export async function createApp() {
           try {
             await connection.db.execute('SELECT 1')
             logger.log(`Connected to database on attempt ${attempt}`)
-            await migrateDatabase(connection.db)
+            await migrateDatabase(connection.pool)
             logger.log(`Applied schema on attempt ${attempt}`)
             return connection
           }
