@@ -1,10 +1,9 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
@@ -331,8 +330,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function initialize() {
-    if (cards.value.has('default'))
+    if (cards.value.has('default')) {
+      applyActiveCardSettings()
       return
+    }
     cards.value.set('default', newAiriCard({
       name: 'ReLU',
       version: '1.0.0',
@@ -343,9 +344,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }))
     if (!activeCardId.value)
       activeCardId.value = 'default'
+
+    applyActiveCardSettings()
   }
 
-  watchDebounced(activeCard, (newCard: AiriCard | undefined) => {
+  function applyActiveCardSettings(newCard = activeCard.value) {
     artistryStore.resetToGlobal()
 
     if (!newCard)
@@ -383,11 +386,21 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (extension.modules.artistry.options)
         artistryStore.providerOptions = extension.modules.artistry.options
     }
-  }, { debounce: 300, maxWait: 1000 })
+  }
+
+  // Activation changes the stable card ID, while card editors replace the
+  // active card object without changing that ID. Observe both transitions so
+  // switching cards and saving edits to the current card apply consistently.
+  watch([activeCardId, activeCard], ([, newCard]) => {
+    applyActiveCardSettings(newCard)
+  }, { flush: 'sync', immediate: true })
 
   function resetState() {
-    activeCardId.reset()
+    // Clear card data before the selected ID. Otherwise the synchronous
+    // activation watcher can briefly resolve the old default card and restore
+    // its display model during a full settings reset.
     cards.reset()
+    activeCardId.reset()
   }
 
   return {
