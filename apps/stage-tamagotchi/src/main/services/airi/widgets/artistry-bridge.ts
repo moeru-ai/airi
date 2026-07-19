@@ -468,6 +468,7 @@ export async function setupArtistryBridge(params: {
         artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
         artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
           comfyuiServerUrl: 'http://localhost:8188',
+          comfyuiGenerationTimeoutMinutes: 10,
           comfyuiSavedWorkflows: [],
           comfyuiActiveWorkflow: '',
           replicateApiKey: '',
