@@ -32,6 +32,7 @@ describe('image_journal config snapshot', () => {
       defaultPromptPrefix: { value: 'anime style' },
       providerOptions: { value: { seed: 42 } },
       comfyuiServerUrl: { value: 'http://localhost:8188' },
+      comfyuiGenerationTimeoutMinutes: { value: 20 },
       comfyuiSavedWorkflows: { value: [{ id: 'wf-1' }] },
       comfyuiActiveWorkflow: { value: 'wf-1' },
       replicateApiKey: { value: 'r8_xxx' },
@@ -50,6 +51,7 @@ describe('image_journal config snapshot', () => {
       options: { seed: 42 },
       globals: {
         comfyuiServerUrl: 'http://localhost:8188',
+        comfyuiGenerationTimeoutMinutes: 20,
         comfyuiSavedWorkflows: [{ id: 'wf-1' }],
         comfyuiActiveWorkflow: 'wf-1',
         replicateApiKey: 'r8_xxx',

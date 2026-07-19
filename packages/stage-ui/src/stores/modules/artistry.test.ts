@@ -24,6 +24,7 @@ describe('artistry store', () => {
     expect(artistryStore.globalProvider).toBe('none')
     // @example
     expect(artistryStore.activeProvider).toBe('none')
+    expect(artistryStore.comfyuiGenerationTimeoutMinutes).toBe(10)
     // @example
     expect(artistryStore.configured).toBe(false)
   })

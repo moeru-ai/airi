@@ -37,6 +37,11 @@ export const useArtistryStore = defineStore('artistry', () => {
     'http://localhost:8188',
     persistenceOptions,
   )
+  const comfyuiGenerationTimeoutMinutes = useLocalStorageManualReset<number>(
+    'artistry-comfyui-generation-timeout-minutes',
+    10,
+    persistenceOptions,
+  )
   const comfyuiSavedWorkflows = useLocalStorageManualReset<ComfyUIWorkflowTemplate[]>(
     'artistry-comfyui-saved-workflows',
     [],
@@ -101,6 +106,7 @@ export const useArtistryStore = defineStore('artistry', () => {
     globalProviderOptions.reset()
 
     comfyuiServerUrl.reset()
+    comfyuiGenerationTimeoutMinutes.reset()
     comfyuiSavedWorkflows.reset()
     comfyuiActiveWorkflow.reset()
     replicateApiKey.reset()
@@ -147,6 +153,7 @@ export const useArtistryStore = defineStore('artistry', () => {
 
   const artistryGlobals = computed(() => ({
     comfyuiServerUrl: comfyuiServerUrl.value,
+    comfyuiGenerationTimeoutMinutes: comfyuiGenerationTimeoutMinutes.value,
     comfyuiSavedWorkflows: comfyuiSavedWorkflows.value,
     comfyuiActiveWorkflow: comfyuiActiveWorkflow.value,
     replicateApiKey: replicateApiKey.value,
@@ -175,6 +182,7 @@ export const useArtistryStore = defineStore('artistry', () => {
 
     // ComfyUI provider config
     comfyuiServerUrl,
+    comfyuiGenerationTimeoutMinutes,
     comfyuiSavedWorkflows,
     comfyuiActiveWorkflow,
 
@@ -224,6 +232,7 @@ export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConf
     options: unwrap(store.providerOptions),
     globals: {
       comfyuiServerUrl: unwrap(store.comfyuiServerUrl),
+      comfyuiGenerationTimeoutMinutes: unwrap(store.comfyuiGenerationTimeoutMinutes),
       comfyuiSavedWorkflows: unwrap(store.comfyuiSavedWorkflows),
       comfyuiActiveWorkflow: unwrap(store.comfyuiActiveWorkflow),
       replicateApiKey: unwrap(store.replicateApiKey),

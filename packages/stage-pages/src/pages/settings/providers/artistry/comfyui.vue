@@ -6,7 +6,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Alert, Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
+import { Alert, Button, FieldInput, FieldRange, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -18,6 +18,7 @@ const { t } = useI18n()
 
 const {
   comfyuiServerUrl,
+  comfyuiGenerationTimeoutMinutes,
   comfyuiSavedWorkflows,
   comfyuiActiveWorkflow,
 } = storeToRefs(artistryStore)
@@ -330,6 +331,18 @@ function copyToClipboard(text: string) {
       >
         {{ connectionInfo }}
       </Alert>
+
+      <FieldRange
+        v-model="comfyuiGenerationTimeoutMinutes"
+        :label="t('settings.pages.providers.provider.comfyui.settings.connection.generation_timeout.label')"
+        :description="t('settings.pages.providers.provider.comfyui.settings.connection.generation_timeout.description')"
+        :min="5"
+        :max="60"
+        :step="5"
+        :default-value="10"
+        :format-value="value => t('settings.pages.providers.provider.comfyui.settings.connection.generation_timeout.value', { minutes: value })"
+        as="div"
+      />
 
       <!-- CORS Troubleshooting -->
       <Alert v-if="isCorsError" tone="warning" :title="t('settings.pages.providers.provider.comfyui.settings.cors.title')">
