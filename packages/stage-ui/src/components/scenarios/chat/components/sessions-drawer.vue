@@ -5,7 +5,7 @@ import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
@@ -58,7 +58,11 @@ const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 const isCreatingSession = ref(false)
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-onMounted(() => screenSafeArea.update())
+onMounted(() => {
+  screenSafeArea.update()
+  document.addEventListener('click', handleDrawerAction, true)
+})
+onBeforeUnmount(() => document.removeEventListener('click', handleDrawerAction, true))
 
 interface SessionRow {
   meta: ChatSessionMeta
@@ -195,6 +199,39 @@ async function deleteRow(event: Event, sessionId: string) {
   await chatSession.deleteSession(sessionId)
 }
 
+/**
+ * Runs mobile drawer actions from a native listener because Vaul's slotted
+ * content does not reliably retain Vue's synthetic click listeners in the
+ * Electron renderer. Capture on document sees each marked action before the
+ * drawer's focus and gesture layers can consume the event.
+ */
+function handleDrawerAction(event: MouseEvent) {
+  if (!(event.target instanceof Element))
+    return
+
+  const action = event.target.closest<HTMLElement>('[data-chat-session-action]')
+  if (!action)
+    return
+
+  const sessionId = action.dataset.sessionId
+  if (action.dataset.chatSessionAction === 'new') {
+    void startNewSession()
+    return
+  }
+
+  if (!sessionId)
+    return
+
+  if (action.dataset.chatSessionAction === 'delete') {
+    event.stopPropagation()
+    void chatSession.deleteSession(sessionId)
+    return
+  }
+
+  if (action.dataset.chatSessionAction === 'select')
+    void selectSession(sessionId)
+}
+
 // Per-open generation counter. The batch loadSession loop checks this before
 // each batch so closing the drawer mid-load aborts cleanly instead of
 // continuing to hydrate sessions the user has navigated away from. Without
@@ -278,6 +315,7 @@ watch(showDialog, async (open) => {
               <button
                 type="button"
                 :class="['w-full text-left px-3 py-2.5 outline-none flex flex-col gap-1']"
+                @pointerdown.stop
                 @click="selectSession(row.meta.sessionId)"
               >
                 <div :class="['flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-200']">
@@ -305,6 +343,7 @@ watch(showDialog, async (open) => {
                   'transition-opacity duration-150',
                 ]"
                 :title="t('stage.chat.sessions.delete')"
+                @pointerdown.stop
                 @click="deleteRow($event, row.meta.sessionId)"
               >
                 <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
@@ -330,72 +369,76 @@ watch(showDialog, async (open) => {
         :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
       >
         <DrawerHandle :class="['[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600']" />
-        <div :class="['flex items-center justify-between px-4 pt-3 pb-2']">
-          <DrawerTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
-            {{ t('stage.chat.sessions.title') }}
-          </DrawerTitle>
-          <button
-            type="button"
-            :class="[
-              'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
-              'bg-primary-100/60 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200',
-              'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
-              'transition-colors',
-            ]"
-            :disabled="isCreatingSession"
-            @click.stop="startNewSession"
-          >
-            {{ t('stage.chat.sessions.new') }}
-          </button>
-        </div>
-        <div :class="['flex-1 overflow-y-auto px-2 pb-2']">
-          <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
-            {{ t('stage.chat.sessions.empty') }}
-          </div>
-          <div
-            v-for="row in rows"
-            :key="row.meta.sessionId"
-            :class="[
-              'group relative w-full rounded-xl mb-1',
-              'transition-colors',
-              row.isActive
-                ? 'bg-primary-100/70 dark:bg-primary-900/40'
-                : 'hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60',
-            ]"
-          >
-            <button
-              type="button"
-              :class="['w-full text-left px-3 py-3 outline-none flex flex-col gap-1']"
-              @click="selectSession(row.meta.sessionId)"
-            >
-              <div :class="['flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-200']">
-                <span :class="['truncate flex-1']">{{ row.preview }}</span>
-                <span
-                  v-if="row.meta.cloudChatId"
-                  :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
-                  :title="t('stage.chat.sessions.cloud-badge')"
-                >
-                  cloud
-                </span>
-                <span :class="['w-7']" />
-              </div>
-              <div :class="['text-[11px] text-neutral-500 dark:text-neutral-400']">
-                {{ row.updatedAtLabel }}
-              </div>
-            </button>
+        <div :class="['flex flex-1 min-h-0 flex-col']">
+          <div :class="['flex items-center justify-between px-4 pt-3 pb-2']">
+            <DrawerTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
+              {{ t('stage.chat.sessions.title') }}
+            </DrawerTitle>
             <button
               type="button"
               :class="[
-                'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
-                'opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100',
-                'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
-                'transition-opacity duration-150',
+                'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
+                'bg-primary-100/60 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200',
+                'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
+                'transition-colors',
               ]"
-              :title="t('stage.chat.sessions.delete')"
-              @click="deleteRow($event, row.meta.sessionId)"
+              :disabled="isCreatingSession"
+              data-chat-session-action="new"
             >
-              <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
+              {{ t('stage.chat.sessions.new') }}
             </button>
+          </div>
+          <div :class="['flex-1 overflow-y-auto px-2 pb-2']">
+            <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
+              {{ t('stage.chat.sessions.empty') }}
+            </div>
+            <div
+              v-for="row in rows"
+              :key="row.meta.sessionId"
+              :class="[
+                'group relative w-full rounded-xl mb-1',
+                'transition-colors',
+                row.isActive
+                  ? 'bg-primary-100/70 dark:bg-primary-900/40'
+                  : 'hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60',
+              ]"
+            >
+              <button
+                type="button"
+                :class="['w-full text-left px-3 py-3 outline-none flex flex-col gap-1']"
+                data-chat-session-action="select"
+                :data-session-id="row.meta.sessionId"
+              >
+                <div :class="['flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-200']">
+                  <span :class="['truncate flex-1']">{{ row.preview }}</span>
+                  <span
+                    v-if="row.meta.cloudChatId"
+                    :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
+                    :title="t('stage.chat.sessions.cloud-badge')"
+                  >
+                    cloud
+                  </span>
+                  <span :class="['w-7']" />
+                </div>
+                <div :class="['text-[11px] text-neutral-500 dark:text-neutral-400']">
+                  {{ row.updatedAtLabel }}
+                </div>
+              </button>
+              <button
+                type="button"
+                :class="[
+                  'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
+                  'opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100',
+                  'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
+                  'transition-opacity duration-150',
+                ]"
+                :title="t('stage.chat.sessions.delete')"
+                data-chat-session-action="delete"
+                :data-session-id="row.meta.sessionId"
+              >
+                <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </DrawerContent>
