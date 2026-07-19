@@ -23,15 +23,25 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 # specifier, which crashes at runtime under tsx with
 # ERR_UNSUPPORTED_ESM_URL_SCHEME. `rm -rf dist` keeps this RUN's command-string
 # distinct from earlier cached variants and prevents a stale dist from masking
-# a failed transform.
-RUN rm -rf packages/server-schema/dist \
- && pnpm -F @proj-airi/server-schema run build \
- && if grep -qE "from ['\"]virtual:" packages/server-schema/dist/index.mjs; then \
-      echo "ERROR: server-schema dist/index.mjs still references a virtual: specifier — unplugin-drizzle-orm-migrations transform did not run." >&2; \
-      cat packages/server-schema/dist/index.mjs >&2; \
-      exit 1; \
-    fi \
- && ls packages/server-schema/dist/virtual_drizzle-migrations-*.mjs >/dev/null
+# a failed transform. Retry a few times — the no-op is intermittent on Railway.
+RUN set -eu; \
+  ok=0; \
+  for attempt in 1 2 3 4 5; do \
+    rm -rf packages/server-schema/dist; \
+    pnpm -F @proj-airi/server-schema run build; \
+    if ! grep -qE "from ['\"]virtual:" packages/server-schema/dist/index.mjs \
+      && ls packages/server-schema/dist/virtual_drizzle-migrations-*.mjs >/dev/null 2>&1; then \
+      ok=1; \
+      break; \
+    fi; \
+    echo "WARN: server-schema virtual: transform missed on attempt $${attempt}; retrying..." >&2; \
+    cat packages/server-schema/dist/index.mjs >&2 || true; \
+  done; \
+  if [ "$$ok" -ne 1 ]; then \
+    echo "ERROR: server-schema dist/index.mjs still references a virtual: specifier after retries — unplugin-drizzle-orm-migrations transform did not run." >&2; \
+    cat packages/server-schema/dist/index.mjs >&2; \
+    exit 1; \
+  fi
 
 RUN pnpm -F @proj-airi/server-sdk-shared run build
 RUN pnpm -F @proj-airi/server run build
