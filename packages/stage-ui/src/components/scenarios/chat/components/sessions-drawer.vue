@@ -315,7 +315,7 @@ watch(showDialog, async (open) => {
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
-  <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="value => showDialog = value">
+  <DrawerRoot v-else :open="showDialog" should-scale-background handle-only @update:open="value => showDialog = value">
     <DrawerPortal>
       <DrawerOverlay :class="['fixed inset-0']" />
       <DrawerContent
