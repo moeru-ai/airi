@@ -17,7 +17,7 @@ import process from 'node:process'
 
 import { Buffer } from 'node:buffer'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 import { errorMessageFrom } from '@moeru/std'
 
@@ -72,10 +72,13 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  mkdirSync(destDir, { recursive: true })
-  writeFileSync(join(destDir, 'steam_appid.txt'), `${STEAM_APP_ID}\n`, 'utf8')
+  // Resolve so relative dests are anchored to process.cwd() (pnpm -F exec uses the
+  // package root). Callers in CI should pass an absolute path into the depot tree.
+  const resolvedDestDir = resolve(destDir)
+  mkdirSync(resolvedDestDir, { recursive: true })
+  writeFileSync(join(resolvedDestDir, 'steam_appid.txt'), `${STEAM_APP_ID}\n`, 'utf8')
 
-  const dest = join(destDir, 'steamworks_sdk', 'redistributable_bin', relativePath)
+  const dest = join(resolvedDestDir, 'steamworks_sdk', 'redistributable_bin', relativePath)
   const url = `${mirrorBaseUrl()}/${relativePath}`
   console.info(`[steam] downloading ${relativePath} from mirror -> ${dest}`)
   await downloadFile(url, dest)
