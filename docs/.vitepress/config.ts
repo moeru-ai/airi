@@ -281,6 +281,15 @@ export default defineConfig<ThemeConfig>({
               { text: '有关 AI VTuber', link: withBase('/zh-Hans/docs/overview/about-ai-vtuber') },
               { text: '有关 Neuro-sama', link: withBase('/zh-Hans/docs/overview/about-neuro-sama') },
               { text: '其他类似项目', link: withBase('/zh-Hans/docs/overview/other-similar-projects') },
+              {
+                text: '编年史',
+                collapsed: true,
+                items: [
+                  { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
+                  { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
+                ],
+              },
+              { text: '角色', link: withBase('/zh-Hans/characters/') },
             ],
           },
           {
@@ -384,63 +393,50 @@ export default defineConfig<ThemeConfig>({
                   ] },
                 ],
               },
+            ],
+          },
+          {
+            text: '集成服务',
+            icon: 'lucide:plug',
+            items: [
               {
-                text: '集成服务',
-                icon: 'lucide:plug',
+                text: '游戏',
                 items: [
-                  {
-                    text: '游戏',
-                    items: [
-                      { text: 'Minecraft 智能体', link: withBase('/zh-Hans/docs/integrations/minecraft') },
-                      { text: '异星工厂', link: withBase('/zh-Hans/docs/integrations/factorio') },
-                    ],
-                  },
-                  {
-                    text: '消息平台',
-                    items: [
-                      { text: 'Satori 机器人', link: withBase('/zh-Hans/docs/integrations/satori') },
-                      { text: 'Telegram 机器人', link: withBase('/zh-Hans/docs/integrations/telegram') },
-                      { text: 'Discord 机器人', link: withBase('/zh-Hans/docs/integrations/discord') },
-                      { text: 'X / Twitter', link: withBase('/zh-Hans/docs/integrations/x') },
-                    ],
-                  },
+                  { text: 'Minecraft 智能体', link: withBase('/zh-Hans/docs/integrations/minecraft') },
+                  { text: '异星工厂', link: withBase('/zh-Hans/docs/integrations/factorio') },
                 ],
               },
               {
-                text: '贡献指南',
-                icon: 'lucide:users',
+                text: '消息平台',
                 items: [
-                  {
-                    text: '基础配置与开发',
-                    items: [
-                      { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
-                      { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
-                      { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
-                      { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
-                    ],
-                  },
-                  {
-                    text: '设计指南',
-                    items: [
-                      { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
-                      { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
-                      { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
-                    ],
-                  },
+                  { text: 'Satori 机器人', link: withBase('/zh-Hans/docs/integrations/satori') },
+                  { text: 'Telegram 机器人', link: withBase('/zh-Hans/docs/integrations/telegram') },
+                  { text: 'Discord 机器人', link: withBase('/zh-Hans/docs/integrations/discord') },
+                  { text: 'X / Twitter', link: withBase('/zh-Hans/docs/integrations/x') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '贡献指南',
+            icon: 'lucide:users',
+            items: [
+              {
+                text: '基础配置与开发',
+                items: [
+                  { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
+                  { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
+                  { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
+                  { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
                 ],
               },
               {
-                text: '编年史',
-                icon: 'lucide:calendar-days',
+                text: '设计指南',
                 items: [
-                  { text: '首次公开 v0.1.0', link: withBase('/zh-Hans/docs/chronicles/version-v0.1.0/') },
-                  { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
+                  { text: '介绍', link: withBase('/zh-Hans/docs/contributing/design-guidelines/') },
+                  { text: '艺术家与开发者 (参考资源)', link: withBase('/zh-Hans/docs/contributing/design-guidelines/resources') },
+                  { text: '工具', link: withBase('/zh-Hans/docs/contributing/design-guidelines/tools') },
                 ],
-              },
-              {
-                text: '角色',
-                icon: 'lucide:scan-face',
-                link: withBase('/zh-Hans/characters/'),
               },
             ],
           },
