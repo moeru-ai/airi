@@ -99,6 +99,7 @@ async function handleSend() {
     await chatSyncStore.requestIngest({
       text: textToSend,
       attachments: attachmentsToSend,
+      sessionId: chatSession.activeSessionId,
       toolset: 'artistry',
     })
 
@@ -208,7 +209,10 @@ const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefine
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  await chatSyncStore.requestDeleteMessage({ index })
+  await chatSyncStore.requestDeleteMessage({
+    sessionId: chatSession.activeSessionId,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -256,7 +260,7 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
 
 async function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatSyncStore.requestCleanup()
+  await chatSyncStore.requestCleanup(chatSession.activeSessionId)
   trackChatMessagesCleared({
     source: 'chat_controls',
     message_count: messageCount,

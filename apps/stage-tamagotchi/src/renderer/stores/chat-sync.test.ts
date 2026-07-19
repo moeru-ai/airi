@@ -533,6 +533,11 @@ describe('useChatSyncStore', async () => {
     const { authorityStore, followerStore } = initializeAuthorityAndFollower()
 
     const createdSessionId = await followerStore.requestCreateSession('default')
+    mockState.ingest.mockResolvedValueOnce(undefined)
+    await followerStore.requestIngest({
+      text: 'first message in the new chat',
+      sessionId: createdSessionId,
+    })
     await followerStore.requestSelectSession('session-1')
     await followerStore.requestDeleteSession('session-2')
 
@@ -541,6 +546,7 @@ describe('useChatSyncStore', async () => {
     expect(mockState.setActiveSession).toHaveBeenNthCalledWith(1, 'session-2')
     expect(mockState.setActiveSession).toHaveBeenNthCalledWith(2, 'session-1')
     expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.ingest).toHaveBeenCalledWith('first message in the new chat', expect.any(Object), 'session-2')
 
     const commands = postedMessagesOfType('command').map(message => message.command)
     expect(commands).toContain('create-session')
