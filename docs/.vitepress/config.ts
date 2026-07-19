@@ -418,16 +418,22 @@ export default defineConfig<ThemeConfig>({
             ],
           },
           {
-            text: '贡献指南',
-            icon: 'lucide:users',
+            text: '开发者指南',
+            icon: 'lucide:code-2',
             items: [
               {
-                text: '基础配置与开发',
+                text: '参与贡献',
                 items: [
-                  { text: '环境配置与基础准备', link: withBase('/zh-Hans/docs/contributing/') },
+                  { text: '开发环境与首次贡献', link: withBase('/zh-Hans/docs/contributing/') },
                   { text: '桌面端', link: withBase('/zh-Hans/docs/contributing/tamagotchi') },
                   { text: '网页端', link: withBase('/zh-Hans/docs/contributing/webui') },
                   { text: '文档站', link: withBase('/zh-Hans/docs/contributing/docs') },
+                ],
+              },
+              {
+                text: '桌面端调试',
+                items: [
+                  { text: '开发者工具', link: withBase('/zh-Hans/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
