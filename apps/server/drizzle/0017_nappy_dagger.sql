@@ -2,8 +2,10 @@
 -- Made idempotent after a multi-replica race created these tables without
 -- recording migration 0017 in drizzle.__drizzle_migrations. Replays must
 -- no-op on existing objects so the journal row can be written and boot can
--- reach HTTP listen. Safe to keep: IF NOT EXISTS / duplicate_object handlers
--- match the original schema.
+-- reach HTTP listen.
+--
+-- Do not use dollar-quoted DO blocks here: the browser migrator splits SQL on
+-- semicolons and would send incomplete fragments (Postgres 42601).
 CREATE TABLE IF NOT EXISTS "capability_alias_routes" (
 	"id" text PRIMARY KEY NOT NULL,
 	"alias_id" text NOT NULL,
@@ -57,16 +59,10 @@ CREATE TABLE IF NOT EXISTS "provider_catalog_tts_voices" (
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-DO $migration$ BEGIN
-	ALTER TABLE "capability_alias_routes" ADD CONSTRAINT "capability_alias_routes_alias_id_capability_aliases_id_fk" FOREIGN KEY ("alias_id") REFERENCES "public"."capability_aliases"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
-	WHEN duplicate_object THEN NULL;
-END $migration$;--> statement-breakpoint
-DO $migration$ BEGIN
-	ALTER TABLE "provider_catalog_tts_voices" ADD CONSTRAINT "provider_catalog_tts_voices_tts_model_id_provider_catalog_tts_models_id_fk" FOREIGN KEY ("tts_model_id") REFERENCES "public"."provider_catalog_tts_models"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
-	WHEN duplicate_object THEN NULL;
-END $migration$;--> statement-breakpoint
+ALTER TABLE "capability_alias_routes" DROP CONSTRAINT IF EXISTS "capability_alias_routes_alias_id_capability_aliases_id_fk";--> statement-breakpoint
+ALTER TABLE "capability_alias_routes" ADD CONSTRAINT "capability_alias_routes_alias_id_capability_aliases_id_fk" FOREIGN KEY ("alias_id") REFERENCES "public"."capability_aliases"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "provider_catalog_tts_voices" DROP CONSTRAINT IF EXISTS "provider_catalog_tts_voices_tts_model_id_provider_catalog_tts_models_id_fk";--> statement-breakpoint
+ALTER TABLE "provider_catalog_tts_voices" ADD CONSTRAINT "provider_catalog_tts_voices_tts_model_id_provider_catalog_tts_models_id_fk" FOREIGN KEY ("tts_model_id") REFERENCES "public"."provider_catalog_tts_models"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "capability_alias_routes_alias_model_pool_uidx" ON "capability_alias_routes" USING btree ("alias_id","router_model_id","pool");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "capability_aliases_surface_alias_uidx" ON "capability_aliases" USING btree ("surface","alias_id");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "provider_catalog_tts_models_router_model_uidx" ON "provider_catalog_tts_models" USING btree ("router_model_id");--> statement-breakpoint
