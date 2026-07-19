@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { ObjectDirective } from 'vue'
-
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
@@ -17,6 +15,26 @@ import { useAuthStore } from '../../../../stores/auth'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+
+/** Session mutations supplied by a host that owns chat state in another runtime. */
+interface ChatSessionActions {
+  /** Creates and activates a session for the requested character. */
+  createSession: (characterId: string) => Promise<string>
+  /** Deletes a session and selects an authority-owned fallback when necessary. */
+  deleteSession: (sessionId: string) => Promise<void>
+  /** Makes an existing session active. */
+  selectSession: (sessionId: string) => Promise<void>
+}
+
+interface Props {
+  /**
+   * Overrides local store mutations when the host window is a synchronized
+   * follower. The default writes directly to the local session store.
+   */
+  sessionActions?: ChatSessionActions
+}
+
+const props = defineProps<Props>()
 
 /**
  * Bottom-sheet (mobile) / centered-modal (desktop) UI surface that lists every
@@ -155,6 +173,11 @@ const rows = computed<SessionRow[]>(() => {
   return list
 })
 
+const mobilePaddingBottom = computed(() => {
+  const safeAreaBottom = Number.parseFloat(screenSafeArea.bottom.value.replace('px', ''))
+  return `${Math.max(safeAreaBottom, 24)}px`
+})
+
 async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
   if (sessionId !== activeSessionId.value && selectedRow) {
@@ -164,7 +187,10 @@ async function selectSession(sessionId: string) {
       cloud_synced: !!selectedRow.meta.cloudChatId,
     })
   }
-  chatSession.setActiveSession(sessionId)
+  if (props.sessionActions)
+    await props.sessionActions.selectSession(sessionId)
+  else
+    chatSession.setActiveSession(sessionId)
   showDialog.value = false
 }
 
@@ -174,7 +200,10 @@ async function startNewSession() {
   isCreatingSession.value = true
   try {
     const characterId = activeCardId.value || 'default'
-    await chatSession.createSession(characterId, { setActive: true })
+    if (props.sessionActions)
+      await props.sessionActions.createSession(characterId)
+    else
+      await chatSession.createSession(characterId, { setActive: true })
     // PostHog retention denominator. We pick this call site (UI new-session
     // button) rather than `createSession` in the store because the store also
     // creates sessions for cloud-reconcile / fork / restore flows that aren't
@@ -188,79 +217,11 @@ async function startNewSession() {
   }
 }
 
-async function deleteRow(event: Event, sessionId: string) {
-  // Stop the row's selection click — otherwise we'd switch into the session
-  // we are about to remove and immediately need a fallback. The delete
-  // button also has a higher stacking order so it receives the pointer event
-  // instead of the full-width row target in the first place.
-  event.stopPropagation()
-  await chatSession.deleteSession(sessionId)
-}
-
-/**
- * Preserves native action listeners through Vaul's slotted drawer content.
- * The directive owns only the DOM-event boundary; session state still flows
- * through the store actions above.
- */
-function stopDrawerRelease(event: Event) {
-  // Vaul's DrawerContent listens for pointerup even with `handleOnly`; without
-  // this, it closes and unmounts the drawer before the browser emits `click`.
-  event.stopPropagation()
-}
-
-const vDrawerReleaseGuard: ObjectDirective<HTMLElement> = {
-  mounted(element) {
-    element.addEventListener('pointerup', stopDrawerRelease, { capture: true })
-  },
-  beforeUnmount(element) {
-    element.removeEventListener('pointerup', stopDrawerRelease, { capture: true })
-  },
-}
-
-const vNewSessionAction: ObjectDirective<HTMLButtonElement> = {
-  mounted(element) {
-    element.addEventListener('pointerup', stopDrawerRelease)
-    element.addEventListener('click', startNewSession)
-  },
-  beforeUnmount(element) {
-    element.removeEventListener('pointerup', stopDrawerRelease)
-    element.removeEventListener('click', startNewSession)
-  },
-}
-
-const selectSessionHandlers = new WeakMap<HTMLButtonElement, EventListener>()
-const vSelectSessionAction: ObjectDirective<HTMLButtonElement, string> = {
-  mounted(element, binding) {
-    const handler = () => void selectSession(binding.value)
-    selectSessionHandlers.set(element, handler)
-    element.addEventListener('pointerup', stopDrawerRelease)
-    element.addEventListener('click', handler)
-  },
-  beforeUnmount(element) {
-    const handler = selectSessionHandlers.get(element)
-    if (handler)
-      element.removeEventListener('click', handler)
-    element.removeEventListener('pointerup', stopDrawerRelease)
-  },
-}
-
-const deleteSessionHandlers = new WeakMap<HTMLButtonElement, EventListener>()
-const vDeleteSessionAction: ObjectDirective<HTMLButtonElement, string> = {
-  mounted(element, binding) {
-    const handler = (event: Event) => {
-      event.stopPropagation()
-      void chatSession.deleteSession(binding.value)
-    }
-    deleteSessionHandlers.set(element, handler)
-    element.addEventListener('pointerup', stopDrawerRelease)
-    element.addEventListener('click', handler)
-  },
-  beforeUnmount(element) {
-    const handler = deleteSessionHandlers.get(element)
-    if (handler)
-      element.removeEventListener('click', handler)
-    element.removeEventListener('pointerup', stopDrawerRelease)
-  },
+async function deleteSession(sessionId: string) {
+  if (props.sessionActions)
+    await props.sessionActions.deleteSession(sessionId)
+  else
+    await chatSession.deleteSession(sessionId)
 }
 
 // Per-open generation counter. The batch loadSession loop checks this before
@@ -295,187 +256,18 @@ watch(showDialog, async (open) => {
 </script>
 
 <template>
-  <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
-    <slot name="trigger" />
-    <DialogPortal>
-      <DialogOverlay
-        :class="[
-          'fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm',
-          'data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn',
-        ]"
-      />
-      <DialogContent
-        :class="[
-          'fixed left-1/2 top-1/2 z-[9999] max-h-[80dvh] max-w-md w-[92dvw] transform overflow-hidden rounded-2xl bg-white/95 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900/90',
-        ]"
-      >
-        <div :class="['flex flex-col h-full max-h-[80dvh]']">
-          <div :class="['flex items-center justify-between px-5 pt-5 pb-3']">
-            <DialogTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
-              {{ t('stage.chat.sessions.title') }}
-            </DialogTitle>
-            <button
-              type="button"
-              :class="[
-                'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
-                'bg-primary-100/60 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200',
-                'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
-                'transition-colors',
-              ]"
-              :disabled="isCreatingSession"
-              @click.stop="startNewSession"
-            >
-              {{ t('stage.chat.sessions.new') }}
-            </button>
-          </div>
-          <div :class="['flex-1 overflow-y-auto px-2 pb-4']">
-            <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
-              {{ t('stage.chat.sessions.empty') }}
-            </div>
-            <div
-              v-for="row in rows"
-              :key="row.meta.sessionId"
-              :class="[
-                'group relative w-full rounded-xl mb-1',
-                'transition-colors',
-                row.isActive
-                  ? 'bg-primary-100/70 dark:bg-primary-900/40'
-                  : 'hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60',
-              ]"
-            >
-              <button
-                type="button"
-                :class="['w-full text-left px-3 py-2.5 outline-none flex flex-col gap-1']"
-                @pointerdown.stop
-                @click="selectSession(row.meta.sessionId)"
-              >
-                <div :class="['flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-200']">
-                  <span :class="['truncate flex-1']">{{ row.preview }}</span>
-                  <span
-                    v-if="row.meta.cloudChatId"
-                    :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
-                    :title="t('stage.chat.sessions.cloud-badge')"
-                  >
-                    cloud
-                  </span>
-                  <!-- placeholder for trash icon to reserve hit space -->
-                  <span :class="['w-7']" />
-                </div>
-                <div :class="['text-[11px] text-neutral-500 dark:text-neutral-400']">
-                  {{ row.updatedAtLabel }}
-                </div>
-              </button>
-              <button
-                type="button"
-                :class="[
-                  'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
-                  'opacity-0 group-hover:opacity-100 focus:opacity-100',
-                  'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
-                  'transition-opacity duration-150',
-                ]"
-                :title="t('stage.chat.sessions.delete')"
-                @pointerdown.stop
-                @click="deleteRow($event, row.meta.sessionId)"
-              >
-                <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
-  <DrawerRoot v-else :open="showDialog" should-scale-background handle-only @update:open="value => showDialog = value">
-    <DrawerPortal>
-      <DrawerOverlay :class="['fixed inset-0']" />
-      <DrawerContent
-        :class="[
-          'fixed bottom-0 left-0 right-0 z-1000',
-          'mt-20 px-2 pt-3',
-          'flex flex-col',
-          'h-full max-h-[85%]',
-          'rounded-t-[32px] outline-none backdrop-blur-md',
-          'bg-neutral-50/95 dark:bg-neutral-900/95',
-        ]"
-        :style="{ paddingBottom: `${Math.max(Number.parseFloat(screenSafeArea.bottom.value.replace('px', '')), 24)}px` }"
-      >
-        <DrawerHandle :class="['[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600']" />
-        <div v-drawer-release-guard :class="['flex flex-1 min-h-0 flex-col']">
-          <div :class="['flex items-center justify-between px-4 pt-3 pb-2']">
-            <DrawerTitle :class="['text-base font-medium text-neutral-700 dark:text-neutral-200']">
-              {{ t('stage.chat.sessions.title') }}
-            </DrawerTitle>
-            <button
-              v-new-session-action
-              type="button"
-              :class="[
-                'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
-                'bg-primary-100/60 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200',
-                'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
-                'transition-colors',
-              ]"
-              :disabled="isCreatingSession"
-              data-chat-session-action="new"
-            >
-              {{ t('stage.chat.sessions.new') }}
-            </button>
-          </div>
-          <div :class="['flex-1 overflow-y-auto px-2 pb-2']">
-            <div v-if="rows.length === 0" :class="['p-6 text-center text-sm text-neutral-500 dark:text-neutral-400']">
-              {{ t('stage.chat.sessions.empty') }}
-            </div>
-            <div
-              v-for="row in rows"
-              :key="row.meta.sessionId"
-              :class="[
-                'group relative w-full rounded-xl mb-1',
-                'transition-colors',
-                row.isActive
-                  ? 'bg-primary-100/70 dark:bg-primary-900/40'
-                  : 'hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60',
-              ]"
-            >
-              <button
-                v-select-session-action="row.meta.sessionId"
-                type="button"
-                :class="['w-full text-left px-3 py-3 outline-none flex flex-col gap-1']"
-                data-chat-session-action="select"
-                :data-session-id="row.meta.sessionId"
-              >
-                <div :class="['flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-200']">
-                  <span :class="['truncate flex-1']">{{ row.preview }}</span>
-                  <span
-                    v-if="row.meta.cloudChatId"
-                    :class="['shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5', 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300']"
-                    :title="t('stage.chat.sessions.cloud-badge')"
-                  >
-                    cloud
-                  </span>
-                  <span :class="['w-7']" />
-                </div>
-                <div :class="['text-[11px] text-neutral-500 dark:text-neutral-400']">
-                  {{ row.updatedAtLabel }}
-                </div>
-              </button>
-              <button
-                v-delete-session-action="row.meta.sessionId"
-                type="button"
-                :class="[
-                  'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
-                  'opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100',
-                  'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
-                  'transition-opacity duration-150',
-                ]"
-                :title="t('stage.chat.sessions.delete')"
-                data-chat-session-action="delete"
-                :data-session-id="row.meta.sessionId"
-              >
-                <div class="i-solar:trash-bin-trash-bold-duotone h-4 w-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </DrawerContent>
-    </DrawerPortal>
-  </DrawerRoot>
+  <SessionsDialog
+    v-model:open="showDialog"
+    :rows="rows"
+    :is-desktop="isDesktop"
+    :is-creating-session="isCreatingSession"
+    :mobile-padding-bottom="mobilePaddingBottom"
+    @new-session="startNewSession"
+    @select-session="selectSession"
+    @delete-session="deleteSession"
+  >
+    <template #trigger>
+      <slot name="trigger" />
+    </template>
+  </SessionsDialog>
 </template>

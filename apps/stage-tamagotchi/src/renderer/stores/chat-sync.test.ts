@@ -110,6 +110,9 @@ interface MockState {
   setSessionMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   importSessions: MockImportSessions
+  createSession: ReturnType<typeof vi.fn>
+  deleteSession: ReturnType<typeof vi.fn>
+  setActiveSession: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
 }
 
@@ -129,6 +132,9 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     getSessionMessages: mockState.getSessionMessages,
     importSessions: mockState.importSessions,
     setSessionMessages: mockState.setSessionMessages,
+    createSession: mockState.createSession,
+    deleteSession: mockState.deleteSession,
+    setActiveSession: mockState.setActiveSession,
   }),
 }))
 
@@ -225,6 +231,11 @@ describe('useChatSyncStore', async () => {
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
     const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
+    const createSession = vi.fn(async () => 'session-2')
+    const deleteSession = vi.fn(async () => undefined)
+    const setActiveSession = vi.fn((sessionId: string) => {
+      activeSessionId.value = sessionId
+    })
 
     const ingest = vi.fn(async () => {
       throw new Error('Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}')
@@ -247,6 +258,9 @@ describe('useChatSyncStore', async () => {
       setSessionMessages,
       getSessionMessages,
       importSessions,
+      createSession,
+      deleteSession,
+      setActiveSession,
       ingest,
     }
 
@@ -506,6 +520,35 @@ describe('useChatSyncStore', async () => {
 
     authority.close()
     store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('routes follower session list mutations through the authority for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // The chat window is a follower, but the session drawer created and
+    // deleted sessions in its local Pinia store. The authority heartbeat then
+    // replaced those changes with its unchanged snapshot. Persistent mutations
+    // now execute against the authority, while selection remains window-local.
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+
+    const createdSessionId = await followerStore.requestCreateSession('default')
+    await followerStore.requestSelectSession('session-1')
+    await followerStore.requestDeleteSession('session-2')
+
+    expect(createdSessionId).toBe('session-2')
+    expect(mockState.createSession).toHaveBeenCalledWith('default', { setActive: false })
+    expect(mockState.setActiveSession).toHaveBeenNthCalledWith(1, 'session-2')
+    expect(mockState.setActiveSession).toHaveBeenNthCalledWith(2, 'session-1')
+    expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+
+    const commands = postedMessagesOfType('command').map(message => message.command)
+    expect(commands).toContain('create-session')
+    expect(commands).toContain('delete-session')
+    expect(commands).not.toContain('select-session')
+
+    authorityStore.dispose()
+    followerStore.dispose()
   })
 
   it('sends spotlight commands through shared request and response messages', async () => {

@@ -73,8 +73,16 @@ interface RetryCommandPayload {
   index: number
 }
 
+interface CreateSessionCommandPayload {
+  characterId: string
+}
+
+interface SessionCommandPayload {
+  sessionId: string
+}
+
 type ChatResponsePayload
-  = | { ok: true, result?: SpotlightIngestResult }
+  = | { ok: true, result?: SpotlightIngestResult | string }
     | { ok: false, error?: string }
 
 type ChatSyncMessage
@@ -89,6 +97,8 @@ type ChatSyncMessage
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
     | ChatCommandMessage<'import-sessions', ChatSessionsExport>
+    | ChatCommandMessage<'create-session', CreateSessionCommandPayload>
+    | ChatCommandMessage<'delete-session', SessionCommandPayload>
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
@@ -471,6 +481,17 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'import-sessions':
           await chatSession.importSessions(message.payload)
           break
+        case 'create-session':
+          respond({
+            ok: true,
+            // The follower window owns its active selection. The authority
+            // persists the new record without changing the main stage chat.
+            result: await chatSession.createSession(message.payload.characterId, { setActive: false }),
+          })
+          return
+        case 'delete-session':
+          await chatSession.deleteSession(message.payload.sessionId)
+          break
       }
 
       respond({ ok: true })
@@ -723,6 +744,47 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  /** Creates a session in the authority window and activates it locally after the snapshot arrives. */
+  async function requestCreateSession(characterId: string) {
+    if (mode.value === 'authority')
+      return chatSession.createSession(characterId, { setActive: true })
+
+    const sessionId = await dispatch<string>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'create-session',
+      payload: { characterId },
+    })
+
+    // BroadcastChannel preserves sender ordering, so the authority snapshot
+    // is applied before its response. This local choice prevents later
+    // snapshots from restoring the follower's previously active session.
+    chatSession.setActiveSession(sessionId)
+    return sessionId
+  }
+
+  /** Selects a session only in this window, preserving the follower's independent chat view. */
+  async function requestSelectSession(sessionId: string) {
+    chatSession.setActiveSession(sessionId)
+  }
+
+  /** Deletes a session in the authority window, which broadcasts the resulting fallback state. */
+  async function requestDeleteSession(sessionId: string) {
+    if (mode.value === 'authority') {
+      await chatSession.deleteSession(sessionId)
+      return
+    }
+
+    await dispatch<void>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'delete-session',
+      payload: { sessionId },
+    })
+  }
+
   function dispose() {
     stopWatchers()
     clearHeartbeat()
@@ -744,5 +806,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestCleanup,
     requestDeleteMessage,
     requestImportSessions,
+    requestCreateSession,
+    requestSelectSession,
+    requestDeleteSession,
   }
 })
