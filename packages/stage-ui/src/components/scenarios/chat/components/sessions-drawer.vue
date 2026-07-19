@@ -187,8 +187,10 @@ async function startNewSession() {
 }
 
 async function deleteRow(event: Event, sessionId: string) {
-  // Stop the parent button's click — otherwise we'd switch into the session
-  // we are about to remove and immediately need a fallback.
+  // Stop the row's selection click — otherwise we'd switch into the session
+  // we are about to remove and immediately need a fallback. The delete
+  // button also has a higher stacking order so it receives the pointer event
+  // instead of the full-width row target in the first place.
   event.stopPropagation()
   await chatSession.deleteSession(sessionId)
 }
@@ -245,14 +247,15 @@ watch(showDialog, async (open) => {
               {{ t('stage.chat.sessions.title') }}
             </DialogTitle>
             <button
+              type="button"
               :class="[
-                'rounded-lg px-3 py-1.5 text-xs font-medium',
+                'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
                 'bg-primary-100/60 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200',
                 'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
                 'transition-colors',
               ]"
               :disabled="isCreatingSession"
-              @click="startNewSession"
+              @click.stop="startNewSession"
             >
               {{ t('stage.chat.sessions.new') }}
             </button>
@@ -273,6 +276,7 @@ watch(showDialog, async (open) => {
               ]"
             >
               <button
+                type="button"
                 :class="['w-full text-left px-3 py-2.5 outline-none flex flex-col gap-1']"
                 @click="selectSession(row.meta.sessionId)"
               >
@@ -293,8 +297,9 @@ watch(showDialog, async (open) => {
                 </div>
               </button>
               <button
+                type="button"
                 :class="[
-                  'absolute right-2 top-2 h-7 w-7 flex items-center justify-center rounded-md',
+                  'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
                   'opacity-0 group-hover:opacity-100 focus:opacity-100',
                   'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
                   'transition-opacity duration-150',
@@ -330,14 +335,15 @@ watch(showDialog, async (open) => {
             {{ t('stage.chat.sessions.title') }}
           </DrawerTitle>
           <button
+            type="button"
             :class="[
-              'rounded-lg px-3 py-1.5 text-xs font-medium',
+              'relative z-10 rounded-lg px-3 py-1.5 text-xs font-medium',
               'bg-primary-100/60 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200',
               'hover:bg-primary-200/70 dark:hover:bg-primary-800/50',
               'transition-colors',
             ]"
             :disabled="isCreatingSession"
-            @click="startNewSession"
+            @click.stop="startNewSession"
           >
             {{ t('stage.chat.sessions.new') }}
           </button>
@@ -358,6 +364,7 @@ watch(showDialog, async (open) => {
             ]"
           >
             <button
+              type="button"
               :class="['w-full text-left px-3 py-3 outline-none flex flex-col gap-1']"
               @click="selectSession(row.meta.sessionId)"
             >
@@ -377,8 +384,9 @@ watch(showDialog, async (open) => {
               </div>
             </button>
             <button
+              type="button"
               :class="[
-                'absolute right-2 top-2 h-7 w-7 flex items-center justify-center rounded-md',
+                'absolute right-2 top-2 z-10 h-7 w-7 flex items-center justify-center rounded-md',
                 'opacity-100 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100',
                 'text-neutral-400 hover:text-red-500 hover:bg-red-500/10',
                 'transition-opacity duration-150',
