@@ -289,7 +289,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     const localActiveSessionId = activeSessionId.value
     const shouldPreserveLocalActiveSession = mode.value === 'follower'
       && !!localActiveSessionId
-      && !!snapshot.sessionMessages[localActiveSessionId]
+      && (!!snapshot.sessionMessages[localActiveSessionId] || !!snapshot.sessionMetas[localActiveSessionId])
 
     chatSession.applyRemoteSnapshot({
       ...snapshot,
@@ -297,6 +297,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         ? localActiveSessionId
         : snapshot.activeSessionId,
     })
+
+    if (shouldPreserveLocalActiveSession)
+      chatSession.setActiveSessionLocally(localActiveSessionId)
   }
 
   function applyStreamSnapshot(snapshot: StreamSnapshotPayload) {

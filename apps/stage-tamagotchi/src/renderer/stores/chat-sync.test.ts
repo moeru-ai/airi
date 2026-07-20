@@ -523,6 +523,41 @@ describe('useChatSyncStore', async () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/2085
+  it('reloads a follower-selected session when authority snapshots include only its metadata', async () => {
+    mockState.activeSessionId.value = 'session-2'
+    mockState.sessionMessages.value = {
+      'session-2': [{ role: 'system', content: 'chat-window' }],
+    }
+
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    authority.postMessage({
+      type: 'session-snapshot',
+      authorityId: 'authority',
+      snapshot: {
+        activeSessionId: 'session-1',
+        sessionMessages: {
+          'session-1': [{ role: 'system', content: 'main-window' }],
+        },
+        sessionMetas: {
+          'session-2': { sessionId: 'session-2' },
+        },
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.applyRemoteSnapshot).toHaveBeenCalledTimes(1)
+      expect(mockState.setActiveSessionLocally).toHaveBeenCalledWith('session-2')
+    })
+    expect(mockState.activeSessionId.value).toBe('session-2')
+
+    authority.close()
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
   it('routes follower session list mutations through the authority for Issue #2085', async () => {
     // ROOT CAUSE:
     //
