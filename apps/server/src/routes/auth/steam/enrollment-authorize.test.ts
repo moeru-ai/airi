@@ -1,9 +1,10 @@
 import type { AuthRoutesDeps } from '..'
+import type { Database } from '../../../libs/db'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createAuthRoutes } from '..'
 import { mockDB } from '../../../libs/mock-db'
@@ -23,8 +24,7 @@ function createConfigKV(): ConfigKVService {
   } as any
 }
 
-async function buildRoutes({ sessionUser }: { sessionUser: { id: string, banned: boolean } | null }) {
-  const db = await mockDB(schema)
+async function buildRoutes(db: Database, { sessionUser }: { sessionUser: { id: string, banned: boolean } | null }) {
   if (sessionUser) {
     await db.insert(user).values({
       id: sessionUser.id,
@@ -88,10 +88,22 @@ function authorizeUrl(token: string | null) {
 }
 
 describe('authorize enrollment choke point', () => {
-  beforeEach(() => vi.clearAllMocks())
+  let db: Database
+
+  // NOTICE: mockDB pushSchema is slow on cold CI runners; share one DB per file.
+  beforeAll(async () => {
+    db = await mockDB(schema)
+  }, 30_000)
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    await db.delete(account)
+    await db.delete(verification)
+    await db.delete(user)
+  })
 
   it('links Steam to the session user and strips enrollToken before the auth handler', async () => {
-    const { app, db, handler } = await buildRoutes({ sessionUser: { id: 'uid_ok', banned: false } })
+    const { app, handler } = await buildRoutes(db, { sessionUser: { id: 'uid_ok', banned: false } })
     const token = await createEnrollmentToken(db, { steamId: '76561198000000050', profile: { name: 'Alice', image: '' } })
 
     const res = await app.request(authorizeUrl(token), { headers: { cookie: 'session=tok' } })
@@ -110,7 +122,7 @@ describe('authorize enrollment choke point', () => {
   })
 
   it('applies Steam profile to empty user fields when linking', async () => {
-    const { app, db } = await buildRoutes({ sessionUser: { id: 'uid_profile', banned: false } })
+    const { app } = await buildRoutes(db, { sessionUser: { id: 'uid_profile', banned: false } })
     const token = await createEnrollmentToken(db, { steamId: '76561198000000051', profile: { name: 'Alice', image: 'https://x/a.jpg' } })
 
     await app.request(authorizeUrl(token), { headers: { cookie: 'session=tok' } })
@@ -121,7 +133,7 @@ describe('authorize enrollment choke point', () => {
   })
 
   it('issues a code without linking when the token is invalid (Steam stays unlinked)', async () => {
-    const { app, db, handler } = await buildRoutes({ sessionUser: { id: 'uid_ok', banned: false } })
+    const { app, handler } = await buildRoutes(db, { sessionUser: { id: 'uid_ok', banned: false } })
     const res = await app.request(authorizeUrl('not-a-real-token'), { headers: { cookie: 'session=tok' } })
     expect(res.status).toBe(302)
     expect(handler).toHaveBeenCalledTimes(1)
@@ -130,7 +142,7 @@ describe('authorize enrollment choke point', () => {
   })
 
   it('issues a code without linking when there is no session (token preserved for retry)', async () => {
-    const { app, db, handler } = await buildRoutes({ sessionUser: null })
+    const { app, handler } = await buildRoutes(db, { sessionUser: null })
     const token = await createEnrollmentToken(db, { steamId: '76561198000000052', profile: null })
     const res = await app.request(authorizeUrl(token), { headers: {} })
     expect(res.status).toBe(302)
