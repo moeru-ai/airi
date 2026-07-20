@@ -40,6 +40,27 @@ describe('enrollment token', () => {
       const token = await createEnrollmentToken(db, { steamId: '76561198000000021', profile: null })
       expect(token).toBeTruthy()
     })
+
+    // ROOT CAUSE:
+    //
+    // Railway production has UNIQUE(verification.value). createEnrollmentToken
+    // used to store only `{"profile":{...}}`, so a second Sign-in for the same
+    // Steam profile failed with SQLSTATE 23505 / constraint verification_value
+    // (500 INTERNAL_SERVER_ERROR) after the first STEAM_NEEDS_ENROLLMENT 403.
+    //
+    // We fixed this by embedding a per-token `jti` in `value` and replacing any
+    // prior steam-enroll row for the same identifier before insert.
+    it('allows re-issuing a token for the same steamId and profile', async () => {
+      const profile = { name: 'AnLulu', image: 'https://avatars.steamstatic.com/example.jpg' }
+      const first = await createEnrollmentToken(db, { steamId: '76561198152466558', profile })
+      const second = await createEnrollmentToken(db, { steamId: '76561198152466558', profile })
+
+      expect(second).not.toBe(first)
+      const rows = await db.select().from(verification).where(eq(verification.identifier, 'steam-enroll:76561198152466558'))
+      expect(rows).toHaveLength(1)
+      expect(rows[0]?.id).toBe(second)
+      expect(rows[0]?.value).toContain(second)
+    })
   })
 
   describe('consumeEnrollmentToken', () => {

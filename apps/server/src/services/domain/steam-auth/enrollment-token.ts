@@ -44,10 +44,24 @@ export async function createEnrollmentToken(
 ): Promise<string> {
   const id = randomUUID()
   const now = new Date()
+  const identifier = `${ENROLLMENT_IDENTIFIER_PREFIX}${payload.steamId}`
+
+  // Re-issuing replaces any prior unused token for this steamId so the user can
+  // click Sign in again without leaving stale rows. `value` must stay unique
+  // across the better-auth `verification_value` constraint — the same Steam
+  // profile JSON alone collides on every retry (see Railway 23505).
+  await db.delete(verification).where(eq(verification.identifier, identifier))
+
   await db.insert(verification).values({
     id,
-    identifier: `${ENROLLMENT_IDENTIFIER_PREFIX}${payload.steamId}`,
-    value: JSON.stringify({ profile: payload.profile }),
+    identifier,
+    // NOTICE:
+    // Why: production `verification.value` is UNIQUE (better-auth).
+    // Root cause: storing only `{ profile }` made every re-enroll of the same
+    // Steam account insert an identical value and fail with SQLSTATE 23505.
+    // Removal condition: drop `verification_value` uniqueness, or move enrollment
+    // off the verification table.
+    value: JSON.stringify({ profile: payload.profile, jti: id }),
     expiresAt: new Date(now.getTime() + ENROLLMENT_TOKEN_TTL_MS),
     createdAt: now,
     updatedAt: now,
