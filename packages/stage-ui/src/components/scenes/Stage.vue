@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
@@ -91,6 +92,25 @@ const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
+const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
+const VRM_INTERACTION_COOLDOWN_MS = 450
+
+function getVrmInteractionExpression(target: VrmInteractionTarget) {
+  if (target === 'head')
+    return 'happy'
+  if (target === 'leftFoot' || target === 'rightFoot')
+    return 'relaxed'
+  return 'surprised'
+}
+
+function onVRMInteract(target: VrmInteractionTarget) {
+  const now = Date.now()
+  const lastTriggeredAt = lastVrmInteractionAt.get(target) ?? 0
+  if (now - lastTriggeredAt < VRM_INTERACTION_COOLDOWN_MS)
+    return
+  lastVrmInteractionAt.set(target, now)
+  vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
+}
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
@@ -1012,6 +1032,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :current-audio-source="currentAudioSource"
         @error="console.error"
+        @vrm-interact="onVRMInteract"
       />
       <SpineScene
         v-if="stageModelRenderer === 'spine' && showStage"
