@@ -1,12 +1,20 @@
+import type { McpToolRuntime } from '@proj-airi/stage-ui/tools/mcp'
+
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
-import { createMcpTools } from '@proj-airi/stage-ui/tools/mcp'
+import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
+import { createMcpMetaTools, createMcpToolset } from '@proj-airi/stage-ui/tools/mcp'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { watch } from 'vue'
 
 import { electronMcpCallTool, electronMcpListTools } from '../../shared/eventa'
 
 /**
- * Registers Electron-backed MCP tools into the shared LLM tools store.
+ * Registers Electron-backed MCP tools into the shared LLM runtime with progressive disclosure:
+ * every tool is advertised in an always-in-context awareness catalog, and a tool the model actually
+ * uses is promoted to a native first-class tool whose ref is persisted, so it stays native across
+ * restarts. See docs/superpowers/specs/2026-06-14-mcp-progressive-tool-registration-design.md.
  *
  * Use when:
  * - The Tamagotchi renderer needs live MCP tools during chat streaming
@@ -19,21 +27,66 @@ import { electronMcpCallTool, electronMcpListTools } from '../../shared/eventa'
  */
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
   const llmToolsStore = useLlmToolsStore()
+  const toolsetPromptsStore = useLlmToolsetPromptsStore()
   const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
   const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
 
-  async function refresh() {
-    return llmToolsStore.registerTools('mcp', Promise.all(createMcpTools({
-      listTools: () => listMcpTools(),
-      callTool: payload => callMcpTool(payload),
-    })))
+  // Persisted MCP tool refs ("<server>::<tool>") promoted to native first-class tools. A tool the
+  // model uses joins this set, so from the next refresh it is callable natively (progressive
+  // disclosure); the rest stay one-liners in the awareness catalog.
+  const activatedRefs = useLocalStorage<string[]>('settings/mcp/activated-tools', [])
+
+  const runtime: McpToolRuntime = {
+    listTools: () => listMcpTools(),
+    callTool: payload => callMcpTool(payload),
   }
+
+  function markToolActivated(ref: string) {
+    if (!activatedRefs.value.includes(ref))
+      activatedRefs.value = [...activatedRefs.value, ref]
+  }
+
+  /** Send an activated tool back to the cold catalog (drops its native registration). */
+  function deactivate(ref: string) {
+    activatedRefs.value = activatedRefs.value.filter(entry => entry !== ref)
+  }
+
+  /** Demote every activated tool back to the catalog. */
+  function deactivateAll() {
+    activatedRefs.value = []
+  }
+
+  async function refresh() {
+    // Register the meta-tools immediately with the live runtime, before the async descriptor
+    // discovery below. Without this, a chat sent during the discovery window would only see the
+    // unavailable fallback meta-tools, so every MCP call would fail until listTools() resolves.
+    await llmToolsStore.registerTools('mcp', await Promise.all(createMcpMetaTools(runtime, markToolActivated)))
+
+    const { tools, catalog } = await createMcpToolset(runtime, {
+      activatedRefs: new Set(activatedRefs.value),
+      onToolInvoked: markToolActivated,
+    })
+    await llmToolsStore.registerTools('mcp', tools)
+    toolsetPromptsStore.registerToolsetPrompts(
+      'mcp',
+      catalog ? [{ id: 'mcp-catalog', title: 'MCP tools', content: catalog }] : [],
+    )
+  }
+
+  // Any change to the activated set re-derives the live toolset: a tool the model just used becomes
+  // native from the next turn, and a manual (de)activation from the settings window — synced here via
+  // localStorage — takes effect the same way. Startup is driven by an explicit refresh() from the host.
+  watch(activatedRefs, () => void refresh())
 
   function dispose() {
     llmToolsStore.clearTools('mcp')
+    toolsetPromptsStore.clearToolsetPrompts('mcp')
   }
 
   return {
+    activatedRefs,
+    deactivate,
+    deactivateAll,
     dispose,
     refresh,
   }
