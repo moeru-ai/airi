@@ -760,13 +760,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     // BroadcastChannel preserves sender ordering, so the authority snapshot
     // is applied before its response. This local choice prevents later
     // snapshots from restoring the follower's previously active session.
-    chatSession.setActiveSession(sessionId)
+    chatSession.setActiveSessionLocally(sessionId)
     return sessionId
   }
 
   /** Selects a session only in this window, preserving the follower's independent chat view. */
   async function requestSelectSession(sessionId: string) {
-    chatSession.setActiveSession(sessionId)
+    chatSession.setActiveSessionLocally(sessionId)
   }
 
   /** Deletes a session in the authority window, which broadcasts the resulting fallback state. */

@@ -112,7 +112,7 @@ interface MockState {
   importSessions: MockImportSessions
   createSession: ReturnType<typeof vi.fn>
   deleteSession: ReturnType<typeof vi.fn>
-  setActiveSession: ReturnType<typeof vi.fn>
+  setActiveSessionLocally: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
 }
 
@@ -134,7 +134,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     setSessionMessages: mockState.setSessionMessages,
     createSession: mockState.createSession,
     deleteSession: mockState.deleteSession,
-    setActiveSession: mockState.setActiveSession,
+    setActiveSessionLocally: mockState.setActiveSessionLocally,
   }),
 }))
 
@@ -233,7 +233,7 @@ describe('useChatSyncStore', async () => {
     const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
     const createSession = vi.fn(async () => 'session-2')
     const deleteSession = vi.fn(async () => undefined)
-    const setActiveSession = vi.fn((sessionId: string) => {
+    const setActiveSessionLocally = vi.fn((sessionId: string) => {
       activeSessionId.value = sessionId
     })
 
@@ -260,7 +260,7 @@ describe('useChatSyncStore', async () => {
       importSessions,
       createSession,
       deleteSession,
-      setActiveSession,
+      setActiveSessionLocally,
       ingest,
     }
 
@@ -543,8 +543,8 @@ describe('useChatSyncStore', async () => {
 
     expect(createdSessionId).toBe('session-2')
     expect(mockState.createSession).toHaveBeenCalledWith('default', { setActive: false })
-    expect(mockState.setActiveSession).toHaveBeenNthCalledWith(1, 'session-2')
-    expect(mockState.setActiveSession).toHaveBeenNthCalledWith(2, 'session-1')
+    expect(mockState.setActiveSessionLocally).toHaveBeenNthCalledWith(1, 'session-2')
+    expect(mockState.setActiveSessionLocally).toHaveBeenNthCalledWith(2, 'session-1')
     expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
     expect(mockState.ingest).toHaveBeenCalledWith('first message in the new chat', expect.any(Object), 'session-2')
 

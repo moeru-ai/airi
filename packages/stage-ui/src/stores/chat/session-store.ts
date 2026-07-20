@@ -1203,15 +1203,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     },
   })
 
-  function setActiveSession(sessionId: string) {
+  function activateSession(sessionId: string) {
     activeSessionId.value = sessionId
-
-    const characterId = getCurrentCharacterId()
-    const characterIndex = index.value?.characters[characterId]
-    if (characterIndex) {
-      characterIndex.activeSessionId = sessionId
-      void persistIndex()
-    }
 
     if (ready.value) {
       void loadSession(sessionId)
@@ -1219,6 +1212,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     else if (!hasKnownSession(sessionId)) {
       ensureSession(sessionId)
     }
+  }
+
+  function setActiveSession(sessionId: string) {
+    activateSession(sessionId)
+
+    const characterId = getCurrentCharacterId()
+    const characterIndex = index.value?.characters[characterId]
+    if (characterIndex) {
+      characterIndex.activeSessionId = sessionId
+      void persistIndex()
+    }
+  }
+
+  /**
+   * Activates a session only in this store instance. Use for secondary
+   * windows whose selection must not overwrite the persisted character index.
+   */
+  function setActiveSessionLocally(sessionId: string) {
+    activateSession(sessionId)
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1419,6 +1431,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages,
 
     setActiveSession,
+    setActiveSessionLocally,
     applyRemoteSnapshot,
     getSnapshot,
     cleanupMessages,
