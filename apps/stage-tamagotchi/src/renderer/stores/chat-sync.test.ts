@@ -111,6 +111,7 @@ interface MockState {
   getSessionMessages: ReturnType<typeof vi.fn>
   importSessions: MockImportSessions
   createSession: ReturnType<typeof vi.fn>
+  loadSession: ReturnType<typeof vi.fn>
   deleteSession: ReturnType<typeof vi.fn>
   setActiveSessionLocally: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
@@ -133,6 +134,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     importSessions: mockState.importSessions,
     setSessionMessages: mockState.setSessionMessages,
     createSession: mockState.createSession,
+    loadSession: mockState.loadSession,
     deleteSession: mockState.deleteSession,
     setActiveSessionLocally: mockState.setActiveSessionLocally,
   }),
@@ -232,6 +234,7 @@ describe('useChatSyncStore', async () => {
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
     const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
     const createSession = vi.fn(async () => 'session-2')
+    const loadSession = vi.fn(async () => undefined)
     const deleteSession = vi.fn(async () => undefined)
     const setActiveSessionLocally = vi.fn((sessionId: string) => {
       activeSessionId.value = sessionId
@@ -259,6 +262,7 @@ describe('useChatSyncStore', async () => {
       getSessionMessages,
       importSessions,
       createSession,
+      loadSession,
       deleteSession,
       setActiveSessionLocally,
       ingest,
@@ -581,12 +585,53 @@ describe('useChatSyncStore', async () => {
     expect(mockState.setActiveSessionLocally).toHaveBeenNthCalledWith(1, 'session-2')
     expect(mockState.setActiveSessionLocally).toHaveBeenNthCalledWith(2, 'session-1')
     expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
     expect(mockState.ingest).toHaveBeenCalledWith('first message in the new chat', expect.any(Object), 'session-2')
 
     const commands = postedMessagesOfType('command').map(message => message.command)
     expect(commands).toContain('create-session')
     expect(commands).toContain('delete-session')
     expect(commands).not.toContain('select-session')
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates a metadata-only follower session before ingesting for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A follower can select an older session without changing the authority's
+    // active session. The authority then knows that session only from metadata;
+    // ingesting before its messages load lets the orchestrator create and
+    // persist a fresh system-only session over the existing history.
+    mockState.sessionMetas.value['session-2'] = { sessionId: 'session-2' }
+    mockState.ingest.mockResolvedValueOnce(undefined)
+
+    let finishHydration: (() => void) | undefined
+    mockState.loadSession.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finishHydration = resolve
+      })
+      mockState.sessionMessages.value['session-2'] = [{ role: 'system', content: 'persisted history' }]
+    })
+
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+    await followerStore.requestSelectSession('session-2')
+    const pendingIngest = followerStore.requestIngest({
+      text: 'continue this chat',
+      sessionId: 'session-2',
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
+    })
+    expect(mockState.ingest).not.toHaveBeenCalled()
+
+    finishHydration?.()
+    await pendingIngest
+
+    expect(mockState.ingest).toHaveBeenCalledWith('continue this chat', expect.any(Object), 'session-2')
 
     authorityStore.dispose()
     followerStore.dispose()

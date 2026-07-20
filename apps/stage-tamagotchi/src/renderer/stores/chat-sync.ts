@@ -339,6 +339,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+    // A follower's active session is window-local, so the authority may know
+    // this session only through its metadata. Hydrate it before ingesting;
+    // otherwise the orchestrator's ensureSession fallback can replace the
+    // persisted history with a fresh system-only session.
+    if (payload.sessionId)
+      await chatSession.loadSession(payload.sessionId)
+
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
