@@ -60,7 +60,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.findProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
   })
 
   const providerModels = computed(() => {

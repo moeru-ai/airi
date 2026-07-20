@@ -748,6 +748,15 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    web-search:
+      title: 网络搜索
+      description: 让 AIRI 联网搜索最新信息
+      enable: 启用网络搜索
+      enable-description: 允许 AIRI 在对话中联网搜索
+      api-key: Tavily API 密钥
+      api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
+      api-key-placeholder: 输入您的 Tavily API 密钥
+      configured: 网络搜索已就绪！
     mcp-server:
       title: MCP 集成
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI

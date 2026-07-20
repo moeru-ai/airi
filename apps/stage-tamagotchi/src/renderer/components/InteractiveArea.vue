@@ -44,6 +44,7 @@ const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
+const sessionsDrawerOpen = defineModel<boolean>('sessionsDrawerOpen', { default: false })
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
@@ -328,6 +329,17 @@ async function handleCleanupMessages() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
+      <button
+        :class="[
+          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+          'bg-neutral-100 text-lg text-neutral-500 transition-colors transition-transform active:scale-95',
+          'dark:bg-neutral-800 dark:text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400',
+        ]"
+        title="Conversations"
+        @click="sessionsDrawerOpen = true"
+      >
+        <div class="i-solar:chat-line-bold-duotone" />
+      </button>
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button

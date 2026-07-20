@@ -152,5 +152,12 @@ export function initEnv(): void {
   config.airi = parsedConfig.data.airi
   config.debug = parsedConfig.data.debug
 
-  logger.withFields({ config }).log('Environment variables initialized')
+  logger.withFields({
+    config: {
+      ...config,
+      openai: { ...config.openai, apiKey: '[REDACTED]' },
+      bot: { ...config.bot, password: '[REDACTED]' },
+      airi: { ...config.airi, token: '[REDACTED]' },
+    },
+  }).log('Environment variables initialized')
 }
