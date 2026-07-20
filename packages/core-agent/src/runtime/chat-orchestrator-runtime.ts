@@ -386,15 +386,23 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
   }
 
+  function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {
+    if (typeof message.createdAt === 'number')
+      return message.createdAt
+
+    message.createdAt = fallbackCreatedAt
+    return fallbackCreatedAt
+  }
+
   function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]) {
     const nowTs = now()
 
     return sessionMessagesForSend.map((msg) => {
-      const { context: _context, id: _id, createdAt, ...withoutContext } = msg
+      const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 
       if (rawMessage.role === 'user') {
-        return prependTextToContent(rawMessage, formatTimePrefix(createdAt ?? nowTs))
+        return prependTextToContent(rawMessage, formatTimePrefix(getStablePromptTimestamp(msg, nowTs)))
       }
 
       if (rawMessage.role === 'assistant') {

@@ -325,6 +325,7 @@ mmdDialog.onChange(handleAddMMDModel)
             <img
               v-if="model.previewImage"
               :src="model.previewImage"
+              draggable="false"
               :class="[
                 'h-full w-full rounded-xl object-cover',
                 'transition-all duration-200 ease-in-out',
