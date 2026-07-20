@@ -119,7 +119,8 @@ model-select:
     support-status-header: We support both 2D and 3D models
     support-status: >
       Click {select-button} to select or import models.
-      Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models),
+      and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc,
       while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
@@ -432,7 +433,7 @@ pages:
         delete: Delete all chat sessions
       models:
         title: Models
-        description: Remove imported Live2D/VRM models.
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: Delete all models
       modules:
         title: Modules
@@ -473,7 +474,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
-    description: Live2D, VRM, Spine, etc.
+    description: Live2D, VRM, Spine, MMD, etc.
     title: Models
     sections:
       section:
@@ -1757,6 +1758,55 @@ spine:
   fps:
     options:
       unlimited: Unlimited
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a
+      one-shot gesture. Map emotions to motions to play gestures alongside
+      facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお,
+      まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing,
+      accessories). Set a part to 0 to hide it.
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-

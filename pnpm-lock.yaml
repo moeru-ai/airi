@@ -573,6 +573,9 @@ catalogs:
     alien-signals:
       specifier: ^3.1.2
       version: 3.1.2
+    ammojs-typed:
+      specifier: ^1.0.6
+      version: 1.0.6
     animejs:
       specifier: ^4.3.6
       version: 4.3.6
@@ -972,6 +975,9 @@ catalogs:
     three:
       specifier: ^0.184.0
       version: 0.184.0
+    three-stdlib:
+      specifier: ^2.36.1
+      version: 2.36.1
     tinyexec:
       specifier: ^1.1.1
       version: 1.2.4
@@ -2047,6 +2053,9 @@ importers:
       '@proj-airi/stage-ui-live2d':
         specifier: workspace:^
         version: link:../../packages/stage-ui-live2d
+      '@proj-airi/stage-ui-mmd':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-mmd
       '@proj-airi/stage-ui-spine':
         specifier: workspace:^
         version: link:../../packages/stage-ui-spine
@@ -3861,6 +3870,9 @@ importers:
       '@proj-airi/stage-ui-live2d':
         specifier: workspace:*
         version: link:../stage-ui-live2d
+      '@proj-airi/stage-ui-mmd':
+        specifier: workspace:*
+        version: link:../stage-ui-mmd
       '@proj-airi/stage-ui-spine':
         specifier: workspace:*
         version: link:../stage-ui-spine
@@ -4079,6 +4091,9 @@ importers:
       '@proj-airi/stage-ui-live2d':
         specifier: workspace:^
         version: link:../stage-ui-live2d
+      '@proj-airi/stage-ui-mmd':
+        specifier: workspace:^
+        version: link:../stage-ui-mmd
       '@proj-airi/stage-ui-spine':
         specifier: workspace:^
         version: link:../stage-ui-spine
@@ -4518,6 +4533,67 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.3.6
+    devDependencies:
+      '@types/culori':
+        specifier: 'catalog:'
+        version: 4.0.1
+      '@types/three':
+        specifier: 'catalog:'
+        version: 0.184.0
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.2.6(typescript@5.9.3)
+
+  packages/stage-ui-mmd:
+    dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../stage-shared
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
+      '@vueuse/core':
+        specifier: 'catalog:'
+        version: 14.2.1(vue@3.5.32(typescript@5.9.3))
+      '@xsai/tool':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+      ammojs-typed:
+        specifier: 'catalog:'
+        version: 1.0.6
+      culori:
+        specifier: 'catalog:'
+        version: 4.0.2
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.45.1
+      jszip:
+        specifier: 'catalog:'
+        version: 3.10.1
+      localforage:
+        specifier: 'catalog:'
+        version: 1.10.0
+      pinia:
+        specifier: 'catalog:'
+        version: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
+      three:
+        specifier: 'catalog:'
+        version: 0.184.0
+      three-stdlib:
+        specifier: 'catalog:'
+        version: 2.36.1(three@0.184.0)
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.32(typescript@5.9.3)
+      wlipsync:
+        specifier: 'catalog:'
+        version: 1.3.0
     devDependencies:
       '@types/culori':
         specifier: 'catalog:'
@@ -11718,6 +11794,9 @@ packages:
 
   alien-signals@3.1.2:
     resolution: {integrity: sha512-d9dYqZTS90WLiU0I5c6DHj/HcKkF8ZyGN3G5x8wSbslulz70KOxaqCT0hQCo9KOyhVqzqGojvNdJXoTumZOtcw==}
+
+  ammojs-typed@1.0.6:
+    resolution: {integrity: sha512-ut/tD0m5eEdlJ5KK97ma6SIEGZ4FN3AJTSVz8wl6C4EtnpVQdP70lOwgDMJKsHjTohxc2/xEZl6yJfMBZNlQ5w==}
 
   animejs@4.3.6:
     resolution: {integrity: sha512-rzZ4bDc8JAtyx6hYwxj7s5M/yWfnM5qqY4hZDnhy1cWFvMb6H5/necHS2sbCY3WQTDbRLuZL10dPXSxSCFOr/w==}
@@ -26199,6 +26278,8 @@ snapshots:
   alien-signals@2.0.8: {}
 
   alien-signals@3.1.2: {}
+
+  ammojs-typed@1.0.6: {}
 
   animejs@4.3.6: {}
 

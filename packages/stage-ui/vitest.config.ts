@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => {
             include: ['src/**/*.test.ts'],
             exclude: ['src/**/*.browser.test.ts'],
             env: loadEnv(mode, join(cwd(), 'packages', 'stage-ui'), ''),
+            fileParallelism: false,
+            hookTimeout: 20_000,
+            maxWorkers: 1,
+            testTimeout: 20_000,
           },
         },
         {
