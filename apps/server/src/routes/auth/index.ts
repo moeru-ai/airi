@@ -1,6 +1,6 @@
 import type { AuthInstance } from '../../libs/auth'
 import type { Database } from '../../libs/db'
-import type { Env } from '../../libs/env'
+import type { IdentityEnv } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { HonoEnv } from '../../types/hono'
@@ -20,7 +20,7 @@ import { createAuthUiRoutes } from './ui-routes'
 export interface AuthRoutesDeps {
   auth: AuthInstance
   db: Database
-  env: Env
+  env: IdentityEnv
   configKV: ConfigKVService
   rateLimitMetrics?: RateLimitMetrics | null
 }
@@ -74,7 +74,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     // (/oauth2/introspect needs confidential client credentials, which no
     // first-party AIRI client has, so it has no reachable banned-caller path.)
     .use('/api/auth/oauth2/userinfo', async (c, next) => {
-      const resolved = await resolveSessionIgnoringBan(deps.auth, deps.env, c.req.raw.headers)
+      const resolved = await resolveSessionIgnoringBan(deps.auth, deps.db, deps.env, c.req.raw.headers)
       if (resolved && isUserBannedNow(resolved.user))
         throw createForbiddenError('This account has been banned')
       await next()

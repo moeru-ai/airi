@@ -3,9 +3,9 @@ import type { AppleProfile } from 'better-auth/social-providers'
 import type { AuthMetrics } from '../otel'
 import type { EmailService } from '../services/adapters/email'
 import type { ProductEventService } from '../services/domain/product-events'
-import type { UserDeletionService } from '../services/domain/user-deletion'
+import type { UserDeletionExecutor } from '../services/domain/user-deletion'
 import type { Database } from './db'
-import type { Env } from './env'
+import type { IdentityEnv } from './env'
 
 import { Buffer } from 'node:buffer'
 
@@ -78,7 +78,7 @@ const DEFAULT_WEB_REDIRECT_URIS = [
  * Includes the default set plus any derived from API_SERVER_URL for
  * colocated dev/preview deployments.
  */
-function buildWebRedirectUris(env: Env): string[] {
+function buildWebRedirectUris(env: IdentityEnv): string[] {
   const uris = new Set(DEFAULT_WEB_REDIRECT_URIS)
 
   // If API_SERVER_URL has a different origin (e.g. a dev branch deployment),
@@ -109,7 +109,7 @@ function buildWebRedirectUris(env: Env): string[] {
  * empty optional configuration.
  */
 function createAppleProviderConfig(
-  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_APP_BUNDLE_IDENTIFIERS' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
+  env: Pick<IdentityEnv, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_APP_BUNDLE_IDENTIFIERS' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
 ) {
   if (!env.AUTH_APPLE_CLIENT_ID
     || !env.AUTH_APPLE_TEAM_ID
@@ -195,7 +195,7 @@ function buildTrustedElectronRedirectUri(request: Request, redirectUri: string):
 /**
  * Build the list of first-party OIDC clients to seed into the database.
  */
-function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
+function buildTrustedClientSeeds(env: IdentityEnv): TrustedClientSeed[] {
   const clients: TrustedClientSeed[] = []
   clients.push({
     clientId: OIDC_CLIENT_ID_WEB,
@@ -255,7 +255,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
   return clients
 }
 
-export function getTrustedClientSeedSummaries(env: Env): TrustedClientSeedSummary[] {
+export function getTrustedClientSeedSummaries(env: IdentityEnv): TrustedClientSeedSummary[] {
   return buildTrustedClientSeeds(env).map(seed => ({
     clientId: seed.clientId,
     name: seed.name,
@@ -337,7 +337,7 @@ async function hashClientSecret(secret: string): Promise<string> {
  * Secrets are hashed before storage to match oauthProvider's default
  * `storeClientSecret: "hashed"` mode.
  */
-export async function seedTrustedClients(db: Database, env: Env): Promise<void> {
+export async function seedTrustedClients(db: Database, env: IdentityEnv): Promise<void> {
   const seeds = buildTrustedClientSeeds(env)
   if (seeds.length === 0)
     return
@@ -412,7 +412,7 @@ function requireEmailService(email: EmailService | undefined): EmailService {
  * always supplies it from `app.ts`, and the `beforeDelete` callback throws
  * if it's missing so silent no-ops are impossible.
  */
-function requireUserDeletionService(service: UserDeletionService | undefined): UserDeletionService {
+function requireUserDeletionService(service: UserDeletionExecutor | undefined): UserDeletionExecutor {
   if (!service) {
     throw new ApiError(
       503,
@@ -425,10 +425,10 @@ function requireUserDeletionService(service: UserDeletionService | undefined): U
 
 export function createAuth(
   db: Database,
-  env: Env,
+  env: IdentityEnv,
   email?: EmailService,
   metrics?: AuthMetrics | null,
-  userDeletionService?: UserDeletionService,
+  userDeletionService?: UserDeletionExecutor,
   productEventService?: ProductEventService,
 ) {
   return betterAuth({

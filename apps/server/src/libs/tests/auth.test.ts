@@ -1,5 +1,5 @@
 import type { Database } from '../db'
-import type { Env } from '../env'
+import type { IdentityEnv } from '../env'
 
 import { generateKeyPairSync } from 'node:crypto'
 
@@ -54,7 +54,7 @@ describe('createAuth', () => {
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as unknown as Env)
+    } as unknown as IdentityEnv)
 
     expect(auth.options.account?.accountLinking?.allowDifferentEmails).toBe(true)
   })
@@ -73,7 +73,7 @@ describe('createAuth', () => {
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as unknown as Env)
+    } as unknown as IdentityEnv)
 
     expect(auth.options.socialProviders?.google?.prompt).toBe('select_account')
     expect(auth.options.socialProviders?.github?.prompt).toBe('select_account')
@@ -93,7 +93,7 @@ describe('createAuth', () => {
       AUTH_APPLE_PRIVATE_KEY_PEM: '',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as unknown as Env)
+    } as unknown as IdentityEnv)
 
     expect(auth.options.socialProviders?.apple).toBeUndefined()
   })
@@ -112,7 +112,7 @@ describe('createAuth', () => {
       AUTH_APPLE_PRIVATE_KEY_PEM: '',
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as unknown as Env)
+    } as unknown as IdentityEnv)
 
     expect(auth.options.socialProviders?.apple).toBeUndefined()
   })
@@ -131,7 +131,7 @@ describe('createAuth', () => {
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
-    } as unknown as Env)
+    } as unknown as IdentityEnv)
 
     const appleProvider = auth.options.socialProviders?.apple
     expect(typeof appleProvider).toBe('function')
@@ -210,6 +210,20 @@ describe('createAuth', () => {
     if (typeof trustedOrigins !== 'function')
       throw new TypeError('Expected request-aware trusted origins')
     expect(await trustedOrigins(new Request('http://localhost:3000/api/auth/sign-in/social'))).toContain('https://appleid.apple.com')
+  })
+
+  it('uses the Caddy public API origin as the Better Auth base URL', () => {
+    const auth = createAuth({} as unknown as Database, {
+      API_SERVER_URL: 'https://api.airi.build',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as IdentityEnv)
+
+    expect(auth.options.baseURL).toBe('https://api.airi.build')
   })
 })
 
@@ -296,6 +310,18 @@ describe('seedTrustedClients', () => {
     expect(setCalls[0].public).toBe(true)
     expect(setCalls[0].tokenEndpointAuthMethod).toBe('none')
     expect(setCalls[0].clientSecret).toBeNull()
+  })
+
+  it('registers the Electron callback on the public API origin', async () => {
+    const { db, capturedValues } = createMockDb([[], [], []])
+
+    await seedTrustedClients(db as any, {
+      API_SERVER_URL: 'https://api.airi.build',
+    } as any)
+
+    expect(capturedValues[1].redirectUris).toEqual([
+      'https://api.airi.build/api/auth/oidc/electron-callback',
+    ])
   })
 })
 

@@ -2,7 +2,7 @@
 
 ## 一句话总结
 
-`apps/server` 是一个基于 `Hono` 的 Node 服务端，负责认证、角色/聊天/Provider 配置、Flux 余额、Stripe 充值和面向 gateway 的 LLM 代理。整体模式是：
+`apps/server` 提供两个独立 Hono 运行时：Identity 负责认证/OIDC，API 负责角色、聊天、Provider 配置、Flux、Stripe 和 LLM 代理。整体模式是：
 
 - 路由层负责参数校验、鉴权、错误映射
 - 服务层负责业务逻辑和数据库事务
@@ -12,7 +12,7 @@
 
 ## 入口与装配
 
-核心入口在 `src/app.ts`：
+业务 API 入口在 `src/app.ts`；身份入口在 `src/identity-server.ts`。两者拥有独立 composition root：
 
 - `createApp()`
   - 初始化 logger
@@ -27,9 +27,10 @@
   - 注入 WebSocket
   - 绑定 `uncaughtException` / `unhandledRejection`
 
-CLI 入口在 `src/bin/run.ts`，只有一种角色：
+CLI 入口在 `src/bin/run.ts`，提供两种角色：
 
-- `api`（HTTP/WS；没有常驻后台 loop，也没有 fire-and-forget 异步任务。admin flux grant 在 POST 请求线程内同步处理完返回；详见 `workers-and-runtime.md`）
+- `api`：业务 HTTP/WS，不创建 Better Auth，也不暴露 auth/OIDC handler
+- `identity`：Better Auth、OIDC、账户生命周期和身份健康检查
 
 ## 依赖注入结构
 
@@ -41,8 +42,7 @@ CLI 入口在 `src/bin/run.ts`，只有一种角色：
   - `db`
   - `redis`
   - `configKV`
-- 服务
-  - `auth`
+- API 服务
   - `characterService`
   - `providerService`
   - `chatService`
@@ -54,13 +54,14 @@ CLI 入口在 `src/bin/run.ts`，只有一种角色：
   - `adminFluxGrantsService`
   - `ttsMeter`
   - `userDeletionService`
-  - `emailService`
+
+Identity 容器只注册 `db`、`redis`、`configKV`、`email`、`auth`、认证指标和一个远程账户删除 adapter。
 
 这个装配顺序说明了几个事实：
 
 - `billingService` 依赖 `db + redis`
 - `fluxService` 只读余额，不承担余额写入职责
-- `auth` 直接绑定数据库 schema，不是外部独立服务
+- API 通过 Identity JWKS 验证 access token；不依赖 Better Auth runtime
 
 ## 应用层边界
 

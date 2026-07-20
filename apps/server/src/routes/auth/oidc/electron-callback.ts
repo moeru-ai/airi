@@ -1,4 +1,4 @@
-import type { Env } from '../../../libs/env'
+import type { IdentityEnv } from '../../../libs/env'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
@@ -20,7 +20,7 @@ import { buildAuthUiUrl } from '../../../utils/auth-ui'
  * Returns:
  * - A redirect preserving the OIDC callback query string.
  */
-export function createElectronCallbackRelay(env: Env) {
+export function createElectronCallbackRelay(env: IdentityEnv) {
   return new Hono<HonoEnv>()
     .get('/', (c) => {
       const request = new URL(c.req.url)

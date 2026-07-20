@@ -2,7 +2,7 @@ import type { UserDeletionHandler, UserDeletionReason, UserDeletionService } fro
 
 import { useLogger } from '@guiiai/logg'
 
-export type { UserDeletionContext, UserDeletionHandler, UserDeletionReason, UserDeletionService } from './types'
+export type { UserDeletionContext, UserDeletionExecutor, UserDeletionHandler, UserDeletionReason, UserDeletionService } from './types'
 
 /**
  * Build an empty deletion-service registry.

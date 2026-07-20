@@ -7,7 +7,7 @@
 - `GET /livez` — K8s 风格 liveness 探针，纯静态 200，不碰任何外部依赖
 - `GET /readyz` — K8s 风格 readiness 探针，并发 ping Postgres + Redis；任一失败回 503。**不**检查上游 LLM key 健康（R14）
 - `GET /` — 服务标识 JSON，避免邮件链接拼错落到框架默认 404
-- `/api/auth/*`
+- `/internal/identity/user-deletion` — 仅供 Identity 使用的共享凭据接口
 - `/api/v1/characters`
 - `/api/v1/providers`
 - `/api/v1/chats`
@@ -21,8 +21,9 @@
 
 ### HTTP
 
-- `sessionMiddleware(auth)`
-  - 通过 `better-auth` 解析当前 session
+- `sessionMiddleware(db, env)`
+  - 从 `api.airi.build/api/auth/jwks` 验证 OIDC access token；该路径由 Caddy 转发到私网 Identity 服务
+  - 校验 issuer、API audience、过期时间和用户封禁状态
   - 把 `user` / `session` 注入 Hono context
 - `authGuard`
   - 检查 `c.get('user')`
@@ -33,18 +34,19 @@
 `GET /ws/chat` 走 query token：
 
 - 读取 `token`
-- 用 `auth.api.getSession()` 验证 Bearer token
+- 用与 HTTP 相同的 JWKS resource-server verifier 验证 Bearer token
 - 校验通过后为该 `user.id` 建立 Eventa peer
 
 这意味着聊天 WS 的鉴权方式和普通 cookie session 路径不完全相同。
 
 ## 路由到服务映射
 
-### `/api/auth/*` 及 `/sign-in`
+### Identity `/api/auth/*` 及 `/auth/*`
 
 实现位置：
 
-- 路由入口：`src/routes/auth/index.ts`（通过 `.route('/')` 挂载到根路径）
+- 运行入口：`src/identity-server.ts`
+- 路由入口：`src/routes/auth/index.ts`（仅挂载到 Identity app）
 - token auth 辅助路由：`src/routes/oidc/token-auth.ts`
 - Electron 回调中继：`src/routes/oidc/electron-callback.ts`
 - better-auth 配置：`src/libs/auth.ts`
@@ -58,7 +60,8 @@
 - Bearer plugin + JWT plugin 已启用
 - `/api/auth/*` 有独立 IP 限流
 - `GET /api/auth/get-session`、`POST /api/auth/sign-out`、`GET /api/auth/list-sessions` 由本地路由处理
-- Bearer token 会先尝试 better-auth session，再回退到受信任 OIDC access token
+- Identity helper routes 支持 Better Auth session 和 OIDC access token
+- API 不挂载这些路由，只接受面向 resource audience 的 access token
 - 详见 `auth-and-oidc.md`
 
 ### `/api/v1/characters`

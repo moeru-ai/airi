@@ -2,9 +2,9 @@ import process from 'node:process'
 
 import { createAuth } from '../libs/auth'
 import { createDrizzle } from '../libs/db'
-import { parseEnv } from '../libs/env'
+import { parseIdentityEnv } from '../libs/env'
 
-const env = parseEnv(process.env)
+const env = parseIdentityEnv(process.env)
 
 // NOTICE:
 // `better-auth generate` only introspects the auth instance's schema — it never

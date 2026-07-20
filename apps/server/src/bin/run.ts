@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url'
 import { cac } from 'cac'
 
 import { runApiServer } from '../app'
+import { runIdentityServer } from '../identity-server'
 import { errorMessageFromUnknown } from '../utils/error-message'
 
 export function createServerCli() {
@@ -16,6 +17,10 @@ export function createServerCli() {
     .usage('<role>')
     .command('api', 'Start the HTTP/WebSocket API process')
     .action(() => runApiServer())
+
+  cli
+    .command('identity', 'Start the standalone Identity Service process')
+    .action(() => runIdentityServer())
 
   cli.help()
 

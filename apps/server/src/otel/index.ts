@@ -379,7 +379,7 @@ export interface OtelInstance {
  * - Metric bundle with primed counters (so low-traffic series show up in
  *   Prometheus from boot), or `null` when OTel is disabled.
  */
-export function initOtel(env: Env): OtelInstance | null {
+export function initOtel(env: Pick<Env, 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'OTEL_SERVICE_NAME'>): OtelInstance | null {
   if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
     logger.log('OpenTelemetry disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)')
     return null

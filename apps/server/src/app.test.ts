@@ -3,122 +3,70 @@ import { describe, expect, it, vi } from 'vitest'
 import { buildApp } from './app'
 
 function createTestDeps() {
-  const authServerMetadata = {
-    issuer: 'http://localhost:3000/api/auth',
-    authorization_endpoint: 'http://localhost:3000/api/auth/oauth2/authorize',
-    token_endpoint: 'http://localhost:3000/api/auth/oauth2/token',
-  }
-
-  const openIdConfig = {
-    issuer: 'http://localhost:3000/api/auth',
-    jwks_uri: 'http://localhost:3000/api/auth/jwks',
-    authorization_endpoint: 'http://localhost:3000/api/auth/oauth2/authorize',
-    token_endpoint: 'http://localhost:3000/api/auth/oauth2/token',
-  }
-
-  const auth = {
-    api: {
-      getSession: vi.fn(async () => null),
-      getOAuthServerConfig: vi.fn(async () => authServerMetadata),
-      getOpenIdConfig: vi.fn(async () => openIdConfig),
-    },
-    handler: vi.fn(async () => new Response('not-found', { status: 404 })),
-  } as any
-
   const redisSubscriber = {
     on: vi.fn(),
     subscribe: vi.fn(async () => 1),
     unsubscribe: vi.fn(async () => 0),
   }
-
   const redis = {
     duplicate: vi.fn(() => redisSubscriber),
     publish: vi.fn(async () => 0),
   }
 
-  const deps = {
-    auth,
-    db: {} as any,
-    characterService: {} as any,
-    chatService: {} as any,
-    providerService: {} as any,
-    fluxService: {} as any,
-    fluxTransactionService: {} as any,
-    stripeService: {} as any,
-    billingService: {} as any,
-    adminFluxGrantsService: {} as any,
-    adminRouterConfigService: {} as any,
-    adminUsersService: {} as any,
-    ttsMeter: {} as any,
-    requestLogService: {} as any,
-    voicePackService: {} as any,
-    providerCatalogService: {} as any,
+  return {
+    db: { query: { user: { findFirst: vi.fn() } } } as never,
+    characterService: {} as never,
+    chatService: {} as never,
+    providerService: {} as never,
+    fluxService: {} as never,
+    fluxTransactionService: {} as never,
+    stripeService: {} as never,
+    billingService: {} as never,
+    adminFluxGrantsService: {} as never,
+    adminRouterConfigService: {} as never,
+    adminUsersService: {} as never,
+    ttsMeter: {} as never,
+    requestLogService: {} as never,
+    voicePackService: {} as never,
+    providerCatalogService: {} as never,
     productEventService: {
       track: vi.fn(async () => undefined),
       trackGeneration: vi.fn(async () => undefined),
       countDistinctUsersByFeature: vi.fn(async () => []),
-    },
-    configKV: {
-      getOrThrow: vi.fn(async (key: string) => {
-        switch (key) {
-          case 'AUTH_RATE_LIMIT_MAX':
-            return 20
-          case 'AUTH_RATE_LIMIT_WINDOW_SEC':
-            return 60
-          default:
-            throw new Error(`Unexpected config key: ${key}`)
-        }
-      }),
-    } as any,
-    redis: redis as any,
+    } as never,
+    configKV: { getOrThrow: vi.fn() } as never,
+    redis: redis as never,
     env: {
-      API_SERVER_URL: 'http://localhost:3000',
-    } as any,
+      API_SERVER_URL: 'https://api.airi.build',
+      IDENTITY_INTERNAL_SECRET: 'shared-secret',
+    } as never,
     otel: null,
-    userDeletionService: {} as any,
+    userDeletionService: { register: vi.fn(), softDeleteAll: vi.fn() },
     llmRouter: {
       route: vi.fn(async () => new Response('{}', { status: 200 })),
       invalidateConfig: vi.fn(),
-    } as any,
+    } as never,
     envelopeCrypto: {
       encryptKey: vi.fn(),
       decryptKey: vi.fn(),
-    } as any,
-  }
-
-  return {
-    deps,
-    auth,
-    authServerMetadata,
-    openIdConfig,
-    redis,
+    } as never,
   }
 }
 
-describe('app well-known metadata routes', () => {
-  it('serves oauth authorization server metadata at the root well-known path', async () => {
-    const { deps, auth, authServerMetadata } = createTestDeps()
-    const { app } = await buildApp(deps)
+describe('business API app', () => {
+  it('does not expose Better Auth or OIDC provider routes', async () => {
+    const { app } = await buildApp(createTestDeps())
 
-    const res = await app.request('/.well-known/oauth-authorization-server/api/auth')
-
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('application/json')
-    expect(await res.json()).toEqual(authServerMetadata)
-    expect(auth.api.getOAuthServerConfig).toHaveBeenCalledTimes(1)
-    expect(auth.api.getOpenIdConfig).not.toHaveBeenCalled()
+    expect((await app.request('/api/auth/get-session')).status).toBe(404)
+    expect((await app.request('/api/auth/.well-known/openid-configuration')).status).toBe(404)
+    expect((await app.request('/.well-known/oauth-authorization-server/api/auth')).status).toBe(404)
   })
 
-  it('serves openid configuration at the issuer-appended well-known path', async () => {
-    const { deps, auth, openIdConfig } = createTestDeps()
-    const { app } = await buildApp(deps)
+  it('identifies itself as the resource API', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/')
 
-    const res = await app.request('/api/auth/.well-known/openid-configuration')
-
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('application/json')
-    expect(await res.json()).toEqual(openIdConfig)
-    expect(auth.api.getOpenIdConfig).toHaveBeenCalledTimes(1)
-    expect(auth.api.getOAuthServerConfig).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ service: 'airi-api' })
   })
 })

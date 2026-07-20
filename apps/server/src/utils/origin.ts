@@ -142,7 +142,7 @@ const ALWAYS_TRUSTED_AUTH_ORIGINS = [
  * Builds the origin list passed to Better Auth `trustedOrigins` (and related flows).
  *
  * Expects:
- * - `env.API_SERVER_URL` and parsed `env.ADDITIONAL_TRUSTED_ORIGINS`.
+ * - Public API server URL and parsed `env.ADDITIONAL_TRUSTED_ORIGINS`.
  * - Optional `request` so the caller's Origin/Referer can be merged when known.
  *
  * Returns:

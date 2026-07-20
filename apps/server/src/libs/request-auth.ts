@@ -1,15 +1,51 @@
-import type auth from '../scripts/auth'
 import type { AuthInstance } from './auth'
+import type { Database } from './db'
 import type { Env } from './env'
 
 import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 
+import { eq } from 'drizzle-orm'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
+import * as authSchema from '../schemas/accounts'
+
+type RequestAuthEnv = Pick<
+  Env,
+  | 'API_SERVER_URL'
+  | 'TEST_AUTH_TOKEN'
+  | 'TEST_AUTH_USER_ID'
+  | 'TEST_AUTH_USER_EMAIL'
+  | 'TEST_AUTH_USER_NAME'
+  | 'TEST_AUTH_USER_ROLE'
+>
+
 export interface RequestAuthSession {
-  user: typeof auth.$Infer.Session.user
-  session: typeof auth.$Infer.Session.session
+  user: {
+    id: string
+    name: string
+    email: string
+    emailVerified: boolean
+    image?: string | null
+    role?: string | null
+    banned?: boolean | null
+    banReason?: string | null
+    banExpires?: Date | null
+    lastSeenAt?: Date | null
+    createdAt: Date
+    updatedAt: Date
+  }
+  session: {
+    id: string
+    token: string
+    userId: string
+    expiresAt: Date
+    createdAt: Date
+    updatedAt: Date
+    ipAddress?: string | null
+    userAgent?: string | null
+    impersonatedBy?: string | null
+  }
 }
 
 /**
@@ -43,7 +79,7 @@ function timingSafeStringEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 
-function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession | null {
+function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): RequestAuthSession | null {
   if (!env.TEST_AUTH_TOKEN || !timingSafeStringEqual(accessToken, env.TEST_AUTH_TOKEN))
     return null
 
@@ -79,15 +115,17 @@ function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession
   }
 }
 
-let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
+const cachedJWKS = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 
-function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
-  if (!cachedJWKS) {
-    cachedJWKS = createRemoteJWKSet(
-      new URL('/api/auth/jwks', env.API_SERVER_URL),
-    )
-  }
-  return cachedJWKS
+function getJWKS(env: RequestAuthEnv): ReturnType<typeof createRemoteJWKSet> {
+  const jwksUrl = new URL('/api/auth/jwks', env.API_SERVER_URL).toString()
+  const cached = cachedJWKS.get(jwksUrl)
+  if (cached)
+    return cached
+
+  const jwks = createRemoteJWKSet(new URL(jwksUrl))
+  cachedJWKS.set(jwksUrl, jwks)
+  return jwks
 }
 
 /**
@@ -96,8 +134,8 @@ function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
  * Still requires one findUserById call to build the full RequestAuthSession.
  */
 async function resolveJWTAccessToken(
-  auth: AuthInstance,
-  env: Env,
+  db: Database,
+  env: RequestAuthEnv,
   accessToken: string,
 ): Promise<RequestAuthSession | null> {
   try {
@@ -113,15 +151,11 @@ async function resolveJWTAccessToken(
     if (!payload.sub)
       return null
 
-    const ctx = await auth.$context
-    // NOTICE:
-    // internalAdapter.findUserById is typed as better-auth's base User and omits
-    // the admin-plugin fields (banned/role/banReason/banExpires), but the query
-    // selects the full row so the runtime value carries them. Widen to the
-    // inferred session user so `banned` is visible to isUserBannedNow and the
-    // RequestAuthSession return type matches.
-    // Removal condition: better-auth's adapter return type includes plugin fields.
-    const user = await ctx.internalAdapter.findUserById(payload.sub) as RequestAuthSession['user'] | null
+    // The resource server deliberately reads only its authorization projection.
+    // It does not instantiate Better Auth or depend on its internal adapter.
+    const user = await db.query.user.findFirst({
+      where: eq(authSchema.user.id, payload.sub),
+    })
     if (!user)
       return null
 
@@ -158,7 +192,8 @@ async function resolveJWTAccessToken(
  */
 export async function resolveSessionIgnoringBan(
   auth: AuthInstance,
-  env: Env,
+  db: Database,
+  env: RequestAuthEnv,
   headers: Headers,
 ): Promise<RequestAuthSession | null> {
   const session = await auth.api.getSession({ headers })
@@ -173,15 +208,20 @@ export async function resolveSessionIgnoringBan(
   if (testSession)
     return testSession
 
-  return await resolveJWTAccessToken(auth, env, accessToken)
+  return await resolveJWTAccessToken(db, env, accessToken)
 }
 
 export async function resolveRequestAuth(
-  auth: AuthInstance,
-  env: Env,
+  db: Database,
+  env: RequestAuthEnv,
   headers: Headers,
 ): Promise<RequestAuthSession | null> {
-  const resolved = await resolveSessionIgnoringBan(auth, env, headers)
+  const accessToken = readBearerToken(headers)
+  if (!accessToken)
+    return null
+
+  const testSession = resolveTestAuthToken(env, accessToken)
+  const resolved = testSession ?? await resolveJWTAccessToken(db, env, accessToken)
   if (!resolved)
     return null
 
@@ -192,6 +232,24 @@ export async function resolveRequestAuth(
   // row is already loaded) is what makes a ban take effect immediately across
   // the HTTP, WebSocket, and OIDC token paths that funnel through this function.
   if (isUserBannedNow(resolved.user))
+    return null
+
+  return resolved
+}
+
+/**
+ * Resolve either a Better Auth session or an OIDC access token on the identity
+ * surface. Business APIs must use {@link resolveRequestAuth} so they remain
+ * independent from Better Auth runtime internals.
+ */
+export async function resolveIdentityRequestAuth(
+  auth: AuthInstance,
+  db: Database,
+  env: RequestAuthEnv,
+  headers: Headers,
+): Promise<RequestAuthSession | null> {
+  const resolved = await resolveSessionIgnoringBan(auth, db, env, headers)
+  if (!resolved || isUserBannedNow(resolved.user))
     return null
 
   return resolved

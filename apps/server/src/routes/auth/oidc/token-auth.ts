@@ -1,21 +1,23 @@
 import type { AuthInstance } from '../../../libs/auth'
-import type { Env } from '../../../libs/env'
+import type { Database } from '../../../libs/db'
+import type { IdentityEnv } from '../../../libs/env'
 import type { HonoEnv } from '../../../types/hono'
 
 import { Hono } from 'hono'
 
 import { buildGravatarUrl } from '../../../libs/gravatar'
-import { resolveRequestAuth } from '../../../libs/request-auth'
+import { resolveIdentityRequestAuth } from '../../../libs/request-auth'
 
 export interface OIDCTokenAuthRouteDeps {
   auth: AuthInstance
-  env: Env
+  db: Database
+  env: IdentityEnv
 }
 
 export function createOIDCTokenAuthRoute(deps: OIDCTokenAuthRouteDeps) {
   return new Hono<HonoEnv>()
     .on(['GET', 'POST'], '/get-session', async (c) => {
-      const session = await resolveRequestAuth(deps.auth, deps.env, c.req.raw.headers)
+      const session = await resolveIdentityRequestAuth(deps.auth, deps.db, deps.env, c.req.raw.headers)
       if (!session)
         return c.json(null)
 
@@ -47,7 +49,7 @@ export function createOIDCTokenAuthRoute(deps: OIDCTokenAuthRouteDeps) {
       return c.json({ success: true })
     })
     .get('/list-sessions', async (c) => {
-      const session = await resolveRequestAuth(deps.auth, deps.env, c.req.raw.headers)
+      const session = await resolveIdentityRequestAuth(deps.auth, deps.db, deps.env, c.req.raw.headers)
       return c.json(session ? [session.session] : [])
     })
 }

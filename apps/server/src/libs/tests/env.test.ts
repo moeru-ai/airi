@@ -2,17 +2,12 @@ import { Buffer } from 'node:buffer'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseAdditionalTrustedOriginsEnv, parseEnv } from '../env'
+import { parseAdditionalTrustedOriginsEnv, parseEnv, parseIdentityEnv } from '../env'
 
 function baseEnv(): Record<string, string> {
   return {
     DATABASE_URL: 'postgres://example',
     REDIS_URL: 'redis://example',
-    BETTER_AUTH_SECRET: 'test-secret-at-least-32-characters-long',
-    AUTH_GOOGLE_CLIENT_ID: 'google-client',
-    AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
-    AUTH_GITHUB_CLIENT_ID: 'github-client',
-    AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
     AUTH_APPLE_CLIENT_ID: 'apple-service-id',
     AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: 'ai.moeru.airi-pocket, ai.moeru.airi-pro, ai.moeru.airi-pocket',
     AUTH_APPLE_TEAM_ID: 'apple-team-id',
@@ -41,11 +36,12 @@ describe('parseAdditionalTrustedOriginsEnv', () => {
 })
 
 describe('parseEnv', () => {
-  it('parses the required auth and infrastructure environment variables', () => {
+  it('parses the API environment without Identity-provider credentials', () => {
     const env = parseEnv(baseEnv())
 
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
+    expect(env.BETTER_AUTH_SECRET).toBe('')
     expect(env.AUTH_UI_URL).toBe('https://accounts.airi.build/ui')
     expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
@@ -169,5 +165,25 @@ describe('parseEnv', () => {
     expect(env.LLM_ROUTER_MASTER_KEY.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
+  })
+})
+
+describe('parseIdentityEnv', () => {
+  it('parses Identity configuration without business-only LLM or Stripe secrets', () => {
+    const env = parseIdentityEnv({
+      DATABASE_URL: 'postgres://identity',
+      REDIS_URL: 'redis://identity',
+      API_SERVER_URL: 'https://api.airi.build',
+      BETTER_AUTH_SECRET: 'identity-secret-at-least-32-characters',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+    })
+
+    expect(env.API_SERVER_URL).toBe('https://api.airi.build')
+    expect(env.BETTER_AUTH_SECRET).toBe('identity-secret-at-least-32-characters')
+    expect('LLM_ROUTER_MASTER_KEY' in env).toBe(false)
+    expect('STRIPE_SECRET_KEY' in env).toBe(false)
   })
 })

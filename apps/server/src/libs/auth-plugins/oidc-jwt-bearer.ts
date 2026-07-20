@@ -1,7 +1,7 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import type { JSONWebKeySet } from 'jose'
 
-import type { Env } from '../env'
+import type { IdentityEnv } from '../env'
 
 import { createHmac } from 'node:crypto'
 
@@ -22,11 +22,9 @@ const JwtBearerTokenSchema = pipe(
  * plugin understands.
  *
  * Use when:
- * - The same Hono app hosts both the OIDC IdP (oauthProvider) and the
- *   resource server (`/api/v1/*`, `/api/auth/*`). Stage-web / Electron /
- *   Pocket clients carry an OIDC JWT for everything; without this plugin
- *   their `Authorization: Bearer <jwt>` is silently rejected by every
- *   `/api/auth/*` endpoint that needs `c.context.session`.
+ * - Identity endpoints still need to accept access tokens minted by this
+ *   service (for example profile and account-management requests). The
+ *   separate resource API validates the same tokens from Identity's JWKS.
  *
  * Why a plugin (vs. per-route shims):
  * - The `before` hook fires before `sessionMiddleware`, so a single
@@ -70,7 +68,7 @@ const JwtBearerTokenSchema = pipe(
  *   Removal condition: better-auth ships a first-party way to verify
  *   externally-signed JWTs against a JWKS for its own session resolution.
  */
-export function oidcJwtBearer(env: Env): BetterAuthPlugin {
+export function oidcJwtBearer(env: IdentityEnv): BetterAuthPlugin {
   // Bridge session lifetime. Long enough to span an OAuth round-trip
   // (link-social → provider → callback) on slow networks; short enough
   // that an unused row TTL-prunes quickly.

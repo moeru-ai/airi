@@ -1,4 +1,4 @@
-import type { Env } from '../../libs/env'
+import type { IdentityEnv } from '../../libs/env'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -7,7 +7,7 @@ import { buildAuthUiRedirectUrl, SERVER_AUTH_UI_BASE_PATH } from '../../utils/au
 
 export interface AuthUiRoutesDeps {
   /** Server environment carrying the standalone auth UI URL. */
-  env: Env
+  env: IdentityEnv
 }
 
 /**
