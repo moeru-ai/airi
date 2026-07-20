@@ -20,7 +20,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -407,6 +406,7 @@ catalog:
   wxt: ^0.20.24
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
+  xsai-chromium-prompt: ^0.2.1
   xsschema: 0.5.0-beta.2
   yaml: ^2.8.3
   yauzl: ^3.3.0

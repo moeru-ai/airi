@@ -1420,6 +1420,9 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      prompt-api:
+        description: With the Prompt API, you can send natural language requests to the foundation model in Chrome.
+        title: Prompt API
       official:
         title: Official Provider
         description: Official AI provider by AIRI.

@@ -157,6 +157,7 @@
     "web-haptics": "catalog:",
     "xast-util-to-xml": "catalog:",
     "xastscript": "catalog:",
+    "xsai-chromium-prompt": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:"
   },
