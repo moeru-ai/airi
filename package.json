@@ -110,5 +110,8 @@
   },
   "nano-staged": {
     "*": "moeru-lint --fix"
+  },
+  "dependencies": {
+    "@vitest/browser": "catalog:"
   }
 }
