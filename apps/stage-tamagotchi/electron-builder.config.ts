@@ -2,9 +2,14 @@
 
 import type { Configuration } from 'electron-builder'
 
+import process from 'node:process'
+
 import { execSync } from 'node:child_process'
+import { join } from 'node:path'
 
 import { isMacOS } from 'std-env'
+
+import { packSteamRedistributables } from './scripts/pack-steam-redistributables'
 
 function hasXcode26OrAbove() {
   if (!isMacOS)
@@ -105,6 +110,36 @@ export default {
       filter: ['**/*'],
     },
   ],
+  // NOTICE:
+  // Steam redistributables must land in the packed app *before* codesign/notarize.
+  // Injecting them later into a signed macOS .app breaks the seal and Gatekeeper
+  // reports “AIRI is damaged and can’t be opened”.
+  afterPack: async (context) => {
+    if (process.env.VITE_DISTRIBUTION !== 'steam')
+      return
+
+    const electronPlatform = context.electronPlatformName
+    let platform: 'macos' | 'windows' | 'linux'
+    switch (electronPlatform) {
+      case 'darwin':
+        platform = 'macos'
+        break
+      case 'win32':
+        platform = 'windows'
+        break
+      case 'linux':
+        platform = 'linux'
+        break
+      default:
+        return
+    }
+
+    const destDir = platform === 'macos'
+      ? join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'MacOS')
+      : context.appOutDir
+
+    await packSteamRedistributables(platform, destDir)
+  },
   extraMetadata: {
     name: 'ai.moeru.airi',
     main: 'out/main/index.js',
