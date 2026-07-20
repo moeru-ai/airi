@@ -50,6 +50,9 @@
     "open:ios": "pnpm -rF @proj-airi/stage-pocket run open:ios",
     "knip": "knip"
   },
+  "dependencies": {
+    "@vitest/browser": "catalog:"
+  },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:",
     "@arethetypeswrong/core": "catalog:",
@@ -110,8 +113,5 @@
   },
   "nano-staged": {
     "*": "moeru-lint --fix"
-  },
-  "dependencies": {
-    "@vitest/browser": "catalog:"
   }
 }
