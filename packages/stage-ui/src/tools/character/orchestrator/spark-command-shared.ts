@@ -1,9 +1,5 @@
-import type { JsonSchema } from 'xsschema'
-
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { z } from 'zod/v4'
-
-const JSON_SCHEMA_NULLABLE_SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null'])
 
 export const sparkCommandIntentSchema = z.enum(['plan', 'proposal', 'action', 'pause', 'resume', 'reroute', 'context'])
 export const sparkCommandPrioritySchema = z.enum(['critical', 'high', 'normal', 'low'])
@@ -164,67 +160,4 @@ export function normalizeSparkCommandStringValue(value: string | null): string |
   // NOTICE: Required-but-nullable provider fields are normalized back to the runtime
   // convention of omitting absent scalar values with `undefined`.
   return value ?? undefined
-}
-
-function isJsonSchema(value: JsonSchema | boolean | JsonSchema[] | undefined): value is JsonSchema {
-  return Boolean(value && !Array.isArray(value) && typeof value === 'object')
-}
-
-export function normalizeNullableAnyOf(schema: JsonSchema): JsonSchema {
-  // NOTICE: `xsschema` emits nullable unions like `string | null` as `anyOf`, but some
-  // OpenAI-compatible validators reject those forms while accepting `type: ['string', 'null']`.
-  // We only collapse scalar-or-null unions here; object unions must remain untouched so their
-  // nested `required` and `additionalProperties` constraints survive provider validation.
-  const next: JsonSchema = { ...schema }
-
-  if (next.properties) {
-    const properties = Object.fromEntries(
-      Object.entries(next.properties).map(([key, value]) => {
-        if (!isJsonSchema(value))
-          return [key, value]
-        return [key, normalizeNullableAnyOf(value)]
-      }),
-    )
-    next.properties = properties
-
-    if (Array.isArray(next.required)) {
-      const propertyNames = new Set(Object.keys(properties))
-      next.required = next.required.filter(key => propertyNames.has(key))
-
-      if (next.required.length === 0)
-        delete next.required
-    }
-  }
-
-  if (Array.isArray(next.items)) {
-    next.items = next.items.map(item => isJsonSchema(item) ? normalizeNullableAnyOf(item) : item)
-  }
-  else if (isJsonSchema(next.items)) {
-    next.items = normalizeNullableAnyOf(next.items)
-  }
-
-  if (next.anyOf) {
-    next.anyOf = next.anyOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
-
-    const normalizedEntries = next.anyOf.filter(isJsonSchema)
-    const primitiveTypes = normalizedEntries
-      .map(entry => entry.type)
-      .filter((type): type is Exclude<JsonSchema['type'], JsonSchema['type'][]> => typeof type === 'string')
-    const dedupedPrimitiveTypes = [...new Set(primitiveTypes)]
-
-    if (
-      primitiveTypes.length === normalizedEntries.length
-      && dedupedPrimitiveTypes.length > 0
-      && dedupedPrimitiveTypes.every(type => type !== undefined && JSON_SCHEMA_NULLABLE_SCALAR_TYPES.has(type))
-    ) {
-      delete next.anyOf
-      next.type = dedupedPrimitiveTypes as JsonSchema['type']
-    }
-  }
-
-  if (next.oneOf) {
-    next.oneOf = next.oneOf.map(value => isJsonSchema(value) ? normalizeNullableAnyOf(value) : value)
-  }
-
-  return next
 }

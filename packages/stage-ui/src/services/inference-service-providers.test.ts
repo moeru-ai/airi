@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
+import { parse as parseSchema } from 'zod/v4/core'
 
+import { ATLASCLOUD_DEFAULT_BASE_URL, providerAtlasCloud } from '../libs/providers/providers/atlascloud'
 import { providerOpenAICompatible } from '../libs/providers/providers/openai-compatible'
 import { inferenceServiceProvidersService } from './inference-service-providers'
 
@@ -21,6 +23,27 @@ describe('services inference-service-providers', () => {
     expect(provider.config).toEqual({})
     expect(provider.validated).toBe(false)
     expect(provider.validationBypassed).toBe(false)
+  })
+
+  /**
+   * @example
+   * const provider = inferenceServiceProvidersService.buildLocal('atlascloud', { apiKey: '...' })
+   */
+  it('lists Atlas Cloud as a built-in OpenAI-compatible provider', () => {
+    const definitions = inferenceServiceProvidersService.listDefinitions()
+    const definition = definitions.find(definition => definition.id === providerAtlasCloud.id)
+    const schema = providerAtlasCloud.createProviderConfig({ t: (key: string) => key })
+
+    expect(definition?.name).toBe('Atlas Cloud')
+    expect(parseSchema(schema, { apiKey: 'test-key' })).toEqual({
+      apiKey: 'test-key',
+      baseUrl: ATLASCLOUD_DEFAULT_BASE_URL,
+    })
+    expect(inferenceServiceProvidersService.buildLocal(providerAtlasCloud.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
+      definitionId: providerAtlasCloud.id,
+      name: 'Atlas Cloud',
+      config: { apiKey: 'test-key' },
+    }))
   })
 
   /**

@@ -748,6 +748,15 @@ pages:
       access-token-secret-description: 您的 X / Twitter 存取權杖密文
       access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
       configured: X / Twitter 已正確設定！
+    web-search:
+      title: 網路搜尋
+      description: 讓 AIRI 連網搜尋最新資訊
+      enable: 啟用網路搜尋
+      enable-description: 允許 AIRI 在對話中連網搜尋
+      api-key: Tavily API 金鑰
+      api-key-description: 網路搜尋由 Tavily 提供支援，可在 tavily.com 免費取得 API 金鑰。
+      api-key-placeholder: 輸入您的 Tavily API 金鑰
+      configured: 網路搜尋已就緒！
     mcp-server:
       title: MCP servers
       description: Configure MCP servers and bring their tools into AIRI.

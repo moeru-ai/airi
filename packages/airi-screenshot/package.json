@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-screenshot",
   "type": "module",
-  "version": "0.11.0",
+  "version": "0.11.3",
   "private": true,
   "description": "AIRI monorepo screenshot orchestration CLI",
   "author": {

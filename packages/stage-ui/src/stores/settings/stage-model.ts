@@ -14,8 +14,9 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const displayModelsStore = useDisplayModelsStore()
   let stageModelUpdateSequence = 0
   const stageModelStorageKey = 'settings/stage/model'
+  const defaultStageModelId = 'preset-live2d-1'
 
-  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, 'preset-live2d-1')
+  const stageModelSelectedState = useLocalStorageManualReset<string>(stageModelStorageKey, defaultStageModelId)
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -77,6 +78,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       return
 
     if (!model) {
+      if (selectedModelId !== defaultStageModelId) {
+        stageModelSelectedState.value = defaultStageModelId
+        await updateStageModel()
+        return
+      }
+
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelBuiltInRenderer.value = 'disabled'
