@@ -356,16 +356,18 @@ jobs:
             exit 1
           fi
 
-          # Redistributables are injected in electron-builder afterPack (before
-          # codesign/notarize). Do not inject into the signed .app here — that
-          # breaks the seal and Gatekeeper reports the app as damaged.
-          if [ ! -f "$app_path/Contents/MacOS/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib" ]; then
-            echo "Steam redistributable missing from signed .app (afterPack did not run)"
+          # Redistributables sit next to the .app (afterPack), not under
+          # Contents/MacOS — that path breaks Developer ID codesign.
+          app_dir="$(dirname "$app_path")"
+          if [ ! -f "$app_dir/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib" ]; then
+            echo "Steam redistributable missing beside .app (afterPack did not run): $app_dir"
             exit 1
           fi
 
           mkdir -p steam-content/macos
           ditto --norsrc "$app_path" steam-content/macos/AIRI.app
+          cp -a "$app_dir/steamworks_sdk" steam-content/macos/
+          cp -f "$app_dir/steam_appid.txt" steam-content/macos/steam_appid.txt
           find steam-content/macos -name '._*' -delete
           COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
 

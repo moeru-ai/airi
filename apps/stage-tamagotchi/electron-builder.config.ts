@@ -5,7 +5,6 @@ import type { Configuration } from 'electron-builder'
 import process from 'node:process'
 
 import { execSync } from 'node:child_process'
-import { join } from 'node:path'
 
 import { isMacOS } from 'std-env'
 
@@ -111,9 +110,11 @@ export default {
     },
   ],
   // NOTICE:
-  // Steam redistributables must land in the packed app *before* codesign/notarize.
-  // Injecting them later into a signed macOS .app breaks the seal and Gatekeeper
-  // reports “AIRI is damaged and can’t be opened”.
+  // Steam redistributables must be present before codesign/notarize finishes.
+  // On macOS they must NOT go under Contents/MacOS — codesign treats every file
+  // there as a code subcomponent, and steam_appid.txt fails with
+  // “code object is not signed at all”. Place them next to the .app instead
+  // (Steam sets cwd to the game folder that contains AIRI.app).
   afterPack: async (context) => {
     if (process.env.VITE_DISTRIBUTION !== 'steam')
       return
@@ -134,11 +135,8 @@ export default {
         return
     }
 
-    const destDir = platform === 'macos'
-      ? join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, 'Contents', 'MacOS')
-      : context.appOutDir
-
-    await packSteamRedistributables(platform, destDir)
+    // macOS: sibling of `.app` in appOutDir. Win/Linux: next to the executable.
+    await packSteamRedistributables(platform, context.appOutDir)
   },
   extraMetadata: {
     name: 'ai.moeru.airi',
