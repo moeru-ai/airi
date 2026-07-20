@@ -84,6 +84,7 @@ export function useDataMaintenance() {
     if (!isChatSessionsPayload(payload))
       throw new Error('Invalid chat session export format')
     await chatStore.importSessions(payload)
+    return payload
   }
 
   async function resetSettingsState() {

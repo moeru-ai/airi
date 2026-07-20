@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
 import type { Tool } from '@xsai/shared-chat'
 import type { Ref } from 'vue'
 
@@ -24,6 +25,8 @@ interface MockChatMessage {
   slices?: unknown[]
   tool_results?: Array<{ id: string, isError?: boolean, result: unknown }>
 }
+
+type MockImportSessions = ReturnType<typeof vi.fn<(payload: ChatSessionsExport) => Promise<void>>>
 
 class MockBroadcastChannel {
   static channels = new Map<string, Set<MockBroadcastChannel>>()
@@ -106,6 +109,7 @@ interface MockState {
   applyRemoteSnapshot: ReturnType<typeof vi.fn>
   setSessionMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
+  importSessions: MockImportSessions
   ingest: ReturnType<typeof vi.fn>
 }
 
@@ -123,6 +127,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
       sessionMetas: mockState.sessionMetas.value,
     })),
     getSessionMessages: mockState.getSessionMessages,
+    importSessions: mockState.importSessions,
     setSessionMessages: mockState.setSessionMessages,
   }),
 }))
@@ -219,6 +224,7 @@ describe('useChatSyncStore', async () => {
     })
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
+    const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
 
     const ingest = vi.fn(async () => {
       throw new Error('Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}')
@@ -240,6 +246,7 @@ describe('useChatSyncStore', async () => {
       applyRemoteSnapshot,
       setSessionMessages,
       getSessionMessages,
+      importSessions,
       ingest,
     }
 
@@ -249,6 +256,82 @@ describe('useChatSyncStore', async () => {
   afterEach(() => {
     vi.unstubAllGlobals()
     MockBroadcastChannel.reset()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2087
+  it('issue #2087: imports settings-window chats through the authority store', async () => {
+    // ROOT CAUSE:
+    //
+    // The settings window previously never joined the desktop chat channel.
+    // Its import updated only that renderer's Pinia store and IndexedDB, so
+    // the authority kept broadcasting its stale session snapshot until an
+    // app restart hydrated the persisted import.
+    const importedMeta = {
+      sessionId: 'imported-session',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 2,
+    }
+    const payload: ChatSessionsExport = {
+      format: 'chat-sessions-index:v1',
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'imported-session',
+            sessions: {
+              'imported-session': importedMeta,
+            },
+          },
+        },
+      },
+      sessions: {
+        'imported-session': {
+          meta: importedMeta,
+          messages: [{ id: 'message-1', role: 'user', content: 'Imported chat' }],
+        },
+      },
+    }
+    mockState.importSessions.mockImplementationOnce(async (imported) => {
+      mockState.activeSessionId.value = imported.index.characters.default?.activeSessionId ?? ''
+      mockState.sessionMetas.value = Object.fromEntries(
+        Object.values(imported.index.characters).flatMap(character => Object.entries(character.sessions)),
+      )
+      mockState.sessionMessages.value = Object.fromEntries(
+        Object.entries(imported.sessions).map(([sessionId, session]) => [
+          sessionId,
+          session.messages.map(message => ({
+            id: message.id,
+            role: message.role,
+            content: typeof message.content === 'string' ? message.content : '',
+          })),
+        ]),
+      )
+    })
+    const authorityStore = useChatSyncStore()
+    authorityStore.initialize('authority')
+
+    setActivePinia(createPinia())
+    const settingsStore = useChatSyncStore()
+    settingsStore.initialize('client')
+
+    await settingsStore.requestImportSessions(payload)
+
+    expect(mockState.importSessions).toHaveBeenCalledTimes(1)
+    expect(mockState.importSessions).toHaveBeenCalledWith(payload)
+    await vi.waitFor(() => {
+      expect(postedMessagesOfType('session-snapshot')).toContainEqual(expect.objectContaining({
+        snapshot: expect.objectContaining({
+          sessionMetas: {
+            'imported-session': importedMeta,
+          },
+        }),
+      }))
+    })
+
+    settingsStore.dispose()
+    authorityStore.dispose()
   })
 
   it('stores command ingest errors in authority session history', async () => {
