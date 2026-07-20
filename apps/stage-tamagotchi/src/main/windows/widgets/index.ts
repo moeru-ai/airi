@@ -3,6 +3,7 @@ import type { InferOutput } from 'valibot'
 
 import type {
   WidgetsAddPayload,
+  WidgetsIframeRequestResultPayload,
   WidgetSnapshot,
   WidgetsUpdatePayload,
 } from '../../../shared/eventa'
@@ -14,19 +15,20 @@ import { join, resolve } from 'node:path'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
-import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen, shell } from 'electron'
+import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
 import { isMacOS } from 'std-env'
 import { number, object, optional } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { widgetsClearEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
+import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
 
 /**
@@ -141,6 +143,36 @@ export interface WidgetsWindowManager {
   publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
   onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
   /**
+   * Sends a correlated request to a mounted widget iframe through the widgets renderer.
+   *
+   * Use when:
+   * - Main-process gamelet orchestration needs a response from iframe code
+   *
+   * Expects:
+   * - `id` references an open widget with a mounted iframe relay
+   *
+   * Returns:
+   * - Resolves with the iframe response record, or rejects on timeout, close, or iframe error
+   */
+  requestWidgetIframe: <TResponse extends Record<string, unknown> = Record<string, unknown>>(
+    id: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number },
+  ) => Promise<TResponse>
+  /**
+   * Publishes a renderer-to-main iframe request result into the pending request coordinator.
+   *
+   * Use when:
+   * - The widgets renderer reports a completed iframe request
+   *
+   * Expects:
+   * - `result.requestId` matches a request previously emitted by {@link WidgetsWindowManager.requestWidgetIframe}
+   *
+   * Returns:
+   * - Nothing; unknown or mismatched results are ignored
+   */
+  publishWidgetIframeRequestResult: (result: WidgetsIframeRequestResultPayload) => void
+  /**
    * Reserves a widget id before content is pushed into the widgets window.
    *
    * Use when:
@@ -210,10 +242,7 @@ function createWidgetsWindow() {
     window.setWindowButtonVisibility(false)
 
   window.on('ready-to-show', () => window.show())
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
-  })
+  protectPrivilegedWindowNavigation(window)
 
   return window
 }
@@ -273,6 +302,11 @@ export function setupWidgetsWindowManager(params: {
   const widgetRecords = new Map<string, WidgetRecord>()
   const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
   const windowContexts = new Map<string, WidgetWindowContext>()
+  const iframeRequests = createWidgetIframeRequestCoordinator({
+    hasWidget: id => widgetRecords.has(id),
+    hasRelay: () => Boolean(eventaContext),
+    emitRequest: payload => eventaContext?.emit(widgetsIframeRequestEvent, payload),
+  })
 
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/widgets'
@@ -331,6 +365,7 @@ export function setupWidgetsWindowManager(params: {
     pendingRoute = undefined
 
     window.on('closed', () => {
+      iframeRequests.rejectAllPendingWidgetIframeRequests()
       eventaContext = undefined
       currentRoute = undefined
       if (activeWidgetsWindow === window)
@@ -397,6 +432,7 @@ export function setupWidgetsWindowManager(params: {
 
     widgetRecords.delete(id)
     windowContexts.delete(id)
+    iframeRequests.rejectPendingWidgetIframeRequests(id)
 
     if (emitEvent) {
       eventaContext?.emit(widgetsRemoveEvent, { id })
@@ -684,6 +720,18 @@ export function setupWidgetsWindowManager(params: {
     }
   }
 
+  function requestWidgetIframe<TResponse extends Record<string, unknown> = Record<string, unknown>>(
+    id: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number },
+  ) {
+    return iframeRequests.requestWidgetIframe<TResponse>(id, payload, options)
+  }
+
+  function publishWidgetIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
+    iframeRequests.publishWidgetIframeRequestResult(result)
+  }
+
   async function hideWindow(params?: { id?: string }) {
     const id = params?.id
     const context = id ? windowContexts.get(id) : undefined
@@ -703,6 +751,8 @@ export function setupWidgetsWindowManager(params: {
     getWidgetSnapshot,
     publishWidgetEvent,
     onWidgetEvent,
+    requestWidgetIframe,
+    publishWidgetIframeRequestResult,
     prepareWidgetWindow,
   }
 

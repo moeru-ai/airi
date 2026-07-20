@@ -15,6 +15,7 @@ docs:
   'open-settings': 설정 열기
   'open-chat': 채팅 열기
   'refresh': 새로고침
+  'center-main-window': Move to screen center
   'open-hearing-controls': 듣기 제어 열기
   'drag-to-move-window': 드레그하여 창 이동
   'switch-to-light-mode': 라이트 모드로 전환

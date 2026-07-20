@@ -15,6 +15,7 @@ docs:
   'open-settings': Ouvrir les paramètres
   'open-chat': Ouvrir le Chat
   'refresh': Actualiser
+  'center-main-window': Move to screen center
   'open-hearing-controls': Ouvrir les contrôles d'écoute
   'drag-to-move-window': Glisser pour déplacer la fenêtre
   'switch-to-light-mode': Passer au mode clair
@@ -30,12 +31,12 @@ docs:
   'account': Compte
   'logout': Compte
 widgets:
-  close: Close widget
+  close: Fermer le widget
   empty:
-    title: No widget active
-    description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
+    title: Pas de widget actif
+    description: Les widgets apparaîtront ici lorsqu'un outil ou un plugin en génèrera un.
+  loading: Chargement du widget…
+  waiting: En attente des données du widget pour "{id}"…
 notice:
   'fade-on-hover':
     title: Disparaître au survol
@@ -52,47 +53,47 @@ notice:
     read-more: En savoir plus
     preview-title: C’est quoi ?
 about:
-  subtitle: Desktop ver.
-  current-version: Current Version
+  subtitle: Version de bureau.
+  current-version: Version actuelle
   common:
-    cancel: Cancel
+    cancel: Annuler
   links:
-    title: Links
-    home: Home
-    documentation: Documentations
+    title: Liens
+    home: Accueil
+    documentation: Documentation
     github: GitHub
   update:
     lane:
-      label: Update lane
-      description: Choose channel release to follow
-      placeholder: Choose update lane
+      label: Canal de mise à jour
+      description: Choisissez le canal de mise à jour à utiliser
+      placeholder: Sélectionnez un canal de mise à jour
     channels:
-      auto: Auto
+      auto: Automatique
       stable: Stable
       alpha: Alpha
-      beta: Beta
-      nightly: Nightly
-      canary: Canary
+      beta: Bêta
+      nightly: Nocturne
+      canary: Expérimental
     status:
-      downloading: Downloading update...
-      error-prefix: Error
-      latest: Up to date (v{version}).
+      downloading: Téléchargement de la mise à jour...
+      error-prefix: Erreur
+      latest: À jour (v.{version}).
       downloaded:
-        windows: Update ready to install silently (v{version}).
-        restart: Update ready to install on restart (v{version}).
+        windows: Mise à jour prête à être installée silencieusement (v{version}).
+        restart: Mise à jour prête à être installée au redémarrage (v{version}).
     actions:
-      download: Download Update
-      download-short: Download
-      confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
-      disabled-dev: Updates disabled in Dev
-      retry-check: Retry Check
-      restart-silent: Restart to update silently
-      restart-install: Restart to install update
-      confirm-restart: Confirm Restart
+      download: Télécharger la mise à jour
+      download-short: Télécharger
+      confirm-download: Confirmer le téléchargement
+      check-for-updates: Rechercher des mises à jour
+      checking: Vérification en cours...
+      latest-version: Dernière version
+      disabled-dev: Mises à jour désactivées en développement
+      retry-check: Réessayer la vérification
+      restart-silent: Redémarrer pour mettre à jour silencieusement
+      restart-install: Redémarrez pour installer la mise à jour
+      confirm-restart: Confirmer le redémarrage
     dialog:
-      title: Update Available
-      description: A new version (v{version}) is available.
-      no-release-notes-markdown: _No release notes provided._
+      title: Mise à jour disponible
+      description: Une nouvelle version (v{version}) est disponible.
+      no-release-notes-markdown: _ Aucune note de mise à jour fournie._

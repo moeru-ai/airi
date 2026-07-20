@@ -23,8 +23,8 @@ export type { AudioSpeechWsHandlersOptions } from './types'
  * Expects:
  * - The route handler has already resolved auth via the `?token=` query
  *   (see app.ts wiring) and passes a verified `userId` in.
- * - `UNSPEECH_UPSTREAM.streaming` configKV subtree is populated with at least
- *   one key; absent config rejects the upgrade with policy-violation close.
+ * - The client sends a `start` control frame first. The session validates the
+ *   requested streaming model and voice before dialing upstream.
  *
  * Returns:
  * - A function that takes `userId` and returns hono `WSEvents`. Each call
@@ -38,9 +38,6 @@ export function createAudioSpeechWsHandlers(opts: AudioSpeechWsHandlersOptions) 
     return {
       onOpen(_event, ws) {
         sessionState.attachClient(ws)
-        // Dial upstream inside the open handler so failure surfaces as a
-        // clean close on the client ws rather than a 500 on the upgrade.
-        void sessionState.dialUpstream()
       },
       onMessage(message, ws) {
         sessionState.handleClientMessage(message, ws)

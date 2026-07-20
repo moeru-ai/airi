@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { WidgetSnapshot, WidgetWindowSize } from '../../shared/eventa'
+import type { WidgetsIframeRequestPayload, WidgetsIframeRequestResultPayload, WidgetSnapshot, WidgetWindowSize } from '../../shared/eventa'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
-import { widgetsClearEvent, widgetsFetch, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
+import { widgetsClearEvent, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemove, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
 
 const { t } = useI18n()
 
@@ -41,6 +42,8 @@ const removeWidgetInvoke = useElectronEventaInvoke(widgetsRemove)
 const fetchWidget = useElectronEventaInvoke(widgetsFetch)
 const updateWidgetInvoke = useElectronEventaInvoke(widgetsUpdate)
 const pinUpdating = shallowRef(false)
+const pendingIframeRequests = shallowRef<WidgetsIframeRequestPayload[]>([])
+const eventDisposers: Array<() => void> = []
 
 let ttlTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -98,28 +101,45 @@ async function requestSnapshot(id: string) {
   }
 }
 
+const { trackWidgetOpened } = useAnalytics()
+
 watch(widgetId, (id) => {
   clearTtl()
   widget.value = null
+  pendingIframeRequests.value = []
   loading.value = false
   if (!id)
     return
+  trackWidgetOpened({ widget_id: id })
   requestSnapshot(id)
 }, { immediate: true })
 
 onMounted(() => {
   try {
-    context.value.on(widgetsRenderEvent, (evt) => {
+    eventDisposers.push(context.value.on(widgetsIframeRequestEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
-      applySnapshot(body)
-    })
+      pendingIframeRequests.value = [
+        ...pendingIframeRequests.value,
+        body,
+      ]
+    }))
   }
   catch {}
 
   try {
-    context.value.on(widgetsUpdateEvent, (evt) => {
+    eventDisposers.push(context.value.on(widgetsRenderEvent, (evt) => {
+      const body = evt?.body
+      if (!body || body.id !== widgetId.value)
+        return
+      applySnapshot(body)
+    }))
+  }
+  catch {}
+
+  try {
+    eventDisposers.push(context.value.on(widgetsUpdateEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
@@ -137,33 +157,38 @@ onMounted(() => {
         windowSize: body.windowSize ?? widget.value.windowSize,
         ttlMs: body.ttlMs ?? widget.value.ttlMs,
       })
-    })
+    }))
   }
   catch {}
 
   try {
-    context.value.on(widgetsRemoveEvent, (evt) => {
+    eventDisposers.push(context.value.on(widgetsRemoveEvent, (evt) => {
       const body = evt?.body
       if (!body || body.id !== widgetId.value)
         return
       clearTtl()
       widget.value = null
+      pendingIframeRequests.value = []
       loading.value = false
-    })
+    }))
   }
   catch {}
 
   try {
-    context.value.on(widgetsClearEvent, () => {
+    eventDisposers.push(context.value.on(widgetsClearEvent, () => {
       clearTtl()
       widget.value = null
+      pendingIframeRequests.value = []
       loading.value = false
-    })
+    }))
   }
   catch {}
 })
 
 onBeforeUnmount(() => {
+  for (const dispose of eventDisposers.splice(0)) {
+    dispose()
+  }
   clearTtl()
 })
 
@@ -237,6 +262,11 @@ async function toggleAlwaysOnTop() {
     pinUpdating.value = false
   }
 }
+
+function handleIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
+  pendingIframeRequests.value = pendingIframeRequests.value.filter(request => request.requestId !== result.requestId)
+  context.value.emit(widgetsIframeRequestResultEvent, result)
+}
 </script>
 
 <template>
@@ -300,7 +330,9 @@ async function toggleAlwaysOnTop() {
         :title="widget.componentName"
         :model-value="widget.componentProps"
         :size="widget.size"
+        :pending-iframe-requests="pendingIframeRequests"
         v-bind="widget.componentProps"
+        @iframe-request-result="handleIframeRequestResult"
       />
     </div>
     <div v-else :class="['h-full flex items-center justify-center']">

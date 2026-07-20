@@ -19,12 +19,14 @@ vi.mock('../server', () => ({
 interface MockServer {
   url: string
   observedTokens: string[]
+  observedVoiceTypes: string[]
   closeUnexpectedly: () => void
   stop: () => Promise<void>
 }
 
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
   const observedTokens: string[] = []
+  const observedVoiceTypes: string[] = []
   const httpServer = createServer()
   const wss = new WebSocketServer({ server: httpServer })
 
@@ -36,6 +38,9 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     const token = u.searchParams.get('token')
     if (token != null)
       observedTokens.push(token)
+    const voiceType = u.searchParams.get('tts_voice_type')
+    if (voiceType != null)
+      observedVoiceTypes.push(voiceType)
 
     handler(ws)
   })
@@ -46,6 +51,7 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
   return {
     url: `http://127.0.0.1:${port}`,
     observedTokens,
+    observedVoiceTypes,
     closeUnexpectedly: () => {
       activeWs?.close(1011, 'simulated_truncation')
     },
@@ -103,6 +109,7 @@ describe('streamingSynthesize', () => {
       serverUrl: server.url,
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
+      ttsVoiceType: 'official_selected',
       input: 'hello',
     })
 
@@ -114,6 +121,7 @@ describe('streamingSynthesize', () => {
     expect(result.sentences).toHaveLength(1)
     expect(result.sentences[0]).toMatchObject({ kind: 'end' })
     expect(server.observedTokens).toEqual(['test-jwt'])
+    expect(server.observedVoiceTypes).toEqual(['official_selected'])
   })
 
   it('rejects when the ws closes before session.finished (codex HIGH #2)', async () => {

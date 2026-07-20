@@ -5,6 +5,20 @@ import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
 
+function publicVoicePack(pack: Awaited<ReturnType<VoicePackService['listEnabled']>>[number]) {
+  return {
+    id: pack.id,
+    name: pack.name,
+    description: pack.description,
+    voiceId: pack.voiceId,
+    params: pack.params,
+    costMultiplier: pack.costMultiplier,
+    enabled: pack.enabled,
+    createdAt: pack.createdAt,
+    updatedAt: pack.updatedAt,
+  }
+}
+
 /**
  * User-facing Voice Pack routes.
  *
@@ -17,6 +31,6 @@ export function createVoicePackRoutes(service: VoicePackService) {
     .use('*', authGuard)
     .get('/', async (c) => {
       const packs = await service.listEnabled()
-      return c.json(packs)
+      return c.json(packs.map(publicVoicePack))
     })
 }

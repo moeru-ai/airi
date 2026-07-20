@@ -1,6 +1,6 @@
 chat:
   actions:
-    retry: Retry
+    retry: Thử lại
   message:
     character-name:
       airi: AIRI
@@ -8,12 +8,12 @@ chat:
       you: Bạn
   reasoning: Đang suy nghĩ
   sessions:
-    title: Conversations
-    new: + New
-    empty: No conversations yet
-    cloud-badge: Synced to cloud
-    new-chat-fallback: New chat
-    delete: Delete conversation
+    title: Đoạn hội thoại
+    new: + Mới
+    empty: Chưa có đoạn hội thoại nào
+    cloud-badge: Đã đồng bộ đám mây
+    new-chat-fallback: Cuộc trò chuyện mới
+    delete: Xóa đoạn hội thoại
 message: Nói gì đó...
 send-mode:
   title: Gửi key
@@ -53,8 +53,8 @@ profile-switcher:
 promo-banner:
   items:
     signin:
-      watermark: Moon
-      fallbackLabel: Moon Gift
+      watermark: Mặt trăng
+      fallbackLabel: Quà Mặt Trăng
       title: Đăng nhập 7 ngày
       eventName: Đăng nhập để nhận bụi sao, khung ảnh đại diện và quà tặng khi ra mắt.
       date: 28/3 đến 10/4

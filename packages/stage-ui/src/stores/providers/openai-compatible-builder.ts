@@ -35,6 +35,26 @@ function logWarn(...args: unknown[]) {
     console.warn(...args)
 }
 
+/**
+ * Wraps transcription providers so OpenAI audio options like `language` and `prompt` are preserved.
+ */
+function withTranscriptionExtraOptions(provider: unknown) {
+  if (!provider || typeof provider !== 'object' || !('transcription' in provider))
+    return provider
+
+  const transcription = (provider as { transcription?: unknown }).transcription
+  if (typeof transcription !== 'function')
+    return provider
+
+  return {
+    ...provider,
+    transcription: (model: string, extraOptions?: Record<string, unknown>) => ({
+      ...transcription(model),
+      ...extraOptions,
+    }),
+  }
+}
+
 export function buildOpenAICompatibleProvider(
   options: Partial<ProviderMetadata> & {
     id: string
@@ -270,7 +290,11 @@ export function buildOpenAICompatibleProvider(
     createProvider: async (config: { apiKey: string, baseUrl: string }) => {
       const apiKey = normalizeString(config.apiKey)
       const baseUrl = normalizeBaseUrl(config.baseUrl)
-      return creator(apiKey, baseUrl)
+      const provider = await creator(apiKey, baseUrl)
+      if (resolvedCategory === 'transcription')
+        return withTranscriptionExtraOptions(provider)
+
+      return provider
     },
     capabilities: finalCapabilities,
     validators: finalValidators,

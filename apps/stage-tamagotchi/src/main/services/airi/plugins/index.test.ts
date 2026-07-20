@@ -261,18 +261,6 @@ function createExtensionGameletKitManifest(entrypoint: string, id = 'test-extens
 function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {}) {
   const respondToRequests = options.respondToRequests ?? true
   const widgetSnapshots = new Map<string, WidgetSnapshot>()
-  const widgetEventListeners = new Set<(event: { id: string, event: Record<string, unknown> }) => void>()
-  const publishWidgetEvent = vi.fn((id: string, event: Record<string, unknown>) => {
-    for (const listener of widgetEventListeners) {
-      listener({ id, event })
-    }
-  })
-  const onWidgetEvent = vi.fn((listener: (event: { id: string, event: Record<string, unknown> }) => void) => {
-    widgetEventListeners.add(listener)
-    return () => {
-      widgetEventListeners.delete(listener)
-    }
-  })
   const openWindow = vi.fn(async (_params?: { id?: string }) => {})
   const pushWidget = vi.fn(async (payload: WidgetsAddPayload) => {
     const snapshot: WidgetSnapshot = {
@@ -302,27 +290,14 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
       windowSize: payload.windowSize ?? existing.windowSize,
       ttlMs: payload.ttlMs ?? existing.ttlMs,
     })
-
-    const componentProps = payload.componentProps as Record<string, unknown> | undefined
-    const request = componentProps?.payload && typeof componentProps.payload === 'object' && !Array.isArray(componentProps.payload)
-      ? (componentProps.payload as Record<string, unknown>).request
-      : undefined
-    if (respondToRequests && request && typeof request === 'object' && !Array.isArray(request) && typeof (request as Record<string, unknown>).requestId === 'string') {
-      const requestId = (request as Record<string, unknown>).requestId
-      queueMicrotask(() => {
-        publishWidgetEvent(payload.id, {
-          route: {
-            namespace: 'airi.plugin.gamelet',
-            name: 'response',
-          },
-          payload: {
-            requestId,
-            ready: true,
-            fen: 'fen-after-request',
-          },
-        })
-      })
+  })
+  const requestWidgetIframe = vi.fn()
+  requestWidgetIframe.mockImplementation(async () => {
+    if (!respondToRequests) {
+      throw new Error('Widget iframe request was not handled.')
     }
+
+    return { fen: 'fen-after-request' }
   })
   const removeWidget = vi.fn(async (id: string) => {
     widgetSnapshots.delete(id)
@@ -337,8 +312,7 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
       updateWidget,
       removeWidget,
       getWidgetSnapshot,
-      publishWidgetEvent,
-      onWidgetEvent,
+      requestWidgetIframe,
     },
   }
 }
@@ -1244,7 +1218,7 @@ describe('setupExtensionHost', () => {
         '    await gamelets.orchestration.configure(\'kit-module:board\', { command: { requestId: \'ignored-by-test-double\' } })',
         '    const snapshot = await gamelets.orchestration.request(\'kit-module:board\', { action: \'snapshot\' }, { timeoutMs: 1000 })',
         '    if (snapshot.fen !== \'fen-after-request\') {',
-        '      throw new Error(\'Expected request to resolve from response event\')',
+        '      throw new Error(\'Expected request to resolve from widget iframe request\')',
         '    }',
         '    if (!(await gamelets.orchestration.isOpen(\'kit-module:board\'))) {',
         '      throw new Error(\'Expected gamelet to be open before close\')',
@@ -1282,26 +1256,11 @@ describe('setupExtensionHost', () => {
         payload: { command: { requestId: 'ignored-by-test-double' } },
       },
     })
-    expect(widgetsManager.updateWidget).toHaveBeenCalledWith({
-      id: 'kit-module:board',
-      componentProps: {
-        moduleId: 'kit-module:board',
-        payload: {
-          request: {
-            route: {
-              namespace: 'airi.plugin.gamelet',
-              name: 'request',
-            },
-            responseRoute: {
-              namespace: 'airi.plugin.gamelet',
-              name: 'response',
-            },
-            requestId: expect.any(String),
-            payload: { action: 'snapshot' },
-          },
-        },
-      },
-    })
+    expect(widgetsManager.requestWidgetIframe).toHaveBeenCalledWith(
+      'kit-module:board',
+      { action: 'snapshot' },
+      { timeoutMs: 1000 },
+    )
     expect(widgetsManager.getWidgetSnapshot).toHaveBeenCalledWith('kit-module:board')
     expect(widgetsManager.removeWidget).toHaveBeenCalledWith('kit-module:board')
   })
@@ -1346,57 +1305,41 @@ describe('setupExtensionHost', () => {
 
   /**
    * @example
-   * await expect(request).rejects.toThrow('Gamelet request failed.')
+   * await expect(request).rejects.toThrow('Board rejected the snapshot request.')
    */
-  it('rejects gamelet requests when the iframe response reports failure', async () => {
+  it('propagates gamelet request rejection from the widget iframe manager', async () => {
     const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+    widgetsManager.requestWidgetIframe.mockRejectedValueOnce(new Error('Board rejected the snapshot request.'))
     const gamelets = createGameletOrchestrationRuntime(widgetsManager)
 
     await gamelets.open('kit-module:board')
-    const request = gamelets.request('kit-module:board', { action: 'snapshot' })
-    const updatePayload = widgetsManager.updateWidget.mock.calls.at(-1)?.[0]
-    const requestEnvelope = updatePayload?.componentProps?.payload?.request
-    if (!requestEnvelope || typeof requestEnvelope !== 'object' || Array.isArray(requestEnvelope) || typeof requestEnvelope.requestId !== 'string') {
-      throw new Error('Expected gamelet request envelope in widget props.')
-    }
 
-    widgetsManager.publishWidgetEvent('kit-module:board', {
-      route: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'response',
-      },
-      payload: {
-        requestId: requestEnvelope.requestId,
-        ok: false,
-        message: 'Board rejected the snapshot request.',
-      },
-    })
-
-    await expect(request).rejects.toThrow('Board rejected the snapshot request.')
+    await expect(gamelets.request('kit-module:board', { action: 'snapshot' })).rejects.toThrow('Board rejected the snapshot request.')
+    expect(widgetsManager.requestWidgetIframe).toHaveBeenCalledWith(
+      'kit-module:board',
+      { action: 'snapshot' },
+      { timeoutMs: 30000 },
+    )
     gamelets.dispose()
   })
 
   /**
    * @example
-   * await expect(request).rejects.toThrow('Gamelet request timed out after 30000ms.')
+   * expect(widgetsManager.requestWidgetIframe).toHaveBeenCalledWith('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
    */
   it('uses the default gamelet request timeout when no timeout is provided', async () => {
-    vi.useFakeTimers()
-    try {
-      const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
-      const gamelets = createGameletOrchestrationRuntime(widgetsManager)
+    const { widgetsManager } = createWidgetsManagerDouble()
+    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
 
-      await gamelets.open('kit-module:board')
-      const request = gamelets.request('kit-module:board', { action: 'snapshot' })
-      const rejection = expect(request).rejects.toThrow('Gamelet request timed out after 30000ms.')
-      await vi.advanceTimersByTimeAsync(30000)
+    await gamelets.open('kit-module:board')
+    await expect(gamelets.request('kit-module:board', { action: 'snapshot' })).resolves.toEqual({ fen: 'fen-after-request' })
 
-      await rejection
-      gamelets.dispose()
-    }
-    finally {
-      vi.useRealTimers()
-    }
+    expect(widgetsManager.requestWidgetIframe).toHaveBeenCalledWith(
+      'kit-module:board',
+      { action: 'snapshot' },
+      { timeoutMs: 30000 },
+    )
+    gamelets.dispose()
   })
 
   /**
@@ -1409,107 +1352,23 @@ describe('setupExtensionHost', () => {
 
     await expect(gamelets.request('kit-module:board', { action: 'snapshot' })).rejects.toThrow('Gamelet `kit-module:board` is not open.')
     expect(widgetsManager.updateWidget).not.toHaveBeenCalled()
+    expect(widgetsManager.requestWidgetIframe).not.toHaveBeenCalled()
     gamelets.dispose()
   })
 
-  /**
-   * @example
-   * await expect(request).resolves.toEqual(expect.objectContaining({ fen: 'fen-after-request' }))
-   */
-  it('ignores gamelet responses from a different widget id', async () => {
-    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
+  it('handles gamelet requests without legacy widget response event APIs', async () => {
+    const { widgetsManager } = createWidgetsManagerDouble()
     const gamelets = createGameletOrchestrationRuntime(widgetsManager)
 
     await gamelets.open('kit-module:board')
-    const request = gamelets.request('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
-    const updatePayload = widgetsManager.updateWidget.mock.calls.at(-1)?.[0]
-    const requestEnvelope = updatePayload?.componentProps?.payload?.request
-    if (!requestEnvelope || typeof requestEnvelope !== 'object' || Array.isArray(requestEnvelope) || typeof requestEnvelope.requestId !== 'string') {
-      throw new Error('Expected gamelet request envelope in widget props.')
-    }
+    await expect(gamelets.request('kit-module:board', { action: 'snapshot' })).resolves.toEqual({ fen: 'fen-after-request' })
 
-    widgetsManager.publishWidgetEvent('kit-module:other-board', {
-      route: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'response',
-      },
-      payload: {
-        requestId: requestEnvelope.requestId,
-        fen: 'wrong-board',
-      },
-    })
-    await Promise.resolve()
-
-    widgetsManager.publishWidgetEvent('kit-module:board', {
-      type: 'response',
-      requestId: requestEnvelope.requestId,
-      fen: 'legacy-top-level',
-    })
-    await Promise.resolve()
-
-    widgetsManager.publishWidgetEvent('kit-module:board', {
-      route: {
-        namespace: 'airi.plugin.other',
-        name: 'response',
-      },
-      payload: {
-        requestId: requestEnvelope.requestId,
-        fen: 'wrong-namespace',
-      },
-    })
-    await Promise.resolve()
-
-    widgetsManager.publishWidgetEvent('kit-module:board', {
-      route: {
-        namespace: 'airi.plugin.gamelet',
-        name: 'response',
-      },
-      payload: {
-        requestId: requestEnvelope.requestId,
-        fen: 'fen-after-request',
-      },
-    })
-
-    await expect(request).resolves.toEqual({ fen: 'fen-after-request' })
+    expect(widgetsManager.requestWidgetIframe).toHaveBeenCalledWith(
+      'kit-module:board',
+      { action: 'snapshot' },
+      { timeoutMs: 30000 },
+    )
     gamelets.dispose()
-  })
-
-  /**
-   * @example
-   * await expect(request).rejects.toThrow('Gamelet was closed before the request completed.')
-   */
-  it('rejects pending gamelet requests when the widget closes', async () => {
-    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
-    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
-
-    await gamelets.open('kit-module:board')
-    const request = gamelets.request('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
-    const rejection = expect(request).rejects.toThrow('Gamelet was closed before the request completed.')
-    await gamelets.close('kit-module:board')
-
-    await rejection
-    expect(widgetsManager.removeWidget).toHaveBeenCalledWith('kit-module:board')
-    gamelets.dispose()
-  })
-
-  /**
-   * @example
-   * expect(unsubscribe).toHaveBeenCalled()
-   * await expect(request).rejects.toThrow('Gamelet orchestration runtime was disposed before the request completed.')
-   */
-  it('unsubscribes and rejects pending gamelet requests on dispose', async () => {
-    const { widgetsManager } = createWidgetsManagerDouble({ respondToRequests: false })
-    const unsubscribe = vi.fn()
-    widgetsManager.onWidgetEvent.mockReturnValueOnce(unsubscribe)
-    const gamelets = createGameletOrchestrationRuntime(widgetsManager)
-
-    await gamelets.open('kit-module:board')
-    const request = gamelets.request('kit-module:board', { action: 'snapshot' }, { timeoutMs: 30000 })
-    const rejection = expect(request).rejects.toThrow('Gamelet orchestration runtime was disposed before the request completed.')
-    gamelets.dispose()
-
-    expect(unsubscribe).toHaveBeenCalled()
-    await rejection
   })
 
   it('rejects module announce when the kit runtime does not match the host runtime', async () => {

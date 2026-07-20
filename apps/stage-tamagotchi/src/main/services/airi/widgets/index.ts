@@ -11,6 +11,7 @@ import {
   widgetsFetch,
   widgetsHideWindow,
   widgetsIframePublish,
+  widgetsIframeRequestResultEvent,
   widgetsOpenWindow,
   widgetsPrepareWindow,
   widgetsRemove,
@@ -20,6 +21,7 @@ import {
   normalizeOptionalWidgetId,
   normalizeRequiredWidgetId,
   validateWidgetIframeEvent,
+  validateWidgetIframeRequestResult,
   validateWidgetsAddPayload,
   validateWidgetsUpdatePayload,
 } from './validation'
@@ -57,6 +59,15 @@ function isFromWindow(options: InvokeOptions | undefined, window: BrowserWindow)
  *       -> {@link WidgetsWindowManager.pushWidget}
  */
 export function createWidgetsService(params: { context: ReturnType<typeof createContext>['context'], widgetsManager: WidgetsWindowManager, window: BrowserWindow }) {
+  params.context.on(widgetsIframeRequestResultEvent, (event, options) => {
+    if (!isFromWindow(options as InvokeOptions, params.window))
+      return
+
+    params.widgetsManager.publishWidgetIframeRequestResult(
+      validateWidgetIframeRequestResult(event.body),
+    )
+  })
+
   defineInvokeHandlers(
     params.context,
     {

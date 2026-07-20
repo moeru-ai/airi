@@ -162,6 +162,8 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Good comments explain hidden intent, constraints, ownership, invariants, ordering, side effects, protocol shape, or non-obvious fallback behavior.
 - Bad comments translate code into English, restate names/types, or exist only to satisfy hover documentation.
 - Important implementation comments should live near the confusing line or branch, not only on exported declarations.
+- For calculation-heavy code, prefer inline comments near the intermediate values and branches that need explanation. Do not rely only on function-level JSDoc when the hard part is a coordinate system, unit conversion, clamp, rounding rule, aggregation, fallback, or precedence decision.
+- Apply this especially to geometry, graphics and shader math, billing or metering, analytics or statistics, UI layout and positioning, ranking or scoring, and normalization code.
 - Format longer comments as short paragraphs separated by blank comment lines. Do not compress background, symptom, rejected alternatives, final rationale, and references into one dense block.
 - For investigation-heavy comments, prefer this order when useful: source/context, observed failure, why the obvious fix is insufficient, chosen fix, and references/removal condition.
 - Do not add broad comments like `// Config`, `// Host`, or `// Update state` unless they explain a non-obvious boundary or transition.
@@ -285,7 +287,7 @@ These guidelines apply to all TypeScript code across the monorepo:
    *       -> {@link VievalScheduledTask}[]
    */
   ```
-- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context.
+- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context. For calculation-heavy code, prefer inline comments beside the calculation process over declaration-only JSDoc.
 - Prefer `es-toolkit` first when creating utilities.
 - For error handling, prefer `@moeru/std` patterns whenever possible.
 - For exported normalizers, shared normalizers, or non-obvious local normalizers that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.

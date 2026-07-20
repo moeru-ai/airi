@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   normalizeOptionalWidgetId,
   normalizeRequiredWidgetId,
+  validateWidgetIframeRequestResult,
   validateWidgetsAddPayload,
   validateWidgetsUpdatePayload,
 } from './validation'
@@ -109,6 +110,50 @@ describe('widget invoke validation', () => {
     it('enforces required ids for destructive flows', () => {
       expect(normalizeRequiredWidgetId(' widget-1 ', 'id required')).toBe('widget-1')
       expect(() => normalizeRequiredWidgetId('   ', 'id required')).toThrow('id required')
+    })
+  })
+
+  describe('validateWidgetIframeRequestResult', () => {
+    it('normalizes successful iframe request results', () => {
+      expect(validateWidgetIframeRequestResult({
+        id: ' kit-module:board ',
+        requestId: ' req-1 ',
+        ok: true,
+        result: { fen: 'fen-after-request' },
+      })).toEqual({
+        id: 'kit-module:board',
+        requestId: 'req-1',
+        ok: true,
+        result: { fen: 'fen-after-request' },
+      })
+    })
+
+    it('normalizes failed iframe request results', () => {
+      expect(validateWidgetIframeRequestResult({
+        id: 'kit-module:board',
+        requestId: 'req-1',
+        ok: false,
+        error: 'Board rejected request.',
+      })).toEqual({
+        id: 'kit-module:board',
+        requestId: 'req-1',
+        ok: false,
+        error: 'Board rejected request.',
+      })
+    })
+
+    it('rejects malformed iframe request results', () => {
+      expect(() => validateWidgetIframeRequestResult(null)).toThrow('iframe request result must be a plain object.')
+      expect(() => validateWidgetIframeRequestResult({
+        id: 'kit-module:board',
+        requestId: 'req-1',
+        ok: true,
+      })).toThrow('iframe request result payload must be a plain object.')
+      expect(() => validateWidgetIframeRequestResult({
+        id: 'kit-module:board',
+        requestId: 'req-1',
+        ok: false,
+      })).toThrow('iframe request result error is required.')
     })
   })
 })

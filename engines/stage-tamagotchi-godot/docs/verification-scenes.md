@@ -30,12 +30,13 @@ A visual renderer script should:
 3. Load the target avatar or fixture through the same runtime path being tested.
 4. Create one active `Camera3D` and use fixed poses.
 5. Install the renderer feature runtime being tested. For avatar glow, create
-   `StageAvatarGlowRuntime(camera)` and call `UseAvatar(avatar)` after loading
-   the avatar; `StageVisualPreset.Apply(this)` alone does not install the glow
-   compositor.
+   `StageRenderEffectsRuntime(camera)` and call `UseAvatar(avatar)` after
+   loading the avatar; `StageVisualPreset.Apply(this)` alone does not install
+   the glow compositor.
 6. Wait several frames before each capture so imports, materials, and compositor
    resources settle.
-7. Save PNG captures to `Path.Combine(Path.GetTempPath(), "<check-name>")`.
+7. Save PNG captures to `Path.Combine(Path.GetTempPath(), "<check-name>")` only
+   for intermediate pass diagnostics.
 8. Print compact diagnostics that can be compared across runs.
 9. Quit with `GetTree().Quit(0)` after the final capture.
 
@@ -79,9 +80,10 @@ public override void _Process(double delta)
 }
 ```
 
-The capture helper should create the output directory, call
-`GetViewport().GetTexture().GetImage()`, save the image, and throw if
-`SavePng` fails.
+The in-scene capture helper may call `GetViewport().GetTexture().GetImage()` for
+intermediate data, but this is not final display output. Do not use viewport
+readback PNGs as acceptance evidence for color mapping, contrast, glow, rim
+light, or other final-frame judgments.
 
 ## Run Command
 
@@ -93,15 +95,30 @@ C:\Godot_v4.6.2-stable_mono_win64\Godot_v4.6.2-stable_mono_win64.exe `
   --scene "res://tests/<check-name>/<checkName>.tscn"
 ```
 
-For shipped stage visuals, follow this with the main stage verification flow:
+For shipped stage visuals, export render-stage artifacts instead of relying on a
+temporary manual screenshot:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages
+```
+
+For rim or edge-light shape checks, prefer the upper-body camera preset:
+
+```powershell
+pnpm -F @proj-airi/stage-tamagotchi-godot dump:render-stages:upper-body
+```
+
+The dump command runs this flow:
 
 1. Start a local WebSocket host.
-2. Launch the main Godot stage with `-- --airi-ws-url=ws://127.0.0.1:<port>/`.
+2. Launch the main Godot stage with a fixed `--resolution`.
 3. Wait for `stage.ready`.
-4. Send `host.scene.apply` with the target VRM.
+4. Send `host.scene.apply` with the tracked AvatarSample A VRM.
 5. Wait for `scene.applied`.
-6. Bring the Godot window to the front and capture it.
-7. Send `host.shutdown`.
+6. Capture the visible Godot window client area for each requested render-stage
+   view.
+7. Write diagnostic PNGs under `artifacts/`.
+8. Send `host.shutdown`.
 
 ## Cleanup
 

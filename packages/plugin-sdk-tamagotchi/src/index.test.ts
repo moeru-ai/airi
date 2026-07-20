@@ -13,7 +13,13 @@ import { DisposableStore } from '@proj-airi/plugin-sdk'
 import { object, optional, string } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { gameletKit, TamagotchiToolRegistry, toolKit } from './index'
+import {
+  gameletIframeRequest,
+  gameletIframeRequestEventName,
+  gameletKit,
+  TamagotchiToolRegistry,
+  toolKit,
+} from './index'
 import { createGamelet } from './kits/gamelet'
 import { registerTools } from './kits/tool'
 
@@ -158,6 +164,15 @@ function createToolModuleRef(input: {
 }
 
 describe('plugin-sdk-tamagotchi', () => {
+  it('exports shared gamelet iframe request contracts', () => {
+    expect(gameletIframeRequestEventName).toBe('eventa:invoke:gamelet:iframe:request')
+    expect(gameletIframeRequest).toEqual(expect.objectContaining({
+      sendEvent: expect.objectContaining({
+        id: expect.stringContaining('eventa:invoke:gamelet:iframe:request'),
+      }),
+    }))
+  })
+
   it('exposes gameletKit as a module-scoped kit client', async () => {
     const bindings: unknown[] = []
     const client = gameletKit.createClient(createGameletRuntime({

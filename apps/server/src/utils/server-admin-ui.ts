@@ -9,7 +9,7 @@ export const SERVER_DEV_ADMIN_UI_URL = 'https://server-dev.airi-server-admin.pag
  *
  * Use when:
  * - Redirecting server-owned admin UI entrypoints to the standalone
- *   `apps/ui-admin` deployment.
+ *   admin UI deployment from the `proj-airi` repository.
  * - Preserving dashboard route paths and query parameters.
  *
  * Expects:

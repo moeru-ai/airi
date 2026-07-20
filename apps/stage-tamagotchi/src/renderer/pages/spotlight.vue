@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useWindowFocus } from '@vueuse/core'
 import { shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,6 +18,7 @@ const sending = shallowRef(false)
 const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
 
 const chatSyncStore = useChatSyncStore()
+const { trackSpotlightUsed } = useAnalytics()
 const hideSpotlightWindow = useElectronEventaInvoke(electronSpotlightHide)
 const showResultNotification = useElectronEventaInvoke(electronSpotlightShowResultNotification)
 const { t } = useI18n()
@@ -39,6 +41,7 @@ async function handleSend() {
 
   messageInput.value = ''
   sending.value = true
+  trackSpotlightUsed()
 
   try {
     await hideSpotlightWindow()

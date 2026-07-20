@@ -390,8 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 上传
-    upload_desc: 点击或拖拽文件到此处上传
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
@@ -431,6 +437,7 @@ pages:
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
+        center: Move desktop window to center
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
@@ -444,6 +451,7 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 桌面数据重置。
   models:
     description: Live2D, VRM, Spine, etc.
@@ -740,6 +748,15 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    web-search:
+      title: 网络搜索
+      description: 让 AIRI 联网搜索最新信息
+      enable: 启用网络搜索
+      enable-description: 允许 AIRI 在对话中联网搜索
+      api-key: Tavily API 密钥
+      api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
+      api-key-placeholder: 输入您的 Tavily API 密钥
+      configured: 网络搜索已就绪！
     mcp-server:
       title: MCP 集成
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI

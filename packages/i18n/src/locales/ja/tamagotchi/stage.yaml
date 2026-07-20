@@ -15,6 +15,7 @@ docs:
   'open-settings': 設定を開く
   'open-chat': チャットを開く
   'refresh': 再読み込み
+  'center-main-window': Move to screen center
   'open-hearing-controls': 聴覚コントロールを開く
   'drag-to-move-window': ウィンドウをドラッグして移動
   'switch-to-light-mode': ライトモードに切り替え

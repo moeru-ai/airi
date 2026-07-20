@@ -86,8 +86,8 @@ const EnvSchema = object({
   AUTH_UI_URL: optional(string(), 'https://accounts.airi.build/ui'),
 
   // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
-  // entrypoint and redirects those requests here after ui-admin moved out of
-  // the server image.
+  // entrypoint and redirects those requests here after the admin UI moved to
+  // the standalone proj-airi repository.
   ADMIN_UI_URL: optional(string(), 'https://admin.airi.build'),
 
   // Canonical user-facing web app origin. Used as the Stripe redirect base
@@ -174,6 +174,14 @@ const EnvSchema = object({
   DB_POOL_IDLE_TIMEOUT_MS: optionalIntegerFromString(30000, 'DB_POOL_IDLE_TIMEOUT_MS', 1),
   DB_POOL_CONNECTION_TIMEOUT_MS: optionalIntegerFromString(5000, 'DB_POOL_CONNECTION_TIMEOUT_MS', 1),
   DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: optionalIntegerFromString(10000, 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS', 1),
+
+  // PostHog product-event forwarding (signup / payment / subscription facts).
+  // Defaults to the shared AIRI project key (same browser-safe phc_* key the
+  // client surfaces embed in posthog.config.ts), so forwarding is on out of
+  // the box. Set to an empty string to disable; Postgres `product_events`
+  // stays the source of truth either way.
+  POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
+  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
 
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),

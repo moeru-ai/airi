@@ -20,6 +20,7 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
+
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -32,7 +33,7 @@ patchedDependencies:
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@antfu/eslint-config': ^8.2.0
-  '@anthropic-ai/claude-code': ^2.1.114
+  '@anthropic-ai/claude-code': ^2.1.204
   '@arethetypeswrong/core': ^0.18.2
   '@ax-llm/ax': ^19.0.43
   '@better-auth/cli': ^1.4.21
@@ -105,7 +106,7 @@ catalog:
   '@mdit/plugin-tasklist': ^0.23.2
   '@mediapipe/tasks-vision': ^0.10.34
   '@modelcontextprotocol/sdk': ^1.29.0
-  '@moeru/eslint-config': 0.1.0-beta.18
+  '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.0-beta.8
   '@moeru/std': 0.1.0-beta.17
   '@napi-rs/image': ^1.12.0
@@ -320,6 +321,7 @@ catalog:
   postcss: ^8.5.10
   postgres: ^3.4.9
   posthog-js: 1.306.1
+  posthog-node: ^5.39.4
   postprocessing: ^6.39.1
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0
@@ -452,7 +454,6 @@ onlyBuiltDependencies:
   - uiohook-napi
   - utf-8-validate
   - vue-demi
-
 packageExtensions:
   '@formkit/auto-animate':
     peerDependencies:

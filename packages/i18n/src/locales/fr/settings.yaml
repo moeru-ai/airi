@@ -390,8 +390,14 @@ pages:
     systemprompt: Prompt système
     title: Carte AIRI
     try_different_search: Essayez un autre terme de recherche
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Téléverser
-    upload_desc: Cliquez ou glissez un fichier pour téléverser
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Endroit où les souvenirs sont stockés et organisés
     title: Mémoire
@@ -431,6 +437,7 @@ pages:
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
+        center: Move desktop window to center
         reset: Réinitialiser les données du bureau
     confirmations:
       tooltip: Êtes-vous sûr(e) ?
@@ -444,6 +451,7 @@ pages:
       modules_reset: Paramètres du module réinitialisés.
       providers_reset: Paramètres du fournisseur réinitialisés.
       all_deleted: Toutes les données locales ont été supprimées.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Données du bureau réinitialisées.
   models:
     description: Live2D, VRM, Spine, etc.

@@ -3,6 +3,8 @@ import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 
 import { defineKit } from '@proj-airi/plugin-sdk'
 
+export * from './events'
+
 export interface GameletKitClient {
   iframe: (input: { assetPath?: string, src?: string, sandbox?: string }) => HostDataRecord
   mount: (definition: {

@@ -41,8 +41,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "max(user_total{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "total users"
+                      "legendFormat": "total users",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -60,8 +62,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
-                      "legendFormat": "new today"
+                      "legendFormat": "new today",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -119,7 +123,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -141,8 +145,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "avg(user_active_sessions{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "sessions"
+                      "legendFormat": "sessions",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -200,7 +206,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -222,8 +228,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m]))",
-                      "legendFormat": "req/s"
+                      "legendFormat": "req/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -288,7 +296,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -310,8 +318,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m])), 1)",
-                      "legendFormat": "fail %"
+                      "legendFormat": "fail %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -376,7 +386,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -398,8 +408,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
-                      "legendFormat": "req/s"
+                      "legendFormat": "req/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -456,7 +468,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -478,8 +490,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
-                      "legendFormat": "DAU"
+                      "legendFormat": "DAU",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -538,7 +552,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -560,8 +574,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"7d\"})",
-                      "legendFormat": "WAU"
+                      "legendFormat": "WAU",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -620,7 +636,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -642,8 +658,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"30d\"})",
-                      "legendFormat": "MAU"
+                      "legendFormat": "MAU",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -702,7 +720,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -724,8 +742,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "online"
+                      "legendFormat": "online",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -784,7 +804,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -806,8 +826,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "connections"
+                      "legendFormat": "connections",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -890,6 +912,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -900,7 +924,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -922,8 +946,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__range]))",
-                      "legendFormat": "events"
+                      "legendFormat": "events",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -982,7 +1008,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1004,8 +1030,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\", status=\"failed\"}[$__range])) / clamp_min(sum(increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__range])), 1)",
-                      "legendFormat": "failed %"
+                      "legendFormat": "failed %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1071,7 +1099,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1093,6 +1121,7 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "topk(12, sum by (feature, action, status) (increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__range])))",
                       "legendFormat": "{{feature}} · {{action}} · {{status}}",
                       "instant": true,
@@ -1154,7 +1183,7 @@
               "valueMode": "color"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1176,8 +1205,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (feature, action, status) (rate(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__rate_interval]))",
-                      "legendFormat": "{{feature}} · {{action}} · {{status}}"
+                      "legendFormat": "{{feature}} · {{action}} · {{status}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1260,6 +1291,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -1270,7 +1303,131 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-99": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "max (user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
+                      "legendFormat": "__auto",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 99,
+        "links": [],
+        "title": "日活",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "continuous-GrYlRd",
+                  "seriesBy": "last"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 17,
+                  "gradientMode": "scheme",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "linear",
+                  "lineStyle": {
+                    "fill": "solid"
+                  },
+                  "lineWidth": 2,
+                  "pointSize": 3,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1292,7 +1449,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[$__range])))",
+                      "editorMode": "code",
+                      "expr": "topk(50, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[$__range])))",
                       "legendFormat": "{{http_route}}",
                       "instant": true,
                       "range": false
@@ -1352,7 +1510,7 @@
               "valueMode": "color"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1374,8 +1532,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval]))",
-                      "legendFormat": "{{http_response_status_code}}"
+                      "legendFormat": "{{http_response_status_code}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1390,7 +1550,7 @@
         "description": "HTTP status-code mix over time, one row per status code, colour = request rate in each time bucket. The 200 row dominates in steady state; a 5xx / 4xx row suddenly lighting up flags an incident at a glance. Non-OPTIONS traffic only.",
         "id": 40,
         "links": [],
-        "title": "Error Rate %",
+        "title": "Status Distribution",
         "vizConfig": {
           "group": "heatmap",
           "kind": "VizConfig",
@@ -1450,7 +1610,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1472,8 +1632,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\", http_response_status_code!=\"404\"}[$__rate_interval])))",
-                      "legendFormat": "{{http_route}}"
+                      "editorMode": "code",
+                      "expr": "sum by (http_route) (\n    rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\", http_response_status_code!=\"404\"}[$__rate_interval])\n)",
+                      "legendFormat": "{{http_route}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1485,10 +1647,10 @@
             "transformations": []
           }
         },
-        "description": "P95 latency per Hono-matched route, excluding /api/v1/openai/* (LLM gateway latency lives in the LLM Gateway row). 404s excluded so missing-route noise does not skew the curve.",
+        "description": "",
         "id": 20,
         "links": [],
-        "title": "HTTP P95 by Route",
+        "title": "Request Latency (by Route)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1556,7 +1718,9 @@
                   "max"
                 ],
                 "displayMode": "table",
-                "placement": "right",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
                 "showLegend": true
               },
               "tooltip": {
@@ -1566,7 +1730,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1588,8 +1752,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (http_route, http_response_status_code) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code!~\"2..|3..|401|402|404\"}[$__rate_interval]))",
-                      "legendFormat": "{{http_response_status_code}} {{http_route}}"
+                      "legendFormat": "{{http_response_status_code}} {{http_route}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1672,6 +1838,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -1682,7 +1850,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1704,8 +1872,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
-                      "legendFormat": "{{gen_ai_request_model}}"
+                      "legendFormat": "{{gen_ai_request_model}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1722,83 +1892,53 @@
         "links": [],
         "title": "LLM Request Rate by Model",
         "vizConfig": {
-          "group": "timeseries",
+          "group": "piechart",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
                 "color": {
+                  "fixedColor": "#73BF69",
                   "mode": "palette-classic"
                 },
                 "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
                   "hideFrom": {
                     "legend": false,
                     "tooltip": false,
                     "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
                   }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
                 },
                 "unit": "reqps"
               },
               "overrides": []
             },
             "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
+              "displayLabels": [
+                "percent"
+              ],
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
                 "displayMode": "table",
-                "placement": "right",
+                "overflow": "ellipsis",
+                "placement": "bottom",
                 "showLegend": true
               },
+              "pieType": "pie",
+              "reduceOptions": {
+                "calcs": [
+                  "sum"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "sort": "desc",
               "tooltip": {
                 "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
+                "mode": "single",
+                "sort": "none"
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1820,8 +1960,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_first_token_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
-                      "legendFormat": "TTFB p95"
+                      "editorMode": "code",
+                      "expr": "sum by () (rate(gen_ai_client_first_token_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "TTFB p95",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1839,8 +1981,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
-                      "legendFormat": "end-to-end p95"
+                      "legendFormat": "end-to-end p95",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1923,6 +2067,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -1933,7 +2079,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1955,8 +2101,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval]))",
-                      "legendFormat": "{{provider}}"
+                      "legendFormat": "{{provider}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2039,6 +2187,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -2049,7 +2199,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2071,8 +2221,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])))",
-                      "legendFormat": "{{provider}}"
+                      "legendFormat": "{{provider}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2155,6 +2307,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -2165,7 +2319,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2187,8 +2341,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\", http_response_status_code=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])), 1)",
-                      "legendFormat": "{{provider}}"
+                      "legendFormat": "{{provider}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2271,6 +2427,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -2281,7 +2439,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2303,8 +2461,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (model) (rate(airi_billing_tts_chars_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "{{model}}"
+                      "legendFormat": "{{model}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2387,6 +2547,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -2397,7 +2559,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2419,8 +2581,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
-                      "legendFormat": "input"
+                      "legendFormat": "input",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2438,8 +2602,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
-                      "legendFormat": "output"
+                      "legendFormat": "output",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2498,7 +2664,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2520,8 +2686,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "input tokens/s"
+                      "legendFormat": "input tokens/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2539,8 +2707,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "output tokens/s"
+                      "legendFormat": "output tokens/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2623,6 +2793,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -2633,7 +2805,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2655,8 +2827,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_billing_flux_unbilled_total{service_name=~\"$service\", deployment_environment=~\"$env\", reason!=\"partial_debit_drained\"}[$__range]))",
-                      "legendFormat": "flux"
+                      "legendFormat": "flux",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2717,7 +2891,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2739,8 +2913,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_gen_ai_stream_interrupted_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
-                      "legendFormat": "interruptions"
+                      "legendFormat": "interruptions",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2805,7 +2981,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2827,8 +3003,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_gen_ai_gateway_key_exhausted_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
-                      "legendFormat": "events"
+                      "legendFormat": "events",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2889,7 +3067,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2911,8 +3089,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_gen_ai_gateway_decrypt_failures_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
-                      "legendFormat": "events"
+                      "legendFormat": "events",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2973,7 +3153,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2995,8 +3175,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) / clamp_min(sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])), 1)",
-                      "legendFormat": "fallback %"
+                      "legendFormat": "fallback %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3062,7 +3244,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -3084,8 +3266,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (provider, status_code) (rate(airi_gen_ai_gateway_upstream_errors_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "{{provider}} · {{status_code}}"
+                      "legendFormat": "{{provider}} · {{status_code}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3168,6 +3352,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -3178,7 +3364,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -3200,8 +3386,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (currency) (increase(airi_stripe_revenue_minor_unit_total{service_name=~\"$service\", deployment_environment=~\"$env\", currency!=\"\"}[$__range])) / 100",
-                      "legendFormat": "{{currency}}"
+                      "legendFormat": "{{currency}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3261,7 +3449,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -3283,8 +3471,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(increase(stripe_checkout_completed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range])) / clamp_min(sum(increase(stripe_checkout_created_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range])), 1)",
-                      "legendFormat": "completed %"
+                      "legendFormat": "completed %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3350,7 +3540,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -3372,8 +3562,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (event_type) (increase(stripe_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", event_type!=\"\"}[$__range]))",
-                      "legendFormat": "{{event_type}}"
+                      "legendFormat": "{{event_type}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3432,443 +3624,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-50": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])))",
-                      "legendFormat": "p95"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "PostgreSQL query duration P95 from PgInstrumentation. Fixed 5m window. Spikes correlate with index misses, connection exhaustion, or backend lock contention.",
-        "id": 50,
-        "links": [],
-        "title": "DB Query P95 (5m)",
-        "vizConfig": {
-          "group": "stat",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 0.05
-                    },
-                    {
-                      "color": "red",
-                      "value": 0.5
-                    }
-                  ]
-                },
-                "unit": "s",
-                "decimals": 3
-              },
-              "overrides": []
-            },
-            "options": {
-              "colorMode": "value",
-              "graphMode": "area",
-              "justifyMode": "auto",
-              "orientation": "auto",
-              "percentChangeColorMode": "standard",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
-              },
-              "showPercentChange": false,
-              "textMode": "auto",
-              "wideLayout": true
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-51": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "sum by (service_instance_id) (db_client_connection_count{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "{{service_instance_id}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "Open PostgreSQL connections, per replica (`service_instance_id`). Each instance has its own pool sized by env `DB_POOL_MAX`. One instance with a permanently-high count = pool leak on that pod.",
-        "id": 51,
-        "links": [],
-        "title": "DB Pool Connections by Instance",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "short"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-52": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "100 * sum by (service_instance_id) (v8js_memory_heap_used_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}) / clamp_min(sum by (service_instance_id) (v8js_memory_heap_limit_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}), 1)",
-                      "legendFormat": "{{service_instance_id}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "V8 heap used ÷ heap limit, per replica (`service_instance_id`). A single replica trending up while others stay flat = leak on that pod.",
-        "id": 52,
-        "links": [],
-        "title": "Heap Used % by Instance",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "percent"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-53": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "max by (service_instance_id) (nodejs_eventloop_delay_p99_seconds{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "{{service_instance_id}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "P99 event-loop delay per replica. One replica climbing while others stay flat = CPU-bound work pinning that pod. >50ms sustained is bad anywhere.",
-        "id": 53,
-        "links": [],
-        "title": "Event Loop Delay P99 by Instance",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "s"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -3890,8 +3646,10 @@
                     "group": "loki",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} | json | level=~\"warn|error\"",
-                      "legendFormat": ""
+                      "legendFormat": "",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3933,7 +3691,7 @@
               "wrapLogMessage": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -3955,8 +3713,10 @@
                     "group": "loki",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} |= ``",
-                      "legendFormat": ""
+                      "legendFormat": "",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -3998,7 +3758,7 @@
               "wrapLogMessage": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     }
@@ -4020,10 +3780,10 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-1"
+                        "name": "panel-3"
                       },
-                      "height": 4,
-                      "width": 6,
+                      "height": 5,
+                      "width": 4,
                       "x": 0,
                       "y": 0
                     }
@@ -4033,24 +3793,11 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-3"
+                        "name": "panel-5"
                       },
-                      "height": 4,
-                      "width": 6,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-4"
-                      },
-                      "height": 4,
-                      "width": 6,
-                      "x": 12,
+                      "height": 5,
+                      "width": 4,
+                      "x": 4,
                       "y": 0
                     }
                   },
@@ -4061,7 +3808,20 @@
                         "kind": "ElementReference",
                         "name": "panel-40"
                       },
-                      "height": 8,
+                      "height": 6,
+                      "width": 10,
+                      "x": 8,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-90"
+                      },
+                      "height": 38,
                       "width": 6,
                       "x": 18,
                       "y": 0
@@ -4072,38 +3832,38 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-15"
-                      },
-                      "height": 4,
-                      "width": 6,
-                      "x": 0,
-                      "y": 4
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-5"
-                      },
-                      "height": 4,
-                      "width": 6,
-                      "x": 6,
-                      "y": 4
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
                         "name": "panel-93"
                       },
-                      "height": 4,
-                      "width": 6,
-                      "x": 12,
-                      "y": 4
+                      "height": 5,
+                      "width": 4,
+                      "x": 0,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-4"
+                      },
+                      "height": 5,
+                      "width": 4,
+                      "x": 4,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-20"
+                      },
+                      "height": 15,
+                      "width": 10,
+                      "x": 8,
+                      "y": 6
                     }
                   },
                   {
@@ -4113,10 +3873,127 @@
                         "kind": "ElementReference",
                         "name": "panel-92"
                       },
-                      "height": 5,
-                      "width": 24,
+                      "height": 10,
+                      "width": 4,
                       "x": 0,
-                      "y": 8
+                      "y": 10
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-73"
+                      },
+                      "height": 10,
+                      "width": 2,
+                      "x": 4,
+                      "y": 10
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-11"
+                      },
+                      "height": 10,
+                      "width": 2,
+                      "x": 6,
+                      "y": 10
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-16"
+                      },
+                      "height": 18,
+                      "width": 8,
+                      "x": 0,
+                      "y": 20
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-71"
+                      },
+                      "height": 5,
+                      "width": 5,
+                      "x": 8,
+                      "y": 21
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-21"
+                      },
+                      "height": 5,
+                      "width": 5,
+                      "x": 13,
+                      "y": 21
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-69"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 8,
+                      "y": 26
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-67"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 13,
+                      "y": 26
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-66"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 8,
+                      "y": 32
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-68"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 13,
+                      "y": 32
                     }
                   }
                 ]
@@ -4140,8 +4017,8 @@
                         "kind": "ElementReference",
                         "name": "panel-80"
                       },
-                      "height": 4,
-                      "width": 8,
+                      "height": 5,
+                      "width": 3,
                       "x": 0,
                       "y": 0
                     }
@@ -4151,11 +4028,37 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-81"
+                        "name": "panel-1"
                       },
-                      "height": 4,
-                      "width": 8,
-                      "x": 8,
+                      "height": 5,
+                      "width": 3,
+                      "x": 3,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-99"
+                      },
+                      "height": 11,
+                      "width": 12,
+                      "x": 6,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-98"
+                      },
+                      "height": 11,
+                      "width": 6,
+                      "x": 18,
                       "y": 0
                     }
                   },
@@ -4166,10 +4069,75 @@
                         "kind": "ElementReference",
                         "name": "panel-82"
                       },
-                      "height": 4,
-                      "width": 8,
-                      "x": 16,
-                      "y": 0
+                      "height": 3,
+                      "width": 3,
+                      "x": 0,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-15"
+                      },
+                      "height": 6,
+                      "width": 3,
+                      "x": 3,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-81"
+                      },
+                      "height": 3,
+                      "width": 3,
+                      "x": 0,
+                      "y": 8
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-95"
+                      },
+                      "height": 9,
+                      "width": 6,
+                      "x": 0,
+                      "y": 11
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-96"
+                      },
+                      "height": 9,
+                      "width": 6,
+                      "x": 6,
+                      "y": 11
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-97"
+                      },
+                      "height": 9,
+                      "width": 12,
+                      "x": 12,
+                      "y": 11
                     }
                   }
                 ]
@@ -4185,60 +4153,7 @@
             "layout": {
               "kind": "GridLayout",
               "spec": {
-                "items": [
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-95"
-                      },
-                      "height": 5,
-                      "width": 6,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-96"
-                      },
-                      "height": 5,
-                      "width": 6,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-97"
-                      },
-                      "height": 9,
-                      "width": 12,
-                      "x": 12,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-98"
-                      },
-                      "height": 4,
-                      "width": 12,
-                      "x": 0,
-                      "y": 5
-                    }
-                  }
-                ]
+                "items": []
               }
             },
             "title": "Product Analytics"
@@ -4264,32 +4179,6 @@
                       "x": 0,
                       "y": 0
                     }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-16"
-                      },
-                      "height": 11,
-                      "width": 7,
-                      "x": 0,
-                      "y": 8
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-20"
-                      },
-                      "height": 11,
-                      "width": 17,
-                      "x": 7,
-                      "y": 8
-                    }
                   }
                 ]
               }
@@ -4310,143 +4199,11 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-11"
-                      },
-                      "height": 8,
-                      "width": 12,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-21"
-                      },
-                      "height": 8,
-                      "width": 12,
-                      "x": 12,
-                      "y": 0
-                    }
-                  }
-                ]
-              }
-            },
-            "title": "LLM Gateway"
-          }
-        },
-        {
-          "kind": "RowsLayoutRow",
-          "spec": {
-            "collapse": false,
-            "layout": {
-              "kind": "GridLayout",
-              "spec": {
-                "items": [
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-66"
-                      },
-                      "height": 7,
-                      "width": 6,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-67"
-                      },
-                      "height": 7,
-                      "width": 6,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-68"
-                      },
-                      "height": 7,
-                      "width": 6,
-                      "x": 12,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-69"
-                      },
-                      "height": 7,
-                      "width": 6,
-                      "x": 18,
-                      "y": 0
-                    }
-                  }
-                ]
-              }
-            },
-            "title": "Provider Upstreams"
-          }
-        },
-        {
-          "kind": "RowsLayoutRow",
-          "spec": {
-            "collapse": false,
-            "layout": {
-              "kind": "GridLayout",
-              "spec": {
-                "items": [
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-73"
-                      },
-                      "height": 7,
-                      "width": 6,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-71"
-                      },
-                      "height": 7,
-                      "width": 10,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
                         "name": "panel-43"
                       },
                       "height": 7,
-                      "width": 4,
-                      "x": 16,
+                      "width": 6,
+                      "x": 0,
                       "y": 0
                     }
                   },
@@ -4458,8 +4215,8 @@
                         "name": "panel-41"
                       },
                       "height": 7,
-                      "width": 4,
-                      "x": 20,
+                      "width": 6,
+                      "x": 6,
                       "y": 0
                     }
                   }
@@ -4591,72 +4348,6 @@
         {
           "kind": "RowsLayoutRow",
           "spec": {
-            "collapse": true,
-            "layout": {
-              "kind": "GridLayout",
-              "spec": {
-                "items": [
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-50"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-51"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-52"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 12,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-53"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 18,
-                      "y": 0
-                    }
-                  }
-                ]
-              }
-            },
-            "title": "Infrastructure"
-          }
-        },
-        {
-          "kind": "RowsLayoutRow",
-          "spec": {
             "collapse": false,
             "layout": {
               "kind": "GridLayout",
@@ -4669,23 +4360,10 @@
                         "kind": "ElementReference",
                         "name": "panel-91"
                       },
-                      "height": 10,
+                      "height": 8,
                       "width": 24,
                       "x": 0,
                       "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-90"
-                      },
-                      "height": 10,
-                      "width": 24,
-                      "x": 0,
-                      "y": 10
                     }
                   }
                 ]
@@ -4706,7 +4384,7 @@
     "grafana-cloud"
   ],
   "timeSettings": {
-    "autoRefresh": "30s",
+    "autoRefresh": "",
     "autoRefreshIntervals": [
       "5s",
       "10s",
@@ -4720,7 +4398,7 @@
       "1d"
     ],
     "fiscalYearStartMonth": 0,
-    "from": "now-1h",
+    "from": "now-6h",
     "hideTimepicker": false,
     "timezone": "browser",
     "to": "now"

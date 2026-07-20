@@ -23,12 +23,27 @@ function createTestApp(service: VoicePackService, user: { id: string } | null) {
 
 function createService() {
   return {
-    listEnabled: vi.fn(async () => [{ id: 'vp-1', name: 'Enabled', enabled: true }]),
+    listEnabled: vi.fn(async () => [{
+      id: 'vp-1',
+      name: 'Enabled',
+      description: 'Public description',
+      provider: 'azure',
+      model: 'microsoft/v1',
+      voiceId: 'friendly-voice',
+      upstreamVoiceId: 'en-US-AvaMultilingualNeural',
+      ttsModelId: 'microsoft/v1',
+      params: { pitch: 10 },
+      costMultiplier: 2,
+      enabled: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-02T00:00:00.000Z'),
+    }]),
     list: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     disable: vi.fn(),
     findById: vi.fn(),
+    findEnabledByVoiceId: vi.fn(),
   } as unknown as VoicePackService
 }
 
@@ -50,7 +65,17 @@ describe('voice packs routes', () => {
     const res = await app.request('/api/v1/voice-packs')
 
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([{ id: 'vp-1', name: 'Enabled', enabled: true }])
+    expect(await res.json()).toEqual([{
+      id: 'vp-1',
+      name: 'Enabled',
+      description: 'Public description',
+      voiceId: 'friendly-voice',
+      params: { pitch: 10 },
+      costMultiplier: 2,
+      enabled: true,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+    }])
     expect(service.listEnabled).toHaveBeenCalled()
   })
 })

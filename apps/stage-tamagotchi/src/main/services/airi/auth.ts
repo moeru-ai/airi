@@ -105,7 +105,7 @@ export function createAuthService(params: {
       const state = generateState()
 
       // Start loopback server to receive the callback
-      const loopback = await startLoopbackServer()
+      const loopback = await startLoopbackServer(state)
       closeLoopback = loopback.close
 
       // Use the server-side relay as redirect_uri. The relay page serves HTML
@@ -134,13 +134,7 @@ export function createAuthService(params: {
 
       // Wait for the callback in the background
       loopback.result
-        .then(async ({ code, state: returnedState }) => {
-          if (returnedState !== state) {
-            log.warn('State mismatch — possible CSRF attack')
-            params.windowAuthManager.broadcastAuthError('State mismatch')
-            return
-          }
-
+        .then(async ({ code }) => {
           const tokens = await exchangeCode(code, codeVerifier, redirectUri)
           params.windowAuthManager.broadcastAuthCallback(tokens)
           log.log('OIDC token exchange successful')

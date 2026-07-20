@@ -19,6 +19,7 @@ import IndicatorMicVolume from './indicator-mic-volume.vue'
 import {
   electron,
   electronAppQuit,
+  electronCenterMainWindow,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
@@ -38,6 +39,7 @@ const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const closeWindow = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
+const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
@@ -128,6 +130,13 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
 function refreshWindow() {
   window.location.reload()
 }
+
+/**
+ * Requests the main process to move the AIRI desktop window back to screen center.
+ */
+function resetMainWindowPosition() {
+  centerMainWindow().catch(console.error)
+}
 </script>
 
 <template>
@@ -184,6 +193,15 @@ function refreshWindow() {
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.refresh') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip disable-hoverable-content>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="resetMainWindowPosition()">
+                <div i-solar:target-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+              </ControlButton>
+              <template #tooltip>
+                {{ t('tamagotchi.stage.controls-island.center-main-window') }}
               </template>
             </ControlButtonTooltip>
 

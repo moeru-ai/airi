@@ -462,6 +462,13 @@ export function useMotionUpdatePluginExpression(
  *
  * `nowSpeaking` (not `mouthOpenSize > 0`) is the speech boundary, so silent
  * gaps between phonemes write 0 directly instead of triggering the release.
+ *
+ * After the release tail elapses, the plugin keeps forcing ParamMouthOpenY to 0
+ * for a short handoff hold (HANDOFF_HOLD_MS) before handing control back to
+ * motion/expression plugins. This reliably closes the mouth after speech even
+ * when an idle motion curve leaves a non-zero resting value, while still
+ * letting idle mouth expressions take over shortly after speech ends (rather
+ * than overriding them forever).
  */
 export function useMotionUpdatePluginLipSync(
   mouthOpenSize: Ref<number>,
@@ -469,8 +476,14 @@ export function useMotionUpdatePluginLipSync(
 ): MotionManagerPlugin {
   // 200 ms covers a typical phoneme tail without lagging behind the next utterance.
   const RELEASE_DURATION_MS = 200
+  // After the release tail, keep forcing the mouth shut for this long before
+  // handing control back to motion/expression plugins. This guarantees the
+  // mouth actually closes even on the first idle frame, where a non-zero
+  // resting motion curve would otherwise reopen it immediately.
+  const HANDOFF_HOLD_MS = 500
 
   let releaseRemainingMs = 0
+  let handoffRemainingMs = 0
   let lastForcedValue = 0
 
   // Smoothstep: 3t^2 - 2t^3, eases in/out with zero slope at endpoints.
@@ -480,12 +493,22 @@ export function useMotionUpdatePluginLipSync(
     if (nowSpeaking.value) {
       lastForcedValue = mouthOpenSize.value
       releaseRemainingMs = RELEASE_DURATION_MS
+      handoffRemainingMs = HANDOFF_HOLD_MS
       ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
       return
     }
 
-    if (releaseRemainingMs <= 0)
+    if (releaseRemainingMs <= 0) {
+      if (handoffRemainingMs > 0) {
+        // Release tail elapsed. Keep forcing the mouth shut through the handoff
+        // hold so a non-zero idle motion curve cannot reopen it on the first
+        // idle frame. After the hold we stop owning the parameter and let
+        // motion/expression plugins drive it again.
+        handoffRemainingMs = Math.max(0, handoffRemainingMs - ctx.timeDelta * 1000)
+        ctx.model.setParameterValueById('ParamMouthOpenY', 0)
+      }
       return
+    }
 
     releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
     const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)

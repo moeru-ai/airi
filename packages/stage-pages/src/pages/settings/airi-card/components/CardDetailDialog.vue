@@ -3,7 +3,11 @@ import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import DOMPurify from 'dompurify'
 
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useDownload } from '@proj-airi/stage-ui/composables/download'
+import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
+import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -17,8 +21,9 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
@@ -34,11 +39,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { trackSceneBackgroundSet } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const speechStore = useSpeechStore()
 const visionStore = useVisionStore()
 const backgroundStore = useBackgroundStore()
+const displayModelsStore = useDisplayModelsStore()
 
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
@@ -47,6 +54,7 @@ const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechMo
 const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
 
 const isRefreshingGallery = ref(false)
+const isExportingCard = shallowRef(false)
 
 // Get selected card data
 const selectedCard = computed<AiriCard | undefined>(() => {
@@ -113,6 +121,27 @@ function handleActivate() {
   }, 300)
 }
 
+async function handleExportCard() {
+  if (!selectedCard.value)
+    return
+
+  isExportingCard.value = true
+  try {
+    useDownload(
+      await exportAiriCardPackage({ card: selectedCard.value, displayModelsStore }),
+      `${selectedCard.value.name.trim()}.zip`,
+    ).download()
+    toast(t('settings.pages.card.exported'))
+  }
+  catch (error) {
+    console.error('Error exporting card package:', error)
+    toast(t('settings.pages.card.export_failed'))
+  }
+  finally {
+    isExportingCard.value = false
+  }
+}
+
 function highlightTagToHtml(text: string) {
   return DOMPurify.sanitize(text?.replace(/\{\{(.*?)\}\}/g, '<span class="bg-primary-500/20 inline-block">{{ $1 }}</span>').trim())
 }
@@ -155,6 +184,7 @@ const activeBackgroundId = computed({
       ...selectedCard.value,
       extensions: extension,
     })
+    trackSceneBackgroundSet({ source: 'card_gallery', cleared: val === 'none' })
   },
 })
 
@@ -328,6 +358,13 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
 
               <!-- Action buttons -->
               <div flex="~ row" gap-2>
+                <Button
+                  variant="secondary"
+                  icon="i-solar:download-minimalistic-bold-duotone"
+                  :label="t('settings.pages.card.export')"
+                  :disabled="isExportingCard"
+                  @click="handleExportCard"
+                />
                 <!-- Activation button -->
                 <Button
                   variant="primary"

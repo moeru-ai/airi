@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '../status'
 
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { shallowRef, useTemplateRef } from 'vue'
@@ -10,6 +11,7 @@ import { createDataSettingsStatusHelpers } from '../status'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
+const { trackDataAction } = useAnalytics()
 const importFileInput = useTemplateRef<HTMLInputElement>('importFileInput')
 const importError = shallowRef('')
 const {
@@ -32,6 +34,7 @@ async function triggerExport() {
     anchor.download = `airi-chat-sessions-${new Date().toISOString()}.json`
     anchor.click()
     URL.revokeObjectURL(url)
+    trackDataAction({ action: 'chats_exported' })
     emitStatus(t('settings.pages.data.status.exported'))
   }
   catch (error) {
@@ -42,6 +45,7 @@ async function triggerExport() {
 function deleteChats() {
   try {
     deleteAllChatSessions()
+    trackDataAction({ action: 'chats_cleared' })
     emitStatus(t('settings.pages.data.status.chats_deleted'))
   }
   catch (error) {
@@ -60,6 +64,7 @@ async function handleImport(event: Event) {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     await importChatSessions(parsed)
     importError.value = ''
+    trackDataAction({ action: 'chats_imported' })
     emitStatus(t('settings.pages.data.status.imported'))
   }
   catch (error) {

@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 
+import type { Tool } from '@xsai/shared-chat'
 import type { Ref } from 'vue'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
+
+const mockResolveLlmTools = vi.hoisted(() => vi.fn<(options?: { customTools?: (() => Promise<Tool[]>) | Tool[] }) => Promise<Tool[]>>())
+const mockWidgetsTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
+const mockWeatherTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
+const mockImageJournalTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
 
 interface MockBroadcastMessageEvent<T> {
   data: T
@@ -12,10 +18,11 @@ interface MockBroadcastMessageEvent<T> {
 
 type MockListener = (event: MockBroadcastMessageEvent<unknown>) => void
 interface MockChatMessage {
+  id?: string
   role: string
   content: string
-  slices?: Array<{ type: string, text?: string }>
-  tool_results?: unknown[]
+  slices?: unknown[]
+  tool_results?: Array<{ id: string, isError?: boolean, result: unknown }>
 }
 
 class MockBroadcastChannel {
@@ -152,16 +159,25 @@ vi.mock('@proj-airi/stage-ui/stores/modules/consciousness', () => ({
   }),
 }))
 
+vi.mock('@proj-airi/stage-ui/stores/llm-tool-resolver', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@proj-airi/stage-ui/stores/llm-tool-resolver')>()
+
+  return {
+    ...original,
+    resolveLlmTools: mockResolveLlmTools,
+  }
+})
+
 vi.mock('./tools/builtin/widgets', () => ({
-  widgetsTools: vi.fn(async () => []),
+  widgetsTools: mockWidgetsTools,
 }))
 
 vi.mock('./tools/builtin/weather', () => ({
-  weatherTools: vi.fn(async () => []),
+  weatherTools: mockWeatherTools,
 }))
 
 vi.mock('./tools/builtin/image-journal', () => ({
-  imageJournalTools: vi.fn(async () => []),
+  imageJournalTools: mockImageJournalTools,
 }))
 
 describe('useChatSyncStore', async () => {
@@ -207,6 +223,15 @@ describe('useChatSyncStore', async () => {
     const ingest = vi.fn(async () => {
       throw new Error('Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}')
     })
+
+    mockResolveLlmTools.mockReset()
+    mockResolveLlmTools.mockResolvedValue([])
+    mockWidgetsTools.mockReset()
+    mockWidgetsTools.mockResolvedValue([])
+    mockWeatherTools.mockReset()
+    mockWeatherTools.mockResolvedValue([])
+    mockImageJournalTools.mockReset()
+    mockImageJournalTools.mockResolvedValue([])
 
     mockState = {
       activeSessionId,
@@ -460,5 +485,124 @@ describe('useChatSyncStore', async () => {
 
     store.dispose()
     vi.useRealTimers()
+  })
+
+  it('reruns a tool call locally when this window is the authority', async () => {
+    const execute = vi.fn<Tool['execute']>(async () => 'fresh result')
+    const demoTool: Tool = {
+      type: 'function',
+      function: {
+        name: 'demo-tool',
+        description: 'Demo tool',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      execute,
+    }
+    mockWidgetsTools.mockResolvedValueOnce([demoTool])
+    mockResolveLlmTools.mockImplementationOnce(async (options) => {
+      if (typeof options?.customTools === 'function')
+        return options.customTools()
+
+      return options?.customTools ?? []
+    })
+    const initialMessages: MockChatMessage[] = [
+      { role: 'user', content: 'run the tool', id: 'user-1' },
+      {
+        role: 'assistant',
+        content: '',
+        id: 'assistant-1',
+        slices: [
+          {
+            type: 'tool-call',
+            toolCall: {
+              toolCallId: 'call-demo',
+              toolCallType: 'function',
+              toolName: 'demo-tool',
+              args: '{ "value": 1 }',
+            },
+          },
+        ],
+        tool_results: [
+          {
+            id: 'call-demo',
+            result: 'stale result',
+          },
+        ],
+      },
+    ]
+    mockState.sessionMessages.value['session-1'] = initialMessages
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await store.requestToolCallRerun({
+      sessionId: 'session-1',
+      messageId: 'assistant-1',
+      toolset: 'widgets',
+      toolCallId: 'call-demo',
+      toolName: 'demo-tool',
+      args: '{ "value": 2 }',
+    })
+
+    expect(mockResolveLlmTools).toHaveBeenCalledWith({ customTools: expect.any(Function) })
+    expect(mockWidgetsTools).toHaveBeenCalledTimes(1)
+    expect(mockWeatherTools).toHaveBeenCalledTimes(1)
+    expect(execute).toHaveBeenCalledWith({ value: 2 }, {
+      toolCallId: 'call-demo',
+      messages: initialMessages,
+    })
+    expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
+      initialMessages[0],
+      expect.objectContaining({
+        id: 'assistant-1',
+        tool_results: [
+          {
+            id: 'call-demo',
+            result: 'fresh result',
+          },
+        ],
+      }),
+    ])
+
+    store.dispose()
+  })
+
+  it('sends tool call rerun commands from followers', async () => {
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const pending = store.requestToolCallRerun({
+      sessionId: 'session-1',
+      messageId: 'assistant-1',
+      toolset: 'artistry',
+      toolCallId: 'call-demo',
+      toolName: 'demo-tool',
+      args: '{ "value": 2 }',
+    })
+    pending.catch(() => {})
+
+    const rerunCommands = postedMessagesOfType('command')
+      .filter(message => message.command === 'tool-call-rerun')
+
+    expect(rerunCommands).toEqual([
+      expect.objectContaining({
+        type: 'command',
+        command: 'tool-call-rerun',
+        payload: {
+          sessionId: 'session-1',
+          messageId: 'assistant-1',
+          toolset: 'artistry',
+          toolCallId: 'call-demo',
+          toolName: 'demo-tool',
+          args: '{ "value": 2 }',
+        },
+      }),
+    ])
+
+    store.dispose()
+    await expect(pending).rejects.toThrow('Chat sync channel disposed')
   })
 })
