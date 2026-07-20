@@ -25,7 +25,7 @@ description: 在 AIRI 中配置阿里云智能语音交互服务（ASR）
 2. 填写 **AccessKey ID**、**AccessKey Secret** 和 **AppKey**。
 3. 选择距离你最近的区域，例如华东 `cn-shanghai`、华北 `cn-beijing` 或华南 `cn-shenzhen`。
 
-### 3. 配置校验
+## 第三步：验证配置
 
 1. 确认页面提示基础凭据验证通过。
 2. 在“听觉”中选择阿里云 NLS 和音频输入设备。
