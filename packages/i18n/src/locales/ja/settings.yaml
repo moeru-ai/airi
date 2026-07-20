@@ -748,6 +748,15 @@ pages:
       access-token-secret-description: あなたのX / Twitterアクセストークンシークレット
       access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
       configured: X / Twitterは適切に設定されています！
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: MCPサーバー
       description: Configure MCP servers and bring their tools into AIRI.
@@ -1298,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - 高性能なAI APIプロバイダー。
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: openrouter.ai
         title: OpenRouter

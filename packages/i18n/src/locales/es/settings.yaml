@@ -748,6 +748,15 @@ pages:
       access-token-secret-description: Su secreto de token de acceso de X / Twitter
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
       configured: '¡X / Twitter está configurado correctamente!'
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: Servidores MCP
       description: Configure los servidores MCP y traiga sus herramientas a AIRI.
@@ -1298,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - Proveedor de API de IA de alto rendimiento.
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: openrouter.ai
         title: OpenRouter

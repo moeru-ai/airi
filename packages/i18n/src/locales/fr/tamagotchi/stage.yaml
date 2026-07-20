@@ -84,7 +84,7 @@ about:
     actions:
       download: Télécharger la mise à jour
       download-short: Télécharger
-      confirm-download: Confirmer le téléchargement
+      confirm-download: Confirmer le téléchargement 
       check-for-updates: Rechercher des mises à jour
       checking: Vérification en cours...
       latest-version: Dernière version

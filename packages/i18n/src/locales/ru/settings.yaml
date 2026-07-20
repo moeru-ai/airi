@@ -748,6 +748,15 @@ pages:
       access-token-secret-description: Ваш секрет токена доступа X / Twitter
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: MCP Сервера
       description: Настройка MCP серверов и перевод их инструментов в AIRI.
@@ -762,7 +771,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -1298,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - Высокая производительность AI API провайдера.
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: Openrouter.ai
         title: OpenRouter
