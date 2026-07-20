@@ -311,15 +311,14 @@ jobs:
             exit 1
           }
 
-          New-Item -ItemType Directory -Force steam-content/windows | Out-Null
-          Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
-          # NOTICE: `pnpm -F … exec` runs with the package cwd, so dest must be absolute
-          # or redistributables land under apps/stage-tamagotchi/ while checks use repo-root.
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts windows "${{ github.workspace }}/steam-content/windows"
-          if (!(Test-Path 'steam-content/windows/steamworks_sdk/redistributable_bin/win64/steam_api64.dll')) {
-            Write-Error 'Steam redistributable missing from steam-content/windows'
+          # Redistributables are injected in electron-builder afterPack (before sign).
+          if (!(Test-Path 'apps/stage-tamagotchi/dist/win-unpacked/steamworks_sdk/redistributable_bin/win64/steam_api64.dll')) {
+            Write-Error 'Steam redistributable missing from win-unpacked (afterPack did not run)'
             exit 1
           }
+
+          New-Item -ItemType Directory -Force steam-content/windows | Out-Null
+          Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
           tar -cf steam-content-windows.tar -C steam-content windows
 
       - name: Upload Windows Steam content
@@ -357,14 +356,16 @@ jobs:
             exit 1
           fi
 
-          mkdir -p steam-content/macos
-          ditto --norsrc "$app_path" steam-content/macos/AIRI.app
-          # NOTICE: absolute dest — see Windows Steam content packing note above.
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts macos "${{ github.workspace }}/steam-content/macos/AIRI.app/Contents/MacOS"
-          if [ ! -f steam-content/macos/AIRI.app/Contents/MacOS/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib ]; then
-            echo "Steam redistributable missing from steam-content/macos/AIRI.app"
+          # Redistributables are injected in electron-builder afterPack (before
+          # codesign/notarize). Do not inject into the signed .app here — that
+          # breaks the seal and Gatekeeper reports the app as damaged.
+          if [ ! -f "$app_path/Contents/MacOS/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib" ]; then
+            echo "Steam redistributable missing from signed .app (afterPack did not run)"
             exit 1
           fi
+
+          mkdir -p steam-content/macos
+          ditto --norsrc "$app_path" steam-content/macos/AIRI.app
           find steam-content/macos -name '._*' -delete
           COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
 
@@ -386,14 +387,14 @@ jobs:
             exit 1
           fi
 
-          mkdir -p steam-content/linux
-          cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
-          # NOTICE: absolute dest — see Windows Steam content packing note above.
-          pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts linux "${{ github.workspace }}/steam-content/linux"
-          if [ ! -f steam-content/linux/steamworks_sdk/redistributable_bin/linux64/libsteam_api.so ]; then
-            echo "Steam redistributable missing from steam-content/linux"
+          # Redistributables are injected in electron-builder afterPack (before sign).
+          if [ ! -f apps/stage-tamagotchi/dist/linux-unpacked/steamworks_sdk/redistributable_bin/linux64/libsteam_api.so ]; then
+            echo "Steam redistributable missing from linux-unpacked (afterPack did not run)"
             exit 1
           fi
+
+          mkdir -p steam-content/linux
+          cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
           tar -cf steam-content-linux.tar -C steam-content linux
 
       - name: Upload Linux Steam content

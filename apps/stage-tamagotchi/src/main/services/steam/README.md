@@ -32,7 +32,11 @@ Run the API server and ensure `POST /api/auth/steam/desktop-sign-in` is reachabl
 
 ### 4. Release / Steam depot
 
-CI restores redistributables, then copies them into each `steam-content` tree:
+Steam CI sets `VITE_DISTRIBUTION=steam` so electron-builder `afterPack` injects
+redistributables **before** codesign/notarize. Depot packaging then copies the
+already-signed tree and only verifies the files exist.
+
+Local / manual:
 
 ```bash
 pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
