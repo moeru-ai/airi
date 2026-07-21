@@ -5,6 +5,44 @@ const stageWindowActivationDelayMs = 750
 const stageWindowClassificationLoadStateTimeoutMs = 500
 const mainWindowReadyIconSelector = '[i-solar\\:alt-arrow-up-line-duotone]'
 
+export type StageWindowName = 'main' | 'settings' | 'chat'
+
+export interface StageWindowSnapshot {
+  name: StageWindowName
+  page: Page
+  title: string
+  route: string
+}
+
+export async function snapshotStageWindows(electronApp: ElectronApplication): Promise<StageWindowSnapshot[]> {
+  const snapshots = await Promise.all(
+    electronApp.windows().map(page => classifyWindow(page)),
+  )
+
+  return snapshots.filter((snapshot): snapshot is StageWindowSnapshot => snapshot !== null)
+}
+
+export async function waitForStageWindow(electronApp: ElectronApplication, name: StageWindowName, timeout = 30_000): Promise<StageWindowSnapshot> {
+  const deadline = Date.now() + timeout
+
+  while (Date.now() < deadline) {
+    const windows = electronApp.windows()
+
+    for (const page of windows) {
+      const classified = await classifyWindow(page)
+      if (classified?.name === name) {
+        await page.bringToFront()
+        await page.waitForTimeout(stageWindowActivationDelayMs)
+        return classified
+      }
+    }
+
+    await new Promise(resolve => setTimeout(resolve, stageWindowPollIntervalMs))
+  }
+
+  throw new Error(`Timed out waiting for "${name}" window`)
+}
+
 async function inferRoute(page: Page): Promise<string> {
   const url = page.url()
   const hashIndex = url.indexOf('#')
@@ -59,42 +97,4 @@ async function classifyWindow(page: Page): Promise<StageWindowSnapshot | null> {
   }
 
   return null
-}
-
-export type StageWindowName = 'main' | 'settings' | 'chat'
-
-export interface StageWindowSnapshot {
-  name: StageWindowName
-  page: Page
-  title: string
-  route: string
-}
-
-export async function snapshotStageWindows(electronApp: ElectronApplication): Promise<StageWindowSnapshot[]> {
-  const snapshots = await Promise.all(
-    electronApp.windows().map(page => classifyWindow(page)),
-  )
-
-  return snapshots.filter((snapshot): snapshot is StageWindowSnapshot => snapshot !== null)
-}
-
-export async function waitForStageWindow(electronApp: ElectronApplication, name: StageWindowName, timeout = 30_000): Promise<StageWindowSnapshot> {
-  const deadline = Date.now() + timeout
-
-  while (Date.now() < deadline) {
-    const windows = electronApp.windows()
-
-    for (const page of windows) {
-      const classified = await classifyWindow(page)
-      if (classified?.name === name) {
-        await page.bringToFront()
-        await page.waitForTimeout(stageWindowActivationDelayMs)
-        return classified
-      }
-    }
-
-    await new Promise(resolve => setTimeout(resolve, stageWindowPollIntervalMs))
-  }
-
-  throw new Error(`Timed out waiting for "${name}" window`)
 }

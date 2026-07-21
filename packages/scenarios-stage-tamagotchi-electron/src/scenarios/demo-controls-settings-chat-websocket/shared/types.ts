@@ -1,8 +1,10 @@
-import type { ScenarioContext, VishotArtifact } from '@proj-airi/vishot-runner-electron'
+import type { VishotArtifact } from '@vishot/source-electron'
+
+import type { StageTamagotchiScenarioContext } from '../../../context.ts'
 
 export type ManualSectionId = 'overview' | 'settings' | 'devtools'
 export type ManualCaptureStepKind = 'main-window' | 'controls-island' | 'chat-window' | 'settings-overview' | 'settings-route' | 'connection'
-export type StageWindowSnapshotLike = Awaited<ReturnType<ScenarioContext['stageWindows']['waitFor']>>
+export type StageWindowSnapshotLike = Awaited<ReturnType<StageTamagotchiScenarioContext['stageWindows']['waitFor']>>
 
 export interface ManualCaptureStep {
   docAssetFileName: string
@@ -22,7 +24,7 @@ export interface ManualCaptureSection {
 
 export interface ManualRuntime {
   chatWindowSnapshot?: StageWindowSnapshotLike
-  context: ScenarioContext
+  context: StageTamagotchiScenarioContext
   mainWindow: StageWindowSnapshotLike
   settingsWindowSnapshot?: StageWindowSnapshotLike
 }

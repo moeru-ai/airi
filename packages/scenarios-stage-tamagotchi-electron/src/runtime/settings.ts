@@ -1,29 +1,5 @@
 import type { Page } from 'playwright'
 
-function normalizeLabel(label: RegExp | string): string | RegExp {
-  return label
-}
-
-function getSettingsSwitch(settingsPage: Page, label: RegExp | string) {
-  const labelLocator = settingsPage.getByText(normalizeLabel(label)).first()
-  const row = labelLocator.locator('xpath=ancestor::label[1]')
-  const button = row.locator('button[role="switch"]').first()
-
-  return { labelLocator, row, button }
-}
-
-function normalizeHashPath(hash: string): string {
-  const withoutHash = hash.startsWith('#')
-    ? hash.slice(1)
-    : hash
-
-  return withoutHash || '/'
-}
-
-function getCurrentHashPath(settingsPage: Page): string {
-  return normalizeHashPath(new URL(settingsPage.url()).hash)
-}
-
 export async function goToSettingsRoute(settingsPage: Page, routePath: string): Promise<Page> {
   const normalizedRoutePath = routePath.startsWith('/')
     ? routePath
@@ -68,4 +44,28 @@ export async function toggleSettingsSwitchByLabel(settingsPage: Page, label: Reg
   }
 
   return { before, after }
+}
+
+function normalizeLabel(label: RegExp | string): string | RegExp {
+  return label
+}
+
+function getSettingsSwitch(settingsPage: Page, label: RegExp | string) {
+  const labelLocator = settingsPage.getByText(normalizeLabel(label)).first()
+  const row = labelLocator.locator('xpath=ancestor::label[1]')
+  const button = row.locator('button[role="switch"]').first()
+
+  return { labelLocator, row, button }
+}
+
+function normalizeHashPath(hash: string): string {
+  const withoutHash = hash.startsWith('#')
+    ? hash.slice(1)
+    : hash
+
+  return withoutHash || '/'
+}
+
+function getCurrentHashPath(settingsPage: Page): string {
+  return normalizeHashPath(new URL(settingsPage.url()).hash)
 }

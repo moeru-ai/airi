@@ -1,8 +1,8 @@
-import { defineScenario } from '@proj-airi/vishot-runner-electron'
+import { defineStageTamagotchiScenario } from '../context.ts'
 
 const websocketServerAddressPattern = /WebSocket Server Address|WebSocket 服务器地址/i
 
-export default defineScenario({
+export default defineStageTamagotchiScenario({
   id: 'settings-connection',
   async run({ capture, stageWindows, controlsIsland, settingsWindow }) {
     const mainWindow = await stageWindows.waitFor('main')
