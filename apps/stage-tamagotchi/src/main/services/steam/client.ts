@@ -2,7 +2,6 @@ import type { SteamInitResult, SteamTicketResult } from './types'
 
 import { useLogg } from '@guiiai/logg'
 
-import { resolveSteamworksSdkDir } from './steamSdkPath'
 import { STEAM_APP_ID } from './types'
 
 const log = useLogg('steam-client').useGlobalConfig()
@@ -51,15 +50,6 @@ export async function initSteam(): Promise<SteamInitResult> {
     return { ok: false, reason: 'api_unavailable' }
   if (!instance.user?.getAuthTicketForWebApi)
     return { ok: false, reason: 'api_unavailable' }
-
-  // NOTICE: Steam macOS depots put steamworks_sdk beside AIRI.app, while
-  // Electron cwd is often `/` or Contents/MacOS. Point the FFI loader there
-  // before init or SteamAPI_Init fails and auth falls back to /ui/sign-in.
-  const sdkDir = resolveSteamworksSdkDir()
-  if (sdkDir)
-    instance.setSdkPath(sdkDir)
-  else
-    log.warn('Steamworks SDK redistributables not found near cwd/execPath')
 
   const initialized = instance.init({ appId: STEAM_APP_ID })
   if (!initialized) {
