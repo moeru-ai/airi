@@ -3,6 +3,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { VoiceInputRecordingSegment, VoiceInputSessionTrigger } from './voice-input-segment'
 import type { VoiceInputTranscriptionTicket } from './voice-input-transcription-chain'
 
+import { toWav } from '@proj-airi/audio/encoding'
 import { computed, ref, shallowRef, toRef } from 'vue'
 
 import workletUrl from '../../workers/vad/process.worklet?worker&url'
@@ -77,6 +78,7 @@ const DEFAULT_VOLUME_FALLBACK_STOP_THRESHOLD = 6
 const DEFAULT_VOLUME_FALLBACK_START_FRAMES = 4
 const DEFAULT_VOLUME_FALLBACK_STOP_DELAY_MS = 900
 const DEFAULT_VOLUME_FALLBACK_LOG_INTERVAL_MS = 2000
+const VAD_SAMPLE_RATE = 16000
 
 function calculateTimeDomainVolumeLevel(dataArray: Uint8Array<ArrayBuffer>) {
   let sum = 0
@@ -93,7 +95,7 @@ function calculateTimeDomainVolumeLevel(dataArray: Uint8Array<ArrayBuffer>) {
  *
  * Owns:
  * - recorder-backed segment creation
- * - VAD-triggered auto segmentation
+ * - VAD-buffer-backed auto segmentation with recorder fallback
  * - volume-triggered fallback segmentation
  * - record-then-transcribe ASR calls
  *
@@ -117,6 +119,7 @@ export function useVoiceInputSession(
   const lastError = ref<unknown>()
   const transcriptionChain = createVoiceInputTranscriptionChain()
   const stoppedRecordingSegments: VoiceInputRecordingSegment[] = []
+  const vadRecordings = new Map<number, Blob>()
   let nextRecordingSegmentId = 0
   let discardNextRecording = false
   let activeTranscriptionCount = 0
@@ -130,6 +133,7 @@ export function useVoiceInputSession(
     isSpeechProb,
     isSpeechHistory,
     inferenceError: vadError,
+    minSilenceDurationMs: vadMinSilenceDurationMs,
   } = useVAD(workletUrl, {
     threshold: options.vad?.threshold,
     minSilenceDurationMs: options.vad?.minSilenceDurationMs,
@@ -140,6 +144,15 @@ export function useVoiceInputSession(
     },
     onSpeechEnd: () => {
       void stopSegment('vad')
+    },
+    onSpeechReady: ({ buffer }) => {
+      const segment = activeRecordingSegment.value
+      if (!segment || segment.trigger !== 'vad')
+        return
+
+      vadRecordings.set(segment.id, new Blob([
+        toWav(buffer.slice().buffer, VAD_SAMPLE_RATE),
+      ], { type: 'audio/wav' }))
     },
   })
 
@@ -187,6 +200,7 @@ export function useVoiceInputSession(
     }
     finally {
       discardNextRecording = false
+      vadRecordings.delete(segment.id)
       activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
     }
   }
@@ -292,6 +306,7 @@ export function useVoiceInputSession(
       const queuedIndex = stoppedRecordingSegments.findIndex(item => item.id === stoppedSegment.id)
       if (queuedIndex !== -1)
         stoppedRecordingSegments.splice(queuedIndex, 1)
+      vadRecordings.delete(stoppedSegment.id)
       lastError.value = error
       log('error', 'segment-stop-failed', 'Failed to stop recorder-backed voice input segment.', { trigger, error })
       await options.onTranscriptionError?.({ trigger, error })
@@ -390,8 +405,13 @@ export function useVoiceInputSession(
 
     const segment = stoppedRecordingSegments.shift()
     const trigger = segment?.trigger ?? activeRecordingTrigger.value ?? 'manual'
+    const recordingForTranscription = segment
+      ? vadRecordings.get(segment.id) ?? recording
+      : recording
+    if (segment)
+      vadRecordings.delete(segment.id)
     await transcriptionChain
-      .enqueue(ticket => processRecording(recording, trigger, ticket))
+      .enqueue(ticket => processRecording(recordingForTranscription, trigger, ticket))
       .catch((error) => {
         lastError.value = error
         log('error', 'recording-processing-error', 'Voice input recording processing failed.', { trigger, error })
@@ -497,18 +517,22 @@ export function useVoiceInputSession(
           }
         }
         else if (activeRecordingTrigger.value === 'volume' || activeRecordingTrigger.value === 'vad') {
+          const requiredSilenceMs = activeRecordingTrigger.value === 'vad'
+            ? (vadMinSilenceDurationMs.value ?? 0) + stopDelayMs
+            : stopDelayMs
+
           if (level > stopThreshold) {
             volumeFallbackLastSpeechAt = now
           }
           else if (!volumeFallbackLastSpeechAt) {
             volumeFallbackLastSpeechAt = now
           }
-          else if (volumeFallbackLastSpeechAt && now - volumeFallbackLastSpeechAt >= stopDelayMs) {
+          else if (volumeFallbackLastSpeechAt && now - volumeFallbackLastSpeechAt >= requiredSilenceMs) {
             const trigger = activeRecordingTrigger.value
             volumeFallbackLastSpeechAt = 0
             log('info', 'volume-fallback-speech-end', 'Volume fallback detected silence; finalizing recorder segment.', {
               level: Number(level.toFixed(1)),
-              silenceMs: stopDelayMs,
+              silenceMs: requiredSilenceMs,
               trigger,
             })
             void stopSegment(trigger)
@@ -548,6 +572,7 @@ export function useVoiceInputSession(
     disposeVAD()
     transcriptionChain.reset()
     stoppedRecordingSegments.length = 0
+    vadRecordings.clear()
 
     if (options.flushActiveRecording && isRecording.value) {
       await stopSegment(activeRecordingTrigger.value ?? 'manual')
