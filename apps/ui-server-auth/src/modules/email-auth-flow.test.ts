@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { createEnrollContext, decideEmailStep } from './email-auth-flow'
+import { buildVerifyEmailCallbackUrl, createEnrollContext, decideEmailStep } from './email-auth-flow'
 
 describe('decideEmailStep', () => {
   it('routes a new email to the create step', () => {
@@ -33,5 +33,33 @@ describe('createEnrollContext', () => {
       continueUrl: 'https://api.airi.build/api/auth/oauth2/authorize?client_id=x',
       apiServerUrl: 'https://api.airi.build',
     })
+  })
+})
+
+describe('buildVerifyEmailCallbackUrl', () => {
+  it('embeds api_server_url and continueURL for the email-link success tab', () => {
+    const url = buildVerifyEmailCallbackUrl({
+      verifyEmailPath: 'https://server-dev.airi-server-auth.pages.dev/ui/verify-email',
+      apiServerUrl: 'https://airi-server-dev.up.railway.app',
+      apiServerUrlQueryParam: 'api_server_url',
+      continueURL: 'https://airi-server-dev.up.railway.app/api/auth/oauth2/authorize?enrollToken=tok',
+    })
+
+    const parsed = new URL(url)
+    expect(parsed.searchParams.get('verified')).toBe('true')
+    expect(parsed.searchParams.get('api_server_url')).toBe('https://airi-server-dev.up.railway.app')
+    expect(parsed.searchParams.get('continueURL')).toBe(
+      'https://airi-server-dev.up.railway.app/api/auth/oauth2/authorize?enrollToken=tok',
+    )
+  })
+
+  it('omits continueURL when enrollment resume is not needed', () => {
+    const url = buildVerifyEmailCallbackUrl({
+      verifyEmailPath: 'https://accounts.airi.build/ui/verify-email',
+      apiServerUrl: 'https://api.airi.build',
+      apiServerUrlQueryParam: 'api_server_url',
+    })
+
+    expect(new URL(url).searchParams.get('continueURL')).toBeNull()
   })
 })
