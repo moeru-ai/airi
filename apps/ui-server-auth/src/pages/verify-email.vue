@@ -6,7 +6,6 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { trackEmailVerificationCompleted, trackEmailVerificationFailed } from '../modules/analytics'
-import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import { API_SERVER_URL_QUERY_PARAM, getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 const { t } = useI18n()
@@ -33,7 +32,8 @@ const verified = computed(() => route.query.verified === 'true')
 // Captured at mount time on the original tab (the one that just submitted the
 // sign-up form) so that, when the verification tab signals success, we know
 // where to resume the upstream OIDC flow. Empty when the sign-up was not
-// initiated inside an OIDC handoff.
+// initiated inside an OIDC handoff. Also embedded on the email callbackURL so
+// the success tab can resume alone when the pending tab is closed.
 const continueURL = computed(() => {
   const value = route.query.continueURL
   return typeof value === 'string' ? value : ''
@@ -49,15 +49,40 @@ const continueURL = computed(() => {
 // the user takes to check their inbox. With BroadcastChannel the only work
 // happens when verification actually finishes.
 //
-// Why still call /get-session at all? The verifying tab cannot complete the
-// OIDC handoff itself — the original tab is the only one carrying the PKCE
-// flowState in sessionStorage. So we wait for the signal, then fetch the
-// session once to make sure the cookie is live before navigating into the
-// OIDC continuation URL.
+// Cross-site auth UI (pages.dev) + API (railway.app): credentials fetch to
+// /get-session does not see the session cookie set on the API host during
+// verify-email. Runtime evidence (debug 7afbeb): after broadcast,
+// resumeIfSessionReady:no-session while Railway had already written
+// session_started — so gating resume on get-session blocks desktop login
+// online even when BroadcastChannel works. Top-level navigation to
+// continueURL (API authorize) sends the cookie; use that after verification.
 type VerifyEmailEvent = 'verified'
 const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, VerifyEmailEvent>({
   name: 'airi-auth-verify-email',
 })
+
+function navigateToContinue(source: string): boolean {
+  if (!continueURL.value) {
+    // #region agent log
+    console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:no-continueURL', {
+      hypothesisId: 'H2',
+      source,
+    })
+    // #endregion
+    return false
+  }
+
+  // #region agent log
+  console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:navigate', {
+    hypothesisId: 'H2',
+    source,
+    mode: 'top-level',
+    hasContinueURL: true,
+  })
+  // #endregion
+  window.location.href = continueURL.value
+  return true
+}
 
 async function resumeIfSessionReady(source: string): Promise<boolean> {
   // #region agent log
@@ -83,6 +108,14 @@ async function resumeIfSessionReady(source: string): Promise<boolean> {
     apiServerHost,
   })
   // #endregion
+
+  // Verification already happened (broadcast or email success tab). Do not gate
+  // on cross-origin get-session — navigate to authorize with a top-level load.
+  if (source === 'broadcast' || source === 'verified-success')
+    return navigateToContinue(source)
+
+  // pending-mount: probe get-session only for same-site / already-verified reload.
+  // Online cross-site often returns 200 with no session; then we wait for broadcast.
   try {
     const response = await fetch(new URL('/api/auth/get-session', apiServerUrl).toString(), {
       credentials: 'include',
@@ -110,18 +143,7 @@ async function resumeIfSessionReady(source: string): Promise<boolean> {
       return false
     }
 
-    // Same-tab navigation preserves sessionStorage on the destination origin,
-    // so the original PKCE flowState saved by the OIDC client is still
-    // available when /auth/callback runs.
-    // #region agent log
-    console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:navigate', {
-      hypothesisId: 'H1',
-      source,
-      hasContinueURL: Boolean(continueURL.value),
-    })
-    // #endregion
-    window.location.href = continueURL.value || buildCurrentOriginAuthUiUrl()
-    return true
+    return navigateToContinue(source)
   }
   catch (error) {
     // #region agent log
@@ -146,9 +168,8 @@ onMounted(async () => {
     broadcastSupported: isSupported.value,
   })
   // #endregion
-  // Verification-success tab: announce to any sibling pending tab that the
-  // session cookie has been written, then stay put so the user sees the
-  // success message. The pending tab does the OIDC continuation.
+  // Verification-success tab: announce to any sibling pending tab, then resume
+  // here when continueURL was embedded in the email callback (pending may be gone).
   if (verified.value) {
     trackEmailVerificationCompleted()
     if (isSupported.value) {
@@ -157,6 +178,8 @@ onMounted(async () => {
       // #endregion
       post('verified')
     }
+    if (continueURL.value)
+      await resumeIfSessionReady('verified-success')
     return
   }
 

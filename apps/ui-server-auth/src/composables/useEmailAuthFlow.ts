@@ -14,7 +14,7 @@ import {
   trackSignupFormCompleted,
 } from '../modules/analytics'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
-import { decideEmailStep } from '../modules/email-auth-flow'
+import { buildVerifyEmailCallbackUrl, decideEmailStep } from '../modules/email-auth-flow'
 import { checkEmail, describeAuthError, signInWithEmail, signUpWithEmail } from '../modules/email-password'
 import { API_SERVER_URL_QUERY_PARAM } from '../modules/server-auth-context'
 import { requestSocialSignInRedirect } from '../modules/sign-in'
@@ -173,14 +173,16 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
       const name = options.scope === 'enroll'
         ? ''
         : credentials.name.trim() || email.split('@')[0]
-      // NOTICE: carry api_server_url onto the verify-email callback URL.
-      // The email link opens in a fresh tab with no bootstrap context, so
-      // without it the verified tab falls back to the production SERVER_URL
-      // default and any navigation off it (e.g. "back to sign in") talks to
-      // the wrong backend than the one the enrollment targeted.
-      const signUpCallbackUrl = new URL(buildCurrentOriginAuthUiUrl('/verify-email?verified=true'))
-      signUpCallbackUrl.searchParams.set(API_SERVER_URL_QUERY_PARAM, options.apiServerUrl)
-      const signUpCallbackURL = signUpCallbackUrl.toString()
+      // NOTICE: carry api_server_url + continueURL onto the verify-email callback.
+      // Without api_server_url the success tab falls back to production SERVER_URL.
+      // Without continueURL the success tab cannot top-level-resume authorize when
+      // the pending tab is closed (and cross-site get-session cannot see the cookie).
+      const signUpCallbackURL = buildVerifyEmailCallbackUrl({
+        verifyEmailPath: buildCurrentOriginAuthUiUrl('/verify-email'),
+        apiServerUrl: options.apiServerUrl,
+        apiServerUrlQueryParam: API_SERVER_URL_QUERY_PARAM,
+        continueURL: options.verifyContinueUrl || undefined,
+      })
       // #region agent log
       console.info('[airi-debug:7afbeb]', 'signup:callbackURL', {
         hypothesisId: 'H3',
