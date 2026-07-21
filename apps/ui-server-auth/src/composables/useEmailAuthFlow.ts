@@ -181,6 +181,15 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
       const signUpCallbackUrl = new URL(buildCurrentOriginAuthUiUrl('/verify-email?verified=true'))
       signUpCallbackUrl.searchParams.set(API_SERVER_URL_QUERY_PARAM, options.apiServerUrl)
       const signUpCallbackURL = signUpCallbackUrl.toString()
+      // #region agent log
+      console.info('[airi-debug:7afbeb]', 'signup:callbackURL', {
+        hypothesisId: 'H3',
+        scope: options.scope,
+        hasVerifyContinueUrl: Boolean(options.verifyContinueUrl),
+        callbackHasContinueURL: signUpCallbackURL.includes('continueURL='),
+        pendingWillHaveContinueURL: Boolean(options.verifyContinueUrl),
+      })
+      // #endregion
       const result = await signUpWithEmail({
         apiServerUrl: options.apiServerUrl,
         email,

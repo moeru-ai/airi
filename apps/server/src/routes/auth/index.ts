@@ -89,6 +89,13 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         return
       }
 
+      // #region agent log
+      console.info('[airi-debug:7afbeb]', 'authorize:enrollToken-present', {
+        hypothesisId: 'H4',
+        hasToken: true,
+      })
+      // #endregion
+
       const cleanedUrl = new URL(c.req.url)
       cleanedUrl.searchParams.delete('enrollToken')
       const cleanedRequest = new Request(cleanedUrl.toString(), c.req.raw)
@@ -103,6 +110,13 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       // re-authenticate — the token survives until its 10m TTL.
       if (resolved?.user && !isUserBannedNow(resolved.user)) {
         const payload = await consumeEnrollmentToken(deps.db, enrollToken)
+        // #region agent log
+        console.info('[airi-debug:7afbeb]', 'authorize:enroll-consume', {
+          hypothesisId: 'H4',
+          hasSession: true,
+          tokenConsumed: Boolean(payload),
+        })
+        // #endregion
         if (payload) {
           try {
             await linkSteamToUser(deps.db, {
@@ -110,15 +124,29 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
               steamId: payload.steamId,
               profile: payload.profile,
             })
+            // #region agent log
+            console.info('[airi-debug:7afbeb]', 'authorize:steam-linked', { hypothesisId: 'H4' })
+            // #endregion
           }
           catch {
             // Link failed: do not issue a code. The browser sees a 403; the
             // Electron loopback times out and surfaces a retry toast. The token
             // is already consumed (single-use) so the user relaunches Steam for a
             // fresh enrollment handoff.
+            // #region agent log
+            console.info('[airi-debug:7afbeb]', 'authorize:steam-link-failed', { hypothesisId: 'H4' })
+            // #endregion
             throw createForbiddenError('Steam enrollment failed — please relaunch AIRI', 'STEAM_ENROLLMENT_LINK_FAILED')
           }
         }
+      }
+      else {
+        // #region agent log
+        console.info('[airi-debug:7afbeb]', 'authorize:enroll-no-session', {
+          hypothesisId: 'H4',
+          hasResolvedUser: Boolean(resolved?.user),
+        })
+        // #endregion
       }
 
       return handleAuthRequest(cleanedRequest)
