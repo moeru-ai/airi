@@ -35,7 +35,9 @@ Run the API server and ensure `POST /api/auth/steam/desktop-sign-in` is reachabl
 Steam CI sets `VITE_DISTRIBUTION=steam` so electron-builder `afterPack` injects
 redistributables **before** codesign/notarize. On macOS they are placed **next
 to** the `.app` (not under `Contents/MacOS`, which breaks Developer ID signing).
-Depot packaging copies the signed `.app` plus those sibling files.
+At runtime `initSteam` resolves that folder (via `steamSdkPath`) and calls
+`setSdkPath` before `SteamAPI_Init`, because packaged Electron cwd is not the
+depot root. Depot packaging copies the signed `.app` plus those sibling files.
 
 Local / manual:
 
