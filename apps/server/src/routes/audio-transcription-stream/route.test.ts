@@ -24,7 +24,7 @@ function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {
 
 function createProviderCatalogService(routeModelId = 'auto'): ProviderCatalogService {
   return {
-    syncAliasesFromRouterConfig: vi.fn(async () => []),
+    syncAsrAliasesFromRouterConfig: vi.fn(async () => []),
     resolveEnabledAlias: vi.fn(async () => ({
       id: 'alias-auto',
       surface: 'asr',
@@ -136,7 +136,7 @@ describe('resolveOfficialAliyunNlsCredentials', () => {
       accessKeySecret: 'secret',
       appKey: 'app',
     })
-    expect(providerCatalogService.syncAliasesFromRouterConfig).not.toHaveBeenCalled()
+    expect(providerCatalogService.syncAsrAliasesFromRouterConfig).not.toHaveBeenCalled()
     expect(providerCatalogService.resolveEnabledAlias).toHaveBeenCalledWith('asr', 'auto')
   })
 

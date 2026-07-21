@@ -9,6 +9,7 @@ import type {
   ProviderCatalogTtsVoiceLabels,
   ProviderCatalogTtsVoiceLanguage,
 } from '../../../schemas/provider-catalog'
+import type { RouterConfig } from '../llm-router/types'
 
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
@@ -71,6 +72,26 @@ export interface ProviderCatalogTtsVoiceUpdateInput {
   languages?: ProviderCatalogTtsVoiceLanguage[]
   labels?: ProviderCatalogTtsVoiceLabels
   previewAudioUrl?: string | null
+}
+
+function llmAliasModelIds(config: RouterConfig, defaultModel: string): string[] {
+  return [
+    defaultModel,
+    ...Object.keys(config.llm.models).sort().filter(modelId => modelId !== defaultModel),
+  ]
+}
+
+function asrAliasModelIds(config: RouterConfig): string[] {
+  return Object.keys(config.asr?.models ?? {}).sort()
+}
+
+function ttsModelInputs(config: RouterConfig): Record<string, ProviderCatalogTtsModelSyncInput> {
+  return Object.fromEntries(
+    Object.entries(config.tts.models).map(([routerModelId, model]) => [
+      routerModelId,
+      { provider: model.provider },
+    ]),
+  )
 }
 
 function defaultAliasDisplayName(surface: CapabilityAliasSurface, aliasId: string): string {
@@ -180,25 +201,44 @@ export function createProviderCatalogService(db: Database) {
     return route
   }
 
-  return {
-    async syncAliasesFromRouterConfig(input: {
-      surface: CapabilityAliasSurface
-      modelIds: string[]
-    }) {
-      const alias = await ensureAlias(input.surface, DEFAULT_ALIAS_ID)
-      const uniqueModelIds = Array.from(new Set(input.modelIds))
-      for (const [index, routerModelId] of uniqueModelIds.entries()) {
-        await syncAliasRoute({
-          aliasRowId: alias.id,
-          routerModelId,
-          pool: 'primary',
-          order: index,
-        })
-      }
+  async function syncAliases(input: {
+    surface: CapabilityAliasSurface
+    modelIds: string[]
+  }) {
+    const alias = await ensureAlias(input.surface, DEFAULT_ALIAS_ID)
+    const uniqueModelIds = Array.from(new Set(input.modelIds))
+    for (const [index, routerModelId] of uniqueModelIds.entries()) {
+      await syncAliasRoute({
+        aliasRowId: alias.id,
+        routerModelId,
+        pool: 'primary',
+        order: index,
+      })
+    }
 
-      return await db.query.capabilityAliases.findMany({
-        where: eq(capabilityAliases.surface, input.surface),
-        orderBy: [asc(capabilityAliases.displayOrder), asc(capabilityAliases.aliasId)],
+    return await db.query.capabilityAliases.findMany({
+      where: eq(capabilityAliases.surface, input.surface),
+      orderBy: [asc(capabilityAliases.displayOrder), asc(capabilityAliases.aliasId)],
+    })
+  }
+
+  return {
+    async syncLlmAliasesFromRouterConfig(input: {
+      config: RouterConfig
+      defaultModel: string
+    }) {
+      return await syncAliases({
+        surface: 'llm',
+        modelIds: llmAliasModelIds(input.config, input.defaultModel),
+      })
+    },
+
+    async syncAsrAliasesFromRouterConfig(input: {
+      config: RouterConfig
+    }) {
+      return await syncAliases({
+        surface: 'asr',
+        modelIds: asrAliasModelIds(input.config),
       })
     },
 
@@ -260,13 +300,13 @@ export function createProviderCatalogService(db: Database) {
     },
 
     async syncTtsModelsFromRouterConfig(input: {
-      models: Record<string, ProviderCatalogTtsModelSyncInput>
+      config: RouterConfig
     }) {
       const existingModels = await db.query.providerCatalogTtsModels.findMany()
       const synced: ProviderCatalogTtsModel[] = []
       const now = new Date()
 
-      for (const [routerModelId, model] of Object.entries(input.models).sort(([a], [b]) => a.localeCompare(b))) {
+      for (const [routerModelId, model] of Object.entries(ttsModelInputs(input.config)).sort(([a], [b]) => a.localeCompare(b))) {
         const [syncedModel] = await db.insert(providerCatalogTtsModels).values({
           routerModelId,
           provider: model.provider,

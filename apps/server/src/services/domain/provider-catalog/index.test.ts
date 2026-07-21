@@ -1,4 +1,5 @@
 import type { Database } from '../../../libs/db'
+import type { RouterConfig } from '../llm-router/types'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -9,6 +10,48 @@ import { capabilityAliases, capabilityAliasRoutes, providerCatalogTtsModels, pro
 import { ApiError } from '../../../utils/error'
 
 import * as schema from '../../../schemas'
+
+function routerConfig(input: {
+  llmModels?: string[]
+  ttsModels?: Record<string, 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcengine'>
+  asrModels?: string[]
+}): RouterConfig {
+  const key = { id: 'key-1', ciphertext: 'ciphertext' }
+  const fallbackTriggers = { httpCodes: [401, 429, 500], onTimeout: true }
+
+  return {
+    llm: {
+      models: Object.fromEntries((input.llmModels ?? []).map(modelId => [
+        modelId,
+        {
+          upstreams: [{ baseURL: 'https://llm.example.com', keys: [key], headerTemplate: 'Bearer {KEY}' }],
+          fallbackTriggers,
+        },
+      ])),
+    },
+    tts: {
+      models: Object.fromEntries(Object.entries(input.ttsModels ?? {}).map(([modelId, provider]) => [
+        modelId,
+        {
+          provider,
+          upstreams: [{ baseURL: 'https://tts.example.com', keys: [key], adapterParams: {} }],
+          fallbackTriggers,
+        },
+      ])),
+    },
+    asr: {
+      models: Object.fromEntries((input.asrModels ?? []).map(modelId => [
+        modelId,
+        { provider: 'aliyun-nls', upstreams: [{ keys: [key], adapterParams: {} }] },
+      ])),
+    },
+    defaults: {
+      perAttemptTimeoutMs: 30000,
+      fullChainTimeoutMs: 60000,
+      fallbackHttpCodes: [401, 429, 500],
+    },
+  }
+}
 
 describe('providerCatalogService', () => {
   let db: Database
@@ -27,9 +70,9 @@ describe('providerCatalogService', () => {
   })
 
   it('syncs the default LLM auto alias and runtime model routes as enabled', async () => {
-    const aliases = await service.syncAliasesFromRouterConfig({
-      surface: 'llm',
-      modelIds: ['chat-b', 'chat-a'],
+    const aliases = await service.syncLlmAliasesFromRouterConfig({
+      config: routerConfig({ llmModels: ['chat-b', 'chat-a'] }),
+      defaultModel: 'chat-b',
     })
 
     expect(aliases).toHaveLength(1)
@@ -49,7 +92,10 @@ describe('providerCatalogService', () => {
   })
 
   it('preserves alias and route curation across repeated syncs', async () => {
-    await service.syncAliasesFromRouterConfig({ surface: 'llm', modelIds: ['chat-a'] })
+    await service.syncLlmAliasesFromRouterConfig({
+      config: routerConfig({ llmModels: ['chat-a'] }),
+      defaultModel: 'chat-a',
+    })
     const [alias] = await db.select().from(capabilityAliases)
     const [route] = await db.select().from(capabilityAliasRoutes)
 
@@ -60,7 +106,10 @@ describe('providerCatalogService', () => {
       .set({ enabled: false, displayOrder: 9 })
       .where(eq(capabilityAliasRoutes.id, route.id))
 
-    await service.syncAliasesFromRouterConfig({ surface: 'llm', modelIds: ['chat-a', 'chat-b'] })
+    await service.syncLlmAliasesFromRouterConfig({
+      config: routerConfig({ llmModels: ['chat-a', 'chat-b'] }),
+      defaultModel: 'chat-a',
+    })
     const aliases = await service.listAliases('llm')
     const preservedRoute = aliases[0].routes.find(item => item.routerModelId === 'chat-a')
     const newRoute = aliases[0].routes.find(item => item.routerModelId === 'chat-b')
@@ -72,19 +121,14 @@ describe('providerCatalogService', () => {
 
   it('syncs runtime TTS models as enabled but preserves admin display fields', async () => {
     const first = await service.syncTtsModelsFromRouterConfig({
-      models: {
-        'alibaba/cosyvoice-v2': { provider: 'dashscope-cosyvoice' },
-      },
+      config: routerConfig({ ttsModels: { 'alibaba/cosyvoice-v2': 'dashscope-cosyvoice' } }),
     })
     await db.update(providerCatalogTtsModels)
       .set({ enabled: false, displayName: 'Curated CosyVoice', displayOrder: 7 })
       .where(eq(providerCatalogTtsModels.id, first[0].id))
 
     await service.syncTtsModelsFromRouterConfig({
-      models: {
-        'alibaba/cosyvoice-v2': { provider: 'dashscope-cosyvoice' },
-        'microsoft/v1': { provider: 'azure' },
-      },
+      config: routerConfig({ ttsModels: { 'alibaba/cosyvoice-v2': 'dashscope-cosyvoice', 'microsoft/v1': 'azure' } }),
     })
 
     const models = await service.listTtsModels()
@@ -104,7 +148,7 @@ describe('providerCatalogService', () => {
 
   it('syncs provider voices as disabled by default and preserves curation on resync', async () => {
     await service.syncTtsModelsFromRouterConfig({
-      models: { 'microsoft/v1': { provider: 'azure' } },
+      config: routerConfig({ ttsModels: { 'microsoft/v1': 'azure' } }),
     })
 
     const first = await service.syncTtsVoices({
@@ -157,7 +201,7 @@ describe('providerCatalogService', () => {
 
   it('lists and gates only enabled TTS models and voices', async () => {
     const [model] = await service.syncTtsModelsFromRouterConfig({
-      models: { 'microsoft/v1': { provider: 'azure' } },
+      config: routerConfig({ ttsModels: { 'microsoft/v1': 'azure' } }),
     })
     const [voice] = await service.syncTtsVoices({
       routerModelId: 'microsoft/v1',
@@ -189,7 +233,10 @@ describe('providerCatalogService', () => {
       errorCode: 'CAPABILITY_ALIAS_NOT_FOUND',
     })
 
-    await service.syncAliasesFromRouterConfig({ surface: 'llm', modelIds: ['chat-a'] })
+    await service.syncLlmAliasesFromRouterConfig({
+      config: routerConfig({ llmModels: ['chat-a'] }),
+      defaultModel: 'chat-a',
+    })
     const [alias] = await db.select().from(capabilityAliases)
     await db.update(capabilityAliases)
       .set({ enabled: false })
@@ -199,7 +246,7 @@ describe('providerCatalogService', () => {
       errorCode: 'CAPABILITY_ALIAS_DISABLED',
     })
 
-    await service.syncTtsModelsFromRouterConfig({ models: { 'microsoft/v1': { provider: 'azure' } } })
+    await service.syncTtsModelsFromRouterConfig({ config: routerConfig({ ttsModels: { 'microsoft/v1': 'azure' } }) })
     await expect(service.assertTtsVoiceEnabled('microsoft/v1', 'missing')).rejects.toBeInstanceOf(ApiError)
     await expect(service.assertTtsVoiceEnabled('microsoft/v1', 'missing')).rejects.toMatchObject({
       errorCode: 'PROVIDER_CATALOG_TTS_VOICE_NOT_FOUND',
