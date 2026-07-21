@@ -957,6 +957,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          prompt-api:
+            check-availability:
+              title: Availability
           status:
             validating: Validating...
             valid: Passed

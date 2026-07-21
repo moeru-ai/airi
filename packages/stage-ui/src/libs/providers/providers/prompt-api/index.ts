@@ -1,8 +1,7 @@
-import { createChatProvider } from 'xsai-chromium-prompt'
+import { errorMessageFrom } from '@moeru/std'
+import { checkPromptAvailability, createChatProvider } from 'xsai-chromium-prompt'
 import { z } from 'zod'
 
-import { ProviderValidationCheck } from '../../types'
-import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
 
 const openAICompatibleConfigSchema = z.object({
@@ -11,7 +10,8 @@ const openAICompatibleConfigSchema = z.object({
     .optional(),
   baseUrl: z
     .string('Base URL')
-    .optional(),
+    .optional()
+    .default('http://localhost:5173/settings/providers/chat/prompt-api'),
 })
 
 type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
@@ -35,8 +35,49 @@ export const providerPromptAPICompatible = defineProvider<OpenAICompatibleConfig
     return !!config.apiKey?.trim()
   },
   validators: {
-    ...createOpenAICompatibleValidators({
-      checks: [ProviderValidationCheck.Connectivity],
-    }),
+    validateConfig: [
+      ({ t }) => ({
+        id: 'prompt-api:check-availability',
+        name: t('settings.pages.providers.catalog.edit.validators.prompt-api.check-availability.title'),
+        schedule: {
+          mode: 'interval',
+          intervalMs: 15_000,
+        },
+        validator: async () => {
+          const errors: Array<{ error: unknown }> = []
+          let reason = ''
+          try {
+            const availability = await checkPromptAvailability()
+            switch (availability) {
+              case 'available':
+                break
+              case 'downloadable':
+                reason = 'The model is downloadable'
+                errors.push({ error: new Error(reason) })
+                break
+              case 'downloading':
+                reason = 'The model is downloading'
+                errors.push({ error: new Error(reason) })
+                break
+              case 'unavailable':
+                reason = 'The Prompt API is unavailable'
+                errors.push({ error: new Error(reason) })
+                break
+            }
+          }
+          catch (e) {
+            const errorMessage = errorMessageFrom(e) || 'Unknown error.'
+            const reason = `Connectivity check failed: ${errorMessage}`
+            errors.push({ error: new Error(reason) })
+          }
+          return {
+            errors,
+            reason: errors.length > 0 ? errors.map(item => (item.error as Error).message).join(', ') : '',
+            reasonKey: '',
+            valid: errors.length === 0,
+          }
+        },
+      }),
+    ],
   },
 })
