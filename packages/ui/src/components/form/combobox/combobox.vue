@@ -1,6 +1,8 @@
 <script setup lang="ts" generic="T extends AcceptableValue">
 import type { AcceptableValue } from 'reka-ui'
 
+import type { ComboboxOptionGroupItem, ComboboxOptionItem } from './types'
+
 import {
   ComboboxAnchor,
   ComboboxContent,
@@ -17,19 +19,6 @@ import {
   ComboboxViewport,
 } from 'reka-ui'
 import { computed } from 'vue'
-
-interface ComboboxOptionItem<T extends AcceptableValue> {
-  label: string
-  value: T
-  description?: string
-  disabled?: boolean
-  icon?: string
-}
-
-interface ComboboxOptionGroupItem<T extends AcceptableValue> {
-  groupLabel?: string
-  children?: ComboboxOptionItem<T>[]
-}
 
 const props = withDefaults(defineProps<{
   options: ComboboxOptionItem<T>[] | ComboboxOptionGroupItem<T>[]
