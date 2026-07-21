@@ -24,11 +24,13 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
 import { BrowserWindow, screen } from 'electron'
 
 import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { protectPrivilegedWindowNavigation } from '../shared/window'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
   applyDesktopOverlayInputIsolation,
@@ -38,7 +40,7 @@ import {
 
 /** Whether the desktop overlay feature is enabled */
 export function isDesktopOverlayEnabled(): boolean {
-  return process.env.AIRI_DESKTOP_OVERLAY === '1'
+  return env.AIRI_DESKTOP_OVERLAY === '1'
 }
 
 /**
@@ -47,7 +49,7 @@ export function isDesktopOverlayEnabled(): boolean {
  * mount the in-page smoke bridge.
  */
 export function isDesktopOverlayPollHeartbeatEnabled(): boolean {
-  return process.env.AIRI_DESKTOP_OVERLAY_POLL_HEARTBEAT === '1'
+  return env.AIRI_DESKTOP_OVERLAY_POLL_HEARTBEAT === '1'
 }
 
 let overlayWindow: BrowserWindow | null = null
@@ -80,6 +82,7 @@ export async function setupDesktopOverlayWindow(params: {
     bounds: primaryDisplay.bounds,
     preloadPath,
   }))
+  protectPrivilegedWindowNavigation(overlayWindow)
   applyDesktopOverlayInputIsolation(overlayWindow)
 
   overlayWindow.on('ready-to-show', () => {

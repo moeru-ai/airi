@@ -4,10 +4,12 @@ import './aihubmix'
 import './lm-studio'
 import './azure-openai'
 import './openai-compatible'
+import './atlascloud'
 import './volcengine-coding-plan'
 import './byteplus'
 import './byteplus-coding-plan'
 import './n1n'
+import './openpaths'
 import './openrouter-ai'
 import './nvidia'
 import './groq'
@@ -37,6 +39,7 @@ import './official'
 export {
   getDefaultStreamingModel,
   getStreamingTtsAvailable,
+  OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
 } from './official'
 
 export {

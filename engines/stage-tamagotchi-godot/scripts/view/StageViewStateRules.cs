@@ -9,6 +9,7 @@ public static class StageViewStateRules
     public const double CameraMaxPitchDeg = 80;
     public const double CameraMinFovDeg = 10;
     public const double CameraMaxFovDeg = 120;
+    public const double CameraMinPositionY = 0.05;
 
     public static StageViewState CreateDefault() => new(
         1,
@@ -35,7 +36,11 @@ public static class StageViewStateRules
             || patch.Camera?.FovDeg != null;
     }
 
-    public static StageViewState ApplyPatch(StageViewState current, StageViewPatch patch, long updatedAt)
+    public static StageViewState ApplyPatch(
+        StageViewState current,
+        StageViewPatch patch,
+        long updatedAt
+    )
     {
         if (!HasMutation(patch))
         {
@@ -72,6 +77,7 @@ public static class StageViewStateRules
             SchemaVersion = 1,
             Camera = state.Camera with
             {
+                Position = ClampCameraPosition(state.Camera.Position),
                 YawDeg = NormalizeDegrees(state.Camera.YawDeg),
                 PitchDeg = Clamp(state.Camera.PitchDeg, CameraMinPitchDeg, CameraMaxPitchDeg),
                 FovDeg = Clamp(state.Camera.FovDeg, CameraMinFovDeg, CameraMaxFovDeg),
@@ -113,6 +119,15 @@ public static class StageViewStateRules
     private static bool HasVec3Mutation(StageViewVec3Patch patch)
     {
         return patch?.X != null || patch?.Y != null || patch?.Z != null;
+    }
+
+    private static StageViewVec3 ClampCameraPosition(StageViewVec3 position)
+    {
+        return new StageViewVec3(
+            position.X,
+            Clamp(position.Y, CameraMinPositionY, double.PositiveInfinity),
+            position.Z
+        );
     }
 
     private static double Clamp(double value, double min, double max)

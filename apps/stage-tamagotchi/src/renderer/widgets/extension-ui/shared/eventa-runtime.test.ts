@@ -1,4 +1,6 @@
+import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/window-message'
+import { gameletIframeRequest } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
 import { widgetsIframeInitEvent, widgetsIframePublishEvent } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
 import { describe, expect, it } from 'vitest'
 
@@ -123,6 +125,43 @@ describe('createContext', () => {
         requestId: 'req-1',
       }),
     }))
+
+    host.dispose()
+    iframe.dispose()
+  })
+
+  it('relays gamelet iframe invoke requests over the extension UI bridge', async () => {
+    const parentWindow = new MockWindow()
+    const iframeWindow = new MockWindow()
+    parentWindow.peer = iframeWindow
+    iframeWindow.peer = parentWindow
+
+    const host = createContext({
+      channel: 'test:extension-ui',
+      currentWindow: parentWindow as unknown as Window,
+      expectedSource: () => iframeWindow as unknown as Window,
+      targetWindow: () => iframeWindow as unknown as Window,
+    })
+    const iframe = createContext({
+      channel: 'test:extension-ui',
+      currentWindow: iframeWindow as unknown as Window,
+      expectedSource: () => parentWindow as unknown as Window,
+      targetWindow: () => parentWindow as unknown as Window,
+    })
+
+    defineInvokeHandler(iframe.context, gameletIframeRequest, ({ payload }) => {
+      return {
+        fen: payload.action === 'snapshot' ? 'fen-after-request' : 'unknown',
+      }
+    })
+
+    const invokeGameletIframeRequest = defineInvoke(host.context, gameletIframeRequest)
+    await expect(invokeGameletIframeRequest({
+      requestId: 'req-1',
+      payload: {
+        action: 'snapshot',
+      },
+    })).resolves.toEqual({ fen: 'fen-after-request' })
 
     host.dispose()
     iframe.dispose()

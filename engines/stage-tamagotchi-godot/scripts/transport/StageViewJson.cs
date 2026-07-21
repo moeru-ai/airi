@@ -83,6 +83,125 @@ public static class StageViewJson
         return new StageViewSnapshotRequestPayload(requestId);
     }
 
+    public static StageViewCapturePngRequestPayload ParseCapturePngRequest(JsonElement payload)
+    {
+        ExpectObject(payload, "view PNG capture request");
+
+        string requestId = null;
+        string path = null;
+        var settleFrames = 1;
+        foreach (var property in payload.EnumerateObject())
+        {
+            switch (property.Name)
+            {
+                case "requestId":
+                    requestId = ReadRequiredRequestId(property.Value, "View PNG capture requestId");
+                    break;
+                case "path":
+                    path = ReadRequiredString(property.Value, "View PNG capture path");
+                    break;
+                case "settleFrames":
+                    settleFrames = ReadNonNegativeInt32(
+                        property.Value,
+                        "View PNG capture settleFrames"
+                    );
+                    break;
+                default:
+                    throw Invalid($"Unknown view PNG capture request field: {property.Name}.");
+            }
+        }
+
+        if (requestId == null)
+        {
+            throw Invalid("View PNG capture requestId is required.");
+        }
+
+        if (path == null)
+        {
+            throw Invalid("View PNG capture path is required.");
+        }
+
+        return new StageViewCapturePngRequestPayload(requestId, path, settleFrames);
+    }
+
+    public static StageRenderDebugViewRequestPayload ParseRenderDebugViewRequest(
+        JsonElement payload
+    )
+    {
+        ExpectObject(payload, "render debug view request");
+
+        string requestId = null;
+        string view = null;
+        foreach (var property in payload.EnumerateObject())
+        {
+            switch (property.Name)
+            {
+                case "requestId":
+                    requestId = ReadRequiredRequestId(
+                        property.Value,
+                        "Render debug view requestId"
+                    );
+                    break;
+                case "view":
+                    view = ReadRequiredString(property.Value, "Render debug view");
+                    break;
+                default:
+                    throw Invalid($"Unknown render debug view request field: {property.Name}.");
+            }
+        }
+
+        if (requestId == null)
+        {
+            throw Invalid("Render debug view requestId is required.");
+        }
+
+        if (view == null)
+        {
+            throw Invalid("Render debug view is required.");
+        }
+
+        return new StageRenderDebugViewRequestPayload(requestId, view);
+    }
+
+    public static StageRenderAvatarEdgeLightRequestPayload ParseRenderAvatarEdgeLightRequest(
+        JsonElement payload
+    )
+    {
+        ExpectObject(payload, "render avatar edge-light request");
+
+        string requestId = null;
+        bool? enabled = null;
+        foreach (var property in payload.EnumerateObject())
+        {
+            switch (property.Name)
+            {
+                case "requestId":
+                    requestId = ReadRequiredRequestId(
+                        property.Value,
+                        "Render avatar edge-light requestId"
+                    );
+                    break;
+                case "enabled":
+                    enabled = ReadBoolean(property.Value, "Render avatar edge-light enabled");
+                    break;
+                default:
+                    throw Invalid($"Unknown render avatar edge-light request field: {property.Name}.");
+            }
+        }
+
+        if (requestId == null)
+        {
+            throw Invalid("Render avatar edge-light requestId is required.");
+        }
+
+        if (enabled == null)
+        {
+            throw Invalid("Render avatar edge-light enabled is required.");
+        }
+
+        return new StageRenderAvatarEdgeLightRequestPayload(requestId, enabled.Value);
+    }
+
     public static StageViewState ParseState(JsonElement payload)
     {
         ExpectObject(payload, "view state");
@@ -283,6 +402,12 @@ public static class StageViewJson
 
     private static string ReadRequiredRequestId(JsonElement payload, string field)
     {
+        var value = ReadRequiredString(payload, field);
+        return value;
+    }
+
+    private static string ReadRequiredString(JsonElement payload, string field)
+    {
         var value = ReadString(payload, field);
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -310,6 +435,27 @@ public static class StageViewJson
         }
 
         return value;
+    }
+
+    private static int ReadNonNegativeInt32(JsonElement payload, string field)
+    {
+        var value = ReadInt32(payload, field);
+        if (value < 0)
+        {
+            throw Invalid($"Expected {field} to be non-negative.");
+        }
+
+        return value;
+    }
+
+    private static bool ReadBoolean(JsonElement payload, string field)
+    {
+        if (payload.ValueKind != JsonValueKind.True && payload.ValueKind != JsonValueKind.False)
+        {
+            throw Invalid($"Expected {field} to be a boolean.");
+        }
+
+        return payload.GetBoolean();
     }
 
     private static long ReadInt64(JsonElement payload, string field)

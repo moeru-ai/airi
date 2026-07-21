@@ -1,6 +1,6 @@
-import { defineScenario } from '@proj-airi/vishot-runner-electron'
+import { defineStageTamagotchiScenario } from '../context.ts'
 
-export default defineScenario({
+export default defineStageTamagotchiScenario({
   id: 'demo-dismiss-surfaces',
   async run({ dialogs, drawers, stageWindows }) {
     const mainWindow = await stageWindows.waitFor('main')

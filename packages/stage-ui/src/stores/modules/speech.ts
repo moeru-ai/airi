@@ -12,7 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 
 export function toSignedPercent(value: number): string {
@@ -21,6 +21,19 @@ export function toSignedPercent(value: number): string {
   if (value < 0)
     return `-${Math.abs(value)}%`
   return '0%'
+}
+
+interface SpeechInputOptions {
+  text: string
+  voice: VoiceInfo
+  providerConfig?: Record<string, unknown>
+  forceSSML?: boolean
+  supportsSSML?: boolean
+}
+
+interface SpeechInput {
+  input: string
+  providerConfig: Record<string, unknown>
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -47,7 +60,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.findProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
   })
 
   const providerModels = computed(() => {
@@ -170,7 +183,10 @@ export const useSpeechStore = defineStore('speech', () => {
     if (hasValidSelection)
       return
 
-    activeSpeechModel.value = models[0]?.id ?? ''
+    const defaultModel = getDefaultSpeechModel()
+    activeSpeechModel.value = defaultModel && models.some(m => m.id === defaultModel)
+      ? defaultModel
+      : models[0]?.id ?? ''
     clearVoiceSelection()
   }
 
@@ -284,10 +300,16 @@ export const useSpeechStore = defineStore('speech', () => {
     voice: string,
     providerConfig: Record<string, any> = {},
   ): Promise<ArrayBuffer> {
+    const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+      || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+      ? withAiriTtsAnalytics(providerConfig, {
+          trigger: 'manual',
+          source: 'manual_preview',
+          voice_type: resolveVoiceType(voice),
+        })
+      : providerConfig
     const response = await generateSpeech({
-      ...provider.speech(model, {
-        ...providerConfig,
-      }),
+      ...provider.speech(model, requestProviderConfig),
       input,
       voice,
     })
@@ -295,25 +317,50 @@ export const useSpeechStore = defineStore('speech', () => {
     return response
   }
 
+  function withAiriTtsAnalytics(
+    providerConfig: Record<string, any>,
+    analytics: {
+      trigger: 'auto' | 'manual'
+      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+    },
+  ): Record<string, any> {
+    return {
+      ...providerConfig,
+      extraBody: {
+        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
+        airi_analytics: analytics,
+      },
+    }
+  }
+
+  /**
+   * Classifies the active speech voice before forwarding analytics to the server.
+   */
+  function resolveVoiceType(voiceId: string): 'official_selected' | 'custom_configured' {
+    const catalogVoice = availableVoices.value[activeSpeechProvider.value]?.some(voice => voice.id === voiceId)
+    return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID && catalogVoice ? 'official_selected' : 'custom_configured'
+  }
+
   function generateSSML(
     text: string,
     voice: VoiceInfo,
-    providerConfig?: Record<string, any>,
+    providerConfig?: Record<string, unknown>,
   ): string {
     const pitch = providerConfig?.pitch
     const speed = providerConfig?.speed
     const volume = providerConfig?.volume
 
     const prosody = {
-      pitch: pitch != null
+      pitch: typeof pitch === 'number'
         ? toSignedPercent(pitch)
         : undefined,
-      rate: speed != null
+      rate: typeof speed === 'number'
         ? speed !== 1.0
           ? `${speed}`
           : '1'
         : undefined,
-      volume: volume != null
+      volume: typeof volume === 'number'
         ? toSignedPercent(volume)
         : undefined,
     }
@@ -335,6 +382,18 @@ export const useSpeechStore = defineStore('speech', () => {
     ])
 
     return toXml(ssmlXast)
+  }
+
+  function resolveSpeechInput(options: SpeechInputOptions): SpeechInput {
+    const providerConfig = { ...options.providerConfig }
+    const canUseSSML = options.supportsSSML === true
+
+    return {
+      input: options.forceSSML === true && canUseSSML
+        ? generateSSML(options.text, options.voice, providerConfig)
+        : options.text,
+      providerConfig,
+    }
   }
 
   const configured = computed(() => {
@@ -402,6 +461,7 @@ export const useSpeechStore = defineStore('speech', () => {
     ensureStreamingDefaultModel,
     ensureActiveSpeechModel,
     generateSSML,
+    resolveSpeechInput,
     resetState,
   }
 })

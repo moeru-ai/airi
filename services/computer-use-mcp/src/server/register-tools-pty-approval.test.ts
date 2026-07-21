@@ -71,6 +71,7 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       browserDomBridge: {
         triggerEvent: vi.fn(),
         clickSelector: vi.fn(),
+        waitForElement: vi.fn(),
         getStatus: vi.fn(() => ({ enabled: false, connected: false })),
         supportsAction: vi.fn(() => true),
       },
@@ -286,6 +287,77 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       unsupportedActions: ['clickAt'],
     })
     expect((runtime.browserDomBridge.clickSelector as any)).not.toHaveBeenCalled()
+  })
+
+  it('returns a browser repair suggestion when browser_dom_click throws a known selector error', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      pendingRequests: 0,
+    })
+    ;(runtime.browserDomBridge.clickSelector as any).mockRejectedValue(
+      new Error('selector "#submit" did not match any element'),
+    )
+
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn(),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_click', {
+      selector: '#submit',
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Re-read the page DOM')
+    expect(result.structuredContent).toMatchObject({
+      status: 'error',
+      selector: '#submit',
+      actionKind: 'browser_dom_click',
+      repairSuggestion: {
+        pattern: 'element_not_found',
+        suggestedTool: 'browser_dom_read_page',
+      },
+    })
+  })
+
+  it('returns a browser repair suggestion when browser_dom_wait_for_element times out', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      pendingRequests: 0,
+    })
+    ;(runtime.browserDomBridge.waitForElement as any).mockRejectedValue(
+      new Error('timed out waiting for selector'),
+    )
+
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn(),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_wait_for_element', {
+      selector: '.toast',
+      timeoutMs: 500,
+    })
+
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('browser_dom_wait_for_element')
+    expect(result.structuredContent).toMatchObject({
+      status: 'error',
+      selector: '.toast',
+      actionKind: 'browser_dom_wait_for_element',
+      repairSuggestion: {
+        pattern: 'action_timeout',
+        suggestedTool: 'browser_dom_wait_for_element',
+      },
+    })
   })
 
   it('rejects browser_dom_trigger_event when the connected extension transport does not support writes', async () => {

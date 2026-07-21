@@ -4,12 +4,15 @@ import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card
 
 import kebabcase from '@stdlib/string-base-kebabcase'
 
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
@@ -56,8 +59,10 @@ const emit = defineEmits<{
 const modelValue = defineModel<boolean>()
 
 const { t } = useI18n()
+const { trackCardEdited } = useAnalytics()
 const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
+const visionStore = useVisionStore()
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const displayModelsStore = useDisplayModelsStore()
@@ -65,6 +70,7 @@ const stageModelStore = useSettingsStageModel()
 const artistryStore = useArtistryStore()
 
 const { activeProvider: consciousnessProvider, activeModel: defaultConsciousnessModel } = storeToRefs(consciousnessStore)
+const { activeProvider: visionProvider, activeModel: defaultVisionModel } = storeToRefs(visionStore)
 const { activeSpeechProvider: speechProvider, activeSpeechModel: defaultSpeechModel, activeSpeechVoiceId: defaultSpeechVoiceId } = storeToRefs(speechStore)
 const { displayModels } = storeToRefs(displayModelsStore)
 const { stageModelSelected: defaultDisplayModelId } = storeToRefs(stageModelStore)
@@ -76,6 +82,8 @@ const isEditMode = computed(() => !!props.cardId)
 // Modules configuration
 const selectedConsciousnessProvider = ref<string>('')
 const selectedConsciousnessModel = ref<string>('')
+const selectedVisionProvider = ref<string>('')
+const selectedVisionModel = ref<string>('')
 const selectedSpeechProvider = ref<string>('')
 const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
@@ -110,6 +118,26 @@ const consciousnessProviderOptions = computed(() => {
 // Computed: available consciousness models options
 const consciousnessModelOptions = computed(() => {
   const provider = selectedConsciousnessProvider.value || consciousnessProvider.value
+  if (!provider)
+    return []
+  const models = providersStore.getModelsForProvider(provider)
+  return models.map(model => ({
+    value: model.id,
+    label: model.name || model.id,
+  }))
+})
+
+// Computed: available vision provider options
+const visionProviderOptions = computed(() => {
+  return providersStore.configuredVisionProvidersMetadata.map(provider => ({
+    value: provider.id,
+    label: provider.localizedName || provider.name,
+  }))
+})
+
+// Computed: available vision models options
+const visionModelOptions = computed(() => {
+  const provider = selectedVisionProvider.value || visionProvider.value
   if (!provider)
     return []
   const models = providersStore.getModelsForProvider(provider)
@@ -155,16 +183,23 @@ const speechVoiceOptions = computed(() => {
 const artistryProviderOptions = computed(() => {
   return [
     { value: 'none', label: 'None (Disabled)' },
-    { value: 'replicate', label: 'Replicate' },
     { value: 'comfyui', label: 'ComfyUI' },
-    { value: 'nanobanana', label: 'Nano Banana' },
+    ...(isCustomProvidersDisabled()
+      ? []
+      : [
+          { value: 'replicate', label: 'Replicate' },
+          { value: 'nanobanana', label: 'Nano Banana' },
+        ]),
   ]
 })
 
 // Load models for current providers on init
-watch(() => [consciousnessProvider.value, speechProvider.value], async ([consProvider, spProvider]) => {
+watch(() => [consciousnessProvider.value, visionProvider.value, speechProvider.value], async ([consProvider, visProvider, spProvider]) => {
   if (consProvider) {
     await consciousnessStore.loadModelsForProvider(consProvider)
+  }
+  if (visProvider) {
+    await visionStore.loadModelsForProvider(visProvider)
   }
   if (spProvider) {
     await speechStore.loadVoicesForProvider(spProvider)
@@ -181,6 +216,14 @@ watch(selectedConsciousnessProvider, async (newProvider, oldProvider) => {
     await consciousnessStore.loadModelsForProvider(newProvider)
     // Reset model selection to default or empty
     selectedConsciousnessModel.value = ''
+  }
+})
+
+// Watch vision provider changes and reload models
+watch(selectedVisionProvider, async (newProvider, oldProvider) => {
+  if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
+    await visionStore.loadModelsForProvider(newProvider)
+    selectedVisionModel.value = ''
   }
 })
 
@@ -316,7 +359,7 @@ function saveCard(card: Card): boolean {
         throw new Error('Not an object')
       }
     }
-    catch (e) {
+    catch {
       showError.value = true
       errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
       return false
@@ -348,6 +391,10 @@ function saveCard(card: Card): boolean {
             provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
             model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
           },
+          vision: {
+            provider: selectedVisionProvider.value || visionProvider.value,
+            model: selectedVisionModel.value || defaultVisionModel.value,
+          },
           speech: {
             provider: selectedSpeechProvider.value || speechProvider.value,
             model: selectedSpeechModel.value || defaultSpeechModel.value,
@@ -372,10 +419,11 @@ function saveCard(card: Card): boolean {
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
     cardStore.updateCard(props.cardId, cardWithModules)
+    trackCardEdited({ card_id: props.cardId })
   }
   else {
     // Create mode: add new card
-    cardStore.addCard(cardWithModules)
+    cardStore.addCard(cardWithModules, 'scratch')
   }
 
   modelValue.value = false // Close this
@@ -393,6 +441,8 @@ function initializeCard(): Card {
   // Initialize module selections with fallback logic (handles all cases: create, edit with/without extension)
   selectedConsciousnessProvider.value = airiExt?.modules?.consciousness?.provider || consciousnessProvider.value
   selectedConsciousnessModel.value = airiExt?.modules?.consciousness?.model || defaultConsciousnessModel.value
+  selectedVisionProvider.value = airiExt?.modules?.vision?.provider || visionProvider.value
+  selectedVisionModel.value = airiExt?.modules?.vision?.model || defaultVisionModel.value
   selectedSpeechProvider.value = airiExt?.modules?.speech?.provider || speechProvider.value
   selectedSpeechModel.value = airiExt?.modules?.speech?.model || defaultSpeechModel.value
   selectedSpeechVoiceId.value = airiExt?.modules?.speech?.voice_id || defaultSpeechVoiceId.value
@@ -585,6 +635,35 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
                   :options="consciousnessModelOptions"
                   :placeholder="getDefaultPlaceholder(defaultConsciousnessModel)"
                   :disabled="!selectedConsciousnessProvider && !consciousnessProvider"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Vision Provider -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:eye />
+                  {{ t('settings.pages.card.vision.provider') }}
+                </label>
+                <ComboboxSelect
+                  v-model="selectedVisionProvider"
+                  :options="visionProviderOptions"
+                  :placeholder="getDefaultPlaceholder(visionProvider)"
+                  class="w-full"
+                />
+              </div>
+
+              <!-- Vision Model -->
+              <div :class="['flex', 'flex-col', 'gap-2']">
+                <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
+                  <div i-lucide:scan-eye />
+                  {{ t('settings.pages.card.vision.model') }}
+                </label>
+                <ComboboxSelect
+                  v-model="selectedVisionModel"
+                  :options="visionModelOptions"
+                  :placeholder="getDefaultPlaceholder(defaultVisionModel)"
+                  :disabled="!selectedVisionProvider && !visionProvider"
                   class="w-full"
                 />
               </div>

@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import type { ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
+
 import type { DataSettingsStatusEmits } from '../status'
 
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { shallowRef, useTemplateRef } from 'vue'
@@ -8,8 +11,15 @@ import { useI18n } from 'vue-i18n'
 
 import { createDataSettingsStatusHelpers } from '../status'
 
+interface Props {
+  /** Mirrors a validated desktop import into the chat authority renderer. */
+  syncImportedChats?: (payload: ChatSessionsExport) => Promise<void>
+}
+
+const props = defineProps<Props>()
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
+const { trackDataAction } = useAnalytics()
 const importFileInput = useTemplateRef<HTMLInputElement>('importFileInput')
 const importError = shallowRef('')
 const {
@@ -32,6 +42,7 @@ async function triggerExport() {
     anchor.download = `airi-chat-sessions-${new Date().toISOString()}.json`
     anchor.click()
     URL.revokeObjectURL(url)
+    trackDataAction({ action: 'chats_exported' })
     emitStatus(t('settings.pages.data.status.exported'))
   }
   catch (error) {
@@ -42,6 +53,7 @@ async function triggerExport() {
 function deleteChats() {
   try {
     deleteAllChatSessions()
+    trackDataAction({ action: 'chats_cleared' })
     emitStatus(t('settings.pages.data.status.chats_deleted'))
   }
   catch (error) {
@@ -58,8 +70,10 @@ async function handleImport(event: Event) {
   try {
     const raw = await file.text()
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    await importChatSessions(parsed)
+    const imported = await importChatSessions(parsed)
+    await props.syncImportedChats?.(imported)
     importError.value = ''
+    trackDataAction({ action: 'chats_imported' })
     emitStatus(t('settings.pages.data.status.imported'))
   }
   catch (error) {

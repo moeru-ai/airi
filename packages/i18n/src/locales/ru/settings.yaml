@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Мы поддерживаем 2D и 3D модели
     support-status: >
-      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D) и {vrm} (для моделей VRM).
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
     model-type-example: >
       Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
   select-model:
@@ -158,7 +158,7 @@ live2d:
       description: Случайно смотреть вокруг когда нет активного курсора фокуса.
     blink-enable:
       title: Включить моргание
-      description: Пусть модель моргает
+      description: Пусть модель моргает.
     auto-blink:
       title: Авто
       description: Использовать стандартную анимацию моргания модели
@@ -190,9 +190,9 @@ live2d:
     title: Выражения
     override-toggle: Система выражений
     sdk-preset-preserved-notice: >
-      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены
-    no-expression: Нет выражений для этой модели
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
+    no-expression: Нет выражений для этой модели.
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
     save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
     expose-to-llm-toggle: Распространять в LLM
@@ -248,6 +248,8 @@ pages:
         listFailed: Не удалось загрузить подключенные учетные записи.
         unlinkFailed: Не удалось отвязать эту учетную запись.
         linkFailed: Не удалось запустить поток ссылок.
+        accountAlreadyLinkedToDifferentUser: Этот OAuth-аккаунт уже привязан к другому аккаунту AIRI. Выберите другой аккаунт провайдера или сначала отвяжите его от другого аккаунта AIRI.
+        oauthCallbackFailed: Не удалось подключить этот OAuth-аккаунт. Попробуйте еще раз или выберите другой аккаунт провайдера.
         lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
     security:
       tab: Безопасность
@@ -308,6 +310,9 @@ pages:
       provider: Чат / провайдеры
     consciousness:
       model: Сознание / Модель
+    vision:
+      provider: Зрение / Провайдер
+      model: Зрение / Модель
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
@@ -385,8 +390,14 @@ pages:
     systemprompt: Системный промпт
     title: Карта AIRI
     try_different_search: Попробуйте другой поисковый запрос
+    export: Экспорт
+    exported: Пакет карт экспортирован
+    export_failed: Не удалось экспортировать пакет карт
+    imported: Пакет карт импортирован
+    import_missing_file: В пакете карт отсутствуют необходимые файлы
+    import_invalid_file: Неверный файл пакета карт
     upload: Загрузить
-    upload_desc: Нажмите или перетащите файл для загрузки
+    upload_desc: Нажмите или перетащите пакет карт AIRI для импорта
   memory:
     description: Хранилище и организация воспоминаний
     title: Память
@@ -426,6 +437,7 @@ pages:
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
+        center: Переместить окно рабочего стола в центр
         reset: Сбросить данные для рабочего стола
     confirmations:
       tooltip: Вы уверены?
@@ -439,9 +451,10 @@ pages:
       modules_reset: Настройки модуля сброшены.
       providers_reset: Настройки провайдера сброшены.
       all_deleted: Все локальные данные удалены.
+      desktop_window_centered: Окно рабочего стола перемещено в центр экрана.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM и др.
+    description: Live2D, VRM, Spine и др.
     title: Модели
     sections:
       section:
@@ -679,6 +692,12 @@ pages:
             select-voice:
               loading: Загрузка моделей...
               required: Выберите голос
+          voice-pack:
+            description: Выберите голос для активного персонажа
+            empty: Нет доступных голосовых пакетов
+            error: Ошибка загрузки голосовых пакетов
+            loading: Загрузка голосовых пакетов...
+            title: Голосовой пакет
           provider-voice-selection:
             custom_model_placeholder: Введите название кастомной модели...
             custom_voice_placeholder: Введите ID кастомного голоса...
@@ -952,6 +971,9 @@ pages:
       chat:
         title: Чат
         description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Зрение
+        description: Провайдеры моделей зрения для понимания изображений.
       speech:
         title: Речь
         description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
@@ -1215,6 +1237,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1346,8 +1371,8 @@ pages:
         description: Официальный ИИ провайдер AIRI.
         speech-title: Официальный провайдер синтеза речи
         speech-description: Официальный text-to-speech провайдер AIRI.
-        speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
+        speech-streaming-title: Официальный провайдер синтеза речи
+        speech-streaming-description: Официальный поставщик текстов и речи с низкими задержками AIRI (двунаправленный WebSocket).
         transcription-title: Официальный провайдер транскрипции
         transcription-description: Официальный speech-to-text провайдер AIRI.
       transcriptions:
@@ -1624,7 +1649,7 @@ vrm:
     skybox-intensity: Интенсивность SkyBox
     skybox-specular-mix: Причудливый микс
 spine:
-  title: Spine Settings
+  title: Настройки голоса
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
@@ -1636,12 +1661,14 @@ spine:
       title: Извлечь
   animation:
     title: Анимация
-    idle-animation: Idle Animation
-    mix-duration: Mix Duration (seconds)
+    idle-animation: Анимация бездействия
+    mix-duration: Длительность смешивания (в секундах)
     speed: Скорость анимации
+  appearance:
+    title: Внешний вид
   variant:
     title: Вариация
-    current-variant: Active Variant
+    current-variant: Активный вариант
   skin:
     title: Облик
     current-skin: Текущий облик

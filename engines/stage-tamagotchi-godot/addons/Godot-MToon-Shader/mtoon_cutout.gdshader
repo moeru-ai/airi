@@ -1,4 +1,5 @@
 shader_type spatial;
+render_mode alpha_to_coverage;
 
 #define ALPHA_CUTOUT
 

@@ -189,7 +189,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
       // 3. Parse and analyze
       // Handle potential markdown fences: ```json ... ```
       let jsonContent = rawContent
-      const fenceMatch = rawContent.match(/```(?:json)?\s*([\s\S]*?)```/)
+      const fenceMatch = rawContent.match(/```(?:json)?\n?([\s\S]*?)```/)
       if (fenceMatch) {
         jsonContent = fenceMatch[1].trim()
         artistLog('Extracted JSON from fences:', jsonContent)

@@ -406,6 +406,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
 
+    capturePosthogEvent('conversation_created', {
+      conversation_id: sessionId,
+      source: options?.messages?.length ? 'fork' : 'new_session',
+      character_id: characterId,
+      cloud_synced: currentUserId !== 'local',
+    })
+
     // Fire-and-forget cloud reconcile so the freshly-minted session gets a
     // `cloudChatId` (POST /api/v1/chats) before the user types into it.
     // Reentrant: `reconcileCloudSessions` itself guards on `cloudReconcileTask`
@@ -446,6 +453,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     capturePosthogEvent('chat_session_deleted', {
       session_id: sessionId,
       message_count: messageCount,
+    })
+    capturePosthogEvent('conversation_deleted', {
+      conversation_id: sessionId,
+      message_count: messageCount,
+      cloud_synced: !!meta.cloudChatId,
     })
 
     const wasActive = activeSessionId.value === sessionId

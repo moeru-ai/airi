@@ -41,12 +41,35 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
-                      "legendFormat": "new users"
+                      "editorMode": "code",
+                      "expr": "max(user_total{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "total users",
+                      "range": true
                     },
                     "version": "v0"
                   },
                   "refId": "A"
+                }
+              },
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(increase(user_registered_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[24h]))",
+                      "legendFormat": "new today",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "B"
                 }
               }
             ],
@@ -54,10 +77,10 @@
             "transformations": []
           }
         },
-        "description": "Rolling 24h `increase(user.registered)` — counts the Better Auth `databaseHooks.user.create.after` fires over the last 24 hours. Operational signup signal; for DAU / WAU / MAU query PostHog (`event = session_started`).",
+        "description": "Current Better Auth user table size from `user.total` (cluster-wide DB gauge, aggregate with `max()`) plus rolling 24h signup delta from `increase(user.registered)`. Use the delta as today/new-user growth, and DAU / WAU / MAU below for returning-user engagement.",
         "id": 1,
         "links": [],
-        "title": "New Users 24h",
+        "title": "Total Users",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -65,18 +88,16 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 1000
                     }
                   ]
                 },
@@ -85,7 +106,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "area",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -97,12 +118,12 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -124,8 +145,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "avg(user_active_sessions{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "sessions"
+                      "legendFormat": "sessions",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -137,7 +160,7 @@
             "transformations": []
           }
         },
-        "description": "COUNT(*) over the Better Auth `session` table where `expires_at > now()`. Counts session **rows**, not users — divide by panel-1 to spot row inflation.",
+        "description": "COUNT(*) over the Better Auth `session` table where `expires_at > now()`, aggregated with `avg()` (cluster-wide gauge). Counts session **rows**, not users — compare against DAU to spot session-row inflation.",
         "id": 15,
         "links": [],
         "title": "Active Sessions",
@@ -148,18 +171,16 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 5000
                     }
                   ]
                 },
@@ -168,7 +189,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "area",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -180,12 +201,12 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -207,8 +228,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m]))",
-                      "legendFormat": "req/s"
+                      "legendFormat": "req/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -273,7 +296,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -295,8 +318,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m])), 1)",
-                      "legendFormat": "fail %"
+                      "legendFormat": "fail %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -361,7 +386,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -383,8 +408,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
-                      "legendFormat": "req/s"
+                      "legendFormat": "req/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -441,11 +468,11 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
-    "panel-6": {
+    "panel-80": {
       "kind": "Panel",
       "spec": {
         "data": {
@@ -463,8 +490,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "100 * sum(rate(airi_email_failures_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) / clamp_min(sum(rate(airi_email_send_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) + sum(rate(airi_email_failures_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])), 1)",
-                      "legendFormat": "fail %"
+                      "editorMode": "code",
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
+                      "legendFormat": "DAU",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -476,10 +505,550 @@
             "transformations": []
           }
         },
-        "description": "Email failures ÷ total attempts over the last 5m. >5% means Resend / DNS / suppression-list problems blocking auth flows.",
-        "id": 6,
+        "description": "Daily active users — distinct users with activity in the last 24h. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
+        "id": 80,
         "links": [],
-        "title": "Email Failure %",
+        "title": "DAU",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-81": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"7d\"})",
+                      "legendFormat": "WAU",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Weekly active users — distinct users with activity in the last 7d. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
+        "id": 81,
+        "links": [],
+        "title": "WAU",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-82": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"30d\"})",
+                      "legendFormat": "MAU",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Monthly active users — distinct users with activity in the last 30d. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
+        "id": 82,
+        "links": [],
+        "title": "MAU",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-93": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "online",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Current concurrent WebSocket connections across all replicas (`sum` — each replica holds its own connections). The live-presence counterpart to the rolling DAU/WAU windows.",
+        "id": 93,
+        "links": [],
+        "title": "WS Online",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "purple",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "area",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-92": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "connections",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Concurrent WebSocket connections over time (`sum` across replicas). A cliff to zero with no matching deploy = mass disconnect (LB drop, network blackhole); a slow ramp without disconnects = connection leak.",
+        "id": 92,
+        "links": [],
+        "title": "WS Connections",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 30,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-95": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum(increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__range]))",
+                      "legendFormat": "events",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Total first-party product analytics events over the dashboard range. This is event volume, not distinct users — distinct-user counts come from the Postgres `product_events` table.",
+        "id": 95,
+        "links": [],
+        "title": "Product Events (range)",
+        "vizConfig": {
+          "group": "stat",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                },
+                "fieldMinMax": false,
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "blue",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "colorMode": "none",
+              "graphMode": "none",
+              "justifyMode": "auto",
+              "orientation": "auto",
+              "percentChangeColorMode": "standard",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showPercentChange": true,
+              "textMode": "value_and_name",
+              "wideLayout": true
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-96": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "100 * sum(increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\", status=\"failed\"}[$__range])) / clamp_min(sum(increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__range])), 1)",
+                      "legendFormat": "failed %",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Failed product events ÷ all product events over the dashboard range. Uses only bounded labels (`feature`, `action`, `status`, `source`); no user/session/request identifiers are present in Prometheus.",
+        "id": 96,
+        "links": [],
+        "title": "Product Failure %",
         "vizConfig": {
           "group": "gauge",
           "kind": "VizConfig",
@@ -498,16 +1067,16 @@
                     },
                     {
                       "color": "yellow",
-                      "value": 1
+                      "value": 2
                     },
                     {
                       "color": "red",
-                      "value": 5
+                      "value": 10
                     }
                   ]
                 },
                 "unit": "percent",
-                "decimals": 1,
+                "decimals": 2,
                 "noValue": "0",
                 "min": 0,
                 "max": 20
@@ -530,7 +1099,335 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-97": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "topk(12, sum by (feature, action, status) (increase(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__range])))",
+                      "legendFormat": "{{feature}} · {{action}} · {{status}}",
+                      "instant": true,
+                      "range": false
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Top product actions by event count over the dashboard range. Use this to see which features are actually being exercised after deployment; pair with DB `count(distinct user_id)` for user counts.",
+        "id": 97,
+        "links": [],
+        "title": "Top Product Actions (range)",
+        "vizConfig": {
+          "group": "bargauge",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "thresholds"
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "short",
+                "noValue": "0"
+              },
+              "overrides": []
+            },
+            "options": {
+              "displayMode": "gradient",
+              "maxVizHeight": 300,
+              "minVizHeight": 12,
+              "minVizWidth": 8,
+              "namePlacement": "auto",
+              "orientation": "horizontal",
+              "reduceOptions": {
+                "calcs": [
+                  "lastNotNull"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "showUnfilled": true,
+              "sizing": "auto",
+              "valueMode": "color"
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-98": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (feature, action, status) (rate(airi_product_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", feature!=\"\", action!=\"\"}[$__rate_interval]))",
+                      "legendFormat": "{{feature}} · {{action}} · {{status}}",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Product event rate by feature/action/status. This is the Prometheus-safe trend view; user-level analysis remains in Postgres `product_events`.",
+        "id": 98,
+        "links": [],
+        "title": "Product Event Rate",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 15,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "eps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-99": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "max (user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
+                      "legendFormat": "__auto",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "",
+        "id": 99,
+        "links": [],
+        "title": "日活",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "continuous-GrYlRd",
+                  "seriesBy": "last"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 17,
+                  "gradientMode": "scheme",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "linear",
+                  "lineStyle": {
+                    "fill": "solid"
+                  },
+                  "lineWidth": 2,
+                  "pointSize": 3,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "red",
+                      "value": 80
+                    }
+                  ]
+                }
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [],
+                "displayMode": "list",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -552,7 +1449,8 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[$__range])))",
+                      "editorMode": "code",
+                      "expr": "topk(50, sum by (http_route) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!=\"\"}[$__range])))",
                       "legendFormat": "{{http_route}}",
                       "instant": true,
                       "range": false
@@ -612,7 +1510,7 @@
               "valueMode": "color"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -634,31 +1532,14 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"4..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval])), 1)",
-                      "legendFormat": "4xx %"
+                      "editorMode": "code",
+                      "expr": "sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval]))",
+                      "legendFormat": "{{http_response_status_code}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
                   "refId": "A"
-                }
-              },
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[$__rate_interval])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[$__rate_interval])), 1)",
-                      "legendFormat": "5xx %"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "B"
                 }
               }
             ],
@@ -666,63 +1547,27 @@
             "transformations": []
           }
         },
-        "description": "Error rate as a percentage of total non-OPTIONS HTTP traffic — 4xx (client-side: validation, auth, missing routes) and 5xx (server-side) over the same denominator.",
+        "description": "HTTP status-code mix over time, one row per status code, colour = request rate in each time bucket. The 200 row dominates in steady state; a 5xx / 4xx row suddenly lighting up flags an incident at a glance. Non-OPTIONS traffic only.",
         "id": 40,
         "links": [],
-        "title": "Error Rate %",
+        "title": "Status Distribution",
         "vizConfig": {
-          "group": "timeseries",
+          "group": "heatmap",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
                 "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
                   "hideFrom": {
                     "legend": false,
                     "tooltip": false,
                     "viz": false
                   },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
                   "scaleDistribution": {
                     "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
                   }
                 },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "percent"
+                "unit": "short"
               },
               "overrides": []
             },
@@ -731,23 +1576,41 @@
                 "clustering": -1,
                 "multiLane": false
               },
+              "calculate": false,
+              "cellGap": 1,
+              "color": {
+                "exponent": 0.5,
+                "fill": "dark-orange",
+                "mode": "scheme",
+                "reverse": false,
+                "scale": "exponential",
+                "scheme": "RdYlBu",
+                "steps": 64
+              },
+              "exemplars": {
+                "color": "rgba(255,0,255,0.7)"
+              },
+              "filterValues": {
+                "le": 1e-9
+              },
               "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
+                "show": false
+              },
+              "rowsFrame": {
+                "layout": "auto"
               },
               "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
+                "mode": "single",
+                "showColorScale": false,
+                "yHistogram": false
+              },
+              "yAxis": {
+                "axisPlacement": "left",
+                "reverse": false
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -769,8 +1632,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\", http_response_status_code!=\"404\"}[$__rate_interval])))",
-                      "legendFormat": "{{http_route}}"
+                      "editorMode": "code",
+                      "expr": "sum by (http_route) (\n    rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\", http_response_status_code!=\"404\"}[$__rate_interval])\n)",
+                      "legendFormat": "{{http_route}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -782,10 +1647,10 @@
             "transformations": []
           }
         },
-        "description": "P95 latency per Hono-matched route, excluding /api/v1/openai/* (LLM gateway latency lives in the LLM Gateway row). 404s excluded so missing-route noise does not skew the curve.",
+        "description": "",
         "id": 20,
         "links": [],
-        "title": "HTTP P95 by Route",
+        "title": "Request Latency (by Route)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -853,7 +1718,9 @@
                   "max"
                 ],
                 "displayMode": "table",
-                "placement": "right",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
                 "showLegend": true
               },
               "tooltip": {
@@ -863,11 +1730,11 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
-    "panel-11": {
+    "panel-94": {
       "kind": "Panel",
       "spec": {
         "data": {
@@ -885,8 +1752,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
-                      "legendFormat": "{{gen_ai_request_model}}"
+                      "editorMode": "code",
+                      "expr": "sum by (http_route, http_response_status_code) (increase(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code!~\"2..|3..|401|402|404\"}[$__rate_interval]))",
+                      "legendFormat": "{{http_response_status_code}} {{http_route}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -898,10 +1767,10 @@
             "transformations": []
           }
         },
-        "description": "Per-model request rate (chat + tts). Useful for capacity planning and spotting model-routing regressions.",
-        "id": 11,
+        "description": "Error responses per route, broken out by status code. Excludes success (2xx/3xx) and the expected-client-error codes 401/402/404 (auth-required / payment-required / not-found noise) so the curve isolates real failures: 4xx like 400/403/422/429 and all 5xx. The per-route companion to the aggregate Error Rate % stat.",
+        "id": 94,
         "links": [],
-        "title": "LLM Request Rate by Model",
+        "title": "Errors by Route",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -954,7 +1823,7 @@
                     }
                   ]
                 },
-                "unit": "reqps"
+                "unit": "short"
               },
               "overrides": []
             },
@@ -969,6 +1838,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -979,7 +1850,95 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-11": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+                      "legendFormat": "{{gen_ai_request_model}}",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Per-model request rate (chat + tts). Useful for capacity planning and spotting model-routing regressions.",
+        "id": 11,
+        "links": [],
+        "title": "LLM Request Rate by Model",
+        "vizConfig": {
+          "group": "piechart",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "fixedColor": "#73BF69",
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  }
+                },
+                "unit": "reqps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "displayLabels": [
+                "percent"
+              ],
+              "legend": {
+                "displayMode": "table",
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
+              },
+              "pieType": "pie",
+              "reduceOptions": {
+                "calcs": [
+                  "sum"
+                ],
+                "fields": "",
+                "values": false
+              },
+              "sort": "desc",
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "single",
+                "sort": "none"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1001,8 +1960,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_first_token_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
-                      "legendFormat": "TTFB p95"
+                      "editorMode": "code",
+                      "expr": "sum by () (rate(gen_ai_client_first_token_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "TTFB p95",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1020,8 +1981,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
-                      "legendFormat": "end-to-end p95"
+                      "legendFormat": "end-to-end p95",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1104,6 +2067,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -1114,11 +2079,11 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
-    "panel-72": {
+    "panel-66": {
       "kind": "Panel",
       "spec": {
         "data": {
@@ -1136,8 +2101,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
-                      "expr": "sum by (gen_ai_request_model) (rate(airi_billing_flux_consumed_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
-                      "legendFormat": "{{gen_ai_request_model}}"
+                      "editorMode": "code",
+                      "expr": "sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval]))",
+                      "legendFormat": "{{provider}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1149,10 +2116,370 @@
             "transformations": []
           }
         },
-        "description": "Normal flux debited per LLM request, by model (flux/sec). The billed-usage counterpart to panel-43 (⚠ Flux Unbilled): together they show what was charged vs what leaked. A model trending up here without matching request-rate growth means per-call cost rose.",
-        "id": 72,
+        "description": "Outbound request rate to each upstream provider (chat + tts), as our gateway sees it. The RPM / 调用次数 screens on the provider consoles, unified. provider = upstream hostname the router used.",
+        "id": 66,
         "links": [],
-        "title": "LLM Flux Consumed by Model",
+        "title": "Requests/s by Provider",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "reqps"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-67": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "histogram_quantile(0.95, sum by (le, provider) (rate(gen_ai_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])))",
+                      "legendFormat": "{{provider}}",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "P95 upstream call duration per provider (chat + tts), across models. Mirrors each provider console's 调用时长 p95/p99 panel — but here every provider is on one axis.",
+        "id": 67,
+        "links": [],
+        "title": "Provider Latency P95",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "s"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-68": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "100 * sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\", http_response_status_code=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])), 1)",
+                      "legendFormat": "{{provider}}",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "4xx + 5xx ÷ all requests per provider, our side of the call. Matches each provider 失败率 panel. Pair with Upstream Errors by Status Code (LLM Router Health) to see which codes drive it.",
+        "id": 68,
+        "links": [],
+        "title": "Provider Failure %",
+        "vizConfig": {
+          "group": "timeseries",
+          "kind": "VizConfig",
+          "spec": {
+            "fieldConfig": {
+              "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
+                "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 20,
+                  "gradientMode": "none",
+                  "hideFrom": {
+                    "legend": false,
+                    "tooltip": false,
+                    "viz": false
+                  },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
+                  "scaleDistribution": {
+                    "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "none"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
+                  }
+                },
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "percent"
+              },
+              "overrides": []
+            },
+            "options": {
+              "annotations": {
+                "clustering": -1,
+                "multiLane": false
+              },
+              "legend": {
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "right",
+                "showLegend": true
+              },
+              "tooltip": {
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
+              }
+            }
+          },
+          "version": "13.2.0-28666480772"
+        }
+      }
+    },
+    "panel-69": {
+      "kind": "Panel",
+      "spec": {
+        "data": {
+          "kind": "QueryGroup",
+          "spec": {
+            "queries": [
+              {
+                "kind": "PanelQuery",
+                "spec": {
+                  "hidden": false,
+                  "query": {
+                    "datasource": {
+                      "name": "grafanacloud-projairi-prom"
+                    },
+                    "group": "prometheus",
+                    "kind": "DataQuery",
+                    "spec": {
+                      "editorMode": "code",
+                      "expr": "sum by (model) (rate(airi_billing_tts_chars_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "legendFormat": "{{model}}",
+                      "range": true
+                    },
+                    "version": "v0"
+                  },
+                  "refId": "A"
+                }
+              }
+            ],
+            "queryOptions": {},
+            "transformations": []
+          }
+        },
+        "description": "Billed TTS characters per second by model (from `airi.billing.tts.chars`). The 用量统计「字数」screen on the TTS consoles (豆包 / 阿里), unified. Integrate over the range for a window total.",
+        "id": 69,
+        "links": [],
+        "title": "TTS Characters/s by Model",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1220,6 +2547,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -1230,7 +2559,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1252,8 +2581,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
-                      "legendFormat": "input"
+                      "legendFormat": "input",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1271,8 +2602,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
-                      "legendFormat": "output"
+                      "legendFormat": "output",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1295,13 +2628,15 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
                     }
                   ]
@@ -1312,7 +2647,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "none",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -1324,12 +2659,12 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1351,8 +2686,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(gen_ai_client_token_usage_input_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "input tokens/s"
+                      "legendFormat": "input tokens/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1370,8 +2707,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(rate(gen_ai_client_token_usage_output_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "output tokens/s"
+                      "legendFormat": "output tokens/s",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1454,6 +2793,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -1464,7 +2805,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1486,8 +2827,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_billing_flux_unbilled_total{service_name=~\"$service\", deployment_environment=~\"$env\", reason!=\"partial_debit_drained\"}[$__range]))",
-                      "legendFormat": "flux"
+                      "legendFormat": "flux",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1548,7 +2891,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1570,8 +2913,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_gen_ai_stream_interrupted_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range]))",
-                      "legendFormat": "interruptions"
+                      "legendFormat": "interruptions",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1636,7 +2981,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1658,8 +3003,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_gen_ai_gateway_key_exhausted_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
-                      "legendFormat": "events"
+                      "legendFormat": "events",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1720,7 +3067,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1742,8 +3089,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum(increase(airi_gen_ai_gateway_decrypt_failures_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
-                      "legendFormat": "events"
+                      "legendFormat": "events",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1804,7 +3153,7 @@
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1826,8 +3175,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) / clamp_min(sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])), 1)",
-                      "legendFormat": "fallback %"
+                      "legendFormat": "fallback %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1893,7 +3244,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -1915,8 +3266,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (provider, status_code) (rate(airi_gen_ai_gateway_upstream_errors_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
-                      "legendFormat": "{{provider}} · {{status_code}}"
+                      "legendFormat": "{{provider}} · {{status_code}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -1999,6 +3352,8 @@
                   "max"
                 ],
                 "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
                 "placement": "right",
                 "showLegend": true
               },
@@ -2009,7 +3364,7 @@
               }
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2031,8 +3386,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (currency) (increase(airi_stripe_revenue_minor_unit_total{service_name=~\"$service\", deployment_environment=~\"$env\", currency!=\"\"}[$__range])) / 100",
-                      "legendFormat": "{{currency}}"
+                      "legendFormat": "{{currency}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2055,8 +3412,10 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "green"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
@@ -2073,7 +3432,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "area",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -2085,12 +3444,12 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2112,8 +3471,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "100 * sum(increase(stripe_checkout_completed_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range])) / clamp_min(sum(increase(stripe_checkout_created_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__range])), 1)",
-                      "legendFormat": "completed %"
+                      "legendFormat": "completed %",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2179,7 +3540,7 @@
               "sizing": "auto"
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2201,8 +3562,10 @@
                     "group": "prometheus",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "sum by (event_type) (increase(stripe_events_total{service_name=~\"$service\", deployment_environment=~\"$env\", event_type!=\"\"}[$__range]))",
-                      "legendFormat": "{{event_type}}"
+                      "legendFormat": "{{event_type}}",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2225,13 +3588,15 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "thresholds"
+                  "mode": "fixed",
+                  "fixedColor": "blue"
                 },
+                "fieldMinMax": false,
                 "thresholds": {
                   "mode": "absolute",
                   "steps": [
                     {
-                      "color": "green",
+                      "color": "blue",
                       "value": 0
                     }
                   ]
@@ -2242,7 +3607,7 @@
               "overrides": []
             },
             "options": {
-              "colorMode": "value",
+              "colorMode": "none",
               "graphMode": "none",
               "justifyMode": "auto",
               "orientation": "auto",
@@ -2254,448 +3619,12 @@
                 "fields": "",
                 "values": false
               },
-              "showPercentChange": false,
-              "textMode": "auto",
+              "showPercentChange": true,
+              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-50": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])))",
-                      "legendFormat": "p95"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "PostgreSQL query duration P95 from PgInstrumentation. Fixed 5m window. Spikes correlate with index misses, connection exhaustion, or backend lock contention.",
-        "id": 50,
-        "links": [],
-        "title": "DB Query P95 (5m)",
-        "vizConfig": {
-          "group": "stat",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    },
-                    {
-                      "color": "yellow",
-                      "value": 0.05
-                    },
-                    {
-                      "color": "red",
-                      "value": 0.5
-                    }
-                  ]
-                },
-                "unit": "s",
-                "decimals": 3
-              },
-              "overrides": []
-            },
-            "options": {
-              "colorMode": "value",
-              "graphMode": "area",
-              "justifyMode": "auto",
-              "orientation": "auto",
-              "percentChangeColorMode": "standard",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
-              },
-              "showPercentChange": false,
-              "textMode": "auto",
-              "wideLayout": true
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-51": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "sum by (service_instance_id) (db_client_connection_count{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "{{service_instance_id}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "Open PostgreSQL connections, per replica (`service_instance_id`). Each instance has its own pool sized by env `DB_POOL_MAX`. One instance with a permanently-high count = pool leak on that pod.",
-        "id": 51,
-        "links": [],
-        "title": "DB Pool Connections by Instance",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "short"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-52": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "100 * sum by (service_instance_id) (v8js_memory_heap_used_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}) / clamp_min(sum by (service_instance_id) (v8js_memory_heap_limit_bytes{service_name=~\"$service\", deployment_environment=~\"$env\"}), 1)",
-                      "legendFormat": "{{service_instance_id}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "V8 heap used ÷ heap limit, per replica (`service_instance_id`). A single replica trending up while others stay flat = leak on that pod.",
-        "id": 52,
-        "links": [],
-        "title": "Heap Used % by Instance",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "percent"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
-        }
-      }
-    },
-    "panel-53": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "expr": "max by (service_instance_id) (nodejs_eventloop_delay_p99_seconds{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "{{service_instance_id}}"
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "P99 event-loop delay per replica. One replica climbing while others stay flat = CPU-bound work pinning that pod. >50ms sustained is bad anywhere.",
-        "id": 53,
-        "links": [],
-        "title": "Event Loop Delay P99 by Instance",
-        "vizConfig": {
-          "group": "timeseries",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "palette-classic"
-                },
-                "custom": {
-                  "axisBorderShow": false,
-                  "axisCenteredZero": false,
-                  "axisColorMode": "text",
-                  "axisLabel": "",
-                  "axisPlacement": "auto",
-                  "barAlignment": 0,
-                  "barWidthFactor": 0.6,
-                  "drawStyle": "line",
-                  "fillOpacity": 20,
-                  "gradientMode": "none",
-                  "hideFrom": {
-                    "legend": false,
-                    "tooltip": false,
-                    "viz": false
-                  },
-                  "insertNulls": false,
-                  "lineInterpolation": "smooth",
-                  "lineWidth": 1,
-                  "pointSize": 5,
-                  "scaleDistribution": {
-                    "type": "linear"
-                  },
-                  "showPoints": "auto",
-                  "showValues": false,
-                  "spanNulls": false,
-                  "stacking": {
-                    "group": "A",
-                    "mode": "none"
-                  },
-                  "thresholdsStyle": {
-                    "mode": "off"
-                  }
-                },
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "green",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "s"
-              },
-              "overrides": []
-            },
-            "options": {
-              "annotations": {
-                "clustering": -1,
-                "multiLane": false
-              },
-              "legend": {
-                "calcs": [
-                  "lastNotNull",
-                  "max"
-                ],
-                "displayMode": "table",
-                "placement": "right",
-                "showLegend": true
-              },
-              "tooltip": {
-                "hideZeros": false,
-                "mode": "multi",
-                "sort": "desc"
-              }
-            }
-          },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2717,8 +3646,10 @@
                     "group": "loki",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} | json | level=~\"warn|error\"",
-                      "legendFormat": ""
+                      "legendFormat": "",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2760,7 +3691,7 @@
               "wrapLogMessage": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     },
@@ -2782,8 +3713,10 @@
                     "group": "loki",
                     "kind": "DataQuery",
                     "spec": {
+                      "editorMode": "code",
                       "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} |= ``",
-                      "legendFormat": ""
+                      "legendFormat": "",
+                      "range": true
                     },
                     "version": "v0"
                   },
@@ -2825,7 +3758,7 @@
               "wrapLogMessage": true
             }
           },
-          "version": "13.0.0-23630096546"
+          "version": "13.2.0-28666480772"
         }
       }
     }
@@ -2847,9 +3780,9 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-1"
+                        "name": "panel-3"
                       },
-                      "height": 4,
+                      "height": 5,
                       "width": 4,
                       "x": 0,
                       "y": 0
@@ -2860,9 +3793,9 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-15"
+                        "name": "panel-5"
                       },
-                      "height": 4,
+                      "height": 5,
                       "width": 4,
                       "x": 4,
                       "y": 0
@@ -2873,10 +3806,10 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-3"
+                        "name": "panel-40"
                       },
-                      "height": 4,
-                      "width": 4,
+                      "height": 6,
+                      "width": 10,
                       "x": 8,
                       "y": 0
                     }
@@ -2886,12 +3819,38 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
+                        "name": "panel-90"
+                      },
+                      "height": 38,
+                      "width": 6,
+                      "x": 18,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-93"
+                      },
+                      "height": 5,
+                      "width": 4,
+                      "x": 0,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
                         "name": "panel-4"
                       },
-                      "height": 4,
+                      "height": 5,
                       "width": 4,
-                      "x": 12,
-                      "y": 0
+                      "x": 4,
+                      "y": 5
                     }
                   },
                   {
@@ -2899,12 +3858,12 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-5"
+                        "name": "panel-20"
                       },
-                      "height": 4,
-                      "width": 4,
-                      "x": 16,
-                      "y": 0
+                      "height": 15,
+                      "width": 10,
+                      "x": 8,
+                      "y": 6
                     }
                   },
                   {
@@ -2912,12 +3871,129 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-6"
+                        "name": "panel-92"
                       },
-                      "height": 4,
+                      "height": 10,
                       "width": 4,
-                      "x": 20,
-                      "y": 0
+                      "x": 0,
+                      "y": 10
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-73"
+                      },
+                      "height": 10,
+                      "width": 2,
+                      "x": 4,
+                      "y": 10
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-11"
+                      },
+                      "height": 10,
+                      "width": 2,
+                      "x": 6,
+                      "y": 10
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-16"
+                      },
+                      "height": 18,
+                      "width": 8,
+                      "x": 0,
+                      "y": 20
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-71"
+                      },
+                      "height": 5,
+                      "width": 5,
+                      "x": 8,
+                      "y": 21
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-21"
+                      },
+                      "height": 5,
+                      "width": 5,
+                      "x": 13,
+                      "y": 21
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-69"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 8,
+                      "y": 26
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-67"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 13,
+                      "y": 26
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-66"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 8,
+                      "y": 32
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-68"
+                      },
+                      "height": 6,
+                      "width": 5,
+                      "x": 13,
+                      "y": 32
                     }
                   }
                 ]
@@ -2939,10 +4015,10 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-16"
+                        "name": "panel-80"
                       },
-                      "height": 8,
-                      "width": 8,
+                      "height": 5,
+                      "width": 3,
                       "x": 0,
                       "y": 0
                     }
@@ -2952,11 +4028,11 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-40"
+                        "name": "panel-1"
                       },
-                      "height": 8,
-                      "width": 8,
-                      "x": 8,
+                      "height": 5,
+                      "width": 3,
+                      "x": 3,
                       "y": 0
                     }
                   },
@@ -2965,11 +4041,142 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-20"
+                        "name": "panel-99"
+                      },
+                      "height": 11,
+                      "width": 12,
+                      "x": 6,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-98"
+                      },
+                      "height": 11,
+                      "width": 6,
+                      "x": 18,
+                      "y": 0
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-82"
+                      },
+                      "height": 3,
+                      "width": 3,
+                      "x": 0,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-15"
+                      },
+                      "height": 6,
+                      "width": 3,
+                      "x": 3,
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-81"
+                      },
+                      "height": 3,
+                      "width": 3,
+                      "x": 0,
+                      "y": 8
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-95"
+                      },
+                      "height": 9,
+                      "width": 6,
+                      "x": 0,
+                      "y": 11
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-96"
+                      },
+                      "height": 9,
+                      "width": 6,
+                      "x": 6,
+                      "y": 11
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-97"
+                      },
+                      "height": 9,
+                      "width": 12,
+                      "x": 12,
+                      "y": 11
+                    }
+                  }
+                ]
+              }
+            },
+            "title": "User Engagement"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": []
+              }
+            },
+            "title": "Product Analytics"
+          }
+        },
+        {
+          "kind": "RowsLayoutRow",
+          "spec": {
+            "collapse": false,
+            "layout": {
+              "kind": "GridLayout",
+              "spec": {
+                "items": [
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-94"
                       },
                       "height": 8,
-                      "width": 8,
-                      "x": 16,
+                      "width": 24,
+                      "x": 0,
                       "y": 0
                     }
                   }
@@ -2992,60 +4199,7 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-11"
-                      },
-                      "height": 8,
-                      "width": 8,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-21"
-                      },
-                      "height": 8,
-                      "width": 8,
-                      "x": 8,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-72"
-                      },
-                      "height": 8,
-                      "width": 8,
-                      "x": 16,
-                      "y": 0
-                    }
-                  }
-                ]
-              }
-            },
-            "title": "LLM Gateway"
-          }
-        },
-        {
-          "kind": "RowsLayoutRow",
-          "spec": {
-            "collapse": false,
-            "layout": {
-              "kind": "GridLayout",
-              "spec": {
-                "items": [
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-73"
+                        "name": "panel-43"
                       },
                       "height": 7,
                       "width": 6,
@@ -3058,37 +4212,11 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-71"
-                      },
-                      "height": 7,
-                      "width": 10,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-43"
-                      },
-                      "height": 7,
-                      "width": 4,
-                      "x": 16,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
                         "name": "panel-41"
                       },
                       "height": 7,
-                      "width": 4,
-                      "x": 20,
+                      "width": 6,
+                      "x": 6,
                       "y": 0
                     }
                   }
@@ -3220,72 +4348,6 @@
         {
           "kind": "RowsLayoutRow",
           "spec": {
-            "collapse": true,
-            "layout": {
-              "kind": "GridLayout",
-              "spec": {
-                "items": [
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-50"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 0,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-51"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 6,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-52"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 12,
-                      "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-53"
-                      },
-                      "height": 6,
-                      "width": 6,
-                      "x": 18,
-                      "y": 0
-                    }
-                  }
-                ]
-              }
-            },
-            "title": "Infrastructure"
-          }
-        },
-        {
-          "kind": "RowsLayoutRow",
-          "spec": {
             "collapse": false,
             "layout": {
               "kind": "GridLayout",
@@ -3298,23 +4360,10 @@
                         "kind": "ElementReference",
                         "name": "panel-91"
                       },
-                      "height": 10,
+                      "height": 8,
                       "width": 24,
                       "x": 0,
                       "y": 0
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-90"
-                      },
-                      "height": 10,
-                      "width": 24,
-                      "x": 0,
-                      "y": 10
                     }
                   }
                 ]
@@ -3349,7 +4398,7 @@
       "1d"
     ],
     "fiscalYearStartMonth": 0,
-    "from": "now-1h",
+    "from": "now-6h",
     "hideTimepicker": false,
     "timezone": "browser",
     "to": "now"

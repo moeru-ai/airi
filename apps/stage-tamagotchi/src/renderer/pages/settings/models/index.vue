@@ -14,6 +14,7 @@ import type {
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ModelSettingsPanel } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { Button, Callout } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -272,9 +273,12 @@ async function syncGodotSceneInput(model: DisplayModel) {
   }
 }
 
+const { trackFeatureUsed } = useAnalytics()
+
 async function handleGodotStageToggle() {
   switchingGodotStage.value = true
   godotStageError.value = undefined
+  const enablingGodot = !usesGodotStage.value
 
   try {
     if (usesGodotStage.value) {
@@ -291,6 +295,12 @@ async function handleGodotStageToggle() {
     await refreshGodotStageStatus()
   }
   finally {
+    trackFeatureUsed({
+      feature_name: enablingGodot ? 'godot_stage_enabled' : 'godot_stage_disabled',
+      business_domain: 'stage_rendering',
+      entry: 'settings',
+      success: godotStageError.value === undefined,
+    })
     switchingGodotStage.value = false
   }
 }

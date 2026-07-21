@@ -2,10 +2,10 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { errorMessageFrom } from '@moeru/std'
-
-import { createBadGatewayError, createInternalError } from '../../../utils/error'
+import { createBadRequestError, createInternalError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
+import { audioMimeFromFormat } from './audio-format'
+import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
 
 /**
  * Default Volcengine TTS voice id. `BV001_streaming` is Volcengine's standard
@@ -59,6 +59,12 @@ export const volcengineAdapter: TtsAdapter = {
       : undefined
 
     const voice = input.voice ?? DEFAULT_VOLCENGINE_VOICE
+    if (typeof input.extraOptions?.pitch === 'number' || typeof input.extraOptions?.volume === 'number') {
+      throw createBadRequestError(
+        'volcengine does not support Voice Pack pitch or volume parameters',
+        'BAD_REQUEST',
+      )
+    }
     const encoding = input.responseFormat ?? DEFAULT_VOLCENGINE_FORMAT
     const speed = input.speed ?? 1
 
@@ -69,48 +75,21 @@ export const volcengineAdapter: TtsAdapter = {
     // - takes `app.appid`, `app.cluster`, `user.uid`, `request.reqid`,
     //   `audio.encoding`, `audio.speed_ratio` from `extra_body` jsonpath.
     // - decodes the upstream base64 audio frame itself and returns binary.
-    const body = JSON.stringify({
+    return sendSpeechViaUnSpeech({
+      ctx,
       model: apiResourceId ? `volcengine/${apiResourceId}` : 'volcengine',
       input: input.text,
       voice,
-      response_format: encoding,
-      extra_body: {
+      responseFormat: encoding,
+      extraBody: {
         app: { appid, cluster },
         user: { uid: 'airi-server' },
         audio: { speed_ratio: speed },
         request: { reqid: nanoid(), operation: 'query' },
       },
+      fallbackContentType: audioMimeFromFormat(encoding),
+      providerLabel: 'volcengine',
     })
-
-    let response: Response
-    try {
-      response = await ctx.fetchImpl(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/audio/speech`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
-          'Content-Type': 'application/json',
-        },
-        body,
-        signal: ctx.abortSignal,
-      })
-    }
-    catch (error) {
-      throw createInternalError(`volcengine tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      const err = new Error(`volcengine tts upstream ${response.status}: ${text.slice(0, 256)}`) as Error & { status?: number }
-      err.status = response.status
-      throw err
-    }
-
-    // unspeech decodes the base64 audio frame and returns binary audio
-    // directly — no more JSON envelope on this side.
-    const arrayBuffer = await response.arrayBuffer()
-    const contentType = response.headers.get('content-type') ?? encodingToMime(encoding)
-
-    return { contentType, body: arrayBuffer }
   },
 
   async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
@@ -119,53 +98,17 @@ export const volcengineAdapter: TtsAdapter = {
     // streaming-compatible voices. Passing `model=<api_resource_id>` narrows
     // further by `compatible_models` — adapterParams.model is the operator-
     // configured resource id (e.g. `seed-tts-2.0`).
-    const url = new URL(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices`)
-    url.searchParams.set('provider', 'volcengine')
+    const params = new URLSearchParams({ provider: 'volcengine' })
     const apiResourceId = typeof ctx.adapterParams?.model === 'string'
       ? ctx.adapterParams.model
       : undefined
     if (apiResourceId)
-      url.searchParams.set('model', apiResourceId)
+      params.set('model', apiResourceId)
 
-    let response: Response
-    try {
-      response = await ctx.fetchImpl(url.toString(), {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        signal: ctx.abortSignal,
-      })
-    }
-    catch (error) {
-      throw createBadGatewayError(`volcengine voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      throw createBadGatewayError(
-        `volcengine voices upstream ${response.status}: ${text.slice(0, 256)}`,
-        { lastStatusCode: response.status },
-      )
-    }
-
-    const data = await response.json() as { voices: Voice[] }
-    if (!Array.isArray(data.voices))
-      throw createBadGatewayError('volcengine voices upstream missing voices[]')
-
-    return data.voices
+    return listVoicesViaUnSpeech({
+      ctx,
+      query: params.toString(),
+      providerLabel: 'volcengine',
+    })
   },
-}
-
-/**
- * Maps Volcengine's `encoding` field to a MIME type for the gateway response.
- */
-function encodingToMime(encoding: string): string {
-  if (encoding === 'mp3')
-    return 'audio/mpeg'
-  if (encoding === 'wav')
-    return 'audio/wav'
-  if (encoding === 'pcm')
-    return 'audio/L16'
-  if (encoding === 'ogg_opus')
-    return 'audio/ogg'
-  return 'application/octet-stream'
 }

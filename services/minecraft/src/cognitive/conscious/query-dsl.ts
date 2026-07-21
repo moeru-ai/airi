@@ -43,6 +43,12 @@ interface InventorySummaryRecord {
 
 interface SelfQueryRecord {
   pos: { x: number, y: number, z: number }
+  // Aliases of `pos`. The LLM frequently guesses `self.position` / `self.location` (and the prompt
+  // prose/reflex-summary historically used those words inconsistently). Exposing all three names
+  // pointing at the same coords prevents "Cannot read properties of undefined (reading 'x')" crashes
+  // when the model picks a name other than `pos`.
+  position: { x: number, y: number, z: number }
+  location: { x: number, y: number, z: number }
   health: number
   food: number
   heldItem: string | null
@@ -204,14 +210,19 @@ class EntityQueryChain {
   public whereType(typeOrTypes: string | string[]): EntityQueryChain {
     const types = new Set((Array.isArray(typeOrTypes) ? typeOrTypes : [typeOrTypes]).map(type => type.toLowerCase()))
     return this.clone({
-      predicates: [...this.state.predicates, entity => types.has((entity.name || entity.type).toLowerCase())],
+      // Match the mineflayer `type` ("player"/"mob"/...) OR the species `name` ("zombie", "cow").
+      // NOTICE: must check `type` explicitly now that a player's projected `name` is its username
+      // (e.g. "dssadg"), so whereType("player") still matches players.
+      predicates: [...this.state.predicates, entity => types.has(entity.type.toLowerCase()) || types.has(entity.name.toLowerCase())],
     })
   }
 
   public whereName(nameOrNames: string | string[]): EntityQueryChain {
     const names = new Set((Array.isArray(nameOrNames) ? nameOrNames : [nameOrNames]).map(name => name.toLowerCase()))
     return this.clone({
-      predicates: [...this.state.predicates, entity => names.has(entity.name.toLowerCase())],
+      // `name` already carries the username for players; also check `username` for the rare case a
+      // player entity is still loading and `name` fell back to the "player" type string.
+      predicates: [...this.state.predicates, entity => names.has(entity.name.toLowerCase()) || (entity.username != null && names.has(entity.username.toLowerCase()))],
     })
   }
 
@@ -384,7 +395,11 @@ function collectEntityRecords(mineflayer: Mineflayer, range: number): EntityReco
         return null
 
       return {
-        name: entity.name ?? 'unknown',
+        // NOTICE: for player entities mineflayer's `entity.name` is the literal type "player"; the
+        // real in-game id is `username`. Expose the username as `name` so the LLM (and whereName)
+        // see "dssadg", not a phantom player called "player". Mobs have no username and fall back to
+        // their species name. Root cause of the bot mistaking its master for an unknown "player".
+        name: (entity as Entity).username ?? entity.name ?? 'unknown',
         type: entity.type,
         username: (entity as Entity).username,
         pos: toPos(entity.position),
@@ -403,8 +418,11 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function toSelfRecord(mineflayer: Mineflayer): SelfQueryRecord {
+  const pos = toPos(mineflayer.bot.entity.position)
   return {
-    pos: toPos(mineflayer.bot.entity.position),
+    pos,
+    position: pos, // alias — LLM commonly writes self.position
+    location: pos, // alias — matches the reflex-context summary wording
     health: mineflayer.bot.health,
     food: mineflayer.bot.food,
     heldItem: mineflayer.bot.heldItem?.name ?? null,

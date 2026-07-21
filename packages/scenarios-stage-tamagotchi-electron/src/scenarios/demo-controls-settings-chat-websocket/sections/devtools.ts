@@ -1,4 +1,4 @@
-import type { ManualCaptureSection } from '../shared/types'
+import type { ManualCaptureSection } from '../shared/types.ts'
 
 const useWindowMousePattern = /useWindowMouse|\d+,\s*\d+/i
 const displaysPattern = /useElectronAllDisplays|@\s*\d+°|Visualize connected displays and cursor position/i

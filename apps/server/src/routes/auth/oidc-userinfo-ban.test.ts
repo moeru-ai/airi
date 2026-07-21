@@ -41,7 +41,11 @@ async function buildRoutes(currentUser: SessionUser) {
       api: { getSession: vi.fn(async () => sessionFor(currentUser)) },
     } as any,
     db: {} as any, // userinfo path never queries the DB
-    env: { API_SERVER_URL: 'http://localhost:3000', ADDITIONAL_TRUSTED_ORIGINS: [] } as any,
+    env: {
+      API_SERVER_URL: 'http://localhost:3000',
+      AUTH_UI_URL: 'https://accounts.airi.build/ui',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as any,
     configKV: createConfigKV(),
     rateLimitMetrics: null,
   }
@@ -87,5 +91,27 @@ describe('oidc /oauth2/userinfo ban guard', () => {
 
     expect(res.status).toBe(200)
     expect(handler).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('auth UI routes', () => {
+  it('redirects sign-in provider shortcut to the standalone auth UI', async () => {
+    const { routes } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+
+    const res = await routes.request('/auth/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback')
+
+    expect(res.status).toBe(302)
+
+    const location = res.headers.get('location')
+    expect(location).toBe('https://accounts.airi.build/ui/sign-in?provider=github&client_id=stage-web&prompt=login&redirect_uri=http%3A%2F%2Flocalhost%3A5173%2Fauth%2Fcallback&api_server_url=http%3A%2F%2Flocalhost%3A3000')
+  })
+
+  it('redirects Electron OIDC callback queries to the standalone auth UI relay', async () => {
+    const { routes } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+
+    const res = await routes.request('/api/auth/oidc/electron-callback?code=sample-code&state=43123%3Aopaque-state')
+
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('https://accounts.airi.build/ui/api/auth/oidc/electron-callback?code=sample-code&state=43123%3Aopaque-state')
   })
 })

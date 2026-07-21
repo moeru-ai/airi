@@ -9,7 +9,7 @@ This package is the tamagotchi browser composition layer. It contains:
 - the Vite/Vue scene app
 - the scene composition components and capture roots
 - file-based scene routing from `src/scenes/**` via `unplugin-vue-router`
-- the `capture` script that exports final browser captures through `@proj-airi/vishot-runner-browser`
+- the `capture` script that exports final browser captures through `@vishot/renderer-browser`
 
 It expects raw business screenshots to exist in `artifacts/raw` before final export runs.
 
@@ -31,7 +31,7 @@ Current docs capture target route:
 From repo root, run:
 
 ```bash
-pnpm -F @proj-airi/vishot-runner-electron capture ../../packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --output-dir ../../packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
+pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-chat' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-websocket' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/main-window' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800

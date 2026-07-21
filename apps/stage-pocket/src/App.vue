@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -18,7 +19,9 @@ import { toast, Toaster } from 'vue-sonner'
 
 import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
 
-import { getHostWebSocketConstructor } from './modules/websocket-bridge'
+import { getHostWebSocketConnector } from './modules/websocket-bridge'
+
+useAuthProviderSync()
 
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
@@ -80,7 +83,7 @@ onMounted(async () => {
 
   await serverChannelStore.initialize({
     possibleEvents: ['ui:configure'],
-    websocketConstructor: getHostWebSocketConstructor(),
+    connector: getHostWebSocketConnector,
   }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
   contextBridgeStore.initialize()
   characterOrchestratorStore.initialize()

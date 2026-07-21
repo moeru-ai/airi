@@ -1,12 +1,15 @@
 import { useChatSyncStore } from './chat-sync'
 
-type ChatSyncWindowRole = 'authority' | 'follower'
+type ChatSyncWindowRole = 'authority' | 'follower' | 'client'
 
 function normalizeRoutePath(routePath: string) {
   const [path = ''] = routePath.split(/[?#]/)
   return path || '/'
 }
 
+/**
+ * Resolves hash routes before Vue Router hydrates `route.path`.
+ */
 export function resolveInitialChatSyncRoutePath(routePath: string, hash = globalThis.location?.hash ?? '') {
   const hashPath = hash.startsWith('#') ? hash.slice(1) : ''
   return normalizeRoutePath(hashPath || routePath)
@@ -16,8 +19,10 @@ function resolveChatSyncWindowRole(routePath: string): ChatSyncWindowRole | null
   const path = normalizeRoutePath(routePath)
   if (path === '/')
     return 'authority'
-  if (path === '/chat')
+  if (path === '/chat' || path === '/spotlight')
     return 'follower'
+  if (path === '/settings' || path.startsWith('/settings/'))
+    return 'client'
   return null
 }
 

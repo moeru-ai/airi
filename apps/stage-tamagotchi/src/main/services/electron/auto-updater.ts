@@ -16,7 +16,8 @@ import semver from 'semver'
 import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { errorMessageFrom, tryCatch } from '@moeru/std'
+import { tryCatch } from '@moeru/std'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { committerDate } from '~build/git'
 import { app } from 'electron'
 import { Semaphore } from 'es-toolkit'
@@ -47,7 +48,14 @@ function getCacheRoot() {
 }
 
 function getLegacyCacheRoot() {
-  return getCacheRoot()
+  switch (process.platform) {
+    case 'win32':
+      return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
+    case 'darwin':
+      return join(process.env.HOME || '', 'Library', 'Caches')
+    default:
+      return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
+  }
 }
 
 const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
@@ -335,7 +343,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   function broadcastUpdaterError(error: unknown, reason: string) {
     broadcast({
       status: 'error',
-      error: { message: errorMessageFrom(error) ?? String(error) },
+      error: { message: errorMessageFromValue(error) },
     })
     log.withError(error).error(reason)
   }

@@ -41,6 +41,8 @@ describe('parseEnv', () => {
 
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
+    expect(env.AUTH_UI_URL).toBe('https://accounts.airi.build/ui')
+    expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
   })
 
@@ -54,6 +56,35 @@ describe('parseEnv', () => {
       'https://10.0.0.129:5273',
       'https://198.18.0.1:5273',
     ])
+  })
+
+  it('parses TEST_AUTH_TOKEN with default virtual user settings', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      TEST_AUTH_TOKEN: 'local-test-token',
+    })
+
+    expect(env.TEST_AUTH_TOKEN).toBe('local-test-token')
+    expect(env.TEST_AUTH_USER_ID).toBe('test-user')
+    expect(env.TEST_AUTH_USER_EMAIL).toBe('test@example.com')
+    expect(env.TEST_AUTH_USER_NAME).toBe('Test User')
+    expect(env.TEST_AUTH_USER_ROLE).toBe('')
+  })
+
+  it('parses TEST_AUTH_TOKEN virtual user overrides', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      TEST_AUTH_TOKEN: 'local-test-token',
+      TEST_AUTH_USER_ID: 'admin-user',
+      TEST_AUTH_USER_EMAIL: 'admin@example.com',
+      TEST_AUTH_USER_NAME: 'Admin User',
+      TEST_AUTH_USER_ROLE: 'admin',
+    })
+
+    expect(env.TEST_AUTH_USER_ID).toBe('admin-user')
+    expect(env.TEST_AUTH_USER_EMAIL).toBe('admin@example.com')
+    expect(env.TEST_AUTH_USER_NAME).toBe('Admin User')
+    expect(env.TEST_AUTH_USER_ROLE).toBe('admin')
   })
 
   it('lLM_ROUTER_MASTER_KEY decodes a valid 32-byte base64 value into a Buffer', () => {

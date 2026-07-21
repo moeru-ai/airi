@@ -15,6 +15,7 @@ import { clamp } from 'es-toolkit/math'
 import { nanoid } from 'nanoid'
 import { WebSocketServer } from 'ws'
 
+import { errorMessageFromValue } from '../utils/error-message'
 import { useLogger } from '../utils/logger'
 import { debugClientMessageSchema, formatDebugValidationError } from './types'
 
@@ -102,7 +103,7 @@ export class DebugServer {
       this.sendHeartbeat()
     }, this.HEARTBEAT_INTERVAL)
 
-    this.httpServer.listen(port, () => {
+    this.httpServer.listen(port, '127.0.0.1', () => {
       useLogger().log(`Debug server running at http://localhost:${port}`)
     })
   }
@@ -456,7 +457,7 @@ export class DebugServer {
       res.writeHead(500, { 'Content-Type': 'application/json' })
       res.end(JSON.stringify({
         error: 'failed to read log file',
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessageFromValue(err),
       }))
     }
   }
