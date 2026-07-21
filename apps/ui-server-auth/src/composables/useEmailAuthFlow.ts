@@ -173,25 +173,15 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
       const name = options.scope === 'enroll'
         ? ''
         : credentials.name.trim() || email.split('@')[0]
-      // NOTICE: carry api_server_url + continueURL onto the verify-email callback.
-      // Without api_server_url the success tab falls back to production SERVER_URL.
-      // Without continueURL the success tab cannot top-level-resume authorize when
-      // the pending tab is closed (and cross-site get-session cannot see the cookie).
+      // NOTICE: embed api_server_url + continueURL on the email callback so the
+      // success tab talks to the right API and can top-level-resume authorize
+      // (cross-site get-session cannot see the session cookie).
       const signUpCallbackURL = buildVerifyEmailCallbackUrl({
         verifyEmailPath: buildCurrentOriginAuthUiUrl('/verify-email'),
         apiServerUrl: options.apiServerUrl,
         apiServerUrlQueryParam: API_SERVER_URL_QUERY_PARAM,
         continueURL: options.verifyContinueUrl || undefined,
       })
-      // #region agent log
-      console.info('[airi-debug:7afbeb]', 'signup:callbackURL', {
-        hypothesisId: 'H3',
-        scope: options.scope,
-        hasVerifyContinueUrl: Boolean(options.verifyContinueUrl),
-        callbackHasContinueURL: signUpCallbackURL.includes('continueURL='),
-        pendingWillHaveContinueURL: Boolean(options.verifyContinueUrl),
-      })
-      // #endregion
       const result = await signUpWithEmail({
         apiServerUrl: options.apiServerUrl,
         email,

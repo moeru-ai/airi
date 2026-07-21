@@ -66,17 +66,14 @@ export function createEnrollContext(currentUrl: string): EnrollContext | null {
 }
 
 /**
- * Builds the Better Auth email-verification `callbackURL`.
- *
- * The email link opens a fresh tab. Embed `continueURL` so that tab can resume
- * OIDC / Steam enrollment via top-level navigation when the original pending
- * tab is gone (BroadcastChannel alone is not enough).
+ * Builds the Better Auth email-verification `callbackURL` with `api_server_url`
+ * and optional `continueURL` so the email-opened tab can resume OIDC/enroll.
  *
  * Before:
- * - `https://auth.example/ui/verify-email?verified=true&api_server_url=...`
+ * - `https://auth.example/ui/verify-email`
  *
- * After (when continueURL is set):
- * - `...&continueURL=<authorize-with-enrollToken>`
+ * After:
+ * - `...?verified=true&api_server_url=...&continueURL=...`
  */
 export function buildVerifyEmailCallbackUrl(params: {
   verifyEmailPath: string

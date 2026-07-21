@@ -29,155 +29,63 @@ const error = computed(() => {
 
 const verified = computed(() => route.query.verified === 'true')
 
-// Captured at mount time on the original tab (the one that just submitted the
-// sign-up form) so that, when the verification tab signals success, we know
-// where to resume the upstream OIDC flow. Empty when the sign-up was not
-// initiated inside an OIDC handoff. Also embedded on the email callbackURL so
-// the success tab can resume alone when the pending tab is closed.
+// OIDC / enroll resume target. Present on the pending tab after sign-up, and on
+// the email success tab when embedded in the verification callbackURL.
 const continueURL = computed(() => {
   const value = route.query.continueURL
   return typeof value === 'string' ? value : ''
 })
 
 // NOTICE:
-// Cross-tab signal between the verification-success tab (the one opened from
-// the email link) and the original "check your inbox" tab. Both tabs live on
-// the same origin (/ui/...), so BroadcastChannel works without setup.
+// Cross-tab signal between the email-link success tab and the original
+// "check your inbox" tab (same origin → BroadcastChannel).
 //
-// Why not poll /get-session every 2s? An abandoned pending tab would burn
-// 1800 requests/hour for no reason, and the request volume scales with time
-// the user takes to check their inbox. With BroadcastChannel the only work
-// happens when verification actually finishes.
+// Do not poll /get-session: an abandoned pending tab would burn request quota.
 //
-// Cross-site auth UI (pages.dev) + API (railway.app): credentials fetch to
-// /get-session does not see the session cookie set on the API host during
-// verify-email. Runtime evidence (debug 7afbeb): after broadcast,
-// resumeIfSessionReady:no-session while Railway had already written
-// session_started — so gating resume on get-session blocks desktop login
-// online even when BroadcastChannel works. Top-level navigation to
-// continueURL (API authorize) sends the cookie; use that after verification.
+// After verification, resume with a top-level navigation to continueURL.
+// A credentials fetch to /get-session from a cross-site auth UI host cannot
+// see the API session cookie (SameSite); authorize navigation can.
+// pending-mount still probes get-session for same-site / already-verified reload.
 type VerifyEmailEvent = 'verified'
 const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, VerifyEmailEvent>({
   name: 'airi-auth-verify-email',
 })
 
-function navigateToContinue(source: string): boolean {
-  if (!continueURL.value) {
-    // #region agent log
-    console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:no-continueURL', {
-      hypothesisId: 'H2',
-      source,
-    })
-    // #endregion
+function navigateToContinue(): boolean {
+  if (!continueURL.value)
     return false
-  }
-
-  // #region agent log
-  console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:navigate', {
-    hypothesisId: 'H2',
-    source,
-    mode: 'top-level',
-    hasContinueURL: true,
-  })
-  // #endregion
   window.location.href = continueURL.value
   return true
 }
 
-async function resumeIfSessionReady(source: string): Promise<boolean> {
-  // #region agent log
-  let continueHost = ''
-  try {
-    continueHost = continueURL.value ? new URL(continueURL.value).host : ''
-  }
-  catch {
-    continueHost = 'invalid'
-  }
-  let apiServerHost = ''
-  try {
-    apiServerHost = new URL(apiServerUrl).host
-  }
-  catch {
-    apiServerHost = 'invalid'
-  }
-  console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:start', {
-    hypothesisId: 'H2',
-    source,
-    hasContinueURL: Boolean(continueURL.value),
-    continueHost,
-    apiServerHost,
-  })
-  // #endregion
-
-  // Verification already happened (broadcast or email success tab). Do not gate
-  // on cross-origin get-session — navigate to authorize with a top-level load.
+async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'verified-success'): Promise<boolean> {
   if (source === 'broadcast' || source === 'verified-success')
-    return navigateToContinue(source)
+    return navigateToContinue()
 
-  // pending-mount: probe get-session only for same-site / already-verified reload.
-  // Online cross-site often returns 200 with no session; then we wait for broadcast.
   try {
     const response = await fetch(new URL('/api/auth/get-session', apiServerUrl).toString(), {
       credentials: 'include',
       cache: 'no-store',
     })
-    if (!response.ok) {
-      // #region agent log
-      console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:get-session-not-ok', {
-        hypothesisId: 'H2',
-        source,
-        status: response.status,
-      })
-      // #endregion
+    if (!response.ok)
       return false
-    }
 
     const payload = await response.json().catch(() => null) as { session?: unknown } | null
-    if (!payload?.session) {
-      // #region agent log
-      console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:no-session', {
-        hypothesisId: 'H2',
-        source,
-      })
-      // #endregion
+    if (!payload?.session)
       return false
-    }
 
-    return navigateToContinue(source)
+    return navigateToContinue()
   }
-  catch (error) {
-    // #region agent log
-    console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:threw', {
-      hypothesisId: 'H2',
-      source,
-      errorName: error instanceof Error ? error.name : 'unknown',
-    })
-    // #endregion
+  catch {
     return false
   }
 }
 
 onMounted(async () => {
-  // #region agent log
-  console.info('[airi-debug:7afbeb]', 'verify-email:mount', {
-    hypothesisId: 'H1',
-    verified: verified.value,
-    hasError: Boolean(error.value),
-    hasContinueURL: Boolean(continueURL.value),
-    hasEmail: Boolean(email.value),
-    broadcastSupported: isSupported.value,
-  })
-  // #endregion
-  // Verification-success tab: announce to any sibling pending tab, then resume
-  // here when continueURL was embedded in the email callback (pending may be gone).
   if (verified.value) {
     trackEmailVerificationCompleted()
-    if (isSupported.value) {
-      // #region agent log
-      console.info('[airi-debug:7afbeb]', 'verify-email:broadcast-post', { hypothesisId: 'H1' })
-      // #endregion
+    if (isSupported.value)
       post('verified')
-    }
     if (continueURL.value)
       await resumeIfSessionReady('verified-success')
     return
@@ -188,21 +96,14 @@ onMounted(async () => {
     return
   }
 
-  // Pending tab: cover the case where verification already happened before
-  // this tab subscribed (back-button navigation, page reload, etc.). One
-  // session check, no recurring poll.
+  // Already-verified reload / late subscription: one get-session probe, no poll.
   await resumeIfSessionReady('pending-mount')
 })
 
-// React to a verification event broadcast from the success tab. `data` flips
-// from null to 'verified' the moment the message arrives.
 watch(data, async (event) => {
   if (event !== 'verified' || verified.value || error.value)
     return
 
-  // #region agent log
-  console.info('[airi-debug:7afbeb]', 'verify-email:broadcast-received', { hypothesisId: 'H1' })
-  // #endregion
   await resumeIfSessionReady('broadcast')
 })
 </script>
