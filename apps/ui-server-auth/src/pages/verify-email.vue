@@ -59,38 +59,104 @@ const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, Verify
   name: 'airi-auth-verify-email',
 })
 
-async function resumeIfSessionReady(): Promise<boolean> {
+async function resumeIfSessionReady(source: string): Promise<boolean> {
+  // #region agent log
+  let continueHost = ''
+  try {
+    continueHost = continueURL.value ? new URL(continueURL.value).host : ''
+  }
+  catch {
+    continueHost = 'invalid'
+  }
+  let apiServerHost = ''
+  try {
+    apiServerHost = new URL(apiServerUrl).host
+  }
+  catch {
+    apiServerHost = 'invalid'
+  }
+  console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:start', {
+    hypothesisId: 'H2',
+    source,
+    hasContinueURL: Boolean(continueURL.value),
+    continueHost,
+    apiServerHost,
+  })
+  // #endregion
   try {
     const response = await fetch(new URL('/api/auth/get-session', apiServerUrl).toString(), {
       credentials: 'include',
       cache: 'no-store',
     })
-    if (!response.ok)
+    if (!response.ok) {
+      // #region agent log
+      console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:get-session-not-ok', {
+        hypothesisId: 'H2',
+        source,
+        status: response.status,
+      })
+      // #endregion
       return false
+    }
 
     const payload = await response.json().catch(() => null) as { session?: unknown } | null
-    if (!payload?.session)
+    if (!payload?.session) {
+      // #region agent log
+      console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:no-session', {
+        hypothesisId: 'H2',
+        source,
+      })
+      // #endregion
       return false
+    }
 
     // Same-tab navigation preserves sessionStorage on the destination origin,
     // so the original PKCE flowState saved by the OIDC client is still
     // available when /auth/callback runs.
+    // #region agent log
+    console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:navigate', {
+      hypothesisId: 'H1',
+      source,
+      hasContinueURL: Boolean(continueURL.value),
+    })
+    // #endregion
     window.location.href = continueURL.value || buildCurrentOriginAuthUiUrl()
     return true
   }
-  catch {
+  catch (error) {
+    // #region agent log
+    console.info('[airi-debug:7afbeb]', 'resumeIfSessionReady:threw', {
+      hypothesisId: 'H2',
+      source,
+      errorName: error instanceof Error ? error.name : 'unknown',
+    })
+    // #endregion
     return false
   }
 }
 
 onMounted(async () => {
+  // #region agent log
+  console.info('[airi-debug:7afbeb]', 'verify-email:mount', {
+    hypothesisId: 'H1',
+    verified: verified.value,
+    hasError: Boolean(error.value),
+    hasContinueURL: Boolean(continueURL.value),
+    hasEmail: Boolean(email.value),
+    broadcastSupported: isSupported.value,
+  })
+  // #endregion
   // Verification-success tab: announce to any sibling pending tab that the
   // session cookie has been written, then stay put so the user sees the
   // success message. The pending tab does the OIDC continuation.
   if (verified.value) {
     trackEmailVerificationCompleted()
-    if (isSupported.value)
+    if (isSupported.value) {
+      // #region agent log
+      console.info('[airi-debug:7afbeb]', 'verify-email:broadcast-post', { hypothesisId: 'H1' })
+      // #endregion
       post('verified')
+    }
     return
   }
 
@@ -102,7 +168,7 @@ onMounted(async () => {
   // Pending tab: cover the case where verification already happened before
   // this tab subscribed (back-button navigation, page reload, etc.). One
   // session check, no recurring poll.
-  await resumeIfSessionReady()
+  await resumeIfSessionReady('pending-mount')
 })
 
 // React to a verification event broadcast from the success tab. `data` flips
@@ -111,7 +177,10 @@ watch(data, async (event) => {
   if (event !== 'verified' || verified.value || error.value)
     return
 
-  await resumeIfSessionReady()
+  // #region agent log
+  console.info('[airi-debug:7afbeb]', 'verify-email:broadcast-received', { hypothesisId: 'H1' })
+  // #endregion
+  await resumeIfSessionReady('broadcast')
 })
 </script>
 
