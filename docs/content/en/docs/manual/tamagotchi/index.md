@@ -37,7 +37,7 @@ The desktop version is also called Stage Tamagotchi and usually consists of thes
 
 If the main character window is hidden, you can bring it back by clicking on the AIRI tray icon or selecting **Show** in the tray menu.
 
-##Control Island
+## Control Island
 
 The control island is the most convenient entry point for daily operation of the desktop version.
 
@@ -52,7 +52,7 @@ The control island is the most convenient entry point for daily operation of the
 - Click the microphone button to turn on hearing controls.
 - Drag the move button to move the main character window.
 
-##Hide on hover
+## Hide on hover
 
 The eye icon is used to toggle how AIRI is displayed: remain clickable, or minimize occlusion and click distractions while you work.
 
