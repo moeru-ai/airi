@@ -24,7 +24,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 1. Open **Settings → Service Provider → Chat → DeepSeek**.
 2. Paste the API Key into the basic settings.
-3. Keep the default Base URL: `https://api.deepseek.com/v1`.
+3. Keep the default Base URL: `https://api.deepseek.com/`.
 
 ## Step 3: Verify configuration
 
