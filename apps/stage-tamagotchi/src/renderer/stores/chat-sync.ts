@@ -292,15 +292,30 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   function applySessionSnapshot(snapshot: SessionSnapshotPayload) {
     const localActiveSessionId = activeSessionId.value
+    const snapshotHasLocalActiveMessages = !!snapshot.sessionMessages[localActiveSessionId]
     const shouldPreserveLocalActiveSession = mode.value === 'follower'
       && !!localActiveSessionId
-      && (!!snapshot.sessionMessages[localActiveSessionId] || !!snapshot.sessionMetas[localActiveSessionId])
+      && (snapshotHasLocalActiveMessages || !!snapshot.sessionMetas[localActiveSessionId])
+
+    let nextSessionMessages = snapshot.sessionMessages
+    if (shouldPreserveLocalActiveSession
+      && !snapshotHasLocalActiveMessages
+      && Object.hasOwn(sessionMessages.value, localActiveSessionId)) {
+      // The authority's loaded messages remain primary. A metadata-only
+      // snapshot cannot replace the follower's loaded active chat, or each
+      // heartbeat would blank it and force another IndexedDB hydration.
+      nextSessionMessages = {
+        ...snapshot.sessionMessages,
+        [localActiveSessionId]: sessionMessages.value[localActiveSessionId],
+      }
+    }
 
     chatSession.applyRemoteSnapshot({
       ...snapshot,
       activeSessionId: shouldPreserveLocalActiveSession
         ? localActiveSessionId
         : snapshot.activeSessionId,
+      sessionMessages: nextSessionMessages,
     })
 
     if (shouldPreserveLocalActiveSession)

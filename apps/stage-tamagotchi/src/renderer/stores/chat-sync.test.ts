@@ -640,35 +640,61 @@ describe('useChatSyncStore', async () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/2085
-  it('reloads a follower-selected session when authority snapshots include only its metadata', async () => {
+  it('preserves loaded follower messages when authority snapshots include only metadata for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Metadata-only authority snapshots preserved the follower's local
+    // selection but replaced its entire messages map. The active chat then
+    // blanked and reloaded from IndexedDB after every authority heartbeat.
     mockState.activeSessionId.value = 'session-2'
     mockState.sessionMessages.value = {
-      'session-2': [{ role: 'system', content: 'chat-window' }],
+      'session-2': [
+        { role: 'system', content: 'chat-window' },
+        { role: 'user', content: 'locally loaded history' },
+      ],
     }
 
     const store = useChatSyncStore()
     store.initialize('follower')
 
     const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    const metadataOnlySnapshot = {
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [{ role: 'system', content: 'main-window' }],
+      },
+      sessionMetas: {
+        'session-2': { sessionId: 'session-2' },
+      },
+    }
     authority.postMessage({
       type: 'session-snapshot',
       authorityId: 'authority',
-      snapshot: {
-        activeSessionId: 'session-1',
-        sessionMessages: {
-          'session-1': [{ role: 'system', content: 'main-window' }],
-        },
-        sessionMetas: {
-          'session-2': { sessionId: 'session-2' },
-        },
-      },
+      snapshot: metadataOnlySnapshot,
     })
 
     await vi.waitFor(() => {
       expect(mockState.applyRemoteSnapshot).toHaveBeenCalledTimes(1)
       expect(mockState.setActiveSessionLocally).toHaveBeenCalledWith('session-2')
     })
+
+    authority.postMessage({
+      type: 'session-snapshot',
+      authorityId: 'authority',
+      snapshot: metadataOnlySnapshot,
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.applyRemoteSnapshot).toHaveBeenCalledTimes(2)
+    })
     expect(mockState.activeSessionId.value).toBe('session-2')
+    expect(mockState.sessionMessages.value).toEqual({
+      'session-1': [{ role: 'system', content: 'main-window' }],
+      'session-2': [
+        { role: 'system', content: 'chat-window' },
+        { role: 'user', content: 'locally loaded history' },
+      ],
+    })
 
     authority.close()
     store.dispose()
