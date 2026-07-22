@@ -157,6 +157,13 @@ export default defineConfig<ThemeConfig>({
                 text: 'Configuration',
                 items: [
                   { text: 'Configuration Guide', link: withBase('/en/docs/manual/config/') },
+                  { text: 'Common Setup', link: withBase('/en/docs/manual/config/common') },
+                  { text: 'Feature Configuration', collapsed: true, items: [
+                    { text: 'Chat Models', link: withBase('/en/docs/manual/config/llm') },
+                    { text: 'Audio Input and Output', link: withBase('/en/docs/manual/config/audio') },
+                    { text: 'Vision', link: withBase('/en/docs/manual/config/vision') },
+                    { text: 'Web Search', link: withBase('/en/docs/manual/config/web-search') },
+                  ] },
                   { text: 'Service Providers', collapsed: true, items: [
                     { text: 'Chat Providers', collapsed: true, items: [
                       { text: 'AIRI Official Provider', link: withBase('/en/docs/manual/config/providers/consciousness/official') },
@@ -615,6 +622,13 @@ export default defineConfig<ThemeConfig>({
                 text: '設定',
                 items: [
                   { text: '設定ガイド', link: withBase('/ja/docs/manual/config/') },
+                  { text: '共通設定', link: withBase('/ja/docs/manual/config/common') },
+                  { text: '機能設定', collapsed: true, items: [
+                    { text: 'チャットモデル', link: withBase('/ja/docs/manual/config/llm') },
+                    { text: '音声入力と出力', link: withBase('/ja/docs/manual/config/audio') },
+                    { text: '視覚的理解', link: withBase('/ja/docs/manual/config/vision') },
+                    { text: 'Web検索', link: withBase('/ja/docs/manual/config/web-search') },
+                  ] },
                   { text: 'サービスプロバイダー', collapsed: true, items: [
                     { text: 'チャットプロバイダー', collapsed: true, items: [
                       { text: 'AIRI 公式プロバイダー', link: withBase('/ja/docs/manual/config/providers/consciousness/official') },

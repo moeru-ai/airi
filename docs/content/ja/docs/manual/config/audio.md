@@ -11,7 +11,7 @@ description: 音声合成（TTS）および音声認識（ASR/STT）用の AIRI 
 2. **[設定] → [音声]** を開き、構成されているサービス プロバイダー、モデル、およびトーンを選択します。
 3. スピーキングページにテストテキストを入力し、再生します。音が聞こえたら、設定が成功したことを意味します。
 
-サービス プロバイダーが OpenAI 音声インターフェイスと互換性がある場合は、[OpenAI 互換 API (TTS)](./providers/speech/openai.md) を参照してください。 OpenRouter の音声インターフェースを使用する場合は、「OpenRouter (TTS)」(./providers/speech/openrouter.md) を参照してください。
+サービス プロバイダーが OpenAI 音声インターフェイスと互換性がある場合は、[OpenAI 互換 API (TTS)](./providers/speech/openai.md) を参照してください。 OpenRouter の音声インターフェースを使用する場合は、[OpenRouter (TTS)](./providers/speech/openrouter.md) を参照してください。
 
 ## 音声認識 (ASR/STT) を構成する
 
