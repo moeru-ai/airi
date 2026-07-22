@@ -112,13 +112,16 @@ async function handleSend() {
     // restore on failure
     messageInput.value = textToSend
     attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(targetSessionId, [
-      ...chatSession.getSessionMessages(targetSessionId),
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    const targetMessages = chatSession.getSessionMessagesIfLoaded(targetSessionId)
+    if (targetMessages) {
+      chatSession.setSessionMessages(targetSessionId, [
+        ...targetMessages,
+        {
+          role: 'error',
+          content: errorMessageFrom(error) ?? 'Failed to send message',
+        },
+      ])
+    }
   }
 }
 

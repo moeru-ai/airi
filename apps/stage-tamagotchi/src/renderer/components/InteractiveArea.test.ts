@@ -17,8 +17,8 @@ interface MockState {
   activeCardId: Ref<string>
   activeSessionId: string
   messages: Ref<MockMessage[]>
+  sessionMessages: Ref<Record<string, MockMessage[]>>
   requestIngest: ReturnType<typeof vi.fn>
-  sessionMessages: Record<string, MockMessage[]>
   setSessionMessages: ReturnType<typeof vi.fn>
 }
 
@@ -68,7 +68,8 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     get activeSessionId() {
       return mockState.activeSessionId
     },
-    getSessionMessages: (sessionId: string) => mockState.sessionMessages[sessionId] ?? [],
+    getSessionMessages: (sessionId: string) => mockState.sessionMessages.value[sessionId] ?? [],
+    getSessionMessagesIfLoaded: (sessionId: string) => mockState.sessionMessages.value[sessionId],
     messages: mockState.messages,
     setSessionMessages: mockState.setSessionMessages,
   }),
@@ -149,8 +150,8 @@ describe('interactive area', () => {
       activeCardId: ref('default'),
       activeSessionId: 'session-b',
       messages: ref(sessionMessages['session-b']!),
+      sessionMessages: ref(sessionMessages),
       requestIngest: vi.fn(),
-      sessionMessages,
       setSessionMessages: vi.fn(),
     }
   })
@@ -189,7 +190,7 @@ describe('interactive area', () => {
     })
 
     mockState.activeSessionId = 'session-a'
-    mockState.messages.value = mockState.sessionMessages['session-a']!
+    mockState.messages.value = mockState.sessionMessages.value['session-a']!
     rejectSend?.(new Error('hydrate failed'))
     await nextTick()
 
@@ -200,6 +201,38 @@ describe('interactive area', () => {
       ])
     })
     expect(mockState.setSessionMessages).not.toHaveBeenCalledWith('session-a', expect.any(Array))
+
+    app.unmount()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3629004140
+  it('does not persist a failure into an unloaded session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Failure recovery called getSessionMessages() after targeted hydration
+    // failed. That helper creates a system-only fallback for an unloaded
+    // session, so persisting the error could overwrite its real history.
+    mockState.sessionMessages.value = {
+      'session-a': [{ role: 'system', content: 'A history' }],
+    }
+    mockState.messages.value = mockState.sessionMessages.value['session-a']!
+    mockState.activeSessionId = 'session-b'
+    mockState.requestIngest.mockRejectedValueOnce(new Error('hydrate failed'))
+
+    const app = createApp(InteractiveArea)
+    app.mount(container)
+
+    const textarea = container.querySelector('textarea')
+    expect(textarea).not.toBeNull()
+    textarea!.value = 'send from unloaded B'
+    textarea!.dispatchEvent(new Event('input', { bubbles: true }))
+    textarea!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }))
+
+    await vi.waitFor(() => expect(mockState.requestIngest).toHaveBeenCalled())
+    await nextTick()
+
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+    expect(mockState.sessionMessages.value['session-b']).toBeUndefined()
 
     app.unmount()
   })

@@ -1311,6 +1311,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return sessionMessages.value[sessionId] ?? []
   }
 
+  /** Returns persisted/in-memory messages without creating an unloaded session fallback. */
+  function getSessionMessagesIfLoaded(sessionId: string) {
+    return sessionMessages.value[sessionId]
+  }
+
   function getSessionGeneration(sessionId: string) {
     ensureGeneration(sessionId)
     return sessionGenerations.value[sessionId] ?? 0
@@ -1447,6 +1452,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,
+    getSessionMessagesIfLoaded,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,
