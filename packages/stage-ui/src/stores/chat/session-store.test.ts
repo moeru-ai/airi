@@ -294,6 +294,35 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     expect(store.sessionMetas['sess-1']).toBeUndefined()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628917803
+  it('keeps deleted session generations invalid for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Deletion previously removed the generation entry. A send captured at
+    // generation zero could then read the deleted session as generation zero
+    // again and continue appending messages after the chat was gone.
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'sess-1',
+      sessionMessages: { 'sess-1': [] },
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    expect(store.getSessionGeneration('sess-1')).toBe(0)
+
+    await store.deleteSession('sess-1')
+
+    expect(store.getSessionGeneration('sess-1')).toBe(1)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
   it('reports hydration failure and permits a later retry for Issue #2085', async () => {
     const meta: ChatSessionMeta = {

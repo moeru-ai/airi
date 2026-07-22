@@ -118,6 +118,7 @@ interface MockState {
   createSession: ReturnType<typeof vi.fn>
   loadSession: ReturnType<typeof vi.fn>
   deleteSession: ReturnType<typeof vi.fn>
+  cancelPendingSends: ReturnType<typeof vi.fn>
   setActiveSessionLocally: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
 }
@@ -162,7 +163,13 @@ vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
     const activeSendSessionId = mockOrchestratorStoreCalls === 0 ? mockState.activeSendSessionId : ref<string>()
     const activeStreamingMessage = mockOrchestratorStoreCalls === 0 ? mockState.activeStreamingMessage : ref<MockChatMessage>()
     const sending = mockOrchestratorStoreCalls++ === 0 ? mockState.sending : ref(false)
-    return { activeSendSessionId, activeStreamingMessage, sending, ingest: mockState.ingest }
+    return {
+      activeSendSessionId,
+      activeStreamingMessage,
+      sending,
+      ingest: mockState.ingest,
+      cancelPendingSends: mockState.cancelPendingSends,
+    }
   },
 }))
 
@@ -255,6 +262,7 @@ describe('useChatSyncStore', async () => {
     const createSession = vi.fn(async () => 'session-2')
     const loadSession = vi.fn(async () => true)
     const deleteSession = vi.fn(async () => undefined)
+    const cancelPendingSends = vi.fn()
     const setActiveSessionLocally = vi.fn((sessionId: string) => {
       activeSessionId.value = sessionId
     })
@@ -287,6 +295,7 @@ describe('useChatSyncStore', async () => {
       createSession,
       loadSession,
       deleteSession,
+      cancelPendingSends,
       setActiveSessionLocally,
       ingest,
     }
@@ -761,6 +770,27 @@ describe('useChatSyncStore', async () => {
     expect(commands).toContain('create-session')
     expect(commands).toContain('delete-session')
     expect(commands).not.toContain('select-session')
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628917803
+  it('cancels authority sends before deleting a follower session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A follower delete previously removed only the session record. Queued
+    // work targeting that session remained in the authority orchestrator and
+    // could run after deletion, restoring messages for the removed chat.
+    // The authority must cancel target-session work before deleting its state.
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+
+    await followerStore.requestDeleteSession('session-2')
+
+    expect(mockState.cancelPendingSends).toHaveBeenCalledWith('session-2')
+    expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.cancelPendingSends.mock.invocationCallOrder[0])
+      .toBeLessThan(mockState.deleteSession.mock.invocationCallOrder[0])
 
     authorityStore.dispose()
     followerStore.dispose()

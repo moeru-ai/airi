@@ -513,6 +513,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
   }
 
+  async function deleteAuthoritySession(sessionId: string) {
+    // Reject queued sends before removing the session. The session store also
+    // advances its generation so active streams observe deletion as stale.
+    chatOrchestrator.cancelPendingSends(sessionId)
+    await chatSession.deleteSession(sessionId)
+  }
+
   async function handleCommand(message: Extract<ChatSyncMessage, { type: 'command' }>) {
     if (mode.value !== 'authority')
       return
@@ -558,7 +565,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           })
           return
         case 'delete-session':
-          await chatSession.deleteSession(message.payload.sessionId)
+          await deleteAuthoritySession(message.payload.sessionId)
           break
       }
 
@@ -844,7 +851,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   /** Deletes a session in the authority window, which broadcasts the resulting fallback state. */
   async function requestDeleteSession(sessionId: string) {
     if (mode.value === 'authority') {
-      await chatSession.deleteSession(sessionId)
+      await deleteAuthoritySession(sessionId)
       return
     }
 

@@ -444,6 +444,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   reconcile `adopt` branch will not re-import the row on next login.
    */
   async function deleteSession(sessionId: string) {
+    // Keep a monotonic tombstone in memory so queued and streaming sends that
+    // captured the previous generation cannot become current again after the
+    // session record is removed.
+    bumpSessionGeneration(sessionId)
+
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
@@ -481,7 +486,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // fire-and-forget. Persistence races now read the post-deletion state.
     delete sessionMetas.value[sessionId]
     delete sessionMessages.value[sessionId]
-    delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
     loadingSessions.delete(sessionId)
 
