@@ -12,9 +12,11 @@ const steamMock = vi.hoisted(() => {
   const getAuthTicketForWebApi = vi.fn()
   const init = vi.fn(() => true)
   const shutdown = vi.fn()
+  const setSdkPath = vi.fn()
   const getInstance = vi.fn(() => ({
     init,
     shutdown,
+    setSdkPath,
     user: { getAuthTicketForWebApi },
   }))
 
@@ -22,6 +24,7 @@ const steamMock = vi.hoisted(() => {
     getAuthTicketForWebApi,
     init,
     shutdown,
+    setSdkPath,
     getInstance,
   }
 })
@@ -45,6 +48,18 @@ vi.mock('@guiiai/logg', () => ({
   }),
 }))
 
+// NOTICE: client.ts now resolves the SDK path from the Electron executable and
+// the dev flag, so both modules must be mocked for the node test environment.
+vi.mock('electron', () => ({
+  app: {
+    getPath: vi.fn(() => '/fake/install/AIRI.app/Contents/MacOS/airi'),
+  },
+}))
+
+vi.mock('@electron-toolkit/utils', () => ({
+  is: { dev: false },
+}))
+
 describe('initSteam', () => {
   beforeEach(() => {
     resetSteamClientForTests()
@@ -65,6 +80,16 @@ describe('initSteam', () => {
     expect(steamMock.init).toHaveBeenCalledWith({ appId: STEAM_APP_ID })
   })
 
+  // Regression: macOS .app bundles launch with cwd=/, so the library's cwd-based
+  // search never found the SDK placed beside AIRI.app. initSteam now pins the
+  // path via setSdkPath resolved from app.getPath('exe') before calling init.
+  it('pins SDK path from the executable before init (macOS .app layout)', async () => {
+    await initSteam()
+
+    expect(steamMock.setSdkPath).toHaveBeenCalledWith('/fake/install/steamworks_sdk')
+    expect(steamMock.init).toHaveBeenCalled()
+  })
+
   it('returns init_failed when SteamAPI_Init returns false', async () => {
     steamMock.init.mockReturnValue(false)
 
@@ -77,6 +102,7 @@ describe('initSteam', () => {
     steamMock.getInstance.mockReturnValueOnce({
       init: steamMock.init,
       shutdown: steamMock.shutdown,
+      setSdkPath: steamMock.setSdkPath,
       user: {},
     } as ReturnType<typeof steamMock.getInstance>)
 
