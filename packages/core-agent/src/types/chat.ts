@@ -58,6 +58,8 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  /** True when this turn was started by an internal hidden user message. */
+  hiddenUserMessage?: boolean
 }
 
 export type ChatStreamEvent

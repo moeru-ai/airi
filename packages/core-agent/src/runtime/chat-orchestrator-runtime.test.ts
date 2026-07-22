@@ -882,6 +882,65 @@ describe('createChatOrchestratorRuntime', () => {
   // core send still finalized and appended its hidden assistant response.
   // Cancellation must reach the provider and remain authoritative even when
   // a provider resolves normally after the signal has aborted.
+
+  // ROOT CAUSE:
+  //
+  // Abort could fire after the assistant placeholder was patched but while an
+  // async compose/before-send hook was still awaited. The later shouldAbort()
+  // checks exited with bare returns, skipping the catch branch that resets
+  // the foreground stream and leaving a blank streaming assistant in the UI.
+  it('resets the foreground stream when abort fires during compose hooks', async () => {
+    const harness = createHarness()
+    const abortController = new AbortController()
+    let releaseHook: (() => void) | undefined
+    harness.runtime.hooks.onBeforeMessageComposed(async () => {
+      abortController.abort(new Error('Companion Mode source changed'))
+      await new Promise<void>((resolve) => {
+        releaseHook = resolve
+      })
+    })
+
+    const send = harness.runtime.ingest('hidden screen prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+      abortSignal: abortController.signal,
+    })
+
+    await vi.waitFor(() => expect(releaseHook).toBeTypeOf('function'))
+    releaseHook?.()
+
+    await expect(send).rejects.toThrow('Companion Mode source changed')
+    expect(harness.stream).not.toHaveBeenCalled()
+    expect(harness.foregroundResets).toHaveLength(1)
+    expect(harness.assistantAppended).toEqual([])
+    expect(harness.sessionMessages['session-1']?.map(message => message.role)).toEqual(['system'])
+  })
+
+  it('resets the foreground stream when the session generation becomes stale during compose', async () => {
+    const harness = createHarness()
+    let releaseHook: (() => void) | undefined
+    harness.runtime.hooks.onBeforeMessageComposed(async () => {
+      harness.generation.set(2)
+      await new Promise<void>((resolve) => {
+        releaseHook = resolve
+      })
+    })
+
+    const send = harness.runtime.ingest('stale prompt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => expect(releaseHook).toBeTypeOf('function'))
+    releaseHook?.()
+    await send
+
+    expect(harness.stream).not.toHaveBeenCalled()
+    expect(harness.foregroundResets).toHaveLength(1)
+    expect(harness.assistantAppended).toEqual([])
+  })
+
   it('does not finalize an active hidden send after its abort signal fires', async () => {
     const harness = createHarness()
     let releaseStream: (() => void) | undefined

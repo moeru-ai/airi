@@ -478,6 +478,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      hiddenUserMessage: hiddenUserMessage || undefined,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -495,6 +496,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const throwIfSignalAborted = () => {
       if (options.abortSignal?.aborted)
         throw chatSendAbortReason(options.abortSignal)
+    }
+    // After the foreground placeholder exists, abort exits must not leave it
+    // behind. Signal aborts throw so the catch branch resets and rejects;
+    // stale generations reset here and exit quietly.
+    const exitIfAbortedAfterForegroundPatch = () => {
+      throwIfSignalAborted()
+      if (isStaleGeneration()) {
+        resetForegroundStream(sessionId)
+        return true
+      }
+      return false
     }
     throwIfSignalAborted()
     if (shouldAbort())
@@ -567,7 +579,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
       }
 
-      if (shouldAbort())
+      if (exitIfAbortedAfterForegroundPatch())
         return
 
       const userMessage = {
@@ -743,7 +755,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
-      if (shouldAbort())
+      if (exitIfAbortedAfterForegroundPatch())
         return
 
       const llmRequestStartedAt = monotonicNow()
@@ -854,13 +866,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
       })
 
-      throwIfSignalAborted()
-      if (isStaleGeneration())
+      if (exitIfAbortedAfterForegroundPatch())
         return
 
       await parser.end()
-      throwIfSignalAborted()
-      if (isStaleGeneration())
+      if (exitIfAbortedAfterForegroundPatch())
         return
 
       if (shouldTrackUserChatTelemetry) {

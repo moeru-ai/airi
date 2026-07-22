@@ -747,6 +747,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+          // Companion Mode observations use hidden user turns. Keep those
+          // replies local so the mods/server channel does not re-export them
+          // as ordinary chat outputs.
+          if (context.hiddenUserMessage || message.isHiddenUserMessageResponse)
+            return
+
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
@@ -765,6 +771,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
+          if (context.hiddenUserMessage || chat.output.isHiddenUserMessageResponse)
+            return
+
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
             data: {
