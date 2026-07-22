@@ -1,4 +1,4 @@
-import type { ManualRuntime } from './types'
+import type { ManualRuntime } from './types.ts'
 
 import { sleep } from '@moeru/std'
 
