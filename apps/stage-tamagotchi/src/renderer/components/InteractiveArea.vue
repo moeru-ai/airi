@@ -90,6 +90,9 @@ async function handleSend() {
 
   const textToSend = messageInput.value
   const attachmentsToSend = attachments.value.map(att => ({ ...att }))
+  // The active session can change while the cross-window request is pending.
+  // Keep one correlation key for both the send and its failure recovery.
+  const targetSessionId = chatSession.activeSessionId
 
   // optimistic clear
   messageInput.value = ''
@@ -99,7 +102,7 @@ async function handleSend() {
     await chatSyncStore.requestIngest({
       text: textToSend,
       attachments: attachmentsToSend,
-      sessionId: chatSession.activeSessionId,
+      sessionId: targetSessionId,
       toolset: 'artistry',
     })
 
@@ -109,8 +112,8 @@ async function handleSend() {
     // restore on failure
     messageInput.value = textToSend
     attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
+    chatSession.setSessionMessages(targetSessionId, [
+      ...chatSession.getSessionMessages(targetSessionId),
       {
         role: 'error',
         content: errorMessageFrom(error) ?? 'Failed to send message',
