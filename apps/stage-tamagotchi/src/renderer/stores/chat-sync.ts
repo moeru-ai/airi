@@ -108,6 +108,13 @@ interface PendingRequest {
   timeout: ReturnType<typeof setTimeout>
 }
 
+class SessionHydrationError extends Error {
+  constructor(sessionId: string) {
+    super(`Failed to hydrate chat session "${sessionId}"`)
+    this.name = 'SessionHydrationError'
+  }
+}
+
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
@@ -373,13 +380,20 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return assistant ? extractMessageText(assistant) : ''
   }
 
+  async function requireSessionHydrated(sessionId: string): Promise<void> {
+    if (await chatSession.loadSession(sessionId))
+      return
+
+    throw new SessionHydrationError(sessionId)
+  }
+
   async function executeIngest(payload: IngestCommandPayload): Promise<void> {
     // A follower's active session is window-local, so the authority may know
     // this session only through its metadata. Hydrate it before ingesting;
     // otherwise the orchestrator's ensureSession fallback can replace the
     // persisted history with a fresh system-only session.
     if (payload.sessionId)
-      await chatSession.loadSession(payload.sessionId)
+      await requireSessionHydrated(payload.sessionId)
 
     const providerId = activeProvider.value
     const modelId = activeModel.value
@@ -425,7 +439,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function executeRetry(payload: RetryCommandPayload) {
     const sessionId = payload.sessionId || activeSessionId.value
-    await chatSession.loadSession(sessionId)
+    await requireSessionHydrated(sessionId)
 
     const currentMessages = chatSession.getSessionMessages(sessionId)
     const sourceIndex = resolveRetrySourceIndex(currentMessages, payload.index)
@@ -448,7 +462,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function executeToolCallRerunCommand(payload: ToolCallRerunPayload<ToolsetId>) {
     const sessionId = payload.sessionId || activeSessionId.value
-    await chatSession.loadSession(sessionId)
+    await requireSessionHydrated(sessionId)
 
     const nextMessages = await executeToolCallRerun({
       messages: chatSession.getSessionMessages(sessionId),
@@ -463,7 +477,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     // A follower can target a persisted session that the authority has only
     // indexed. Reading it before hydration would create a system-only session,
     // then persist that truncated history after filtering.
-    await chatSession.loadSession(sessionId)
+    await requireSessionHydrated(sessionId)
 
     const nextMessages = chatSession.getSessionMessages(sessionId).filter((message, index) => {
       if (payload.messageId)
@@ -555,10 +569,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
       logChatSyncError('command failed', error, authorityCommandMeta(message))
 
-      if (message.command === 'ingest') {
+      if (message.command === 'ingest' && !(error instanceof SessionHydrationError)) {
         appendIngestErrorMessage(message.payload, errorMessage)
       }
-      else if (message.command === 'spotlight-ingest') {
+      else if (message.command === 'spotlight-ingest' && !(error instanceof SessionHydrationError)) {
         appendIngestErrorMessage({
           text: message.payload.text,
           toolset: 'artistry',

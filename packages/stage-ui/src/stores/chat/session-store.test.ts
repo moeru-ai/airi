@@ -293,4 +293,33 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     // Without the fix, sess-1 reappears here.
     expect(store.sessionMetas['sess-1']).toBeUndefined()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
+  it('reports hydration failure and permits a later retry for Issue #2085', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    getSessionMock
+      .mockRejectedValueOnce(new Error('IndexedDB read failed'))
+      .mockResolvedValueOnce(null)
+
+    userIdRef.value = 'local'
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: '',
+      sessionMessages: {},
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    await expect(store.loadSession('sess-1')).resolves.toBe(false)
+    await expect(store.loadSession('sess-1')).resolves.toBe(true)
+
+    expect(getSessionMock).toHaveBeenCalledTimes(2)
+  })
 })
