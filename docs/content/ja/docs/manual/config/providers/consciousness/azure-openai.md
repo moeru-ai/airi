@@ -13,7 +13,7 @@ Azure OpenAI は、Azure リソース エンドポイントとデプロイを通
 
 1. [Azure Portal](https://portal.azure.com/)，创建或打开 Azure OpenAI リソース)を開いてログインし、エンドポイントと API キーを取得します。
 
-::: 警告 API キーのセキュリティ
+::: warning API キーのセキュリティ
 Azure API キーをリポジトリに送信したり、スクリーンショットを撮ったり、他の人に送信したりしないでください。
 :::
 

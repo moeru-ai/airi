@@ -15,7 +15,7 @@ Alibaba Cloud NLS は、AIRI にリアルタイム音声テキスト変換 (ASR)
 2. **AccessKey Management** で必要な権限を持つ RAM ユーザー AccessKey を作成します。
 3. **AccessKey ID** と **AccessKey Secret** をコピーします。通常、シークレットは完全に 1 回だけ表示されます。
 
-::: 警告 AccessKey セキュリティ
+::: warning AccessKey セキュリティ
 AccessKey ID、AccessKey Secret、または AppKey をリポジトリに送信したり、スクリーンショットを撮ったり、他の人に送信したりしないでください。最小特権の原則に従ってください。認証情報が漏洩した後は、すぐに無効にして、Alibaba Cloud コンソールで新しい認証情報を作成してください。
 :::
 

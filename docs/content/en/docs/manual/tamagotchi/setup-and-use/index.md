@@ -46,7 +46,7 @@ Go to [Project AIRI Latest Release](https://github.com/moeru-ai/airi/releases/la
 | Linux | ARM64 Debian systems such as Ubuntu | `AIRI-<版本号>-linux-arm64.deb` |
 | Linux | ARM64 RPM systems such as Fedora, openSUSE | `AIRI-<版本号>-linux-aarch64.rpm` |
 | Android | Huawei Hongmeng and other Android devices | `AIRI-<版本号>-android.apk` |
-| iOS/iPadOS | iPhone, iPad | `AIRI-<版本号>-ios.ipa`|
+| iOS/iPadOS | iPhone, iPad | `AIRI-<version>_(<build-number>)-ios.ipa` |
 
 :::info About Windows Installation Software
 The installer provides two installation methods: install for yourself or for everyone.

@@ -11,7 +11,7 @@ If you already manage model access, regions, and billing in AWS, Bedrock can use
 
 ## Step One: Prepare AWS Credentials
 
-1. Open and log in to the [AWS Management Console](with access credentials for https://console.aws.amazon.com/bedrock/)，创建具备 Bedrock permissions.
+1. Open and sign in to the [AWS Management Console](https://console.aws.amazon.com/bedrock/), then create access credentials with Bedrock permissions.
 
 ::: warning AWS Credential Security
 Don't expose AWS access keys. Use credentials with minimal privileges and revoke them when no longer in use.
