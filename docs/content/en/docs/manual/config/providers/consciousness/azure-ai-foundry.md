@@ -24,8 +24,8 @@ Do not submit your Azure API Key to the repository, take screenshots, or send it
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network, resource name and API Key are correct.
-2. **Select Model**: After successful testing, select an available deployment, and then go to **Settings → Consciousness** to enable it.
+1. After you fill in the required fields, AIRI automatically checks that the API Key, resource name, and model ID are present. This check does not test the network connection or credentials.
+2. Go to **Settings → Consciousness**, select the Azure AI Foundry provider and deployment, then send a test message to confirm that the deployment can respond.
 
 ## Troubleshooting
 

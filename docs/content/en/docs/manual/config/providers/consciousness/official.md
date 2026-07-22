@@ -15,13 +15,13 @@ If you want to quickly experience AIRI without configuring a third-party API Key
 2. Select a login method. We currently support email, Google and GitHub logins.
 
     ::: info Special reminder for Chinese users
-Users in China may not be able to log in with Google and GitHub. Please use your email to log in. Registering and logging in with a mobile phone number is not currently supported.
+    Users in China may not be able to log in with Google and GitHub. Please use your email to log in. Registering and logging in with a mobile phone number is not currently supported.
     :::
 
 3. Follow the prompts to complete login/registration.
 
     ::: info
-If you don't receive the email, please check if it is in spam.
+    If you don't receive the email, please check if it is in spam.
     :::
 
 ## Step 2: Check available power
