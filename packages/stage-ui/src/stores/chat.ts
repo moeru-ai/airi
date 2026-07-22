@@ -2,13 +2,13 @@ import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamE
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
-import type { ChatHistoryItem } from '../types/chat'
+import type { ChatHistoryItem, StreamingAssistantMessage } from '../types/chat'
 
 import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw, watch } from 'vue'
+import { shallowRef, toRaw, watch } from 'vue'
 
 import { getConversationAnalyticsSurface, useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
@@ -85,8 +85,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
-  const sending = ref(false)
-  const pendingQueuedSendCount = ref(0)
+  const sending = shallowRef(false)
+  const activeSendSessionId = shallowRef<string>()
+  const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
+  const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
 
   async function streamWithStageAdapters(
@@ -145,6 +147,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
     sending.value = state.sending
+    activeSendSessionId.value = state.activeSendSessionId
+    activeStreamingMessage.value = state.activeStreamingMessage
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -412,6 +416,8 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   return {
     sending,
+    activeSendSessionId,
+    activeStreamingMessage,
     pendingQueuedSendCount,
 
     ingest,

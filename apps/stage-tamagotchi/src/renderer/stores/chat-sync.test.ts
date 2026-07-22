@@ -19,6 +19,7 @@ interface MockBroadcastMessageEvent<T> {
 
 type MockListener = (event: MockBroadcastMessageEvent<unknown>) => void
 interface MockChatMessage {
+  createdAt?: number
   id?: string
   role: string
   content: string
@@ -103,17 +104,28 @@ function assistantMessage(content: string): MockChatMessage {
 }
 
 interface MockState {
+  activeSendSessionId: Ref<string | undefined>
+  activeStreamingMessage: Ref<MockChatMessage | undefined>
   activeSessionId: Ref<string>
+  sending: Ref<boolean>
+  streamingMessage: Ref<MockChatMessage>
   sessionMessages: Ref<Record<string, MockChatMessage[]>>
   sessionMetas: Ref<Record<string, unknown>>
   applyRemoteSnapshot: ReturnType<typeof vi.fn>
   setSessionMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   importSessions: MockImportSessions
+  createSession: ReturnType<typeof vi.fn>
+  loadSession: ReturnType<typeof vi.fn>
+  deleteSession: ReturnType<typeof vi.fn>
+  cancelPendingSends: ReturnType<typeof vi.fn>
+  setActiveSessionLocally: ReturnType<typeof vi.fn>
   ingest: ReturnType<typeof vi.fn>
 }
 
 let mockState: MockState
+let mockOrchestratorStoreCalls = 0
+let mockStreamStoreCalls = 0
 
 vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
   useChatSessionStore: () => ({
@@ -129,20 +141,36 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     getSessionMessages: mockState.getSessionMessages,
     importSessions: mockState.importSessions,
     setSessionMessages: mockState.setSessionMessages,
+    createSession: mockState.createSession,
+    loadSession: mockState.loadSession,
+    deleteSession: mockState.deleteSession,
+    setActiveSessionLocally: mockState.setActiveSessionLocally,
   }),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat/stream-store', () => ({
-  useChatStreamStore: () => ({
-    streamingMessage: ref({ role: 'assistant', content: '', slices: [], tool_results: [] }),
-  }),
+  useChatStreamStore: () => {
+    const streamingMessage = mockStreamStoreCalls++ === 0
+      ? mockState.streamingMessage
+      : ref<MockChatMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+
+    return { streamingMessage }
+  },
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
-  useChatOrchestratorStore: () => ({
-    sending: ref(false),
-    ingest: mockState.ingest,
-  }),
+  useChatOrchestratorStore: () => {
+    const activeSendSessionId = mockOrchestratorStoreCalls === 0 ? mockState.activeSendSessionId : ref<string>()
+    const activeStreamingMessage = mockOrchestratorStoreCalls === 0 ? mockState.activeStreamingMessage : ref<MockChatMessage>()
+    const sending = mockOrchestratorStoreCalls++ === 0 ? mockState.sending : ref(false)
+    return {
+      activeSendSessionId,
+      activeStreamingMessage,
+      sending,
+      ingest: mockState.ingest,
+      cancelPendingSends: mockState.cancelPendingSends,
+    }
+  },
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat/maintenance', () => ({
@@ -203,8 +231,14 @@ describe('useChatSyncStore', async () => {
     setActivePinia(createPinia())
     MockBroadcastChannel.reset()
     vi.restoreAllMocks()
+    mockOrchestratorStoreCalls = 0
+    mockStreamStoreCalls = 0
 
+    const activeSendSessionId = ref<string>()
+    const activeStreamingMessage = ref<MockChatMessage>()
     const activeSessionId = ref('session-1')
+    const sending = ref(false)
+    const streamingMessage = ref<MockChatMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
     const sessionMessages = ref<Record<string, MockChatMessage[]>>({
       'session-1': [{ role: 'system', content: 'init' }],
     })
@@ -225,6 +259,13 @@ describe('useChatSyncStore', async () => {
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
     const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
+    const createSession = vi.fn(async () => 'session-2')
+    const loadSession = vi.fn(async () => true)
+    const deleteSession = vi.fn(async () => undefined)
+    const cancelPendingSends = vi.fn()
+    const setActiveSessionLocally = vi.fn((sessionId: string) => {
+      activeSessionId.value = sessionId
+    })
 
     const ingest = vi.fn(async () => {
       throw new Error('Remote sent 403 response: {"error":{"message":"This model is not available in your region.","code":403}}')
@@ -240,13 +281,22 @@ describe('useChatSyncStore', async () => {
     mockImageJournalTools.mockResolvedValue([])
 
     mockState = {
+      activeSendSessionId,
+      activeStreamingMessage,
       activeSessionId,
+      sending,
+      streamingMessage,
       sessionMessages,
       sessionMetas,
       applyRemoteSnapshot,
       setSessionMessages,
       getSessionMessages,
       importSessions,
+      createSession,
+      loadSession,
+      deleteSession,
+      cancelPendingSends,
+      setActiveSessionLocally,
       ingest,
     }
 
@@ -385,8 +435,14 @@ describe('useChatSyncStore', async () => {
     vi.useRealTimers()
   })
 
-  it('replaces the last failed turn before retrying', async () => {
-    mockState.sessionMessages.value['session-1'] = [
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates the follower-targeted session before retrying for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Follower selection is window-local, so the authority can know an older
+    // target only from metadata. Retry previously read before hydration and
+    // therefore could not find the persisted source user turn.
+    const persistedMessages: MockChatMessage[] = [
       { role: 'system', content: 'init' },
       { role: 'user', content: 'hello-1' },
       { role: 'assistant', content: 'answer-1' },
@@ -395,6 +451,12 @@ describe('useChatSyncStore', async () => {
       { role: 'user', content: 'hello-3' },
       { role: 'assistant', content: 'answer-3' },
     ]
+    delete mockState.sessionMessages.value['session-1']
+    mockState.sessionMetas.value['session-1'] = { sessionId: 'session-1' }
+    mockState.loadSession.mockImplementationOnce(async () => {
+      mockState.sessionMessages.value['session-1'] = persistedMessages
+      return true
+    })
     mockState.ingest.mockResolvedValueOnce(undefined)
 
     const store = useChatSyncStore()
@@ -413,6 +475,7 @@ describe('useChatSyncStore', async () => {
     })
 
     await vi.waitFor(() => {
+      expect(mockState.loadSession).toHaveBeenCalledWith('session-1')
       expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
         { role: 'system', content: 'init' },
         { role: 'user', content: 'hello-1' },
@@ -421,14 +484,32 @@ describe('useChatSyncStore', async () => {
       expect(mockState.ingest).toHaveBeenCalledWith('hello', expect.any(Object), 'session-1')
     })
 
-    const persistedMessages = mockState.sessionMessages.value['session-1']
-    expect(persistedMessages).toEqual([
+    const retriedMessages = mockState.sessionMessages.value['session-1']
+    expect(retriedMessages).toEqual([
       { role: 'system', content: 'init' },
       { role: 'user', content: 'hello-1' },
       { role: 'assistant', content: 'answer-1' },
     ])
 
     peer.close()
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
+  it('rejects a targeted retry when session hydration fails for Issue #2085', async () => {
+    mockState.loadSession.mockResolvedValueOnce(false)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await expect(store.requestRetry({
+      sessionId: 'session-2',
+      index: 1,
+    })).rejects.toThrow('Failed to hydrate chat session "session-2"')
+
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+    expect(mockState.ingest).not.toHaveBeenCalled()
+
     store.dispose()
   })
 
@@ -508,6 +589,340 @@ describe('useChatSyncStore', async () => {
     store.dispose()
   })
 
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('scopes authority stream snapshots to the follower active session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Stream snapshots previously carried only global sending state and text.
+    // A follower viewing another session therefore rendered the authority's
+    // in-progress assistant response under the wrong conversation.
+    mockState.activeSessionId.value = 'session-2'
+    mockState.sessionMetas.value = {
+      'session-1': { sessionId: 'session-1' },
+      'session-2': { sessionId: 'session-2' },
+    }
+
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    authority.postMessage({
+      type: 'stream-snapshot',
+      authorityId: 'authority',
+      snapshot: {
+        sessionId: 'session-1',
+        sending: true,
+        streamingMessage: assistantMessage('session-1 partial response'),
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.sending.value).toBe(false)
+      expect(mockState.streamingMessage.value.content).toBe('')
+    })
+
+    authority.postMessage({
+      type: 'stream-snapshot',
+      authorityId: 'authority',
+      snapshot: {
+        sessionId: 'session-2',
+        sending: true,
+        streamingMessage: assistantMessage('session-2 partial response'),
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.sending.value).toBe(true)
+      expect(mockState.streamingMessage.value.content).toBe('session-2 partial response')
+    })
+
+    await store.requestSelectSession('session-1')
+
+    expect(mockState.sending.value).toBe(false)
+    expect(mockState.streamingMessage.value.content).toBe('')
+
+    authority.close()
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('labels authority stream snapshots with the background send target for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Stream snapshots used the authority's visible session even when the
+    // queued send belonged to a follower-selected background session. The
+    // follower then discarded its own sending state as a foreign stream.
+    mockState.activeSessionId.value = 'session-1'
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    mockState.streamingMessage.value = { ...assistantMessage('stale session-1 response'), createdAt: 1 }
+    mockState.activeSendSessionId.value = 'session-2'
+    mockState.activeStreamingMessage.value = { ...assistantMessage('session-2 partial response'), createdAt: 2 }
+    mockState.sending.value = true
+
+    await vi.waitFor(() => {
+      expect(postedMessagesOfType('stream-snapshot').at(-1)).toEqual(expect.objectContaining({
+        snapshot: expect.objectContaining({
+          sessionId: 'session-2',
+          sending: true,
+          streamingMessage: expect.objectContaining({
+            content: 'session-2 partial response',
+            createdAt: 2,
+          }),
+        }),
+      }))
+    })
+
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('preserves loaded follower messages when authority snapshots include only metadata for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Metadata-only authority snapshots preserved the follower's local
+    // selection but replaced its entire messages map. The active chat then
+    // blanked and reloaded from IndexedDB after every authority heartbeat.
+    mockState.activeSessionId.value = 'session-2'
+    mockState.sessionMessages.value = {
+      'session-2': [
+        { role: 'system', content: 'chat-window' },
+        { role: 'user', content: 'locally loaded history' },
+      ],
+    }
+
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    const metadataOnlySnapshot = {
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [{ role: 'system', content: 'main-window' }],
+      },
+      sessionMetas: {
+        'session-2': { sessionId: 'session-2' },
+      },
+    }
+    authority.postMessage({
+      type: 'session-snapshot',
+      authorityId: 'authority',
+      snapshot: metadataOnlySnapshot,
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.applyRemoteSnapshot).toHaveBeenCalledTimes(1)
+      expect(mockState.setActiveSessionLocally).toHaveBeenCalledWith('session-2')
+    })
+
+    authority.postMessage({
+      type: 'session-snapshot',
+      authorityId: 'authority',
+      snapshot: metadataOnlySnapshot,
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.applyRemoteSnapshot).toHaveBeenCalledTimes(2)
+    })
+    expect(mockState.activeSessionId.value).toBe('session-2')
+    expect(mockState.sessionMessages.value).toEqual({
+      'session-1': [{ role: 'system', content: 'main-window' }],
+      'session-2': [
+        { role: 'system', content: 'chat-window' },
+        { role: 'user', content: 'locally loaded history' },
+      ],
+    })
+
+    authority.close()
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('routes follower session list mutations through the authority for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // The chat window is a follower, but the session drawer created and
+    // deleted sessions in its local Pinia store. The authority heartbeat then
+    // replaced those changes with its unchanged snapshot. Persistent mutations
+    // now execute against the authority, while selection remains window-local.
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+
+    const createdSessionId = await followerStore.requestCreateSession('default')
+    mockState.ingest.mockResolvedValueOnce(undefined)
+    await followerStore.requestIngest({
+      text: 'first message in the new chat',
+      sessionId: createdSessionId,
+    })
+    await followerStore.requestSelectSession('session-1')
+    await followerStore.requestDeleteSession('session-2')
+
+    expect(createdSessionId).toBe('session-2')
+    expect(mockState.createSession).toHaveBeenCalledWith('default', { setActive: false })
+    expect(mockState.setActiveSessionLocally).toHaveBeenCalledWith('session-2')
+    expect(mockState.setActiveSessionLocally).toHaveBeenLastCalledWith('session-1')
+    expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.ingest).toHaveBeenCalledWith('first message in the new chat', expect.any(Object), 'session-2')
+
+    const commands = postedMessagesOfType('command').map(message => message.command)
+    expect(commands).toContain('create-session')
+    expect(commands).toContain('delete-session')
+    expect(commands).not.toContain('select-session')
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628917803
+  it('cancels authority sends before deleting a follower session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A follower delete previously removed only the session record. Queued
+    // work targeting that session remained in the authority orchestrator and
+    // could run after deletion, restoring messages for the removed chat.
+    // The authority must cancel target-session work before deleting its state.
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+
+    await followerStore.requestDeleteSession('session-2')
+
+    expect(mockState.cancelPendingSends).toHaveBeenCalledWith('session-2')
+    expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.cancelPendingSends.mock.invocationCallOrder[0])
+      .toBeLessThan(mockState.deleteSession.mock.invocationCallOrder[0])
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates a metadata-only follower session before ingesting for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A follower can select an older session without changing the authority's
+    // active session. The authority then knows that session only from metadata;
+    // ingesting before its messages load lets the orchestrator create and
+    // persist a fresh system-only session over the existing history.
+    mockState.sessionMetas.value['session-2'] = { sessionId: 'session-2' }
+    mockState.ingest.mockResolvedValueOnce(undefined)
+
+    let finishHydration: (() => void) | undefined
+    mockState.loadSession.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finishHydration = resolve
+      })
+      mockState.sessionMessages.value['session-2'] = [{ role: 'system', content: 'persisted history' }]
+      return true
+    })
+
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+    await followerStore.requestSelectSession('session-2')
+    const pendingIngest = followerStore.requestIngest({
+      text: 'continue this chat',
+      sessionId: 'session-2',
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
+    })
+    expect(mockState.ingest).not.toHaveBeenCalled()
+
+    finishHydration?.()
+    await pendingIngest
+
+    expect(mockState.ingest).toHaveBeenCalledWith('continue this chat', expect.any(Object), 'session-2')
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
+  it('rejects a targeted ingest when session hydration fails for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // loadSession previously swallowed its storage error and resolved void.
+    // The authority treated that as a successful hydrate, then ingest created
+    // a system-only fallback that could be persisted over the existing chat.
+    mockState.loadSession.mockResolvedValueOnce(false)
+    mockState.ingest.mockResolvedValueOnce(undefined)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await expect(store.requestIngest({
+      text: 'continue this chat',
+      sessionId: 'session-2',
+    })).rejects.toThrow('Failed to hydrate chat session "session-2"')
+
+    expect(mockState.ingest).not.toHaveBeenCalled()
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates a metadata-only follower session before deleting a message for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Deleting from an older follower-selected session previously read the
+    // authority's unloaded state. That read created a system-only session and
+    // the subsequent write persisted it over the conversation being edited.
+    mockState.sessionMetas.value['session-2'] = { sessionId: 'session-2' }
+
+    let finishHydration: (() => void) | undefined
+    mockState.loadSession.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finishHydration = resolve
+      })
+      mockState.sessionMessages.value['session-2'] = [
+        { role: 'system', content: 'persisted history' },
+        { id: 'remove-me', role: 'user', content: 'remove this message' },
+        { id: 'keep-me', role: 'assistant', content: 'keep this message' },
+      ]
+      return true
+    })
+
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+    const pendingDelete = followerStore.requestDeleteMessage({
+      sessionId: 'session-2',
+      messageId: 'remove-me',
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
+    })
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+
+    finishHydration?.()
+    await pendingDelete
+
+    expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-2', [
+      { role: 'system', content: 'persisted history' },
+      { id: 'keep-me', role: 'assistant', content: 'keep this message' },
+    ])
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
+  it('rejects a targeted message delete when session hydration fails for Issue #2085', async () => {
+    mockState.loadSession.mockResolvedValueOnce(false)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await expect(store.requestDeleteMessage({
+      sessionId: 'session-2',
+      messageId: 'remove-me',
+    })).rejects.toThrow('Failed to hydrate chat session "session-2"')
+
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+
+    store.dispose()
+  })
+
   it('sends spotlight commands through shared request and response messages', async () => {
     mockState.ingest.mockImplementationOnce(async () => {
       mockState.sessionMessages.value['session-1'] = [
@@ -570,7 +985,12 @@ describe('useChatSyncStore', async () => {
     vi.useRealTimers()
   })
 
-  it('reruns a tool call locally when this window is the authority', async () => {
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates the targeted session before rerunning a tool call for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Tool replay previously searched the authority's unloaded fallback
+    // instead of hydrating the follower-selected session that owns the call.
     const execute = vi.fn<Tool['execute']>(async () => 'fresh result')
     const demoTool: Tool = {
       type: 'function',
@@ -616,7 +1036,12 @@ describe('useChatSyncStore', async () => {
         ],
       },
     ]
-    mockState.sessionMessages.value['session-1'] = initialMessages
+    delete mockState.sessionMessages.value['session-1']
+    mockState.sessionMetas.value['session-1'] = { sessionId: 'session-1' }
+    mockState.loadSession.mockImplementationOnce(async () => {
+      mockState.sessionMessages.value['session-1'] = initialMessages
+      return true
+    })
 
     const store = useChatSyncStore()
     store.initialize('authority')
@@ -630,6 +1055,7 @@ describe('useChatSyncStore', async () => {
       args: '{ "value": 2 }',
     })
 
+    expect(mockState.loadSession).toHaveBeenCalledWith('session-1')
     expect(mockResolveLlmTools).toHaveBeenCalledWith({ customTools: expect.any(Function) })
     expect(mockWidgetsTools).toHaveBeenCalledTimes(1)
     expect(mockWeatherTools).toHaveBeenCalledTimes(1)

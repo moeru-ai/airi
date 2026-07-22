@@ -152,6 +152,10 @@ export interface ChatOrchestratorPromptProjection {
 export interface ChatOrchestratorRuntimeState {
   /** Whether the runtime currently owns an active send. */
   sending: boolean
+  /** Session that owns the active send; undefined while the queue is idle. */
+  activeSendSessionId?: string
+  /** Latest assistant stream snapshot owned by the active send session. */
+  activeStreamingMessage?: StreamingAssistantMessage
   /** Number of sends waiting behind the active one. */
   pendingQueuedSendCount: number
 }
@@ -348,19 +352,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const unwrapMessage = deps.unwrapMessage ?? (<T>(message: T) => message)
 
   let sending = false
+  let activeSendSessionId: string | undefined
+  let activeStreamingMessage: StreamingAssistantMessage | undefined
   let pendingQueuedSends: QueuedSend[] = []
 
   function emitStateChange() {
     deps.onStateChange?.({
       sending,
+      activeSendSessionId,
+      activeStreamingMessage,
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
   }
 
   function setSending(next: boolean) {
-    if (sending === next)
+    const nextActiveSendSessionId = next
+      ? activeSendSessionId ?? deps.getActiveSessionId()
+      : undefined
+    if (sending === next && activeSendSessionId === nextActiveSendSessionId)
       return
     sending = next
+    activeSendSessionId = nextActiveSendSessionId
+    if (!next)
+      activeStreamingMessage = undefined
     emitStateChange()
   }
 
@@ -368,7 +382,22 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return sessionId === deps.getActiveSessionId()
   }
 
-  function patchForegroundStream(sessionId: string, message: StreamingAssistantMessage) {
+  function beginStream(sessionId: string, message: StreamingAssistantMessage) {
+    sending = true
+    activeSendSessionId = sessionId
+    activeStreamingMessage = cloneStreamingMessage(message)
+    emitStateChange()
+
+    if (isForegroundSession(sessionId))
+      deps.foregroundStream.patch(cloneStreamingMessage(message))
+  }
+
+  function updateStream(sessionId: string, message: StreamingAssistantMessage) {
+    if (sessionId === activeSendSessionId) {
+      activeStreamingMessage = cloneStreamingMessage(message)
+      emitStateChange()
+    }
+
     if (isForegroundSession(sessionId))
       deps.foregroundStream.patch(cloneStreamingMessage(message))
   }
@@ -463,8 +492,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (shouldAbort())
       return
 
-    setSending(true)
-
     const buildingMessage: StreamingAssistantMessage = {
       role: 'assistant',
       content: '',
@@ -473,7 +500,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       createdAt: now(),
       id: createId(),
     }
-    patchForegroundStream(sessionId, buildingMessage)
+    beginStream(sessionId, buildingMessage)
     const sendSource = options.input ? 'voice' : 'text'
     const activeProvider = deps.getActiveProvider?.() ?? ''
     // The user message is the durable start of a round, so its ID also serves
@@ -586,7 +613,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 text: speechOnly,
               })
             }
-            patchForegroundStream(sessionId, buildingMessage)
+            updateStream(sessionId, buildingMessage)
           }
         },
         onSpecial: async (special) => {
@@ -606,7 +633,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             speech: finalCategorization.speech,
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
-          patchForegroundStream(sessionId, buildingMessage)
+          updateStream(sessionId, buildingMessage)
         },
         minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
       })
@@ -618,13 +645,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               return
             if (ctx.data.type === 'tool-call') {
               buildingMessage.slices.push(ctx.data)
-              patchForegroundStream(sessionId, buildingMessage)
+              updateStream(sessionId, buildingMessage)
               return
             }
 
             if (ctx.data.type === 'tool-call-result') {
               buildingMessage.tool_results.push(ctx.data)
-              patchForegroundStream(sessionId, buildingMessage)
+              updateStream(sessionId, buildingMessage)
             }
           },
         ],
@@ -781,7 +808,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 = Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
                   > Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
               if (!reasoning || crossesBoundary)
-                patchForegroundStream(sessionId, buildingMessage)
+                updateStream(sessionId, buildingMessage)
               break
             }
             case 'finish':

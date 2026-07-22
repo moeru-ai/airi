@@ -38,6 +38,7 @@ interface SessionSnapshotPayload {
 }
 
 interface StreamSnapshotPayload {
+  sessionId: string
   sending: boolean
   streamingMessage: StreamingAssistantMessage
 }
@@ -73,8 +74,16 @@ interface RetryCommandPayload {
   index: number
 }
 
+interface CreateSessionCommandPayload {
+  characterId: string
+}
+
+interface SessionCommandPayload {
+  sessionId: string
+}
+
 type ChatResponsePayload
-  = | { ok: true, result?: SpotlightIngestResult }
+  = | { ok: true, result?: SpotlightIngestResult | string }
     | { ok: false, error?: string }
 
 type ChatSyncMessage
@@ -89,12 +98,21 @@ type ChatSyncMessage
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
     | ChatCommandMessage<'import-sessions', ChatSessionsExport>
+    | ChatCommandMessage<'create-session', CreateSessionCommandPayload>
+    | ChatCommandMessage<'delete-session', SessionCommandPayload>
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
   resolve: (result?: unknown) => void
   reject: (error: Error) => void
   timeout: ReturnType<typeof setTimeout>
+}
+
+class SessionHydrationError extends Error {
+  constructor(sessionId: string) {
+    super(`Failed to hydrate chat session "${sessionId}"`)
+    this.name = 'SessionHydrationError'
+  }
 }
 
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
@@ -189,12 +207,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const { activeSessionId, sessionMessages, sessionMetas } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
-  const { sending } = storeToRefs(chatOrchestrator)
+  const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
 
   const pendingRequests = new Map<string, PendingRequest>()
   const stopSyncWatchers: Array<() => void> = []
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined
   let channel: BroadcastChannel | null = null
+  let latestStreamSnapshot: StreamSnapshotPayload | undefined
 
   function post(message: ChatSyncMessage) {
     channel?.postMessage(message)
@@ -205,9 +224,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function buildStreamSnapshot(): StreamSnapshotPayload {
+    const streamSnapshot = activeStreamingMessage.value ?? streamingMessage.value
     return {
+      // Runtime queue ownership takes precedence while sending. When idle,
+      // scope the empty foreground stream to the authority's visible session.
+      sessionId: activeSendSessionId.value ?? activeSessionId.value,
       sending: sending.value,
-      streamingMessage: JSON.parse(JSON.stringify(streamingMessage.value)) as StreamingAssistantMessage,
+      streamingMessage: JSON.parse(JSON.stringify(streamSnapshot)) as StreamingAssistantMessage,
     }
   }
 
@@ -263,7 +286,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       watch([activeSessionId, sessionMessages, sessionMetas], () => {
         broadcastSessionSnapshot()
       }, { deep: true, immediate: true }),
-      watch([sending, streamingMessage], () => {
+      watch([activeSessionId, activeSendSessionId, activeStreamingMessage, sending, streamingMessage], () => {
         broadcastStreamSnapshot()
       }, { deep: true, immediate: true }),
     )
@@ -277,21 +300,53 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   function applySessionSnapshot(snapshot: SessionSnapshotPayload) {
     const localActiveSessionId = activeSessionId.value
+    const snapshotHasLocalActiveMessages = !!snapshot.sessionMessages[localActiveSessionId]
     const shouldPreserveLocalActiveSession = mode.value === 'follower'
       && !!localActiveSessionId
-      && !!snapshot.sessionMessages[localActiveSessionId]
+      && (snapshotHasLocalActiveMessages || !!snapshot.sessionMetas[localActiveSessionId])
+
+    let nextSessionMessages = snapshot.sessionMessages
+    if (shouldPreserveLocalActiveSession
+      && !snapshotHasLocalActiveMessages
+      && Object.hasOwn(sessionMessages.value, localActiveSessionId)) {
+      // The authority's loaded messages remain primary. A metadata-only
+      // snapshot cannot replace the follower's loaded active chat, or each
+      // heartbeat would blank it and force another IndexedDB hydration.
+      nextSessionMessages = {
+        ...snapshot.sessionMessages,
+        [localActiveSessionId]: sessionMessages.value[localActiveSessionId],
+      }
+    }
 
     chatSession.applyRemoteSnapshot({
       ...snapshot,
       activeSessionId: shouldPreserveLocalActiveSession
         ? localActiveSessionId
         : snapshot.activeSessionId,
+      sessionMessages: nextSessionMessages,
     })
+
+    if (shouldPreserveLocalActiveSession)
+      chatSession.setActiveSessionLocally(localActiveSessionId)
+
+    reconcileStreamSnapshot()
   }
 
   function applyStreamSnapshot(snapshot: StreamSnapshotPayload) {
-    chatOrchestrator.sending = snapshot.sending
-    chatStream.streamingMessage = snapshot.streamingMessage
+    latestStreamSnapshot = snapshot
+    reconcileStreamSnapshot()
+  }
+
+  function reconcileStreamSnapshot() {
+    const snapshot = latestStreamSnapshot
+    if (!snapshot || snapshot.sessionId !== activeSessionId.value) {
+      sending.value = false
+      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+      return
+    }
+
+    sending.value = snapshot.sending
+    streamingMessage.value = snapshot.streamingMessage
   }
 
   function resolveTools(toolset?: ToolsetId) {
@@ -325,7 +380,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return assistant ? extractMessageText(assistant) : ''
   }
 
+  async function requireSessionHydrated(sessionId: string): Promise<void> {
+    if (await chatSession.loadSession(sessionId))
+      return
+
+    throw new SessionHydrationError(sessionId)
+  }
+
   async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+    // A follower's active session is window-local, so the authority may know
+    // this session only through its metadata. Hydrate it before ingesting;
+    // otherwise the orchestrator's ensureSession fallback can replace the
+    // persisted history with a fresh system-only session.
+    if (payload.sessionId)
+      await requireSessionHydrated(payload.sessionId)
+
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
@@ -370,6 +439,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function executeRetry(payload: RetryCommandPayload) {
     const sessionId = payload.sessionId || activeSessionId.value
+    await requireSessionHydrated(sessionId)
+
     const currentMessages = chatSession.getSessionMessages(sessionId)
     const sourceIndex = resolveRetrySourceIndex(currentMessages, payload.index)
     if (sourceIndex < 0)
@@ -391,6 +462,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function executeToolCallRerunCommand(payload: ToolCallRerunPayload<ToolsetId>) {
     const sessionId = payload.sessionId || activeSessionId.value
+    await requireSessionHydrated(sessionId)
+
     const nextMessages = await executeToolCallRerun({
       messages: chatSession.getSessionMessages(sessionId),
       payload,
@@ -399,8 +472,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
-  function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
+  async function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     const sessionId = payload.sessionId || activeSessionId.value
+    // A follower can target a persisted session that the authority has only
+    // indexed. Reading it before hydration would create a system-only session,
+    // then persist that truncated history after filtering.
+    await requireSessionHydrated(sessionId)
+
     const nextMessages = chatSession.getSessionMessages(sessionId).filter((message, index) => {
       if (payload.messageId)
         return message.id !== payload.messageId
@@ -435,6 +513,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
   }
 
+  async function deleteAuthoritySession(sessionId: string) {
+    // Reject queued sends before removing the session. The session store also
+    // advances its generation so active streams observe deletion as stale.
+    chatOrchestrator.cancelPendingSends(sessionId)
+    await chatSession.deleteSession(sessionId)
+  }
+
   async function handleCommand(message: Extract<ChatSyncMessage, { type: 'command' }>) {
     if (mode.value !== 'authority')
       return
@@ -466,10 +551,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           cleanupMessages(message.payload.sessionId)
           break
         case 'delete-message':
-          executeDeleteMessage(message.payload)
+          await executeDeleteMessage(message.payload)
           break
         case 'import-sessions':
           await chatSession.importSessions(message.payload)
+          break
+        case 'create-session':
+          respond({
+            ok: true,
+            // The follower window owns its active selection. The authority
+            // persists the new record without changing the main stage chat.
+            result: await chatSession.createSession(message.payload.characterId, { setActive: false }),
+          })
+          return
+        case 'delete-session':
+          await deleteAuthoritySession(message.payload.sessionId)
           break
       }
 
@@ -480,10 +576,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
       logChatSyncError('command failed', error, authorityCommandMeta(message))
 
-      if (message.command === 'ingest') {
+      if (message.command === 'ingest' && !(error instanceof SessionHydrationError)) {
         appendIngestErrorMessage(message.payload, errorMessage)
       }
-      else if (message.command === 'spotlight-ingest') {
+      else if (message.command === 'spotlight-ingest' && !(error instanceof SessionHydrationError)) {
         appendIngestErrorMessage({
           text: message.payload.text,
           toolset: 'artistry',
@@ -530,8 +626,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           post({ type: 'request-snapshot', requestId: createRequestId(), senderId: instanceId })
         return
       case 'request-snapshot':
-        if (mode.value === 'authority')
+        if (mode.value === 'authority') {
           broadcastSessionSnapshot()
+          broadcastStreamSnapshot()
+        }
         return
       case 'session-snapshot':
         if (mode.value !== 'follower')
@@ -694,7 +792,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function requestDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     if (mode.value === 'authority') {
-      executeDeleteMessage(payload)
+      await executeDeleteMessage(payload)
       return
     }
 
@@ -723,7 +821,54 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  /** Creates a session in the authority window and activates it locally after the snapshot arrives. */
+  async function requestCreateSession(characterId: string) {
+    if (mode.value === 'authority')
+      return chatSession.createSession(characterId, { setActive: true })
+
+    const sessionId = await dispatch<string>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'create-session',
+      payload: { characterId },
+    })
+
+    // BroadcastChannel preserves sender ordering, so the authority snapshot
+    // is applied before its response. This local choice prevents later
+    // snapshots from restoring the follower's previously active session.
+    chatSession.setActiveSessionLocally(sessionId)
+    reconcileStreamSnapshot()
+    return sessionId
+  }
+
+  /** Selects a session only in this window, preserving the follower's independent chat view. */
+  async function requestSelectSession(sessionId: string) {
+    chatSession.setActiveSessionLocally(sessionId)
+    reconcileStreamSnapshot()
+  }
+
+  /** Deletes a session in the authority window, which broadcasts the resulting fallback state. */
+  async function requestDeleteSession(sessionId: string) {
+    if (mode.value === 'authority') {
+      await deleteAuthoritySession(sessionId)
+      return
+    }
+
+    await dispatch<void>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'delete-session',
+      payload: { sessionId },
+    })
+  }
+
   function dispose() {
+    if (mode.value === 'follower') {
+      latestStreamSnapshot = undefined
+      reconcileStreamSnapshot()
+    }
     stopWatchers()
     clearHeartbeat()
     resetPendingRequests()
@@ -744,5 +889,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestCleanup,
     requestDeleteMessage,
     requestImportSessions,
+    requestCreateSession,
+    requestSelectSession,
+    requestDeleteSession,
   }
 })
