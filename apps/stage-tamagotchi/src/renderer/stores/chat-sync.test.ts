@@ -103,6 +103,7 @@ function assistantMessage(content: string): MockChatMessage {
 }
 
 interface MockState {
+  activeSendSessionId: Ref<string | undefined>
   activeSessionId: Ref<string>
   sending: Ref<boolean>
   streamingMessage: Ref<MockChatMessage>
@@ -156,8 +157,9 @@ vi.mock('@proj-airi/stage-ui/stores/chat/stream-store', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => {
+    const activeSendSessionId = mockOrchestratorStoreCalls === 0 ? mockState.activeSendSessionId : ref<string>()
     const sending = mockOrchestratorStoreCalls++ === 0 ? mockState.sending : ref(false)
-    return { sending, ingest: mockState.ingest }
+    return { activeSendSessionId, sending, ingest: mockState.ingest }
   },
 }))
 
@@ -222,6 +224,7 @@ describe('useChatSyncStore', async () => {
     mockOrchestratorStoreCalls = 0
     mockStreamStoreCalls = 0
 
+    const activeSendSessionId = ref<string>()
     const activeSessionId = ref('session-1')
     const sending = ref(false)
     const streamingMessage = ref<MockChatMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
@@ -266,6 +269,7 @@ describe('useChatSyncStore', async () => {
     mockImageJournalTools.mockResolvedValue([])
 
     mockState = {
+      activeSendSessionId,
       activeSessionId,
       sending,
       streamingMessage,
@@ -605,6 +609,33 @@ describe('useChatSyncStore', async () => {
     expect(mockState.streamingMessage.value.content).toBe('')
 
     authority.close()
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('labels authority stream snapshots with the background send target for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Stream snapshots used the authority's visible session even when the
+    // queued send belonged to a follower-selected background session. The
+    // follower then discarded its own sending state as a foreign stream.
+    mockState.activeSessionId.value = 'session-1'
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    mockState.activeSendSessionId.value = 'session-2'
+    mockState.sending.value = true
+
+    await vi.waitFor(() => {
+      expect(postedMessagesOfType('stream-snapshot').at(-1)).toEqual(expect.objectContaining({
+        snapshot: expect.objectContaining({
+          sessionId: 'session-2',
+          sending: true,
+        }),
+      }))
+    })
+
     store.dispose()
   })
 

@@ -152,6 +152,8 @@ export interface ChatOrchestratorPromptProjection {
 export interface ChatOrchestratorRuntimeState {
   /** Whether the runtime currently owns an active send. */
   sending: boolean
+  /** Session that owns the active send; undefined while the queue is idle. */
+  activeSendSessionId?: string
   /** Number of sends waiting behind the active one. */
   pendingQueuedSendCount: number
 }
@@ -348,19 +350,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const unwrapMessage = deps.unwrapMessage ?? (<T>(message: T) => message)
 
   let sending = false
+  let activeSendSessionId: string | undefined
   let pendingQueuedSends: QueuedSend[] = []
 
   function emitStateChange() {
     deps.onStateChange?.({
       sending,
+      activeSendSessionId,
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
   }
 
-  function setSending(next: boolean) {
-    if (sending === next)
+  function setSending(next: boolean, sessionId?: string) {
+    const nextActiveSendSessionId = next
+      ? sessionId ?? activeSendSessionId ?? deps.getActiveSessionId()
+      : undefined
+    if (sending === next && activeSendSessionId === nextActiveSendSessionId)
       return
     sending = next
+    activeSendSessionId = nextActiveSendSessionId
     emitStateChange()
   }
 
@@ -463,7 +471,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (shouldAbort())
       return
 
-    setSending(true)
+    setSending(true, sessionId)
 
     const buildingMessage: StreamingAssistantMessage = {
       role: 'assistant',

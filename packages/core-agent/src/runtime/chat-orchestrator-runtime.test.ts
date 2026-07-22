@@ -608,6 +608,7 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.setSending(true)
     expect(harness.runtime.getSending()).toBe(true)
     expect(harness.stateChanges.at(-1)).toEqual({
+      activeSendSessionId: 'session-1',
       sending: true,
       pendingQueuedSendCount: 0,
     })
@@ -615,6 +616,48 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.setSending(false)
     expect(harness.runtime.getSending()).toBe(false)
     expect(harness.stateChanges.at(-1)).toEqual({
+      activeSendSessionId: undefined,
+      sending: false,
+      pendingQueuedSendCount: 0,
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('reports the queued send target while a background session is sending for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Runtime state exposed only a global sending boolean. A window-level sync
+    // layer therefore had to infer the owner from the authority's visible
+    // session, which is wrong when a follower targets a background session.
+    const harness = createHarness()
+    let finishSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finishSend = resolve
+      })
+    })
+
+    const pendingSend = harness.runtime.ingest('background request', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, 'session-2')
+
+    await vi.waitFor(() => {
+      expect(harness.stateChanges).toContainEqual({
+        activeSendSessionId: 'session-2',
+        sending: true,
+        pendingQueuedSendCount: 0,
+      })
+    })
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    finishSend?.()
+    await pendingSend
+
+    expect(harness.stateChanges.at(-1)).toEqual({
+      activeSendSessionId: undefined,
       sending: false,
       pendingQueuedSendCount: 0,
     })
