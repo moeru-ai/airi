@@ -1,16 +1,11 @@
 <script setup lang="ts" generic="T extends string | number">
+import type { SelectTabOption } from './types'
+
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import { computed } from 'vue'
 
-interface SelectTabOption {
-  label: string
-  value: T
-  description?: string
-  icon?: string
-}
-
 const props = withDefaults(defineProps<{
-  options: SelectTabOption[]
+  options: SelectTabOption<T>[]
   disabled?: boolean
   readonly?: boolean
   size?: 'xs' | 'sm' | 'md' | 'w-xs' | 'w-sm' | 'w-md'

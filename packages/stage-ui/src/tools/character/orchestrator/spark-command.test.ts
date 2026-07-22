@@ -7,8 +7,9 @@ import { rawTool } from '@xsai/tool'
 import { describe, expect, it, vi } from 'vitest'
 import { toJsonSchema } from 'xsschema'
 
+import { normalizeNullableAnyOf } from '../../json-schema'
 import { createSparkCommandTool } from './spark-command'
-import { normalizeNullableAnyOf, sparkNotifyCommandItemSchema } from './spark-command-shared'
+import { sparkNotifyCommandItemSchema } from './spark-command-shared'
 
 function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
   return Boolean(value && typeof value === 'object')

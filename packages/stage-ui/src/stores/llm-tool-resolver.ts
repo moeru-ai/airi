@@ -4,9 +4,10 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { uniqBy } from 'es-toolkit'
 
-import { createSparkCommandTool, debug, mcp } from '../tools'
+import { createSparkCommandTool, createWebSearchTools, debug, mcp } from '../tools'
 import { useLlmToolsStore } from './llm-tools'
 import { useModsServerChannelStore } from './mods/api/channel-server'
+import { useWebSearchStore } from './modules/web-search'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
 
@@ -36,6 +37,14 @@ export interface ResolveLlmToolsOptions {
    * @default createSparkCommandTool(...)
    */
   sparkCommandTools?: ToolSource
+  /**
+   * Web search tools. Supplying this also avoids reading the web-search module
+   * store; by default the tool is included only when a Tavily API key is
+   * configured (a keyless search can only error).
+   *
+   * @default gated on useWebSearchStore().configured
+   */
+  webSearchTools?: ToolSource
   /**
    * Request-scoped tools from {@link StreamOptions.tools}. These are ordered
    * before active runtime tools so runtime registrations can intentionally
@@ -108,6 +117,20 @@ async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise
   return createSparkCommandTool({ sendSparkCommand })
 }
 
+async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[]> {
+  if (webSearchTools != null)
+    return resolveToolSource(webSearchTools)
+
+  const webSearchStore = useWebSearchStore()
+  // A keyless search can only ever error, so omit the tool until configured.
+  if (!webSearchStore.configured)
+    return []
+
+  // Trim the key: `configured` is computed on the trimmed value, so a key pasted
+  // with trailing whitespace/newline reads as ready but would 401 if sent raw.
+  return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
+}
+
 /**
  * Resolves every tool visible to an LLM request.
  *
@@ -121,11 +144,13 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     builtInTools,
     debugTools,
     sparkCommandTools,
+    webSearchTools,
     customTools,
   ] = await Promise.all([
     resolveToolSource(options.builtInTools ?? mcp),
     resolveToolSource(options.debugTools ?? debug),
     resolveSparkCommandTools(options.sparkCommandTools),
+    resolveWebSearchTools(options.webSearchTools),
     resolveCustomTools(options.customTools),
   ])
 
@@ -134,6 +159,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...builtInTools,
       ...debugTools,
       ...sparkCommandTools,
+      ...webSearchTools,
       ...customTools,
       ...activeTools,
     ].toReversed(),

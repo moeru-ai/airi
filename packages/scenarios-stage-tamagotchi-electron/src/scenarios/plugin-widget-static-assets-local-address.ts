@@ -1,9 +1,9 @@
-import type { ScenarioContext } from '@proj-airi/vishot-runner-electron'
+import type { StageTamagotchiScenarioContext } from '../context.ts'
 
-import { defineScenario } from '@proj-airi/vishot-runner-electron'
+import { defineStageTamagotchiScenario } from '../context.ts'
 
-type ElectronApplication = ScenarioContext['electronApp']
-type Page = Parameters<ScenarioContext['capture']>[1]
+type ElectronApplication = StageTamagotchiScenarioContext['electronApp']
+type Page = Parameters<StageTamagotchiScenarioContext['capture']>[1]
 type Frame = ReturnType<Page['frame']>
 
 const extensionId = 'airi-plugin-game-chess'
@@ -240,7 +240,7 @@ function assertExtensionAssetUrl(url: string, label: string) {
  * - Visual captures for plugin host, widgets-calling, and widget iframe window
  * - Runtime assertions that iframe URL/frame URL are `http://127.0.0.1:<port>/_airi/extensions/.../sessions/.../ui/...`
  */
-export default defineScenario({
+export default defineStageTamagotchiScenario({
   id: 'plugin-widget-static-assets-local-address',
   async run({ capture, controlsIsland, electronApp, settingsWindow, stageWindows }) {
     const mainWindow = await stageWindows.waitFor('main')

@@ -103,7 +103,7 @@ jobs:
       # No space left on device (os error 28)
       - name: Free Disk Space
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
-        uses: jlumbroso/free-disk-space@main
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
 
       - uses: actions/checkout@v6
 

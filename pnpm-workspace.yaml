@@ -195,6 +195,10 @@ catalog:
   '@unocss/reset': ^66.6.8
   '@valibot/to-json-schema': 1.0.0-rc.0
   '@velin-dev/core': ^0.4.0
+  '@vishot/cli': ^0.0.3
+  '@vishot/mockup-desktop-vue': ^0.0.3
+  '@vishot/renderer-browser': ^0.0.3
+  '@vishot/source-electron': ^0.0.3
   '@vitejs/plugin-vue': ^6.0.6
   '@vue-macros/volar': ^3.1.2
   '@vue/test-utils': ^2.4.6
@@ -220,6 +224,7 @@ catalog:
   '@xsai/tool': 0.5.0-beta.2
   '@xsai/utils-chat': 0.5.0-beta.2
   alien-signals: ^3.1.2
+  ammojs-typed: ^1.0.6
   animejs: ^4.3.6
   async-mutex: 0.5.0
   awilix: ^13.0.3
@@ -287,7 +292,6 @@ catalog:
   markdown-it: ^14.1.1
   markdown-it-anchor: ^9.2.0
   mediabunny: ^1.40.1
-  meow: ^14.1.0
   meta-png: ^1.0.6
   minecraft-data: 3.102.3
   mineflayer: ^4.33.0
@@ -354,6 +358,7 @@ catalog:
   taze: ^19.11.0
   telegram: ^2.26.22
   three: ^0.184.0
+  three-stdlib: ^2.36.1
   tinyexec: ^1.1.1
   tinyglobby: ^0.2.16
   tsdown: ^0.21.9

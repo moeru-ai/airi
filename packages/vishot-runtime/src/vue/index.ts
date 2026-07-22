@@ -1,7 +1,0 @@
-export { default as ScenarioCanvas } from './components/scenario-canvas.vue'
-export { default as ScenarioCaptureRoot } from './components/scenario-capture-root.vue'
-export * from './components/screen-marups'
-export * from './components/screen-navigator'
-export * from './components/screen-router'
-export * from './composables/screen-navigation/use-screen-navigation'
-export { useSceneReady } from './use-scene-ready'

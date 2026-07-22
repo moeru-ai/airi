@@ -50,6 +50,11 @@ export const useAuthStore = defineStore('auth', () => {
   whenever(needsLogin, async () => {
     if (isStageTamagotchi())
       return
+
+    // Consume the request before opening an external browser. Pocket stays
+    // mounted when the user cancels there, so leaving this true would make
+    // the next button click a no-op instead of starting a new OIDC flow.
+    needsLogin.value = false
     await triggerSignIn()
   })
 

@@ -236,6 +236,47 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.promptProjections).toHaveLength(1)
   })
 
+  it('keeps timestamp prefixes stable for legacy user messages without createdAt', async () => {
+    const harness = createHarness()
+    const legacyUserMessage: ChatHistoryItem = {
+      role: 'user' as const,
+      content: 'legacy prompt',
+      id: 'legacy-user',
+    }
+    harness.sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      legacyUserMessage,
+    ]
+    const firstMessages: Message[][] = []
+    const secondMessages: Message[][] = []
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      firstMessages.push(structuredClone(messages))
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+    harness.now.set(new Date(2026, 3, 25, 18, 47).getTime())
+
+    await harness.runtime.ingest('first send', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      secondMessages.push(structuredClone(messages))
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+    harness.now.set(new Date(2026, 3, 25, 19, 12).getTime())
+
+    await harness.runtime.ingest('second send', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(firstMessages[0]?.[1]?.content).toBe('[2026-04-25 18:47] legacy prompt')
+    expect(secondMessages[0]?.[1]?.content).toBe('[2026-04-25 18:47] legacy prompt')
+    expect(legacyUserMessage.createdAt).toBe(new Date(2026, 3, 25, 18, 47).getTime())
+  })
+
   /**
    * @example
    * deps.getSystemPromptSupplement() returns tool guidance.

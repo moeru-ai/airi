@@ -1,9 +1,9 @@
-import type { ScenarioContext } from '@proj-airi/vishot-runner-electron'
+import type { StageTamagotchiScenarioContext } from '../context.ts'
 
-import { defineScenario } from '@proj-airi/vishot-runner-electron'
+import { defineStageTamagotchiScenario } from '../context.ts'
 
-type ElectronApplication = ScenarioContext['electronApp']
-type Page = Parameters<ScenarioContext['capture']>[1]
+type ElectronApplication = StageTamagotchiScenarioContext['electronApp']
+type Page = Parameters<StageTamagotchiScenarioContext['capture']>[1]
 type Frame = ReturnType<Page['frame']>
 
 const pluginName = 'airi-plugin-game-chess'
@@ -203,7 +203,7 @@ async function waitForChessFrameContent(widgetsPage: Page) {
   )
 }
 
-export default defineScenario({
+export default defineStageTamagotchiScenario({
   id: 'plugin-chess-widget-flow',
   async run({ capture, controlsIsland, electronApp, settingsWindow, stageWindows }) {
     const mainWindow = await stageWindows.waitFor('main')

@@ -2,6 +2,7 @@
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { Live2DScene } from '@proj-airi/stage-ui-live2d'
+import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
@@ -18,6 +19,7 @@ const props = defineProps<{
   live2dSceneClass?: string | string[]
   vrmSceneClass?: string | string[]
   spineSceneClass?: string | string[]
+  mmdSceneClass?: string | string[]
 }>()
 
 const emit = defineEmits<{
@@ -29,8 +31,10 @@ const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
+const mmdSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const live2dComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const mmdComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
 
 const {
@@ -53,6 +57,7 @@ const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
 const vrmSceneClassList = computed(() => normalizeClassList(props.vrmSceneClass))
 const spineSceneClassList = computed(() => normalizeClassList(props.spineSceneClass))
+const mmdSceneClassList = computed(() => normalizeClassList(props.mmdSceneClass))
 
 function normalizeClassList(value?: string | string[]) {
   if (!value)
@@ -79,6 +84,9 @@ async function capturePreviewFrame() {
 
   if (stageModelRenderer.value === 'spine')
     return captureCanvasFrame(spineSceneRef.value?.canvasElement())
+
+  if (stageModelRenderer.value === 'mmd')
+    return captureCanvasFrame(mmdSceneRef.value?.canvasElement())
 
   return undefined
 }
@@ -122,6 +130,20 @@ const runtimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,
       canCapturePreview: !!spineSceneRef.value?.canvasElement(),
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'mmd') {
+    const phase = resolveComponentStateToRuntimePhase(mmdComponentState.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: vrmPreviewStageInstanceId,
+      renderer: 'mmd',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: !!mmdSceneRef.value?.canvasElement(),
       updatedAt: Date.now(),
     })
   }
@@ -188,6 +210,18 @@ const cursorPosition = computed(() => ({
         :idle-animation-enabled="spineIdleAnimationEnabled"
         :max-fps="spineMaxFps"
         :render-scale="spineRenderScale"
+      />
+    </div>
+  </template>
+  <template v-if="stageModelRenderer === 'mmd'">
+    <div :class="mmdSceneClassList">
+      <MMDScene
+        ref="mmdSceneRef"
+        v-model:state="mmdComponentState"
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :cursor-position="cursorPosition"
+        :enable-orbit-controls="true"
       />
     </div>
   </template>

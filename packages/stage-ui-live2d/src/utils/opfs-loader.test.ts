@@ -166,7 +166,7 @@ describe('opfs cache full directory persistence', () => {
     await OPFSCache.writeFile(
       dir as unknown as FileSystemDirectoryHandle,
       '__meta.json',
-      JSON.stringify({ sourceUrl: 'blob:first', version: 2 }),
+      JSON.stringify({ sourceUrl: 'blob:first', version: 3 }),
     )
 
     const files = await OPFSCache.get('metadata-model', 'blob:second')
