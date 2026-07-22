@@ -582,8 +582,8 @@ describe('useChatSyncStore', async () => {
 
     expect(createdSessionId).toBe('session-2')
     expect(mockState.createSession).toHaveBeenCalledWith('default', { setActive: false })
-    expect(mockState.setActiveSessionLocally).toHaveBeenNthCalledWith(1, 'session-2')
-    expect(mockState.setActiveSessionLocally).toHaveBeenNthCalledWith(2, 'session-1')
+    expect(mockState.setActiveSessionLocally).toHaveBeenCalledWith('session-2')
+    expect(mockState.setActiveSessionLocally).toHaveBeenLastCalledWith('session-1')
     expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
     expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
     expect(mockState.ingest).toHaveBeenCalledWith('first message in the new chat', expect.any(Object), 'session-2')
@@ -632,6 +632,50 @@ describe('useChatSyncStore', async () => {
     await pendingIngest
 
     expect(mockState.ingest).toHaveBeenCalledWith('continue this chat', expect.any(Object), 'session-2')
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates a metadata-only follower session before deleting a message for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Deleting from an older follower-selected session previously read the
+    // authority's unloaded state. That read created a system-only session and
+    // the subsequent write persisted it over the conversation being edited.
+    mockState.sessionMetas.value['session-2'] = { sessionId: 'session-2' }
+
+    let finishHydration: (() => void) | undefined
+    mockState.loadSession.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        finishHydration = resolve
+      })
+      mockState.sessionMessages.value['session-2'] = [
+        { role: 'system', content: 'persisted history' },
+        { id: 'remove-me', role: 'user', content: 'remove this message' },
+        { id: 'keep-me', role: 'assistant', content: 'keep this message' },
+      ]
+    })
+
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+    const pendingDelete = followerStore.requestDeleteMessage({
+      sessionId: 'session-2',
+      messageId: 'remove-me',
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.loadSession).toHaveBeenCalledWith('session-2')
+    })
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+
+    finishHydration?.()
+    await pendingDelete
+
+    expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-2', [
+      { role: 'system', content: 'persisted history' },
+      { id: 'keep-me', role: 'assistant', content: 'keep this message' },
+    ])
 
     authorityStore.dispose()
     followerStore.dispose()

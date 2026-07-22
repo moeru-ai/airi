@@ -419,8 +419,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
-  function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
+  async function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     const sessionId = payload.sessionId || activeSessionId.value
+    // A follower can target a persisted session that the authority has only
+    // indexed. Reading it before hydration would create a system-only session,
+    // then persist that truncated history after filtering.
+    await chatSession.loadSession(sessionId)
+
     const nextMessages = chatSession.getSessionMessages(sessionId).filter((message, index) => {
       if (payload.messageId)
         return message.id !== payload.messageId
@@ -486,7 +491,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           cleanupMessages(message.payload.sessionId)
           break
         case 'delete-message':
-          executeDeleteMessage(message.payload)
+          await executeDeleteMessage(message.payload)
           break
         case 'import-sessions':
           await chatSession.importSessions(message.payload)
@@ -725,7 +730,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function requestDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     if (mode.value === 'authority') {
-      executeDeleteMessage(payload)
+      await executeDeleteMessage(payload)
       return
     }
 
