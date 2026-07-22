@@ -24,7 +24,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 1. Open **Settings → Service Provider → Chat → Novita AI**.
 2. Paste the API Key into the basic settings.
-3. Keep the default Base URL: `https://api.novita.ai/v1`.
+3. Keep the default Base URL: `https://api.novita.ai/openai/`.
 
 ## Step 3: Verify configuration
 

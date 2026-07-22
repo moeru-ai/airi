@@ -1,30 +1,30 @@
 ---
-title: Wisdom spectrum AI
-description: Configure Intelligent Spectrum AI as a large model service provider in AIRI
+title: Z.ai
+description: Configure Z.ai as a chat service provider in AIRI
 is_openai_compatible: true
 ---
 
-Zhipu AI provides a chat API compatible with OpenAI format. After completing the configuration on this page, AIRI can use the model provided by Wisdom AI in "Consciousness".
+Z.ai provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use Z.ai models in **Consciousness**.
 
-::: info Why choose Zhipu AI?
-If you want to use the Zhipu AI model in AIRI, or already have its API Key, you can choose this service provider directly.
+::: info Why choose Z.ai?
+If you want to use Z.ai models in AIRI, or already have a Z.ai API key, you can choose this service provider directly.
 :::
 
 ## Step 1: Get the API key
 
-1. Open [Zhipu AI API Keys](https://open.bigmodel.cn/usercenter/apikeys)。
+1. Open the [Z.ai API Keys page](https://z.ai/manage-apikey/apikey-list).
 2. Create a new API Key.
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the Zhipu AI console.
+Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the Z.ai console.
 :::
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Zhipu AI**.
+1. Open **Settings → Service Provider → Chat → Z.ai**.
 2. Paste the API Key into the basic settings.
-3. Keep the default Base URL: `https://open.bigmodel.cn/api/paas/v4/`.
+3. Keep the default Base URL: `https://api.z.ai/api/paas/v4`.
 
 ## Step 3: Verify configuration
 
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list cannot be loaded, you can manually enter the precise model ID provided by Wisdom AI on the "Consciousness" page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list cannot be loaded, you can manually enter the exact model ID provided by Z.ai on the **Consciousness** page.
