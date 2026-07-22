@@ -20,7 +20,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -200,6 +199,7 @@ catalog:
   '@vishot/renderer-browser': ^0.0.3
   '@vishot/source-electron': ^0.0.3
   '@vitejs/plugin-vue': ^6.0.6
+  '@vitest/browser': 4.1.6
   '@vue-macros/volar': ^3.1.2
   '@vue/test-utils': ^2.4.6
   '@vue/tsconfig': ^0.9.1
