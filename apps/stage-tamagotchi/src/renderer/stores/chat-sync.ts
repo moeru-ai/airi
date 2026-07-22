@@ -38,6 +38,7 @@ interface SessionSnapshotPayload {
 }
 
 interface StreamSnapshotPayload {
+  sessionId: string
   sending: boolean
   streamingMessage: StreamingAssistantMessage
 }
@@ -205,6 +206,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   const stopSyncWatchers: Array<() => void> = []
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined
   let channel: BroadcastChannel | null = null
+  let latestStreamSnapshot: StreamSnapshotPayload | undefined
 
   function post(message: ChatSyncMessage) {
     channel?.postMessage(message)
@@ -216,6 +218,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   function buildStreamSnapshot(): StreamSnapshotPayload {
     return {
+      // The foreground stream store is scoped to the authority's visible
+      // session, even when another session has a queued background send.
+      sessionId: activeSessionId.value,
       sending: sending.value,
       streamingMessage: JSON.parse(JSON.stringify(streamingMessage.value)) as StreamingAssistantMessage,
     }
@@ -273,7 +278,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       watch([activeSessionId, sessionMessages, sessionMetas], () => {
         broadcastSessionSnapshot()
       }, { deep: true, immediate: true }),
-      watch([sending, streamingMessage], () => {
+      watch([activeSessionId, sending, streamingMessage], () => {
         broadcastStreamSnapshot()
       }, { deep: true, immediate: true }),
     )
@@ -300,11 +305,25 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
     if (shouldPreserveLocalActiveSession)
       chatSession.setActiveSessionLocally(localActiveSessionId)
+
+    reconcileStreamSnapshot()
   }
 
   function applyStreamSnapshot(snapshot: StreamSnapshotPayload) {
-    chatOrchestrator.sending = snapshot.sending
-    chatStream.streamingMessage = snapshot.streamingMessage
+    latestStreamSnapshot = snapshot
+    reconcileStreamSnapshot()
+  }
+
+  function reconcileStreamSnapshot() {
+    const snapshot = latestStreamSnapshot
+    if (!snapshot || snapshot.sessionId !== activeSessionId.value) {
+      sending.value = false
+      streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
+      return
+    }
+
+    sending.value = snapshot.sending
+    streamingMessage.value = snapshot.streamingMessage
   }
 
   function resolveTools(toolset?: ToolsetId) {
@@ -570,8 +589,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           post({ type: 'request-snapshot', requestId: createRequestId(), senderId: instanceId })
         return
       case 'request-snapshot':
-        if (mode.value === 'authority')
+        if (mode.value === 'authority') {
           broadcastSessionSnapshot()
+          broadcastStreamSnapshot()
+        }
         return
       case 'session-snapshot':
         if (mode.value !== 'follower')
@@ -780,12 +801,14 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     // is applied before its response. This local choice prevents later
     // snapshots from restoring the follower's previously active session.
     chatSession.setActiveSessionLocally(sessionId)
+    reconcileStreamSnapshot()
     return sessionId
   }
 
   /** Selects a session only in this window, preserving the follower's independent chat view. */
   async function requestSelectSession(sessionId: string) {
     chatSession.setActiveSessionLocally(sessionId)
+    reconcileStreamSnapshot()
   }
 
   /** Deletes a session in the authority window, which broadcasts the resulting fallback state. */
@@ -805,6 +828,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function dispose() {
+    if (mode.value === 'follower') {
+      latestStreamSnapshot = undefined
+      reconcileStreamSnapshot()
+    }
     stopWatchers()
     clearHeartbeat()
     resetPendingRequests()

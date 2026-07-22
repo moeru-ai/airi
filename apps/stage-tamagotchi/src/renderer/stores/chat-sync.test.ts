@@ -104,6 +104,8 @@ function assistantMessage(content: string): MockChatMessage {
 
 interface MockState {
   activeSessionId: Ref<string>
+  sending: Ref<boolean>
+  streamingMessage: Ref<MockChatMessage>
   sessionMessages: Ref<Record<string, MockChatMessage[]>>
   sessionMetas: Ref<Record<string, unknown>>
   applyRemoteSnapshot: ReturnType<typeof vi.fn>
@@ -118,6 +120,8 @@ interface MockState {
 }
 
 let mockState: MockState
+let mockOrchestratorStoreCalls = 0
+let mockStreamStoreCalls = 0
 
 vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
   useChatSessionStore: () => ({
@@ -141,16 +145,20 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat/stream-store', () => ({
-  useChatStreamStore: () => ({
-    streamingMessage: ref({ role: 'assistant', content: '', slices: [], tool_results: [] }),
-  }),
+  useChatStreamStore: () => {
+    const streamingMessage = mockStreamStoreCalls++ === 0
+      ? mockState.streamingMessage
+      : ref<MockChatMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+
+    return { streamingMessage }
+  },
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
-  useChatOrchestratorStore: () => ({
-    sending: ref(false),
-    ingest: mockState.ingest,
-  }),
+  useChatOrchestratorStore: () => {
+    const sending = mockOrchestratorStoreCalls++ === 0 ? mockState.sending : ref(false)
+    return { sending, ingest: mockState.ingest }
+  },
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/chat/maintenance', () => ({
@@ -211,8 +219,12 @@ describe('useChatSyncStore', async () => {
     setActivePinia(createPinia())
     MockBroadcastChannel.reset()
     vi.restoreAllMocks()
+    mockOrchestratorStoreCalls = 0
+    mockStreamStoreCalls = 0
 
     const activeSessionId = ref('session-1')
+    const sending = ref(false)
+    const streamingMessage = ref<MockChatMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
     const sessionMessages = ref<Record<string, MockChatMessage[]>>({
       'session-1': [{ role: 'system', content: 'init' }],
     })
@@ -255,6 +267,8 @@ describe('useChatSyncStore', async () => {
 
     mockState = {
       activeSessionId,
+      sending,
+      streamingMessage,
       sessionMessages,
       sessionMetas,
       applyRemoteSnapshot,
@@ -533,6 +547,62 @@ describe('useChatSyncStore', async () => {
       { role: 'system', content: 'chat-window' },
       { role: 'user', content: 'retry me' },
     ])
+
+    authority.close()
+    store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('scopes authority stream snapshots to the follower active session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Stream snapshots previously carried only global sending state and text.
+    // A follower viewing another session therefore rendered the authority's
+    // in-progress assistant response under the wrong conversation.
+    mockState.activeSessionId.value = 'session-2'
+    mockState.sessionMetas.value = {
+      'session-1': { sessionId: 'session-1' },
+      'session-2': { sessionId: 'session-2' },
+    }
+
+    const store = useChatSyncStore()
+    store.initialize('follower')
+
+    const authority = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    authority.postMessage({
+      type: 'stream-snapshot',
+      authorityId: 'authority',
+      snapshot: {
+        sessionId: 'session-1',
+        sending: true,
+        streamingMessage: assistantMessage('session-1 partial response'),
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.sending.value).toBe(false)
+      expect(mockState.streamingMessage.value.content).toBe('')
+    })
+
+    authority.postMessage({
+      type: 'stream-snapshot',
+      authorityId: 'authority',
+      snapshot: {
+        sessionId: 'session-2',
+        sending: true,
+        streamingMessage: assistantMessage('session-2 partial response'),
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.sending.value).toBe(true)
+      expect(mockState.streamingMessage.value.content).toBe('session-2 partial response')
+    })
+
+    await store.requestSelectSession('session-1')
+
+    expect(mockState.sending.value).toBe(false)
+    expect(mockState.streamingMessage.value.content).toBe('')
 
     authority.close()
     store.dispose()
