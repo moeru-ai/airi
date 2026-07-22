@@ -26,10 +26,9 @@ Do not submit Bailian API Key to the warehouse, take screenshots, or send it to 
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select model and tone**: After the test is successful, select the CosyVoice model and tone, and then go to **Settings → Voice** to enable it.
-3. Enter the short text to listen and confirm that it can be played normally.
+1. Select a model and any available voice in the provider settings.
+2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
 ## Troubleshooting
 
-When pinging the API fails, check the API Key, account limit, and network connection. When the model or sound is not available for selection, make sure that the corresponding model has been opened in the Bailian account.
+If the playground cannot complete a request, check the API Key, account limit, and network connection. When the model or sound is not available for selection, make sure that the corresponding model has been opened in the Bailian account.

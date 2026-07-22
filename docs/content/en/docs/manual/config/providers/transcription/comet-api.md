@@ -25,10 +25,9 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select model**: After the test is successful, select an available transcription model; then go to **Settings → Hearing** to enable it.
-3. Allow microphone access and perform a short voice input to confirm that text can be output.
+1. Select an available transcription model in the provider settings.
+2. Use the playground on the same page, allow microphone access, and record a short sample to confirm that text is returned.
 
 ## Troubleshooting
 
-When pinging the API fails, check the API Key, account permissions, and network connection. When there are no text results, confirm that AIRI has obtained the system microphone permission.
+If the playground cannot complete a request, check the API Key, account permissions, and network connection. When there are no text results, confirm that AIRI has obtained the system microphone permission.

@@ -26,10 +26,9 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select model and sound**: After the test is successful, select the Aura model and sound, and then go to **Settings → Speech** to enable it.
-3. Enter the short text to listen and confirm that it can be played normally.
+1. Select a model and any available voice in the provider settings.
+2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
 ## Troubleshooting
 
-When pinging the API fails, check the project API Key, account permissions, and network connection. When the tone list is empty, retest your credentials before selecting a model.
+If the playground cannot complete a request, check the project API Key, account permissions, and network connection. When the tone list is empty, retest your credentials before selecting a model.

@@ -25,9 +25,8 @@ Don't expose the API Key. Using cloud transcription will send the audio to be re
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select model**: After the test is successful, select `mimo-v2-omni` or the available model listed on the interface; then go to **Settings → Hearing** to enable it.
-3. Allow microphone access and perform a short voice input to confirm that text can be output.
+1. Select an available transcription model in the provider settings.
+2. Use the playground on the same page, allow microphone access, and record a short sample to confirm that text is returned.
 
 ## Troubleshooting
 
