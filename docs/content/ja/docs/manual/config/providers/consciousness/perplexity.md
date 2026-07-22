@@ -12,7 +12,7 @@ Perplexity は、OpenAI 形式と互換性のあるチャット API を提供し
 
 ## ステップ 1: API キーを取得する
 
-1. [Perplexity API設定](https://www.perplexity.ai/settings/api)。)を開く
+1. [Perplexity API設定](https://www.perplexity.ai/settings/api) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. [API キー] ページで新しい API キーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

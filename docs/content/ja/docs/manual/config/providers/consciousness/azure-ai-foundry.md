@@ -11,7 +11,7 @@ Azure AI Foundry でモデルのデプロイとアクセス制御が完了して
 
 ## ステップ 1: Azure AI Foundry リソースを準備する
 
-1. [Azure AI Foundry](https://ai.azure.com/)，创建或打开目标项目并取得 API Key、リソース名、モデルデプロイメント情報)を開いてログインします。
+1. [Azure AI Foundry](https://ai.azure.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 
 ::: warning API キーのセキュリティ
 Azure API キーをリポジトリに送信したり、スクリーンショットを撮ったり、他の人に送信したりしないでください。

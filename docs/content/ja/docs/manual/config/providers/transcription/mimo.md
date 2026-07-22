@@ -11,7 +11,7 @@ MiMo は、ネイティブ音声理解モデルを使用して音声の文字起
 
 ## ステップ 1: API キーを取得する
 
-1. [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/)，确认账户已开通 API使用権)を開いてログインします。
+1. [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. API キーを作成し、コピーして安全な場所に保管します。
 
 ::: warning API キーと音声データ

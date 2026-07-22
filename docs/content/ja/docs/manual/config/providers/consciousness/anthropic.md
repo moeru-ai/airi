@@ -11,7 +11,7 @@ Anthropic プロバイダーにより、AIRI はクロード チャット モデ
 
 ## ステップ 1: API キーを作成する
 
-1. [Anthropic Console](https://platform.claude.com/settings/keys)，创建 API Key)を開いてログインし、アカウントにAPI使用権限が付与されていることを確認します。
+1. [Anthropic Console](https://platform.claude.com/settings/keys) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. キーの適切な名前、有効期間、割り当て制限を設定します。
 3. キーをコピーし、安全な場所に保管します。
 

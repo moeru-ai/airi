@@ -11,7 +11,7 @@ description: AIRI での Celebrities 音声合成の設定
 
 ## ステップ 1: API キーを取得する
 
-1. [イレブンラボAPIキー設定](https://elevenlabs.io/app/settings/api-keys)，创建密钥。)を開いてログインします。
+1. [イレブンラボAPIキー設定](https://elevenlabs.io/app/settings/api-keys) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. キーに識別しやすい名前と適切な使用制限を付けます。
 3. キーをコピーし、安全な場所に保管します。
 

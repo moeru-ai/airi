@@ -11,7 +11,7 @@ ModelScope でモデルへのアクセスを管理している場合は、この
 
 ## ステップ 1: API キーを取得する
 
-1. [ModelScope](https://modelscope.cn/)，在账户控制台创建 API Key.)を開いてログインします。
+1. [ModelScope](https://modelscope.cn/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 
 ::: warning API キーのセキュリティ
 API キーをリポジトリに送信したり、スクリーンショットを撮ったり、他の人に送信したりしないでください。

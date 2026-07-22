@@ -12,7 +12,7 @@ AIRI で DeepSeek モデルを使用したい場合、またはすでに DeepSee
 
 ## ステップ 1: API キーを取得する
 
-1. [DeepSeek管理コンソール](https://platform.deepseek.com/)。)を開く
+1. [DeepSeek管理コンソール](https://platform.deepseek.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. [API キー] ページで新しい API キーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

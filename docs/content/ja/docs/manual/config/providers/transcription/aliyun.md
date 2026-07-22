@@ -11,7 +11,7 @@ Alibaba Cloud NLS は、AIRI にリアルタイム音声テキスト変換 (ASR)
 
 ## ステップ 1: 資格情報を準備する
 
-1. [Alibaba Cloud Intelligent Voice Interaction Console](https://nls-portal.console.aliyun.com/overview)开通服务并创建项目，复制该项目的 **AppKey**) で。
+1. [Alibaba Cloud Intelligent Voice Interaction Console](https://nls-portal.console.aliyun.com/overview) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. **AccessKey Management** で必要な権限を持つ RAM ユーザー AccessKey を作成します。
 3. **AccessKey ID** と **AccessKey Secret** をコピーします。通常、シークレットは完全に 1 回だけ表示されます。
 

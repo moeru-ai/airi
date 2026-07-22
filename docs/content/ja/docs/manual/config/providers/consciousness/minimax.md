@@ -12,7 +12,7 @@ is_openai_compatible: true
 
 ## ステップ 1: API キーを取得する
 
-1. [MiniMaxコンソール](https://platform.minimaxi.com/)。)を開きます
+1. [MiniMaxコンソール](https://platform.minimaxi.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. [API キー] ページで新しい API キーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

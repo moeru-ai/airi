@@ -11,7 +11,7 @@ BytePlus で Ark モデルのエンドポイントを作成した場合は、そ
 
 ## ステップ 1: BytePlus 認証情報を準備する
 
-1. [BytePlus コンソール](https://console.byteplus.com/)，创建或查看 Ark エンドポイントとそのアクセス資格情報を開いてログインします。
+1. [BytePlus コンソール](https://console.byteplus.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 
 ::: warning API キーのセキュリティ
 API キーやエンドポイント認証情報をリポジトリに送信したり、スクリーンショットを撮ったり、他の人に送信したりしないでください。

@@ -11,7 +11,7 @@ Deepgram は、AIRI で音声合成モデルの Aura ファミリを提供しま
 
 ## ステップ 1: API キーを取得する
 
-1. [Deepgram Console](https://console.deepgram.com/)，在项目的 API Key)ページを開いてログインし、キーを作成します。
+1. [Deepgram Console](https://console.deepgram.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. プロジェクトに音声合成の使用権限があることを確認します。
 3. キーをコピーし、安全な場所に保管します。
 

@@ -11,7 +11,7 @@ Microsoft Azure Speech は、AIRI で Azure 音声合成機能を提供します
 
 ## ステップ 1: Azure Speech リソースを準備する
 
-1. [Azure Portal](https://portal.azure.com/)，创建或打开 Speech リソース)を開いてログインします。
+1. [Azure Portal](https://portal.azure.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. **API キー**とリソースのリージョンを記録します。両方とも同じ音声リソースからのものである必要があります。
 3. キーをコピーし、安全な場所に保管します。
 

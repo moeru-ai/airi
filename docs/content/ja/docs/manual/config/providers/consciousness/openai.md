@@ -12,7 +12,7 @@ is_openai_compatible: true
 
 ## ステップ 1: API キーを取得する
 
-1. OpenAI公式サービスを利用する場合は、[OpenAI API Keys](https://platform.openai.com/api-keys))を開いてAPIキーを作成します。対応サービスを利用する場合は、対応するサービスプロバイダーの管理コンソールを開きます。
+1. [OpenAI API Keys](https://platform.openai.com/api-keys) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. API キーまたは開発者設定ページで API キーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

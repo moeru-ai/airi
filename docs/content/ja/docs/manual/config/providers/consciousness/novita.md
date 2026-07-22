@@ -12,7 +12,7 @@ Novita AI でモデル サービスを管理している場合は、サービス
 
 ## ステップ 1: API キーを取得する
 
-1. [Novita AI コンソール](https://novita.ai/dashboard)。)を開く
+1. [Novita AI コンソール](https://novita.ai/dashboard) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. [API キー] ページで新しい API キーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

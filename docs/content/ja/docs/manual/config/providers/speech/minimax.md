@@ -11,7 +11,7 @@ MiniMax Speech は、AIRI に音声合成モデルとプリセットサウンド
 
 ## ステップ 1: API キーを取得する
 
-1. [MiniMax Open Platform]を開いてログインします(https://platform.minimaxi.com/)，开通 API使用権。
+1. [MiniMax Open Platform](https://platform.minimaxi.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. APIキー管理ページでキーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

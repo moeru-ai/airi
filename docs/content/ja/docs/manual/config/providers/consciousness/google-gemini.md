@@ -11,7 +11,7 @@ Google Gemini プロバイダーは、Google Generative Language API の OpenAI 
 
 ## ステップ 1: API キーを作成する
 
-1. [Google AI Studio API キー](https://aistudio.google.com/app/apikey)，创建 Gemini API キー)を開いてログインします。
+1. [Google AI Studio API キー](https://aistudio.google.com/app/apikey) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. キーが属するプロジェクトが Gemini API を有効にし、ターゲット モデルを使用できることを確認します。
 3. API キーをコピーします。
 

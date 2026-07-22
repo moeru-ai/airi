@@ -12,7 +12,7 @@ OpenPaths API キーをすでに持っている場合、または OpenPaths API 
 
 ## ステップ 1: API キーを取得する
 
-1. [OpenPaths](https://openpaths.io/))にアクセスし、アカウントを登録し、API Keyを作成します。
+1. [OpenPaths](https://openpaths.io/) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. キーをコピーし、安全な場所に保管します。
 
 ::: warning API キーのセキュリティ

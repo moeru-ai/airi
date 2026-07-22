@@ -12,7 +12,7 @@ OpenRouter は、アグリゲーション API サービス プロバイダーで
 
 ## ステップ 1: API キーを取得する
 
-1. [OpenRouter API キー](https://openrouter.ai/keys)，创建新的 API キー)を開きます。
+1. [OpenRouter API キー](https://openrouter.ai/keys) を開いてログインし、必要な API キーまたは認証情報を作成します。
 2. キーの適切な名前、有効期間、割り当て制限を設定します。
 3. キーをコピーし、安全な場所に保管します。
 
