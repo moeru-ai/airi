@@ -5,7 +5,7 @@ description: AIRI での BytePlus チャット モデルの設定
 
 BytePlus は、AIRI で Ark 互換のチャット サービス構成を使用します。
 
-::: Info BytePlusを選ぶ理由?
+::: info BytePlusを選ぶ理由?
 BytePlus で Ark モデルのエンドポイントを作成した場合は、そのエンドポイントと認証情報を AIRI で直接使用できます。
 :::
 
