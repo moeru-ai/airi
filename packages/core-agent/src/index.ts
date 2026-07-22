@@ -30,7 +30,7 @@ export type {
 export { createChatOrchestratorRuntime } from './runtime/chat-orchestrator-runtime'
 export type { ContextHistoryEntry, ContextIngestResult, ContextRegistry } from './runtime/context-registry'
 export { createContextRegistry } from './runtime/context-registry'
-export { useLlmmarkerParser } from './runtime/llm-marker-parser'
+export { stripLlmControlTokens, useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
   isContentArrayRelatedError,
   isToolRelatedError,

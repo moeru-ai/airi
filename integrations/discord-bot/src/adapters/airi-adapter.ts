@@ -4,6 +4,7 @@ import type { Interaction } from 'discord.js'
 import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
+import { stripLlmControlTokens } from '@proj-airi/core-agent'
 import { Client as ServerChannel } from '@proj-airi/server-sdk'
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 
@@ -164,7 +165,10 @@ export class DiscordAdapter {
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
           if (channel?.isTextBased() && 'send' in channel && typeof channel.send === 'function') {
-            const content = message.content
+            const content = stripLlmControlTokens(message.content)
+            if (!content.trim())
+              return
+
             if (content.length <= 2000) {
               await channel.send(content)
             }
