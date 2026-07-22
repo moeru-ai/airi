@@ -618,6 +618,7 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Web版', link: withBase('/ja/docs/manual/web/') },
                 ],
               },
+              { text: 'セットアップと使い方', link: withBase('/ja/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: '設定',
                 items: [
