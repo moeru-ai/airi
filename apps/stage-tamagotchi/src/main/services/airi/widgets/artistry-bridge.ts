@@ -107,6 +107,24 @@ artistryProviders.set('nanobanana', new NanoBananaProvider())
 // Deduplication map for headless requests
 const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()
 
+/**
+ * Resolves the safety-net timeout (in minutes) for headless generation waits.
+ *
+ * Callback-based providers (all currently registered ones) enforce their own generation
+ * timeout and report failures through `setJobCallback`; ComfyUI derives that timeout from
+ * the user-configured `comfyuiGenerationTimeoutMinutes`. The wrapper timer in
+ * {@link generateHeadless} only guards against a callback that never fires, so it must
+ * outlive the provider's own timeout — otherwise headless callers (image_journal,
+ * autonomous artistry) reject with a generic 5-minute error while the provider is still
+ * legitimately polling.
+ */
+function resolveHeadlessWaitTimeoutMinutes(globals: Record<string, any>): number {
+  const configured = globals?.comfyuiGenerationTimeoutMinutes
+  if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0)
+    return configured
+  return 5
+}
+
 export async function generateHeadless(params: {
   prompt: string
   model?: string
@@ -183,17 +201,23 @@ export async function generateHeadless(params: {
     const job = await provider.generate(request)
     log.log(`[Headless] Job created: ${job.jobId}`)
 
+    // NOTICE: The grace margin beyond the configured timeout exists because ComfyUI only
+    // starts its own timeout clock after the upload/queue requests complete, which happens
+    // after this timer starts. An identical timeout would race and mask the provider's
+    // more specific timeout error with this generic one.
+    const waitTimeoutMinutes = resolveHeadlessWaitTimeoutMinutes(activeGlobals)
+    const waitTimeoutMs = waitTimeoutMinutes * 60 * 1000 + 30_000
+
     // Polling/Wait for result
     if (!supportsJobCallback(provider)) {
       let isDone = false
       let lastStatus = await provider.getStatus(job.jobId)
       const start = Date.now()
-      const timeout = 1000 * 60 * 5 // 5 minutes timeout
 
       while (!isDone) {
-        if (Date.now() - start > timeout) {
-          log.error(`[Headless] Job ${job.jobId} timed out after 5 minutes.`)
-          throw new Error('Image generation timed out after 5 minutes.')
+        if (Date.now() - start > waitTimeoutMs) {
+          log.error(`[Headless] Job ${job.jobId} timed out after ${waitTimeoutMinutes} minutes.`)
+          throw new Error(`Image generation timed out after ${waitTimeoutMinutes} minutes.`)
         }
 
         log.log(`[Headless] Polling status for job: ${job.jobId}...`)
@@ -221,10 +245,9 @@ export async function generateHeadless(params: {
       // For providers with callbacks (like ComfyUI), we wait for the result via the callback
       log.log(`[Headless] Using callback-based wait logic for provider: ${requestedProvider}`)
       return new Promise<{ imageUrl?: string, base64?: string }>((resolve, reject) => {
-        const timeout = 1000 * 60 * 5 // 5 minutes timeout
         const timer = setTimeout(() => {
-          reject(new Error('Image generation timed out after 5 minutes.'))
-        }, timeout)
+          reject(new Error(`Image generation timed out after ${waitTimeoutMinutes} minutes.`))
+        }, waitTimeoutMs)
 
         provider.setJobCallback(request.extra?.internalJobId as string, async (status) => {
           if (status.status === 'succeeded') {
@@ -468,6 +491,7 @@ export async function setupArtistryBridge(params: {
         artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
         artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
           comfyuiServerUrl: 'http://localhost:8188',
+          comfyuiGenerationTimeoutMinutes: 10,
           comfyuiSavedWorkflows: [],
           comfyuiActiveWorkflow: '',
           replicateApiKey: '',

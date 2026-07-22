@@ -1166,6 +1166,10 @@ pages:
               label: Server URL
               description: The address where ComfyUI is running
               placeholder: http://localhost:8188
+            generation_timeout:
+              label: Generation timeout
+              description: Increase this for slower workflows, integrated GPUs, or low-VRAM systems. AIRI waits for ComfyUI before reporting a result.
+              value: '{minutes} min'
           cors:
             title: CORS Block Detected
             description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
