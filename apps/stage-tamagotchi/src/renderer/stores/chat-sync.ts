@@ -390,6 +390,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function executeRetry(payload: RetryCommandPayload) {
     const sessionId = payload.sessionId || activeSessionId.value
+    await chatSession.loadSession(sessionId)
+
     const currentMessages = chatSession.getSessionMessages(sessionId)
     const sourceIndex = resolveRetrySourceIndex(currentMessages, payload.index)
     if (sourceIndex < 0)
@@ -411,6 +413,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function executeToolCallRerunCommand(payload: ToolCallRerunPayload<ToolsetId>) {
     const sessionId = payload.sessionId || activeSessionId.value
+    await chatSession.loadSession(sessionId)
+
     const nextMessages = await executeToolCallRerun({
       messages: chatSession.getSessionMessages(sessionId),
       payload,

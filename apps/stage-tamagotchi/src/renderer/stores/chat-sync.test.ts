@@ -403,8 +403,14 @@ describe('useChatSyncStore', async () => {
     vi.useRealTimers()
   })
 
-  it('replaces the last failed turn before retrying', async () => {
-    mockState.sessionMessages.value['session-1'] = [
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates the follower-targeted session before retrying for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Follower selection is window-local, so the authority can know an older
+    // target only from metadata. Retry previously read before hydration and
+    // therefore could not find the persisted source user turn.
+    const persistedMessages: MockChatMessage[] = [
       { role: 'system', content: 'init' },
       { role: 'user', content: 'hello-1' },
       { role: 'assistant', content: 'answer-1' },
@@ -413,6 +419,11 @@ describe('useChatSyncStore', async () => {
       { role: 'user', content: 'hello-3' },
       { role: 'assistant', content: 'answer-3' },
     ]
+    delete mockState.sessionMessages.value['session-1']
+    mockState.sessionMetas.value['session-1'] = { sessionId: 'session-1' }
+    mockState.loadSession.mockImplementationOnce(async () => {
+      mockState.sessionMessages.value['session-1'] = persistedMessages
+    })
     mockState.ingest.mockResolvedValueOnce(undefined)
 
     const store = useChatSyncStore()
@@ -431,6 +442,7 @@ describe('useChatSyncStore', async () => {
     })
 
     await vi.waitFor(() => {
+      expect(mockState.loadSession).toHaveBeenCalledWith('session-1')
       expect(mockState.setSessionMessages).toHaveBeenCalledWith('session-1', [
         { role: 'system', content: 'init' },
         { role: 'user', content: 'hello-1' },
@@ -439,8 +451,8 @@ describe('useChatSyncStore', async () => {
       expect(mockState.ingest).toHaveBeenCalledWith('hello', expect.any(Object), 'session-1')
     })
 
-    const persistedMessages = mockState.sessionMessages.value['session-1']
-    expect(persistedMessages).toEqual([
+    const retriedMessages = mockState.sessionMessages.value['session-1']
+    expect(retriedMessages).toEqual([
       { role: 'system', content: 'init' },
       { role: 'user', content: 'hello-1' },
       { role: 'assistant', content: 'answer-1' },
@@ -743,7 +755,12 @@ describe('useChatSyncStore', async () => {
     vi.useRealTimers()
   })
 
-  it('reruns a tool call locally when this window is the authority', async () => {
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates the targeted session before rerunning a tool call for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Tool replay previously searched the authority's unloaded fallback
+    // instead of hydrating the follower-selected session that owns the call.
     const execute = vi.fn<Tool['execute']>(async () => 'fresh result')
     const demoTool: Tool = {
       type: 'function',
@@ -789,7 +806,11 @@ describe('useChatSyncStore', async () => {
         ],
       },
     ]
-    mockState.sessionMessages.value['session-1'] = initialMessages
+    delete mockState.sessionMessages.value['session-1']
+    mockState.sessionMetas.value['session-1'] = { sessionId: 'session-1' }
+    mockState.loadSession.mockImplementationOnce(async () => {
+      mockState.sessionMessages.value['session-1'] = initialMessages
+    })
 
     const store = useChatSyncStore()
     store.initialize('authority')
@@ -803,6 +824,7 @@ describe('useChatSyncStore', async () => {
       args: '{ "value": 2 }',
     })
 
+    expect(mockState.loadSession).toHaveBeenCalledWith('session-1')
     expect(mockResolveLlmTools).toHaveBeenCalledWith({ customTools: expect.any(Function) })
     expect(mockWidgetsTools).toHaveBeenCalledTimes(1)
     expect(mockWeatherTools).toHaveBeenCalledTimes(1)
