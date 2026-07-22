@@ -24,7 +24,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 1. Open **Settings → Provider → Chat → Moonshot**.
 2. Paste the API Key into the basic settings.
-3. Keep the default Base URL: `https://api.moonshot.cn/v1`.
+3. Keep the default Base URL: `https://api.moonshot.ai/v1/`.
 
 ## Step 3: Verify configuration
 

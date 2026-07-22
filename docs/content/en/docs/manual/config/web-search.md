@@ -17,7 +17,7 @@ Tavily API Key should only be saved on the current device. Do not submit to the 
 
 ## Configuration steps
 
-1. Open **Settings → Body Module → Network Search**.
+1. Open **Settings → Modules → Web Search**.
 2. Turn on "Enable web search".
 3. Paste the API Key in "Tavily API Key".
 4. When "Web search is ready" appears, you can return to the chat; the settings will be saved automatically, and there is no need to click the save button.
