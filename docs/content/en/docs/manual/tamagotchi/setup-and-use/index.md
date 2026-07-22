@@ -75,10 +75,10 @@ Please follow the steps below to complete the initial configuration:
 2. Select your language.
 3. If you want to use your own AI model, please click "**Configure your own AI service source**". If you want to use the officially provided AI model, please click "**Login**". If you are not sure which provider to use, we recommend starting from [AIRI Official Provider](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), [OpenAI Compatible Provider](../../config/providers/consciousness/openai.md) or locally [Ollama](../../config/providers/consciousness/ollama.md) Select one to configure.
 4. If you use your own AI model (please refer to the sidebar "Configuration → Service Provider → Chat Service Provider" to learn how to configure):
-1. Select the service source you prepared and click "**Next**";
-2. Fill in your API Key (change the base URL if necessary), and then click "**Next**";
-3. Click "**Next**" again;
-4. Select the model you plan to use and click **Save and Continue**.
+    1. Select the service source you prepared and click "**Next**";
+    2. Fill in your API Key (change the base URL if necessary), and then click "**Next**";
+    3. Click "**Next**" again;
+    4. Select the model you plan to use and click **Save and Continue**.
 5. If you use the officially provided AI model: please refer to [AIRI official provider](../../config/providers/consciousness/official.md).
 
 Congratulations, if nothing else, you have completed the preliminary configuration of AIRI!
