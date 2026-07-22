@@ -1,6 +1,7 @@
 import { useDevicesList, useUserMedia } from '@vueuse/core'
 import { computed, nextTick, ref, watch } from 'vue'
 
+import { requestAudioSessionType } from '../../libs/audio/audio-session'
 import { useAnalytics } from '../use-analytics'
 
 const UNKNOWN_STT_PROVIDER_ID = 'unknown'
@@ -114,6 +115,11 @@ export function useAudioDevice(requestPermission: boolean = false) {
 
   async function startStream() {
     selectAvailableAudioInput()
+
+    // Once the microphone is in use the audio session must be a recording
+    // capable category; 'play-and-record' also keeps TTS playback exempt
+    // from the iOS silent switch (see libs/audio/audio-session.ts).
+    requestAudioSessionType('play-and-record')
 
     try {
       return await startUserMediaStream()
