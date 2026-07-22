@@ -41,8 +41,7 @@ const tools = [
         return serialize(err)
 
       const store = useExpressionStore()
-      const numericValue = typeof value === 'boolean' ? (value ? 1 : 0) : value
-      const result = store.set(name, numericValue, duration ?? undefined)
+      const result = store.set(name, value, duration ?? undefined)
       return serialize(result)
     },
     parameters: z.object({

@@ -1179,6 +1179,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
       replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
     }
+    else {
+      const msgs = sessionMessages.value[sessionId]
+      const sysMsg = msgs.find(m => m.role === 'system')
+      // Regenerate system message if it doesn't contain the ACT token instruction
+      if (sysMsg && typeof sysMsg.content === 'string' && !sysMsg.content.includes('You MUST control')) {
+        const newSys = generateInitialMessage()
+        replaceSessionMessages(sessionId, [newSys, ...msgs.filter(m => m.role !== 'system')], { persist: false })
+      }
+    }
   }
 
   function hasKnownSession(sessionId: string) {
