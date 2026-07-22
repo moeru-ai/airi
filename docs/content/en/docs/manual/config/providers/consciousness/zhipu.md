@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list cannot be loaded, you can manually enter the precise model ID provided by Wisdom AI on the "Awareness" page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list cannot be loaded, you can manually enter the precise model ID provided by Wisdom AI on the "Consciousness" page.

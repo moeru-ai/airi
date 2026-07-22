@@ -27,7 +27,7 @@ Do not disclose the credentials corresponding to the API Key or App ID; immediat
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network, API Key and App ID are filled in correctly.
-2. **Select model and tone**: After the test is successful, select the tone, and then go to **Settings → Sound** to enable it.
+2. **Select model and tone**: After the test is successful, select the tone, and then go to **Settings → Speech** to enable it.
 3. Enter the short text to listen and confirm that it can be played normally.
 
 ## Troubleshooting

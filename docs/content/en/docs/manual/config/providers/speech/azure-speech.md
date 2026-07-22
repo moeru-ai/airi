@@ -27,7 +27,7 @@ Azure keys provide access to your speech resources. Do not submit, screenshot or
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network, API Key and region are filled in correctly.
-2. **Select model and tone**: After the test is successful, select the tone and enable it in **Settings → Sound**.
+2. **Select model and tone**: After the test is successful, select the tone and enable it in **Settings → Speech**.
 3. Enter the short text to listen and confirm that it can be played normally.
 
 ## Troubleshooting

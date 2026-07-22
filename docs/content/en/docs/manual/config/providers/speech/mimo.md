@@ -26,7 +26,7 @@ Sound cloning requires audio samples in Base64 data URI format. Only upload soun
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select model and sound**: After successful testing, select a preset sound, sound design or sound clone model and enable it in **Settings → Sound production**.
+2. **Select model and sound**: After successful testing, select a preset sound, sound design or sound clone model and enable it in **Settings → Speech**.
 3. Enter short text to listen. Sound design requires style descriptions; sound cloning also requires legitimate sound samples.
 
 ## Troubleshooting

@@ -3,7 +3,7 @@ title: Nano Banana (Artistic Creation)
 description: Configuring Nano Banana image generation in AIRI
 ---
 
-Nano Banana uses the Google AI Studio API Key to generate images. After completing the configuration, you can select the service provider in **Settings → Art**.
+Nano Banana uses the Google AI Studio API Key to generate images. After completing the configuration, you can select the service provider in **Settings → Artistry**.
 
 ::: info Why choose Nano Banana?
 If you already have a Google AI Studio API Key and want to use AIRI's built-in Gemini image model and resolution options directly, you can select it.
@@ -21,13 +21,13 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Art → Nano Banana** and paste the API Key.
+1. Open **Settings → Service Provider → Artistry → Nano Banana** and paste the API Key.
 2. Select the default model: `gemini-3.1-flash-image-preview`, `gemini-3-pro-image-preview` or `gemini-2.5-flash-image`.
 3. Select a default resolution: 1K, 2K, or 4K.
 
 ## Step 3: Verify configuration
 
-1. Open **Settings → Art** and select **Nano Banana**.
+1. Open **Settings → Artistry** and select **Nano Banana**.
 2. Generate an image using a prompt word that does not contain sensitive information.
 3. Successfully returning the image means that the API Key, model and resolution configuration are available.
 

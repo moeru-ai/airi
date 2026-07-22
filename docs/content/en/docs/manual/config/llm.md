@@ -21,7 +21,7 @@ When you are not sure which one to choose, you can first choose from the detaile
 
 3. Click **Ping API** to test whether the network is connected and whether the API Key is filled in correctly.
 
-4. After the network is open, click **Select Model**; you can also open **Settings → Awareness** and select the chat service provider and model you just configured.
+4. After the network is open, click **Select Model**; you can also open **Settings → Consciousness** and select the chat service provider and model you just configured.
 
 AIRI will load the model list when supported by the service provider. When the list cannot be loaded, you can manually enter the precise model ID according to the official documentation of the service provider.
 
@@ -31,7 +31,7 @@ AIRI will load the model list when supported by the service provider. When the l
 
 ### Verification passed, but there is no optional model
 
-First confirm that the service provider allows the model to be listed. Some service providers do not provide a model list, or the API Key does not have corresponding permissions; in this case, you can manually enter the model ID on the "Awareness" page. The model ID must exactly match the provider documentation.
+First confirm that the service provider allows the model to be listed. Some service providers do not provide a model list, or the API Key does not have corresponding permissions; in this case, you can manually enter the model ID on the "Consciousness" page. The model ID must exactly match the provider documentation.
 
 ### Verification failed or request timed out
 
@@ -39,7 +39,7 @@ Check API Key, Base URL, account limit and network connection. For local service
 
 ### AIRI No reply
 
-Confirm that both the service provider and the model are selected on the "Awareness" page. Simply saving the provider credentials will not automatically enable it.
+Confirm that both the service provider and the model are selected on the "Consciousness" page. Simply saving the provider credentials will not automatically enable it.
 
 ## Next step
 

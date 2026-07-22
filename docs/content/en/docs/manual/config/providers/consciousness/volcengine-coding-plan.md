@@ -24,7 +24,7 @@ Do not submit API keys or endpoint credentials to the repository, take screensho
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network and credentials are correct.
-2. **Select Model**: After successful testing, select an available model in **Settings → Awareness**.
+2. **Select Model**: After successful testing, select an available model in **Settings → Consciousness**.
 
 ## Troubleshooting
 

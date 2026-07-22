@@ -8,7 +8,7 @@ Speech synthesis (TTS) reads out AIRI's text responses; speech recognition (ASR/
 ## Configure speech synthesis (TTS)
 
 1. Open **Settings → Service Provider → Speech Synthesis**, select the service provider and fill in the credentials.
-2. Open **Settings → Sound** and select the configured service provider, model and tone.
+2. Open **Settings → Speech** and select the configured service provider, model and tone.
 3. Enter a test text on the speaking page and play it. Hearing a sound means the configuration is successful.
 
 If your service provider is compatible with the OpenAI speech interface, refer to [OpenAI Compatible API (TTS)](./providers/speech/openai.md). When using OpenRouter's voice interface, refer to [OpenRouter (TTS)](./providers/speech/openrouter.md).

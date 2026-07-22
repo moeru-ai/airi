@@ -32,4 +32,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by OpenPaths can be manually entered on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by OpenPaths can be manually entered on the Consciousness page.

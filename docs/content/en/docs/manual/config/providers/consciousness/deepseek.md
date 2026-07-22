@@ -4,7 +4,7 @@ description: Configure DeepSeek as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-DeepSeek provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by DeepSeek in Awareness.
+DeepSeek provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by DeepSeek in Consciousness.
 
 ::: info Why choose DeepSeek?
 If you want to use the DeepSeek model in AIRI, or already have a DeepSeek API Key, you can choose this service provider directly.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the precise model ID provided by DeepSeek on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the precise model ID provided by DeepSeek on the Consciousness page.

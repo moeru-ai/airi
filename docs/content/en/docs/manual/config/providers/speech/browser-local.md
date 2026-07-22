@@ -25,7 +25,7 @@ This capability depends on browser and hardware conditions. If the service provi
 
 ## Step 3: Verify configuration
 
-1. Select the service provider, model and sound in **Settings → Sound**.
+1. Select the service provider, model and sound in **Settings → Speech**.
 2. Enter the short text and listen; if it can be played normally, it means the configuration is successful.
 
 ## Troubleshooting

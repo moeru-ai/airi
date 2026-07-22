@@ -32,4 +32,4 @@ Only save the API Key in your password manager or AIRI's local settings. Do not 
 
 ## Troubleshooting
 
-If Ping API fails, please check the API Key, account limit and network connection first. When the model list is not available, the model ID given in the xAI documentation can be manually filled in on the Awareness page.
+If Ping API fails, please check the API Key, account limit and network connection first. When the model list is not available, the model ID given in the xAI documentation can be manually filled in on the Consciousness page.

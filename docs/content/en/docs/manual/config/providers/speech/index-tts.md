@@ -27,7 +27,7 @@ Do not expose local service ports to untrusted public networks. If you modify th
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether AIRI can connect to the local service.
-2. **Select model and tone**: After the test is successful, select `IndexTTS-1.5` and the tone returned by the service; then go to **Settings → Sound** to enable it.
+2. **Select model and tone**: After the test is successful, select `IndexTTS-1.5` and the tone returned by the service; then go to **Settings → Speech** to enable it.
 3. Enter the short text to listen and confirm that it can be played normally.
 
 ## Troubleshooting

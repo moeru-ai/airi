@@ -4,7 +4,7 @@ description: AIRI での大規模モデル サービス プロバイダーとし
 is_openai_compatible: true
 ---
 
-Groq は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は、Groq が提供するモデルを Awareness で使用できるようになります。
+Groq は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は、Groq が提供するモデルを 意識 で使用できるようになります。
 
 ::: info Groq を選ぶ理由?
 会話の応答性を重視し、ターゲット モデルが Groq で利用できる場合は、このプロバイダーを試してください。

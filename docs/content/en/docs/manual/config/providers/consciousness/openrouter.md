@@ -4,7 +4,7 @@ description: Configuring OpenRouter as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-OpenRouter is an aggregation API service provider. After completing the configuration on this page, AIRI can use the chat model provided by OpenRouter in Awareness.
+OpenRouter is an aggregation API service provider. After completing the configuration on this page, AIRI can use the chat model provided by OpenRouter in Consciousness.
 
 ::: info Why choose OpenRouter?
 If you want to try out multiple models in AIRI with one API Key, OpenRouter is a convenient choice. It centralizes multiple model services into the same socket and bill, so when switching models you usually don't have to separately configure multiple service providers. When using AIRI in mainland China, you can try 302.AI first; actual availability still depends on your network environment, payment method, and service provider policies.
@@ -34,4 +34,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by OpenRouter on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by OpenRouter on the Consciousness page.

@@ -34,4 +34,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 The Ping API checks network connectivity and sends a short chat request. If it fails, please confirm that the API Key is available, the account has a limit, and check whether the network can access the Anthropic API.
 
-If the model selector does not show the expected model, first update the AIRI or manually enter the exact model ID provided by the service provider on the Awareness page.
+If the model selector does not show the expected model, first update the AIRI or manually enter the exact model ID provided by the service provider on the Consciousness page.

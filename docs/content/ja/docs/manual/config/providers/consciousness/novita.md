@@ -4,7 +4,7 @@ description: AIRI の大規模モデル サービス プロバイダーとして
 is_openai_compatible: true
 ---
 
-Novita AIは、OpenAI形式と互換性のあるチャットAPIを提供します。このページでの設定を完了すると、AIRI は、Awareness で Novita AI が提供するモデルを使用できるようになります。
+Novita AIは、OpenAI形式と互換性のあるチャットAPIを提供します。このページでの設定を完了すると、AIRI は、意識 で Novita AI が提供するモデルを使用できるようになります。
 
 ::: info Novita AIを選ぶ理由?
 Novita AI でモデル サービスを管理している場合は、サービス プロバイダーの API キーを直接再利用できます。

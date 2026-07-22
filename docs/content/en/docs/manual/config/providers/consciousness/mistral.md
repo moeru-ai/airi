@@ -4,7 +4,7 @@ description: Configuring Mistral as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Mistral provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Mistral in Awareness.
+Mistral provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Mistral in Consciousness.
 
 ::: info Why choose Mistral?
 If you already use Mistral models, or want to try their multilingual models in AIRI, you can choose this provider.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Mistral can be manually entered on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Mistral can be manually entered on the Consciousness page.

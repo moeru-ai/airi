@@ -4,7 +4,7 @@ description: Configuring Atlas Cloud as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Atlas Cloud is a chat API service provider compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the chat model provided by Atlas Cloud in "Awareness".
+Atlas Cloud is a chat API service provider compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the chat model provided by Atlas Cloud in "Consciousness".
 
 ::: info Why choose Atlas Cloud?
 If you already have an Atlas Cloud API Key, or want to use the models it provides, you can choose this service provider directly.
@@ -32,4 +32,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the precise model ID provided by Atlas Cloud on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the precise model ID provided by Atlas Cloud on the Consciousness page.

@@ -4,7 +4,7 @@ description: Configuring Perplexity as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Perplexity provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Perplexity in Awareness.
+Perplexity provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Perplexity in Consciousness.
 
 ::: info Why choose Perplexity?
 You can choose this provider if you already have a Perplexity API account and want to use its available models in AIRI.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Perplexity can be manually entered into the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Perplexity can be manually entered into the Consciousness page.

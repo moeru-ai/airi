@@ -4,7 +4,7 @@ description: Configure the Chinese mainland version of MiniMax in AIRI as a larg
 is_openai_compatible: true
 ---
 
-This page applies to API Keys created on the MiniMax open platform in mainland China. MiniMax provides a chat API compatible with the OpenAI format; once configured, AIRI can use its models in Awareness.
+This page applies to API Keys created on the MiniMax open platform in mainland China. MiniMax provides a chat API compatible with the OpenAI format; once configured, AIRI can use its models in Consciousness.
 
 ::: info Why choose MiniMax?
 If you create an API Key on the MiniMax open platform in mainland China, you should choose this service provider. Please use [MiniMax Global](./minimax-global.md) for keys created by overseas platforms.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by MiniMax can be manually entered on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by MiniMax can be manually entered on the Consciousness page.

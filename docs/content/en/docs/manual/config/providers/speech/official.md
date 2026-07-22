@@ -25,7 +25,7 @@ The available models, quotas and regions of official services are determined by 
 
 ## Step 3: Verify configuration
 
-1. Select a model and sound in **Settings → Sound**, then listen to it using a short text.
+1. Select a model and sound in **Settings → Speech**, then listen to it using a short text.
 2. If it can play normally, it means the configuration is successful. If the server does not provide streaming voice, the streaming option will not appear.
 
 ## Troubleshooting

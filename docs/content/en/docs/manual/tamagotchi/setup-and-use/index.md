@@ -253,7 +253,7 @@ Here you can configure various functions of AIRI, as follows:
 
 ![AIRI 机体模块设置界面](./assets/manual-modules.avif)
 
-#### > Awareness
+#### > Consciousness
 
 Please refer to [Chat Model](../../config/llm.md) for configuration.
 ![AIRI 意识设置界面](image-3.png)

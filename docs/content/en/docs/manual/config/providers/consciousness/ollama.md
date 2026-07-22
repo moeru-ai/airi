@@ -32,7 +32,7 @@ If you want to run models natively, reduce dependence on cloud APIs, or place mo
 
 1. Open **Settings → Service Provider → Chat → Ollama**.
 2. Keep the default Base URL: `http://localhost:11434/v1/`; if Ollama is running on another device, fill in the address accessible by the device.
-3. Select Ollama and the model you just downloaded in "Awareness".
+3. Select Ollama and the model you just downloaded in "Consciousness".
 
 ## Step 4: Verify configuration
 

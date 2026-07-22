@@ -25,7 +25,7 @@ Local models take up download space, memory, and computing resources. Do not for
 
 ## Step 3: Verify configuration
 
-1. **Select model and tone**: After the model is prepared, select the tone, and then go to **Settings → Sound** to enable it.
+1. **Select model and tone**: After the model is prepared, select the tone, and then go to **Settings → Speech** to enable it.
 2. Enter the short text to listen; if it can be played normally, it means the model is ready.
 
 ## Troubleshooting

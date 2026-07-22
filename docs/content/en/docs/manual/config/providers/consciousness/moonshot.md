@@ -4,7 +4,7 @@ description: Configuring Moonshot as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Moonshot provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Moonshot in Awareness.
+Moonshot provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Moonshot in Consciousness.
 
 ::: info Why choose Moonshot?
 If you want to use the Moonshot model in AIRI, or already have a Moonshot API Key, you can choose this service provider directly.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Moonshot can be manually entered on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Moonshot can be manually entered on the Consciousness page.

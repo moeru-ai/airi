@@ -25,7 +25,7 @@ Even though the API Key is optional, don't expose your private service address, 
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network, service address, and credentials are correct.
-2. **Select model**: After the test is successful, select the model, and then go to **Settings → Awareness** to enable it.
+2. **Select model**: After the test is successful, select the model, and then go to **Settings → Consciousness** to enable it.
 
 ## Troubleshooting
 

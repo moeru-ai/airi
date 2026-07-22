@@ -25,7 +25,7 @@ Don't expose AWS access keys. Use credentials with minimal privileges and revoke
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test that the credentials, region, and network are correct.
-2. **Select model**: After the test is successful, select the model for which the account has been authorized, and then go to **Settings → Awareness** to enable it.
+2. **Select model**: After the test is successful, select the model for which the account has been authorized, and then go to **Settings → Consciousness** to enable it.
 
 ## Troubleshooting
 

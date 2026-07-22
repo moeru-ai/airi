@@ -4,7 +4,7 @@ description: Configuring Together AI as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Together AI provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Together AI in Awareness.
+Together AI provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Together AI in Consciousness.
 
 ::: info Why choose Together AI?
 If you have deployed or used the model in Together AI, you can directly reuse the corresponding API Key.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Together AI can be manually entered on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Together AI can be manually entered on the Consciousness page.

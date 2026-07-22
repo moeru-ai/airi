@@ -4,7 +4,7 @@ description: Configuring Fireworks AI as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Fireworks AI provides a chat API that is compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Fireworks AI in Awareness.
+Fireworks AI provides a chat API that is compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Fireworks AI in Consciousness.
 
 ::: info Why choose Fireworks AI?
 If you already manage models or inference services in Fireworks AI, you can directly reuse the same set of API credentials.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Fireworks AI on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Fireworks AI on the Consciousness page.

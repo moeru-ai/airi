@@ -4,7 +4,7 @@ description: Configuring Novita AI as a large model service provider in AIRI
 is_openai_compatible: true
 ---
 
-Novita AI provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Novita AI in Awareness.
+Novita AI provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by Novita AI in Consciousness.
 
 ::: info Why choose Novita AI?
 If you have managed model services in Novita AI, you can directly reuse the service provider's API Key.
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Novita AI on the Awareness page.
+If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Novita AI on the Consciousness page.

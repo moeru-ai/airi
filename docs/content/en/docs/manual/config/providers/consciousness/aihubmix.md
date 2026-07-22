@@ -24,8 +24,8 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select Model**: After successful testing, select the specific model you want to use; then go to **Settings → Awareness** to enable it.
+2. **Select Model**: After successful testing, select the specific model you want to use; then go to **Settings → Consciousness** to enable it.
 
 ## Troubleshooting
 
-When pinging the API fails, check the API Key, account balance, and network connection. When the model list fails to load, confirm that the Base URL remains at the default value, or enter the exact model ID provided by AIHubMix on the Awareness page.
+When pinging the API fails, check the API Key, account balance, and network connection. When the model list fails to load, confirm that the Base URL remains at the default value, or enter the exact model ID provided by AIHubMix on the Consciousness page.

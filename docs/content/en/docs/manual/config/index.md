@@ -9,13 +9,13 @@ To let AIRI talk to you, you need to configure at least one chat service provide
 
 1. Open AIRI’s **Settings → Service Provider**.
 2. Select the service provider in the **Chat** category, fill in the credentials and complete verification.
-3. Open **Settings → Awareness** and select the service provider and model just configured.
+3. Open **Settings → Consciousness** and select the service provider and model just configured.
 4. Send a message to confirm that AIRI can reply.
 
 After completing the chat configuration, configure the voice as needed:
 
 * **[General Instructions](./common.md)**: Understand the configuration process, field meanings, verification results and FAQs.
-* **[Configure Chat Model](./llm.md)**: Configure LLM and select the model in Awareness.
+* **[Configure Chat Model](./llm.md)**: Configure LLM and select the model in Consciousness.
 * **[Configure Speech Input and Output](./audio.md)**: Configure TTS and ASR/STT and enable them in "Sounding" and "Hearing".
 * **[Configure Visual Understanding](./vision.md)**: Let AIRI use models that support image input in the configured chat provider.
 * **[Configure Web Search](./web-search.md)**: Use Tavily to let AIRI search the Internet for the latest information when needed.

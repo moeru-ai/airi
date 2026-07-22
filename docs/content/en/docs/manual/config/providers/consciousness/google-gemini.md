@@ -3,7 +3,7 @@ title: Google Gemini
 description: Configuring the Google Gemini chat model in AIRI
 ---
 
-The Google Gemini provider uses the OpenAI-compatible endpoint of the Google Generative Language API. After completing the configuration, select the Gemini model on the "Awareness" page.
+The Google Gemini provider uses the OpenAI-compatible endpoint of the Google Generative Language API. After completing the configuration, select the Gemini model on the "Consciousness" page.
 
 ::: info Why choose Google Gemini?
 If you already have a Gemini API Key or want to use Gemini models in AIRI, you can choose this service provider.

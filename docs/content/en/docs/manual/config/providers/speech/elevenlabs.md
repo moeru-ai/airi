@@ -28,7 +28,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select model and sound**: After the test is successful, select the model and the sound you want to use in **Settings → Sound**.
+2. **Select model and sound**: After the test is successful, select the model and the sound you want to use in **Settings → Speech**.
 3. Enter a short text and listen to it; if the voice can be played normally, the configuration is successful.
 
 ## Troubleshooting

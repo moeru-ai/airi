@@ -25,7 +25,7 @@ Do not submit your Azure API Key to the repository, take screenshots, or send it
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network, endpoint, and API Key are correct.
-2. **Select model**: After the test is successful, select the corresponding deployment, and then go to **Settings → Awareness** to enable it.
+2. **Select model**: After the test is successful, select the corresponding deployment, and then go to **Settings → Consciousness** to enable it.
 
 ## Troubleshooting
 

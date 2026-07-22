@@ -3,7 +3,7 @@ title: Google Gemini
 description: AIRI での Google Gemini チャット モデルの設定
 ---
 
-Google Gemini プロバイダーは、Google Generative Language API の OpenAI 互換エンドポイントを使用します。設定が完了したら、「認識」ページで Gemini モデルを選択します。
+Google Gemini プロバイダーは、Google Generative Language API の OpenAI 互換エンドポイントを使用します。設定が完了したら、「意識」ページで Gemini モデルを選択します。
 
 ::: info Google Gemini を選ぶ理由
 すでに Gemini API キーを持っている場合、または AIRI で Gemini モデルを使用したい場合は、このサービス プロバイダーを選択できます。

@@ -4,7 +4,7 @@ description: Configuring OpenAI or an OpenAI-compatible chat service in AIRI
 is_openai_compatible: true
 ---
 
-Select **OpenAI** when using the official OpenAI address; select **OpenAI compatible API** when using a third-party compatible address. After completing the configuration, AIRI can use the chat model of the corresponding service provider in "Awareness".
+Select **OpenAI** when using the official OpenAI address; select **OpenAI compatible API** when using a third-party compatible address. After completing the configuration, AIRI can use the chat model of the corresponding service provider in "Consciousness".
 
 ::: info Why choose OpenAI or Compatible API?
 If you already have an OpenAI API Key, or the service provider explicitly provides an OpenAI-compatible chat interface, you can use this configuration method. Merely having an API address ending with `/v1` or a key starting with `sk-` does not guarantee service compatibility.
