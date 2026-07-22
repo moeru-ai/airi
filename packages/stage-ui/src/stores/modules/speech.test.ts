@@ -323,4 +323,109 @@ describe('speech store helpers', () => {
       vi.unstubAllGlobals()
     }
   })
+
+  // ROOT CAUSE:
+  //
+  // If a voice reload fails after a credential change (e.g. a valid API key
+  // is replaced with an unauthorized one), loadVoicesForProvider caught the
+  // error and returned [] without touching availableVoices, so the catalog
+  // fetched with the previous credentials stayed visible and selectable.
+  //
+  // We fixed this by clearing the provider's availableVoices entry when a
+  // current (non-superseded) reload fails under a changed provider config.
+  //
+  // https://github.com/moeru-ai/airi/pull/2070#discussion_r3597444853
+  it('clears the cached catalog when a reload with changed credentials fails', async () => {
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    const metadata = providersStore.providerMetadata['fish-audio']
+
+    providersStore.providers['fish-audio'] = { apiKey: 'old-key' }
+    metadata.capabilities.listVoices = vi.fn(async () => [
+      { id: 'voice-old', name: 'Old Account Voice', provider: 'fish-audio', languages: [] },
+    ])
+    await speechStore.loadVoicesForProvider('fish-audio')
+    expect(speechStore.availableVoices['fish-audio']).toHaveLength(1)
+
+    providersStore.providers['fish-audio'] = { apiKey: 'unauthorized-key' }
+    metadata.capabilities.listVoices = vi.fn(async () => {
+      throw new Error('401 unauthorized')
+    })
+    const voices = await speechStore.loadVoicesForProvider('fish-audio')
+
+    expect(voices).toEqual([])
+    expect(speechStore.availableVoices['fish-audio']).toEqual([])
+    expect(speechStore.speechProviderError).toContain('401')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The first version of the stale-catalog fix cleared the cache on every
+  // failed reload. A transient voice-list outage under unchanged credentials
+  // then wiped a still-valid catalog and blocked generation until another
+  // reload happened to run.
+  //
+  // We fixed this by snapshotting the config that produced the cached
+  // catalog and clearing only when the failing reload used a different one.
+  //
+  // https://github.com/moeru-ai/airi/pull/2070#discussion_r3597538697
+  it('keeps the cached catalog when a reload with unchanged credentials fails', async () => {
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    const metadata = providersStore.providerMetadata['fish-audio']
+
+    providersStore.providers['fish-audio'] = { apiKey: 'stable-key' }
+    metadata.capabilities.listVoices = vi.fn(async () => [
+      { id: 'voice-a', name: 'Voice A', provider: 'fish-audio', languages: [] },
+    ])
+    await speechStore.loadVoicesForProvider('fish-audio')
+    expect(speechStore.availableVoices['fish-audio']).toHaveLength(1)
+
+    metadata.capabilities.listVoices = vi.fn(async () => {
+      throw new Error('503 upstream outage')
+    })
+    const voices = await speechStore.loadVoicesForProvider('fish-audio')
+
+    expect(voices).toEqual([])
+    expect(speechStore.availableVoices['fish-audio'].map(voice => voice.id)).toEqual(['voice-a'])
+    expect(speechStore.speechProviderError).toContain('503')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Overlapping voice reloads (credentials changed again while an earlier
+  // request was in flight) both wrote to availableVoices[provider], so a slow
+  // superseded response finishing last could overwrite the catalog fetched
+  // with the newer credentials.
+  //
+  // We fixed this by stamping each reload with a per-provider generation and
+  // discarding responses (and errors) from superseded generations.
+  //
+  // https://github.com/moeru-ai/airi/pull/2070#discussion_r3597444860
+  it('ignores responses from superseded voice reloads', async () => {
+    const providersStore = useProvidersStore()
+    const speechStore = useSpeechStore()
+    const metadata = providersStore.providerMetadata['fish-audio']
+
+    let resolveSlow: (voices: { id: string, name: string, provider: string, languages: [] }[]) => void
+    const slowRequest = new Promise<{ id: string, name: string, provider: string, languages: [] }[]>((resolve) => {
+      resolveSlow = resolve
+    })
+
+    metadata.capabilities.listVoices = vi.fn(() => slowRequest)
+    const slowReload = speechStore.loadVoicesForProvider('fish-audio')
+
+    metadata.capabilities.listVoices = vi.fn(async () => [
+      { id: 'voice-new', name: 'New Account Voice', provider: 'fish-audio', languages: [] },
+    ])
+    await speechStore.loadVoicesForProvider('fish-audio')
+    expect(speechStore.availableVoices['fish-audio'].map(voice => voice.id)).toEqual(['voice-new'])
+
+    // The old-credentials request finishes last; it must not clobber the
+    // catalog owned by the newer reload.
+    resolveSlow!([{ id: 'voice-old', name: 'Old Account Voice', provider: 'fish-audio', languages: [] }])
+    await slowReload
+
+    expect(speechStore.availableVoices['fish-audio'].map(voice => voice.id)).toEqual(['voice-new'])
+  })
 })

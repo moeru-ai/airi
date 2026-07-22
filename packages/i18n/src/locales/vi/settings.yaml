@@ -1209,6 +1209,9 @@ pages:
           validation:
             error-missing-api-key: Vui lòng nhập khóa API để thử giọng.
         title: ElevenLabs
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       kokoro-local:
         description: Chuyển văn bản thành giọng nói cục bộ dùng Kokoro-82M.
         fields:

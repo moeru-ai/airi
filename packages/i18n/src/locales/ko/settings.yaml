@@ -1209,6 +1209,9 @@ pages:
           validation:
             error-missing-api-key: 음성을 테스트하려면 API 키를 입력하세요.
         title: ElevenLabs
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       kokoro-local:
         description: Kokoro-82M을 사용하여 로컬 텍스트 음성 변환을 생성합니다.
         fields:
