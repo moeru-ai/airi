@@ -10,7 +10,7 @@ import {
 } from './media-permissions'
 
 const { isScreenCaptureSourceRequestActiveMock } = vi.hoisted(() => ({
-  isScreenCaptureSourceRequestActiveMock: vi.fn(),
+  isScreenCaptureSourceRequestActiveMock: vi.fn<(webContents: Pick<WebContents, 'id'> | null | undefined) => boolean>(),
 }))
 
 vi.mock('@proj-airi/electron-screen-capture/main', () => ({
@@ -18,8 +18,9 @@ vi.mock('@proj-airi/electron-screen-capture/main', () => ({
 }))
 
 const localWebContents = {
+  id: 1,
   getURL: () => 'file:///app/index.html',
-} satisfies Pick<WebContents, 'getURL'>
+} satisfies Pick<WebContents, 'id' | 'getURL'>
 
 /**
  * Creates official Electron request details for media permission tests.
@@ -96,7 +97,41 @@ describe('media permissions', () => {
       undefined,
       createMediaRequestDetails({ mediaTypes: ['video'] }),
     )).toBe(true)
-    expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenCalledWith(undefined)
+    expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenCalledWith(sourceOwner)
+  })
+
+  /** @example A local renderer cannot borrow another renderer's selected-source lease. */
+  it('scopes selected desktop capture permission to the lease owner', () => {
+    const sourceOwner = {
+      id: 42,
+      getURL: () => 'file:///app/index.html',
+    } satisfies Pick<WebContents, 'id' | 'getURL'>
+    const otherRenderer = {
+      id: 43,
+      getURL: () => 'file:///app/index.html',
+    } satisfies Pick<WebContents, 'id' | 'getURL'>
+
+    // ROOT CAUSE:
+    //
+    // Passing `undefined` to the lease lookup checked only whether any lease was active.
+    // That allowed another local AIRI renderer to reuse a lease owned by sourceOwner.
+    // We fixed this by forwarding Electron's requesting WebContents whenever it exists.
+    isScreenCaptureSourceRequestActiveMock.mockImplementation(webContents => webContents?.id === sourceOwner.id)
+
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      sourceOwner,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'] }),
+    )).toBe(true)
+    expect(shouldGrantSelectedDesktopCapturePermission(
+      otherRenderer,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'] }),
+    )).toBe(false)
+    expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenNthCalledWith(1, sourceOwner)
+    expect(isScreenCaptureSourceRequestActiveMock).toHaveBeenNthCalledWith(2, otherRenderer)
   })
 
   /** @example Electron 41 may omit the media type on the actual Windows desktop-stream request. */

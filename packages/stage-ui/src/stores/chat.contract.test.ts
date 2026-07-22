@@ -1,3 +1,4 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -12,6 +13,8 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/analytics-headers'
 import { useChatOrchestratorStore } from './chat'
+
+type LlmStreamTestOptions = StreamOptions & Required<Pick<StreamOptions, 'onStreamEvent' | 'onUsage'>>
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -311,7 +314,7 @@ describe('chat orchestrator contract', () => {
   })
 
   it('does not emit custom-provider generation telemetry for hidden companion usage', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: LlmStreamTestOptions) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'hidden reply' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
       await options.onUsage({
@@ -334,7 +337,7 @@ describe('chat orchestrator contract', () => {
 
   it('omits official chat correlation headers for hidden companion sends', async () => {
     activeProviderRef.value = 'official-provider'
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: LlmStreamTestOptions) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
     })
@@ -417,7 +420,7 @@ describe('chat orchestrator contract', () => {
   })
 
   it('keeps hidden companion replies local instead of uploading them to cloud sync', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: LlmStreamTestOptions) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'I can see the selected screen.' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
     })

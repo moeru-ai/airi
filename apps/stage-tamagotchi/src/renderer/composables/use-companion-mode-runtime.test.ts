@@ -52,8 +52,8 @@ function createCompanionStore() {
 
 function createScreenCapture() {
   const sources = ref([
-    { id: 'screen:1:0', name: 'Screen 1' },
-    { id: 'window:2:0', name: 'Window 2' },
+    { id: 'screen:1:0', name: 'Screen 1', isCurrentDisplay: true },
+    { id: 'window:2:0', name: 'Window 2', isCurrentDisplay: false },
   ])
   const activeSourceId = ref('screen:1:0')
 
@@ -346,6 +346,33 @@ describe('useCompanionModeRuntime', async () => {
 
   // ROOT CAUSE:
   //
+  // Changing the selected source previously stopped only the capture stream.
+  // The old tick kept its valid generation and active abort signal, so a late
+  // vision result from the previously selected source could still reach chat.
+  it('invalidates and aborts an in-flight observation when the selected source changes', async () => {
+    const vision = deferred<string>()
+    let receivedSignal: AbortSignal | undefined
+    runVisionInference.mockImplementation(({ abortSignal }) => {
+      receivedSignal = abortSignal
+      return vision.promise
+    })
+    await mountRuntime()
+    await vi.waitFor(() => expect(runVisionInference).toHaveBeenCalledTimes(1))
+
+    companionStore.sourceId.value = 'screen:2:0'
+    await nextTick()
+
+    expect(receivedSignal?.aborted).toBe(true)
+
+    vision.resolve('Stale context from Screen 1')
+    await vi.waitFor(() => expect(companionStore.setRuntimeCapturing).toHaveBeenLastCalledWith(false))
+
+    expect(requestIngest).not.toHaveBeenCalled()
+    expect(companionStore.recordCapture).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
   // The runtime previously discarded only the result of a late hidden chat
   // send. The provider request itself remained active and could still append
   // and speak an assistant response after Companion Mode was disabled.
@@ -401,6 +428,7 @@ describe('useCompanionModeRuntime', async () => {
     await mountRuntime()
     await vi.waitFor(() => expect(requestIngest).toHaveBeenCalledTimes(1))
 
+    expect(screenCapture.refetchSources).toHaveBeenCalledTimes(1)
     expect(screenCapture.startStream).not.toHaveBeenCalled()
     expect(companionStore.enabled.value).toBe(false)
     expect(companionStore.sourceKind.value).toBe('screen')
@@ -409,6 +437,62 @@ describe('useCompanionModeRuntime', async () => {
       hidden: true,
       text: expect.stringContaining('the selected screen cannot be observed'),
     }))
+  })
+
+  // ROOT CAUSE:
+  //
+  // Source selection used to trust any cached entry of the requested kind.
+  // A newly selected source that was absent from that cache was therefore
+  // treated as unavailable without asking Electron for fresh metadata.
+  it('refetches stale metadata before resolving an explicitly selected source', async () => {
+    companionStore.sourceId.value = 'screen:2:0'
+    screenCapture.activeSourceId.value = 'screen:1:0'
+    screenCapture.refetchSources.mockImplementation(async () => {
+      screenCapture.sources.value = [
+        { id: 'screen:1:0', name: 'Screen 1', isCurrentDisplay: false },
+        { id: 'screen:2:0', name: 'Screen 2', isCurrentDisplay: true },
+        { id: 'window:2:0', name: 'Window 2', isCurrentDisplay: false },
+      ]
+      screenCapture.activeSource.value = { id: 'screen:2:0', name: 'Screen 2' }
+    })
+    screenCapture.startStream.mockImplementation(async () => {
+      expect(screenCapture.activeSourceId.value).toBe('screen:2:0')
+      return {} as MediaStream
+    })
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(companionStore.recordCapture).toHaveBeenCalledTimes(1))
+
+    expect(screenCapture.refetchSources).toHaveBeenCalledTimes(1)
+    expect(companionStore.enabled.value).toBe(true)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Automatic screen selection relied on cached isCurrentDisplay flags even
+  // though the main window may have moved to another display since enumeration.
+  it('refreshes current-display metadata before resolving automatic screen selection', async () => {
+    companionStore.sourceId.value = ''
+    screenCapture.sources.value = [
+      { id: 'screen:1:0', name: 'Screen 1', isCurrentDisplay: true },
+      { id: 'screen:2:0', name: 'Screen 2', isCurrentDisplay: false },
+      { id: 'window:2:0', name: 'Window 2', isCurrentDisplay: false },
+    ]
+    screenCapture.activeSourceId.value = 'screen:1:0'
+    screenCapture.refetchSources.mockImplementation(async () => {
+      screenCapture.sources.value[0]!.isCurrentDisplay = false
+      screenCapture.sources.value[1]!.isCurrentDisplay = true
+      screenCapture.activeSource.value = { id: 'screen:2:0', name: 'Screen 2' }
+    })
+    screenCapture.startStream.mockImplementation(async () => {
+      expect(screenCapture.activeSourceId.value).toBe('screen:2:0')
+      return {} as MediaStream
+    })
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(companionStore.recordCapture).toHaveBeenCalledTimes(1))
+
+    expect(screenCapture.refetchSources).toHaveBeenCalledTimes(1)
   })
 
   it('clears the source error and captures normally when Companion Mode is enabled again', async () => {

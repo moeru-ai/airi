@@ -8,7 +8,7 @@ type PermissionCheckHandler = Exclude<Parameters<Session['setPermissionCheckHand
 type PermissionRequestHandler = Exclude<Parameters<Session['setPermissionRequestHandler']>[0], null>
 type ElectronPermission = Parameters<PermissionCheckHandler>[1] | Parameters<PermissionRequestHandler>[1]
 type ElectronPermissionDetails = Parameters<PermissionCheckHandler>[3] | Parameters<PermissionRequestHandler>[3]
-type LocalAppWebContents = Pick<WebContents, 'getURL'> & Partial<Pick<WebContents, 'id'>>
+type LocalAppWebContents = Pick<WebContents, 'getURL' | 'id'>
 
 const LOCAL_APP_PERMISSION_NAMES = new Set<ElectronPermission>([
   'display-capture',
@@ -137,12 +137,10 @@ export function shouldGrantSelectedDesktopCapturePermission(
 ): boolean {
   return isSelectedDesktopMediaPermission(permission, details)
     && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
-    // Electron can report a different or omitted WebContents identity during
-    // the Chromium media permission phase. The IPC handler already restricts
-    // lease creation to the requesting AIRI window, and the origin check above
-    // keeps this permission local, so permission checks only need to verify
-    // that a short-lived selected-source lease is active.
-    && isScreenCaptureSourceRequestActive(undefined)
+    // The lease belongs to the renderer that selected the source. Electron may
+    // omit WebContents during permission checks, but whenever it supplies one,
+    // preserve that identity so another local AIRI renderer cannot borrow it.
+    && isScreenCaptureSourceRequestActive(webContents ?? undefined)
 }
 
 /**

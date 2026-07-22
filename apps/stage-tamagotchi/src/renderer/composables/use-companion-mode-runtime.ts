@@ -144,10 +144,14 @@ export function useCompanionModeRuntime() {
       && getVideoTracks.call(source).some(track => track.readyState === 'live')
   }
 
-  function stopRuntime() {
+  function cancelActiveRun(reason: string) {
     runtimeGeneration += 1
-    activeRunAbortController?.abort(new Error('Companion Mode stopped'))
+    activeRunAbortController?.abort(new Error(reason))
     activeRunAbortController = null
+  }
+
+  function stopRuntime() {
+    cancelActiveRun('Companion Mode stopped')
     clearTickTimer()
     stopRuntimeHeartbeat()
     screenCapture.stopStream()
@@ -158,12 +162,25 @@ export function useCompanionModeRuntime() {
   async function ensureSourceSelected(abortSignal: AbortSignal) {
     throwIfCompanionRunAborted(abortSignal)
 
+    const selectedSourceMatchesKind = !!sourceId.value
+      && isCompanionModeSourceAllowedForKind(sourceId.value, sourceKind.value)
     const hasSourceForKind = screenCapture.sources.value.some(source =>
       isCompanionModeSourceAllowedForKind(source.id, sourceKind.value),
     )
+    const isSelectedSourceMissing = selectedSourceMatchesKind
+      && !screenCapture.sources.value.some(source => source.id === sourceId.value)
+    const usesAutomaticCurrentDisplay = sourceKind.value === 'screen'
+      && !selectedSourceMatchesKind
 
-    if (!screenCapture.hasFetchedOnce.value || screenCapture.sources.value.length === 0 || !hasSourceForKind)
+    if (
+      !screenCapture.hasFetchedOnce.value
+      || screenCapture.sources.value.length === 0
+      || !hasSourceForKind
+      || isSelectedSourceMissing
+      || usesAutomaticCurrentDisplay
+    ) {
       await screenCapture.refetchSources()
+    }
 
     throwIfCompanionRunAborted(abortSignal)
 
@@ -426,6 +443,7 @@ export function useCompanionModeRuntime() {
   })
 
   watch(sourceId, () => {
+    cancelActiveRun('Companion Mode source changed')
     screenCapture.stopStream()
     stopVideoPreview()
     if (enabled.value && !tickInFlight)
@@ -433,6 +451,7 @@ export function useCompanionModeRuntime() {
   })
 
   watch(sourceKind, () => {
+    cancelActiveRun('Companion Mode source kind changed')
     if (!isCompanionModeSourceAllowedForKind(sourceId.value, sourceKind.value))
       sourceId.value = ''
 
