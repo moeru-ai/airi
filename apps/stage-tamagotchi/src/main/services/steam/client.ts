@@ -142,6 +142,32 @@ export async function initSteam(): Promise<SteamInitResult> {
   // #endregion
   instance.setSdkPath(sdkPath)
 
+  // Enable library debug mode and intercept console to capture internal errors.
+  // The library's init() catches all errors, logs to console.error, and returns false.
+  // Without intercepting, we can't see which internal step failed.
+  try {
+    instance.setDebug(true)
+  }
+  catch {
+    /* setDebug may not exist on all versions */
+  }
+
+  const capturedLogs: string[] = []
+  // eslint-disable-next-line no-console
+  const origLog = console.log
+  const origError = console.error
+  const origWarn = console.warn
+  // eslint-disable-next-line no-console
+  console.log = (...args: unknown[]) => {
+    capturedLogs.push(`LOG: ${args.map(a => String(a)).join(' ')}`)
+  }
+  console.error = (...args: unknown[]) => {
+    capturedLogs.push(`ERR: ${args.map(a => String(a)).join(' ')}`)
+  }
+  console.warn = (...args: unknown[]) => {
+    capturedLogs.push(`WARN: ${args.map(a => String(a)).join(' ')}`)
+  }
+
   let initialized: boolean
   try {
     initialized = instance.init({ appId: STEAM_APP_ID })
@@ -153,14 +179,25 @@ export async function initSteam(): Promise<SteamInitResult> {
       sdkPath,
       error: initError instanceof Error ? `${initError.name}: ${initError.message}` : String(initError),
       stack: initError instanceof Error ? initError.stack?.split('\n').slice(0, 8).join(' | ') : undefined,
+      capturedConsole: capturedLogs,
     })
     // #endregion
     log.withError(initError).warn('instance.init() threw')
     return { ok: false, reason: 'init_failed' }
   }
+  finally {
+    // eslint-disable-next-line no-console
+    console.log = origLog
+    console.error = origError
+    console.warn = origWarn
+  }
   if (!initialized) {
     // #region agent log
-    steamDebugLog('initSteam: SteamAPI_Init returned false -> init_failed', { sdkPath, hypothesisId: 'H2-H3' })
+    steamDebugLog('initSteam: instance.init() returned false -> init_failed', {
+      sdkPath,
+      hypothesisId: 'H2-H3',
+      capturedConsole: capturedLogs,
+    })
     // #endregion
     log.warn('SteamAPI_Init returned false')
     return { ok: false, reason: 'init_failed' }
