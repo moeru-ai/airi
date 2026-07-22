@@ -200,7 +200,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const { activeSessionId, sessionMessages, sessionMetas } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
-  const { activeSendSessionId, sending } = storeToRefs(chatOrchestrator)
+  const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
 
   const pendingRequests = new Map<string, PendingRequest>()
   const stopSyncWatchers: Array<() => void> = []
@@ -217,12 +217,13 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   }
 
   function buildStreamSnapshot(): StreamSnapshotPayload {
+    const streamSnapshot = activeStreamingMessage.value ?? streamingMessage.value
     return {
       // Runtime queue ownership takes precedence while sending. When idle,
       // scope the empty foreground stream to the authority's visible session.
       sessionId: activeSendSessionId.value ?? activeSessionId.value,
       sending: sending.value,
-      streamingMessage: JSON.parse(JSON.stringify(streamingMessage.value)) as StreamingAssistantMessage,
+      streamingMessage: JSON.parse(JSON.stringify(streamSnapshot)) as StreamingAssistantMessage,
     }
   }
 
@@ -278,7 +279,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       watch([activeSessionId, sessionMessages, sessionMetas], () => {
         broadcastSessionSnapshot()
       }, { deep: true, immediate: true }),
-      watch([activeSessionId, activeSendSessionId, sending, streamingMessage], () => {
+      watch([activeSessionId, activeSendSessionId, activeStreamingMessage, sending, streamingMessage], () => {
         broadcastStreamSnapshot()
       }, { deep: true, immediate: true }),
     )

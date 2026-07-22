@@ -19,6 +19,7 @@ interface MockBroadcastMessageEvent<T> {
 
 type MockListener = (event: MockBroadcastMessageEvent<unknown>) => void
 interface MockChatMessage {
+  createdAt?: number
   id?: string
   role: string
   content: string
@@ -104,6 +105,7 @@ function assistantMessage(content: string): MockChatMessage {
 
 interface MockState {
   activeSendSessionId: Ref<string | undefined>
+  activeStreamingMessage: Ref<MockChatMessage | undefined>
   activeSessionId: Ref<string>
   sending: Ref<boolean>
   streamingMessage: Ref<MockChatMessage>
@@ -158,8 +160,9 @@ vi.mock('@proj-airi/stage-ui/stores/chat/stream-store', () => ({
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => {
     const activeSendSessionId = mockOrchestratorStoreCalls === 0 ? mockState.activeSendSessionId : ref<string>()
+    const activeStreamingMessage = mockOrchestratorStoreCalls === 0 ? mockState.activeStreamingMessage : ref<MockChatMessage>()
     const sending = mockOrchestratorStoreCalls++ === 0 ? mockState.sending : ref(false)
-    return { activeSendSessionId, sending, ingest: mockState.ingest }
+    return { activeSendSessionId, activeStreamingMessage, sending, ingest: mockState.ingest }
   },
 }))
 
@@ -225,6 +228,7 @@ describe('useChatSyncStore', async () => {
     mockStreamStoreCalls = 0
 
     const activeSendSessionId = ref<string>()
+    const activeStreamingMessage = ref<MockChatMessage>()
     const activeSessionId = ref('session-1')
     const sending = ref(false)
     const streamingMessage = ref<MockChatMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
@@ -270,6 +274,7 @@ describe('useChatSyncStore', async () => {
 
     mockState = {
       activeSendSessionId,
+      activeStreamingMessage,
       activeSessionId,
       sending,
       streamingMessage,
@@ -624,7 +629,9 @@ describe('useChatSyncStore', async () => {
     const store = useChatSyncStore()
     store.initialize('authority')
 
+    mockState.streamingMessage.value = { ...assistantMessage('stale session-1 response'), createdAt: 1 }
     mockState.activeSendSessionId.value = 'session-2'
+    mockState.activeStreamingMessage.value = { ...assistantMessage('session-2 partial response'), createdAt: 2 }
     mockState.sending.value = true
 
     await vi.waitFor(() => {
@@ -632,6 +639,10 @@ describe('useChatSyncStore', async () => {
         snapshot: expect.objectContaining({
           sessionId: 'session-2',
           sending: true,
+          streamingMessage: expect.objectContaining({
+            content: 'session-2 partial response',
+            createdAt: 2,
+          }),
         }),
       }))
     })

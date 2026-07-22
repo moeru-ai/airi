@@ -609,6 +609,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.runtime.getSending()).toBe(true)
     expect(harness.stateChanges.at(-1)).toEqual({
       activeSendSessionId: 'session-1',
+      activeStreamingMessage: undefined,
       sending: true,
       pendingQueuedSendCount: 0,
     })
@@ -617,6 +618,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.runtime.getSending()).toBe(false)
     expect(harness.stateChanges.at(-1)).toEqual({
       activeSendSessionId: undefined,
+      activeStreamingMessage: undefined,
       sending: false,
       pendingQueuedSendCount: 0,
     })
@@ -643,11 +645,15 @@ describe('createChatOrchestratorRuntime', () => {
     }, 'session-2')
 
     await vi.waitFor(() => {
-      expect(harness.stateChanges).toContainEqual({
+      expect(harness.stateChanges).toContainEqual(expect.objectContaining({
         activeSendSessionId: 'session-2',
+        activeStreamingMessage: expect.objectContaining({
+          role: 'assistant',
+          createdAt: expect.any(Number),
+        }),
         sending: true,
         pendingQueuedSendCount: 0,
-      })
+      }))
     })
     await vi.waitFor(() => {
       expect(harness.stream).toHaveBeenCalledTimes(1)
@@ -658,6 +664,7 @@ describe('createChatOrchestratorRuntime', () => {
 
     expect(harness.stateChanges.at(-1)).toEqual({
       activeSendSessionId: undefined,
+      activeStreamingMessage: undefined,
       sending: false,
       pendingQueuedSendCount: 0,
     })
