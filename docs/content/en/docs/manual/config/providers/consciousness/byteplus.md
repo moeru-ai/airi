@@ -11,7 +11,7 @@ If you have created an Ark model endpoint in BytePlus, you can use the endpoint 
 
 ## Step 1: Prepare BytePlus credentials
 
-1. Open and log in to the [BytePlus Console](https://console.byteplus.com/)，创建或查看 Ark endpoint and its access credentials.
+1. Open and log in to the [BytePlus Console](https://console.byteplus.com/), then create or view the Ark endpoint and its access credentials.
 
 ::: warning API Key Security
 Do not submit API keys or endpoint credentials to the repository, take screenshots, or send them to others.

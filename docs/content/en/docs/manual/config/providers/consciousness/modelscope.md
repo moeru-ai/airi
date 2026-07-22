@@ -11,7 +11,7 @@ If you have managed model access in ModelScope, use this card to directly fill i
 
 ## Step 1: Obtain API Key
 
-1. Open and log in [ModelScope](https://modelscope.cn/)，在账户控制台创建 API Key.
+1. Open and log in [ModelScope](https://modelscope.cn/), then create an API key in the account console.
 
 ::: warning API Key Security
 Do not submit the API Key to the repository, take screenshots, or send it to others.

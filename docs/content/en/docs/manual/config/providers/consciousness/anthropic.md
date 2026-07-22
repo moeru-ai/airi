@@ -11,7 +11,7 @@ If you are already using the Claude API, or want to use Claude models in AIRI, y
 
 ## Step 1: Create API Key
 
-1. Open and log in to [Anthropic Console](https://platform.claude.com/settings/keys)，创建 API Key, and confirm that the account has been granted API usage rights.
+1. Open and sign in to [Anthropic Console](https://platform.claude.com/settings/keys), create an API key, and confirm that the account has API access enabled.
 2. Set an appropriate name, validity period, and quota limit for the key.
 3. Copy the key and keep it in a safe place.
 

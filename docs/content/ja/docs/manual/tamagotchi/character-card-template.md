@@ -11,7 +11,7 @@ description: Project AIRI の Character Card V3 JSON テンプレート。
 - インポートまたは共有する前に、最終的なコンテンツがまだ正当な JSON であることを確認してください。
 :::
 
-＃＃ テンプレート
+## テンプレート
 
 ```json
 {

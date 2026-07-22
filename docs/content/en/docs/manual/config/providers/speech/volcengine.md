@@ -11,7 +11,7 @@ If you have created a voice application and managed sound resources in the Volca
 
 ## Step 1: Prepare application credentials
 
-1. Open and log in to [Volcano Engine Console](https://console.volcengine.com/)，创建或打开语音应用。
+1. Open and log in to [Volcano Engine Console](https://console.volcengine.com/), then create or open a speech application.
 2. Copy the **App ID** of the application and create the corresponding **API Key**.
 3. Confirm that both pieces of information come from the same account and application configuration.
 

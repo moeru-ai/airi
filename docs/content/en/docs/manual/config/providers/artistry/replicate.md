@@ -11,7 +11,7 @@ You can choose the cloud inference service if you don't want to deploy the image
 
 ## Step 1: Obtain API Token
 
-1. Open and log in [Replicate API Tokens](https://replicate.com/account/api-tokens)，创建 API Token.
+1. Open and log in [Replicate API Tokens](https://replicate.com/account/api-tokens), then create an API token.
 2. Confirm that the account has been configured with available billing methods or limits.
 3. Copy the Token and save it properly.
 

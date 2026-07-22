@@ -11,7 +11,7 @@ If your BytePlus account has a Coding Plan, you should use this card instead of 
 
 ## Step 1: Prepare BytePlus Coding Plan credentials
 
-1. Open and log in to the [BytePlus Console](https://console.byteplus.com/)，在 Coding Plan corresponding page to obtain credentials and endpoint information.
+1. Open and log in to the [BytePlus Console](https://console.byteplus.com/), then obtain the credentials and endpoint information from the Coding Plan page.
 
 ::: warning API Key Security
 Do not submit API keys or endpoint credentials to the repository, take screenshots, or send them to others.

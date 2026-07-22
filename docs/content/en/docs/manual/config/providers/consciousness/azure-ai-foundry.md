@@ -11,7 +11,7 @@ If your model deployment and access control have been completed in Azure AI Foun
 
 ## Step 1: Prepare Azure AI Foundry resources
 
-1. Open and log in to [Azure AI Foundry](https://ai.azure.com/)，创建或打开目标项目并取得 API Key, resource name and model deployment information.
+1. Open and log in to [Azure AI Foundry](https://ai.azure.com/), then create or open the target project and obtain the API key, resource name, and model deployment information.
 
 ::: warning API Key Security
 Do not submit your Azure API Key to the repository, take screenshots, or send it to others.

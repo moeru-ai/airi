@@ -11,7 +11,7 @@ You can select this if you wish to use the models provided in your AIHubMix acco
 
 ## Step 1: Obtain API Key
 
-1. Open and log in [AIHubMix](https://aihubmix.com/)，在控制台创建 API Key.
+1. Open and sign in to [AIHubMix](https://aihubmix.com/), then create an API key in the console.
 
 ::: warning API Key Security
 Do not submit the API Key to the repository, take screenshots, or send it to others.

@@ -11,7 +11,7 @@ If you already use Deepgram, or want to choose from the Aura range of voices, yo
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to the [Deepgram Console](https://console.deepgram.com/)，在项目的 API Key page to create a key.
+1. Open and log in to the [Deepgram Console](https://console.deepgram.com/), then create a key on the project’s API Key page.
 2. Confirm that the project has permission to use speech synthesis.
 3. Copy the key and keep it in a safe place.
 

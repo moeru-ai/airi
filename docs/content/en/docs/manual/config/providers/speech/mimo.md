@@ -11,7 +11,7 @@ If you need to preset Chinese sounds, or want to use text descriptions to design
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/)，确认账户已开通 API usage rights.
+1. Open and log in to [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/), then confirm that the account has API access enabled.
 2. Create an API Key, copy it and keep it in a safe place.
 
 ::: warning sound sample and API Key security

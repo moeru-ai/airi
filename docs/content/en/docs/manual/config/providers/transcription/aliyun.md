@@ -11,7 +11,7 @@ If you already use an Alibaba Cloud account and need real-time speech recognitio
 
 ## Step 1: Prepare credentials
 
-1. In [Alibaba Cloud Intelligent Voice Interaction Console](https://nls-portal.console.aliyun.com/overview)开通服务并创建项目，复制该项目的 **AppKey**.
+1. In [Alibaba Cloud Intelligent Voice Interaction Console](https://nls-portal.console.aliyun.com/overview) enable the service, create a project, and copy its **AppKey**.
 2. Create a RAM user AccessKey with the required permissions in **AccessKey Management**.
 3. Copy **AccessKey ID** and **AccessKey Secret**; the Secret will usually only be displayed in full once.
 

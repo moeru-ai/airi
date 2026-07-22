@@ -11,7 +11,7 @@ If you have opened model access on Featherless.ai, you can directly use its API 
 
 ## Step 1: Obtain API Key
 
-1. Open and log in [Featherless.ai](https://featherless.ai/)，在账户控制台创建 API Key.
+1. Open and log in [Featherless.ai](https://featherless.ai/), then create an API key in the account console.
 
 ::: warning API Key Security
 Do not submit the API Key to the repository, take screenshots, or send it to others.

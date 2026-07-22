@@ -12,7 +12,7 @@ If you want to try out multiple models in AIRI with one API Key, OpenRouter is a
 
 ## Step 1: Get the API key
 
-1. Open [OpenRouter API Keys](https://openrouter.ai/keys)，创建新的 API Key.
+1. Open [OpenRouter API Keys](https://openrouter.ai/keys), then create a new API key.
 2. Set an appropriate name, validity period, and quota limit for the key.
 3. Copy the key and keep it in a safe place.
 

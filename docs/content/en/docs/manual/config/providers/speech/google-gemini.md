@@ -11,7 +11,7 @@ If you have configured Google Gemini in AIRI and want to use the audio output ca
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [Google AI Studio](https://aistudio.google.com/app/apikey)，创建 API Key.
+1. Open and log in to [Google AI Studio](https://aistudio.google.com/app/apikey), then create an API key.
 2. Confirm that the account can use the Gemini model that supports audio output.
 3. Copy the key and keep it in a safe place.
 

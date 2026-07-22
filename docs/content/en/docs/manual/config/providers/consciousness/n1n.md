@@ -11,7 +11,7 @@ If you use n1n's model service, you can fill in its service address and account 
 
 ## Step 1: Prepare service access method
 
-1. Open and log in [n1n](https://n1n.ai/)，确认你的服务地址及是否需要 API Key.
+1. Open and log in [n1n](https://n1n.ai/), then confirm your service URL and whether an API key is required.
 
 ::: warning Credential security
 Even though the API Key is optional, don't expose your private service address, access token, or gateway configuration.

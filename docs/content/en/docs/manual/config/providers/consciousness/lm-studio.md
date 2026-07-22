@@ -11,7 +11,7 @@ If you want to run the model locally and manage the model files yourself, LM Stu
 
 ## Step one: Start local service
 
-1. From the [LM Studio Download Page](https://lmstudio.ai/download)安装并打开 LM Studio, then download and load a chat model.
+1. From the [LM Studio Download Page](https://lmstudio.ai/download) install and open LM Studio, then download and load a chat model.
 2. Open **Local Server** and start the local server.
 3. If AIRI cannot access local services, enable CORS in LM Studio's server settings.
 

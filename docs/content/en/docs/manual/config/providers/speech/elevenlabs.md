@@ -11,7 +11,7 @@ This provider is your choice if you want to use sounds from your ElevenLabs acco
 
 ## Step 1: Obtain API Key
 
-1. Open and log in [ElevenLabs API Key Settings](https://elevenlabs.io/app/settings/api-keys)，创建密钥。
+1. Open and log in [ElevenLabs API Key Settings](https://elevenlabs.io/app/settings/api-keys), then create an API key.
 2. Give the key an easily identifiable name and appropriate usage restrictions.
 3. Copy the key and keep it in a safe place.
 

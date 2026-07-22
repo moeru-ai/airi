@@ -11,7 +11,7 @@ If your team already manages voice resources and region configurations in Azure,
 
 ## Step 1: Prepare Azure Speech resources
 
-1. Open and log in to the [Azure Portal](https://portal.azure.com/)，创建或打开 Speech resource.
+1. Open and log in to the [Azure Portal](https://portal.azure.com/), then create or open a Speech resource.
 2. Record the **API Key** and region of the resource; both must come from the same Speech resource.
 3. Copy the key and keep it in a safe place.
 

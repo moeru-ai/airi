@@ -11,7 +11,7 @@ If you already have a Google AI Studio API Key and want to use AIRI's built-in G
 
 ## Step 1: Obtain API Key
 
-1. Open and log in [Google AI Studio API Keys](https://aistudio.google.com/app/apikey)，创建 API Key.
+1. Open and log in [Google AI Studio API Keys](https://aistudio.google.com/app/apikey), then create an API key.
 2. Confirm that the selected image model is available for your account and region.
 3. Copy the key and keep it in a safe place.
 

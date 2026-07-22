@@ -11,7 +11,7 @@ You can select this if you are already using the Cerebras API and want to call t
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [Cerebras Cloud](https://cloud.cerebras.ai/)，创建 API Key.
+1. Open and log in to [Cerebras Cloud](https://cloud.cerebras.ai/), then create an API key.
 
 ::: warning API Key Security
 Do not submit the API Key to the repository, take screenshots, or send it to others.

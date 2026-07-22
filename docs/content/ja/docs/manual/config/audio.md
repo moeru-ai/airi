@@ -22,7 +22,7 @@ description: 音声合成（TTS）および音声認識（ASR/STT）用の AIRI 
 
 Alibaba Cloud のリアルタイム識別については、[Alibaba Cloud NLS](./providers/transcription/aliyun.md) を参照してください。 OpenAI トランスクリプション インターフェイスと互換性のあるサービスについては、[OpenAI 互換 API (ASR/STT)](./providers/transcription/openai.md) を参照してください。
 
-＃＃ よくある質問
+## よくある質問
 
 ### TTS 音が出ない
 

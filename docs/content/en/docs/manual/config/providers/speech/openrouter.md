@@ -11,7 +11,7 @@ Choose this provider if you want to manage multiple models and voice capabilitie
 
 ## Step 1: Obtain API Key
 
-1. Open [OpenRouter API Keys](https://openrouter.ai/keys)，创建新的 API Key.
+1. Open [OpenRouter API Keys](https://openrouter.ai/keys), then create a new API key.
 2. Set an appropriate name, validity period, and quota limit for the key.
 3. Copy the key and keep it in a safe place.
 

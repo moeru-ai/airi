@@ -11,7 +11,7 @@ If you want to run models natively, reduce dependence on cloud APIs, or place mo
 
 ## Step 1: Install Ollama
 
-1. Visit [Ollama official website](https://ollama.com/)下载并安装适合自己系统的版本。
+1. Visit [Ollama official website](https://ollama.com/) and download and install the version for your operating system.
 2. Run the following command in the terminal (Terminal or PowerShell) to confirm that the installation is successful:
 
     ```bash

@@ -11,7 +11,7 @@ If you already have a Gemini API Key or want to use Gemini models in AIRI, you c
 
 ## Step 1: Create API Key
 
-1. Open and log in [Google AI Studio API Keys](https://aistudio.google.com/app/apikey)，创建 Gemini API Key.
+1. Open and log in [Google AI Studio API Keys](https://aistudio.google.com/app/apikey), then create a Gemini API key.
 2. Confirm that the project to which the key belongs has enabled the Gemini API and can use the target model.
 3. Copy the API Key.
 

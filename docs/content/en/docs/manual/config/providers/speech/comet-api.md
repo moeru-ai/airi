@@ -11,7 +11,7 @@ If you already use CometAPI to manage models and credentials, you can reuse the 
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [CometAPI Console](https://www.cometapi.com/console/token)，创建 API Key.
+1. Open and log in to [CometAPI Console](https://www.cometapi.com/console/token), then create an API key.
 2. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security

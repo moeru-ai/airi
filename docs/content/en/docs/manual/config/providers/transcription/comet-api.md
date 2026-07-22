@@ -11,7 +11,7 @@ If you have used CometAPI to manage models and credentials, you can directly reu
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [CometAPI Console](https://www.cometapi.com/console/token)，创建 API Key.
+1. Open and log in to [CometAPI Console](https://www.cometapi.com/console/token), then create an API key.
 2. Confirm that the account can access the audio transcription model, copy the key and keep it properly.
 
 ::: warning API Key Security

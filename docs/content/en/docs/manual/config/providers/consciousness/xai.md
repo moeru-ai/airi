@@ -11,7 +11,7 @@ If you already have an xAI API account and want to use the Grok model in AIRI, y
 
 ## Step 1: Create API Key
 
-1. Open and log in to [xAI Developer Console](https://console.x.ai/)，创建 API Key.
+1. Open and log in to [xAI Developer Console](https://console.x.ai/), then create an API key.
 2. Confirm that the account has been activated for API usage and has available quota.
 3. Copy the key.
 

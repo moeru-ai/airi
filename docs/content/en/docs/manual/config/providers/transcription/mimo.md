@@ -11,7 +11,7 @@ If you already use MiMo, or want to use its multimodal model to process audio co
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/)，确认账户已开通 API usage rights.
+1. Open and log in to [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/), then confirm that the account has API access enabled.
 2. Create an API Key, copy it and keep it in a safe place.
 
 ::: warning API Key and audio data

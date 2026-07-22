@@ -25,8 +25,8 @@ The corresponding version of this article: AIRI-0.11.3
 - Some parts of the software are in English and no translation is provided. This manual will try to translate some of the content involved. Please refer to the actual translation for the final translation.
 - Version updates of AIRI may change some contents. This manual only introduces the features of the latest version before the time of writing. For other versions before and after, this manual may retain the description of some features. If you encounter differences, please solve them by yourself.
 - If you have any questions about this manual, please leave a message at @jhicefair or @0x_selenic_dove in the [Project AIRI Official Discord](https://discord.gg/TgQ3Cu2F7A) channel.
-- Join the WeChat group: Open the [WeChat group description](https://github.com/moeru-ai/airi/blob/main/docs/wechat.md)，扫描其中的二维码添加微信，并备注 `AIRI`) of the warehouse; the administrator will invite you to join the group. You can also contact @爱吃吃的Columbia in the group, or via WeChat ID `0xColumbina`.
-- Join the QQ group: Open the [QQ group invitation link] provided by the warehouse README (https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info)，使用 QQ to confirm joining; if the link is invalid, please refer to the latest link of the warehouse README.
+- Join the WeChat group: Open the [WeChat group description](https://github.com/moeru-ai/airi/blob/main/docs/wechat.md), scan the QR code to add the group on WeChat, and include `AIRI` in the join request; the administrator will invite you to join the group.
+- Join the QQ group: Open the [QQ group invitation link](https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info), then use QQ to confirm joining; if the link is invalid, refer to the latest link in the repository README.
 - For other usage issues, you are welcome to communicate with the community in AIRI’s Discord, WeChat group or QQ group.
 - Have fun! AHr
 :::
@@ -34,18 +34,18 @@ The corresponding version of this article: AIRI-0.11.3
 <a id="chapter-1-installation"></a>
 ## Chapter 1·Installation
 
-Go to [Project AIRI Latest Release](https://github.com/moeru-ai/airi/releases/latest)，在 **Assets** to download the file corresponding to your device, then open the installation package and follow the prompts to complete the installation. `<版本号>` in the table will change with the latest release, please refer to the actual situation.
+Go to [Project AIRI Latest Release](https://github.com/moeru-ai/airi/releases/latest), then use **Assets** to download the file corresponding to your device, then open the installation package and follow the prompts to complete the installation. `<version>` in the table will change with the latest release, please refer to the actual situation.
 
 | Platform | Device | File to download |
 | --- | --- | --- |
-| Windows | x64 or Windows 11 ARM64 | `AIRI-<版本号>-windows-x64-setup.exe` |
-| macOS | Apple Chip (M Series) | `AIRI-<版本号>-darwin-arm64.dmg` |
-| macOS | Intel Chip | `AIRI-<版本号>-darwin-x64.dmg` |
-| Linux | x64 Debian systems such as Ubuntu | `AIRI-<版本号>-linux-amd64.deb` |
-| Linux | x64 RPM systems such as Fedora, openSUSE | `AIRI-<版本号>-linux-x86_64.rpm` |
-| Linux | ARM64 Debian systems such as Ubuntu | `AIRI-<版本号>-linux-arm64.deb` |
-| Linux | ARM64 RPM systems such as Fedora, openSUSE | `AIRI-<版本号>-linux-aarch64.rpm` |
-| Android | Huawei Hongmeng and other Android devices | `AIRI-<版本号>-android.apk` |
+| Windows | x64 or Windows 11 ARM64 | `AIRI-<version>-windows-x64-setup.exe` |
+| macOS | Apple Chip (M Series) | `AIRI-<version>-darwin-arm64.dmg` |
+| macOS | Intel Chip | `AIRI-<version>-darwin-x64.dmg` |
+| Linux | x64 Debian systems such as Ubuntu | `AIRI-<version>-linux-amd64.deb` |
+| Linux | x64 RPM systems such as Fedora, openSUSE | `AIRI-<version>-linux-x86_64.rpm` |
+| Linux | ARM64 Debian systems such as Ubuntu | `AIRI-<version>-linux-arm64.deb` |
+| Linux | ARM64 RPM systems such as Fedora, openSUSE | `AIRI-<version>-linux-aarch64.rpm` |
+| Android | Huawei Hongmeng and other Android devices | `AIRI-<version>-android.apk` |
 | iOS/iPadOS | iPhone, iPad | `AIRI-<version>_(<build-number>)-ios.ipa` |
 
 :::info About Windows Installation Software
@@ -122,7 +122,7 @@ Click "Expand ⌃". After expansion, there are nine sub-options, from top to bot
 - "Always show"/"hide on hover" - so that the AIRI main window does not affect the mouse cursor's click on the content under the window, thus not affecting your work.
 - "Close" - close AIRI with one click.
 
-![AIRI 主窗口展开后的控制菜单](image-17.png)
+![Expanded AIRI main-window control menu](image-17.png)
 
 <a id="chapter-3-system-tray"></a>
 ### > Other system tray options
@@ -189,14 +189,14 @@ The setting interface includes the following nine contents:
 - "Window Shortcut" - Set global shortcut keys for Spotlight.
 - "Developer" - advanced tools for development and troubleshooting; no configuration is required for daily use, see [Developer Guide](/zh-Hans/docs/contributing/desktop-developer-tools) for details.
 
-![AIRI 设置界面总览](./assets/manual-settings-window.avif)
+![AIRI settings overview](./assets/manual-settings-window.avif)
 
 <a id="chapter-3-chat-window"></a>
 ### > Chat window
 
 You can click "Expand" in the main window and then select "Open Chat" to open the chat window.
 
-![AIRI 聊天窗口界面](./assets/manual-chat-window.avif)
+![AIRI chat window](./assets/manual-chat-window.avif)
 
 Here you can chat with AIRI. After speech synthesis is enabled, when AIRI is reading a reply, a "Stop Reading" button will appear in the input area; clicking it will only stop the current speech playback and will not cancel the generated text reply.
 
@@ -215,7 +215,7 @@ You can open the settings interface in the following two ways:
 
 Here you can upload, create or modify default character cards directly.
 
-![AIRI 角色卡设置界面](./assets/manual-airi-card.avif)
+![AIRI character card settings](./assets/manual-airi-card.avif)
 
 ::: info About import and export
 Character cards can be imported or exported as AIRI character card packs. Card packs use Character Card V3 data and optionally come with Live2D, Spine or VRM display models. AIRI will verify the inventory and character card data in the package when importing; packages that are incorrectly formatted or missing required files cannot be imported.
@@ -251,12 +251,12 @@ After creating a character card, it will not be enabled by default and must be m
 
 Here you can configure various functions of AIRI, as follows:
 
-![AIRI 机体模块设置界面](./assets/manual-modules.avif)
+![AIRI body module settings](./assets/manual-modules.avif)
 
 #### > Consciousness
 
 Please refer to [Chat Model](../../config/llm.md) for configuration.
-![AIRI 意识设置界面](image-3.png)
+![AIRI Consciousness settings](image-3.png)
 
 #### > Speak up
 Please refer to [Voice Input and Output](../../config/audio.md) for configuration. If you do not want AIRI to speak, select None.
@@ -265,7 +265,7 @@ Please refer to [Voice Input and Output](../../config/audio.md) for configuratio
 - Pitch (pitch) is only effective for service providers and models that support this parameter.
 :::
 
-![AIRI 发声设置界面](image-4.png)
+![AIRI Speech settings](image-4.png)
 
 #### > Hearing
 Please refer to [Voice Input and Output](../../config/audio.md) for configuration. If you are not using voice input yet, select None.
@@ -279,10 +279,10 @@ Its goal is to enable computers to understand human speech and convert it into c
 
 :::info when used on macOS
 The first time you use AIRI's voice input function on macOS, you need to perform a one-time microphone permission authorization operation. When you see the following prompt, please select Allow, otherwise this function will not work properly.
-![macOS 权限申请窗口](image-7.png)
+![macOS permission prompt](image-7.png)
 :::
 
-![AIRI 听觉设置界面](image-6.png)
+![AIRI Hearing settings](image-6.png)
 
 In addition, you can:
 
@@ -307,7 +307,7 @@ If you want to test STT functionality:
 #### > Vision
 Please refer to [Visual Understanding](../../config/vision.md) for configuration.
 
-![AIRI 视觉设置界面](./assets/manual-vision.avif)
+![AIRI Vision settings](./assets/manual-vision.avif)
 
 ::: warning Before using screen vision, you need to start Vision Capture
 When configuring only the vision service provider and model, there is no need to enable this tool.
@@ -401,7 +401,7 @@ If you need to clear the scene, please click "**Clear Default**".
 
 Here you can select and set up your character's model.
 
-![AIRI 角色模型设置界面](image-11.png)
+![AIRI character model settings](image-11.png)
 
 AIRI supports Live2D, Spine 2D and VRM 3D models.
 
@@ -482,7 +482,7 @@ API Keys, AccessKey Secrets, and other service credentials should only be saved 
 - Visual understanding uses the same credentials as the chat service provider and must select a chat model that supports image input; see [Visual Understanding](../../config/vision.md) for details.
 :::
 
-![AIRI 服务来源设置界面](image-8.png)
+![AIRI service provider settings](image-8.png)
 
 ::: tip technical advice
 The list of service providers is subject to the current version of AIRI. If your service provider is not in the list but supports the OpenAI compatible interface, you can use the **OpenAI compatible API** configuration; the Base URL and model ID must be filled in according to the official documentation of the service provider.
@@ -497,7 +497,7 @@ Here you can manage various data from AIRI.
 Related data can be deleted or cleaned in this section and cannot be recovered, so please operate with caution. Before performing deletion and reset operations, it is recommended to confirm the content again.
 :::
 
-![AIRI 数据设置界面](image-14.png)
+![AIRI Data settings](image-14.png)
 
 "Move desktop window to center" is translated as "move the desktop window to the center."
 
@@ -510,11 +510,11 @@ Opening the app data folder and resetting desktop settings and status are only a
 
 "Connection" is used to configure AIRI's service channel. You can set a WebSocket address and enable TLS if encrypted transmission is required. On the desktop, you can also choose to only access locally, allow LAN access, or fill in an advanced host name (not available yet) and set an access token; the page will provide a QR code to facilitate the connection of other devices. Open LAN access only on trusted networks and keep access tokens securely.
 
-![AIRI 连接设置界面](image-15.png)
+![AIRI Connection settings](image-15.png)
 
 ::: tip macOS may require administrator verification
 When secure WebSockets are enabled, AIRI adds the local certificate to the macOS login keychain. You may be asked to authorize this action using Touch ID or entering your Mac login password. Verify your fingerprint or Mac login password to continue.
-![macOS 管理员验证](image-16.png)
+![macOS administrator verification](image-16.png)
 :::
 
 
@@ -525,7 +525,7 @@ When secure WebSockets are enabled, AIRI adds the local certificate to the macOS
 
 Here you can set the program theme, language, etc.
 
-![AIRI 系统通用设置界面](./assets/manual-system-general.avif)
+![AIRI System general settings](./assets/manual-system-general.avif)
 
 - The theme options default to light color, click the button behind to switch to dark mode.
 - Language options Here you can set the language of the interface; the selection will be retained after restarting AIRI.
@@ -536,7 +536,7 @@ Here you can set the program theme, language, etc.
 
 Here you can change the theme colors.
 
-![AIRI 配色方案设置界面](./assets/manual-system-color-scheme.avif)
+![AIRI color scheme settings](./assets/manual-system-color-scheme.avif)
 
 - You can activate the RGB option to make the theme colors change automatically like an RGB light strip.
 - You can also drag the black line below or click in the color bar to change the theme color.
@@ -569,7 +569,7 @@ This page is used for development, troubleshooting, and verification of experime
 <a id="chapter-3-main-web"></a>
 ### > Web moderator interface
 
-![AIRI 网页端界面](./assets/manual-main-web.avif)
+![AIRI web interface](./assets/manual-main-web.avif)
 
 Here you can see your character model and you can talk to it directly.
 
@@ -637,7 +637,7 @@ Includes four options: (Text content is for reference only)
 
 After clicking, you will see the three new options x, y, scale and the vertical bar on the left side of the web interface.
 
-![主界面调整位置和大小](./assets/web-position-size.avif)
+![Adjusting the main window position and size](./assets/web-position-size.avif)
 
 ###### > Delete chat history
 
