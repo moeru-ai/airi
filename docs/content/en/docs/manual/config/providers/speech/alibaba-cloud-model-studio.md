@@ -11,7 +11,7 @@ If you are already using Alibaba Cloud Bailian and want to choose among CosyVoic
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [Alibaba Cloud Bailian Console] (https://bailian.console.aliyun.com/)，确认已开通模型服务。
+1. Open and log in to [Alibaba Cloud Bailian Console](https://bailian.console.aliyun.com/)，确认已开通模型服务。
 2. Create a key on the API Key management page.
 3. Copy the key and keep it in a safe place.
 

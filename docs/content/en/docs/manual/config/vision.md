@@ -14,7 +14,7 @@ When configuring only the vision service provider and model, there is no need to
 
 To have AIRI analyze your screen or window, go to "System → Developer → Vision Capture": grant screen recording permission, select the window or display you want to capture, and click "Start ticker". If you want to provide the recognition results to the AIRI dialog, then turn on "Publish to character".
 
-Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](../../contributing/desktop-developer-tools#vision-capture).
+Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](/zh-Hans/docs/contributing/desktop-developer-tools#vision-capture).
 :::
 
 ## Step one: Choose a visual service provider

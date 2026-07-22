@@ -11,7 +11,7 @@ If you already use MiniMax and want to use its Chinese or English preset sounds 
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [MiniMax Open Platform] (https://platform.minimaxi.com/)，开通 API usage rights.
+1. Open and log in to [MiniMax Open Platform](https://platform.minimaxi.com/)，开通 API usage rights.
 2. Create a key on the API Key management page.
 3. Copy the key and keep it in a safe place.
 

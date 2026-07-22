@@ -11,7 +11,7 @@ Alibaba Cloud Bailian は、AIRI で CosyVoice 音声合成モデルを提供し
 
 ## ステップ 1: API キーを取得する
 
-1. [Alibaba Cloud Bailian コンソール] (https://bailian.console.aliyun.com/)，确认已开通模型服务。) を開いてログインします。
+1. [Alibaba Cloud Bailian コンソール](https://bailian.console.aliyun.com/)，确认已开通模型服务。) を開いてログインします。
 2. APIキー管理ページでキーを作成します。
 3. キーをコピーし、安全な場所に保管します。
 

@@ -11,7 +11,7 @@ If your account uses the Volcano Engine Coding Plan, this card should be selecte
 
 ## Step 1: Prepare Coding Plan credentials
 
-1. Open and log in to the [Volcano Engine Console] (https://console.volcengine.com/)，在 Coding Plan corresponding page to obtain API Key, endpoint and model information.
+1. Open and log in to the [Volcano Engine Console](https://console.volcengine.com/)，在 Coding Plan corresponding page to obtain API Key, endpoint and model information.
 
 ::: warning API Key Security
 Do not submit API keys or endpoint credentials to the repository, take screenshots, or send them to others.

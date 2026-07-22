@@ -25,7 +25,7 @@ The corresponding version of this article: AIRI-0.11.3
 - Some parts of the software are in English and no translation is provided. This manual will try to translate some of the content involved. Please refer to the actual translation for the final translation.
 - Version updates of AIRI may change some contents. This manual only introduces the features of the latest version before the time of writing. For other versions before and after, this manual may retain the description of some features. If you encounter differences, please solve them by yourself.
 - If you have any questions about this manual, please leave a message at @jhicefair or @0x_selenic_dove in the [Project AIRI Official Discord](https://discord.gg/TgQ3Cu2F7A) channel.
-- Join the WeChat group: Open the [WeChat group description] (https://github.com/moeru-ai/airi/blob/main/docs/wechat.md)，扫描其中的二维码添加微信，并备注 `AIRI`) of the warehouse; the administrator will invite you to join the group. You can also contact @爱吃吃的Columbia in the group, or via WeChat ID `0xColumbina`.
+- Join the WeChat group: Open the [WeChat group description](https://github.com/moeru-ai/airi/blob/main/docs/wechat.md)，扫描其中的二维码添加微信，并备注 `AIRI`) of the warehouse; the administrator will invite you to join the group. You can also contact @爱吃吃的Columbia in the group, or via WeChat ID `0xColumbina`.
 - Join the QQ group: Open the [QQ group invitation link] provided by the warehouse README (https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info)，使用 QQ to confirm joining; if the link is invalid, please refer to the latest link of the warehouse README.
 - For other usage issues, you are welcome to communicate with the community in AIRI’s Discord, WeChat group or QQ group.
 - Have fun! AHr
@@ -105,7 +105,7 @@ This window is a window that displays the virtual character image. There are thr
 - "Hearing Control &#x1F3A4;︎" - located in the lower right corner, click to speak to AIRI.
 :::info Hearing Control Instructions
 Clicking it will open the "Listening Input" panel. First enable microphone input and select the microphone; if prompted for permission, allow AIRI to use the microphone. After configuring the speech recognition service, what is said is transcribed and sent to the current chat session. AIRI will pause the recording when speaking to avoid recognizing your own voice again.
-    :::
+:::
 
 - "Move ✥" - Located in the lower right corner, long press the left mouse button and drag to change the position of the main window on the desktop.
 
@@ -187,7 +187,7 @@ The setting interface includes the following nine contents:
 - "General" - set the program theme, language and other content.
 - "Color Scheme" - set the theme color.
 - "Window Shortcut" - Set global shortcut keys for Spotlight.
-- "Developer" - advanced tools for development and troubleshooting; no configuration is required for daily use, see [Developer Guide](../../../contributing/desktop-developer-tools) for details.
+- "Developer" - advanced tools for development and troubleshooting; no configuration is required for daily use, see [Developer Guide](/zh-Hans/docs/contributing/desktop-developer-tools) for details.
 
 ![AIRI 设置界面总览](./assets/manual-settings-window.avif)
 
@@ -314,7 +314,7 @@ When configuring only the vision service provider and model, there is no need to
 
 To have AIRI analyze your screen or window, go to "System → Developer → Vision Capture": grant screen recording permission, select the window or display you want to capture, and click "Start ticker". If you want to provide the recognition results to the AIRI dialog, then turn on "Publish to character".
 
-Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](../../../contributing/desktop-developer-tools#vision-capture).
+Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](/zh-Hans/docs/contributing/desktop-developer-tools#vision-capture).
 :::
 
 
@@ -345,7 +345,7 @@ The function is under development, please stay tuned. If you have ideas for impl
 
 Discord integration requires running the bot service from source to allow AIRI to enter the Discord server's messaging and voice channels.
 
-1. Create a Discord application, enable the required Intents, and configure the Bot Token in the [Discord Bot Integration Guide](../../../integrations/discord.md).
+1. Create a Discord application, enable the required Intents, and configure the Bot Token in the [Discord Bot Integration Guide](/en/docs/contributing/services/discord.md).
 2. Configure the model and voice service credentials locally.
 3. Start the Discord bot service from the root directory of the repository.
 
@@ -355,7 +355,7 @@ Discord Bot Token, Model API Key, and Speech Service Credentials should only be 
 
 #### > X / Twitter
 
-Please read the [X / Twitter Integration Guide](../../../integrations/x.md) to create and fill in your X Developer Platform application credentials. Don't expose your API Key, API Secret, or access token.
+Please read the [X / Twitter Integration Guide](/zh-Hans/docs/integrations/x.md) to create and fill in your X Developer Platform application credentials. Don't expose your API Key, API Secret, or access token.
 
 #### > Web search
 
@@ -363,7 +363,7 @@ Please read the [Web Search Configuration Guide](../../config/web-search.md) to 
 
 #### > Minecraft Minecraft
 
-Minecraft integration requires running a local agent service from source. Please follow the [Minecraft Agent Integration Guide](../../../integrations/minecraft.md) to configure the trusted server, AIRI, and model services, and then start the agent.
+Minecraft integration requires running a local agent service from source. Please follow the [Minecraft Agent Integration Guide](/en/docs/contributing/services/minecraft.md) to configure the trusted server, AIRI, and model services, and then start the agent.
 
 ::: warning security reminder
 Do not connect Minecraft agents to untrusted public servers. It drives local Minecraft sessions and network connections, and malicious servers can cause unexpected behavior.
@@ -375,7 +375,7 @@ Instructions for running from source for Discord, Minecraft, Satori, and Telegra
 
 #### > Factorio
 
-Please read the [Factor Integration Guide](../../../integrations/factorio.md) and fill in the AIRI with the address, port and in-game username of the trusted server. AIRI does not come with ready-to-deploy Factorio server-side integration.
+Please read the [Factor Integration Guide](/zh-Hans/docs/integrations/factorio.md) and fill in the AIRI with the address, port and in-game username of the trusted server. AIRI does not come with ready-to-deploy Factorio server-side integration.
 
 #### >MCP Integration
 
@@ -561,7 +561,7 @@ Pressing the set shortcut key will open the quick operation input box. Press Ent
 
 #### > Developer
 
-This page is used for development, troubleshooting, and verification of experimental functions; ordinary users do not need to operate it. Complete tool descriptions have been moved to [Developer Guide → Developer Tools](../../../contributing/desktop-developer-tools).
+This page is used for development, troubleshooting, and verification of experimental functions; ordinary users do not need to operate it. Complete tool descriptions have been moved to [Developer Guide → Developer Tools](/zh-Hans/docs/contributing/desktop-developer-tools).
 
 <a id="web-features"></a>
 ## > Supplementary features of web version

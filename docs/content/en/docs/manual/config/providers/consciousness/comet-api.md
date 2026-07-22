@@ -11,7 +11,7 @@ You can select this if you wish to configure chat, speech synthesis and speech r
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [CometAPI Console] (https://www.cometapi.com/console/token)，创建 API Key.
+1. Open and log in to [CometAPI Console](https://www.cometapi.com/console/token)，创建 API Key.
 
 ::: warning API Key Security
 Do not submit the API Key to the repository, take screenshots, or send it to others.
