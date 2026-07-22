@@ -15,6 +15,7 @@
     "directory": "services/discord-bot"
   },
   "scripts": {
+    "test:run": "pnpm -F @proj-airi/core-agent build && vitest run --config ./vitest.config.ts",
     "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -23,6 +24,7 @@
     "@guiiai/logg": "catalog:",
     "@huggingface/transformers": "catalog:",
     "@proj-airi/audio": "workspace:^",
+    "@proj-airi/core-agent": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-shared": "workspace:^",
     "@snazzah/davey": "catalog:",
