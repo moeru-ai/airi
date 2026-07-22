@@ -87,6 +87,16 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   relativeMouseY,
   { regionRadius: 25 },
 )
+const isTransparentByPixelsExact = useCanvasPixelIsTransparentAtPoint(
+  stageCanvas,
+  relativeMouseX,
+  relativeMouseY,
+)
+const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
+  widgetStageRef,
+  relativeMouseX,
+  relativeMouseY,
+)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -111,6 +121,18 @@ const isTransparent = computed(() => {
 
   if (stageModelRenderer.value === 'live2d')
     return isTransparentByPixels.value
+
+  return true
+})
+const isTransparentForMouseEvents = computed(() => {
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
+    return true
+
+  if (stageModelRenderer.value === 'vrm')
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
+
+  if (stageModelRenderer.value === 'live2d')
+    return isTransparentByPixelsExact.value
 
   return true
 })
@@ -171,6 +193,20 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
     })
   }
 
+  if (stageModelRenderer.value === 'mmd') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'mmd',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
   if (stageModelRenderer.value === 'godot') {
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
@@ -219,10 +255,13 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
   }
   else {
     const fadeEnabled = fadeOnHoverEnabled.value
-    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = fadeEnabled
+    // Keep visible model pixels interactive; only the exact transparent pixel under the cursor
+    // should pass clicks through. The fuzzy transparency value above is intentionally reserved
+    // for fade stability near model edges.
+    const shouldIgnoreMouseEvents = fadeEnabled && isTransparentForMouseEvents.value
+    isIgnoringMouseEvents.value = shouldIgnoreMouseEvents
     shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
+    setIgnoreMouseEvents([shouldIgnoreMouseEvents, { forward: true }])
     if (fadeEnabled)
       resume()
     else

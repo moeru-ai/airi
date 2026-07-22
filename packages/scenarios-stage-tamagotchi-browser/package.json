@@ -24,8 +24,8 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@napi-rs/image": "catalog:",
-    "@proj-airi/vishot-runner-browser": "workspace:^",
-    "@proj-airi/vishot-runtime": "workspace:^",
+    "@vishot/mockup-desktop-vue": "catalog:",
+    "@vishot/renderer-browser": "catalog:",
     "@vueuse/core": "catalog:",
     "date-fns": "catalog:",
     "reka-ui": "catalog:",

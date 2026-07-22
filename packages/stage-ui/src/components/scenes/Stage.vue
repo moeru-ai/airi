@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
@@ -12,6 +13,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
@@ -64,6 +66,7 @@ const { getDb } = useDuckDb()
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 const spineSceneRef = ref<InstanceType<typeof SpineScene>>()
+const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
 const {
@@ -91,6 +94,25 @@ const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
+const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
+const VRM_INTERACTION_COOLDOWN_MS = 450
+
+function getVrmInteractionExpression(target: VrmInteractionTarget) {
+  if (target === 'head')
+    return 'happy'
+  if (target === 'leftFoot' || target === 'rightFoot')
+    return 'relaxed'
+  return 'surprised'
+}
+
+function onVRMInteract(target: VrmInteractionTarget) {
+  const now = Date.now()
+  const lastTriggeredAt = lastVrmInteractionAt.get(target) ?? 0
+  if (now - lastTriggeredAt < VRM_INTERACTION_COOLDOWN_MS)
+    return
+  lastVrmInteractionAt.set(target, now)
+  vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
+}
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
@@ -177,6 +199,9 @@ const emotionsQueue = createQueue<EmotionPayload>({
       }
       else if (stageModelRenderer.value === 'spine') {
         spineSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
+      }
+      else if (stageModelRenderer.value === 'mmd') {
+        mmdSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
       }
     },
   ],
@@ -881,6 +906,9 @@ function canvasElement() {
 
   else if (stageModelRenderer.value === 'spine')
     return spineSceneRef.value?.canvasElement()
+
+  else if (stageModelRenderer.value === 'mmd')
+    return mmdSceneRef.value?.canvasElement()
 }
 
 function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number) {
@@ -895,7 +923,9 @@ async function captureFrame() {
     ? live2dSceneRef.value?.captureFrame()
     : stageModelRenderer.value === 'vrm'
       ? vrmViewerRef.value?.captureFrame()
-      : spineSceneRef.value?.captureFrame())
+      : stageModelRenderer.value === 'mmd'
+        ? mmdSceneRef.value?.captureFrame()
+        : spineSceneRef.value?.captureFrame())
 
   if (!activeBackgroundUrl.value || !charBlob)
     return charBlob
@@ -1012,6 +1042,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :current-audio-source="currentAudioSource"
         @error="console.error"
+        @vrm-interact="onVRMInteract"
       />
       <SpineScene
         v-if="stageModelRenderer === 'spine' && showStage"
@@ -1027,6 +1058,20 @@ defineExpose({
         :idle-animation-enabled="spineIdleAnimationEnabled"
         :max-fps="spineMaxFps"
         :render-scale="spineRenderScale"
+      />
+      <MMDScene
+        v-if="stageModelRenderer === 'mmd' && showStage"
+        ref="mmdSceneRef"
+        v-model:state="componentState"
+        min-w="50% <lg:full" min-h="100 sm:100"
+        h-full w-full flex-1
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :paused="paused"
+        :cursor-position="cursorPosition"
+        :enable-orbit-controls="props.enableOrbitControls"
+        :current-audio-source="currentAudioSource"
+        @error="console.error"
       />
       <div
         v-if="stageModelRenderer === 'godot'"

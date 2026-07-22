@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ScreenNavigator, ScreenRouterProvider } from '@proj-airi/vishot-runtime/vue'
+import { ScreenNavigator, RouterProvider as ScreenRouterProvider } from '@vishot/mockup-desktop-vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 

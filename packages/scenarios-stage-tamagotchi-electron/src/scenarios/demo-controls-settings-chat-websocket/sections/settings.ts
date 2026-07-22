@@ -1,4 +1,4 @@
-import type { ManualCaptureSection } from '../shared/types'
+import type { ManualCaptureSection } from '../shared/types.ts'
 
 const airiCardPattern = /sort|排序|upload|上传/i
 const providersPattern = /Chat|Speech|Transcription/i

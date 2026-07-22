@@ -454,7 +454,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 桌面資料已重設
   models:
-    description: Live2D, VRM, Spine, etc.
+    description: 切換角色的 Live2D、VRM、Spine 模型
     title: 角色模型
     sections:
       section:
@@ -1674,7 +1674,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: Appearance
+    title: 外觀
   variant:
     title: Variant
     current-variant: Active Variant

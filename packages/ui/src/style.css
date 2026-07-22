@@ -1,0 +1,9 @@
+/*
+ * NOTICE:
+ * This file is a source-time placeholder for @proj-airi/ui/style.css.
+ * The production build writes the real generated UnoCSS output to dist/style.css.
+ * Docs dev aliases @proj-airi/ui to packages/ui/src, so package CSS imports need this
+ * file to resolve before build output exists.
+ * Remove this file only if docs dev no longer aliases @proj-airi/ui to source or if
+ * @proj-airi/ui ships a real source CSS entry.
+ */

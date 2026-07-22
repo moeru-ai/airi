@@ -69,6 +69,7 @@
     "@proj-airi/stage-pages": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
+    "@proj-airi/stage-ui-mmd": "workspace:^",
     "@proj-airi/stage-ui-spine": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/ui": "workspace:^",

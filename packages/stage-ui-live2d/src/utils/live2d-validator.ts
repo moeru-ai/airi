@@ -1,5 +1,7 @@
 import JSZip from 'jszip'
 
+import { decodeZipFileName } from './decode-zip-filename'
+
 export interface Live2DValidationReport {
   fileName: string
   totalFiles: number
@@ -17,7 +19,7 @@ export interface Live2DValidationReport {
 }
 
 export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
-  const zip = await JSZip.loadAsync(file)
+  const zip = await JSZip.loadAsync(file, { decodeFileName: decodeZipFileName })
   const allPaths = Object.keys(zip.files)
 
   const report: Live2DValidationReport = {
