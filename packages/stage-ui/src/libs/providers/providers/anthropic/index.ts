@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { ProviderValidationCheck } from '../../types'
 import { createOpenAICompatibleValidators } from '../../validators'
 import { defineProvider } from '../registry'
+import { createNativeAnthropicFetch } from './native'
 
 const anthropicConfigSchema = z.object({
   apiKey: z
@@ -19,21 +20,16 @@ const anthropicConfigSchema = z.object({
 type AnthropicConfig = z.input<typeof anthropicConfigSchema>
 
 function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
-  const anthropicFetch = async (input: any, init: any) => {
-    init.headers ??= {}
-    if (Array.isArray(init.headers))
-      init.headers.push(['anthropic-dangerous-direct-browser-access', 'true'])
-    else if (init.headers instanceof Headers)
-      init.headers.append('anthropic-dangerous-direct-browser-access', 'true')
-    else
-      init.headers['anthropic-dangerous-direct-browser-access'] = 'true'
-
-    return fetch(input, init)
-  }
+  // The translating fetch speaks the native Messages API (`{baseURL}messages`)
+  // while xsai keeps emitting OpenAI-shaped requests — see ./native.ts. This
+  // replaces the previous reliance on Anthropic's OpenAI-compatible endpoint,
+  // which Anthropic documents as a testing-only shim, and makes
+  // `/v1/messages`-only proxies usable via a custom Base URL (Issue #1565).
+  const nativeFetch = createNativeAnthropicFetch({ apiKey })
 
   return merge(
-    createChatProvider({ apiKey, fetch: anthropicFetch, baseURL }),
-    createModelProvider({ apiKey, fetch: anthropicFetch, baseURL }),
+    createChatProvider({ apiKey, fetch: nativeFetch, baseURL }),
+    createModelProvider({ apiKey, fetch: nativeFetch, baseURL }),
   )
 }
 
