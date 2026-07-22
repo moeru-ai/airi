@@ -1,0 +1,70 @@
+name: Agentic PR Triage
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions: {}
+
+concurrency:
+  group: pr-triage-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    name: Classify pull request
+    if: ${{ github.event.action == 'ready_for_review' || !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Checkout the trusted local action from the default branch.
+      pull-requests: read # Read pull request metadata and changed files.
+    outputs:
+      pr-number: ${{ steps.triage.outputs.pr-number }}
+      tags-json: ${{ steps.triage.outputs.tags-json }}
+
+    steps:
+      - name: Checkout trusted triage action
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # This privileged workflow must never execute files from the pull request head.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Classify pull request
+        id: triage
+        uses: ./.github/actions/pr-triage
+        with:
+          operation: classify
+          github-token: ${{ github.token }}
+          pull-request-number: ${{ github.event.pull_request.number }}
+          llm-api-key: ${{ secrets.PR_TRIAGE_LLM_API_KEY }}
+          llm-model: ${{ vars.PR_TRIAGE_LLM_MODEL || 'openai/gpt-4.1-mini' }}
+          llm-api-url: ${{ vars.PR_TRIAGE_LLM_API_URL || 'https://openrouter.ai/api/v1/chat/completions' }}
+          max-prompt-bytes: '65536'
+
+  apply-labels:
+    name: Apply validated labels
+    needs: triage
+    if: needs.triage.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # Checkout the trusted local action from the default branch.
+      pull-requests: write # Synchronize labels; this job never receives the LLM secret.
+
+    steps:
+      - name: Checkout trusted triage action
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Keep the write-capable job on trusted default-branch code as well.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Apply validated labels
+        uses: ./.github/actions/pr-triage
+        with:
+          operation: apply-labels
+          github-token: ${{ github.token }}
+          pull-request-number: ${{ needs.triage.outputs.pr-number }}
+          tags-json: ${{ needs.triage.outputs.tags-json }}
