@@ -41,9 +41,7 @@ async function checkPermissions() {
   else {
     hasPermissions.value = true
   }
-  if (!hasPermissions.value) {
-    showDialog.value = true
-  }
+  showDialog.value = !hasPermissions.value
 }
 
 async function requestPermission() {

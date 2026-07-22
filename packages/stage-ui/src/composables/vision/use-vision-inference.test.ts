@@ -90,4 +90,43 @@ describe('useVisionInference', () => {
 
     await expectation
   })
+
+  it('forwards caller cancellation to the active vision stream', async () => {
+    const streamStarted = Promise.withResolvers<void>()
+    stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
+      streamStarted.resolve()
+      options?.abortSignal?.addEventListener('abort', () => {
+        reject(options.abortSignal?.reason)
+      }, { once: true })
+    }))
+
+    const { useVisionInference } = await import('./use-vision-inference')
+    const { runVisionInference } = useVisionInference()
+    const abortController = new AbortController()
+    const result = runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      abortSignal: abortController.signal,
+    })
+
+    await streamStarted.promise
+    abortController.abort(new DOMException('Screen awareness stopped', 'AbortError'))
+
+    await expect(result).rejects.toThrow('Screen awareness stopped')
+  })
+
+  it('does not start Vision inference when the caller is already cancelled', async () => {
+    const { useVisionInference } = await import('./use-vision-inference')
+    const { runVisionInference } = useVisionInference()
+    const abortController = new AbortController()
+    abortController.abort(new DOMException('Screen awareness stopped', 'AbortError'))
+
+    await expect(runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      abortSignal: abortController.signal,
+    })).rejects.toThrow('Screen awareness stopped')
+
+    expect(stream).not.toHaveBeenCalled()
+  })
 })
