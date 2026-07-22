@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export type SpeechOutputStopReason = 'manual-chat'
+export type SpeechOutputStopReason = 'manual-chat' | 'manual-all'
 
 /**
  * Represents a user-requested stop-speaking command for the stage output host.
