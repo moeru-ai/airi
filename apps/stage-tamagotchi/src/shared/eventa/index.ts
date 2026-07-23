@@ -1,9 +1,20 @@
 import type { Locale } from '@intlify/core'
+import type {
+  GameletIframeRequestPayload as GameletIframeInvokePayload,
+  GameletIframeResponsePayload,
+} from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
+  ShortcutAccelerator,
   ShortcutBinding,
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
+import type {
+  StageViewErrorPayload,
+  StageViewPatch,
+  StageViewRequestAckPayload,
+  StageViewSnapshotPayload,
+} from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import type {
   ThreeHitTestReadTracePayload,
@@ -15,6 +26,7 @@ import type {
   VrmLoadStartTracePayload,
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
+import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
@@ -22,9 +34,14 @@ export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
+export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
+export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
+export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
+export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
+export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
@@ -106,6 +123,7 @@ export interface WidgetsAddPayload {
   id?: string
   componentName: string
   componentProps?: Record<string, any>
+  alwaysOnTop?: boolean
   // size presets or explicit spans; renderer decides mapping
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
@@ -116,6 +134,7 @@ export interface WidgetsAddPayload {
 export interface WidgetsUpdatePayload {
   id: string
   componentProps?: Record<string, any>
+  alwaysOnTop?: boolean
   size?: WidgetGridSize
   windowSize?: WidgetWindowSize | Record<string, unknown>
   ttlMs?: number
@@ -125,13 +144,65 @@ export interface WidgetSnapshot {
   id: string
   componentName: string
   componentProps: Record<string, any>
+  alwaysOnTop: boolean
   size: WidgetGridSize
   windowSize?: WidgetWindowSize
   ttlMs: number
 }
 
+/**
+ * Request relayed from Electron main to one mounted widget iframe through the widgets renderer.
+ */
+export interface WidgetsIframeRequestPayload {
+  /** Widget id that identifies the mounted iframe target. */
+  id: string
+  /** Relay correlation id echoed by the renderer-to-main result event. */
+  requestId: string
+  /** Structured-clone-safe request record forwarded into the iframe Eventa runtime. */
+  payload: GameletIframeInvokePayload['payload']
+  /** Request timeout budget in milliseconds. */
+  timeoutMs: number
+}
+
+/**
+ * Shared fields for a renderer-to-main iframe request result.
+ */
+export interface WidgetsIframeRequestResultBasePayload {
+  /** Widget id that produced the result. */
+  id: string
+  /** Relay correlation id matching the original main-to-renderer request. */
+  requestId: string
+}
+
+/**
+ * Successful renderer-to-main iframe request result.
+ */
+export interface WidgetsIframeRequestSuccessPayload extends WidgetsIframeRequestResultBasePayload {
+  /** Marks this result as a successful iframe response. */
+  ok: true
+  /** Structured-clone-safe response record returned by the iframe Eventa runtime. */
+  result: GameletIframeResponsePayload
+}
+
+/**
+ * Failed renderer-to-main iframe request result.
+ */
+export interface WidgetsIframeRequestFailurePayload extends WidgetsIframeRequestResultBasePayload {
+  /** Marks this result as a failed iframe response. */
+  ok: false
+  /** Error message returned when the iframe request fails. */
+  error: string
+}
+
+/**
+ * Result relayed from the widgets renderer back to Electron main for one iframe request.
+ */
+export type WidgetsIframeRequestResultPayload
+  = | WidgetsIframeRequestSuccessPayload
+    | WidgetsIframeRequestFailurePayload
+
 export interface PluginManifestSummary {
-  name: string
+  extensionId: string
   entrypoints: Record<string, string | undefined>
   path: string
   enabled: boolean
@@ -162,7 +233,7 @@ export interface PluginCapabilityState {
 
 export interface PluginHostSessionSummary {
   id: string
-  manifestName: string
+  extensionId: string
   phase: string
   runtime: 'electron' | 'node' | 'web'
   moduleId: string
@@ -328,7 +399,7 @@ export interface ElectronGodotStageStatus {
  */
 export interface ElectronGodotStageSceneInputPayload {
   modelId: string
-  format: string
+  format: 'vrm'
   name: string
   fileName: string
   data: Uint8Array
@@ -338,16 +409,21 @@ export const electronGodotStageStart = defineInvokeEventa<ElectronGodotStageStat
 export const electronGodotStageStop = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:stop')
 export const electronGodotStageGetStatus = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:get-status')
 export const electronGodotStageApplySceneInput = defineInvokeEventa<void, ElectronGodotStageSceneInputPayload>('eventa:invoke:electron:godot-stage:apply-scene-input')
+export const electronGodotStageGetViewSnapshot = defineInvokeEventa<StageViewSnapshotPayload | null>('eventa:invoke:electron:godot-stage:view-snapshot:get')
+export const electronGodotStageApplyViewPatch = defineInvokeEventa<StageViewRequestAckPayload, StageViewPatch>('eventa:invoke:electron:godot-stage:view-state:apply-patch')
+export const electronGodotStageRequestViewSnapshot = defineInvokeEventa<StageViewRequestAckPayload>('eventa:invoke:electron:godot-stage:view-state:request-snapshot')
 export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageStatus>('eventa:event:electron:godot-stage:status-changed')
+export const electronGodotStageViewSnapshotChanged = defineEventa<StageViewSnapshotPayload>('eventa:event:electron:godot-stage:view-snapshot-changed')
+export const electronGodotStageViewStateError = defineEventa<StageViewErrorPayload>('eventa:event:electron:godot-stage:view-state-error')
 
 // Global shortcut ->
 
 /**
  * Phase of a shortcut trigger event.
  *
- * - `down` — key-combination pressed
- * - `up`   — key-combination released; only emitted by drivers that set
- *            `ok: true` for bindings with `receiveKeyUps: true`
+ * - `down` — key combination pressed
+ * - `up`   — key combination released; only emitted by drivers that
+ *            accepted a binding with `receiveKeyUps: true`
  */
 export type ElectronShortcutTriggerPhase = 'down' | 'up'
 
@@ -396,6 +472,10 @@ export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:ele
 export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
 export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
 export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
+/** Main-to-renderer event requesting work from a mounted widget iframe. */
+export const widgetsIframeRequestEvent = defineEventa<WidgetsIframeRequestPayload>('eventa:event:electron:windows:widgets:iframe-request')
+/** Renderer-to-main event carrying the correlated result for a widget iframe request. */
+export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequestResultPayload>('eventa:event:electron:windows:widgets:iframe-request-result')
 
 // Onboarding window events
 export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
@@ -414,7 +494,7 @@ export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
-export const i18nGetLocale = defineInvokeEventa<Locale>('eventa:invoke:electron:i18n:get-locale')
+export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'

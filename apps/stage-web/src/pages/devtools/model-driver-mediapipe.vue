@@ -3,6 +3,7 @@ import type { PerceptionState, VrmPoseTargets } from '@proj-airi/model-driver-me
 import type { Vector3Like } from 'three'
 
 import { createMediaPipeBackend, createMocapEngine, createVrmPoseApplier, drawOverlay, poseToVrmTargets } from '@proj-airi/model-driver-mediapipe'
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -130,7 +131,7 @@ async function startCamera() {
   }
   catch (err) {
     status.value = 'error'
-    errorMessage.value = err instanceof Error ? err.message : String(err)
+    errorMessage.value = errorMessageFromValue(err)
     console.error('Failed to start camera or pipeline:', err)
 
     syncingToggleState.value = true
@@ -204,7 +205,7 @@ async function startPipeline() {
           return
         }
 
-        errorMessage.value = err instanceof Error ? err.message : String(err)
+        errorMessage.value = errorMessageFromValue(err)
         // Ensure resources are released, but keep the error status visible.
         stop()
         status.value = 'error'

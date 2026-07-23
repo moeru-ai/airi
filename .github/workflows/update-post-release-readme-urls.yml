@@ -3,11 +3,12 @@ name: Update (Post Release) README URLs
 on:
   release:
     types:
+      - published
       - released
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g., v0.9.0-alpha.7)'
+        description: 'Release tag (e.g., v0.10.2)'
         required: true
         type: string
 
@@ -16,6 +17,8 @@ permissions:
 
 jobs:
   update:
+    # Keep prereleases from replacing the stable README download buttons.
+    if: github.event_name == 'workflow_dispatch' || !github.event.release.prerelease
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

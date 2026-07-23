@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI Official Provider
+      title: Официальный провайдер AIRI
     title: Добро пожаловать в AIRI!
     description: Давайте настроим вашего первого AI-провайдера, чтобы начать работу.
     selectProvider: Выберите AI-провайдера
@@ -105,6 +105,20 @@ analytics:
     description: Отключите эту опцию, чтобы отказаться от сбора аналитики.
   disabled:
     title: Аналитика отключена для этой разрабатываемой сборки
+model-select:
+  panel-callout:
+    support-status-header: Мы поддерживаем 2D и 3D модели
+    support-status: >
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
+    model-type-example: >
+      Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
+  select-model:
+    title: Выбор модели
+    button: Выбрать модель
+    select: Выбрать
+    import: Импорт
+    remove: Удалить
+    confirm: Подтвердить
 live2d:
   change-model:
     from-file: Загрузить из файла
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: Нажмите здесь, чтобы переключиться на настройки 3D-аватара (VRM)
   theme-color-from-model:
     title: Извлечь цвета из модели
+    description: >
+      Извлечь видимые цвета из холста текущего рендеринга. Нажмите на цвет, чтобы применить его к AIRI. Попытаться извлечь несколько раз, используя модель в разных позах, если цвета не желательны.
     button-extract:
       title: Извлечь
-  focus:
-    title: Отключить слежение за мышью
-    button-disable:
-      title: Отключить отслеживание мыши модели
-  render-scale:
-    title: Масштаб рендеринга
-  fps:
-    title: ФПС
-    description: Ограничить скорость рендеринга кадров
-    options:
-      unlimited: '∞'
+  animation:
+    title: Анимация
+    focus:
+      title: Включить отслеживание мыши
+      description: Посмотрите на курсор во время движения. Изысканное движение глаз возобновляется после остановки курсора.
+      offset: Смещение глаз (%)
+    force-idle-eye-animation:
+      title: Легкое движение глаз
+      description: Случайно смотреть вокруг когда нет активного курсора фокуса.
+    blink-enable:
+      title: Включить моргание
+      description: Пусть модель моргает.
+    auto-blink:
+      title: Авто
+      description: Использовать стандартную анимацию моргания модели
+    force-auto-blink:
+      title: Сила
+      description: Принудительная анимация моргания с внешним таймером
+    blink-mode:
+      title: Режим моргания
+      description: Выберите модель встроенного моргания или принудительного моргания AIRI.
+    idle-motion:
+      title: Анимация бездействия
+      no-motion: Нет доступных анимаций
+      placeholder: Выбрать анимацию
+      disable-motion: Отключено
+      disable-motion-description: Отключить анимацию бездействия
+  parameters:
+    title: Параметры модели
+    render-scale:
+      title: Масштаб рендеринга
+    fps:
+      title: FPS
+      description: Ограничить скорость рендеринга кадров
+      options:
+        unlimited: '∞'
+    shadow: Отбрасывать тень
+    reset-parameters: Сброс к параметрам по умолчанию
+  clear-model-cache: Очистка кеша
+  expressions:
+    title: Выражения
+    override-toggle: Система выражений
+    sdk-preset-preserved-notice: >
+      Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
+    no-expression: Нет выражений для этой модели.
+    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
+    save-default: Сохранить выражение по умолчанию
+    reset: Сбросить все выражения
+    expose-to-llm-toggle: Распространять в LLM
+    expose-to-llm-options:
+      none: Отсутствует
+      all: Все
+      custom: Пользовательский
 microphone: Микрофон
 models: Модель
 pages:
@@ -190,6 +248,8 @@ pages:
         listFailed: Не удалось загрузить подключенные учетные записи.
         unlinkFailed: Не удалось отвязать эту учетную запись.
         linkFailed: Не удалось запустить поток ссылок.
+        accountAlreadyLinkedToDifferentUser: Этот OAuth-аккаунт уже привязан к другому аккаунту AIRI. Выберите другой аккаунт провайдера или сначала отвяжите его от другого аккаунта AIRI.
+        oauthCallbackFailed: Не удалось подключить этот OAuth-аккаунт. Попробуйте еще раз или выберите другой аккаунт провайдера.
         lastAccount: Это единственный способ входа в систему. Установите пароль перед отсоединением.
     security:
       tab: Безопасность
@@ -250,6 +310,9 @@ pages:
       provider: Чат / провайдеры
     consciousness:
       model: Сознание / Модель
+    vision:
+      provider: Зрение / Провайдер
+      model: Зрение / Модель
     created_by: создано
     creator_notes: Заметки автора
     delete: Удалить
@@ -307,7 +370,7 @@ pages:
         systemprompt: 'Ошибка: укажите системный промпт.'
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
         invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
-      none: None
+      none: Отсутствует
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -327,8 +390,14 @@ pages:
     systemprompt: Системный промпт
     title: Карта AIRI
     try_different_search: Попробуйте другой поисковый запрос
+    export: Экспорт
+    exported: Пакет карт экспортирован
+    export_failed: Не удалось экспортировать пакет карт
+    imported: Пакет карт импортирован
+    import_missing_file: В пакете карт отсутствуют необходимые файлы
+    import_invalid_file: Неверный файл пакета карт
     upload: Загрузить
-    upload_desc: Нажмите или перетащите файл для загрузки
+    upload_desc: Нажмите или перетащите пакет карт AIRI для импорта
   memory:
     description: Хранилище и организация воспоминаний
     title: Память
@@ -368,6 +437,7 @@ pages:
       desktop:
         title: Сбросить настройки и состояния рабочего стола
         description: Очистить настройки AIRI рабочего стола и состояние рабочего времени.
+        center: Переместить окно рабочего стола в центр
         reset: Сбросить данные для рабочего стола
     confirmations:
       tooltip: Вы уверены?
@@ -381,9 +451,10 @@ pages:
       modules_reset: Настройки модуля сброшены.
       providers_reset: Настройки провайдера сброшены.
       all_deleted: Все локальные данные удалены.
+      desktop_window_centered: Окно рабочего стола перемещено в центр экрана.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM и др.
+    description: Live2D, VRM, Spine и др.
     title: Модели
     sections:
       section:
@@ -621,6 +692,12 @@ pages:
             select-voice:
               loading: Загрузка моделей...
               required: Выберите голос
+          voice-pack:
+            description: Выберите голос для активного персонажа
+            empty: Нет доступных голосовых пакетов
+            error: Ошибка загрузки голосовых пакетов
+            loading: Загрузка голосовых пакетов...
+            title: Голосовой пакет
           provider-voice-selection:
             custom_model_placeholder: Введите название кастомной модели...
             custom_voice_placeholder: Введите ID кастомного голоса...
@@ -672,88 +749,88 @@ pages:
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
       configured: X / Twitter настроен правильно!
     mcp-server:
-      title: MCP servers
-      description: Configure MCP servers and bring their tools into AIRI.
-      config-path: Config file
+      title: MCP Сервера
+      description: Настройка MCP серверов и перевод их инструментов в AIRI.
+      config-path: Конфигурационный файл
       runtime-title: Статус рабочего времени
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
-      error-title: Oops
-      success-title: Done!
+      empty: Пока нет MCP серверов — нажмите "Добавить сервер" ниже, чтобы создать его или вставьте конфигурацию через "Редактировать JSON".
+      error-title: Упс
+      success-title: Готово!
       existing:
-        title: Configured
-        description: Servers recorded in mcp.json. Click any row to expand and edit it.
-        empty: Nothing here yet. Add one below!
+        title: Настроено
+        description: Сервера записаны в mcp.json. Нажмите на любую строку, чтобы развернуть и редактировать его.
+        empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
-        title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
-        pending-badge: Unsaved
+        title: Новый
+        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        pending-badge: Не сохранено
       status:
-        unknown: not loaded
+        unknown: Не загружен
       actions:
-        open-config: Reveal in file manager
-        apply-and-restart: Save and restart
-        restart: Restart MCP
-        add-server: Add server
-        add-env: Add var
-        remove: Remove
-        test: Test
-        edit-json: Edit JSON
-        close-json: Close
-        format-json: Format
-        reset-draft: Reset
-        apply-json: Apply
-        cancel: Cancel
-        expand: Expand
-        collapse: Collapse
+        open-config: Показать в файловом менеджере
+        apply-and-restart: Сохранить и перезагрузить
+        restart: Перезапустить MCP
+        add-server: Добавить сервер
+        add-env: Добавить переменную
+        remove: Убрать
+        test: Проверка
+        edit-json: Редактировать JSON
+        close-json: Закрыть
+        format-json: Формат
+        reset-draft: Сброс
+        apply-json: Применить
+        cancel: Отменить
+        expand: Развернуть
+        collapse: Свернуть
       fields:
         identifier:
-          label: Identifier
-          description: Unique name; becomes the key in mcp.json.
-          placeholder: e.g. filesystem
+          label: Идентификатор
+          description: Уникальное имя; становится ключом в mcp.json.
+          placeholder: Напр. filesystem
         command:
-          label: Command
-          description: Executable spawned over stdio.
-          placeholder: e.g. npx
+          label: Команда
+          description: Исполняемый файл создан поверх stdio.
+          placeholder: Напр. npx
         args:
-          label: Arguments
-          description: One per line, in order.
+          label: Аргументы
+          description: По одному на строку, по порядку.
           placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
-          label: Working directory
-          description: Optional directory used as the process working directory.
-          placeholder: e.g. /Users/you/project
+          label: Рабочая папка
+          description: Необязательный каталог, используемый в качестве рабочего каталога процесса.
+          placeholder: Напр. /Users/you/project
         env:
-          label: Environment
-          description: Vars passed to the child process.
-          key-placeholder: KEY
-          value-placeholder: value
+          label: Окружение
+          description: Переменные переданы дочернему процессу.
+          key-placeholder: КЛЮЧ
+          value-placeholder: значение
         enabled:
-          label: Enabled
+          label: Включено
       json:
-        title: Edit mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
-        placeholder: Paste mcp.json here…
+        title: Редактировать mcp.json
+        description: 'Отредактируйте сырые JSON напрямую. Нажмите «Применить», чтобы загрузить их в форму, затем «Сохранить и перезапустить», чтобы записать их на диск.'
+        placeholder: Вставьте mcp.json здесь…
       test:
-        title: Test connection
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
-        pick-server-label: Server
-        no-servers: Nothing to test yet
-        no-server-selected: Pick a server first.
-        server-disabled: '"{name}" is disabled — enable it on the card first.'
-        disabled-suffix: disabled
-        untitled: untitled
-        running: Testing…
-        success: Connected! Found {count} tools in {ms}ms.
-        failure: Connection failed after {ms}ms
+        title: Проверить подключение
+        description: Мы недолго создадим сервер, чтобы проверить работу команды и увидеть, какие инструменты она раскрывает.
+        pick-server-label: Сервер
+        no-servers: Пока нечего проверять
+        no-server-selected: Сначала выберите сервер.
+        server-disabled: '"{name}" отключён — включите его сначала на карте.'
+        disabled-suffix: отключено
+        untitled: безымянный
+        running: Тестирование
+        success: Подключено! Найдено {count} инструментов за {ms}мс.
+        failure: Сбой соединения после {ms}мс
       errors:
         empty-identifier: Server # {index} is missing an identifier.
-        duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
-        empty-command: '"{name}" is missing a command.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        duplicate-identifier: Идентификатор "{name}" используется более одного раза — имена должны быть уникальными.
+        empty-command: '"{name}" отсутствует команда.'
+        invalid-shape: Это не похоже на mcp.json — для root требуется поле "mcpServers".
       messages:
-        opened: Opened {path} in your file manager
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
-        restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
+        opened: В файловом менеджере открыта {path}
+        json-applied: JSON применен к форме. Нажмите «Сохранить и перезапустить», чтобы сохранить его на диск.
+        restarted: Все перезапущено! {started} запущен, {failed} не удалось, {skipped} пропущен.
   flux:
     title: Flux
     buy: Пополнить
@@ -773,6 +850,7 @@ pages:
       typeAddition: Пополнение
       typeConsumption: Использование
       typeInitial: Начальный грант
+      typePromo: Promo Grant
       loading: Загрузка истории...
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
@@ -893,6 +971,9 @@ pages:
       chat:
         title: Чат
         description: Провайдеры текстовых моделей, напр. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Зрение
+        description: Провайдеры моделей зрения для понимания изображений.
       speech:
         title: Речь
         description: Провайдеры речи (text-to-speech), напр. ElevenLabs, Azure Speech.
@@ -1156,6 +1237,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1253,14 +1337,14 @@ pages:
               label: Идентификатор приложения (App ID)
         title: Volcano Engine
       volcengine-coding-plan:
-        description: Volcengine Coding Plan
-        title: Volcengine Coding Plan
+        description: План кодирования Volcengine
+        title: План кодирования Volcengine
       byteplus:
         description: byteplus.com
         title: BytePlus
       byteplus-coding-plan:
-        description: BytePlus Coding Plan
-        title: BytePlus Coding Plan
+        description: План кодирования BytePlus
+        title: План кодирования BytePlus
       xai:
         description: x.ai
         title: xAI
@@ -1287,6 +1371,8 @@ pages:
         description: Официальный ИИ провайдер AIRI.
         speech-title: Официальный провайдер синтеза речи
         speech-description: Официальный text-to-speech провайдер AIRI.
+        speech-streaming-title: Официальный провайдер синтеза речи
+        speech-streaming-description: Официальный поставщик текстов и речи с низкими задержками AIRI (двунаправленный WebSocket).
         transcription-title: Официальный провайдер транскрипции
         transcription-description: Официальный speech-to-text провайдер AIRI.
       transcriptions:
@@ -1523,8 +1609,6 @@ theme:
 title: Настройки
 voices: Голос
 vrm:
-  render-scale:
-    title: Масштаб рендеринга
   change-model:
     from-file: Загрузить из файла
     from-file-select: Выбрать
@@ -1564,6 +1648,37 @@ vrm:
   skybox:
     skybox-intensity: Интенсивность SkyBox
     skybox-specular-mix: Причудливый микс
+spine:
+  title: Настройки голоса
+  scale-and-position:
+    title: Масштаб и позиция
+    scale: Масштаб
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Извлечь цвета из модели
+    button-extract:
+      title: Извлечь
+  animation:
+    title: Анимация
+    idle-animation: Анимация бездействия
+    mix-duration: Длительность смешивания (в секундах)
+    speed: Скорость анимации
+  appearance:
+    title: Внешний вид
+  variant:
+    title: Вариация
+    current-variant: Активный вариант
+  skin:
+    title: Облик
+    current-skin: Текущий облик
+  rendering:
+    title: Рендеринг
+    max-fps: Ограничение кадров в секунду
+    render-scale: Масштаб рендеринга
+  fps:
+    options:
+      unlimited: Без ограничений
 websocket-secure-enabled:
   title: Включить безопасный WebSocket (WSS)
   description: >-

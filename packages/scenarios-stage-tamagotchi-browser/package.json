@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/scenarios-stage-tamagotchi-browser",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.3",
   "private": true,
   "description": "Vite/Vue scene app for stage tamagotchi browser captures",
   "author": {
@@ -23,12 +23,12 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
-    "@napi-rs/image": "^1.12.0",
-    "@proj-airi/vishot-runner-browser": "workspace:^",
-    "@proj-airi/vishot-runtime": "workspace:^",
+    "@napi-rs/image": "catalog:",
+    "@vishot/mockup-desktop-vue": "catalog:",
+    "@vishot/renderer-browser": "catalog:",
     "@vueuse/core": "catalog:",
     "date-fns": "catalog:",
-    "reka-ui": "^2.9.6",
+    "reka-ui": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
   },
@@ -37,9 +37,9 @@
     "@iconify-json/material-symbols": "catalog:",
     "@iconify-json/mdi": "catalog:",
     "@iconify-json/ph": "catalog:",
-    "@unocss/reset": "^66.6.8",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "unplugin-vue-router": "^0.19.2",
-    "vue-tsc": "^3.2.6"
+    "@unocss/reset": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
+    "unplugin-vue-router": "catalog:",
+    "vue-tsc": "catalog:"
   }
 }

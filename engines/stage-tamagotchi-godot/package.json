@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi-godot",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.3",
   "private": true,
   "description": "Godot-native desktop stage runtime workspace engine for stage-tamagotchi",
   "author": {
@@ -17,6 +17,8 @@
   },
   "scripts": {
     "build": "dotnet build ./stage-tamagotchi-godot.csproj",
-    "typecheck": "dotnet build ./stage-tamagotchi-godot.csproj"
+    "typecheck": "dotnet build ./stage-tamagotchi-godot.csproj",
+    "dump:render-stages": "node ./tools/dumpRenderStages.mjs --dump-render-stages ./artifacts/render-stages",
+    "dump:render-stages:upper-body": "node ./tools/dumpRenderStages.mjs --dump-render-stages ./artifacts/render-stages-upper-body --view-preset upper-body"
   }
 }

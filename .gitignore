@@ -17,12 +17,18 @@ lerna-debug.log*
 .idea
 .temp
 **/temp/
+
+# AI Agents
 .claude/worktrees/
+.superpowers/
 
 # Anything .local, especially for .env.local
 *.local
 # e.g. Claude Code settings.local.json
 *.local.*
+.env
+.env.*
+!.env.example
 
 # Audio binaries
 *.pcm
@@ -134,3 +140,6 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 # Tools - Obsidian
 .obsidian/
+
+docs/ai/context/verifications/
+.playwright-mcp/

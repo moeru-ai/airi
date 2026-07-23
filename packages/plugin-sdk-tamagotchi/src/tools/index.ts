@@ -1,70 +1,30 @@
-import type { ContextInit } from '@proj-airi/plugin-sdk'
+import type { KitClientRuntime } from '@proj-airi/plugin-sdk'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 import type { JsonSchema, Schema as StandardSchemaV1 } from 'xsschema'
 
+import type {
+  PluginToolDefinitionRecord,
+  PluginToolsetPromptDefinitionRecord,
+  ToolsetPromptManifest,
+} from './registry'
+
+import { defineKit } from '@proj-airi/plugin-sdk'
 import { hostDataRecordSchema } from '@proj-airi/plugin-sdk/plugin-host'
 import { parse } from 'valibot'
 import { toJsonSchema } from 'xsschema'
 
-/**
- * Describes the stage-tamagotchi gamelet API expected on `ctx.apis`.
- *
- * Use when:
- * - Tool execution wants to open, configure, close, or inspect host-managed gamelet surfaces
- * - Runtime validation needs a structural contract independent from `@proj-airi/plugin-sdk`
- *
- * Expects:
- * - The stage-tamagotchi host contribution installs `gamelets` on the plugin session API object
- *
- * Returns:
- * - The host-backed gamelet control surface exposed to tool callbacks
- */
-export interface ToolExecutionGameletApi {
-  open: (id: string, params?: HostDataRecord) => Promise<void>
-  configure: (id: string, patch: HostDataRecord) => Promise<void>
-  request: (id: string, payload: HostDataRecord, options?: { timeoutMs?: number }) => Promise<HostDataRecord>
-  close: (id: string) => Promise<void>
-  isOpen: (id: string) => Promise<boolean> | boolean
-}
-
-/**
- * Describes the tamagotchi-flavored plugin context accepted by {@link defineToolset}.
- *
- * Use when:
- * - A plugin host exposes tool registration plus the stage-owned `gamelets` surface
- * - Tests want to model the runtime shape without relying on baked-in SDK typing
- *
- * Expects:
- * - `apis.tools.register` is available
- * - `apis.gamelets` is installed by the stage-tamagotchi host contribution
- *
- * Returns:
- * - A context shape compatible with the tamagotchi tool helper
- */
-export interface TamagotchiToolContext {
-  apis: Pick<ContextInit['apis'], 'tools'> & {
-    gamelets: ToolExecutionGameletApi
-  }
-}
-
-/**
- * Describes the host services available while checking or executing a plugin tool.
- *
- * Use when:
- * - Tool logic needs to orchestrate gamelet surfaces
- *
- * Expects:
- * - All methods are provided by the host runtime, not the plugin
- *
- * Returns:
- * - A runtime capability surface for tool execution
- */
-export interface ToolExecutionContext {
-  gamelets: ToolExecutionGameletApi
-
-  // TODO:
-  // Add character/runtime orchestration APIs after the gamelet/tool path is stable.
-}
+export type {
+  PluginToolDefinitionRecord,
+  PluginToolsetPromptDefinitionRecord,
+  RegisteredPluginToolDescriptor,
+  SerializedToolsetPromptDefinition,
+  SerializedXsaiToolDefinition,
+  SerializedXsaiToolsetDefinition,
+  ToolRegistryRecord,
+  ToolsetPromptManifest,
+  ToolsetPromptRegistryRecord,
+} from './registry'
+export { TamagotchiToolRegistry } from './registry'
 
 /**
  * Describes renderer-side discovery hints for a plugin tool.
@@ -93,7 +53,7 @@ export interface PluginToolActivationDefinition {
  * - `inputSchema` is either an xsschema-compatible schema or a prebuilt JSON Schema object
  *
  * Returns:
- * - A friendly authoring record consumed by {@link defineToolset}
+ * - A friendly authoring record consumed by {@link ToolKitClient.registerTool}
  */
 export interface PluginToolDefinition<TInputSchema = unknown> {
   id: string
@@ -101,57 +61,49 @@ export interface PluginToolDefinition<TInputSchema = unknown> {
   description: string
   activation?: PluginToolActivationDefinition
   inputSchema: TInputSchema
-  isAvailable?: (context: ToolExecutionContext) => Promise<boolean> | boolean
-  execute: (input: unknown, context: ToolExecutionContext) => Promise<unknown> | unknown
+  isAvailable?: () => Promise<boolean> | boolean
+  execute: (input: unknown) => Promise<unknown> | unknown
 }
 
 /**
- * Declares a set of plugin tools in one call.
- *
- * Use when:
- * - A plugin registers all of its tools during bootstrap
- *
- * Expects:
- * - `ctx.apis.tools.register` is available from the host
- *
- * Returns:
- * - Resolves once every tool has been registered with the host
+ * Describes one toolset prompt registration.
  */
-export interface DefineToolsetOptions<TInputSchema = unknown> {
-  tools: Array<PluginToolDefinition<TInputSchema>>
+export interface PluginToolsetPromptRegistration {
+  id: string
+  prompt: ToolsetPromptManifest
 }
 
-function isToolExecutionGameletApi(value: unknown): value is ToolExecutionGameletApi {
-  if (!value || typeof value !== 'object') {
-    return false
-  }
+/**
+ * Describes the module-scoped tool authoring client exposed by {@link toolKit}.
+ *
+ * @param TInputSchema - Schema implementation accepted by each tool definition.
+ */
+export interface ToolKitClient<TInputSchema = unknown> {
+  /**
+   * Registers one tool through the host-owned tool registry.
+   */
+  registerTool: (definition: PluginToolDefinition<TInputSchema>) => Promise<void>
 
-  const candidate = value as Partial<Record<keyof ToolExecutionGameletApi, unknown>>
-
-  return typeof candidate.open === 'function'
-    && typeof candidate.configure === 'function'
-    && typeof candidate.request === 'function'
-    && typeof candidate.close === 'function'
-    && typeof candidate.isOpen === 'function'
+  /**
+   * Registers one toolset prompt through the host-owned tool registry.
+   */
+  registerToolsetPrompt: (registration: PluginToolsetPromptRegistration) => Promise<void>
 }
 
-function getToolExecutionGameletApi(
-  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
-): ToolExecutionGameletApi {
-  const gamelets = (ctx.apis as Record<string, unknown>).gamelets
-
-  if (!isToolExecutionGameletApi(gamelets)) {
-    throw new Error('stage-tamagotchi gamelet API is not available on `ctx.apis.gamelets`.')
-  }
-
-  return gamelets
-}
-
-function createToolExecutionContext(
-  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
-): ToolExecutionContext {
-  return {
-    gamelets: getToolExecutionGameletApi(ctx),
+/**
+ * Describes host services required by the tool kit client.
+ */
+export interface ToolKitRuntime extends KitClientRuntime {
+  /**
+   * Host-owned tool registry operations.
+   */
+  tools?: {
+    register: (input: {
+      tool: PluginToolDefinitionRecord
+      availability?: () => Promise<boolean> | boolean
+      execute: (input: unknown) => Promise<unknown> | unknown
+    }) => Promise<void> | void
+    registerToolsetPrompt: (input: PluginToolsetPromptDefinitionRecord) => Promise<void> | void
   }
 }
 
@@ -314,41 +266,56 @@ async function serializeToolParameters(inputSchema: unknown): Promise<HostDataRe
 }
 
 /**
- * Registers one or more plugin tools with the tamagotchi host wrapper.
+ * Exposes tamagotchi tool registration as a module-scoped extension kit.
  *
  * Use when:
- * - A plugin wants to declare xsai-compatible tools without low-level host records
+ * - An extension module wants to register tools through `module.kits.use(toolKit)`
+ * - The host should keep tool transport, permission, and binding details outside authoring code
  *
  * Expects:
- * - The caller supplies stable tool ids and schemas
+ * - The host provides tool registry APIs when creating the kit client
  *
  * Returns:
- * - Resolves after all tool registrations complete
+ * - A client that registers LLM tools without depending on domain-specific kits
  */
-export async function defineToolset(
-  ctx: Pick<ContextInit, 'apis'> | TamagotchiToolContext,
-  options: DefineToolsetOptions,
-): Promise<void> {
-  const executionContext = createToolExecutionContext(ctx)
+export const toolKit = defineKit<ToolKitClient>({
+  id: 'kit.tool',
+  version: '1.0.0',
+  allowedExposePolicies: ['local-only', 'remote-observable'],
+  defaultExposePolicy: 'local-only',
+  createClient(runtime) {
+    const toolRuntime = runtime as ToolKitRuntime
 
-  for (const definition of options.tools) {
-    const isAvailable = definition.isAvailable
+    return {
+      async registerTool(definition) {
+        if (!toolRuntime.tools) {
+          throw new Error('toolKit requires a host tool registry runtime.')
+        }
 
-    await ctx.apis.tools.register({
-      tool: {
-        id: definition.id,
-        title: definition.title,
-        description: definition.description,
-        activation: {
-          keywords: definition.activation?.keywords ?? [],
-          patterns: (definition.activation?.patterns ?? []).map(pattern => pattern.source),
-        },
-        parameters: await serializeToolParameters(definition.inputSchema),
+        const isAvailable = definition.isAvailable
+
+        await toolRuntime.tools.register({
+          tool: {
+            id: definition.id,
+            title: definition.title,
+            description: definition.description,
+            activation: {
+              keywords: definition.activation?.keywords ?? [],
+              patterns: (definition.activation?.patterns ?? []).map(pattern => pattern.source),
+            },
+            parameters: await serializeToolParameters(definition.inputSchema),
+          },
+          availability: isAvailable,
+          execute: definition.execute,
+        })
       },
-      availability: isAvailable
-        ? () => isAvailable(executionContext)
-        : undefined,
-      execute: input => definition.execute(input, executionContext),
-    })
-  }
-}
+      async registerToolsetPrompt(registration) {
+        if (!toolRuntime.tools) {
+          throw new Error('toolKit requires a host tool registry runtime.')
+        }
+
+        await toolRuntime.tools.registerToolsetPrompt(registration)
+      },
+    }
+  },
+})

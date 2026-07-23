@@ -1,12 +1,19 @@
 chat:
   actions:
-    retry: Retry
+    retry: Thử lại
   message:
     character-name:
       airi: AIRI
       core-system: Hệ thống lõi
       you: Bạn
   reasoning: Đang suy nghĩ
+  sessions:
+    title: Đoạn hội thoại
+    new: + Mới
+    empty: Chưa có đoạn hội thoại nào
+    cloud-badge: Đã đồng bộ đám mây
+    new-chat-fallback: Cuộc trò chuyện mới
+    delete: Xóa đoạn hội thoại
 message: Nói gì đó...
 send-mode:
   title: Gửi key
@@ -46,8 +53,8 @@ profile-switcher:
 promo-banner:
   items:
     signin:
-      watermark: Moon
-      fallbackLabel: Moon Gift
+      watermark: Mặt trăng
+      fallbackLabel: Quà Mặt Trăng
       title: Đăng nhập 7 ngày
       eventName: Đăng nhập để nhận bụi sao, khung ảnh đại diện và quà tặng khi ra mắt.
       date: 28/3 đến 10/4
@@ -87,6 +94,6 @@ promo-banner:
       cta: Xem Chủ đề
 waiting: Đang chờ
 websocket-status:
-  connected: Đã kết nối WebSocket
-  disconnected: Đã ngắt kết nối WebSocket
-  open-settings: Mở cài đặt WebSocket
+  connected: Đã kết nối
+  disconnected: Chưa kết nối
+  open-settings: Mở cài đặt kết nối

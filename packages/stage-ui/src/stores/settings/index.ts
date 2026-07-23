@@ -4,7 +4,7 @@ import { useSettingsAnalytics } from './analytics'
 import { useSettingsControlsIsland } from './controls-island'
 import { useSettingsDeveloper } from './developer'
 import { useSettingsGeneral } from './general'
-import { useSettingsLive2d } from './live2d'
+import { useSettingsSpine } from './spine'
 import { useSettingsStageModel } from './stage-model'
 import { useSettingsTheme } from './theme'
 
@@ -15,7 +15,7 @@ export * from './beat-sync'
 export * from './controls-island'
 export * from './developer'
 export * from './general'
-export * from './live2d'
+export * from './spine'
 export * from './stage-model'
 export * from './theme'
 // Export constants
@@ -32,7 +32,7 @@ export const useSettings = defineStore('settings', () => {
   const general = useSettingsGeneral()
   const analytics = useSettingsAnalytics()
   const stageModel = useSettingsStageModel()
-  const live2d = useSettingsLive2d()
+  const spine = useSettingsSpine()
   const theme = useSettingsTheme()
   const controlsIsland = useSettingsControlsIsland()
   const developer = useSettingsDeveloper()
@@ -41,7 +41,7 @@ export const useSettings = defineStore('settings', () => {
     await stageModel.resetState()
     analytics.resetState()
     general.resetState()
-    live2d.resetState()
+    spine.resetState()
     theme.resetState()
     controlsIsland.resetState()
     developer.resetState()
@@ -51,7 +51,7 @@ export const useSettings = defineStore('settings', () => {
   const generalRefs = storeToRefs(general)
   const analyticsRefs = storeToRefs(analytics)
   const stageModelRefs = storeToRefs(stageModel)
-  const live2dRefs = storeToRefs(live2d)
+  const spineRefs = storeToRefs(spine)
   const themeRefs = storeToRefs(theme)
   const controlsIslandRefs = storeToRefs(controlsIsland)
   const developerRefs = storeToRefs(developer)
@@ -71,15 +71,12 @@ export const useSettings = defineStore('settings', () => {
     stageModelSelectedDisplayModel: stageModelRefs.stageModelSelectedDisplayModel,
     stageViewControlsEnabled: stageModelRefs.stageViewControlsEnabled,
 
-    // Live2D settings
-    live2dDisableFocus: live2dRefs.live2dDisableFocus,
-    live2dIdleAnimationEnabled: live2dRefs.live2dIdleAnimationEnabled,
-    live2dAutoBlinkEnabled: live2dRefs.live2dAutoBlinkEnabled,
-    live2dForceAutoBlinkEnabled: live2dRefs.live2dForceAutoBlinkEnabled,
-    live2dExpressionEnabled: live2dRefs.live2dExpressionEnabled,
-    live2dShadowEnabled: live2dRefs.live2dShadowEnabled,
-    live2dMaxFps: live2dRefs.live2dMaxFps,
-    live2dRenderScale: live2dRefs.live2dRenderScale,
+    // Spine settings
+    spinePremultipliedAlpha: spineRefs.spinePremultipliedAlpha,
+    spineDefaultMixDuration: spineRefs.spineDefaultMixDuration,
+    spineIdleAnimationEnabled: spineRefs.spineIdleAnimationEnabled,
+    spineMaxFps: spineRefs.spineMaxFps,
+    spineRenderScale: spineRefs.spineRenderScale,
 
     // Theme settings
     themeColorsHue: themeRefs.themeColorsHue,

@@ -15,8 +15,11 @@ docs:
   'open-settings': 設定を開く
   'open-chat': チャットを開く
   'refresh': 再読み込み
+  'center-main-window': Move to screen center
   'open-hearing-controls': 聴覚コントロールを開く
   'drag-to-move-window': ウィンドウをドラッグして移動
+  'stop-speaking': 発話停止
+  'speaker-idle': スピーカー
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
   'pin-on-top': ピン留め
@@ -53,7 +56,7 @@ notice:
     preview-title: これは何？
 about:
   subtitle: Desktop ver.
-  current-version: Current Version
+  current-version: 現在のバージョン
   common:
     cancel: Cancel
   links:
@@ -75,24 +78,24 @@ about:
       canary: Canary
     status:
       downloading: Downloading update...
-      error-prefix: Error
+      error-prefix: エラー
       latest: Up to date (v{version}).
       downloaded:
         windows: Update ready to install silently (v{version}).
         restart: Update ready to install on restart (v{version}).
     actions:
-      download: Download Update
-      download-short: Download
+      download: アップデートをダウンロード
+      download-short: ダウンロード
       confirm-download: Confirm Download
-      check-for-updates: Check for updates
-      checking: Checking...
-      latest-version: Latest version
+      check-for-updates: アップデートを確認
+      checking: 確認中…
+      latest-version: 最新バージョン
       disabled-dev: Updates disabled in Dev
       retry-check: Retry Check
       restart-silent: Restart to update silently
-      restart-install: Restart to install update
+      restart-install: 再起動してアップデートをインストールする
       confirm-restart: Confirm Restart
     dialog:
       title: Update Available
-      description: A new version (v{version}) is available.
+      description: 新しいバージョン({version})が利用可能です。
       no-release-notes-markdown: _No release notes provided._

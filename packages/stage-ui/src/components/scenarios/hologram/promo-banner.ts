@@ -1,3 +1,5 @@
+import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+
 import factorioPoster from '../../../assets/factorio-simple.png'
 import onboardingPoster from '../../../assets/onboarding.avif'
 
@@ -49,24 +51,28 @@ export const promoBannerVisuals: PromoBannerVisual[] = [
     fallbackIconClass: 'text-cyan-100',
     fallbackClass: 'from-cyan-300/25 via-sky-300/14 to-blue-400/20',
   },
-  {
-    key: 'spring',
-    image: '',
-    action: { type: 'route', to: '/settings/flux' },
-    accentClass: 'from-amber-400/30 via-orange-300/18 to-transparent',
-    fallbackIcon: 'i-solar:gift-bold-duotone',
-    fallbackIconClass: 'text-white/88',
-    fallbackClass: 'from-amber-300/25 via-rose-300/14 to-fuchsia-400/20',
-  },
-  {
-    key: 'coupon',
-    image: '',
-    action: { type: 'route', to: '/settings/flux' },
-    accentClass: 'from-emerald-400/28 via-teal-300/16 to-transparent',
-    fallbackIcon: 'i-solar:ticket-sale-bold-duotone',
-    fallbackIconClass: 'text-emerald-100',
-    fallbackClass: 'from-emerald-300/24 via-cyan-300/12 to-teal-400/18',
-  },
+  ...(isFluxPurchaseDisabled()
+    ? []
+    : [
+      {
+        key: 'spring',
+        image: '',
+        action: { type: 'route', to: '/settings/flux' },
+        accentClass: 'from-amber-400/30 via-orange-300/18 to-transparent',
+        fallbackIcon: 'i-solar:gift-bold-duotone',
+        fallbackIconClass: 'text-white/88',
+        fallbackClass: 'from-amber-300/25 via-rose-300/14 to-fuchsia-400/20',
+      },
+      {
+        key: 'coupon',
+        image: '',
+        action: { type: 'route', to: '/settings/flux' },
+        accentClass: 'from-emerald-400/28 via-teal-300/16 to-transparent',
+        fallbackIcon: 'i-solar:ticket-sale-bold-duotone',
+        fallbackIconClass: 'text-emerald-100',
+        fallbackClass: 'from-emerald-300/24 via-cyan-300/12 to-teal-400/18',
+      },
+    ] satisfies PromoBannerVisual[]),
   {
     key: 'home',
     image: '',

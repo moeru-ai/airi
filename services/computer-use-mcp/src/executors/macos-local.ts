@@ -24,6 +24,7 @@ import { join } from 'node:path'
 
 import { appNamesMatch, getKnownAppLaunchNames } from '../app-aliases'
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
+import { errorMessageFromValue } from '../utils/error-message'
 import { runProcess } from '../utils/process'
 import { captureScreenshotArtifact } from '../utils/screenshot'
 import { runSwiftScript } from '../utils/swift'
@@ -524,7 +525,7 @@ export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExec
         return observationToForegroundContext(await observeWindows(config, { limit: 8 }))
       }
       catch (error) {
-        return fallbackContext(error instanceof Error ? error.message : String(error))
+        return fallbackContext(errorMessageFromValue(error))
       }
     },
     getDisplayInfo: () => probeDisplayInfo(config),

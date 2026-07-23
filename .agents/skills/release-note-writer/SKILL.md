@@ -56,7 +56,7 @@ Use `To developers` for external developer impact:
 
 Use `To contributors` for internal project work:
 
-- `vishot`, `vite-plugin-warpdrive`, `cap-vite`, CI, dev scripts, repo build/test/lint workflow, docs generation, internal-only packages, release automation, test harnesses, screenshots, evaluation tools.
+- `vishot`, `cap-vite`, CI, dev scripts, repo build/test/lint workflow, docs generation, internal-only packages, release automation, test harnesses, screenshots, evaluation tools.
 - Include relevant `chore` commits even when changelogithub does not surface them prominently.
 
 ## End-User Writing

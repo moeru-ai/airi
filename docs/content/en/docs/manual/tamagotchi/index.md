@@ -1,24 +1,22 @@
 ---
-title: Guide to Desktop version
-description: How to use Tamagotchi version of Project AIRI
+title: Desktop Quick Start
+description: How to start using Project AIRI on desktop
 ---
 
-## I want to chat, now!
+## Start Chatting
 
-No problem, follow me:
+After installing and launching AIRI, the quickest way to start a conversation is to complete the onboarding flow:
 
-- Complete the onboarding process
-
-1. Choose your desired LLM / AI provider (in the demo video, I chose OpenRouter)
-2. Input API Key to interact with LLM / AI (this serve as the brain / soul of your character)
-3. Select the desired Chat model (in the demo video, I chose `DeepSeek V3 0324`)
-4. Disable **Fade on Hover** mode from system tray
-5. Hover to the model UI, click the chat bubble icon, this will bring up the Chat window
-6. Input and Chat!
+1. Select your language if AIRI asks for it.
+2. Choose **setup with your provider**, or sign in if you already use an AIRI account.
+3. Pick a chat provider, such as OpenRouter, OpenAI Compatible API, DeepSeek, Ollama, Qwen, Gemini, or Claude.
+4. Enter the required API key or local endpoint information.
+5. Choose a chat model, then save and continue.
+6. On the main character window, click the bottom-right **Expand** button in the Controls Island.
+7. Click **Open Chat**, type a message, and send it.
 
 ::: tip Using Ollama locally?
-You will need to set the `OLLAMA_ORIGINS=*` system environment variable and restart the Ollama
-application after finishes.
+Set `OLLAMA_ORIGINS=*` as a system environment variable, then restart Ollama before selecting it in AIRI.
 :::
 
 <br />
@@ -27,62 +25,41 @@ application after finishes.
  <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
-<br />
+## What Is On Screen
 
-Well yeah, this is too quick, we bet you haven't figured out what is **Fade on Hover**,
-and how to customize everything, right?
+The desktop version, also called Stage Tamagotchi, usually has these surfaces:
 
-::: warning We are still in early stage of developing it, many things weren't fully available yet
-Some of the features are not really ready, but we are working hard to make them true right now:
+- **Main character window**: the always-on-desktop Live2D / VRM stage.
+- **Controls Island**: the small button group at the bottom-right of the character window.
+- **Chat window**: the conversation window opened from Controls Island.
+- **Settings window**: provider, character, model, module, data, connection, and system settings.
+- **System tray menu**: size, alignment, settings, caption, widgets, and quit actions.
 
-- Transcriptions
-- Local Speech Synthesis (GPT-SoVITS, IndexTTS, etc.)
-- Singing
-- Configuring Discord from UI (but it works already and requires coding skills to set it up)
-- Configuring Minecraft agent from UI (but it works already and requires coding skills to set it up)
-:::
+If the character window is hidden, you can bring it back by clicking the AIRI tray icon or choosing **Show** from the tray menu.
 
-But first...
+## Controls Island
 
-::: tip Thank you!
+The Controls Island is the most convenient place to operate the desktop app during everyday use.
 
-Thank you for downloading and trying it!
-:::
+- Click **Expand** to reveal more actions.
+- Click **Open Chat** to open the chat window.
+- Click **Open Settings** to configure providers, models, modules, characters, and system settings.
+- Click **Switch Profile** to change the active character card.
+- Click **Refresh** when the stage needs to reload.
+- Click the light/dark icon to switch theme.
+- Click the pin icon to toggle always-on-top.
+- Click the eye icon to toggle **Auto hide** / **Always show**.
+- Use the microphone button to open hearing controls.
+- Drag the move button to reposition the character window.
 
-After downloaded, start AIRI from anywhere. You will see the user interface consists of two parts:
+## Auto Hide
 
-- Onboarding / Wizard setup guide
-- Model (capable of showing Live2D & VRM models)
+The eye button controls whether AIRI should stay fully interactive or gently reduce visual and click interference while you work.
 
-![](/assets/screenshot-ui.avif)
+- **Always show** keeps the character visible and clickable.
+- **Auto hide** fades the character and UI when your cursor is nearby, then lets clicks pass through to the app underneath.
 
-We have other options/commands in the system tray, including:
-
-- Show / Hide
-- Open Settings
-- Auto positioning windows
-- etc.
-
-Let's get this started one by one by explaining basic concepts and features.
-
-## Window control
-
-We will go through the following ones:
-
-- How to interact with the model window?
-- How to move the model window?
-- How to resize it?
-
-### Fade on Hover
-
-::: info TL;DR | Cheatsheet
-To toggle this feature (be able to interact with model), use <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd> shortcut.
-
-You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
-:::
-
-You will discover that when hovering to the model, the Live2D model fade out / disappears
-and you cannot interact with it with cursor.
+The first time you enable Auto hide, AIRI shows a short notice explaining the behavior. If AIRI becomes hard to click, move the cursor near the Controls Island and click the eye button again.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
@@ -90,53 +67,9 @@ and you cannot interact with it with cursor.
   </video>
 </div>
 
-This is because by default, the **Fade on Hover** feature is enabled: which means,
-whenever cursor hovers on top of the model window, it will fade out and your clicks passed
-through the window entirely.
+## Move And Resize
 
-This is a quite powerful feature, you will find it more useful when use it more and more
-while having the companion live by your side. Here are two scenarios we came up with:
-
-#### Browsing CrunchyRoll
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-crunchy-roll.mp4" type="video/mp4">
-</video>
-
-#### Browsing Steam
-
-<video autoplay loop muted>
-  <source src="/assets/tutorial-demo-browsing-steam.mp4" type="video/mp4">
-</video>
-
-it's easy to disable this feature.
-
-There are two ways to disable this feature:
-
-- System tray
-- Shortcut
-
-You can toggle this feature through:
-
-1. Right click system tray icon
-2. Click **Window mode**
-3. Click **Fade on hover**
-
-<div rounded-lg overflow-hidden>
-  <video autoplay loop muted class="scale-200 translate-x--35 translate-y--23 lg:scale-180 lg:translate-x--60 lg:translate-y--40">
-    <source src="/assets/tutorial-basic-disable-fade-on-hover.mp4" type="video/mp4">
-  </video>
-</div>
-
-### Move the window
-
-::: info TL;DR | Cheatsheet
-To toggle this feature (be able to interact with model), use <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd> shortcut.
-
-You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
-:::
-
-<br />
+To move the character window, drag the move button at the bottom-right of the Controls Island.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
@@ -144,15 +77,13 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
   </video>
 </div>
 
-### Resize the window
+On Windows, you can resize the character window by dragging the window edges or corners. The tray menu also provides a few quick presets:
 
-::: info TL;DR | Cheatsheet
-To toggle this feature (be able to interact with model), use <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="A" inline-block>A</kbd> shortcut.
+1. Right-click the AIRI tray icon.
+2. Open **Adjust sizes**.
+3. Choose **Recommended**, **Full Height**, **Half Height**, or **Full Screen**.
 
-You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
-:::
-
-<br />
+You can use **Align to** in the same tray menu to place the window at the center or a screen corner.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
@@ -160,18 +91,14 @@ You can customize the key mapping in [Settings] -> [General] -> [Shortcuts]
   </video>
 </div>
 
-## Chat
+## Settings Worth Checking
 
-There is no direct option/command to summon the Chat window from system tray
-right now, but we might add this in the future, currently, in order to open the
-Chat window, you will need to toggle off the **Fade on Hover** mode.
+These pages are useful to check after the first chat works:
 
-::: info TL;DR | Cheatsheet
-Shortcut for Fade on Hover is: <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>.
-:::
+- **Service Sources**: add or edit Chat, Speech, Transcription, and Artistry providers.
+- **Body Modules**: choose which providers AIRI uses for consciousness, voice, hearing, vision, memory, Discord, Minecraft, Factorio, MCP, and other modules.
+- **Character Model**: switch between Live2D and VRM models, or import your own model.
+- **AIRI Character Card**: change the active character or create a new one.
+- **System**: set language, theme, analytics preference, and desktop-specific options.
 
-<br />
-
-<video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-chat.mp4" type="video/mp4">
-</video>
+Some modules are still experimental and may require local source setup or external services. For a more detailed Windows-focused walkthrough, see the [full desktop manual](./setup-and-use/).

@@ -1,6 +1,8 @@
 <script setup lang="ts" generic="T extends AcceptableValue">
 import type { AcceptableValue } from 'reka-ui'
 
+import type { ComboboxOptionGroupItem, ComboboxOptionItem } from './types'
+
 import {
   ComboboxAnchor,
   ComboboxContent,
@@ -18,27 +20,16 @@ import {
 } from 'reka-ui'
 import { computed } from 'vue'
 
-interface ComboboxOptionItem<T extends AcceptableValue> {
-  label: string
-  value: T
-  description?: string
-  disabled?: boolean
-  icon?: string
-}
-
-interface ComboboxOptionGroupItem<T extends AcceptableValue> {
-  groupLabel?: string
-  children?: ComboboxOptionItem<T>[]
-}
-
 const props = withDefaults(defineProps<{
   options: ComboboxOptionItem<T>[] | ComboboxOptionGroupItem<T>[]
   placeholder?: string
   disabled?: boolean
+  openOnClick?: boolean
   contentMinWidth?: string | number
   contentWidth?: string | number
 }>(), {
   disabled: false,
+  openOnClick: true,
 })
 
 const modelValue = defineModel<T>({ required: false })
@@ -83,6 +74,7 @@ function toCssSize(value?: string | number): string | undefined {
   <ComboboxRoot
     v-model="modelValue"
     :disabled="props.disabled"
+    :open-on-click="props.openOnClick"
     :class="['relative', 'w-full', 'h-fit']"
   >
     <ComboboxAnchor

@@ -1,18 +1,28 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
 
+import type {
+  WidgetsIframeRequestPayload,
+  WidgetsIframeRequestResultPayload,
+} from '../../../../shared/eventa'
 import type { PluginHostModuleSummary, PluginModuleWidgetPayload } from '../../../../shared/eventa/plugin/host'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { isPlainObject } from 'es-toolkit'
-import { computed, shallowRef } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 import { widgetsIframePublish } from '../../../../shared/eventa'
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import { electronPluginInspect } from '../../../../shared/eventa/plugin/host'
+import { publishWidgetSparkNotifyReaction } from '../composables/use-bridge-spark'
 import { useExtensionUIForModule } from '../composables/use-extension-ui-for-module'
 import { useIframeMessagePort } from '../composables/use-iframe-message-port'
 import { canRenderExtensionUi, sanitizeExtensionUiRenderProps } from '../host'
+import {
+  createExtensionUiIframeRequestHandler,
+  createExtensionUiIframeRequestQueueProcessor,
+} from './iframe-request'
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -20,13 +30,19 @@ const props = withDefaults(defineProps<{
   moduleId?: string
   componentProps?: Record<string, any>
   payload?: Record<string, any>
+  pendingIframeRequests?: WidgetsIframeRequestPayload[]
 }>(), {
   title: 'Extension UI',
   modelValue: () => ({}),
   moduleId: undefined,
   componentProps: undefined,
   payload: undefined,
+  pendingIframeRequests: () => [],
 })
+
+const emit = defineEmits<{
+  iframeRequestResult: [result: WidgetsIframeRequestResultPayload]
+}>()
 
 function firstString(...values: unknown[]) {
   for (const value of values) {
@@ -59,6 +75,7 @@ function omitControlFields(record: Record<string, any>) {
 const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
 const getPluginAssetBaseUrl = useElectronEventaInvoke(electronPluginGetAssetBaseUrl)
 const publishWidgetIframeEvent = useElectronEventaInvoke(widgetsIframePublish)
+const contextBridgeStore = useContextBridgeStore()
 
 const model = computed<PluginModuleWidgetPayload & Record<string, unknown>>(() => (
   isPlainObject(props.modelValue) ? props.modelValue as PluginModuleWidgetPayload & Record<string, unknown> : {} as PluginModuleWidgetPayload & Record<string, unknown>
@@ -93,7 +110,7 @@ const iframeSandbox = computed(() => firstString(
 
 const iframeElement = shallowRef<HTMLIFrameElement | null>(null)
 
-const { iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
+const { context: iframeContext, iframeReady, iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
   iframeElement,
   {
     moduleId,
@@ -105,6 +122,15 @@ const { iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
         return
       }
 
+      const handled = await publishWidgetSparkNotifyReaction(event, {
+        dispatchSparkNotifyReaction: options => contextBridgeStore.dispatchSparkNotifyReaction(options),
+        dispatchSparkNotifyPerformance: options => contextBridgeStore.dispatchSparkNotifyPerformance(options),
+        emit: (eventDefinition, payload) => iframeContext.emit(eventDefinition, payload),
+      })
+      if (handled) {
+        return
+      }
+
       await publishWidgetIframeEvent({
         id: moduleId.value,
         event,
@@ -112,6 +138,19 @@ const { iframeLoadError, onIframeError, onIframeLoad } = useIframeMessagePort(
     },
   },
 )
+const requestWidgetIframe = createExtensionUiIframeRequestHandler({
+  getContext: () => iframeContext,
+})
+const processIframeRequests = createExtensionUiIframeRequestQueueProcessor({
+  shouldHandle: request => request.id === moduleId.value,
+  isReady: () => iframeReady.value,
+  requestWidgetIframe,
+  emitResult: result => emit('iframeRequestResult', result),
+})
+
+watch([() => props.pendingIframeRequests, iframeReady], ([requests]) => {
+  processIframeRequests(requests)
+}, { immediate: true })
 
 function setIframeElement(element: Element | ComponentPublicInstance | null) {
   iframeElement.value = element instanceof HTMLIFrameElement ? element : null

@@ -105,6 +105,20 @@ analytics:
     description: Désactivez cette option pour ne plus participer à la collecte de statistiques.
   disabled:
     title: Statistiques désactivées pour cette version de développement
+model-select:
+  panel-callout:
+    support-status-header: We support both 2D and 3D models
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: Charger depuis un Fichier
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: Cliquez ici pour passer aux paramètres de l’avatar 3D (VRM)
   theme-color-from-model:
     title: Extraire les couleurs du modèle
+    description: >
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: Extraire
-  focus:
-    title: Désactiver le suivi du modèle par la souris
-    button-disable:
-      title: Désactiver le suivi souris du modèle
-  render-scale:
-    title: Échelle de rendu
-  fps:
-    title: FPS
-    description: Limiter la fréquence d'image du rendu
-    options:
-      unlimited: '∞'
+  animation:
+    title: Animation
+    focus:
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
+    auto-blink:
+      title: Auto
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force
+      description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: Render scale
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: None
+      all: All
+      custom: Custom
 microphone: Microphone
 models: Modèle
 pages:
@@ -190,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: Ce compte OAuth est déjà lié à un autre compte AIRI. Choisissez un autre compte fournisseur ou dissociez-le d'abord de l'autre compte AIRI.
+        oauthCallbackFailed: Impossible de connecter ce compte OAuth. Réessayez ou choisissez un autre compte fournisseur.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
@@ -250,6 +310,9 @@ pages:
       provider: Chat / Fournisseur
     consciousness:
       model: Conscience / Modèle
+    vision:
+      provider: Vision / Fournisseur
+      model: Vision / Modèle
     created_by: créé par
     creator_notes: Notes du créateur
     delete: Supprimer
@@ -327,8 +390,14 @@ pages:
     systemprompt: Prompt système
     title: Carte AIRI
     try_different_search: Essayez un autre terme de recherche
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Téléverser
-    upload_desc: Cliquez ou glissez un fichier pour téléverser
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Endroit où les souvenirs sont stockés et organisés
     title: Mémoire
@@ -368,6 +437,7 @@ pages:
       desktop:
         title: Réinitialiser les paramètres et états du bureau
         description: Effacer les paramètres du bureau AIRI et l'état d'exécution.
+        center: Move desktop window to center
         reset: Réinitialiser les données du bureau
     confirmations:
       tooltip: Êtes-vous sûr(e) ?
@@ -381,9 +451,10 @@ pages:
       modules_reset: Paramètres du module réinitialisés.
       providers_reset: Paramètres du fournisseur réinitialisés.
       all_deleted: Toutes les données locales ont été supprimées.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Données du bureau réinitialisées.
   models:
-    description: Live2D, VRM, etc.
+    description: Live2D, VRM, Spine, etc.
     title: Modèles
     sections:
       section:
@@ -621,6 +692,12 @@ pages:
             select-voice:
               loading: Chargement du modèle...
               required: Veuillez sélectionner une voix
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: Entrez le nom du modèle personnalisé...
             custom_voice_placeholder: Entrez l’ID de la voix personnalisée...
@@ -773,6 +850,7 @@ pages:
       typeAddition: Recharge
       typeConsumption: Utilisation
       typeInitial: Allocation initiale
+      typePromo: Promo Grant
       loading: Chargement de l'historique...
       empty: Aucune transaction pour l'instant.
       loadMore: Charger plus
@@ -893,6 +971,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1156,6 +1237,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1287,6 +1371,8 @@ pages:
         description: Fournisseur d'IA officiel par AIRI.
         speech-title: Fournisseur vocal officiel
         speech-description: Fournisseur texte-to-speech officiel par AIRI.
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Fournisseur de transcription officiel
         transcription-description: Fournisseur speech-to-text officiel par AIRI.
       transcriptions:
@@ -1523,8 +1609,6 @@ theme:
 title: Paramètres
 voices: Voix
 vrm:
-  render-scale:
-    title: Échelle de rendu
   change-model:
     from-file: Charger depuis un fichier
     from-file-select: Sélectionner
@@ -1564,6 +1648,37 @@ vrm:
   skybox:
     skybox-intensity: Intensité de la SkyBox
     skybox-specular-mix: Mélange spéculaire
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  appearance:
+    title: Apparence
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: Activer WebSocket Sécurisé (WSS)
   description: >-

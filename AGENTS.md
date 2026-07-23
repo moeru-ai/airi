@@ -34,7 +34,6 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - **IPC/Eventa**: Always use `@moeru/eventa` for type-safe, framework/runtime-agnostic IPC/RPC. Define contracts centrally (e.g., `apps/stage-tamagotchi/src/shared`) and follow usage patterns in `apps/stage-tamagotchi/src/main/services/electron` for main/renderer integration.
 - **Dependency Injection**: Use `injeca` for services/electron modules/plugins/frontend; see `apps/stage-tamagotchi/src/main/index.ts` for composition patterns.
 - **Build/CI/Lint**: `.github/workflows` for pipelines; `eslint.config.js` for lint rules.
-- **Bundling libs**: Use `tsdown` for new modules (see `packages/vite-plugin-warpdrive`).
 - **Styles**: UnoCSS config at `uno.config.ts`; check `apps/stage-web/src/styles` for existing animations; prefer UnoCSS over Tailwind.
 
 ## Key Path Index (what lives where)
@@ -59,8 +58,8 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - DI examples: `apps/stage-tamagotchi/src/main/index.ts` (injeca).
 - Styles: `uno.config.ts` (UnoCSS), `apps/stage-web/src/styles` (animations/reference).
 - Build pipeline refs: `.github/workflows`; lint rules in `eslint.config.js`.
+- Documented solutions: `docs/solutions/` records past fixes and workflow learnings, organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when implementing, debugging, or verifying in documented areas.
 - Tailwind/UnoCSS: prefer UnoCSS; if standardizing styles, add shortcuts/rules/plugins in `uno.config.ts`.
-- Bundling pattern: `packages/vite-plugin-warpdrive` (tsdown example).
 
 ## Commands (pnpm with filters)
 
@@ -123,12 +122,19 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - When writing tests, prefer line-by-line `expect` or assertion statements.
 - Avoid writing tests for impossible runtime states, such as `expect` against constants that never change, or asserting object mutations that can only happen inside the same Vitest case setup.
 - Avoid mocking `globalThis` or built-in modules by directly using `Object.defineProperty(...)`. If needed, use `node:worker_threads` to load another worker and simulate that situation, or build a mini CLI to reproduce and verify behavior. For DOM and Web Platform APIs, prefer Vitest browser mode instead of hard-mocking platform internals. If tests already use those patterns, progressively refactor them.
+- Do not use Vitest mocks, hoisting, dynamic imports, `as unknown as`, or test-only alternate import paths to maliciously bypass real import problems. If a test cannot import a module, investigate the actual compile/runtime boundary: package exports, side effects, mixed Node/browser type dependencies, circular imports, and whether the public module shape is wrong. Fix the boundary instead of hiding the failure in the test.
 
 ## TypeScript / IPC / Tools
 
 - Keep JSON Schemas provider-compliant (explicit `type: object`, required fields; avoid unbounded records).
 - Favor functional patterns + DI (`injeca`); avoid new class hierarchies unless extending browser APIs (classes are harder to mock/test).
 - Centralize Eventa contracts; use `@moeru/eventa` for all events.
+- Import types from the module or package that owns the contract. Do not redeclare external/public contracts locally just to use a narrower subset, and do not route type imports through local runtime assembly modules when the original side-effect-free type source is available.
+- Do not use inline type imports such as `typeof import('...').x` or `import('...').Type` to avoid normal module boundaries. Export explicit shared types from the owning module, import external contract types from their owning package, or split a dedicated side-effect-free type module when runtime imports would pull in the wrong environment.
+- Do not directly modify or override `tsconfig.json` to make an import/type error disappear. First investigate compilation behavior, `package.json` `exports` declarations, type declarations, and whether the dependency exposes the intended browser/node entrypoints.
+- When Node-only and browser-only types are mixed through one import chain, split the type declarations into a neutral type file and keep runtime modules environment-specific. Avoid importing values from modules that carry side effects just to obtain types.
+- If a wrong export or missing export causes an error, trace the full import chain and side-effect chain before changing imports at the leaf. Prefer fixing package/module exports and the owning boundary over adding local workaround imports.
+- Treat circular imports as a design problem. If a cycle appears, first reconsider ownership, module boundaries, and whether shared types or pure helpers need to move. If the cycle cannot be resolved confidently, ask the user for direction before continuing.
 - When a user asks to use a specific tool or dependency, first check Context7 docs with the search tool, then inspect actual usage of the dependency in this repo.
 - If multiple names are returned from Context7 without a clear distinction, ask the user to choose or confirm the desired one.
 - If docs conflict with typecheck results, inspect the dependency source under `node_modules` to diagnose root cause and fix types/bugs.
@@ -142,7 +148,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Use/extend UnoCSS shortcuts in `uno.config.ts`.
 - Prefer grouped class arrays for readability; refactor legacy inline strings when possible.
 
-## Naming & Comments
+## Readability, Naming, and Comments
 
 - File names: camelCase.
 - Prefer names that rely on the module boundary for context instead of repeating package, product, protocol, or transport prefixes inside every symbol. A well-named module should let exported functions use short action-first names; repeat the larger context only when the symbol crosses a boundary where that context is no longer obvious.
@@ -151,14 +157,67 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Use nouns for resolved domain concepts and verbs for transformations or side effects. When a function derives a policy/configuration from an event or request, name the domain result explicitly so callers understand what decision is being made.
 - Prefer classes for runtime/browser APIs and substantial business modules when the class owns state, lifecycle, or a stable domain boundary. Prefer FP for pure transformations and local helpers.
 - Use dependency injection only at real external boundaries: database, model runtime, queue, Redis/cache, filesystem, network, clock, environment, and feature gates. Do not introduce `Dependencies`/`Deps` objects for internal functions that only call sibling helpers or forward parameters.
+- Comments should reduce reader uncertainty, not increase documentation volume.
+- Write comments where a reader would otherwise ask why this case can happen, why this branch is ignored, why this fallback exists, why this order matters, what state changed here, what external side effect just happened, or what protocol/invariant this line is preserving.
+- Good comments explain hidden intent, constraints, ownership, invariants, ordering, side effects, protocol shape, or non-obvious fallback behavior.
+- Bad comments translate code into English, restate names/types, or exist only to satisfy hover documentation.
+- Important implementation comments should live near the confusing line or branch, not only on exported declarations.
+- For calculation-heavy code, prefer inline comments near the intermediate values and branches that need explanation. Do not rely only on function-level JSDoc when the hard part is a coordinate system, unit conversion, clamp, rounding rule, aggregation, fallback, or precedence decision.
+- Apply this especially to geometry, graphics and shader math, billing or metering, analytics or statistics, UI layout and positioning, ranking or scoring, and normalization code.
+- Format longer comments as short paragraphs separated by blank comment lines. Do not compress background, symptom, rejected alternatives, final rationale, and references into one dense block.
+- For investigation-heavy comments, prefer this order when useful: source/context, observed failure, why the obvious fix is insufficient, chosen fix, and references/removal condition.
+- Do not add broad comments like `// Config`, `// Host`, or `// Update state` unless they explain a non-obvious boundary or transition.
 - Add clear, concise comments for utils, math, OS-interaction, algorithm, shared, and architectural functions that explain non-obvious intent, invariants, constraints, or why the code is needed.
 - When using a workaround, add a `// NOTICE:` comment explaining why, the root cause, and any source context. If validated via `node_modules` inspection or external sources (e.g., GitHub), include relevant line references and links in code-formatted text.
-- When moving/refactoring/fixing/updating code, keep existing comments intact and move them with the code. If a comment is truly unnecessary, replace it with a comment stating it previously described X and why it was removed.
+- When moving/refactoring/fixing/updating code, keep still-accurate comments with the code. Remove obsolete comments rather than preserving their history in source; explain notable removals in review notes when needed.
 - Avoid stubby/hacky scaffolding; prefer small refactors that leave code cleaner.
 - Use markers:
   - `// TODO:` follow-ups
   - `// REVIEW:` concerns/needs another eye
   - `// NOTICE:` magic numbers, hacks, important context, external references/links
+
+### JSDoc
+
+- Use JSDoc for public APIs, shared boundaries, exported types, and non-trivial exported functions/classes.
+- Do not use JSDoc as a substitute for explaining complex implementation branches.
+- Do not force `Use when / Expects / Returns` blocks onto internal helpers, object literal methods, simple pass-through methods, or interface/type top-level comments when they only restate names and signatures.
+- For interfaces and type aliases, keep top-level JSDoc short. Put field-specific semantics on fields when the field has non-obvious units, defaults, ownership, lifecycle, freshness, or compatibility behavior.
+- For exported functions/classes that form a real API boundary, JSDoc should explain what the boundary guarantees, when to use it, and what assumptions callers must respect.
+- For internal implementation details, prefer precise names and branch-local comments over large JSDoc blocks.
+
+### Fallbacks and Precedence
+
+- Any fallback chain with more than two sources must make precedence explicit.
+- If fallback sources represent different schema versions, compatibility behavior, specificity levels, or user/system overrides, each non-primary branch must explain why that case exists and why it has that priority.
+- Avoid nested ternaries for fallback chains when any branch is non-obvious. Use named intermediate variables or `if` / `else if` blocks so comments can live next to the relevant branch.
+- Do not keep backward-compatibility fallbacks silently. If a fallback is temporary, mark it with `// NOTICE:` and include the removal condition. If it is permanent, document it as supported policy instead of calling it legacy.
+- If a fallback returns an empty string, stale value, cached value, default value, or ignored result in non-trivial domain/protocol code, explain why that fallback is safe at the return or branch site.
+
+### Stateful and Protocol Code
+
+- For code that implements a protocol, state machine, lifecycle, cache, request/response flow, event routing, watcher, session, cookie, or cleanup sequence, document the state model near the implementation.
+- Distinguish persisted configuration, discovered filesystem state, runtime-loaded state, cache state, session/cookie state, watcher state, and external side effects in names or nearby comments.
+- Methods that look like state transitions, such as `setEnabled`, `load`, `unload`, `dispose`, `start`, `stop`, or `refresh`, should make clear which state they change when that is not obvious from the owning type/module.
+- When matching events or responses, explicitly document the correlation keys and isolation rules, such as `requestId`, `sessionId`, `ownerExtensionId`, `bindingId`, route namespace, or source window.
+- Event handlers must make ignored events understandable. If an event is ignored because of route mismatch, owner mismatch, stale request id, disposed lifecycle, or wrong source, the reason should be visible in code or captured in a named predicate.
+- For request/response flows, define or name the envelope shape close to the producer and consumer.
+- Document what happens to pending requests on timeout, close, unload, dispose, and publish failure.
+- When cleanup spans multiple owners, keep the ordering visible and explain why the order matters.
+- When returning a snapshot, fallback value, stale value, or cached value, document freshness semantics at the return site.
+
+### Helper Extraction
+
+- Before extracting a private helper, ask what decision it hides.
+- Keep logic inline when the helper only names a single execution step and is used once.
+- Extract a helper when it owns reusable policy, parsing, normalization, lifecycle, cleanup, error handling, protocol validation, or a cross-call invariant.
+- Do not hide special cases inside generic helpers if doing so moves the explanation away from the branch where readers need it.
+- If a helper manipulates encoded keys, cache ownership, session ownership, filesystem paths, route names, or protocol-shaped data, document the encoding/invariant near the helper or replace the encoding with a clearer structure.
+
+### Readability Refactors
+
+- If a comment is needed to explain hidden state, encoded data, protocol envelopes, or lifecycle transitions, first consider whether named types, structured state, or a small policy function would make the concept explicit.
+- Readability-only changes should preserve runtime behavior. If behavior changes, add focused tests and document the contract change explicitly.
+- For watchers, event listeners, and async background work, make ownership and shutdown behavior explicit: what starts it, what stops it, whether duplicate starts are allowed, and what happens to in-flight work during unload or dispose.
 
 ## Module Design
 
@@ -200,30 +259,13 @@ These guidelines apply to all TypeScript code across the monorepo:
   // Removal condition (when it can be safely deleted).
   ```
 - Prefer type generics wherever possible. Do not use `any`. Only use `as unknown as <target expected type>` when avoiding it is nearly impossible and the type cannot be fixed safely.
-- For public APIs, package-level exports, shared architectural boundaries, and non-trivial exported functions/classes/types, include clear `/** ... */` JSDoc that explains:
-  - What the function does.
-  - When to use it.
-  - What to expect.
+- For public APIs, package-level exports, shared architectural boundaries, and non-trivial exported functions/classes/types, include clear `/** ... */` JSDoc that explains the contract, assumptions, side effects, lifecycle, or return guarantees callers actually need.
 - Avoid exporting helper functions only to satisfy tests or documentation rules. Keep implementation helpers private unless production code reuses them.
 - Avoid JSDoc on trivial one-line helpers, local projections, and pass-through functions; use precise names instead.
-- Use the following JSDoc format for exported functions/classes/types:
-  ```ts
-  /**
-   * One-line summary of behavior.
-   *
-   * Use when:
-   * - Scenario A
-   * - Scenario B
-   *
-   * Expects:
-   * - Input assumptions and ordering guarantees
-   *
-   * Returns:
-   * - Output shape and guarantees
-   */
-  ```
+- Do not use fixed JSDoc section templates for ordinary exported functions/classes/types. Write natural API documentation that explains the contract, non-obvious constraints, side effects, lifecycle expectations, and return guarantees that callers actually need.
+- Keep JSDoc short when the name and type already explain the behavior. Add detail only for information that is not visible from the signature.
 - For functions that include workarounds, include a `NOTICE:` explanation.
-- For `describe`, `it`, and all `expect*` usage in tests, include examples by using `@example`.
+- For exported test helpers or non-obvious reusable test fixtures, include examples when they clarify intended usage. Do not add `@example` comments to ordinary `describe`, `it`, or `expect*` calls.
 - For all exported interfaces, especially configurable options, document:
   - What each interface/type represents.
   - Put detailed field semantics on the fields themselves instead of repeating them in one large interface-level comment block.
@@ -245,10 +287,10 @@ These guidelines apply to all TypeScript code across the monorepo:
    *       -> {@link VievalScheduledTask}[]
    */
   ```
-- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context.
+- Wherever math, OS, exec, process, args, networking, files, or directories are involved, add comments explaining the purpose and why the code is needed when the intent is not obvious from names and local context. For calculation-heavy code, prefer inline comments beside the calculation process over declaration-only JSDoc.
 - Prefer `es-toolkit` first when creating utilities.
 - For error handling, prefer `@moeru/std` patterns whenever possible.
-- For all normalizers (exported or not) that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.
+- For exported normalizers, shared normalizers, or non-obvious local normalizers that normalize outputs, formats, filenames, or values (excluding config default normalization), add `/** ... */` with before/after examples.
 - Use this normalizer documentation format:
   ```ts
   /**
@@ -281,3 +323,17 @@ These guidelines apply to all TypeScript code across the monorepo:
 - Do not split modules into sections using separators like `========`; use cohesive private helper groups or split into modules only when the new module owns a distinct responsibility. Do not split files merely to reduce nesting, line count, or create test seams.
 - Do not overuse table-driven style. In many cases, keep table arrays inline and map directly with `.map(...)`.
 - Prefer early returns and keep functions simple. Limit nesting when it improves readability, but do not introduce pass-through helpers or shallow modules solely to reduce indentation.
+
+## Readability Review Checklist
+
+When reviewing complex TypeScript modules, check:
+
+- Can I identify the module's owned state and external side effects within one screen?
+- Are persisted state, runtime state, cache state, session state, and external side effects separated by names or comments?
+- Are protocol envelopes, route names, ids, and correlation keys named or documented?
+- Are special branches and fallback cases explained next to the branch?
+- Are stale/fresh/cache/snapshot semantics visible at the return site?
+- Are cleanup and dispose semantics explicit?
+- Are helper functions hiding real policy, or just hiding the lines where explanation is needed?
+- Do comments explain why decisions exist, or mostly repeat what the code says?
+- Would a reader understand why this code is shaped this way without opening three neighboring files?

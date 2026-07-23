@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-screen-capture",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.3",
   "private": true,
   "description": "Screen capture",
   "author": {
@@ -51,12 +51,9 @@
   },
   "inlinedDependencies": {
     "@electron-toolkit/preload": "3.0.2",
-    "@moeru/eventa": "1.0.0-beta.4",
+    "@moeru/eventa": "1.0.0-beta.8",
     "async-mutex": "0.5.0",
-    "nanoid": [
-      "5.1.6",
-      "5.1.9"
-    ],
+    "nanoid": "5.1.11",
     "picomatch": "4.0.4"
   }
 }

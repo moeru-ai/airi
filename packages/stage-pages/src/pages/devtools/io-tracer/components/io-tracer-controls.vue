@@ -3,7 +3,7 @@ import type { IOSubsystem } from '@proj-airi/stage-shared'
 
 import { Button } from '@proj-airi/ui'
 
-import { SUBSYSTEM_CONFIG_MAP } from '../io-tracer-types'
+import { SUBSYSTEM_CONFIG_MAP, SUBSYSTEM_CONFIGS } from '../io-tracer-types'
 
 defineProps<{
   isRecording: boolean
@@ -20,10 +20,10 @@ const emit = defineEmits<{
   exportOtlp: []
 }>()
 
-const ttsSubsystems: { subsystem: IOSubsystem, label: string }[] = [
-  { subsystem: 'tts', label: 'TTS' },
-  { subsystem: 'playback', label: 'Play' },
-]
+const subsystemFilters = SUBSYSTEM_CONFIGS.map(config => ({
+  subsystem: config.subsystem,
+  label: config.label,
+}))
 </script>
 
 <template>
@@ -31,8 +31,8 @@ const ttsSubsystems: { subsystem: IOSubsystem, label: string }[] = [
     <Button
       :class="[
         'flex items-center gap-1.5',
-        isRecording ? 'text-red-500' : '',
       ]"
+      :variant="isRecording ? 'danger' : 'primary'"
       @click="emit('toggleRecording')"
     >
       <div
@@ -60,11 +60,11 @@ const ttsSubsystems: { subsystem: IOSubsystem, label: string }[] = [
       Fit
     </Button>
 
-    <!-- TTS Subsystem Toggles -->
+    <!-- Subsystem Toggles -->
     <div :class="['w-px h-4 bg-neutral-200 dark:bg-neutral-700 mx-1']" />
-    <span :class="['text-2.5 text-neutral-400']">TTS:</span>
+    <span :class="['text-2.5 text-neutral-400']">Subsystems:</span>
     <button
-      v-for="item in ttsSubsystems"
+      v-for="item in subsystemFilters"
       :key="item.subsystem"
       :class="[
         'text-2.5 px-1.5 py-0.5 rounded',

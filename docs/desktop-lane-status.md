@@ -1,8 +1,8 @@
 # Desktop Lane Status
 
-Updated: 2026-04-14
+Updated: 2026-05-08
 
-This note is a factual status memo for the current desktop lane work around PR #1649. It is intentionally narrow: only current state, actual blockers, and what should happen now vs later.
+This note is a factual status memo for the current desktop lane work in this recut branch. It is intentionally narrow: only current state, actual blockers, and what should happen now vs later.
 
 ## What is already true
 
@@ -18,53 +18,47 @@ This note is a factual status memo for the current desktop lane work around PR #
     - `makeWindowPassThrough()` uses ignore-mouse-events + non-focusable overlay behavior
   - `/Users/liuziheng/airi/services/computer-use-mcp/src/browser-dom/cdp-bridge.ts`
     - 5-second heartbeat with teardown after 3 consecutive failures
+  - `/Users/liuziheng/airi/services/computer-use-mcp/src/bin/smoke-chrome-grounding.ts`
+    - desktop v3 smoke that proves the ensure / observe / click / state chain
 - The Chrome extension bridge and iframe offset work are no longer hypothetical:
-  - PR #1649 already contains a real extension-side WebSocket client bridge
-  - PR #1649 already contains frame offset propagation for iframe DOM candidates
+  - the recut branch already contains a real extension-side WebSocket client bridge
+  - the recut branch already contains frame offset propagation for iframe DOM candidates
+- The browser-dom route contract is now fail-closed:
+  - non-left clicks and multi-clicks stay on OS input
+  - `BrowserDomExtensionBridge` rejects `ok: false` responses instead of treating them as success
 
 ## What is actually still blocking
 
 These are the remaining real issues, ordered by severity.
 
-### 1. Extension unknown actions still return `ok: true`
+### 1. Live desktop v3 smoke exists, but it is baseline coverage, not product support.
 
-- File:
-  - `/Users/liuziheng/airi-pr1649/services/computer-use-mcp/chrome-extension/background.js`
-- Current behavior:
-  - unsupported actions fall into `result = { error: ... }`
-  - but the response still returns `{ ok: true, result }`
-- Why this matters:
-  - upper layers can interpret unsupported DOM actions as successful bridge execution
-  - that can suppress OS-input fallback even though nothing actually happened
-- This is still a real unresolved review blocker.
+- Current smoke proves:
+  `desktop_ensure_chrome -> desktop_observe -> desktop_click_target -> desktop_get_state`
+- It does not prove Chrome semantic DOM routing, live overlay-window rendering,
+  or user-input isolation.
 
-### 2. Browser-dom click routing still ignores non-default click semantics
-
-- File:
-  - `/Users/liuziheng/airi-pr1649/services/computer-use-mcp/src/browser-action-router.ts`
-  - called from `/Users/liuziheng/airi-pr1649/services/computer-use-mcp/src/server/register-desktop-grounding.ts`
-- Current behavior:
-  - `chrome_dom` candidates route to browser-dom if selector + bridge are available
-  - routing does not currently incorporate `button` / `clickCount`
-- Why this matters:
-  - right-click or double-click can still be routed to a DOM path that only performs a standard primary click
-- This is not as severe as the first issue, but it is still a real correctness gap.
-
-### 3. Overlay lifecycle / RPC readiness is not fully closed yet
+### 2. Overlay lifecycle / RPC readiness still needs a live-window pass on this recut branch.
 
 - Files currently being worked on:
-  - `/Users/liuziheng/airi-pr1649/apps/stage-tamagotchi/src/main/windows/desktop-overlay/rpc/contracts.ts`
-  - `/Users/liuziheng/airi-pr1649/apps/stage-tamagotchi/src/main/windows/desktop-overlay/rpc/index.electron.ts`
-  - `/Users/liuziheng/airi-pr1649/apps/stage-tamagotchi/src/renderer/pages/desktop-overlay-polling.ts`
-  - `/Users/liuziheng/airi-pr1649/apps/stage-tamagotchi/src/renderer/pages/desktop-overlay-polling.test.ts`
+  - `/Users/liuziheng/airi-desktop-recut/apps/stage-tamagotchi/src/main/windows/desktop-overlay/rpc/contracts.ts`
+  - `/Users/liuziheng/airi-desktop-recut/apps/stage-tamagotchi/src/main/windows/desktop-overlay/rpc/index.electron.ts`
+  - `/Users/liuziheng/airi-desktop-recut/apps/stage-tamagotchi/src/renderer/pages/desktop-overlay-polling.ts`
+  - `/Users/liuziheng/airi-desktop-recut/apps/stage-tamagotchi/src/renderer/pages/desktop-overlay-polling.test.ts`
 - Current state:
-  - there is already a preload-order mitigation in `desktop-overlay/index.ts`
-  - there is already a per-call timeout in `desktop-overlay-polling.ts`
-  - there is now work-in-progress code for an explicit readiness contract
-- Why this is not yet "done":
-  - the readiness flow is still uncommitted work
-  - the live window context still needs one narrow verification pass
-- This is not proven broken today, but it is the most likely remaining runtime risk on the overlay path.
+  - the readiness contract is already wired in `desktop-overlay/rpc/index.electron.ts`
+  - the renderer poll controller already waits on readiness and handles degraded state
+  - the live window still needs one fresh pass on this recut branch to confirm the runtime proof is current
+- This is the remaining runtime risk on the overlay path.
+
+### 3. Local overlay live-window smoke exists in the recut branch, but it still needs a live run on this branch.
+
+- The smoke is now wired in `apps/stage-tamagotchi/package.json` as
+  `smoke:desktop-overlay-live-window`.
+- The shared candidate-selection helper is unit-tested.
+- What is still missing here is a fresh pass on this recut branch with the real
+  Electron overlay window, to confirm the heartbeat marker and MCP polling still
+  behave the same as the older line.
 
 ## What is not a current blocker
 
@@ -91,11 +85,9 @@ In short: m13v gave good runtime advice. That does not mean every suggestion is 
 
 ## What should happen now
 
-1. Fix the extension unknown-action response contract so unsupported actions return `ok: false`.
-2. Restrict browser-dom click routing to left single-click only; force OS-input for right-click or multi-click.
-3. Finish or explicitly shelve the overlay readiness contract work:
-   - if kept, validate it in a live overlay window context before merging
-   - if not finished now, do not half-merge it
+1. No action needed for the extension unknown-action contract; it is already fail-closed.
+2. Keep browser-dom routing fail-closed for non-left clicks and bridge errors; this stays covered, not product-supported.
+3. Rerun the local overlay live-window smoke on this recut branch before calling it current proof.
 
 ## What should happen later
 

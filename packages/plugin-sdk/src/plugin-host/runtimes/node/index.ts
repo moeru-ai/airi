@@ -10,10 +10,10 @@ export * from '../../transports'
 export * from './loaders'
 
 /**
- * Creates the Eventa context used by node-side plugin host sessions.
+ * Creates the Eventa context used by node-side extension host sessions.
  *
  * Use when:
- * - Bootstrapping a node runtime plugin session
+ * - Bootstrapping a node runtime extension session
  *
  * Expects:
  * - `transport` describes a transport supported by the node runtime

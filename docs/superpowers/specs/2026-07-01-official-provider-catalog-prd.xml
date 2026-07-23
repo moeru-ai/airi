@@ -1,0 +1,303 @@
+<title>AIRI Official Provider Catalog PRD</title>
+
+<h1>背景</h1>
+<p>AIRI 现在的官方 LLM / TTS / ASR 能力主要由运行时路由配置驱动。LLM 和 ASR 对客户端基本表现为 <code>auto</code>，TTS 模型和声线则来自 <code>LLM_ROUTER_CONFIG</code>、provider catalog 和 <code>DEFAULT_TTS_VOICES</code> 推荐配置。</p>
+<p>这套机制能跑通请求，但缺少一个产品层的官方能力目录。管理员不能统一控制主站展示哪些官方模型、声线是否启用、展示顺序，也不能阻止用户通过手写请求绕过前端 UI 直接调用底层 provider/model/voice。</p>
+
+<callout emoji="✅" background-color="light-green" border-color="green">
+  <p><b>核心结论：</b>新增独立的 Official Provider Catalog。主站展示和 gateway 请求都必须经过 catalog 白名单。用户选择的是产品能力 alias 或 Voice Pack，不是底层供应商细节。</p>
+</callout>
+
+<h1>目标</h1>
+<ul>
+  <li>在 admin 面板新增官方 Provider / TTS 管理能力。</li>
+  <li>让主站官方 LLM、TTS、ASR 展示内容由 catalog 控制，而不是直接暴露底层 router 配置。</li>
+  <li>支持 LLM alias，例如 v1 只开放 <code>auto</code>，后续可扩展 <code>fast</code>、<code>reasoning</code>、<code>deepseek</code>。</li>
+  <li>支持 TTS model 和 voice 的启用、禁用、排序、展示名、语言、标签和预览 URL 管理。</li>
+  <li>支持一键拉取 TTS provider 声线；新拉取声线默认禁用，需要管理员手动启用。</li>
+  <li>请求进入 gateway 前二次校验 catalog。禁用或不存在的 alias/model/voice 必须报错，不能直通底层 provider。</li>
+</ul>
+
+<h1>非目标</h1>
+<ul>
+  <li>一期不做声线预览音频自动生成。</li>
+  <li>一期不新增对象存储或 CDN adapter。</li>
+  <li>一期不做人群灰度、租户级配置或 A/B 实验。</li>
+  <li>一期不重做现有 LLM Router 的密钥加密、fallback 真实执行逻辑。</li>
+  <li>一期不把 Voice Pack 替换成 raw voice 选择；Voice Pack 仍是面向用户的 TTS 产品能力抽象。</li>
+</ul>
+
+<h1>产品原则</h1>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">原则</th>
+      <th background-color="light-gray">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>用户选产品能力</td>
+      <td>客户端看到 <code>auto</code>、未来的 <code>fast</code> / <code>reasoning</code>、Voice Pack，而不是真实 provider/model/key。</td>
+    </tr>
+    <tr>
+      <td>Catalog 是展示白名单</td>
+      <td>主站只展示 catalog 中 enabled 的 alias/model/voice。</td>
+    </tr>
+    <tr>
+      <td>Catalog 也是请求白名单</td>
+      <td>用户绕过 UI 手写 disabled 或不存在的 model/voice，请求必须失败。</td>
+    </tr>
+    <tr>
+      <td>路由配置不等于产品目录</td>
+      <td><code>LLM_ROUTER_CONFIG</code> 负责真实路由和 key，Official Catalog 负责产品可见性、排序和 alias。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>用户角色</h1>
+<ul>
+  <li><b>管理员：</b>配置官方能力、启停模型和声线、同步 provider 声线、调整展示顺序。</li>
+  <li><b>普通用户：</b>在主站选择可用的官方能力，不需要理解 provider、model、voice 的真实路由。</li>
+  <li><b>系统：</b>在展示和请求执行前读取 catalog，保证禁用项不可见且不可调用。</li>
+</ul>
+
+<h1>一期范围</h1>
+<h2>LLM Alias</h2>
+<p>v1 只开放一个默认 alias：<code>auto</code>。表和 API 按多 alias 设计，后续可以扩展更多产品能力。</p>
+<ul>
+  <li>alias 有 <code>enabled</code> 状态。禁用后客户端不展示，请求也不能使用。</li>
+  <li>alias 可配置展示名和排序。</li>
+  <li>alias 下配置 primary pool 和 fallback pool。</li>
+  <li>alias 支持 fallback 开关和负载均衡开关。</li>
+  <li>真实候选 provider/model 从 <code>LLM_ROUTER_CONFIG.llm.models</code> 同步进管理候选池。</li>
+</ul>
+
+<h2>TTS Model 和 Voice</h2>
+<ul>
+  <li>TTS 单独开 admin 页面，和 Voice Packs 并列。</li>
+  <li>TTS model 从 <code>LLM_ROUTER_CONFIG.tts.models</code> 同步。</li>
+  <li>现有运行配置同步出的 TTS model 默认启用，避免上线后突然不可用。</li>
+  <li>管理员可以启用、禁用、排序、重命名 TTS model。</li>
+  <li>每个 TTS model 下管理 voice catalog。</li>
+  <li>支持一键从对应 provider 拉取声线。</li>
+  <li>新拉取声线默认禁用。</li>
+  <li>voice 支持展示名、语言、标签、排序、预览 URL。</li>
+  <li>主站 <code>/api/v1/audio/voices</code> 只返回 enabled voices。</li>
+</ul>
+
+<h2>ASR</h2>
+<ul>
+  <li>ASR 不直接暴露底层 provider 细节。</li>
+  <li>v1 可以只保留 <code>auto</code>。</li>
+  <li>真实候选从 <code>LLM_ROUTER_CONFIG.asr.models</code> 同步。</li>
+  <li>请求 ASR 前校验 alias/model 是否启用。</li>
+</ul>
+
+<h1>Admin 信息架构</h1>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">菜单</th>
+      <th background-color="light-gray">用途</th>
+      <th background-color="light-gray">一期能力</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Providers</td>
+      <td>管理 LLM / ASR alias。</td>
+      <td>查看和编辑 <code>auto</code>；同步真实 router model；配置 primary/fallback pool。</td>
+    </tr>
+    <tr>
+      <td>TTS</td>
+      <td>管理官方 TTS model 和 voice catalog。</td>
+      <td>同步模型、拉取声线、启停、排序、编辑显示信息。</td>
+    </tr>
+    <tr>
+      <td>Voice Packs</td>
+      <td>管理面向用户的 TTS 产品预设。</td>
+      <td>继续保留现有页面，但候选 model/voice 应来自 enabled catalog。</td>
+    </tr>
+    <tr>
+      <td>LLM Router</td>
+      <td>管理真实路由、key、fallback 底层配置。</td>
+      <td>继续负责真实 provider/model/key 写入，不负责主站展示白名单。</td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>数据模型</h1>
+<p>具体表名实现时可按 repo 命名规范调整，但职责边界保持如下。</p>
+
+<h2><code>official_provider_aliases</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">字段</th>
+      <th background-color="light-gray">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>主键。</td></tr>
+    <tr><td><code>surface</code></td><td><code>llm</code> 或 <code>asr</code>。</td></tr>
+    <tr><td><code>alias_id</code></td><td>客户端可见 alias，例如 <code>auto</code>。</td></tr>
+    <tr><td><code>display_name</code></td><td>展示名称。</td></tr>
+    <tr><td><code>enabled</code></td><td>是否展示和允许请求。</td></tr>
+    <tr><td><code>display_order</code></td><td>展示排序。</td></tr>
+    <tr><td><code>fallback_enabled</code></td><td>是否启用 fallback pool。</td></tr>
+    <tr><td><code>load_balancing_enabled</code></td><td>是否启用 primary pool 负载均衡。</td></tr>
+    <tr><td><code>created_at / updated_at</code></td><td>创建和更新时间。</td></tr>
+  </tbody>
+</table>
+
+<h2><code>official_provider_alias_routes</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">字段</th>
+      <th background-color="light-gray">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>alias_id</code></td><td>关联 alias。</td></tr>
+    <tr><td><code>router_model_id</code></td><td>真实 <code>LLM_ROUTER_CONFIG</code> model key。</td></tr>
+    <tr><td><code>pool</code></td><td><code>primary</code> 或 <code>fallback</code>。</td></tr>
+    <tr><td><code>enabled</code></td><td>该真实候选是否参与路由。</td></tr>
+    <tr><td><code>weight</code></td><td>负载均衡权重，v1 可先保留默认值。</td></tr>
+    <tr><td><code>display_order</code></td><td>管理面排序。</td></tr>
+  </tbody>
+</table>
+
+<h2><code>official_tts_models</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">字段</th>
+      <th background-color="light-gray">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>主键。</td></tr>
+    <tr><td><code>router_model_id</code></td><td>真实 TTS model key，例如 <code>alibaba/cosyvoice-v2</code>。</td></tr>
+    <tr><td><code>provider</code></td><td>底层 provider，例如 <code>dashscope-cosyvoice</code>、<code>azure</code>、<code>stepfun</code>。</td></tr>
+    <tr><td><code>display_name</code></td><td>展示名。</td></tr>
+    <tr><td><code>enabled</code></td><td>是否展示和允许请求。</td></tr>
+    <tr><td><code>display_order</code></td><td>展示排序。</td></tr>
+    <tr><td><code>last_synced_at</code></td><td>最近一次从 router config 同步时间。</td></tr>
+  </tbody>
+</table>
+
+<h2><code>official_tts_voices</code></h2>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">字段</th>
+      <th background-color="light-gray">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>id</code></td><td>主键。</td></tr>
+    <tr><td><code>tts_model_id</code></td><td>关联 <code>official_tts_models</code>。</td></tr>
+    <tr><td><code>provider_voice_id</code></td><td>provider 返回的真实 voice id。</td></tr>
+    <tr><td><code>display_name</code></td><td>展示名。</td></tr>
+    <tr><td><code>enabled</code></td><td>是否展示和允许请求。</td></tr>
+    <tr><td><code>display_order</code></td><td>展示排序。</td></tr>
+    <tr><td><code>languages</code></td><td>语言列表，JSON。</td></tr>
+    <tr><td><code>labels</code></td><td>provider labels，JSON。</td></tr>
+    <tr><td><code>preview_audio_url</code></td><td>provider 返回或 admin 手动填写的预览 URL。</td></tr>
+    <tr><td><code>source</code></td><td><code>provider-sync</code> 或 <code>manual</code>。</td></tr>
+    <tr><td><code>last_synced_at</code></td><td>最近一次拉取声线时间。</td></tr>
+  </tbody>
+</table>
+
+<h1>Admin API</h1>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">接口</th>
+      <th background-color="light-gray">说明</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>GET /api/admin/official-catalog/aliases</code></td><td>列出 LLM / ASR aliases。</td></tr>
+    <tr><td><code>POST /api/admin/official-catalog/aliases/sync</code></td><td>从 <code>LLM_ROUTER_CONFIG</code> 同步真实候选。</td></tr>
+    <tr><td><code>PATCH /api/admin/official-catalog/aliases/:id</code></td><td>更新 alias 展示、启用、fallback、负载均衡设置。</td></tr>
+    <tr><td><code>PATCH /api/admin/official-catalog/aliases/:id/routes</code></td><td>更新 alias primary/fallback pool。</td></tr>
+    <tr><td><code>GET /api/admin/official-catalog/tts/models</code></td><td>列出 TTS models。</td></tr>
+    <tr><td><code>POST /api/admin/official-catalog/tts/models/sync</code></td><td>从 router config 同步 TTS models。</td></tr>
+    <tr><td><code>PATCH /api/admin/official-catalog/tts/models/:id</code></td><td>更新 TTS model 启用、排序和展示名。</td></tr>
+    <tr><td><code>GET /api/admin/official-catalog/tts/models/:id/voices</code></td><td>列出某个 model 下的 voices。</td></tr>
+    <tr><td><code>POST /api/admin/official-catalog/tts/models/:id/voices/sync</code></td><td>从 provider 拉取 voices，新 voice 默认禁用。</td></tr>
+    <tr><td><code>PATCH /api/admin/official-catalog/tts/voices/:id</code></td><td>更新 voice 启用、排序、展示名、语言、标签和预览 URL。</td></tr>
+    <tr><td><code>POST /api/admin/official-catalog/tts/voices/bulk</code></td><td>批量启用、禁用或排序 voices。</td></tr>
+  </tbody>
+</table>
+
+<h1>Public API 调整</h1>
+<ul>
+  <li><code>GET /api/v1/audio/models</code>：只返回 enabled TTS models，按 admin 排序。</li>
+  <li><code>GET /api/v1/audio/voices?model=...</code>：只返回该 model 下 enabled voices。</li>
+  <li><code>POST /api/v1/openai/chat/completions</code>：先把请求 model 当 alias 校验和解析。disabled / missing alias 直接报错。</li>
+  <li><code>POST /api/v1/audio/speech</code>：校验 TTS model enabled，再校验 voice 属于该 model 且 enabled。</li>
+  <li>ASR route：校验 ASR alias/model enabled 后再进入真实转写链路。</li>
+</ul>
+
+<h1>Gateway 校验规则</h1>
+<table>
+  <thead>
+    <tr>
+      <th background-color="light-gray">场景</th>
+      <th background-color="light-gray">处理</th>
+      <th background-color="light-gray">错误码</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>LLM alias 不存在</td><td>拒绝请求。</td><td><code>OFFICIAL_ALIAS_NOT_FOUND</code></td></tr>
+    <tr><td>LLM alias 禁用</td><td>拒绝请求。</td><td><code>OFFICIAL_ALIAS_DISABLED</code></td></tr>
+    <tr><td>TTS model 不存在或未同步</td><td>拒绝请求。</td><td><code>OFFICIAL_MODEL_NOT_FOUND</code></td></tr>
+    <tr><td>TTS model 禁用</td><td>拒绝请求。</td><td><code>OFFICIAL_MODEL_DISABLED</code></td></tr>
+    <tr><td>TTS voice 不存在于该 model</td><td>拒绝请求。</td><td><code>OFFICIAL_VOICE_NOT_FOUND</code></td></tr>
+    <tr><td>TTS voice 禁用</td><td>拒绝请求。</td><td><code>OFFICIAL_VOICE_DISABLED</code></td></tr>
+    <tr><td>ASR alias/model 禁用</td><td>拒绝请求。</td><td><code>OFFICIAL_ALIAS_DISABLED</code> 或 <code>OFFICIAL_MODEL_DISABLED</code></td></tr>
+  </tbody>
+</table>
+
+<h1>同步策略</h1>
+<ul>
+  <li>现有运行配置同步出的 LLM/TTS/ASR model 默认启用，避免上线后把已有能力突然关闭。</li>
+  <li>TTS 声线拉取后默认禁用，必须管理员手动启用。</li>
+  <li>重复同步时保留管理员已经改过的 <code>enabled</code>、<code>display_order</code>、<code>display_name</code>、<code>preview_audio_url</code>。</li>
+  <li>provider 不再返回的旧 voice 不自动删除，可标记为 stale 或保留 <code>last_synced_at</code> 供 admin 判断。</li>
+  <li>同步失败必须展示明确错误，不写入半成品批次。</li>
+</ul>
+
+<h1>验收标准</h1>
+<checkbox done="false">Admin 可以看到 Providers 页面，默认存在 enabled 的 LLM <code>auto</code> alias。</checkbox>
+<checkbox done="false">Admin 可以同步 LLM / ASR router model 候选，并配置 alias primary/fallback pool。</checkbox>
+<checkbox done="false">Admin 可以看到 TTS 页面，能同步 TTS models。</checkbox>
+<checkbox done="false">Admin 可以对某个 TTS model 一键拉取 voices；新 voice 默认 disabled。</checkbox>
+<checkbox done="false">Admin 启用 voice 后，主站 <code>/api/v1/audio/voices</code> 才返回该 voice。</checkbox>
+<checkbox done="false">禁用 TTS model 后，主站模型列表不展示，请求该 model 报错。</checkbox>
+<checkbox done="false">禁用 TTS voice 后，主站声线列表不展示，请求该 voice 报错。</checkbox>
+<checkbox done="false">禁用 LLM alias 后，客户端不展示，请求该 alias 报错。</checkbox>
+<checkbox done="false">Voice Pack 创建/编辑页面的候选 model 和 voice 不包含 disabled catalog 项。</checkbox>
+<checkbox done="false">保留现有 router config 写入和 key 加密逻辑，不把密钥暴露给 catalog API 或 admin UI。</checkbox>
+
+<h1>二期</h1>
+<ul>
+  <li>一键生成缺失 voice preview 音频。</li>
+  <li>新增对象存储/CDN adapter，保存生成的预览音频。</li>
+  <li>alias 灰度开放和人群分组。</li>
+  <li>更完整的 alias 权重负载均衡 UI。</li>
+  <li>Catalog 变更审计日志。</li>
+  <li>provider 质量、成本、延迟指标回显。</li>
+</ul>
+
+<h1>实现提示</h1>
+<ul>
+  <li>Catalog service 应独立于 LLM Router service。Router 负责真实转发，Catalog 负责产品白名单和 alias 解析。</li>
+  <li>请求校验要放在 server 侧，不只靠 admin 或主站 UI。</li>
+  <li>Public catalog endpoint 和 gateway 校验应复用同一个 domain service，避免展示和请求规则分叉。</li>
+  <li>新增测试应覆盖展示过滤、请求拦截、同步默认值、重复同步保留 admin 修改。</li>
+</ul>

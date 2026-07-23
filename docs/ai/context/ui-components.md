@@ -379,6 +379,7 @@ Searchable dropdown/autocomplete using reka-ui with grouping.
 | `options` | `ComboboxOptionItem<T>[] \| ComboboxOptionGroupItem<T>[]` | *(required)* | Options |
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
+| `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
 
@@ -394,6 +395,7 @@ Simplified Combobox wrapper for string/number options.
 | `options` | `{ label, value, description?, disabled?, icon? }[]?` | — | Options |
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
+| `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
 | `title` | `string?` | — | Title |
 | `layout` | `'horizontal' \| 'vertical'?` | — | Layout direction |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
@@ -446,6 +448,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `placeholder` | `string?` | — | Placeholder |
 | `required` | `boolean?` | — | Required indicator |
 | `type` | `InputType?` | — | Input type |
+| `autocomplete` | `string?` | — | Native autocomplete hint |
 | `inputClass` | `string?` | — | Custom input class |
 | `singleLine` | `boolean?` | `true` | `true` = input, `false` = textarea |
 
@@ -486,6 +489,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `description` | `string?` | — | Helper text |
 | `formatValue` | `(value: number) => string?` | — | Value formatter |
 | `as` | `'label' \| 'div'` | `'label'` | Wrapper element |
+| `defaultValue` | `number?` | — | When set, shows a reset button next to the label that restores this value. Use with `as="div"`. |
 
 **v-model**: `modelValue: number`
 
@@ -527,6 +531,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `options` | `{ label, value, description?, disabled?, icon? }[]?` | — | Options |
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
+| `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
 | `layout` | `'horizontal' \| 'vertical'` | `'horizontal'` | Layout |
 
 **v-model**: `modelValue: string`

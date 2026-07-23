@@ -7,6 +7,13 @@ chat:
       core-system: 核心系统
       you: 你
   reasoning: 思考
+  sessions:
+    title: 对话
+    new: + 新建
+    empty: 暂无对话
+    cloud-badge: 已同步到云
+    new-chat-fallback: 新建对话
+    delete: 删除对话
 message: 说点什么...
 send-mode:
   title: 发送键值
@@ -46,12 +53,12 @@ profile-switcher:
 promo-banner:
   items:
     signin:
-      watermark: Moon
-      fallbackLabel: Moon Gift
-      title: 7-Day Sign-In
-      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
+      watermark: 月石
+      fallbackLabel: 月石礼包
+      title: 7日签到
+      eventName: 登录后可以申请星尘、头像框和登录礼物。
       date: 03/28 - 04/10
-      reward: Up to 120 Stardust
+      reward: 最多120个星尘
       cta: 登录
     build:
       watermark: Build
@@ -60,7 +67,7 @@ promo-banner:
       eventName: Finish construction tasks to earn bonus vouchers and double materials.
       date: 03/30 - 04/12
       reward: 5 Supply Vouchers + Upgrade Materials
-      cta: View Tasks
+      cta: 查看任务
     spring:
       watermark: Spring
       fallbackLabel: Spring Draw
@@ -70,16 +77,16 @@ promo-banner:
       reward: Half-Price First Pull + Rare Charm
       cta: Draw Now
     coupon:
-      watermark: Talk
-      fallbackLabel: Coupon
-      title: Top-Up Coupon
+      watermark: 对话
+      fallbackLabel: 优惠券
+      title: 充值优惠券
       eventName: Finish chat interactions to claim coupons for expansion and voice packs.
       date: 04/02 - 04/20
       reward: Save 6 on 30 / Save 15 on 68
-      cta: Claim Coupon
+      cta: 领取优惠券
     home:
       watermark: 首页
-      fallbackLabel: Room Theme
+      fallbackLabel: 房间主题
       title: Spring Theme Update
       eventName: Unlock window, desk, and night-lamp themes to refresh your room.
       date: 04/05 - 04/22
@@ -87,6 +94,6 @@ promo-banner:
       cta: 查看主题
 waiting: 等待中
 websocket-status:
-  connected: WebSocket 已连接
-  disconnected: WebSocket 已断开
-  open-settings: 打开 WebSocket 设置
+  connected: 已连接
+  disconnected: 无网络连接
+  open-settings: 打开连接设置

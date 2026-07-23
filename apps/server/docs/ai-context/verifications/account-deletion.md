@@ -39,13 +39,14 @@ What this proves:
 - `clearedFlux=500` confirms the Flux handler picked up the actual balance.
 - `count=0` for providers / characters / chats reflects the test user not having those records — empty soft-delete is a valid no-op.
 
-## Known gotcha — UI dist staleness
+## Known gotcha — standalone UI deploy staleness
 
-`apps/server/public/ui-server-auth/` is a build artifact (Vite `outDir`). New
-pages added under `apps/ui-server-auth/src/pages/` only show up after
-running `pnpm -F @proj-airi/ui-server-auth build`. Symptom of forgetting:
-the success page returns `200` with the SPA HTML but renders blank because
-vue-router never registered the route. Re-build → fixes.
+`apps/ui-server-auth/dist/` is deployed independently from the server image.
+New pages added under `apps/ui-server-auth/src/pages/` only show up after
+running `pnpm -F @proj-airi/ui-server-auth build` and deploying the Cloudflare
+Workers Static Assets project. Symptom of forgetting: the success page returns
+`200` with the SPA HTML but renders blank because vue-router never registered
+the route. Re-build and re-deploy the auth UI → fixes.
 
 ## What is verified
 
@@ -55,7 +56,7 @@ vue-router never registered the route. Re-build → fixes.
 | Server typecheck | `pnpm -F @proj-airi/server typecheck` exits clean | 2026-04-28 |
 | Monorepo typecheck | `pnpm typecheck` exits clean across all packages | 2026-04-28 |
 | Lint | `pnpm lint` reports 0 errors in deletion-service / handler / UI files | 2026-04-28 |
-| Deletion service unit tests | `pnpm exec vitest run apps/server/src/services/user-deletion` → `2 files / 14 tests pass` (registry priority order, abort-on-error, serial execution, idempotency, per-service `deleteAllForUser` correctness) | 2026-04-28 |
+| Deletion service unit tests | `pnpm exec vitest run apps/server/src/services/domain/user-deletion` → `2 files / 14 tests pass` (registry priority order, abort-on-error, serial execution, idempotency, per-service `deleteAllForUser` correctness) | 2026-04-28 |
 | Architecture refactor | Domain knowledge moved out of `*-deletion-handler.ts` files into each business service's own `deleteAllForUser` method. Registry retained as a thin scheduler. `auth → userDeletionService → 5 business services` (auth and services no longer depend on each other). | 2026-04-28 |
 | Server full test suite | `pnpm -F @proj-airi/server exec vitest run` → 244/245 pass; the single failure (`origin.test.ts`) is pre-existing on `main` and unrelated | 2026-04-28 |
 | UI typecheck | `pnpm -F @proj-airi/stage-pages typecheck` and `pnpm -F @proj-airi/ui-server-auth typecheck` both clean | 2026-04-28 |

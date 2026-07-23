@@ -23,6 +23,7 @@ describe('stage-ui exports contract', () => {
       '.',
       './components',
       './components/*',
+      './components/scenarios/chat',
       './components/scenarios/settings/model-settings',
       './components/scenes',
       './composables',
@@ -33,6 +34,7 @@ describe('stage-ui exports contract', () => {
       './libs/*',
       './libs/inference',
       './libs/inference/adapters/*',
+      './services/*',
       './stores',
       './stores/*',
       './stores/analytics',
@@ -61,6 +63,7 @@ describe('stage-ui exports contract', () => {
 
     expect(exportsMap['./stores']).toBe('./src/stores/index.ts')
     expect(exportsMap['./stores/*']).toBe('./src/stores/*.ts')
+    expect(exportsMap['./services/*']).toBe('./src/services/*.ts')
     expect(exportsMap['./tools/mcp']).toBe('./src/tools/mcp.ts')
     expect(exportsMap['./types']).toBe('./src/types/index.ts')
     expect(exportsMap['./types/*']).toBe('./src/types/*.ts')

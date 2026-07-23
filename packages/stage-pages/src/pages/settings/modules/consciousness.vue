@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { storeToRefs } from 'pinia'
@@ -9,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const providersStore = useProvidersStore()
+const airiCardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
 const {
@@ -23,19 +25,40 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
-const { trackProviderClick } = useAnalytics()
+const { trackOfficialProviderSelected, trackProviderClick } = useAnalytics()
+
+/**
+ * Tracks explicit official chat-provider selection from settings.
+ */
+function trackOfficialProviderSelection(providerId: string, modelId: string) {
+  if (!providerId.startsWith('official-provider'))
+    return
+
+  trackOfficialProviderSelected({
+    provider_id: providerId,
+    provider_mode: 'official',
+    source: 'settings',
+    auto_selected: false,
+    model_id: modelId || 'unknown',
+  })
+}
 
 watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
     return
 
-  // Reset model when switching providers (but not on initial load)
+  // The consciousness store clears the model selection on provider changes;
+  // the page only tracks the selection and loads the new provider's catalog.
   if (oldProvider !== undefined && oldProvider !== provider) {
-    activeModel.value = ''
+    trackOfficialProviderSelection(provider, activeModel.value)
   }
 
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
+
+watch([activeProvider, activeModel], ([provider, model]) => {
+  airiCardStore.updateActiveCardConsciousness({ provider, model })
+})
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -71,7 +94,7 @@ function handleDeleteProvider(providerId: string) {
           <fieldset
             v-if="persistedChatProvidersMetadata.length > 0"
             flex="~ row gap-4"
-            min-w-0 of-x-auto scroll-smooth
+            min-w-0 overflow-x-auto scroll-smooth
             role="radiogroup"
           >
             <RadioCardSimple

@@ -91,6 +91,12 @@ const menu = computed(() => [
     icon: 'i-solar:eye-closed-bold-duotone',
     to: '/devtools/vision',
   },
+  {
+    title: 'Global Shortcut',
+    description: 'Register/unregister global shortcuts and watch trigger events fire',
+    icon: 'i-solar:keyboard-bold-duotone',
+    to: '/devtools/global-shortcut',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)

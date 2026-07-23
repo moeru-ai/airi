@@ -12,6 +12,7 @@ const serveMocks = vi.hoisted(() => {
 
   const closeCall = vi.fn(async () => {})
   const disposeCall = vi.fn(() => {})
+  const createH3CrossWsPluginCall = vi.fn(() => ({ name: 'better-ws-h3-plugin' }))
   const setupAppCall = vi.fn(() => ({
     app: {
       fetch: vi.fn(async () => ({ crossws: {} })),
@@ -22,6 +23,7 @@ const serveMocks = vi.hoisted(() => {
 
   return {
     closeCall,
+    createH3CrossWsPluginCall,
     disposeCall,
     rejectServe: (error: Error) => rejectServe?.(error),
     resolveServe: () => resolveServe?.(),
@@ -34,15 +36,14 @@ vi.mock('h3', () => ({
   H3: class {
     get = vi.fn()
   },
-  defineWebSocketHandler: vi.fn(handler => handler),
   serve: vi.fn(() => ({
     serve: serveMocks.serveCall,
     close: serveMocks.closeCall,
   })),
 }))
 
-vi.mock('crossws/server', () => ({
-  plugin: vi.fn(() => ({})),
+vi.mock('@proj-airi/better-ws/server/h3', () => ({
+  createH3CrossWsPlugin: serveMocks.createH3CrossWsPluginCall,
 }))
 
 vi.mock('./index', () => ({
@@ -72,6 +73,9 @@ describe('createServer', async () => {
 
     await Promise.all([firstStart, secondStart])
     expect(serveMocks.serveCall).toHaveBeenCalledTimes(1)
+    expect(serveMocks.createH3CrossWsPluginCall).toHaveBeenCalledWith(expect.objectContaining({
+      fetch: expect.any(Function),
+    }))
   })
 
   it('clears the single-flight state when start fails', async () => {
@@ -88,6 +92,19 @@ describe('createServer', async () => {
 
     serveMocks.resolveServe()
     await retryStart
+  })
+
+  it('treats EADDRINUSE as an existing listener instead of failing startup', async () => {
+    const server = createServer({ hostname: '127.0.0.1', port: 6121 })
+
+    const startTask = server.start()
+    const error = new Error('listen EADDRINUSE: address already in use 127.0.0.1:6121') as NodeJS.ErrnoException
+    error.code = 'EADDRINUSE'
+    serveMocks.rejectServe(error)
+
+    await expect(startTask).resolves.toBeUndefined()
+    expect(serveMocks.disposeCall).toHaveBeenCalledTimes(1)
+    expect(serveMocks.closeCall).toHaveBeenCalledWith(true)
   })
 
   it('merges nested config updates instead of replacing sibling logger settings', async () => {

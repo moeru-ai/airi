@@ -14,6 +14,8 @@ withDefaults(defineProps<{
   allowExtractColors?: boolean
   live2dSceneClass?: string | string[]
   vrmSceneClass?: string | string[]
+  spineSceneClass?: string | string[]
+  mmdSceneClass?: string | string[]
 }>(), {
   allowExtractColors: true,
 })
@@ -50,6 +52,8 @@ defineExpose({
     ref="previewStageRef"
     :live2d-scene-class="live2dSceneClass"
     :vrm-scene-class="vrmSceneClass"
+    :spine-scene-class="spineSceneClass"
+    :mmd-scene-class="mmdSceneClass"
     @runtime-snapshot-changed="handleRuntimeSnapshotChanged"
   />
 </template>

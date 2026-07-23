@@ -41,10 +41,21 @@ function postProcessValue(val: number, config?: RangeConfig): string {
 
 const normalizedValue = ref(postProcessValue(modelValue.value, props.config))
 
-watch(modelValue, () => {
-  normalizedValue.value = postProcessValue(modelValue.value, props.config)
-  updateSliderProgress()
-}, { immediate: true })
+watch(
+  [
+    modelValue,
+    () => props.config?.min,
+    () => props.config?.max,
+    () => props.config?.step,
+    () => props.config?.precision,
+    () => props.config?.formatValue,
+  ],
+  () => {
+    normalizedValue.value = postProcessValue(modelValue.value, props.config)
+    updateSliderProgress()
+  },
+  { immediate: true },
+)
 
 function updateSliderProgress() {
   if (!sliderRef.value)

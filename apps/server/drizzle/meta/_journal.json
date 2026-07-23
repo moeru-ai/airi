@@ -71,6 +71,62 @@
       "when": 1777370103031,
       "tag": "0009_perpetual_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778223289077,
+      "tag": "0010_sudden_bastion",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1779100599148,
+      "tag": "0011_common_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1779118725550,
+      "tag": "0012_clumsy_the_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1779728850192,
+      "tag": "0013_naive_groot",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1780498188307,
+      "tag": "0014_vengeful_blonde_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1780498188308,
+      "tag": "0015_concerned_piledriver",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782847276369,
+      "tag": "0016_tired_dagger",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782912836523,
+      "tag": "0017_nappy_dagger",
+      "breakpoints": true
     }
   ]
 }

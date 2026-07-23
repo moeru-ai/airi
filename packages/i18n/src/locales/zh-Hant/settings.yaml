@@ -105,6 +105,20 @@ analytics:
     description: Turn this off to opt out of analytics collection.
   disabled:
     title: Analytics disabled for this development build
+model-select:
+  panel-callout:
+    support-status-header: We support both 2D and 3D models
+    support-status: >
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+    model-type-example: >
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+  select-model:
+    title: Model Selector
+    button: Select model
+    select: Pick
+    import: Import
+    remove: Remove
+    confirm: Confirm
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -129,19 +143,63 @@ live2d:
     change-to-vrm: 切換至 3D 虛擬角色設定頁面（VRM）
   theme-color-from-model:
     title: 從模型中提取顏色
+    description: >
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: 提取
-  focus:
-    title: 停用模型滑鼠追蹤
-    button-disable:
-      title: Disable model mouse tracking
-  render-scale:
-    title: Render scale
-  fps:
-    title: FPS
-    description: 限制渲染幀率
-    options:
-      unlimited: '∞'
+  animation:
+    title: Animation
+    focus:
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
+    force-idle-eye-animation:
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
+    blink-enable:
+      title: Enable blink
+      description: Let the model blink.
+    auto-blink:
+      title: Auto
+      description: Use default blinking animation of the model
+    force-auto-blink:
+      title: Force
+      description: Force blinking animation with external timer
+    blink-mode:
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
+    idle-motion:
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
+  parameters:
+    title: Model Parameters
+    render-scale:
+      title: Render scale
+    fps:
+      title: FPS
+      description: Limit rendering frame rate
+      options:
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
+  expressions:
+    title: Expressions
+    override-toggle: Expression system
+    sdk-preset-preserved-notice: >
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
+    expose-to-llm-options:
+      none: None
+      all: All
+      custom: Custom
 microphone: 麥克風
 models: 模型
 pages:
@@ -190,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: 這個 OAuth 帳戶已經連結到另一個 AIRI 帳戶了。請選擇另一個第三方帳戶，或先在另一個 AIRI 帳戶中解除連結。
+        oauthCallbackFailed: 暫時無法連結這個 OAuth 帳戶。請重試，或選擇另一個第三方帳戶。
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
@@ -250,6 +310,9 @@ pages:
       provider: 聊天 / 供應商
     consciousness:
       model: 意識 / 模型
+    vision:
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: 建立者
     creator_notes: 建立者筆記
     delete: 刪除
@@ -327,8 +390,14 @@ pages:
     systemprompt: 系統提示詞
     title: AIRI 角色卡
     try_different_search: 嘗試使用其他關鍵字搜尋
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 上傳
-    upload_desc: 點擊或拖曳檔案到此處上傳
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 存放記憶的地方，以及策略
     title: 記憶體
@@ -368,6 +437,7 @@ pages:
       desktop:
         title: 重設桌面設定與狀態
         description: 清除 AIRI 桌面設定與執行階段狀態
+        center: Move desktop window to center
         reset: 重設桌面資料
     confirmations:
       tooltip: 您確定嗎？
@@ -381,9 +451,10 @@ pages:
       modules_reset: 模組設定已重設
       providers_reset: 服務提供者設定已重設
       all_deleted: 所有本機資料已刪除
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 桌面資料已重設
   models:
-    description: 切換角色的 Live2D、VRM 模型
+    description: 切換角色的 Live2D、VRM、Spine 模型
     title: 角色模型
     sections:
       section:
@@ -621,6 +692,12 @@ pages:
             select-voice:
               loading: 載入模型中……
               required: 請選擇聲線
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: 輸入指定模型名稱...
             custom_voice_placeholder: 輸入指定聲線 ID...
@@ -671,6 +748,15 @@ pages:
       access-token-secret-description: 您的 X / Twitter 存取權杖密文
       access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
       configured: X / Twitter 已正確設定！
+    web-search:
+      title: 網路搜尋
+      description: 讓 AIRI 連網搜尋最新資訊
+      enable: 啟用網路搜尋
+      enable-description: 允許 AIRI 在對話中連網搜尋
+      api-key: Tavily API 金鑰
+      api-key-description: 網路搜尋由 Tavily 提供支援，可在 tavily.com 免費取得 API 金鑰。
+      api-key-placeholder: 輸入您的 Tavily API 金鑰
+      configured: 網路搜尋已就緒！
     mcp-server:
       title: MCP servers
       description: Configure MCP servers and bring their tools into AIRI.
@@ -773,6 +859,7 @@ pages:
       typeAddition: Top-up
       typeConsumption: Usage
       typeInitial: Initial Grant
+      typePromo: Promo Grant
       loading: Loading history...
       empty: No transaction records yet.
       loadMore: Load More
@@ -893,6 +980,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1156,6 +1246,9 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1287,6 +1380,8 @@ pages:
         description: Official AI provider by AIRI.
         speech-title: Official Speech Provider
         speech-description: Official text-to-speech provider by AIRI.
+        speech-streaming-title: Official Streaming Speech Provider
+        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Official Transcription Provider
         transcription-description: Official speech-to-text provider by AIRI.
       transcriptions:
@@ -1523,8 +1618,6 @@ theme:
 title: 設定
 voices: 聲線
 vrm:
-  render-scale:
-    title: Render scale
   change-model:
     from-file: 從檔案載入
     from-file-select: 選擇
@@ -1564,6 +1657,37 @@ vrm:
   skybox:
     skybox-intensity: 天空盒光照強度
     skybox-specular-mix: 漫反射／鏡面反射混合係數
+spine:
+  title: Spine Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  animation:
+    title: Animation
+    idle-animation: Idle Animation
+    mix-duration: Mix Duration (seconds)
+    speed: Animation Speed
+  appearance:
+    title: 外觀
+  variant:
+    title: Variant
+    current-variant: Active Variant
+  skin:
+    title: Skin
+    current-skin: Current Skin
+  rendering:
+    title: Rendering
+    max-fps: Maximum FPS
+    render-scale: Render Scale
+  fps:
+    options:
+      unlimited: Unlimited
 websocket-secure-enabled:
   title: 啟用安全 WebSocket (WSS)
   description: >-

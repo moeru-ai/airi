@@ -13,7 +13,7 @@ import VueRouter from 'vue-router/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/auth/',
+  base: '/',
   optimizeDeps: {
     exclude: [
       // Internal Packages
@@ -45,7 +45,7 @@ export default defineConfig({
   },
   build: {
     emptyOutDir: true,
-    outDir: resolve(join(import.meta.dirname, '..', 'server', 'public', 'ui-server-auth')),
+    outDir: resolve(join(import.meta.dirname, 'dist')),
     sourcemap: true,
   },
   worker: {

@@ -7,12 +7,19 @@ chat:
       core-system: Sistema Central
       you: Tu
   reasoning: Razonamiento
+  sessions:
+    title: Conversaciones
+    new: + Nuevo
+    empty: No hay conversaciones todavía
+    cloud-badge: Sincronizado en la nube
+    new-chat-fallback: Nuevo Chat
+    delete: Eliminar conversación
 message: Dile algo...
 send-mode:
   title: Enviar tecla
   enter: Intro
   ctrl-enter: Ctrl + Intro
-  double-enter: Double Enter
+  double-enter: Entrada doble
 operations:
   load-models: Cargar Modelos
   load-models-status:
@@ -54,7 +61,7 @@ promo-banner:
       reward: Hasta 120 Stardust
       cta: Iniciar sesión
     build:
-      watermark: Build
+      watermark: Construir
       fallbackLabel: Build Bonus
       title: Bono de caja de suministro
       eventName: Termina las tareas de construcción para ganar cupones de bonificación y materiales dobles.
@@ -72,7 +79,7 @@ promo-banner:
     coupon:
       watermark: Hablar
       fallbackLabel: Cupón
-      title: Top-Up Coupon
+      title: Cupón Top-Up
       eventName: Termina las interacciones del chat para reclamar cupones para la expansión y los paquetes de voz.
       date: 04/02 - 04/20
       reward: Ahorre 6 en 30 / Ahorre 15 en 68
@@ -87,6 +94,6 @@ promo-banner:
       cta: Ver temas
 waiting: Esperando...
 websocket-status:
-  connected: WebSocket conectado
-  disconnected: WebSocket desconectado
-  open-settings: Abrir ajustes de WebSocket
+  connected: Conectado
+  disconnected: No hay conexión
+  open-settings: Abrir ajustes de conexión

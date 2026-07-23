@@ -57,6 +57,18 @@ describe('decideBrowserAction', () => {
     expect(decision.reason).toContain('not connected')
   })
 
+  it('falls back to os_input for right clicks even when chrome_dom is available', () => {
+    const decision = decideBrowserAction(makeCandidate(), true, 'right')
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('left single-click')
+  })
+
+  it('falls back to os_input for multi-click chrome_dom actions', () => {
+    const decision = decideBrowserAction(makeCandidate(), true, 'left', 2)
+    expect(decision.route).toBe('os_input')
+    expect(decision.reason).toContain('count 2')
+  })
+
   it('preserves non-zero frameId for sub-frame candidates', () => {
     const decision = decideBrowserAction(makeCandidate({ frameId: 3 }), true)
     expect(decision.route).toBe('browser_dom')

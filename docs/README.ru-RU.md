@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.9.0/AIRI-0.9.0-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.10.2/AIRI-0.10.2-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -134,6 +134,26 @@
 <strong>Руководство от сообщества:</strong> Для более подробного пошагового руководства по настройке, включая получение ключей API и настройку среды, ознакомьтесь с этим замечательным <a href="https://docs.google.com/document/d/1AGs3Br_6mMbyQykbmSilczg4I56U6LTO-E9D3_Szk_I/edit?tab=t.0">руководством, написанным сообществом</a>.
 > Сильно вдохновлено [Neuro-sama](https://www.youtube.com/@Neurosama)
 
+> [!TIP]
+> В Windows AIRI можно установить с помощью [winget](https://learn.microsoft.com/windows/package-manager/winget/):
+>
+> ```powershell
+> winget install MoeruAI.AIRI
+> ```
+>
+> Или установить AIRI через [Scoop](https://scoop.sh/):
+>
+> ```powershell
+> scoop bucket add airi https://github.com/moeru-ai/airi
+> scoop install airi/airi
+> ```
+>
+> В macOS AIRI можно установить через [Homebrew Cask](https://brew.sh/) без добавления собственного tap:
+>
+> ```sh
+> brew install --cask airi
+> ```
+
 > [!WARNING]
 > **Внимание:** У нас **нет** официально выпущенной криптовалюты или токена, связанного с этим проектом. Пожалуйста, проверяйте информацию и действуйте с осторожностью.
 
@@ -157,17 +177,18 @@
 
 Поэтому этот проект, AIRI, предлагает здесь другую возможность: **позволить вам владеть своей цифровой жизнью, кибер-жизнью, легко, везде, в любое время**.
 
-## Журналы разработки, которые мы опубликовали, и последние обновления
+## Недавние DevLog и истории
 
-- [DevLog @ 2026.03.23](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) от 23 марта 2026 г.
-- [DevLog @ 2026.03.14](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) от 14 марта 2026 г.
-- [DevLog @ 2026.02.16](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) от 16 февраля 2026 г.
-- [DevLog @ 2026.01.01](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) от 1 января 2026 г.
-- [DevLog @ 2025.10.20](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) от 20 октября 2025 г.
-- [DevLog @ 2025.08.05](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) от 5 августа 2025 г.
-- [DevLog @ 2025.08.01](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) от 1 августа 2025 г.
-- [DevLog @ 2025.07.18](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) от 18 июля 2025 г.
-- [DreamLog 0x1](https://airi.moeru.ai/docs/en/blog/dreamlog-0x1/) от 16 июня 2025 г.
+- [DevLog @ 2026.03.23: производительность на мобильных устройствах и исследование игровых движков](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 23 марта 2026 г.
+- [DevLog @ 2026.03.14: жизненный цикл VRM-сцены, кеш и наблюдаемость](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 14 марта 2026 г.
+- [DevLog @ 2026.02.16: сбор данных Dome Keeper и пайплайн обучения](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 16 февраля 2026 г.
+- [DevLog @ 2026.01.01: AIRI Pocket и эксперименты с памятью в FlowChat](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 1 января 2026 г.
+- [DevLog @ 2025.10.20: переход на Electron, новые модели и обновления Moeru AI](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 20 октября 2025 г.
+- [DevLog @ 2025.08.26: прогресс pure-vision направления для airi-factorio](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 26 августа 2025 г.
+- [DevLog @ 2025.08.05: главные изменения AIRI v0.7](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 5 августа 2025 г.
+- [DevLog @ 2025.08.01: потоковая текстовая анимация и графемные кластеры](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 1 августа 2025 г.
+- [DevLog @ 2025.07.18: переосмысление airi-factorio через Factorio Learning Environment](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 18 июля 2025 г.
+- [DreamLog 0x1: предыстория Project AIRI](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 16 июня 2025 г.
 - ...больше на [сайте документации](https://airi.moeru.ai/docs)
 
 ## Что такого особенного в этом проекте?
@@ -207,13 +228,15 @@
 >
 > **Если вы заинтересованы, почему бы не представить себя здесь? [Хотите присоединиться к нам в создании AIRI？](https://github.com/moeru-ai/airi/discussions/33)**
 
-## Текущий прогресс
+## Текущий прогресс и дорожная карта
 
 Способен на
 
 - [x] Мозг
   - [x] Играть в [Minecraft](https://www.minecraft.net)
   - [x] Играть в [Factorio](https://www.factorio.com) (WIP, но [PoC и демо доступны](https://github.com/moeru-ai/airi-factorio))
+  - [x] Играть в [Kerbal Space Program](https://www.kerbalspaceprogram.com/) (анонс будет позже)
+  - [ ] Совместно играть в [Helldivers 2](https://www.playstation.com/en-hk/games/helldivers-2/pc/) (WIP)
   - [x] Общаться в [Telegram](https://telegram.org)
   - [x] Общаться в [Discord](https://discord.com)
   - [ ] Память
@@ -226,7 +249,7 @@
   - [x] Распознавание речи на стороне клиента
   - [x] Обнаружение речи на стороне клиента
 - [x] Рот
-  - [x] Синтез голоса [ElevenLabs](https://elevenlabs.io/)
+  - [x] Синтез голоса через несколько провайдеров, включая [ElevenLabs](https://elevenlabs.io/), Microsoft/Azure Speech, OpenAI-совместимый TTS, Alibaba Cloud Model Studio и локальный Kokoro TTS
 - [x] Тело
   - [x] Поддержка VRM
     - [x] Управление моделью VRM
@@ -246,9 +269,7 @@
 > Для подробных инструкций по разработке этого проекта следуйте [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]
-> По умолчанию `pnpm dev` запустит сервер разработки для Stage Web (версия для браузера).
-> Если вы хотите попробовать разработку десктопной версии, пожалуйста, убедитесь,
-> что вы прочитали [CONTRIBUTING.md](../.github/CONTRIBUTING.md), чтобы правильно настроить среду.
+> По умолчанию `pnpm dev` запустит сервер разработки для Stage Web (версия для браузера). Если вы хотите попробовать разработку десктопной версии, пожалуйста, убедитесь, что вы прочитали [CONTRIBUTING.md](../.github/CONTRIBUTING.md), чтобы правильно настроить среду.
 
 ```shell
 pnpm i
@@ -272,6 +293,42 @@ pnpm dev:tamagotchi
 ```shell
 nix run github:moeru-ai/airi
 ```
+
+### Stage Pocket (мобильная версия)
+
+Запустите сервер разработки веб-версии Capacitor:
+
+```shell
+pnpm dev:pocket
+```
+
+Найдите IP-адрес в выводе этой команды:
+
+```shell
+  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
+
+  ➜  Local:   https://localhost:5273/
+  ➜  Network: https://<ip-will-be-here>:5273/
+  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
+  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
+  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
+```
+
+Откройте проект Xcode:
+
+```shell
+CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
+```
+
+После этого откроется Xcode, и вы сможете нажать кнопку "Run", чтобы запустить приложение на iPhone.
+
+Если нужно подключить серверный канал Pocket в беспроводном режиме, запустите Tamagotchi с правами root:
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+Затем включите secure websocket в `settings/connections` Tamagotchi.
 
 ### Сайт документации
 
@@ -307,7 +364,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Mistral](https://mistral.ai/)
 - [x] [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 - [x] [Together.ai](https://www.together.ai/)
-- [x] [Fireworks.ai](https://www.together.ai/)
+- [x] [Fireworks.ai](https://fireworks.ai/)
 - [x] [Novita](https://www.novita.ai/)
 - [x] [Zhipu](https://bigmodel.cn)
 - [x] [SiliconFlow](https://cloud.siliconflow.cn/i/rKXmRobW)
@@ -315,6 +372,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Baichuan](https://platform.baichuan-ai.com)
 - [x] [Minimax](https://api.minimax.chat/)
 - [x] [Moonshot AI](https://platform.moonshot.cn/)
+- [x] [ModelScope](https://modelscope.cn/docs/model-service/API-Inference/intro)
 - [x] [Player2](https://player2.game/)
 - [x] [Tencent Cloud](https://cloud.tencent.com/document/product/1729)
 - [ ] [Sparks](https://www.xfyun.cn/doc/spark/Web.html) (PR welcome)

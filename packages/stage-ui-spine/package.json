@@ -1,0 +1,53 @@
+{
+  "name": "@proj-airi/stage-ui-spine",
+  "type": "module",
+  "private": true,
+  "description": "Spine 2D scene components and stores for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/stage-ui-spine"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./components": "./src/components/index.ts",
+    "./components/scenes": "./src/components/scenes/index.ts",
+    "./components/scenes/Spine.vue": "./src/components/scenes/Spine.vue",
+    "./components/scenes/spine": "./src/components/scenes/spine/index.ts",
+    "./composables/spine": "./src/composables/spine/index.ts",
+    "./constants/emotions": "./src/constants/emotions.ts",
+    "./stores": "./src/stores/index.ts",
+    "./stores/spine": "./src/stores/spine.ts",
+    "./tools/animation-tools": "./src/tools/animation-tools.ts",
+    "./utils/spine-preview": "./src/utils/spine-preview.ts",
+    "./utils/spine-validator": "./src/utils/spine-validator.ts",
+    "./utils/spine-zip-loader": "./src/utils/spine-zip-loader.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@esotericsoftware/spine-webgl": "catalog:",
+    "@esotericsoftware/spine-webgl-4-0": "catalog:",
+    "@esotericsoftware/spine-webgl-4-1": "catalog:",
+    "@moeru/std": "catalog:",
+    "@proj-airi/stage-shared": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "@vueuse/core": "catalog:",
+    "@xsai/tool": "catalog:",
+    "es-toolkit": "catalog:",
+    "jszip": "catalog:",
+    "pinia": "catalog:",
+    "vue": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "vue-tsc": "catalog:"
+  }
+}

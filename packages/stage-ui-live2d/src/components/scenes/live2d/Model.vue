@@ -5,7 +5,7 @@ import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
-import { breakpointsTailwind, until, useBreakpoints } from '@vueuse/core'
+import { until } from '@vueuse/core'
 import { animate } from 'animejs'
 import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
@@ -17,16 +17,17 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 import {
   createBeatSyncController,
   useExpressionController,
-
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
+  useMotionUpdatePluginLipSync,
 } from '../../../composables/live2d'
+import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
-import { useL2dViewControl, useLive2d } from '../../../stores/live2d'
+import { useL2dViewControl, useLive2dParams } from '../../../stores'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -34,27 +35,34 @@ const props = withDefaults(defineProps<{
 
   app?: Application
   mouthOpenSize?: number
+  nowSpeaking?: boolean
   width: number
   height: number
   paused?: boolean
   focusAt?: { x: number, y: number }
-  disableFocusAt?: boolean
+  eyeTracking?: boolean
+  eyeFocusSourceActive?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
+  live2dForceIdleEyeAnimation?: boolean
   live2dAutoBlinkEnabled?: boolean
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
 }>(), {
   mouthOpenSize: 0,
+  nowSpeaking: false,
   paused: false,
   focusAt: () => ({ x: 0, y: 0 }),
+  eyeTracking: false,
+  eyeFocusSourceActive: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
   live2dIdleAnimationEnabled: true,
+  live2dForceIdleEyeAnimation: true,
   live2dAutoBlinkEnabled: true,
   live2dForceAutoBlinkEnabled: false,
   live2dExpressionEnabled: true,
@@ -69,16 +77,6 @@ const emits = defineEmits<{
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const { position, scale } = useL2dViewControl()
 
-function parsePropsOffset() {
-  const xOffset = (position.value.x / 100) * props.width
-  const yOffset = -(position.value.y / 100) * props.height
-
-  return {
-    xOffset,
-    yOffset,
-  }
-}
-
 const modelSrcRef = toRef(() => props.modelSrc)
 
 const modelLoading = ref(false)
@@ -87,7 +85,10 @@ let isUnmounted = false
 
 const modelLoadMutex = new Mutex()
 
-const offset = computed(() => parsePropsOffset())
+const offset = computed(() => ({
+  x: (position.value.x / 100) * props.width,
+  y: -(position.value.y / 100) * props.height,
+}))
 
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
@@ -96,11 +97,10 @@ const model = ref<Live2DModel<PixiLive2DInternalModel>>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
+const nowSpeaking = toRef(() => props.nowSpeaking)
 const lastUpdateTime = ref(0)
 
 const { isDark: dark } = useTheme()
-const breakpoints = useBreakpoints(breakpointsTailwind)
-const isMobile = computed(() => breakpoints.between('sm', 'md').value || breakpoints.smaller('sm').value)
 const dropShadowFilter = shallowRef(new DropShadowFilter({
   alpha: 0.2,
   blur: 0,
@@ -108,43 +108,27 @@ const dropShadowFilter = shallowRef(new DropShadowFilter({
   rotation: 45,
 }))
 
-function getCoreModel() {
-  return model.value!.internalModel.coreModel as any
-}
-
 let resizeAnimation: ReturnType<typeof animate> | undefined
 
-function computeScaleAndPosition() {
-  let offsetFactor = 2.2
-  if (isMobile.value) {
-    offsetFactor = 2.2
-  }
+const modelNormalizeParams = useFitModel(
+  () => ({ width: props.width, height: props.height }),
+  () => ({ width: initialModelWidth.value, height: initialModelHeight.value }),
+)
 
-  const heightScale = (props.height * 0.95 / initialModelHeight.value * offsetFactor)
-  const widthScale = (props.width * 0.95 / initialModelWidth.value * offsetFactor)
-  let minScale = Math.min(heightScale, widthScale)
-
-  if (Number.isNaN(minScale) || minScale <= 0) {
-    minScale = 1e-6
-  }
-
-  return {
-    scale: minScale * scale.value,
-    x: (props.width / 2) + offset.value.xOffset,
-    y: props.height + offset.value.yOffset,
-  }
-}
+watch([offset, scale, modelNormalizeParams], () => {
+  setScaleAndPosition()
+})
 
 function setScaleAndPosition(animated = false) {
   if (!model.value)
     return
 
-  const target = computeScaleAndPosition()
+  const normalized = modelNormalizeParams.value
 
   if (!animated) {
-    model.value.scale.set(target.scale, target.scale)
-    model.value.x = target.x
-    model.value.y = target.y
+    model.value.scale.set(normalized.scale * scale.value, normalized.scale * scale.value)
+    model.value.x = normalized.x + offset.value.x
+    model.value.y = normalized.y + offset.value.y
     return
   }
 
@@ -157,9 +141,9 @@ function setScaleAndPosition(animated = false) {
   }
 
   resizeAnimation = animate(current, {
-    scale: target.scale,
-    x: target.x,
-    y: target.y,
+    scale: normalized.scale * scale.value,
+    x: normalized.x + offset.value.x,
+    y: normalized.y + offset.value.y,
     duration: 200,
     ease: 'outQuad',
     onUpdate: () => {
@@ -172,7 +156,7 @@ function setScaleAndPosition(animated = false) {
   })
 }
 
-const live2dStore = useLive2d()
+const live2dStore = useLive2dParams()
 const {
   currentMotion,
   availableMotions,
@@ -183,6 +167,9 @@ const {
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
 const live2dIdleAnimationEnabled = toRef(() => props.live2dIdleAnimationEnabled)
+const live2dEyeTrackingEnabled = toRef(() => props.eyeTracking)
+const live2dEyeFocusSourceActive = toRef(() => props.eyeFocusSourceActive)
+const live2dForceIdleEyeAnimation = toRef(() => props.live2dForceIdleEyeAnimation)
 const live2dAutoBlinkEnabled = toRef(() => props.live2dAutoBlinkEnabled)
 const live2dForceAutoBlinkEnabled = toRef(() => props.live2dForceAutoBlinkEnabled)
 const live2dExpressionEnabled = toRef(() => props.live2dExpressionEnabled)
@@ -354,7 +341,10 @@ async function loadModel() {
       internalModel,
       motionManager,
       modelParameters,
+      live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive,
       live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
       lastUpdateTime,
@@ -369,6 +359,7 @@ async function loadModel() {
     // This ensures blink respects expression state (0 × blinkFactor = 0).
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -442,9 +433,6 @@ async function loadModel() {
       }
 
       internalModelRef.value = internalModel
-      initExpressionController(internalModel).catch((err) => {
-        console.warn('[Model.vue] Expression controller initialisation failed:', err)
-      })
     }
 
     emits('modelLoaded')
@@ -456,6 +444,9 @@ async function loadModel() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
+    await initExpressionController(internalModelRef.value).catch((err) => {
+      console.warn('[Model.vue] Expression controller initialization failed:', err)
+    })
     modelLoadMutex.release()
   }
 }
@@ -467,11 +458,11 @@ async function loadModel() {
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
  */
-async function initExpressionController(internalModel: PixiLive2DInternalModel) {
+async function initExpressionController(internalModel?: PixiLive2DInternalModel) {
   // Dispose any previous state (handles model reloads)
   expressionController.dispose()
 
-  const settings = (internalModel as any).settings
+  const settings = internalModel?.settings as any
   if (!settings)
     return
 
@@ -511,10 +502,6 @@ async function setMotion(motionName: string, index?: number) {
   }
 }
 
-function handleResize() {
-  setScaleAndPosition(true)
-}
-
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
@@ -535,12 +522,10 @@ function updateDropShadowFilter() {
   model.value.filters = [dropShadowFilter.value]
 }
 
-watch([() => props.width, () => props.height], handleResize)
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
 watch(dark, updateDropShadowFilter, { immediate: true })
 watch([model, themeColorsHue], updateDropShadowFilter)
 watch(live2dShadowEnabled, updateDropShadowFilter)
-watch([offset, scale], () => setScaleAndPosition())
 
 // TODO: This is hacky!
 function updateDropShadowFilterLoop() {
@@ -563,7 +548,6 @@ watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) =
   }
 }, { immediate: true })
 
-watch(mouthOpenSize, value => getCoreModel().setParameterValueById('ParamMouthOpenY', value))
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
 
@@ -749,7 +733,7 @@ watch(live2dExpressionEnabled, (enabled) => {
 watch(focusAt, (value) => {
   if (!model.value)
     return
-  if (props.disableFocusAt)
+  if (!props.eyeTracking)
     return
 
   model.value.focus(value.x, value.y)
@@ -778,6 +762,9 @@ function listMotionGroups() {
 defineExpose({
   setMotion,
   listMotionGroups,
+  modelNormalizeParams,
+  initialModelHeight,
+  initialModelWidth,
 })
 
 import.meta.hot?.dispose(() => {

@@ -15,7 +15,6 @@ const reasoningContent = computed(() => props.message.categorization?.reasoning?
 const hasReasoning = computed(() => reasoningContent.value.length > 0)
 
 const containerClasses = computed(() => [
-  'mt-2',
   props.variant === 'mobile' ? 'text-xs' : 'text-sm',
 ])
 </script>

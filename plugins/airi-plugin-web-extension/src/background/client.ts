@@ -7,6 +7,8 @@ import { nanoid } from 'nanoid'
 
 import packageJSON from '../../package.json'
 
+import { errorMessageFromValue } from '../utils/error-message'
+
 const PLUGIN_NAME = 'proj-airi:plugin-web-extension'
 
 export interface ClientState {
@@ -72,7 +74,7 @@ export async function ensureClient(state: ClientState, settings: ExtensionSettin
     autoReconnect: true,
     onError: (error) => {
       state.connected = false
-      state.lastError = error instanceof Error ? error.message : String(error)
+      state.lastError = errorMessageFromValue(error)
     },
     onClose: () => {
       state.connected = false
@@ -88,7 +90,7 @@ export async function ensureClient(state: ClientState, settings: ExtensionSettin
   }
   catch (error) {
     state.connected = false
-    state.lastError = error instanceof Error ? error.message : String(error)
+    state.lastError = errorMessageFromValue(error)
   }
 }
 

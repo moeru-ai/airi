@@ -22,8 +22,10 @@ import {
   resizePty,
   writeToPty,
 } from '../terminal/pty-runner'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 import { buildApprovalResponse } from './responses'
+import { detectPagination, extractCwdFromPrompt } from './terminal-heuristics'
 
 export interface RegisterPtyToolsOptions {
   server: McpServer
@@ -190,7 +192,7 @@ export async function executeApprovedPtyCreate(
     }
   }
   catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = errorMessageFromValue(error)
 
     await runtime.session.record({
       event: 'failed',
@@ -376,10 +378,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
     catch (error) {
       return {
         isError: true,
-        content: [textContent(`PTY send_input failed: ${error instanceof Error ? error.message : String(error)}`)],
+        content: [textContent(`PTY send_input failed: ${errorMessageFromValue(error)}`)],
         structuredContent: {
           status: 'error',
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessageFromValue(error),
         },
       }
     }
@@ -430,32 +432,61 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
           alive: session.alive,
         })
 
-        return {
-          content: [textContent(session.screenContent || '(empty)')],
-          structuredContent: {
-            status: 'ok',
-            session: {
-              id: session.id,
-              alive: session.alive,
-              pid: session.pid,
-              rows: session.rows,
-              cols: session.cols,
-            },
-            sessionId: session.id,
+        const structuredContent: Record<string, unknown> = {
+          status: 'ok',
+          session: {
+            id: session.id,
             alive: session.alive,
+            pid: session.pid,
             rows: session.rows,
             cols: session.cols,
-            screenContent: session.screenContent,
           },
+          sessionId: session.id,
+          alive: session.alive,
+          rows: session.rows,
+          cols: session.cols,
+          screenContent: session.screenContent,
         }
+
+        const response: CallToolResult = {
+          content: [textContent(session.screenContent || '(empty)')],
+          structuredContent,
+        }
+
+        // --- Hygiene Heuristics ---
+        const content = session.screenContent || ''
+        const lines = content.split('\n')
+        let lastLine = ''
+        for (let index = lines.length - 1; index >= 0; index -= 1) {
+          if (lines[index].trim().length > 0) {
+            lastLine = lines[index]
+            break
+          }
+        }
+
+        // 1. Pagination Nudge
+        const pagination = detectPagination(content)
+        if (pagination) {
+          response.content.push(textContent(`\n[NUDGE] ${pagination.reason}. You may need to press ${pagination.suggestedAction === 'press_space' ? 'Space' : 'q'}.`))
+          structuredContent.suggestedInteraction = pagination.suggestedAction
+        }
+
+        // 2. Best-effort CWD Recovery
+        const extractedCwd = extractCwdFromPrompt(lastLine)
+        if (extractedCwd) {
+          runtime.stateManager.updatePtySessionObservedCwd(sessionId, extractedCwd)
+          structuredContent.observedCwd = extractedCwd
+        }
+
+        return response
       }
       catch (error) {
         return {
           isError: true,
-          content: [textContent(`PTY read failed: ${error instanceof Error ? error.message : String(error)}`)],
+          content: [textContent(`PTY read failed: ${errorMessageFromValue(error)}`)],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -507,10 +538,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
       catch (error) {
         return {
           isError: true,
-          content: [textContent(`PTY resize failed: ${error instanceof Error ? error.message : String(error)}`)],
+          content: [textContent(`PTY resize failed: ${errorMessageFromValue(error)}`)],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }

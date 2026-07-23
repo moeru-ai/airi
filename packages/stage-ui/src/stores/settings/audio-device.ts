@@ -4,33 +4,135 @@ import { watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
+let microphonePermissionStatus: PermissionStatus
+
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
-  const { audioInputs, deviceConstraints, selectedAudioInput: selectedAudioInputNonPersist, startStream, stopStream, stream, askPermission } = useAudioDevice()
+  const {
+    audioInputs,
+    deviceConstraints,
+    permissionGranted,
+    selectedAudioInput: selectedAudioInputNonPersist,
+    startStream: startAudioInputStream,
+    stopStream: stopAudioInputStream,
+    stream,
+    askPermission: askAudioInputPermission,
+  } = useAudioDevice()
 
   const selectedAudioInputPersist = useLocalStorageManualReset<string>('settings/audio/input', selectedAudioInputNonPersist.value)
-  const selectedAudioInputEnabledPersist = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  let audioInputStartGeneration = 0
+  let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
+
+  function syncSelectedAudioInputFromRuntime() {
+    if (selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
+      selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
+  }
+
+  function syncSelectedAudioInputToRuntime() {
+    if (selectedAudioInputPersist.value && selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
+      selectedAudioInputNonPersist.value = selectedAudioInputPersist.value
+  }
+
+  async function askPermission() {
+    syncSelectedAudioInputToRuntime()
+    await askAudioInputPermission()
+    syncSelectedAudioInputFromRuntime()
+  }
+
+  function createAudioInputStartGeneration() {
+    audioInputStartGeneration += 1
+    return audioInputStartGeneration
+  }
+
+  function invalidateAudioInputStarts() {
+    audioInputStartGeneration += 1
+  }
+
+  /** Reuses the active browser request so concurrent consumers cannot allocate duplicate streams. */
+  function getOrStartAudioInputStream() {
+    if (audioInputStart)
+      return audioInputStart
+
+    const currentStart = startAudioInputStream()
+    audioInputStart = currentStart
+    const clearCurrentStart = () => {
+      if (audioInputStart === currentStart)
+        audioInputStart = undefined
+    }
+    void currentStart.then(clearCurrentStart, clearCurrentStart)
+    return currentStart
+  }
+
+  async function startStreamForGeneration(generation: number) {
+    syncSelectedAudioInputToRuntime()
+    await getOrStartAudioInputStream()
+
+    if (generation === audioInputStartGeneration)
+      syncSelectedAudioInputFromRuntime()
+  }
+
+  async function startStream() {
+    await startStreamForGeneration(createAudioInputStartGeneration())
+  }
+
+  function stopStream() {
+    invalidateAudioInputStarts()
+    stopAudioInputStream()
+  }
+
+  function handleStartStreamError(generation: number, error: unknown, message: string) {
+    console.error(message, error)
+
+    if (generation === audioInputStartGeneration)
+      audioInputEnabled.value = false
+  }
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue
   })
 
-  watch(selectedAudioInputEnabledPersist, (val) => {
+  watch(audioInputEnabled, (val) => {
     if (val) {
-      startStream()
+      const generation = createAudioInputStartGeneration()
+      startStreamForGeneration(generation).catch((error) => {
+        handleStartStreamError(generation, error, 'Unable to start audio input stream:')
+      })
     }
     else {
       stopStream()
     }
   })
 
+  // permissionGranted from vueuse does not track revocation yet.
+  // implement it manually.
+  try {
+    navigator?.permissions?.query({ name: 'microphone' }).then((status) => {
+      microphonePermissionStatus = status // existing one cleaned up by GC
+      status.onchange = () => {
+        if (status.state === 'denied' || status.state === 'prompt')
+          audioInputEnabled.value = false
+      }
+    })
+  }
+  catch (e) { console.info(`Unable to track microphone permission: ${e}`) }
+  void microphonePermissionStatus // suppress unused variable lint
   function initialize() {
     const hasSelectedInput = selectedAudioInputPersist.value
       && audioInputs.value.some(device => device.deviceId === selectedAudioInputPersist.value)
 
-    if (selectedAudioInputEnabledPersist.value && hasSelectedInput) {
-      startStream()
+    if (hasSelectedInput)
+      syncSelectedAudioInputToRuntime()
+
+    if (audioInputEnabled.value && hasSelectedInput) {
+      const generation = createAudioInputStartGeneration()
+      startStreamForGeneration(generation).catch((error) => {
+        handleStartStreamError(generation, error, 'Unable to initialize audio input stream:')
+      })
     }
-    if (selectedAudioInputNonPersist.value && !selectedAudioInputEnabledPersist.value) {
+    else if (selectedAudioInputPersist.value && audioInputs.value.length > 0 && !hasSelectedInput) {
+      selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
+    }
+    if (selectedAudioInputNonPersist.value && !audioInputEnabled.value) {
       selectedAudioInputPersist.value = selectedAudioInputNonPersist.value
     }
   }
@@ -38,15 +140,16 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   function resetState() {
     selectedAudioInputPersist.reset()
     selectedAudioInputNonPersist.value = ''
-    selectedAudioInputEnabledPersist.reset()
+    audioInputEnabled.reset()
     stopStream()
   }
 
   return {
     audioInputs,
     deviceConstraints,
+    permissionGranted,
     selectedAudioInput: selectedAudioInputPersist,
-    enabled: selectedAudioInputEnabledPersist,
+    enabled: audioInputEnabled,
 
     stream,
 

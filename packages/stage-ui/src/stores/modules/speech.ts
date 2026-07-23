@@ -2,6 +2,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { VoiceInfo } from '../providers'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
@@ -11,7 +12,7 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 
 export function toSignedPercent(value: number): string {
@@ -20,6 +21,19 @@ export function toSignedPercent(value: number): string {
   if (value < 0)
     return `-${Math.abs(value)}%`
   return '0%'
+}
+
+interface SpeechInputOptions {
+  text: string
+  voice: VoiceInfo
+  providerConfig?: Record<string, unknown>
+  forceSSML?: boolean
+  supportsSSML?: boolean
+}
+
+interface SpeechInput {
+  input: string
+  providerConfig: Record<string, unknown>
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -46,7 +60,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.findProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
   })
 
   const providerModels = computed(() => {
@@ -83,8 +97,15 @@ export const useSpeechStore = defineStore('speech', () => {
     return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
   })
 
-  async function loadVoicesForProvider(provider: string) {
+  async function loadVoicesForProvider(provider: string, model?: string) {
     if (!provider) {
+      return []
+    }
+
+    // Streaming provider visibility is server-driven and only confirmed after
+    // the auth probe force-configures it. Keep the gate at the public loader so
+    // pages cannot bypass it and issue `/voices/streaming` while unavailable.
+    if (provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && !providersStore.configuredProviders[provider]) {
       return []
     }
 
@@ -92,7 +113,7 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider)) || []
+      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider), model) || []
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
@@ -102,7 +123,7 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     catch (error) {
       console.error(`Error fetching voices for ${provider}:`, error)
-      speechProviderError.value = error instanceof Error ? error.message : 'Unknown error'
+      speechProviderError.value = errorMessageFrom(error) ?? 'Unknown error'
       return []
     }
     finally {
@@ -115,12 +136,67 @@ export const useSpeechStore = defineStore('speech', () => {
     return availableVoices.value[provider] || []
   }
 
+  function clearVoiceSelection() {
+    activeSpeechVoiceId.value = ''
+    activeSpeechVoice.value = undefined
+  }
+
+  // Streaming TTS voices are model-scoped: the server only returns recommended
+  // voices for an explicit `?model=`. Ensure the active model is a valid
+  // streaming model id so voice loading gets the right recommendations (parity
+  // with the HTTP provider's auto-pick). Reseeds the server-curated default
+  // both when no model is selected AND when `activeSpeechModel` still holds a
+  // stale id from a previously-active provider (the global model ref is shared
+  // across providers, and the per-surface reset may not have run yet). No-op
+  // for non-streaming providers.
+  function ensureStreamingDefaultModel() {
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+      return
+    const streamingModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    const hasValidSelection = !!activeSpeechModel.value && streamingModels.some(m => m.id === activeSpeechModel.value)
+    if (hasValidSelection)
+      return
+    // Replace an empty/stale (non-streaming) selection with the server default.
+    // When no default can be resolved yet (catalog not loaded), clear it to ''
+    // so callers pass `undefined` (server returns the full streaming catalog)
+    // rather than forwarding a stale non-streaming model id as `?model=`.
+    const nextModel = getDefaultStreamingModel() ?? streamingModels[0]?.id ?? ''
+    if (activeSpeechModel.value === nextModel)
+      return
+    activeSpeechModel.value = nextModel
+    // The previously-selected voice belonged to the stale/empty model context,
+    // so drop it; auto-pick re-picks a recommended voice for the new model.
+    clearVoiceSelection()
+  }
+
+  function ensureActiveSpeechModel() {
+    ensureStreamingDefaultModel()
+
+    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID)
+      return
+
+    const models = providersStore.getModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    if (!models.length)
+      return
+
+    const hasValidSelection = !!activeSpeechModel.value && models.some(m => m.id === activeSpeechModel.value)
+    if (hasValidSelection)
+      return
+
+    const defaultModel = getDefaultSpeechModel()
+    activeSpeechModel.value = defaultModel && models.some(m => m.id === defaultModel)
+      ? defaultModel
+      : models[0]?.id ?? ''
+    clearVoiceSelection()
+  }
+
   // Watch for provider changes and load voices
   watch(activeSpeechProvider, async (newProvider) => {
-    if (newProvider) {
-      await loadVoicesForProvider(newProvider)
-      // Don't reset voice settings when changing providers to allow for persistence
-    }
+    if (!newProvider)
+      return
+    ensureActiveSpeechModel()
+    await loadVoicesForProvider(newProvider, activeSpeechModel.value || undefined)
+    // Don't reset voice settings when changing providers to allow for persistence
   }, {
     // REVIEW: should we always load voices on init? What will happen when network is not available?
     immediate: true,
@@ -159,7 +235,8 @@ export const useSpeechStore = defineStore('speech', () => {
   )
 
   onMounted(() => {
-    loadVoicesForProvider(activeSpeechProvider.value).then(() => {
+    ensureActiveSpeechModel()
+    loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined).then(() => {
       if (activeSpeechVoiceId.value) {
         activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
       }
@@ -171,6 +248,10 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoiceId,
     availableVoices,
     uiLocale: locale,
+  })
+
+  watch(providerModels, () => {
+    ensureActiveSpeechModel()
   })
 
   watch([activeSpeechVoiceId, availableVoices], ([voiceId, voices]) => {
@@ -219,10 +300,16 @@ export const useSpeechStore = defineStore('speech', () => {
     voice: string,
     providerConfig: Record<string, any> = {},
   ): Promise<ArrayBuffer> {
+    const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+      || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+      ? withAiriTtsAnalytics(providerConfig, {
+          trigger: 'manual',
+          source: 'manual_preview',
+          voice_type: resolveVoiceType(voice),
+        })
+      : providerConfig
     const response = await generateSpeech({
-      ...provider.speech(model, {
-        ...providerConfig,
-      }),
+      ...provider.speech(model, requestProviderConfig),
       input,
       voice,
     })
@@ -230,25 +317,50 @@ export const useSpeechStore = defineStore('speech', () => {
     return response
   }
 
+  function withAiriTtsAnalytics(
+    providerConfig: Record<string, any>,
+    analytics: {
+      trigger: 'auto' | 'manual'
+      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+    },
+  ): Record<string, any> {
+    return {
+      ...providerConfig,
+      extraBody: {
+        ...(providerConfig.extraBody as Record<string, unknown> | undefined),
+        airi_analytics: analytics,
+      },
+    }
+  }
+
+  /**
+   * Classifies the active speech voice before forwarding analytics to the server.
+   */
+  function resolveVoiceType(voiceId: string): 'official_selected' | 'custom_configured' {
+    const catalogVoice = availableVoices.value[activeSpeechProvider.value]?.some(voice => voice.id === voiceId)
+    return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID && catalogVoice ? 'official_selected' : 'custom_configured'
+  }
+
   function generateSSML(
     text: string,
     voice: VoiceInfo,
-    providerConfig?: Record<string, any>,
+    providerConfig?: Record<string, unknown>,
   ): string {
     const pitch = providerConfig?.pitch
     const speed = providerConfig?.speed
     const volume = providerConfig?.volume
 
     const prosody = {
-      pitch: pitch != null
+      pitch: typeof pitch === 'number'
         ? toSignedPercent(pitch)
         : undefined,
-      rate: speed != null
+      rate: typeof speed === 'number'
         ? speed !== 1.0
           ? `${speed}`
           : '1'
         : undefined,
-      volume: volume != null
+      volume: typeof volume === 'number'
         ? toSignedPercent(volume)
         : undefined,
     }
@@ -270,6 +382,18 @@ export const useSpeechStore = defineStore('speech', () => {
     ])
 
     return toXml(ssmlXast)
+  }
+
+  function resolveSpeechInput(options: SpeechInputOptions): SpeechInput {
+    const providerConfig = { ...options.providerConfig }
+    const canUseSSML = options.supportsSSML === true
+
+    return {
+      input: options.forceSSML === true && canUseSSML
+        ? generateSSML(options.text, options.voice, providerConfig)
+        : options.text,
+      providerConfig,
+    }
   }
 
   const configured = computed(() => {
@@ -334,7 +458,10 @@ export const useSpeechStore = defineStore('speech', () => {
     speech,
     loadVoicesForProvider,
     getVoicesForProvider,
+    ensureStreamingDefaultModel,
+    ensureActiveSpeechModel,
     generateSSML,
+    resolveSpeechInput,
     resetState,
   }
 })

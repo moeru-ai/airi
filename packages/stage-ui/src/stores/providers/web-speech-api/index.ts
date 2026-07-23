@@ -1,6 +1,8 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
+
 // NOTICE: Copied/adapted from @xsai/stream-transcription delayed promise helper.
 // Ref: @xsai/stream-transcription@0.4.0-beta.8 (dist/index.js DelayedPromise usage).
 function createDeferred<T>() {
@@ -306,7 +308,7 @@ export function streamWebSpeechAPITranscription(
           }
           catch (newErr) {
             console.error('Web Speech API failed to create new instance:', newErr)
-            const error = new Error(`Failed to restart recognition: ${newErr instanceof Error ? newErr.message : String(newErr)}`)
+            const error = new Error(`Failed to restart recognition: ${errorMessageFromValue(newErr)}`)
             fullStreamCtrl?.error(error)
             textStreamCtrl?.error(error)
             deferredText.reject(error)

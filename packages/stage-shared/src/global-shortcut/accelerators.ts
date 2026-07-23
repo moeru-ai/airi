@@ -7,9 +7,9 @@ import type { ShortcutAccelerator, ShortcutKey, ShortcutModifier } from './types
  * are an ergonomic input/output format only.
  *
  * Two output flavours are provided:
- * - `formatAccelerator`         — canonical IR (`"Mod+Shift+KeyK"`),
- *                                 round-trips losslessly through
- *                                 `parseAccelerator`.
+ * - `formatAccelerator`         — canonical string form
+ *                                 (`"Mod+Shift+KeyK"`); round-trips
+ *                                 losslessly through `parseAccelerator`.
  * - `formatElectronAccelerator` — Electron's accelerator string
  *                                 (`"CmdOrCtrl+Shift+K"`), suitable for
  *                                 passing directly to
@@ -182,10 +182,11 @@ const MODIFIER_CANONICAL_ORDER: readonly ShortcutModifier[] = [
 ]
 
 /**
- * Title-case modifier tokens used by `formatAccelerator` (canonical IR
- * output). Mirrors Tauri/Electron casing so output is recognizable.
+ * Title-case modifier tokens used by `formatAccelerator` (canonical
+ * string output). Mirrors Tauri/Electron casing so output is
+ * recognizable.
  */
-const MODIFIER_TO_IR_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
+const MODIFIER_TO_CANONICAL_TOKEN: Readonly<Record<ShortcutModifier, string>> = {
   'cmd-or-ctrl': 'Mod',
   'cmd': 'Cmd',
   'ctrl': 'Ctrl',
@@ -368,7 +369,7 @@ function canonicalModifiers(acc: ShortcutAccelerator): ShortcutModifier[] {
 }
 
 /**
- * Serializes a structured accelerator back to canonical IR string
+ * Serializes a structured accelerator back to its canonical string
  * form.
  *
  * Use when:
@@ -385,7 +386,7 @@ function canonicalModifiers(acc: ShortcutAccelerator): ShortcutModifier[] {
  *   // => 'Mod+Shift+KeyK'
  */
 export function formatAccelerator(acc: ShortcutAccelerator): string {
-  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_IR_TOKEN[m])
+  const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_CANONICAL_TOKEN[m])
   tokens.push(acc.key)
   return tokens.join('+')
 }

@@ -10,6 +10,7 @@
  */
 
 import type { DesktopSession } from './desktop-session'
+import type { ToolLane } from './server/tool-descriptors'
 import type { TaskMemory } from './task-memory/types'
 import type {
   BrowserSurfaceAvailability,
@@ -59,6 +60,8 @@ export interface PtySessionState {
   pid: number
   /** Working directory at creation time. */
   cwd?: string
+  /** Last cwd observed from terminal prompt heuristics. */
+  observedCwd?: string
   /** Stable workflow step id that created this session (if any). */
   boundStepId?: string
   /**
@@ -196,6 +199,10 @@ export interface RunState {
   // --- Desktop Session ---------------------------------------------------
   /** Agent's active desktop execution session. */
   desktopSession?: DesktopSession
+
+  // --- Tool lane hygiene ------------------------------------------------
+  /** Inferred active lane from the most recent non-exempt tool invocation. */
+  inferredActiveLane?: ToolLane
 
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
@@ -488,6 +495,11 @@ export class RunStateManager {
     this.touch()
   }
 
+  updateInferredLane(lane: ToolLane): void {
+    this.state.inferredActiveLane = lane
+    this.touch()
+  }
+
   clearTask() {
     this.state.activeTask = undefined
     this.touch()
@@ -534,6 +546,15 @@ export class RunStateManager {
     if (entry) {
       entry.lastInteractionAt = new Date().toISOString()
       this.state.activePtySessionId = sessionId
+      this.touch()
+    }
+  }
+
+  /** Update the last observed cwd of a PTY session from terminal prompt heuristics. */
+  updatePtySessionObservedCwd(sessionId: string, cwd: string): void {
+    const entry = this.state.ptySessions.find(s => s.id === sessionId)
+    if (entry && entry.observedCwd !== cwd) {
+      entry.observedCwd = cwd
       this.touch()
     }
   }

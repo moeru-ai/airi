@@ -1,18 +1,30 @@
 {
   stdenvNoCC,
+  lib,
   callPackage,
-
-  copyDesktopItems,
   makeDesktopItem,
+
+  asar,
+  copyDesktopItems,
   makeWrapper,
   gitMinimal,
+  nodejs,
   pnpm_10,
   pnpmConfigHook,
 
-  asar,
-  electron,
-  nodejs,
+  electron_41,
+  libxt,
+  libxtst,
 }:
+
+let
+  pnpm = pnpm_10;
+  electron = electron_41;
+  libraryPath = lib.makeLibraryPath [
+    libxt
+    libxtst
+  ];
+in
 
 (callPackage ./common.nix { }).overrideAttrs (final: {
   nativeBuildInputs = [
@@ -21,7 +33,7 @@
     makeWrapper
     gitMinimal
     nodejs
-    pnpm_10
+    pnpm
     pnpmConfigHook
   ];
 
@@ -81,9 +93,10 @@
     cp -r "$assets"/{vrm,live2d} app/out/renderer/assets
     asar pack app app.asar
 
-    makeWrapper "${electron}/bin/electron" "$out/bin/airi" \
+    makeWrapper "${lib.getExe electron}" "$out/bin/airi" \
       --add-flags "$out/opt/AIRI/resources/app.asar" \
-      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}"
+      --add-flags "\''${NIXOS_OZONE_WL:+\''${WAYLAND_DISPLAY:+--enable-wayland-ime=true --wayland-text-input-version=3}}" \
+      --prefix LD_LIBRARY_PATH : "${libraryPath}"
 
     runHook postInstall
   '';

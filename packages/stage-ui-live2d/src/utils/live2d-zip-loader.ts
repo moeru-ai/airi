@@ -1,19 +1,40 @@
-import type { ModelSettings } from 'pixi-live2d-display/cubism4'
+import type { JSONObject, ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import JSZip from 'jszip'
 
-import { Cubism4ModelSettings, ZipLoader } from 'pixi-live2d-display/cubism4'
+import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
 
-ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
+import { decodeZipFileName } from './decode-zip-filename'
 
-const defaultCreateSettings = ZipLoader.createSettings
+// Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
+// codepage; decode them so non-ASCII names (e.g. `手姿势切换.exp3.json`) don't become
+// mojibake. The same decoder must be used by `validateLive2DZip`, otherwise validation
+// sees mojibake paths and rejects archives before they reach this loader.
+ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
+
+interface IgnoredArchivePathSegmentRule {
+  matches: (segment: string) => boolean
+}
+
+const ignoredArchivePathSegmentRules: IgnoredArchivePathSegmentRule[] = [
+  { matches: segment => segment === '__MACOSX' },
+  { matches: segment => segment.startsWith('._') },
+]
+
+function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
+  return filePath
+    .split('/')
+    .some(segment => ignoredArchivePathSegmentRules.some(rule => rule.matches(segment)))
+}
+
 ZipLoader.createSettings = async (reader: JSZip) => {
   const filePaths = Object.keys(reader.files)
   const settings = await (async () => {
-    if (!filePaths.some(file => isSettingsFile(file))) {
+    const settingsFilePath = filePaths.find(file => isSettingsFile(file))
+    if (!settingsFilePath) {
       return createFakeSettings(filePaths)
     }
-    return defaultCreateSettings(reader)
+    return createModelSettings(await ZipLoader.readText(reader, settingsFilePath), settingsFilePath)
   })()
 
   // Extract CDI data from the zip if available
@@ -55,8 +76,52 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   return settings
 }
 
+/**
+ * Normalizes Live2D model settings JSON before upstream path resolution.
+ *
+ * Before:
+ * - `{ "FileReferences": { "Physics": null } }`
+ *
+ * After:
+ * - `{ "FileReferences": {} }`
+ */
+function sanitizeModelSettingsText(text: string): string {
+  const json = JSON.parse(text) as Record<string, unknown>
+  const refs = json.FileReferences
+
+  if (refs && typeof refs === 'object') {
+    const fileReferences = refs as Record<string, unknown>
+    if (fileReferences.Physics === null)
+      delete fileReferences.Physics
+    if (fileReferences.Pose === null)
+      delete fileReferences.Pose
+    if (fileReferences.DisplayInfo === null)
+      delete fileReferences.DisplayInfo
+  }
+
+  return JSON.stringify(json)
+}
+
+function createModelSettings(text: string, url: string): ModelSettings {
+  if (!text) {
+    throw new Error(`Empty settings file: ${url}`)
+  }
+
+  const settingsJSON = JSON.parse(text) as JSONObject & { url?: string }
+  settingsJSON.url = url
+  const runtime = Live2DFactory.findRuntime(settingsJSON)
+
+  if (!runtime) {
+    throw new Error('Unknown settings JSON')
+  }
+
+  return runtime.createModelSettings(settingsJSON)
+}
+
 export function isSettingsFile(file: string) {
-  return file.endsWith('.model3.json') || file.endsWith('.model.json')
+  return !shouldIgnoreLive2DArchiveEntry(file)
+    && !file.endsWith('items_pinned_to_model.json')
+    && (file.endsWith('.model3.json') || file.endsWith('.model.json'))
 }
 
 export function isMocFile(file: string) {
@@ -115,21 +180,46 @@ function createFakeSettings(files: string[]): ModelSettings {
   return settings
 }
 
-ZipLoader.readText = (jsZip: JSZip, path: string) => {
+ZipLoader.readText = async (jsZip: JSZip, path: string) => {
   const file = jsZip.file(path)
 
   if (!file) {
     throw new Error(`Cannot find file: ${path}`)
   }
 
-  return file.async('text')
+  const text = await file.async('text')
+
+  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
+}
+
+const defaultFileLoaderReadText = FileLoader.readText
+FileLoader.createSettings = async (files: File[]) => {
+  const settingsFile = files.find(file => isSettingsFile(file.webkitRelativePath || file.name))
+
+  if (!settingsFile) {
+    throw new TypeError('Settings file not found')
+  }
+
+  const settingsUrl = settingsFile.webkitRelativePath || settingsFile.name
+  const settingsText = await FileLoader.readText(settingsFile)
+  const settings = createModelSettings(settingsText, settingsUrl)
+  Object.assign(settings, { _objectURL: URL.createObjectURL(settingsFile) })
+
+  return settings
+}
+
+FileLoader.readText = async (file: File) => {
+  const text = await defaultFileLoaderReadText(file)
+  const path = file.webkitRelativePath || file.name
+
+  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
 }
 
 ZipLoader.getFilePaths = (jsZip: JSZip) => {
   const paths: string[] = []
 
   jsZip.forEach((relativePath, file) => {
-    if (!file.dir) {
+    if (!file.dir && !shouldIgnoreLive2DArchiveEntry(relativePath)) {
       paths.push(relativePath)
     }
   })
