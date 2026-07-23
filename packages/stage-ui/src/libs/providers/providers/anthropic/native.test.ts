@@ -537,6 +537,37 @@ describe('fetch wiring', () => {
     expect(init.signal).toBe(abortController.signal)
   })
 
+  it('forwards a structured tool result as JSON text instead of throwing', async () => {
+    // xsai stringifies structured tool returns before they become message
+    // content, so this covers a caller that serializes the object itself: the
+    // translation must not blow up mid-request on a non-array content value.
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [
+        { role: 'user', content: 'list them' },
+        { role: 'assistant', tool_calls: [{ id: 'toolu_1', type: 'function', function: { name: 'mcp_call', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'toolu_1', content: { isError: false, structuredContent: { count: 2 } } },
+      ],
+    })
+
+    expect(sent.messages[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'toolu_1', content: '{"isError":false,"structuredContent":{"count":2}}' }],
+    })
+  })
+
+  it('forwards a structured message content value as JSON text instead of throwing', async () => {
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [{ role: 'user', content: { unexpected: 'shape' } }],
+    })
+
+    expect(sent.messages[0]).toEqual({
+      role: 'user',
+      content: [{ type: 'text', text: '{"unexpected":"shape"}' }],
+    })
+  })
+
   // https://github.com/moeru-ai/airi/issues/1565
   it('keeps bearer auth for custom Base URLs, which /v1/messages proxies commonly require (Issue #1565)', async () => {
     const baseFetch = vi.fn().mockResolvedValue(jsonResponse({ content: [], stop_reason: 'end_turn' }))

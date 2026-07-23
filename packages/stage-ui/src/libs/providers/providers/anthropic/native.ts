@@ -46,7 +46,12 @@ interface OpenAIToolCall {
 
 interface OpenAIWireMessage {
   role: string
-  content?: string | OpenAIContentPart[] | null
+  /**
+   * Parsed straight out of the caller's serialized body, so the array shape is
+   * what a well-behaved client sends rather than something this adapter can
+   * rely on — the mappers below narrow before iterating.
+   */
+  content?: string | OpenAIContentPart[] | Record<string, unknown> | null
   tool_calls?: OpenAIToolCall[]
   tool_call_id?: string
 }
@@ -159,13 +164,18 @@ function mapImagePart(url: string): { type: 'image', source: AnthropicImageSourc
   return undefined
 }
 
-function mapContentParts(content: string | OpenAIContentPart[] | null | undefined): AnthropicContentBlock[] {
+function mapContentParts(content: OpenAIWireMessage['content'] | undefined): AnthropicContentBlock[] {
   if (content == null)
     return []
   // The Messages API rejects empty text blocks, and xsai appends an assistant
   // turn with `content: ''` after every tool round — skip empties everywhere.
   if (typeof content === 'string')
     return content.length > 0 ? [{ type: 'text', text: content }] : []
+  // Anything that is neither text nor a parts array is carried through as its
+  // JSON text: the model still sees the value, and the adapter does not throw
+  // a bare TypeError out of `fetch` where the app expects a provider error.
+  if (!Array.isArray(content))
+    return [{ type: 'text', text: JSON.stringify(content) }]
 
   const blocks: AnthropicContentBlock[] = []
   for (const part of content) {
@@ -183,9 +193,15 @@ function mapContentParts(content: string | OpenAIContentPart[] | null | undefine
   return blocks
 }
 
-function mapToolResultContent(content: string | OpenAIContentPart[] | null | undefined): AnthropicToolResultContent {
+function mapToolResultContent(content: OpenAIWireMessage['content'] | undefined): AnthropicToolResultContent {
   if (typeof content === 'string' || content == null)
     return content ?? ''
+  // xsai already stringifies a structured tool return before it becomes message
+  // content (`wrapToolResult` in `@xsai/shared-chat`), so this guards the wire
+  // shape rather than that path: a caller that serializes the object itself
+  // gets its JSON forwarded instead of crashing the translation.
+  if (!Array.isArray(content))
+    return JSON.stringify(content)
 
   const blocks: Array<{ type: 'text', text: string } | { type: 'image', source: AnthropicImageSource }> = []
   for (const part of content) {
