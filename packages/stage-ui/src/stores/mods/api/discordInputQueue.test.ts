@@ -190,6 +190,47 @@ describe('discord input queue', () => {
     expect(queue.getSnapshot().global).toBe(0)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2097
+  it('continues dispatching after a cancelled operation never settles (CSR-09)', async () => {
+    // ROOT CAUSE:
+    //
+    // Aborting the active reservation only notified its operation. If that
+    // operation ignored the signal and never settled, drain() kept awaiting it
+    // and no later Discord reservation could dispatch.
+    //
+    // Before the fix, nextRun remains queued forever after cancelSession().
+    //
+    // We fixed this by making cancellation settle the scheduler's wait without
+    // requiring the underlying provider operation to cooperate.
+    const queue = createDiscordInputQueue()
+    const user = principal('123456789012345678')
+    const neverSettles = new Promise<void>(() => {})
+    const blocked = observeRejection(queue.submit({
+      principalId: user,
+      sessionId: 'cancelled-session',
+      run: async () => neverSettles,
+    }))
+    const nextRun = vi.fn()
+    const next = observeRejection(queue.submit({
+      principalId: user,
+      sessionId: 'next-session',
+      run: async () => nextRun(),
+    }))
+    await vi.waitFor(() => expect(queue.getSnapshot().active).toBe(1))
+
+    try {
+      expect(queue.cancelSession('cancelled-session')).toBe(1)
+      await vi.waitFor(() => expect(nextRun).toHaveBeenCalledTimes(1))
+    }
+    finally {
+      queue.shutdown()
+    }
+
+    await expect(blocked).rejects.toThrow('cancelled')
+    await expect(next).resolves.toBeUndefined()
+    expect(queue.getSnapshot().global).toBe(0)
+  })
+
   it('releases queued reservations when their wait times out', async () => {
     vi.useFakeTimers()
     const queue = createDiscordInputQueue({ limits: { queueTimeoutMs: 10 } })
@@ -208,13 +249,11 @@ describe('discord input queue', () => {
     await expect(first).rejects.toThrow('shut down')
   })
 
-  it('releases reservations once across disconnect cancellation and later task settlement', async () => {
+  // https://github.com/moeru-ai/airi/pull/2097
+  it('accepts new work after disconnect cancels an operation that never settles (CSR-09)', async () => {
     const queue = createDiscordInputQueue()
     const user = principal('123456789012345678')
-    let finishActive: () => void = () => {}
-    const activeRun = new Promise<void>((resolve) => {
-      finishActive = resolve
-    })
+    const activeRun = new Promise<void>(() => {})
     const activeSubmission = observeRejection(queue.submit({
       principalId: user,
       sessionId: 'disconnect-session',
@@ -229,10 +268,14 @@ describe('discord input queue', () => {
 
     expect(queue.cancelAll(new Error('transport disconnected'))).toBe(2)
     await expect(queuedSubmission).rejects.toThrow('transport disconnected')
-    expect(queue.getSnapshot().global).toBe(1)
+    await expect(activeSubmission).rejects.toThrow('transport disconnected')
+    expect(queue.getSnapshot().global).toBe(0)
 
-    finishActive()
-    await expect(activeSubmission).resolves.toBeUndefined()
+    await expect(queue.submit({
+      principalId: user,
+      sessionId: 'reconnected-session',
+      run: async () => {},
+    })).resolves.toBeUndefined()
     expect(queue.getSnapshot().global).toBe(0)
   })
 

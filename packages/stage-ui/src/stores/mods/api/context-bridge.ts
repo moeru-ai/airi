@@ -353,11 +353,39 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     return options.calls?.find(call => call.manifest.name === name)
   }
 
-  function withContextBridgeLock<T>(key: string, callback: () => Promise<T>) {
-    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
-      return navigator.locks.request(key, callback)
+  async function runContextBridgeTaskUntilAborted<T>(callback: () => Promise<T>, signal: AbortSignal) {
+    signal.throwIfAborted()
+
+    let rejectCancellation: (error: unknown) => void = () => {}
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      rejectCancellation = reject
+    })
+    const onAbort = () => rejectCancellation(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+    signal.addEventListener('abort', onAbort, { once: true })
+
+    // Releasing the Web Lock must not depend on provider cancellation support.
+    // Promise.race keeps observing a detached provider promise, so a late
+    // rejection remains handled after cancellation releases the lock.
+    const operation = Promise.resolve().then(callback)
+    try {
+      return await Promise.race([operation, cancellation])
     }
-    return callback()
+    finally {
+      signal.removeEventListener('abort', onAbort)
+    }
+  }
+
+  function withContextBridgeLock<T>(key: string, callback: () => Promise<T>, signal?: AbortSignal) {
+    const run = () => signal
+      ? runContextBridgeTaskUntilAborted(callback, signal)
+      : callback()
+
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+      if (signal)
+        return navigator.locks.request(key, { signal }, run)
+      return navigator.locks.request(key, run)
+    }
+    return run()
   }
 
   async function withContextBridgeExclusiveLock<T>(key: string, callback: () => Promise<T>) {
@@ -715,7 +743,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             catch (err) {
               console.error('Error ingesting text input via context bridge:', err)
             }
-          })
+          }, signal)
         }
       }
 

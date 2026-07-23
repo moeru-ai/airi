@@ -231,6 +231,29 @@ export function createDiscordInputQueue(options?: {
     return reservation
   }
 
+  async function runUntilCancelled(reservation: Reservation) {
+    const { signal } = reservation.controller
+    signal.throwIfAborted()
+
+    let rejectCancellation: (error: unknown) => void = () => {}
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      rejectCancellation = reject
+    })
+    const onAbort = () => rejectCancellation(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+    signal.addEventListener('abort', onAbort, { once: true })
+
+    // Promise.race observes the provider promise even after cancellation wins.
+    // The provider may remain pending, but it can no longer retain scheduler
+    // ownership or surface a late rejection as an unhandled promise.
+    const operation = Promise.resolve().then(() => reservation.run(signal))
+    try {
+      await Promise.race([operation, cancellation])
+    }
+    finally {
+      signal.removeEventListener('abort', onAbort)
+    }
+  }
+
   async function drain() {
     if (draining)
       return
@@ -249,7 +272,7 @@ export function createDiscordInputQueue(options?: {
         clearTimeout(reservation.timeout)
 
         try {
-          await reservation.run(reservation.controller.signal)
+          await runUntilCancelled(reservation)
           settle(reservation)
         }
         catch (error) {

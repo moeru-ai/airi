@@ -767,4 +767,50 @@ describe('context bridge contract', () => {
     expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1)
     await store.dispose()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2097
+  it('continues queued Discord ingestion when reset cannot settle the active ingest (CSR-09)', async () => {
+    // ROOT CAUSE:
+    //
+    // A session reset aborted the Discord reservation, but a provider that did
+    // not settle left chatOrchestrator.ingest() holding the context-bridge Web
+    // Lock. The queue could not dispatch later Discord input through that lock.
+    //
+    // Before the fix, the second ingest call below never occurs.
+    //
+    // We fixed this by ending both the scheduler wait and Web Lock ownership on
+    // cancellation, independently of provider cooperation.
+    activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'mock-model'
+    getProviderInstanceMock.mockResolvedValue({})
+    chatOrchestratorMock.ingest
+      .mockImplementationOnce(() => new Promise<void>(() => {}))
+      .mockResolvedValueOnce(undefined)
+
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const blockedSubmission = emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: '123456789012345678',
+      sessionId: 'discord-guild-reset',
+      text: 'blocked message',
+    }))
+    const nextSubmission = emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: '223456789012345678',
+      sessionId: 'discord-guild-next',
+      text: 'next message',
+    }))
+    await vi.waitFor(() => expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1))
+
+    try {
+      await emitHooks(pendingSendCancellationHooks, 'discord-guild-reset')
+      await vi.waitFor(() => expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(2))
+    }
+    finally {
+      await store.dispose()
+    }
+
+    await expect(blockedSubmission).resolves.toBeUndefined()
+    await expect(nextSubmission).resolves.toBeUndefined()
+    expect(chatOrchestratorMock.ingest.mock.calls[1]?.[0]).toBe('next message')
+  })
 })
