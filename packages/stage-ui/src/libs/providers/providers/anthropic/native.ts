@@ -434,6 +434,13 @@ interface SSEBlockState {
   toolIndex?: number
   toolId?: string
   toolName?: string
+  /**
+   * Whether the tool block has carried any `input_json_delta`. A tool with an
+   * empty schema produces none, and the accumulated argument text would then
+   * stay empty rather than becoming an object literal — see the
+   * `content_block_stop` handler.
+   */
+  receivedArgumentDelta?: boolean
 }
 
 /**
@@ -547,6 +554,7 @@ function createAnthropicSSETranslator(): TransformStream<Uint8Array, Uint8Array>
           emit(controller, chunkOf({ reasoning_content: delta.thinking }))
         }
         else if (delta.type === 'input_json_delta' && state?.kind === 'tool' && typeof delta.partial_json === 'string') {
+          state.receivedArgumentDelta = true
           emit(controller, chunkOf({
             tool_calls: [{ index: state.toolIndex, id: state.toolId, type: 'function', function: { name: state.toolName, arguments: delta.partial_json } }],
           }))
@@ -566,6 +574,21 @@ function createAnthropicSSETranslator(): TransformStream<Uint8Array, Uint8Array>
         emitFinal(controller)
         break
       }
+      case 'content_block_stop': {
+        // A tool whose schema takes no arguments closes without a single
+        // `input_json_delta`, leaving the accumulated argument text empty.
+        // Emit the object literal the non-streaming path already produces
+        // (`JSON.stringify(block.input ?? {})`) so both directions put the same
+        // valid JSON on the wire, rather than leaning on the consumer to read
+        // empty text as an empty object.
+        const state = typeof event.index === 'number' ? blocks.get(event.index) : undefined
+        if (state?.kind === 'tool' && !state.receivedArgumentDelta) {
+          emit(controller, chunkOf({
+            tool_calls: [{ index: state.toolIndex, id: state.toolId, type: 'function', function: { name: state.toolName, arguments: '{}' } }],
+          }))
+        }
+        break
+      }
       case 'error': {
         // xsai's JsonMessageTransformStream throws RemoteAPIError for any SSE
         // payload carrying an `error` key — forward it verbatim to reuse that
@@ -574,7 +597,7 @@ function createAnthropicSSETranslator(): TransformStream<Uint8Array, Uint8Array>
         break
       }
       default:
-        // ping / content_block_stop / unknown future events carry no state.
+        // ping / unknown future events carry no state.
         break
     }
   }
