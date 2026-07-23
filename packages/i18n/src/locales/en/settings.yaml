@@ -1365,6 +1365,9 @@ pages:
       openpaths:
         description: openpaths.io
         title: OpenPaths
+      edenai:
+        description: edenai.co
+        title: Eden AI
       openrouter:
         description: openrouter.ai
         title: OpenRouter
