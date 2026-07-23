@@ -153,6 +153,61 @@ describe('xsai consumer contract', () => {
     await expect(result.totalUsage).rejects.toThrow()
   })
 
+  // A zero-argument tool (`builtIn_mcpListTools` in src/tools/mcp.ts is one)
+  // makes Anthropic open and close the tool_use block without ever sending an
+  // `input_json_delta`, so the translated tool call carries no argument text.
+  it('runs a zero-argument tool whose tool_use block streams no input deltas', async () => {
+    const baseFetch = vi.fn()
+      .mockResolvedValueOnce(sseResponse([
+        'data: {"type":"message_start","message":{"id":"msg_noargs","model":"claude-sonnet-4-5-20250929","usage":{"input_tokens":11}}}\n\n',
+        'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_list","name":"list_tools"}}\n\n',
+        'data: {"type":"content_block_stop","index":0}\n\n',
+        'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":3}}\n\n',
+        'data: {"type":"message_stop"}\n\n',
+      ]))
+      .mockResolvedValueOnce(sseResponse([
+        'data: {"type":"message_start","message":{"id":"msg_after","model":"claude-sonnet-4-5-20250929","usage":{"input_tokens":19}}}\n\n',
+        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}\n\n',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Two tools."}}\n\n',
+        'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":3}}\n\n',
+        'data: {"type":"message_stop"}\n\n',
+      ]))
+    const nativeFetch = createNativeAnthropicFetch({ apiKey: 'sk-ant-test', fetch: baseFetch })
+
+    const execute = vi.fn(async () => 'search, weather')
+    const listTool = {
+      type: 'function',
+      function: {
+        name: 'list_tools',
+        description: 'List all available tools.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+      },
+      execute,
+    } as unknown as Tool
+
+    const result = streamText({
+      apiKey: 'sk-ant-test',
+      baseURL: BASE_URL,
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [{ role: 'user', content: 'what tools do you have?' }],
+      fetch: nativeFetch,
+      tools: [listTool],
+      stopWhen: stepCountAtLeast(10),
+    })
+
+    const steps = await result.steps
+    expect(execute).toHaveBeenCalledTimes(1)
+    // Empty argument text must reach the tool as an empty object, not blow up
+    // parsing and abort the call before it runs.
+    expect(execute).toHaveBeenCalledWith({}, expect.objectContaining({ toolCallId: 'toolu_list' }))
+    expect(steps[steps.length - 1].text).toBe('Two tools.')
+
+    // Round 2 must still carry a well-formed tool_use/tool_result pair.
+    const secondBody = JSON.parse(String((baseFetch.mock.calls[1] as [string, RequestInit])[1].body)) as Record<string, any>
+    expect(secondBody.messages[1]).toEqual({ role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_list', name: 'list_tools', input: {} }] })
+    expect(secondBody.messages[2]).toEqual({ role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_list', content: 'search, weather' }] })
+  })
+
   it('generateText (the provider validators path) completes non-streaming', async () => {
     const baseFetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       id: 'msg_ping',

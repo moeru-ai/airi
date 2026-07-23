@@ -424,6 +424,42 @@ describe('sse translation', () => {
     expect(chunks[chunks.length - 1].choices[0].finish_reason).toBe('tool_calls')
   })
 
+  it('closes an argument-less tool block with an empty object literal', async () => {
+    const output = await streamThrough([[
+      'data: {"type":"message_start","message":{"id":"msg_2b","model":"m","usage":{"input_tokens":1}}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_0","name":"list_tools"}}\n\n',
+      'data: {"type":"content_block_stop","index":0}\n\n',
+      'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":1}}\n\n',
+      'data: {"type":"message_stop"}\n\n',
+    ].join('')])
+    const chunks = parseChunks(output)
+
+    // A tool registered with an empty schema streams no input_json_delta, so
+    // the argument text must be completed on block stop to stay valid JSON.
+    const toolChunks = chunks.filter(chunk => chunk.choices[0].delta.tool_calls)
+    const args = toolChunks.map(chunk => chunk.choices[0].delta.tool_calls![0].function!.arguments).join('')
+    expect(args).toBe('{}')
+    expect(toolChunks[toolChunks.length - 1].choices[0].delta.tool_calls).toEqual([
+      { index: 0, id: 'toolu_0', type: 'function', function: { name: 'list_tools', arguments: '{}' } },
+    ])
+  })
+
+  it('does not append an empty object when the tool block already streamed arguments', async () => {
+    const output = await streamThrough([[
+      'data: {"type":"message_start","message":{"id":"msg_2c","model":"m","usage":{"input_tokens":1}}}\n\n',
+      'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"get_weather"}}\n\n',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"city\\":\\"Tokyo\\"}"}}\n\n',
+      'data: {"type":"content_block_stop","index":0}\n\n',
+      'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":2}}\n\n',
+      'data: {"type":"message_stop"}\n\n',
+    ].join('')])
+    const chunks = parseChunks(output)
+
+    const toolChunks = chunks.filter(chunk => chunk.choices[0].delta.tool_calls)
+    const args = toolChunks.map(chunk => chunk.choices[0].delta.tool_calls![0].function!.arguments).join('')
+    expect(args).toBe('{"city":"Tokyo"}')
+  })
+
   it('maps thinking deltas to reasoning_content and drops signature deltas', async () => {
     const output = await streamThrough([[
       'data: {"type":"message_start","message":{"id":"msg_3","model":"m","usage":{"input_tokens":1}}}\n\n',
