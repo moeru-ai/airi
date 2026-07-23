@@ -48,7 +48,7 @@ signIn:
     placeholder: 重新输入密码
   name:
     label: 昵称
-    placeholder: Optional, defaults to your email handle
+    placeholder: 可选，默认使用邮箱名称
   action:
     continue: 继续
     signIn: 登录
@@ -60,8 +60,8 @@ signIn:
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
-    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
-    passwordMismatch: Password and confirmation do not match.
+    socialOnlyNoPassword: 此邮箱通过 Google 或 GitHub 注册。请使用下方按钮登录；登录后可在账户设置中添加密码。
+    passwordMismatch: 密码与确认密码不一致。
     invalidEmail: 请输入有效格式的电子邮件地址
   footer:
     prefix: 继续之前，你需要同意我们的
@@ -72,56 +72,56 @@ verifyEmail:
   title:
     pending: 请检查您的收件箱，如果没有找到，可以再检查一下 Spam（垃圾信箱）
     success: 邮箱验证成功！
-    failed: Verification failed
+    failed: 验证失败
   message:
     pending: 我们向您输入的电子邮箱发送了一个验证链接。要继续登入或注册步骤，请点开链接以继续。
-    pendingWithAddress: We sent a verification link to {email}. Open it to finish creating your account — this page will continue automatically once you click the link.
-    success: Your email has been verified and you are signed in. You can close this tab.
-    failed: We could not verify your email ({error}). Try requesting a new link.
+    pendingWithAddress: 我们已向 {email} 发送验证链接。打开链接即可完成账户创建；点击后此页面会自动继续。
+    success: 邮箱已验证，您已登录。现在可以关闭此标签页。
+    failed: 无法验证您的邮箱（{error}）。请尝试重新申请链接。
   action:
-    backToSignIn: Back to sign in
+    backToSignIn: 返回登录
 forgotPassword:
-  title: Reset your password
-  description: Enter the email address associated with your account and we will send you a reset link.
+  title: 重置密码
+  description: 输入与账户关联的邮箱，我们会向您发送重置链接。
   email:
-    label: Email
+    label: 邮箱
     placeholder: you{'@'}example.com
   action:
     send: 发送重置链接
     backToSignIn: 返回登录
   message:
-    sent: If {email} matches an account, a reset link is on the way.
+    sent: 如果 {email} 对应一个账户，重置链接正在发送。
   error:
-    fallback: We could not send the reset email.
+    fallback: 无法发送重置邮件。
 deleteAccount:
   title:
     success: 帐户已删除
-    failed: Could not delete account
+    failed: 无法删除账户
   message:
-    success: Your account has been deleted.
+    success: 您的账户已删除。
   action:
-    closeTab: You can close this tab.
+    closeTab: 您可以关闭此标签页。
 resetPassword:
   title:
-    default: Set a new password
-    success: Password updated
+    default: 设置新密码
+    success: 密码已更新
   password:
-    label: New password
+    label: 新密码
     placeholder: 至少 8 个字符
   confirmPassword:
     label: 确认新密码
     placeholder: 重新输入新密码
   action:
-    reset: Update password
-    goSignIn: Go to sign in
+    reset: 更新密码
+    goSignIn: 前往登录
   message:
-    success: Your password has been updated. Sign in with your new password.
+    success: 密码已更新，请使用新密码登录。
   error:
-    fallback: We could not update your password.
-    missingToken: Reset link is invalid or has expired.
+    fallback: 无法更新密码。
+    missingToken: 重置链接无效或已过期。
     passwordMismatch: 密码和确认密码不匹配。
 profile:
-  title: Account profile
+  title: 账户资料
   description: 管理您的头像、显示名称和关联的帐户。
   section:
     profile: 个人资料
@@ -140,8 +140,8 @@ profile:
     placeholder: 别人如何看到你
   avatar:
     altText: 头像
-    gravatarNotice: Avatar from Gravatar.
-    gravatarLink: Manage on gravatar.com
+    gravatarNotice: 头像来自 Gravatar。
+    gravatarLink: 在 gravatar.com 管理
   password:
     currentLabel: 当前密码
     currentPlaceholder: 输入您当前的密码
@@ -149,11 +149,11 @@ profile:
     newPlaceholder: 至少 8 个字符
     confirmLabel: 确认新密码
     confirmPlaceholder: 重新输入新密码
-    setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
-    setLinkSent: Check {email} for the link to set your password.
-    setLinkFailed: We could not send the password setup link.
+    setDescription: 您通过第三方服务登录，因此暂未设置密码。我们会通过邮件发送安全链接供您设置密码。
+    setLinkSent: 请查看 {email} 收件箱中的密码设置链接。
+    setLinkFailed: 无法发送密码设置链接。
   linkedAccounts:
-    description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+    description: 可通过这些服务登录 AIRI。取消关联会撤销访问权限，之后可关联其他账户。
     status:
       linked: 已关联
       notLinked: 未关联
@@ -163,12 +163,12 @@ profile:
       unlink: 取消关联
     message:
       loading: 正在加载连接的帐户……
-      unlinked: '{provider} disconnected.'
-      linkStarted: Redirecting to {provider}…
+      unlinked: '已取消关联 {provider}。'
+      linkStarted: 正在跳转到 {provider}…
     error:
-      listFailed: Could not load connected accounts.
-      unlinkFailed: Could not unlink this account.
-      linkFailed: Could not start the link flow.
+      listFailed: 无法加载已关联账户。
+      unlinkFailed: 无法取消关联此账户。
+      linkFailed: 无法启动关联流程。
       lastAccount: 这是您唯一的登录方式。请先设置密码才能取消链接。
   action:
     saveProfile: 保存更改
@@ -178,11 +178,11 @@ profile:
   message:
     loading: 正在加载您的个人资料……
     profileSaved: 个人资料已更新
-    passwordChanged: Password changed. Other sessions have been signed out.
+    passwordChanged: 密码已更改，其他会话已退出登录。
   error:
-    loadFailed: We could not load your profile.
-    saveFailed: We could not save your changes.
-    changePasswordFailed: We could not change your password.
+    loadFailed: 无法加载您的个人资料。
+    saveFailed: 无法保存您的更改。
+    changePasswordFailed: 无法更改您的密码。
     signOutFailed: 我们无法将您登出。
     passwordMismatch: 新密码和确认密码不匹配。
     passwordSameAsCurrent: 新密码必须与当前密码不同。
@@ -192,7 +192,7 @@ webCallback:
     errorLabel: 登录中遇到错误
     loading: 正在登录...
   message:
-    missingCodeOrState: Missing authorization code or state
+    missingCodeOrState: 缺少授权码或状态
     missingFlowState: 缺少OIDC 流状态-请重新登录
     tokenExchangeFailed: 令牌交换失败
     finalizing: AIRI登录完成

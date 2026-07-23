@@ -107,18 +107,18 @@ analytics:
     title: 此开发版本的使用数据及崩溃分析功能已禁用
 model-select:
   panel-callout:
-    support-status-header: We support both 2D and 3D models
+    support-status-header: 我们同时支持 2D 和 3D 模型
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+      Neuro-sama 使用由 Live2D Inc 开发的框架驱动的 2D 模型；Grok Ani（Grok Companion 中的角色）则使用由 VRM / MMD 开放格式驱动的 3D 模型。
   select-model:
-    title: Model Selector
-    button: Select model
-    select: Pick
-    import: Import
-    remove: Remove
-    confirm: Confirm
+    title: 模型选择器
+    button: 选择模型
+    select: 选择
+    import: 导入
+    remove: 移除
+    confirm: 确认
 live2d:
   change-model:
     from-file: 从文件加载
@@ -144,62 +144,62 @@ live2d:
   theme-color-from-model:
     title: 从模型提取主题颜色
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      从当前渲染画布提取主要颜色。点击颜色即可应用到 AIRI；如果颜色不理想，请让模型摆出不同姿势后多次提取。
     button-extract:
       title: 提取
   animation:
-    title: Animation
+    title: 动画
     focus:
-      title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
-      offset: Eye offset(%)
+      title: 启用鼠标跟踪
+      description: 鼠标移动时注视光标；光标停止后恢复空闲眼部动作。
+      offset: 眼部偏移（%）
     force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
+      title: 空闲眼部动作
+      description: 没有活动光标焦点时随机环顾四周。
     blink-enable:
-      title: Enable blink
-      description: Let the model blink.
+      title: 启用眨眼
+      description: 让模型眨眼。
     auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
+      title: 自动
+      description: 使用模型默认的眨眼动画
     force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
+      title: 强制
+      description: 使用外部计时器强制播放眨眼动画
     blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      title: 眨眼模式
+      description: 选择模型内置眨眼或 AIRI 的强制眨眼计时器。
     idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
+      title: 空闲动画
+      no-motion: 没有可用动画
+      placeholder: 选择动画
+      disable-motion: 已禁用
+      disable-motion-description: 禁用空闲动画
   parameters:
-    title: Model Parameters
+    title: 模型参数
     render-scale:
-      title: Render scale
+      title: 渲染缩放
     fps:
       title: FPS
-      description: Limit rendering frame rate
+      description: 限制渲染帧率
       options:
         unlimited: '∞'
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+    shadow: 投影
+    reset-parameters: 重置为默认参数
+  clear-model-cache: 清除模型缓存
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: 表情
+    override-toggle: 表情系统
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      禁用时仍保留 SDK 表情管理器和眨眼功能。
+    no-expression: 此模型没有可用表情。
+    llm-integration-wip: LLM 工具集成尚未接入。
+    save-default: 保存表情默认值
+    reset: 重置所有表情
+    expose-to-llm-toggle: 公开给 LLM
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: 无
+      all: 全部
+      custom: 自定义
 microphone: 麦克风
 models: 模型
 pages:
@@ -263,7 +263,7 @@ pages:
         label: 新密码
         placeholder: 最少 8 个字符
       confirmPassword:
-        label: Confirm new password
+        label: 确认新密码
         placeholder: 再次输入新密码
       action:
         changePassword: 更新密码
@@ -279,24 +279,24 @@ pages:
     danger:
       tab: 危险操作
       title: 危险操作
-      description: Irreversible account actions live here.
+      description: 不可逆的账户操作位于此处。
       deleteAccount:
         title: 删除帐户
         description: 永久删除您的帐户和所有个人数据。
         action: 删除帐户
         modal:
-          title: Delete account?
+          title: 删除账户？
           warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             placeholder: ''
-            mismatch: Email does not match.
-          confirm: Send confirmation email
-          cancel: Cancel
+            mismatch: 邮箱不匹配。
+          confirm: 发送确认邮件
+          cancel: 取消
         message:
-          emailSent: Check {email} for the deletion link.
+          emailSent: 请查看 {email} 中的删除链接。
         error:
-          fallback: Could not start deletion. Try again later.
+          fallback: 无法开始删除操作，请稍后重试。
   card:
     activate: 激活
     active: 已激活
@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 意识 / 模型
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: 视觉 / 提供商
+      model: 视觉 / 模型
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
@@ -369,8 +369,8 @@ pages:
         scenario: '错误：必须提供一个情境。'
         systemprompt: '错误：请提供系统提示。'
         posthistoryinstructions: '错误：必须提供消息历史后的提示。'
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: None
+        invalid_artistry_json: '错误：绘图提供商选项包含无效 JSON。'
+      none: 无
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
@@ -390,14 +390,14 @@ pages:
     systemprompt: 系统提示词
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
-    export: Export
-    exported: Card package exported
-    export_failed: Failed to export card package
-    imported: Card package imported
-    import_missing_file: Card package is missing required files
-    import_invalid_file: Card package file is invalid
+    export: 导出
+    exported: 卡片包已导出
+    export_failed: 导出卡片包失败
+    imported: 卡片包已导入
+    import_missing_file: 卡片包缺少必需文件
+    import_invalid_file: 卡片包文件无效
     upload: 上传
-    upload_desc: Click or drag an AIRI card package to import
+    upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
@@ -413,7 +413,7 @@ pages:
         delete: 删除所有聊天会话
       models:
         title: 模型
-        description: 删除导入的Live2D/VRM模型。
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: 删除所有模型
       modules:
         title: 模块
@@ -437,7 +437,7 @@ pages:
       desktop:
         title: 重置桌面设置和状态
         description: 清除 AIRI 桌面设置和运行状态。
-        center: Move desktop window to center
+        center: 将桌面窗口移至中央
         reset: 重置桌面数据
     confirmations:
       tooltip: 您确定吗？
@@ -451,10 +451,10 @@ pages:
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
       all_deleted: 已删除所有本地数据。
-      desktop_window_centered: Desktop window moved to screen center.
+      desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
   models:
-    description: 切换角色的 Live2D、VRM、Spine 模型
+    description: Live2D, VRM, Spine, MMD, etc.
     title: 角色模型
     sections:
       section:
@@ -514,66 +514,66 @@ pages:
               description: 在检测节拍之前进行预热，以提高准确性
               label: 预热
     artistry:
-      title: Artistry
-      description: Image generation, scene background and drawing.
+      title: 绘图
+      description: 图像生成、场景背景和绘图。
       page:
-        title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        title: 绘图提供商配置
+        description: 选择用于图像生成的活动后端提供商。角色可以在其角色卡设置中覆盖此选项。
       providers:
         none:
-          name: None
-          description: Bypass and disable the image generation module globally.
+          name: 无
+          description: 全局绕过并禁用图像生成模块。
         comfyui:
-          name: ComfyUI (Local)
-          description: Use a local ComfyUI instance via WSL for image generation.
+          name: ComfyUI（本地）
+          description: 使用本地 ComfyUI 实例通过 WSL 生成图像。
         replicate:
-          name: Replicate.ai (Cloud)
-          description: Use cloud-based models via the Replicate API.
+          name: Replicate.ai（云端）
+          description: 通过 Replicate API 使用云端模型。
         nanobanana:
-          name: Nano Banana (Preview)
-          description: Use Google AI Studio for image preview and reactions.
+          name: Nano Banana（预览）
+          description: 使用 Google AI Studio 进行图像预览和响应。
       card:
-        description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        description: 配置 AIRI 生成图像和视觉内容的方式。
+        comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
+        exposed_fields: '投影'
+        open_on_replicate: 重置为默认参数
         instruction_sync:
-          title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+          title: 清除模型缓存
+          description: 表情
+          apply: 表情系统
+          keep: 禁用后仍会保留 SDK 表情管理器和眨眼功能。
+      provider: 此模型没有可用表情。
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: LLM 工具集成尚未完成。
+        description: 保存默认表情设置
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 重置所有表情
+          inline: 向 LLM 公开
+          widget: 无
+          bg_widget: 全部
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
-        threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+        title: 自定义
+        description: 确认新密码
+        threshold: 此处包含不可撤销的账户操作。
+        threshold_description: 删除账户？
+        threshold_min: 邮箱不匹配。
+        threshold_max: 发送确认邮件
       model:
-        label: Artistry Model (Optional Override)
-        description: Model identifier if needed by provider
+        label: 取消
+        description: 请查看 {email} 收件箱中的删除链接。
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: 无法开始删除操作，请稍后重试。
+        description: 视觉 / 提供商
       options:
-        label: Artistry Provider Options (JSON)
+        label: 视觉 / 模型
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: 错误：绘图服务提供商选项包含无效的 JSON。
+        description: 无
     categories:
       essential: 基础
-      messaging: Messaging
-      gaming: Gaming
-      artistry: Artistry
+      messaging: 导出
+      gaming: 角色卡包已导出
+      artistry: 导出角色卡包失败
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -693,11 +693,11 @@ pages:
               loading: 正在加载模型……
               required: 请选择声线
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: 角色卡包已导入
+            empty: 角色卡包缺少必需文件
+            error: 角色卡包文件无效
+            loading: 点击或拖放 AIRI 角色卡包以导入
+            title: 将桌面窗口移至中央
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -749,14 +749,14 @@ pages:
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
     web-search:
-      title: 网络搜索
-      description: 让 AIRI 联网搜索最新信息
-      enable: 启用网络搜索
-      enable-description: 允许 AIRI 在对话中联网搜索
-      api-key: Tavily API 密钥
-      api-key-description: 网络搜索由 Tavily 提供支持，可在 tavily.com 免费获取 API 密钥。
-      api-key-placeholder: 输入您的 Tavily API 密钥
-      configured: 网络搜索已就绪！
+      title: 桌面窗口已移至屏幕中央。
+      description: Live2D、VRM、Spine 等。
+      enable: 绘图
+      enable-description: 图像生成、场景背景和绘画。
+      api-key: 绘图服务提供商配置
+      api-key-description: 选择用于图像生成的活动后端服务提供商。角色可在角色卡设置中覆盖此配置。
+      api-key-placeholder: 无
+      configured: 在全局范围绕过并禁用图像生成模块。
     mcp-server:
       title: MCP 集成
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
@@ -771,7 +771,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -859,7 +859,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
-      typePromo: Promo Grant
+      typePromo: ComfyUI（本地）
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息
@@ -979,27 +979,27 @@ pages:
     categories:
       chat:
         title: 聊天
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: 通过 WSL 使用本地 ComfyUI 实例生成图像。
       vision:
-        title: Vision
-        description: Vision model providers for image understanding.
+        title: Replicate.ai（云端）
+        description: 通过 Replicate API 使用云端模型。
       speech:
-        title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        title: Nano Banana（预览版）
+        description: 使用 Google AI Studio 生成预览图像和反应。
       transcription:
-        title: Transcription
+        title: 配置 AIRI 如何生成图像和视觉内容。
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          尚未配置 ComfyUI 工作流。请前往“设置 → 服务提供商 → ComfyUI”上传工作流模板。
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        title: 绘图
+        description: '{count} 个公开字段'
         items:
           comfyui:
-            description: Local image generation runner.
+            description: 本地图像生成运行器。
           replicate:
-            description: Cloud-based model inference service.
+            description: 云端模型推理服务。
           nanobanana:
-            description: Google AI Studio Image Preview.
+            description: Google AI Studio 图像预览。
     helpinfo:
       title: 第一次使用？
       description: >
@@ -1031,8 +1031,8 @@ pages:
         description: aws.amazon.com/bedrock
         config:
           api-key:
-            label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            label: Bedrock API 密钥
+            description: Amazon Bedrock API 密钥（在 AWS 控制台 → Bedrock → API Keys 中生成）
             placeholder: bedrock-...
           region:
             label: AWS 区域
@@ -1088,94 +1088,94 @@ pages:
         settings:
           title: ComfyUI（本地）
           heading: ComfyUI 原生 API
-          description: Connect to your local ComfyUI and bring your own workflows.
+          description: 连接本地 ComfyUI 并使用自己的工作流。
           info:
             what_you_need:
-              label: What You Need
-              value: ComfyUI running locally or on your network.
+              label: 所需条件
+              value: 在本地或局域网中运行的 ComfyUI。
             how_to_export:
-              label: How To Export
-              value: Enable Dev Mode → "Save (API Format)".
+              label: 导出方式
+              value: 启用开发者模式 → “保存（API 格式）”。
             scope_boundary:
-              label: Scope Boundary
-              value: Model downloads & node installs are your job.
+              label: 责任范围
+              value: 模型下载和节点安装需要您自行完成。
           connection:
-            title: Connection
-            connected: Connected
-            failed: Connection failed
-            error_prefix: Error
-            test: Test
-            testing: Testing...
-            unknown_error: Unknown connection error
-            unknown_gpu: Unknown GPU
+            title: 连接
+            connected: 已连接
+            failed: 连接失败
+            error_prefix: 错误
+            test: 测试
+            testing: 测试中...
+            unknown_error: 未知连接错误
+            unknown_gpu: 未知 GPU
             server_url:
-              label: Server URL
-              description: The address where ComfyUI is running
+              label: 服务器地址
+              description: ComfyUI 正在运行的地址
               placeholder: http://localhost:8188
           cors:
-            title: CORS Block Detected
-            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            title: 检测到 CORS 阻止
+            description: ComfyUI 默认会阻止来自其他应用程序的请求。若要允许 AIRI 连接，必须使用 --enable-cors-header "*" 参数启动 ComfyUI。
             command: python main.py --enable-cors-header "*"
           workflows:
-            title: Workflow Templates
-            upload: Upload Workflow
-            cancel_upload: Cancel
-            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
-            exposed_parameters: Exposed Parameters
-            summary: '{nodes} nodes · {fields} exposed fields'
-            remove: Remove
-            config_snippet: Artistry Config Snippet
-            copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            title: 工作流模板
+            upload: 上传工作流
+            cancel_upload: 取消
+            empty: 尚未上传工作流。点击“上传工作流”从 ComfyUI 导入 workflow_api.json。
+            exposed_parameters: 公开参数
+            summary: '{nodes} 个节点 · {fields} 个公开字段'
+            remove: 移除
+            config_snippet: 绘图配置片段
+            copy_json: 复制 JSON
+            paste_hint: 将其粘贴到 AIRI 角色卡绘图配置中，以覆盖这些节点。
           upload:
-            prompt: Drop or select a workflow_api.json file
-            invalid_json: Invalid JSON
+            prompt: 拖放或选择 workflow_api.json 文件
+            invalid_json: 无效的 JSON
             workflow_name:
-              label: Workflow Name
-              description: Give this workflow a recognizable name
-              placeholder: e.g. Anime Text2Img
-            select_fields: 'Select fields to expose to the AI agent:'
-            fields_exposed: '{count} field(s) exposed'
-            save: Save Workflow
+              label: 工作流名称
+              description: 为此工作流指定易于识别的名称
+              placeholder: 例如：Anime Text2Img
+            select_fields: '选择要公开给 AI 智能体的字段：'
+            fields_exposed: '已公开 {count} 个字段'
+            save: 保存工作流
       replicate:
         settings:
           title: Replicate.ai
-          heading: Replicate.ai Configuration
-          description: Configure your cloud image generation settings.
+          heading: Replicate.ai 配置
+          description: 配置云端图像生成设置。
           api_key:
-            label: API Key
-            description: Your Replicate API token (starts with r8_)
+            label: API 密钥
+            description: 您的 Replicate API 令牌（以 r8_ 开头）
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
-            label: Default Model
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            label: 默认模型
+            description: 角色卡未指定模型时使用的备用所有者/模型字符串
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
-            label: Aspect Ratio
-            description: Default image aspect ratio (e.g. 16:9, 1:1, 9:16)
+            label: 宽高比
+            description: 默认图像宽高比（例如 16:9、1:1、9:16）
             placeholder: '16:9'
           inference_steps:
-            label: Inference Steps
-            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+            label: 推理步数
+            description: 扩散过程的步数（越低越快，越高质量越好）
       nanobanana:
         settings:
           title: Nano Banana
-          heading: Nano Banana (Google AI Studio)
-          description: Configure Google Gemini's native image generation capabilities.
+          heading: Nano Banana（Google AI Studio）
+          description: 配置 Google Gemini 的原生图像生成能力。
           api_key:
-            label: API Key
-            description: Your Google AI Studio API Key
+            label: API 密钥
+            description: 您的 Google AI Studio API 密钥
             placeholder: AIpk...
           preferred_model:
-            label: Preferred Model
-            description: The specific Gemini image preview model to use
+            label: 首选模型
+            description: 要使用的特定 Gemini 图像预览模型
           default_resolution:
-            label: Default Resolution
-            description: The target resolution for generated images
+            label: 默认分辨率
+            description: 生成图像的目标分辨率
           model_options:
-            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
-            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
-            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
+            nano_banana_2: Nano Banana 2（Gemini 3.1 Flash Image）
+            nano_banana_pro: Nano Banana Pro（Gemini 3 Pro Image）
+            nano_banana: Nano Banana（Gemini 2.5 Flash Image）
       deepseek:
         description: DeepSeek.com
         title: 深度求索 DeepSeek
@@ -1307,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter
@@ -1346,8 +1349,8 @@ pages:
               label: App ID
         title: 火山引擎
       volcengine-coding-plan:
-        description: Volcengine Coding Plan
-        title: Volcengine Coding Plan
+        description: 火山引擎 Coding Plan
+        title: 火山引擎 Coding Plan
       byteplus:
         description: byteplus.com
         title: BytePlus
@@ -1380,8 +1383,8 @@ pages:
         description: 登录后即可使用的服务来源
         speech-title: AIRI 官方语音合成服务
         speech-description: 登录后即可使用的发声单元服务
-        speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
+        speech-streaming-title: 官方流式语音服务提供商
+        speech-streaming-description: AIRI 官方低延迟文本转语音服务提供商（双向 WebSocket）。
         transcription-title: AIRI 官方语音识别服务
         transcription-description: 登录后即可使用的听觉单元服务
       transcriptions:
@@ -1658,36 +1661,81 @@ vrm:
     skybox-intensity: 天空盒光照强度
     skybox-specular-mix: 漫反射/镜面反射混合系数
 spine:
-  title: Spine Settings
+  title: Spine 设置
+  scale-and-position:
+    title: 缩放与位置
+    scale: 缩放
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: 从模型提取颜色
+    button-extract:
+      title: 提取
+  animation:
+    title: 动画
+    idle-animation: 空闲动画
+    mix-duration: 混合时长（秒）
+    speed: 动画速度
+  appearance:
+    title: 外观
+  variant:
+    title: 变体
+    current-variant: 当前变体
+  skin:
+    title: 皮肤
+    current-skin: 当前皮肤
+  rendering:
+    title: 渲染
+    max-fps: 最大帧率
+    render-scale: 渲染缩放
+  fps:
+    options:
+      unlimited: 不限
+mmd:
+  title: MMD Settings
   scale-and-position:
     title: Scale And Position
     scale: Scale
     x: X
     'y': 'Y'
+    rotation: Rotation
   theme-color-from-model:
     title: Extract colors from model
     button-extract:
       title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
   animation:
     title: Animation
-    idle-animation: Idle Animation
-    mix-duration: Mix Duration (seconds)
-    speed: Animation Speed
-  appearance:
-    title: 外观
-  variant:
-    title: Variant
-    current-variant: Active Variant
-  skin:
-    title: Skin
-    current-skin: Current Skin
-  rendering:
-    title: Rendering
-    max-fps: Maximum FPS
-    render-scale: Render Scale
-  fps:
-    options:
-      unlimited: Unlimited
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 websocket-secure-enabled:
   title: 启用安全WebSocket (WSS)
   description: >-

@@ -1,6 +1,6 @@
 chat:
   actions:
-    retry: Retry
+    retry: 重試
   message:
     character-name:
       airi: AIRI
@@ -8,12 +8,12 @@ chat:
       you: 你
   reasoning: 推理
   sessions:
-    title: Conversations
-    new: + New
-    empty: No conversations yet
-    cloud-badge: Synced to cloud
-    new-chat-fallback: New chat
-    delete: Delete conversation
+    title: 對話
+    new: + 新增
+    empty: 尚無對話
+    cloud-badge: 已同步至雲端
+    new-chat-fallback: 新對話
+    delete: 刪除對話
 message: 說點什麼...
 send-mode:
   title: 傳送按鍵
@@ -53,45 +53,45 @@ profile-switcher:
 promo-banner:
   items:
     signin:
-      watermark: Moon
-      fallbackLabel: Moon Gift
+      watermark: 月石
+      fallbackLabel: 月石禮包
       title: 7日簽到
-      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
+      eventName: 登入即可領取星塵、頭像框與啟動禮物。
       date: 03/28 - 04/10
-      reward: Up to 120 Stardust
-      cta: Sign In
+      reward: 最多 120 星塵
+      cta: 登入
     build:
-      watermark: Build
-      fallbackLabel: Build Bonus
-      title: Supply Box Bonus
-      eventName: Finish construction tasks to earn bonus vouchers and double materials.
+      watermark: 建造
+      fallbackLabel: 建造獎勵
+      title: 補給箱獎勵
+      eventName: 完成建造任務即可獲得獎勵券與雙倍材料。
       date: 03/30 - 04/12
-      reward: 5 Supply Vouchers + Upgrade Materials
+      reward: 5 張補給券 + 升級材料
       cta: 查看任務
     spring:
       watermark: 春天
-      fallbackLabel: Spring Draw
-      title: Capsule Carnival
-      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      fallbackLabel: 春日抽獎
+      title: 扭蛋嘉年華
+      eventName: 參加春日抽獎，解鎖氣泡、掛飾與主題家具。
       date: 04/01 - 04/18
-      reward: Half-Price First Pull + Rare Charm
-      cta: Draw Now
+      reward: 首抽半價 + 稀有掛飾
+      cta: 立即抽取
     coupon:
-      watermark: Talk
-      fallbackLabel: Coupon
-      title: Top-Up Coupon
-      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
+      watermark: 對話
+      fallbackLabel: 優惠券
+      title: 儲值優惠券
+      eventName: 完成聊天互動即可領取擴充包與語音包優惠券。
       date: 04/02 - 04/20
-      reward: Save 6 on 30 / Save 15 on 68
-      cta: Claim Coupon
+      reward: 滿 30 減 6 / 滿 68 減 15
+      cta: 領取優惠券
     home:
-      watermark: Home
-      fallbackLabel: Room Theme
-      title: Spring Theme Update
-      eventName: Unlock window, desk, and night-lamp themes to refresh your room.
+      watermark: 首頁
+      fallbackLabel: 房間主題
+      title: 春日主題更新
+      eventName: 解鎖窗戶、書桌與夜燈主題，為房間煥然一新。
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
-      cta: View Theme
+      reward: 登入即贈主題抽獎券
+      cta: 查看主題
 waiting: 等待中
 websocket-status:
   connected: 已連線

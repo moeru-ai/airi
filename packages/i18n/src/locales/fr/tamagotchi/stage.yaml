@@ -18,8 +18,8 @@ docs:
   'center-main-window': Move to screen center
   'open-hearing-controls': Ouvrir les contrôles d'écoute
   'drag-to-move-window': Glisser pour déplacer la fenêtre
-  'stop-speaking': Arrêter la parole
-  'speaker-idle': Haut-parleur
+  'stop-speaking': Stop speaking
+  'speaker-idle': Speaker
   'switch-to-light-mode': Passer au mode clair
   'switch-to-dark-mode': Passer au mode sombre
   'pin-on-top': Épingler en haut
@@ -86,7 +86,7 @@ about:
     actions:
       download: Télécharger la mise à jour
       download-short: Télécharger
-      confirm-download: Confirmer le téléchargement
+      confirm-download: Confirmer le téléchargement 
       check-for-updates: Rechercher des mises à jour
       checking: Vérification en cours...
       latest-version: Dernière version

@@ -61,36 +61,36 @@ promo-banner:
       reward: 最多120个星尘
       cta: 登录
     build:
-      watermark: Build
-      fallbackLabel: Build Bonus
-      title: Supply Box Bonus
-      eventName: Finish construction tasks to earn bonus vouchers and double materials.
+      watermark: 建造
+      fallbackLabel: 建造奖励
+      title: 补给箱奖励
+      eventName: 完成建造任务即可获得奖励券和双倍材料。
       date: 03/30 - 04/12
-      reward: 5 Supply Vouchers + Upgrade Materials
+      reward: 5 张补给券 + 升级材料
       cta: 查看任务
     spring:
-      watermark: Spring
-      fallbackLabel: Spring Draw
-      title: Capsule Carnival
-      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
+      watermark: 春日
+      fallbackLabel: 春日抽奖
+      title: 扭蛋嘉年华
+      eventName: 参与春日抽奖，解锁气泡、挂饰和主题家具。
       date: 04/01 - 04/18
-      reward: Half-Price First Pull + Rare Charm
-      cta: Draw Now
+      reward: 首抽半价 + 稀有挂饰
+      cta: 立即抽取
     coupon:
       watermark: 对话
       fallbackLabel: 优惠券
       title: 充值优惠券
-      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
+      eventName: 完成聊天互动即可领取扩展包和语音包优惠券。
       date: 04/02 - 04/20
-      reward: Save 6 on 30 / Save 15 on 68
+      reward: 满 30 减 6 / 满 68 减 15
       cta: 领取优惠券
     home:
       watermark: 首页
       fallbackLabel: 房间主题
-      title: Spring Theme Update
-      eventName: Unlock window, desk, and night-lamp themes to refresh your room.
+      title: 春日主题更新
+      eventName: 解锁窗户、书桌和夜灯主题，焕新你的房间。
       date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
+      reward: 登录即赠主题抽奖券
       cta: 查看主题
 waiting: 等待中
 websocket-status:

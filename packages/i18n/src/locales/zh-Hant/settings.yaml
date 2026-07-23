@@ -10,7 +10,7 @@ animations:
 dialogs:
   onboarding:
     official:
-      title: AIRI Official Provider
+      title: AIRI 官方提供者
     title: 歡迎來到 AIRI！
     description: 讓我們先設定您的第一個服務來源來開始使用。
     selectProvider: 選擇服務來源
@@ -20,26 +20,26 @@ dialogs:
     baseUrl: 基礎 URL
     baseUrlHelp: API 端點 URL（如果不確定請使用預設值）
     accountId: 帳號 ID
-    validationRunning: Running tests
+    validationRunning: 正在執行測試
     validationSuccess: 設定驗證成功
-    validationPartial: Configuration partially validated
+    validationPartial: 設定已部分驗證
     validationFailed: 設定驗證失敗
     validationError: '驗證錯誤：{error}'
-    testGeneration: Ping API
-    testGenerationRunning: Ping...
-    testGenerationFailed: Ping test failed
-    retryPingCheck: Retry
+    testGeneration: 測試 API
+    testGenerationRunning: 測試中...
+    testGenerationFailed: Ping 測試失敗
+    retryPingCheck: 重試
     skipForNow: 先略過
     saveAndContinue: 儲存並繼續
     next: 下一步
     retry: 重試
-    credentialsSafeLabel: Keep your API keys and credentials safe!
+    credentialsSafeLabel: 請妥善保管 API 金鑰與憑證！
     credentialsSafeLocal: >-
-      AIRI is running pure locally in your PC, and we will never steal your credentials for AI / LLM providers. But keep in mind that your API keys are sensitive information. Make sure to keep them safe and do not share them with anyone.
+      AIRI 完全在您的電腦本機執行，我們絕不會竊取您用於 AI / LLM 提供者的憑證。但請注意，API 金鑰屬於敏感資訊，請妥善保管，切勿與他人分享。
     credentialsSafeOpenSource: >-
-      AIRI is open sourced at {github}, if you want to check how we handle your credentials, feel free to inspect our code.
+      AIRI 以 {github} 開放原始碼，如果您想了解我們如何處理您的憑證，歡迎檢視我們的程式碼。
     enableChatCheck: >-
-      Allow airi to send a "ping" message to the first available chat model to check availability
+      允許 airi 傳送「ping」訊息給第一個可用的聊天模型，以檢查是否可用
     start: 開始吧！
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -144,78 +144,78 @@ live2d:
   theme-color-from-model:
     title: 從模型中提取顏色
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      登入即可使用 AIRI 官方提供者，享受最佳體驗。
     button-extract:
       title: 提取
   animation:
-    title: Animation
+    title: 登入
     focus:
-      title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
-      offset: Eye offset(%)
+      title: 使用您的提供者設定
+      description: Flux
+      offset: 為 Flux 充值
     force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
+      title: 通知
+      description: 您可以現在允許通知，或繼續操作並稍後設定。
     blink-enable:
-      title: Enable blink
-      description: Let the model blink.
+      title: 通知
+      description: 允許提醒與重要狀態更新。
     auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
+      title: 要求通知權限
+      description: 若拒絕，之後可以從 iOS 設定中啟用通知。
     force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
+      title: 開啟 iOS 設定
+      description: 即使未授予通知權限，您仍可繼續操作。
     blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      title: 未要求
+      description: 要求中...
     idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
+      title: 已授予
+      no-motion: 未授予
+      placeholder: 錯誤回報
+      disable-motion: 糟糕，很抱歉我們出錯了。您願意告訴我們發生了什麼嗎？
+      disable-motion-description: 回報錯誤
   parameters:
-    title: Model Parameters
+    title: 傳送錯誤回報
     render-scale:
-      title: Render scale
+      title: 附上螢幕截圖和頁面內容，協助我們分流處理此問題。
     fps:
-      title: FPS
-      description: Limit rendering frame rate
+      title: 重現步驟、預期行為與實際行為
+      description: 附上目前頁面的螢幕截圖
       options:
-        unlimited: '∞'
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+        unlimited: 手動選擇螢幕截圖／錄影
+    shadow: 選填。
+    reset-parameters: 媒體檔案
+  clear-model-cache: 選填：手動選擇。
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: 選擇螢幕截圖或影片檔案
+    override-toggle: 已選取 {count} 個檔案
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      上次提交的內容預覽
+    no-expression: 介面語言。您可以稍後設定角色語言。
+    llm-integration-wip: 使用分析
+    save-default: AIRI 會收集匿名使用分析，以協助我們了解應用程式的使用方式並提升穩定性。我們不會收集個人資料。
+    reset: 閱讀
+    expose-to-llm-toggle: 隱私權政策
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: 您稍後可以在「設定 > 系統 > 一般」中關閉使用分析。
+      all: 您可以隨時關閉使用分析。
+      custom: 啟用使用分析
 microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 關閉此項以退出使用分析收集。
+    description: 此開發版本已停用使用分析
+    notLoggedIn: 我們支援 2D 和 3D 模型
+    login: 點擊 {select-button} 以選取或匯入模型。目前支援 Live2D 和 Spine 模型的 {zip}，以及 VRM 模型的 {vrm}。
+    logout: Neuro-sama 使用由 Live2D Inc 開發的框架驅動 2D 模型，而 Grok Ani（Grok Companion 中的角色）使用由 VRM / MMD 開放格式驅動的 3D 模型。
+    fluxBalance: 模型選擇器
+    viewFluxDetails: 選擇模型
+    signedInAs: 選取
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: 匯入
+      title: 移除
+      description: 確認
       name:
         label: Display name
         placeholder: How others see you
@@ -290,13 +290,13 @@ pages:
           confirmEmail:
             label: Type your email to confirm
             placeholder: ''
-            mismatch: Email does not match.
-          confirm: Send confirmation email
-          cancel: Cancel
+            mismatch: 電子郵件不符。
+          confirm: 傳送確認郵件
+          cancel: 取消
         message:
-          emailSent: Check {email} for the deletion link.
+          emailSent: 請查看 {email} 中的刪除連結。
         error:
-          fallback: Could not start deletion. Try again later.
+          fallback: 無法開始刪除操作，請稍後再試。
   card:
     activate: 啟用
     active: 已啟用
@@ -311,8 +311,8 @@ pages:
     consciousness:
       model: 意識 / 模型
     vision:
-      provider: Vision / Provider
-      model: Vision / Model
+      provider: 視覺／提供者
+      model: 視覺／模型
     created_by: 建立者
     creator_notes: 建立者筆記
     delete: 刪除
@@ -369,8 +369,8 @@ pages:
         scenario: '錯誤：必須提供一個情境。'
         systemprompt: '錯誤：請提供系統提示。'
         posthistoryinstructions: '錯誤：必須提供訊息歷史後的提示。'
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
-      none: None
+        invalid_artistry_json: '錯誤：繪圖提供者選項包含無效 JSON。'
+      none: 無
     modules: 模組
     name_asc: 名稱 (A-Z)
     name_desc: 名稱 (Z-A)
@@ -382,7 +382,7 @@ pages:
     scenario: 情境
     search: 搜尋角色卡...
     sort_by: 排序方式
-    body-model: Body / Display Model
+    body-model: 角色卡身體／顯示模型
     speech:
       provider: 聲音 / 聲線
       model: 聲音 / 模型
@@ -390,14 +390,14 @@ pages:
     systemprompt: 系統提示詞
     title: AIRI 角色卡
     try_different_search: 嘗試使用其他關鍵字搜尋
-    export: Export
-    exported: Card package exported
-    export_failed: Failed to export card package
-    imported: Card package imported
-    import_missing_file: Card package is missing required files
-    import_invalid_file: Card package file is invalid
+    export: 匯出
+    exported: 角色卡套件已匯出
+    export_failed: 匯出角色卡套件失敗
+    imported: 角色卡套件已匯入
+    import_missing_file: 角色卡套件缺少必要檔案
+    import_invalid_file: 角色卡套件檔案無效
     upload: 上傳
-    upload_desc: Click or drag an AIRI card package to import
+    upload_desc: 點擊或拖曳 AIRI 角色卡套件以匯入
   memory:
     description: 存放記憶的地方，以及策略
     title: 記憶體
@@ -413,7 +413,7 @@ pages:
         delete: 刪除所有聊天記錄
       models:
         title: 模型
-        description: 移除匯入的 Live2D/VRM 模型
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: 刪除所有模型
       modules:
         title: 模組
@@ -431,13 +431,13 @@ pages:
         description: 清除所有本機設定、服務提供者設定與模型。
         delete: 刪除所有資料
       desktop-folder:
-        title: Open app data folder
-        description: Open AIRI's data folder in your file manager.
-        open: Open folder
+        title: 開啟應用程式資料夾
+        description: 在檔案管理器中開啟 AIRI 的資料夾。
+        open: 開啟資料夾
       desktop:
         title: 重設桌面設定與狀態
         description: 清除 AIRI 桌面設定與執行階段狀態
-        center: Move desktop window to center
+        center: 將桌面視窗移至中央
         reset: 重設桌面資料
     confirmations:
       tooltip: 您確定嗎？
@@ -451,10 +451,10 @@ pages:
       modules_reset: 模組設定已重設
       providers_reset: 服務提供者設定已重設
       all_deleted: 所有本機資料已刪除
-      desktop_window_centered: Desktop window moved to screen center.
+      desktop_window_centered: 桌面視窗已移至螢幕中央。
       desktop_reset: 桌面資料已重設
   models:
-    description: 切換角色的 Live2D、VRM、Spine 模型
+    description: Live2D, VRM, Spine, MMD, etc.
     title: 角色模型
     sections:
       section:
@@ -514,43 +514,43 @@ pages:
               description: 是否在偵測節拍前進行預熱以提高準確度。
               label: 預熱
     artistry:
-      title: Artistry
-      description: Image generation, scene background and drawing.
+      title: 繪圖
+      description: 圖像生成、場景背景與繪圖。
       page:
-        title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        title: 繪圖提供者設定
+        description: 選擇用於圖像生成的作用中後端提供者。角色可以在其角色卡設定中覆寫此選項。
       providers:
         none:
-          name: None
-          description: Bypass and disable the image generation module globally.
+          name: 無
+          description: 全域略過並停用圖像生成模組。
         comfyui:
-          name: ComfyUI (Local)
-          description: Use a local ComfyUI instance via WSL for image generation.
+          name: ComfyUI（本機）
+          description: 使用本機 ComfyUI 實例透過 WSL 生成圖像。
         replicate:
-          name: Replicate.ai (Cloud)
-          description: Use cloud-based models via the Replicate API.
+          name: Replicate.ai（雲端）
+          description: 透過 Replicate API 使用雲端模型。
         nanobanana:
-          name: Nano Banana (Preview)
-          description: Use Google AI Studio for image preview and reactions.
+          name: Nano Banana（預覽）
+          description: 使用 Google AI Studio 進行圖像預覽與回應。
       card:
-        description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        description: 設定 AIRI 生成圖像與視覺內容的方式。
+        comfyui_empty: 尚未設定 ComfyUI 工作流程。前往「設定 → 提供者 → ComfyUI」上傳工作流程範本。
+        exposed_fields: '已公開 {count} 個欄位'
+        open_on_replicate: 在 Replicate 上開啟
         instruction_sync:
-          title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+          title: ComfyUI 指令同步
+          description: 已為您的 {workflowName} 工作流程準備專用提示詞。套用後將覆寫目前的小工具指令，讓 AI 知道如何使用此特定範本。
+          apply: 套用建議提示詞
+          keep: 保留現有設定
+      provider: 繪圖提供者
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: 具現化模式（生成模式）
+        description: 選擇圖像傳送至介面的方式。
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 背景環境
+          inline: 內嵌聊天
+          widget: 覆蓋小工具
+          bg_widget: 雙重（背景 + 小工具）
       autonomous:
         title: Cinematic Autonomy (Autonomous Artist)
         description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
@@ -749,75 +749,75 @@ pages:
       access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
       configured: X / Twitter 已正確設定！
     web-search:
-      title: 網路搜尋
-      description: 讓 AIRI 連網搜尋最新資訊
-      enable: 啟用網路搜尋
-      enable-description: 允許 AIRI 在對話中連網搜尋
-      api-key: Tavily API 金鑰
-      api-key-description: 網路搜尋由 Tavily 提供支援，可在 tavily.com 免費取得 API 金鑰。
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: 網路搜尋由 Tavily 提供。前往 tavily.com 取得免費 API 金鑰。
       api-key-placeholder: 輸入您的 Tavily API 金鑰
-      configured: 網路搜尋已就緒！
+      configured: 網路搜尋已準備就緒！
     mcp-server:
-      title: MCP servers
-      description: Configure MCP servers and bring their tools into AIRI.
-      config-path: Config file
+      title: MCP 伺服器
+      description: 設定 MCP 伺服器並將其工具帶入 AIRI。
+      config-path: 設定檔
       runtime-title: 執行狀態
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
-      error-title: Oops
-      success-title: Done!
+      empty: 尚無 MCP 伺服器 — 點擊下方「新增伺服器」建立一個，或透過「編輯 JSON」貼上設定。
+      error-title: 糟糕
+      success-title: 完成！
       existing:
-        title: Configured
-        description: Servers recorded in mcp.json. Click any row to expand and edit it.
-        empty: Nothing here yet. Add one below!
+        title: 已設定
+        description: 伺服器已記錄在 mcp.json 中。點擊任一列以展開並編輯。
+        empty: 目前沒有內容。請在下方新增一個！
       add:
-        title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
-        pending-badge: Unsaved
+        title: 新增
+        description: "填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。"
+        pending-badge: 未儲存
       status:
-        unknown: not loaded
+        unknown: 未載入
       actions:
-        open-config: Reveal in file manager
-        apply-and-restart: Save and restart
-        restart: Restart MCP
-        add-server: Add server
-        add-env: Add var
-        remove: Remove
-        test: Test
-        edit-json: Edit JSON
-        close-json: Close
-        format-json: Format
-        reset-draft: Reset
-        apply-json: Apply
-        cancel: Cancel
-        expand: Expand
-        collapse: Collapse
+        open-config: 在檔案管理器中顯示
+        apply-and-restart: 儲存並重新啟動
+        restart: 重新啟動 MCP
+        add-server: 新增伺服器
+        add-env: 新增變數
+        remove: 移除
+        test: 測試
+        edit-json: 編輯 JSON
+        close-json: 關閉
+        format-json: 格式化
+        reset-draft: 重設
+        apply-json: 套用
+        cancel: 取消
+        expand: 展開
+        collapse: 收合
       fields:
         identifier:
-          label: Identifier
-          description: Unique name; becomes the key in mcp.json.
-          placeholder: e.g. filesystem
+          label: 識別碼
+          description: 唯一名稱；會成為 mcp.json 中的鍵。
+          placeholder: 例如：filesystem
         command:
-          label: Command
-          description: Executable spawned over stdio.
-          placeholder: e.g. npx
+          label: 指令
+          description: 透過標準輸入輸出啟動的可執行檔。
+          placeholder: 例如：npx
         args:
-          label: Arguments
-          description: One per line, in order.
-          placeholder: "-y\nsome-package-name\n/tmp"
+          label: 引數
+          description: 每行一個，依序排列。
+          placeholder: "-y some-package-name /tmp"
         cwd:
-          label: Working directory
-          description: Optional directory used as the process working directory.
-          placeholder: e.g. /Users/you/project
+          label: 工作目錄
+          description: 用作程序工作目錄的選用目錄。
+          placeholder: 例如：/Users/you/project
         env:
-          label: Environment
-          description: Vars passed to the child process.
+          label: 環境
+          description: 傳遞給子程序的變數。
           key-placeholder: KEY
           value-placeholder: value
         enabled:
-          label: Enabled
+          label: 已啟用
       json:
-        title: Edit mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        title: 編輯 mcp.json
+        description: '直接編輯原始 JSON。點擊「套用」將其載入表單，然後點擊「儲存並重新啟動」寫入磁碟。'
         placeholder: Paste mcp.json here…
       test:
         title: Test connection
@@ -1307,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - 高效能AI API供應商
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter
@@ -1674,7 +1677,7 @@ spine:
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
   appearance:
-    title: 外觀
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant
@@ -1688,6 +1691,51 @@ spine:
   fps:
     options:
       unlimited: Unlimited
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 websocket-secure-enabled:
   title: 啟用安全 WebSocket (WSS)
   description: >-
