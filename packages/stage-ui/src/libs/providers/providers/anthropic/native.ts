@@ -662,14 +662,45 @@ function toHeaderRecord(headers: HeadersInit | undefined): Record<string, string
   return { ...headers }
 }
 
-function toAnthropicHeaders(headers: HeadersInit | undefined, apiKey: string): Record<string, string> {
-  const record = toHeaderRecord(headers)
-  // The Messages API authenticates via x-api-key; sending the Bearer header
-  // xsai injects alongside it is rejected by api.anthropic.com.
-  for (const key of Object.keys(record)) {
-    if (key.toLowerCase() === 'authorization')
-      delete record[key]
+/**
+ * Whether a request targets Anthropic's own API rather than a user-configured
+ * proxy. Matched on the exact host so a gateway that merely borrows the path
+ * layout is still treated as third-party.
+ */
+function isOfficialAnthropicHost(url: string): boolean {
+  try {
+    return new URL(url).hostname === 'api.anthropic.com'
   }
+  catch {
+    // An unparseable URL cannot be the official endpoint, whose Base URL is a
+    // fixed absolute default.
+    return false
+  }
+}
+
+function toAnthropicHeaders(headers: HeadersInit | undefined, apiKey: string, url: string): Record<string, string> {
+  const record = toHeaderRecord(headers)
+
+  // xsai authenticates by putting the configured key in `Authorization: Bearer`.
+  // Anthropic accepts either `x-api-key` or `Authorization`, but its bearer
+  // path expects a short-lived Workload Identity Federation token rather than a
+  // static `sk-ant-` key, and the precedence when both headers arrive is
+  // undocumented — so on the official host the bearer header is dropped and
+  // only the documented `x-api-key` method is used.
+  //
+  // Custom Base URLs keep it: `/v1/messages` proxies are commonly protected by
+  // bearer auth instead (antigravity-claude-proxy, the proxy Issue #1565 names,
+  // requires `Authorization: Bearer $API_KEY` once `API_KEY` is configured), and
+  // dropping it would 401 exactly the deployments this provider exists to
+  // support. `x-api-key` is still set alongside, so proxies that mirror
+  // Anthropic's own scheme keep working.
+  if (isOfficialAnthropicHost(url)) {
+    for (const key of Object.keys(record)) {
+      if (key.toLowerCase() === 'authorization')
+        delete record[key]
+    }
+  }
+
   record['x-api-key'] = apiKey
   record['anthropic-version'] = ANTHROPIC_VERSION
   // Anthropic requires this opt-in header for direct browser (CORS) calls;
@@ -730,7 +761,7 @@ export function createNativeAnthropicFetch(options: NativeAnthropicFetchOptions)
       return baseFetch(url, {
         ...init,
         method,
-        headers: toAnthropicHeaders(headers, options.apiKey),
+        headers: toAnthropicHeaders(headers, options.apiKey, url),
         signal,
       })
     }
@@ -749,7 +780,7 @@ export function createNativeAnthropicFetch(options: NativeAnthropicFetchOptions)
 
     const response = await baseFetch(toMessagesURL(url), {
       method: 'POST',
-      headers: toAnthropicHeaders(headers, options.apiKey),
+      headers: toAnthropicHeaders(headers, options.apiKey, url),
       body: wireRequest != null ? JSON.stringify(translateChatRequest(wireRequest)) : rawBody,
       signal,
     })

@@ -538,6 +538,42 @@ describe('fetch wiring', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/1565
+  it('keeps bearer auth for custom Base URLs, which /v1/messages proxies commonly require (Issue #1565)', async () => {
+    const baseFetch = vi.fn().mockResolvedValue(jsonResponse({ content: [], stop_reason: 'end_turn' }))
+    const nativeFetch = createNativeAnthropicFetch({ apiKey: 'proxy-key', fetch: baseFetch })
+
+    await nativeFetch('https://proxy.example/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer proxy-key' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-5-20250929', messages: [{ role: 'user', content: 'ping' }] }),
+    })
+
+    const [, init] = baseFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }]
+    // antigravity-claude-proxy (the proxy this issue names) authenticates with
+    // `Authorization: Bearer $API_KEY`; dropping it would 401 before the
+    // rewritten request ever reaches /messages.
+    expect(init.headers.Authorization).toBe('Bearer proxy-key')
+    // Proxies that instead mirror Anthropic's own scheme still get x-api-key.
+    expect(init.headers['x-api-key']).toBe('proxy-key')
+  })
+
+  it('strips bearer auth only on the official host, not on look-alike hosts', async () => {
+    const baseFetch = vi.fn().mockResolvedValue(jsonResponse({ content: [], stop_reason: 'end_turn' }))
+    const nativeFetch = createNativeAnthropicFetch({ apiKey: 'k', fetch: baseFetch })
+
+    // A gateway that borrows Anthropic's path layout, or puts the official host
+    // in a subdomain, is still third-party and keeps its bearer header.
+    await nativeFetch('https://api.anthropic.com.gateway.example/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer gateway-token' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: 'hi' }] }),
+    })
+
+    const [, init] = baseFetch.mock.calls[0] as [string, RequestInit & { headers: Record<string, string> }]
+    expect(init.headers.Authorization).toBe('Bearer gateway-token')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/1565
   it('rewrites custom proxy base URLs, keeping the path prefix and query (Issue #1565)', async () => {
     const baseFetch = vi.fn().mockResolvedValue(jsonResponse({ content: [], stop_reason: 'end_turn' }))
     const nativeFetch = createNativeAnthropicFetch({ apiKey: 'k', fetch: baseFetch })
