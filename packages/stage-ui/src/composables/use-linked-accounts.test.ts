@@ -123,4 +123,106 @@ describe('useLinkedAccounts', () => {
     await holder.linkedAccounts.link('google', 'Google')
     expect(onLinkStarted).toHaveBeenCalledTimes(1)
   })
+
+  it('treats a linked Steam account as another sign-in method for last-account unlink', async () => {
+    const unlinkAccount = vi.fn(async (): Promise<{ data: unknown, error: { message?: string } | null }> => ({
+      data: null,
+      error: null,
+    }))
+
+    const holder: {
+      linkedAccounts?: ReturnType<typeof useLinkedAccounts>
+    } = {}
+    const app = createSSRApp({
+      setup() {
+        holder.linkedAccounts = useLinkedAccounts({
+          client: {
+            listAccounts: vi.fn(async () => ({
+              data: [
+                { id: '1', accountId: 'g-1', providerId: 'google', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+                { id: '2', accountId: '76561198000000000', providerId: 'steam', createdAt: '2026-01-02T00:00:00Z', scopes: [] },
+              ],
+              error: null,
+            })),
+            unlinkAccount,
+            linkSocial: vi.fn(async () => ({ data: null, error: null })),
+          },
+          isAuthenticated: ref(false),
+          describeError: () => '',
+          messages: {
+            listFailed: 'list failed',
+            unlinkFailed: 'unlink failed',
+            linkFailed: 'link failed',
+            lastAccount: 'last account',
+            unlinked: provider => `${provider} unlinked`,
+            linkStarted: provider => `${provider} link started`,
+          },
+        })
+
+        return () => null
+      },
+    })
+
+    await renderToString(app)
+
+    if (!holder.linkedAccounts)
+      throw new Error('Expected linked accounts composable to initialize')
+
+    await holder.linkedAccounts.refresh()
+    await holder.linkedAccounts.unlink('google', 'Google')
+
+    expect(unlinkAccount).toHaveBeenCalledTimes(1)
+    expect(unlinkAccount).toHaveBeenCalledWith({ providerId: 'google' })
+    expect(holder.linkedAccounts.error.value).toBeNull()
+  })
+
+  it('blocks unlinking the only non-credential sign-in method when Steam is absent', async () => {
+    const unlinkAccount = vi.fn(async (): Promise<{ data: unknown, error: { message?: string } | null }> => ({
+      data: null,
+      error: null,
+    }))
+
+    const holder: {
+      linkedAccounts?: ReturnType<typeof useLinkedAccounts>
+    } = {}
+    const app = createSSRApp({
+      setup() {
+        holder.linkedAccounts = useLinkedAccounts({
+          client: {
+            listAccounts: vi.fn(async () => ({
+              data: [
+                { id: '1', accountId: 'g-1', providerId: 'google', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+              ],
+              error: null,
+            })),
+            unlinkAccount,
+            linkSocial: vi.fn(async () => ({ data: null, error: null })),
+          },
+          isAuthenticated: ref(false),
+          describeError: () => '',
+          messages: {
+            listFailed: 'list failed',
+            unlinkFailed: 'unlink failed',
+            linkFailed: 'link failed',
+            lastAccount: 'last account',
+            unlinked: provider => `${provider} unlinked`,
+            linkStarted: provider => `${provider} link started`,
+          },
+        })
+
+        return () => null
+      },
+    })
+
+    await renderToString(app)
+
+    if (!holder.linkedAccounts)
+      throw new Error('Expected linked accounts composable to initialize')
+
+    await holder.linkedAccounts.refresh()
+    await holder.linkedAccounts.unlink('google', 'Google')
+
+    expect(unlinkAccount).not.toHaveBeenCalled()
+    expect(holder.linkedAccounts.error.value).toBe('last account')
+  })
 })
