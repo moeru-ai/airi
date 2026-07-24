@@ -87,6 +87,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   const sending = ref(false)
   const pendingQueuedSendCount = ref(0)
+  const pendingSendCancellationHooks = new Set<(sessionId?: string) => void>()
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
 
   async function streamWithStageAdapters(
@@ -404,6 +405,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
 
   function cancelPendingSends(sessionId?: string) {
     runtime.cancelPendingSends(sessionId)
+    for (const hook of pendingSendCancellationHooks)
+      hook(sessionId)
+  }
+
+  function onPendingSendsCancelled(hook: (sessionId?: string) => void) {
+    pendingSendCancellationHooks.add(hook)
+    return () => pendingSendCancellationHooks.delete(hook)
   }
 
   function getPendingQueuedSendSnapshot() {
@@ -417,6 +425,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     ingest,
     ingestOnFork,
     cancelPendingSends,
+    onPendingSendsCancelled,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,

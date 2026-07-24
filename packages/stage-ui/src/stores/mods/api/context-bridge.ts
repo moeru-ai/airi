@@ -1,5 +1,5 @@
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
-import type { WebSocketEventOf } from '@proj-airi/server-sdk'
+import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
@@ -26,6 +26,7 @@ import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProvidersStore } from '../../providers'
 import { useModsServerChannelStore } from './channel-server'
+import { createDiscordInputQueue, DiscordInputAdmissionError, parseDiscordPrincipalId } from './discordInputQueue'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -91,6 +92,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const { post: postSparkNotifyBridgeMessage, data: incomingSparkNotifyBridgeMessage } = useBroadcastChannel<SparkNotifyBridgeMessage, SparkNotifyBridgeMessage>({ name: SPARK_NOTIFY_BRIDGE_CHANNEL_NAME })
 
   const disposeHookFns = ref<Array<() => void>>([])
+  let discordInputQueue: ReturnType<typeof createDiscordInputQueue> | undefined
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
   let initialized = false
 
@@ -351,11 +353,39 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     return options.calls?.find(call => call.manifest.name === name)
   }
 
-  function withContextBridgeLock<T>(key: string, callback: () => Promise<T>) {
-    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
-      return navigator.locks.request(key, callback)
+  async function runContextBridgeTaskUntilAborted<T>(callback: () => Promise<T>, signal: AbortSignal) {
+    signal.throwIfAborted()
+
+    let rejectCancellation: (error: unknown) => void = () => {}
+    const cancellation = new Promise<never>((_resolve, reject) => {
+      rejectCancellation = reject
+    })
+    const onAbort = () => rejectCancellation(signal.reason ?? new DOMException('Aborted', 'AbortError'))
+    signal.addEventListener('abort', onAbort, { once: true })
+
+    // Releasing the Web Lock must not depend on provider cancellation support.
+    // Promise.race keeps observing a detached provider promise, so a late
+    // rejection remains handled after cancellation releases the lock.
+    const operation = Promise.resolve().then(callback)
+    try {
+      return await Promise.race([operation, cancellation])
     }
-    return callback()
+    finally {
+      signal.removeEventListener('abort', onAbort)
+    }
+  }
+
+  function withContextBridgeLock<T>(key: string, callback: () => Promise<T>, signal?: AbortSignal) {
+    const run = () => signal
+      ? runContextBridgeTaskUntilAborted(callback, signal)
+      : callback()
+
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && typeof navigator.locks.request === 'function') {
+      if (signal)
+        return navigator.locks.request(key, { signal }, run)
+      return navigator.locks.request(key, run)
+    }
+    return run()
   }
 
   async function withContextBridgeExclusiveLock<T>(key: string, callback: () => Promise<T>) {
@@ -556,7 +586,26 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         })
       }))
 
-      disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
+      const currentDiscordInputQueue = createDiscordInputQueue()
+      discordInputQueue = currentDiscordInputQueue
+      disposeHookFns.value.push(
+        chatOrchestrator.onPendingSendsCancelled((sessionId) => {
+          if (sessionId)
+            currentDiscordInputQueue.cancelSession(sessionId)
+          else
+            currentDiscordInputQueue.cancelAll()
+        }),
+        serverChannelStore.onDisconnected(() => {
+          currentDiscordInputQueue.cancelAll(new Error('Discord input cancelled after server disconnect'))
+        }),
+      )
+
+      async function processInputTextEvent(
+        event: WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>,
+        targetSessionId?: string,
+        signal?: AbortSignal,
+      ) {
+        signal?.throwIfAborted()
         const {
           text,
           textRaw,
@@ -633,6 +682,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           }
         }
 
+        signal?.throwIfAborted()
         if (activeProvider.value && activeModel.value) {
           let chatProvider: ChatProvider
           try {
@@ -643,8 +693,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             return
           }
 
+          signal?.throwIfAborted()
           let messageText = text
-          const targetSessionId = overrides?.sessionId
 
           if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
@@ -673,6 +723,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/SharedWorker
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
+            signal?.throwIfAborted()
             try {
               await chatOrchestrator.ingest(messageText, {
                 model: activeModel.value,
@@ -692,7 +743,39 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             catch (err) {
               console.error('Error ingesting text input via context bridge:', err)
             }
+          }, signal)
+        }
+      }
+
+      disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
+        if (!Object.hasOwn(event.data, 'discord')) {
+          await processInputTextEvent(event, event.data.overrides?.sessionId)
+          return
+        }
+
+        const discordPrincipalId = parseDiscordPrincipalId(event.data.discord?.guildMember?.id)
+        if (!discordPrincipalId) {
+          console.warn('[context-bridge] Discord input rejected because guildMember.id is missing or malformed')
+          return
+        }
+
+        // This mirrors the core orchestrator's canonical fallback instead of
+        // inventing a Discord-specific session identity at the admission layer.
+        const targetSessionId = event.data.overrides?.sessionId || chatSession.activeSessionId
+
+        try {
+          await currentDiscordInputQueue.submit({
+            principalId: discordPrincipalId,
+            sessionId: targetSessionId,
+            run: signal => processInputTextEvent(event, targetSessionId, signal),
           })
+        }
+        catch (error) {
+          if (error instanceof DiscordInputAdmissionError) {
+            console.warn(`[context-bridge] ${error.message}`)
+            return
+          }
+          console.warn('[context-bridge] Discord input did not complete:', errorMessageFrom(error) ?? 'Unknown error')
         }
       }))
 
@@ -882,6 +965,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     try {
       if (!initialized)
         return
+
+      discordInputQueue?.shutdown()
+      discordInputQueue = undefined
 
       for (const consumerEvent of consumerRegistrationEvents) {
         serverChannelStore.send({

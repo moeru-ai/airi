@@ -209,6 +209,24 @@ describe('channel-server store reconnect', () => {
     expect(onReconnected).toHaveBeenCalledTimes(1)
   })
 
+  it('notifies disconnect callbacks so retained ingress work can be cancelled (CSR-09)', async () => {
+    const store = useModsServerChannelStore()
+    const onDisconnected = vi.fn()
+    const unsubscribe = store.onDisconnected(onDisconnected)
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+    client.simulateTransientDisconnect()
+
+    expect(onDisconnected).toHaveBeenCalledTimes(1)
+
+    unsubscribe()
+    client.simulateTransientDisconnect()
+    expect(onDisconnected).toHaveBeenCalledTimes(1)
+  })
+
   it('does not notify onReconnected on first authenticated->ready flow and only on subsequent ready events', async () => {
     const store = useModsServerChannelStore()
     const onReconnected = vi.fn()

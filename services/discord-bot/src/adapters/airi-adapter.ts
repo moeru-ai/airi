@@ -45,7 +45,7 @@ function normalizeDiscordMetadata(discord?: Discord): Discord | undefined {
   return {
     ...discord,
     guildMember: {
-      id: guildMember.id ?? guildMember.displayName ?? guildMember.nickname ?? '',
+      id: guildMember.id,
       nickname: guildMember.nickname ?? guildMember.displayName ?? '',
       displayName: guildMember.displayName ?? guildMember.nickname ?? '',
     },

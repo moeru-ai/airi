@@ -58,6 +58,18 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
   const reconnectedCallbacks = new Set<() => void>()
+  const disconnectedCallbacks = new Set<() => void>()
+
+  function notifyDisconnected() {
+    for (const callback of disconnectedCallbacks) {
+      try {
+        callback()
+      }
+      catch (error) {
+        console.error('Error in disconnected callback:', error)
+      }
+    }
+  }
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
@@ -147,6 +159,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
         },
         onClose: () => {
           connected.value = false
+          notifyDisconnected()
 
           if (!hasEverConnected.value) {
             // First handshake failed: clear lock so initialize() can be retried externally.
@@ -160,6 +173,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
             connected.value = false
             initializing.value = null
+            notifyDisconnected()
             console.warn('WebSocket server connection failed')
           }
         },
@@ -306,6 +320,15 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
+  /** Registers cleanup that must run when the server transport stops delivering input. */
+  function onDisconnected(callback: () => void) {
+    disconnectedCallbacks.add(callback)
+
+    return () => {
+      disconnectedCallbacks.delete(callback)
+    }
+  }
+
   function sendContextUpdate(message: InputContextUpdate) {
     const id = nanoid()
     send({
@@ -354,6 +377,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     onContextUpdate,
     onEvent,
     onReconnected,
+    onDisconnected,
     getPendingSendSnapshot: () => [...pendingSend.value],
     dispose,
   }
