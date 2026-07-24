@@ -347,9 +347,24 @@ export function createAuthService(params: {
       return
     }
 
+    // NOTICE:
+    // Do not skip when a prior OIDC/enroll loopback is still waiting. Onboarding
+    // closes as soon as the browser opens; if the user then closes that tab and
+    // clicks Sign in on the island, a hard skip left signingInFlight=true for up
+    // to the 5m loopback timeout and no new tab opened. Replace the in-flight
+    // attempt (same policy as startOidcLoopbackFlow) so a fresh click always
+    // can open the browser again.
     if (signingInFlight) {
-      log.debug('Skipping sign-in: another sign-in is already in progress')
-      return
+      // #region agent log
+      authEteLog('login:replace-in-flight', {
+        caseId: 'C11',
+        hadCloseLoopback: closeLoopback !== null,
+      })
+      // #endregion
+      log.warn('Replacing in-flight sign-in with a new request')
+      closeLoopback?.()
+      closeLoopback = null
+      signingInFlight = false
     }
 
     // P1 choke point: when Steam is available, route every sign-in entry point
