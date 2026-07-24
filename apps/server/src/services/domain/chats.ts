@@ -7,7 +7,7 @@ import type { ProductEventService } from './product-events'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 
-import { createForbiddenError, createNotFoundError } from '../../utils/error'
+import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
 import * as schema from '../../schemas/chats'
@@ -43,6 +43,8 @@ export function clampLimit(limit?: number): number {
 export function resolveSenderId(role: string, userId: string, characterId?: string | null): string | null {
   if (role === 'user')
     return userId
+  if (role === 'assistant')
+    return characterId ?? userId
   return characterId ?? null
 }
 
@@ -223,6 +225,9 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
     // -- Message sync (WS) --------------------------------------------------
 
     async pushMessages(userId: string, chatId: string, messages: PushMessage[], characterId?: string) {
+      if (messages.some(message => message.role !== 'user' && message.role !== 'assistant'))
+        throw createBadRequestError('Only user and assistant messages can be synchronized')
+
       const result = await db.transaction(async (tx) => {
         await verifyMembership(tx, chatId, userId)
 
@@ -247,8 +252,20 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         // Split into new vs existing messages
         const messageIds = messages.map(m => m.id)
         const existingMessages = messageIds.length > 0
-          ? await tx.select({ id: schema.messages.id }).from(schema.messages).where(inArray(schema.messages.id, messageIds))
+          ? await tx.select({ id: schema.messages.id, chatId: schema.messages.chatId, senderId: schema.messages.senderId }).from(schema.messages).where(inArray(schema.messages.id, messageIds))
           : []
+
+        if (existingMessages.some(message => message.chatId !== chatId))
+          throw createConflictError('Message already belongs to another chat')
+
+        // Stored senders must match the owner resolved for each incoming message.
+        const existingMessagesById = new Map(existingMessages.map(message => [message.id, message]))
+        if (messages.some((message) => {
+          const existingMessage = existingMessagesById.get(message.id)
+          return existingMessage != null && existingMessage.senderId !== resolveSenderId(message.role, userId, characterId)
+        }))
+          throw createForbiddenError()
+
         const existingIds = new Set(existingMessages.map(m => m.id))
 
         const newMsgs = messages.filter(m => !existingIds.has(m.id))
