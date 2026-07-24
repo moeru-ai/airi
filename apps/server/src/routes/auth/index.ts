@@ -89,10 +89,6 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
         return
       }
 
-      // #region agent log
-      console.info('[airi-debug:af8d97]', 'authorize:enrollToken-present', { caseId: 'C7' })
-      // #endregion
-
       const cleanedUrl = new URL(c.req.url)
       cleanedUrl.searchParams.delete('enrollToken')
       const cleanedRequest = new Request(cleanedUrl.toString(), c.req.raw)
@@ -107,13 +103,6 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       // re-authenticate — the token survives until its 10m TTL.
       if (resolved?.user && !isUserBannedNow(resolved.user)) {
         const payload = await consumeEnrollmentToken(deps.db, enrollToken)
-        // #region agent log
-        console.info('[airi-debug:af8d97]', 'authorize:enroll-consume', {
-          caseId: 'C7',
-          hasSession: true,
-          tokenConsumed: Boolean(payload),
-        })
-        // #endregion
         if (payload) {
           try {
             await linkSteamToUser(deps.db, {
@@ -121,29 +110,15 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
               steamId: payload.steamId,
               profile: payload.profile,
             })
-            // #region agent log
-            console.info('[airi-debug:af8d97]', 'authorize:steam-linked', { caseId: 'C7' })
-            // #endregion
           }
           catch {
             // Link failed: do not issue a code. The browser sees a 403; the
             // Electron loopback times out and surfaces a retry toast. The token
             // is already consumed (single-use) so the user relaunches Steam for a
             // fresh enrollment handoff.
-            // #region agent log
-            console.info('[airi-debug:af8d97]', 'authorize:steam-link-failed', { caseId: 'C7' })
-            // #endregion
             throw createForbiddenError('Steam enrollment failed — please relaunch AIRI', 'STEAM_ENROLLMENT_LINK_FAILED')
           }
         }
-      }
-      else {
-        // #region agent log
-        console.info('[airi-debug:af8d97]', 'authorize:enroll-no-session', {
-          caseId: 'C7',
-          hasResolvedUser: Boolean(resolved?.user),
-        })
-        // #endregion
       }
 
       return handleAuthRequest(cleanedRequest)
