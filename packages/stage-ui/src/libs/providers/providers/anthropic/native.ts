@@ -217,6 +217,33 @@ function mapToolResultContent(content: OpenAIWireMessage['content'] | undefined)
   return blocks.length > 0 ? blocks : ''
 }
 
+/**
+ * Completes a tool's JSON Schema into the object schema the Messages API
+ * describes for `input_schema`.
+ *
+ * Before:
+ * - `undefined` / `{}` / `{ additionalProperties: false }`
+ *
+ * After:
+ * - `{ type: 'object' }` / `{ type: 'object' }` / `{ type: 'object', additionalProperties: false }`
+ *
+ * A declared `type` is never overwritten: a caller that means something other
+ * than an object should get the provider's own error rather than a silently
+ * rewritten schema.
+ */
+function toInputSchema(parameters: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (parameters == null)
+    return { type: 'object' }
+  // A schema can arrive without `type` even when it is not empty — `rawTool`
+  // in `@xsai/tool` forwards `parameters` as given, so `rawTool({parameters: {}})`
+  // yields `{ additionalProperties: false }`. Filling the field in keeps a
+  // zero-argument tool from taking the whole `tools` array down with it, and
+  // matches the repo rule that schemas carry an explicit `type: object`.
+  if (parameters.type == null)
+    return { ...parameters, type: 'object' }
+  return parameters
+}
+
 function mapToolChoice(toolChoice: OpenAIWireRequest['tool_choice']): AnthropicRequestBody['tool_choice'] | undefined {
   if (toolChoice == null)
     return undefined
@@ -356,7 +383,7 @@ function translateChatRequest(request: OpenAIWireRequest): AnthropicRequestBody 
     .map(tool => ({
       name: tool.function!.name!,
       description: tool.function!.description,
-      input_schema: tool.function!.parameters ?? { type: 'object' },
+      input_schema: toInputSchema(tool.function!.parameters),
     }))
   if (tools.length > 0) {
     body.tools = tools
