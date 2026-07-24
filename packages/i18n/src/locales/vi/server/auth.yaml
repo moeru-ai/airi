@@ -9,7 +9,7 @@ electronCallback:
   message:
     checkingResponse: Đang kiểm tra phản hồi đăng nhập của bạn và chuẩn bị chuyển giao cho AIRI.
     passingToAiri: Đang chuyển thông tin đăng nhập của bạn cho AIRI. Trang này sẽ tự động đóng trong giây lát.
-    syncedAndSafeToClose: We notified AIRI client you signed from.
+    syncedAndSafeToClose: Chúng tôi đã thông báo cho ứng dụng AIRI bạn đã đăng nhập từ đó.
     invalidResponse: Chúng tôi không thể dùng phản hồi đăng nhập này.
     loopbackUnreachable: Trình duyệt không thể kết nối đến AIRI thông qua cổng callback cục bộ.
     tryOpenDirectly: We will try opening the local handoff directly. If that still fails, use the button below.
@@ -85,7 +85,7 @@ forgotPassword:
   description: Hãy nhập địa chỉ email đã được liên kết với tài khoản của bạn và chúng tôi sẽ gửi bạn link để thiết lập lại.
   email:
     label: Email
-    placeholder: you{'@'}example.com
+    placeholder: bạn{'@'}example.com
   action:
     send: Gửi link đặt lại
     backToSignIn: Trở lại đăng nhập
