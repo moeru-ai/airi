@@ -8,7 +8,7 @@ import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
-import { isModelProvider, ProviderValidationCheck } from '../types'
+import { isChatProvider, isModelProvider, ProviderValidationCheck } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
   checks?: ProviderValidationCheck[]
@@ -133,12 +133,31 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
     }
 
+    // A provider may reach its API through a translating `fetch` rather than by
+    // POSTing Chat Completions directly — the Anthropic provider rewrites
+    // requests onto the native Messages API that way. Checking with a
+    // hand-built request would then probe `{baseUrl}chat/completions`, an
+    // endpoint the provider itself never uses and `/v1/messages`-only proxies
+    // do not serve, so the check fails while real chat traffic succeeds.
+    //
+    // Only the transport is inherited; apiKey/baseURL/headers stay caller-owned
+    // so this stays a check of the configuration under validation. Providers
+    // created without a custom `fetch` resolve to `undefined` and are unchanged.
+    //
+    // NOTICE: `chat()` returns the provider's own options object and assigns
+    // `model` onto it (`Object.assign(options, { model })` in
+    // `@xsai-ext/providers/dist/utils/index.js`). That write is harmless — every
+    // real call sets `model` the same way — but it is why this reads the options
+    // through a call instead of a property.
+    const providerFetch = isChatProvider(provider) ? provider.chat(normalizedModel).fetch : undefined
+
     try {
       await generateText({
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
         headers: additionalHeaders,
         model: normalizedModel,
+        fetch: providerFetch,
         messages: message.messages(message.user('ping')),
         max_tokens: 1,
       })

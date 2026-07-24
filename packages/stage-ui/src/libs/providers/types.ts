@@ -35,6 +35,14 @@ export function isModelProvider(providerInstance: ProviderInstance): providerIns
   return false
 }
 
+export function isChatProvider(providerInstance: ProviderInstance): providerInstance is ChatProvider | ChatProviderWithExtraOptions {
+  if ('chat' in providerInstance && typeof providerInstance.chat === 'function') {
+    return true
+  }
+
+  return false
+}
+
 export interface ProviderOnboardingField {
   key: string
   type: 'text' | 'password'
