@@ -11,6 +11,9 @@ env:
   FLATPAK_BUNDLE_NAME: ''
   PRODUCT_NAME: 'AIRI'
   VERSION: ''
+  # NOTICE: Temporary public mirror for CI until an org-private SDK bundle exists.
+  STEAMWORKS_SDK_MIRROR_REPO: rlabrecque/SteamworksSDK
+  STEAMWORKS_SDK_MIRROR_REF: be6107f4b75bf996531415c53a6488a33a2a1be3
 
 on:
   release:
@@ -29,27 +32,110 @@ on:
         default: false
         type: boolean
       tag:
-        description: Specific tag/commit for the release (leave empty to auto-detect latest tag)
+        description: Direct release version/tag; source comes from the selected workflow ref
         required: false
         type: string
       platform:
-        description: Platform
+        description: Platform (Steam always builds all required depots)
         type: choice
         options:
           - all
           - windows
           - macos
           - linux
+      distribution:
+        description: Distribution target
+        required: true
+        default: direct
+        type: choice
+        options:
+          - direct
+          - steam
+      release_branch:
+        description: Steam branch to set live (Steam only)
+        required: true
+        default: internal-test
+        type: string
+      build_description:
+        description: Optional Steam build description (Steam only)
+        required: false
+        type: string
   schedule:
     - cron: '0 0 * * *'
 
+concurrency:
+  group: ${{ inputs.distribution == 'steam' && format('steam-deploy-tamagotchi-{0}', inputs.release_branch) || format('{0}-{1}', github.workflow, github.run_id) }}
+  cancel-in-progress: false
+
 jobs:
+  validate-release-inputs:
+    name: Validate release inputs
+    permissions: {}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate manual release mode
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+          BUILD_ONLY: ${{ inputs.build_only }}
+        shell: bash
+        run: |
+          if [[ "$BUILD_ONLY" == "true" && "$ARTIFACTS_ONLY" == "true" ]]; then
+            echo "::error::Build only and artifacts only cannot both be enabled."
+            exit 1
+          fi
+
+      - name: Validate direct release tag
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' }}
+        env:
+          ARTIFACTS_ONLY: ${{ inputs.artifacts_only }}
+          BUILD_ONLY: ${{ inputs.build_only }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          if [[ -z "$RELEASE_TAG" ]]; then
+            if [[ "$BUILD_ONLY" != "true" && "$ARTIFACTS_ONLY" != "true" ]]; then
+              echo "::error::A tag is required when publishing the direct distribution."
+              exit 1
+            fi
+
+            exit 0
+          fi
+
+          if [[ ! "$RELEASE_TAG" =~ ^[A-Za-z0-9][A-Za-z0-9._+-]*$ ]]; then
+            echo "::error::Direct release tag may contain only letters, numbers, dots, underscores, plus signs, and hyphens."
+            exit 1
+          fi
+
+      - name: Validate Steam release branch
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution == 'steam' && !inputs.build_only && !inputs.artifacts_only }}
+        env:
+          STEAM_RELEASE_BRANCH: ${{ inputs.release_branch }}
+        shell: bash
+        run: |
+          if [[ ! "$STEAM_RELEASE_BRANCH" =~ ^[A-Za-z0-9._-]+$ ]]; then
+            echo "::error::Steam release branch may contain only letters, numbers, dots, underscores, and hyphens."
+            exit 1
+          fi
+
+          if [[ "$STEAM_RELEASE_BRANCH" == "default" ]]; then
+            echo '::error::Steam release branch "default" must be promoted manually.'
+            exit 1
+          fi
+
   build:
     name: Build
+    needs: validate-release-inputs
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
-      VITE_ENABLE_POSTHOG: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      VITE_DISTRIBUTION: ${{ inputs.distribution || 'direct' }}
+      VITE_DISABLE_CUSTOM_PROVIDERS: ${{ inputs.distribution == 'steam' }}
+      VITE_DISABLE_FLUX_PURCHASE: ${{ inputs.distribution == 'steam' }}
+      VITE_SERVER_URL: ${{ inputs.distribution == 'steam' && 'https://airi-server-dev.up.railway.app' || '' }}
+      VITE_ENABLE_POSTHOG: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only)) && 'true' || 'false' }}
     strategy:
+      # Steam builds need all three depots; one platform failure must not cancel siblings.
+      fail-fast: false
       matrix:
         include:
 
@@ -58,35 +144,35 @@ jobs:
             target: x86_64-apple-darwin
             arch: x64
             builder-args: --macos --x64
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
+            skip: ${{ inputs.distribution == 'steam' || (inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos') }}
 
           - os: macos-26
             artifact: darwin-arm64
             target: aarch64-apple-darwin
             builder-args: --macos --arm64
             arch: arm64
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
+            skip: ${{ inputs.distribution != 'steam' && inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'macos' }}
 
           - os: ubuntu-latest
             artifact: linux-x64
             target: x86_64-unknown-linux-gnu
             builder-args: --linux --x64
             arch: x64
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
+            skip: ${{ inputs.distribution != 'steam' && inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
 
           - os: ubuntu-24.04-arm
             artifact: linux-arm64
             target: aarch64-unknown-linux-gnu
             builder-args: --linux --arm64
             arch: arm64
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux' }}
+            skip: ${{ inputs.distribution == 'steam' || (inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'linux') }}
 
           - os: windows-latest
             artifact: windows-x64-setup
             target: x86_64-pc-windows-msvc
             builder-args: --windows --x64
             arch: x64
-            skip: ${{ inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
+            skip: ${{ inputs.distribution != 'steam' && inputs.platform != '' && inputs.platform != 'all' && inputs.platform != 'windows' }}
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -130,7 +216,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
@@ -148,7 +234,7 @@ jobs:
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@v2
         with:
-          version: '4.6.2' 
+          version: '4.6.2'
           use-dotnet: true
           include-templates: true
 
@@ -168,6 +254,19 @@ jobs:
           mkdir -p build/mac
           godot --headless --export-release "macOS" build/mac/godot-stage.app
 
+      - name: Clean Steam Godot Stage (macOS)
+        if: ${{ inputs.distribution == 'steam' && (matrix.os == 'macos-15-intel' || matrix.os == 'macos-26') }}
+        working-directory: ./engines/stage-tamagotchi-godot
+        shell: bash
+        run: |
+          # NOTICE:
+          # SteamPipe excludes *.pdb files after Electron signs the parent app.
+          # Removing Godot debug symbols and AppleDouble files before signing keeps macOS sealed resources aligned with the installed bundle.
+          # Source/context: Steam internal-test BuildID 24160350 and the game-ci SteamPipe FileExclusion "*.pdb" behavior.
+          # Removal condition: SteamPipe preserves these resources or the embedded Godot bundle no longer contains them.
+          find build/mac/godot-stage.app -name '*.pdb' -delete
+          find build/mac/godot-stage.app -name '._*' -delete
+
       - name: Export Godot Stage (Linux)
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         working-directory: ./engines/stage-tamagotchi-godot
@@ -178,7 +277,7 @@ jobs:
 
       - name: Build (Windows Only) # Windows
         if: matrix.os == 'windows-latest'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only || inputs.distribution == 'steam') && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -187,7 +286,7 @@ jobs:
         run: |
           echo "$CSC_CONTENT" | base64 --decode > apps/stage-tamagotchi/apple-developer-code-signing.p12
           export CSC_LINK="./apple-developer-code-signing.p12"
-          pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
+          pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only || inputs.distribution == 'steam') && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_CONTENT: ${{ secrets.CSC_CONTENT }}
@@ -198,12 +297,119 @@ jobs:
 
       - name: Build (Linux Only) # Linux
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
-        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only) && 'never' || 'onTagOrDraft' }}
+        run: pnpm run -F @proj-airi/stage-tamagotchi build && pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build ${{ matrix.builder-args }} --publish=${{ (inputs.build_only || inputs.artifacts_only || inputs.distribution == 'steam') && 'never' || 'onTagOrDraft' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Package Windows Steam content
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'windows-latest' }}
+        shell: pwsh
+        run: |
+          $exePath = 'apps/stage-tamagotchi/dist/win-unpacked/airi.exe'
+          if (!(Test-Path $exePath)) {
+            Write-Error "Expected Steam launch executable was not found at $exePath"
+            exit 1
+          }
+
+          # Redistributables are injected in electron-builder afterPack (before sign).
+          if (!(Test-Path 'apps/stage-tamagotchi/dist/win-unpacked/steamworks_sdk/redistributable_bin/win64/steam_api64.dll')) {
+            Write-Error 'Steam redistributable missing from win-unpacked (afterPack did not run)'
+            exit 1
+          }
+
+          New-Item -ItemType Directory -Force steam-content/windows | Out-Null
+          Copy-Item apps/stage-tamagotchi/dist/win-unpacked/* steam-content/windows -Recurse -Force
+          tar -cf steam-content-windows.tar -C steam-content windows
+
+      - name: Upload Windows Steam content
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'windows-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-windows
+          path: steam-content-windows.tar
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Package macOS Steam content
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'macos-26' }}
+        run: |
+          # NOTICE: Steam macOS content is intentionally Apple Silicon-only for
+          # the first Steam release. Intel macOS support should be added later
+          # with a separate packaging decision instead of accidentally shipping
+          # the slower Rosetta path to Apple Silicon users.
+          app_path="$(find apps/stage-tamagotchi/dist dist -name '*.app' -type d 2>/dev/null | sort | head -n 1)"
+          if [ -z "$app_path" ]; then
+            echo "Expected macOS .app bundle was not found."
+            find apps/stage-tamagotchi/dist dist -maxdepth 3 -type d 2>/dev/null || true
+            exit 1
+          fi
+
+          executable_path="$app_path/Contents/MacOS/airi"
+          if [ ! -x "$executable_path" ]; then
+            echo "Expected executable bit was missing at $executable_path."
+            exit 1
+          fi
+
+          if ! file "$executable_path" | grep -q 'arm64'; then
+            echo "Expected macOS Steam executable to be arm64, but received:"
+            file "$executable_path"
+            exit 1
+          fi
+
+          # Redistributables sit next to the .app (afterPack), not under
+          # Contents/MacOS — that path breaks Developer ID codesign.
+          app_dir="$(dirname "$app_path")"
+          if [ ! -f "$app_dir/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib" ]; then
+            echo "Steam redistributable missing beside .app (afterPack did not run): $app_dir"
+            exit 1
+          fi
+
+          mkdir -p steam-content/macos
+          ditto --norsrc "$app_path" steam-content/macos/AIRI.app
+          cp -a "$app_dir/steamworks_sdk" steam-content/macos/
+          cp -f "$app_dir/steam_appid.txt" steam-content/macos/steam_appid.txt
+          find steam-content/macos -name '._*' -delete
+          COPYFILE_DISABLE=1 tar -cf steam-content-macos.tar -C steam-content macos
+
+      - name: Upload macOS Steam content
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'macos-26' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-macos
+          path: steam-content-macos.tar
+          if-no-files-found: error
+          overwrite: true
+
+      - name: Package Linux Steam content
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'ubuntu-latest' }}
+        run: |
+          executable_path='apps/stage-tamagotchi/dist/linux-unpacked/airi'
+          if [ ! -x "$executable_path" ]; then
+            echo "Expected Linux executable was not found or is not executable at $executable_path."
+            exit 1
+          fi
+
+          # Redistributables are injected in electron-builder afterPack (before sign).
+          if [ ! -f apps/stage-tamagotchi/dist/linux-unpacked/steamworks_sdk/redistributable_bin/linux64/libsteam_api.so ]; then
+            echo "Steam redistributable missing from linux-unpacked (afterPack did not run)"
+            exit 1
+          fi
+
+          mkdir -p steam-content/linux
+          cp -a apps/stage-tamagotchi/dist/linux-unpacked/. steam-content/linux/
+          tar -cf steam-content-linux.tar -C steam-content linux
+
+      - name: Upload Linux Steam content
+        if: ${{ inputs.distribution == 'steam' && !inputs.build_only && matrix.os == 'ubuntu-latest' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: steam-content-linux
+          path: steam-content-linux.tar
+          if-no-files-found: error
+          overwrite: true
+
       - name: Setup Flatpak (Linux Only)
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
+        if: ${{ inputs.distribution != 'steam' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         run: |
           sudo apt update
           sudo apt install -y flatpak flatpak-builder elfutils
@@ -211,7 +417,7 @@ jobs:
           flatpak --user remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
 
       - name: Build Flatpak (Linux Only) # Flatpak
-        if: ${{ matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm' }}
+        if: ${{ inputs.distribution != 'steam' && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           mkdir -p dist
@@ -343,31 +549,31 @@ jobs:
       # ---------
 
       - name: Get Artifacts Envs (Manual + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && matrix.os == 'windows-latest' }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $env:GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + Non-Windows)
-        if: ${{ github.event_name == 'workflow_dispatch' && matrix.os != 'windows-latest' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && matrix.os != 'windows-latest' }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "VERSION=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-version --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Get Artifacts Envs (Manual + macOS Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && (matrix.os == 'macos-26' || matrix.os == 'macos-15-intel') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-bundle-name --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Rename Artifacts (Manual)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' }}
         run: |
           pnpm run -F @proj-airi/stage-tamagotchi rename-artifacts ${{ matrix.target }} --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }}
 
       - name: Get Linux Artifact Names (Manual + Non-Release + Linux Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         working-directory: ./apps/stage-tamagotchi
         run: |
           echo "DEB_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename deb --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
@@ -375,7 +581,7 @@ jobs:
           echo "FLATPAK_BUNDLE_NAME=$(pnpm exec tsx scripts/artifacts-metadata.ts ${{ matrix.target }} --get-filename flatpak --release ${{ !inputs.build_only && !inputs.artifacts_only }} --tag ${{ inputs.tag }} --auto-tag ${{ !inputs.build_only }})" >> $GITHUB_ENV
 
       - name: Upload Artifacts (Manual + Non-Release + Non-Linux)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os != 'ubuntu-latest' && matrix.os != 'ubuntu-24.04-arm') }}
         id: unsigned-artifacts-workflow-dispatch
         uses: actions/upload-artifact@v7
         with:
@@ -383,21 +589,21 @@ jobs:
           path: apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Non-Release + Linux deb)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.DEB_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.DEB_BUNDLE_NAME }}
 
       - name: Upload Artifacts (Manual + Non-Release + Linux rpm)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.RPM_BUNDLE_NAME }}
           path: apps/stage-tamagotchi/bundle/${{ env.RPM_BUNDLE_NAME }}
 
       - name: Upload Flatpak Artifact (Manual + Non-Release + Linux)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm') }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.FLATPAK_BUNDLE_NAME }}
@@ -407,7 +613,7 @@ jobs:
         id: signpath-manual-windows
         continue-on-error: true
         uses: signpath/github-action-submit-signing-request@v2
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest' && github.repository == 'moeru-ai/airi') }}
         with:
           api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
           organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
@@ -421,17 +627,17 @@ jobs:
           output-artifact-directory: apps/stage-tamagotchi/bundle/signed/windows/
 
       - name: Warn When Windows Signing Fails (Manual)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' && steps.signpath-manual-windows.outcome != 'success' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' && steps.signpath-manual-windows.outcome != 'success' }}
         run: |
           echo "::warning::SignPath Windows signing failed for workflow_dispatch artifact build. Continuing with unsigned artifact at apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}."
 
       - name: Move Signed Artifacts (Manual + Release + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' && steps.signpath-manual-windows.outcome == 'success' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' && steps.signpath-manual-windows.outcome == 'success' }}
         run: |
           Move-Item -Force apps/stage-tamagotchi/bundle/signed/windows/${{ env.BUNDLE_NAME }} apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }}
 
       - name: Upload Signed Artifacts (Manual + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest') }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && (matrix.os == 'windows-latest') }}
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.BUNDLE_NAME }}
@@ -442,12 +648,12 @@ jobs:
       # After the signed .exe replaces the unsigned one, we must rebuild latest-x64.yml so its hashes
       # describe the final Windows artifact that users will actually download.
       - name: Regenerate Windows latest-x64.yml (Manual + Windows Only)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && inputs.artifacts_only && matrix.os == 'windows-latest' }}
         run: |
           pnpm -F @proj-airi/stage-tamagotchi run regenerate-windows-latest --input apps/stage-tamagotchi/bundle/${{ env.BUNDLE_NAME }} --output apps/stage-tamagotchi/bundle/latest-x64.yml --version ${{ env.VERSION }}
 
       - name: Upload To GitHub Releases (Manual + Release + Overwrite Release)
-        if: ${{ github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && !inputs.artifacts_only }}
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -573,10 +779,73 @@ jobs:
             apps/stage-tamagotchi/bundle/latest-*.yml
           append_body: true
 
+  deploy-steam:
+    name: Upload to Steam
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.distribution == 'steam' && !inputs.build_only && !inputs.artifacts_only }}
+    permissions:
+      actions: read
+      contents: read
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      STEAM_APP_ID: '3885340'
+      STEAM_DEBUG_BRANCH: 'false'
+      STEAM_WINDOWS_DEPOT_ID: '3885342'
+    steps:
+      - name: Normalize Steam build description
+        id: metadata
+        uses: actions/github-script@v9
+        env:
+          INPUT_BUILD_DESCRIPTION: ${{ inputs.build_description }}
+        with:
+          result-encoding: string
+          script: |
+            const fallback = `AIRI desktop Steam artifacts from workflow run ${process.env.GITHUB_RUN_ID}`
+            const normalizedDescription = (process.env.INPUT_BUILD_DESCRIPTION || fallback)
+              .replace(/[\r\n\t]+/g, ' ')
+              .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+              .replaceAll('\\', '/')
+              .replaceAll('"', "'")
+              .replace(/ {2,}/g, ' ')
+              .trim()
+              .slice(0, 512)
+
+            return normalizedDescription || fallback
+
+      - name: Download Steam content
+        uses: actions/download-artifact@v5
+        with:
+          pattern: steam-content-*
+          path: steam-artifacts
+          merge-multiple: true
+
+      - name: Prepare Steam upload root
+        run: |
+          mkdir -p steam-build
+
+          while IFS= read -r archive; do
+            tar -xf "$archive" -C steam-build
+          done < <(find steam-artifacts -type f -name '*.tar' | sort)
+
+      - name: Deploy desktop builds to Steam
+        uses: game-ci/steam-deploy@v3.2.0
+        with:
+          username: ${{ secrets.STEAM_USERNAME }}
+          configVdf: ${{ secrets.STEAM_CONFIG_VDF }}
+          appId: ${{ env.STEAM_APP_ID }}
+          firstDepotIdOverride: ${{ env.STEAM_WINDOWS_DEPOT_ID }}
+          buildDescription: ${{ steps.metadata.outputs.result }}
+          rootPath: steam-build
+          depot1Path: windows
+          depot2Path: macos
+          depot3Path: linux
+          releaseBranch: ${{ inputs.release_branch }}
+          debugBranch: ${{ env.STEAM_DEBUG_BRANCH }}
+
   publish-gitcode-release:
     name: Publish GitCode Release Mirror
     needs: build
-    if: ${{ always() && github.repository == 'moeru-ai/airi' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.distribution != 'steam' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
     continue-on-error: true
     runs-on: ubuntu-latest
     steps:

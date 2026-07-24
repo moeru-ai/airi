@@ -29,15 +29,15 @@ export function createBadRequestError(message: string, errorCode = 'BAD_REQUEST'
 /**
  * Creates an unauthorized error (401)
  */
-export function createUnauthorizedError(message = 'Unauthorized', details?: unknown) {
-  return new ApiError(401, 'UNAUTHORIZED', message, details)
+export function createUnauthorizedError(message = 'Unauthorized', errorCode = 'UNAUTHORIZED', details?: unknown) {
+  return new ApiError(401, errorCode, message, details)
 }
 
 /**
  * Creates a forbidden error (403)
  */
-export function createForbiddenError(message = 'Forbidden', details?: unknown) {
-  return new ApiError(403, 'FORBIDDEN', message, details)
+export function createForbiddenError(message = 'Forbidden', errorCode = 'FORBIDDEN', details?: unknown) {
+  return new ApiError(403, errorCode, message, details)
 }
 
 /**

@@ -6,8 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { trackEmailVerificationCompleted, trackEmailVerificationFailed } from '../modules/analytics'
-import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
-import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
+import { API_SERVER_URL_QUERY_PARAM, getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -30,36 +29,39 @@ const error = computed(() => {
 
 const verified = computed(() => route.query.verified === 'true')
 
-// Captured at mount time on the original tab (the one that just submitted the
-// sign-up form) so that, when the verification tab signals success, we know
-// where to resume the upstream OIDC flow. Empty when the sign-up was not
-// initiated inside an OIDC handoff.
+// OIDC / enroll resume target. Present on the pending tab after sign-up, and on
+// the email success tab when embedded in the verification callbackURL.
 const continueURL = computed(() => {
   const value = route.query.continueURL
   return typeof value === 'string' ? value : ''
 })
 
 // NOTICE:
-// Cross-tab signal between the verification-success tab (the one opened from
-// the email link) and the original "check your inbox" tab. Both tabs live on
-// the same origin (/ui/...), so BroadcastChannel works without setup.
+// Cross-tab signal between the email-link success tab and the original
+// "check your inbox" tab (same origin → BroadcastChannel).
 //
-// Why not poll /get-session every 2s? An abandoned pending tab would burn
-// 1800 requests/hour for no reason, and the request volume scales with time
-// the user takes to check their inbox. With BroadcastChannel the only work
-// happens when verification actually finishes.
+// Do not poll /get-session: an abandoned pending tab would burn request quota.
 //
-// Why still call /get-session at all? The verifying tab cannot complete the
-// OIDC handoff itself — the original tab is the only one carrying the PKCE
-// flowState in sessionStorage. So we wait for the signal, then fetch the
-// session once to make sure the cookie is live before navigating into the
-// OIDC continuation URL.
+// After verification, resume with a top-level navigation to continueURL.
+// A credentials fetch to /get-session from a cross-site auth UI host cannot
+// see the API session cookie (SameSite); authorize navigation can.
+// pending-mount still probes get-session for same-site / already-verified reload.
 type VerifyEmailEvent = 'verified'
 const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, VerifyEmailEvent>({
   name: 'airi-auth-verify-email',
 })
 
-async function resumeIfSessionReady(): Promise<boolean> {
+function navigateToContinue(): boolean {
+  if (!continueURL.value)
+    return false
+  window.location.href = continueURL.value
+  return true
+}
+
+async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'verified-success'): Promise<boolean> {
+  if (source === 'broadcast' || source === 'verified-success')
+    return navigateToContinue()
+
   try {
     const response = await fetch(new URL('/api/auth/get-session', apiServerUrl).toString(), {
       credentials: 'include',
@@ -72,11 +74,7 @@ async function resumeIfSessionReady(): Promise<boolean> {
     if (!payload?.session)
       return false
 
-    // Same-tab navigation preserves sessionStorage on the destination origin,
-    // so the original PKCE flowState saved by the OIDC client is still
-    // available when /auth/callback runs.
-    window.location.href = continueURL.value || buildCurrentOriginAuthUiUrl()
-    return true
+    return navigateToContinue()
   }
   catch {
     return false
@@ -84,13 +82,12 @@ async function resumeIfSessionReady(): Promise<boolean> {
 }
 
 onMounted(async () => {
-  // Verification-success tab: announce to any sibling pending tab that the
-  // session cookie has been written, then stay put so the user sees the
-  // success message. The pending tab does the OIDC continuation.
   if (verified.value) {
     trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
+    if (continueURL.value)
+      await resumeIfSessionReady('verified-success')
     return
   }
 
@@ -99,19 +96,15 @@ onMounted(async () => {
     return
   }
 
-  // Pending tab: cover the case where verification already happened before
-  // this tab subscribed (back-button navigation, page reload, etc.). One
-  // session check, no recurring poll.
-  await resumeIfSessionReady()
+  // Already-verified reload / late subscription: one get-session probe, no poll.
+  await resumeIfSessionReady('pending-mount')
 })
 
-// React to a verification event broadcast from the success tab. `data` flips
-// from null to 'verified' the moment the message arrives.
 watch(data, async (event) => {
   if (event !== 'verified' || verified.value || error.value)
     return
 
-  await resumeIfSessionReady()
+  await resumeIfSessionReady('broadcast')
 })
 </script>
 
@@ -155,7 +148,7 @@ watch(data, async (event) => {
     </p>
 
     <RouterLink
-      to="/sign-in"
+      :to="{ path: '/sign-in', query: { [API_SERVER_URL_QUERY_PARAM]: apiServerUrl } }"
       :class="['mt-8 text-xs text-neutral-500 underline']"
     >
       {{ t('server.auth.verifyEmail.action.backToSignIn') }}

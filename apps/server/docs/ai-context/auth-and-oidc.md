@@ -240,6 +240,26 @@ Capacitor 移动端无法正确处理 state cookie（系统浏览器和 WebView 
 
 社交登录完成后，`callbackURL` 必须指向 `/api/auth/oauth2/authorize?...OIDC参数...`，否则用户会被重定向到服务端根路径，OIDC 授权码流程中断。`/sign-in` 路由从 URL query params 重建完整的 OIDC authorize URL 作为 `callbackURL`。
 
+## Steam 桌面静默登录（stage-tamagotchi）
+
+Steam depot 启动时，Electron 主进程通过 `steamworks-ffi-node` 获取 Web API session ticket，再调用服务端换发与 OIDC 相同形态的 access token：
+
+```
+Steam client → initSteam → getWebApiTicket
+  → POST /api/auth/steam/desktop-sign-in { ticket }
+  → authenticateUserTicket + checkAppOwnership
+  → resolveOrCreateSteamUser → mintElectronOidcTokens
+  → electronAuthCallback（renderer）
+```
+
+| 变量 | 说明 |
+|------|------|
+| `STEAM_PUBLISHER_KEY` | Steam Web API publisher key（未配置则返回 `STEAM_NOT_CONFIGURED`） |
+
+相关文件：`src/libs/steam-web-api.ts`、`src/libs/steam-oidc-tokens.ts`、`src/routes/auth/steam/desktop-sign-in.ts`、`apps/stage-tamagotchi/src/main/services/steam/`。
+
+本地验证见 `apps/stage-tamagotchi/src/main/services/steam/README.md`。
+
 ## 修改指南
 
 - 新增 OIDC client → `src/libs/auth.ts` 的 `buildTrustedClientSeeds`，加环境变量到 `src/libs/env.ts`

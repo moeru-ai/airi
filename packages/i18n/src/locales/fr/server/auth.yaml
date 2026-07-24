@@ -157,6 +157,7 @@ profile:
     status:
       linked: Relié
       notLinked: Non relié
+      notLinkedSteam: Not linked. Sign in from the Steam version of AIRI to connect.
       linkedSince: Lié le {date}
     action:
       link: Lien
@@ -198,3 +199,17 @@ webCallback:
     finalizing: Finalisation de l'authentification avec AIRI.
   action:
     tryAgain: Réessayez
+enroll:
+  step:
+    identify:
+      heading: Link your Steam account
+      description: Enter your email to create an account or sign in, and we will link your Steam account.
+    password:
+      heading: Welcome back
+      description: Sign in as {email} to link your Steam account.
+    create:
+      heading: Create your account
+      description: We will create a new account for {email} and link your Steam account.
+  error:
+    invalidLink: Invalid enrollment link
+    invalidLinkDescription: This Steam enrollment link is missing required information. Please relaunch AIRI from Steam to try again.)

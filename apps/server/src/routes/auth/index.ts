@@ -11,10 +11,13 @@ import { Hono } from 'hono'
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
 import { isUserBannedNow, resolveSessionIgnoringBan } from '../../libs/request-auth'
 import { rateLimiter } from '../../middlewares/rate-limit'
+import { consumeEnrollmentToken } from '../../services/domain/steam-auth/enrollment-token'
+import { linkSteamToUser } from '../../services/domain/steam-auth/link-steam-user'
 import { createForbiddenError } from '../../utils/error'
 import { checkEmailIdentifier } from './email-identifier'
 import { createElectronCallbackRelay } from './oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from './oidc/token-auth'
+import { createSteamDesktopSignInRoute } from './steam/desktop-sign-in'
 import { createAuthUiRoutes } from './ui-routes'
 
 function usesRailwayEdge(apiServerUrl: string): boolean {
@@ -70,7 +73,55 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     }))
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
-      await next()
+
+      // NOTICE:
+      // Steam enrollment choke point. The enroll page appends `enrollToken` to
+      // the authorize URL (carried as `continue`). When present, consume the
+      // single-use token and link Steam to the authenticated session user
+      // BEFORE better-auth issues a code, so linking + code issuance are
+      // atomic: link success + code failure → Steam is linked, next Steam
+      // launch logs in silently; link failure → no code (thrown 403), retry.
+      // `enrollToken` is always stripped before delegating so the OIDC
+      // validator sees only standard authorize params.
+      const enrollToken = new URL(c.req.url).searchParams.get('enrollToken')
+      if (!enrollToken) {
+        await next()
+        return
+      }
+
+      const cleanedUrl = new URL(c.req.url)
+      cleanedUrl.searchParams.delete('enrollToken')
+      const cleanedRequest = new Request(cleanedUrl.toString(), c.req.raw)
+
+      const resolved = await resolveSessionIgnoringBan(deps.auth, deps.env, c.req.raw.headers)
+
+      // NOTICE:
+      // Only consume the single-use token when we actually have a session to
+      // link against. If there is no session we forward to better-auth (which
+      // redirects to login) WITHOUT consuming the token, so a user whose
+      // session expired mid-enrollment can still complete linking after they
+      // re-authenticate — the token survives until its 10m TTL.
+      if (resolved?.user && !isUserBannedNow(resolved.user)) {
+        const payload = await consumeEnrollmentToken(deps.db, enrollToken)
+        if (payload) {
+          try {
+            await linkSteamToUser(deps.db, {
+              userId: resolved.user.id,
+              steamId: payload.steamId,
+              profile: payload.profile,
+            })
+          }
+          catch {
+            // Link failed: do not issue a code. The browser sees a 403; the
+            // Electron loopback times out and surfaces a retry toast. The token
+            // is already consumed (single-use) so the user relaunches Steam for a
+            // fresh enrollment handoff.
+            throw createForbiddenError('Steam enrollment failed — please relaunch AIRI', 'STEAM_ENROLLMENT_LINK_FAILED')
+          }
+        }
+      }
+
+      return handleAuthRequest(cleanedRequest)
     })
     // NOTICE:
     // `/api/auth/*` bypasses sessionMiddleware (and thus the ban gate in
@@ -95,6 +146,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * This avoids navigating the browser to http://127.0.0.1:{port}.
      */
     .route('/api/auth/oidc/electron-callback', createElectronCallbackRelay(deps.env))
+    .route('/api/auth/steam', createSteamDesktopSignInRoute(deps))
     /**
      * OAuth 2.1 Authorization Server metadata must live at the root-level
      * well-known path with the issuer path inserted for non-root issuers.

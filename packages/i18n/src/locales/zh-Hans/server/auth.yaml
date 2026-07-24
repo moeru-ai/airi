@@ -157,6 +157,7 @@ profile:
     status:
       linked: 已关联
       notLinked: 未关联
+      notLinkedSteam: 未关联。请在 Steam 版 AIRI 中登录以绑定。
       linkedSince: 关联于 {date}
     action:
       link: 关联
@@ -198,3 +199,17 @@ webCallback:
     finalizing: AIRI登录完成
   action:
     tryAgain: 重试
+enroll:
+  step:
+    identify:
+      heading: 关联你的 Steam 账号
+      description: 输入邮箱以创建账号或登录，我们将为你关联 Steam 账号。
+    password:
+      heading: 欢迎回来
+      description: 以 {email} 登录以关联你的 Steam 账号。
+    create:
+      heading: 创建你的账号
+      description: 我们将为 {email} 创建新账号并关联你的 Steam 账号。
+  error:
+    invalidLink: 无效的关联链接
+    invalidLinkDescription: 此 Steam 关联链接缺少必要信息，请从 Steam 重新启动 AIRI 再试。
