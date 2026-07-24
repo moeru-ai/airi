@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
+import type { ComponentPublicInstance } from 'vue'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
 
@@ -38,6 +39,8 @@ import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useCompanionModePreviewOwner } from '../composables/use-companion-mode-preview-owner'
+import { useCompanionModeRuntime } from '../composables/use-companion-mode-runtime'
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
@@ -306,6 +309,13 @@ const voiceTranscriptBuffer = createTranscriptBuffer({
     await sendVoiceInputTextToChat(text)
   },
 })
+
+const { videoRef: companionModeVideoRef } = useCompanionModeRuntime()
+useCompanionModePreviewOwner()
+
+function setCompanionModeVideoRef(element: Element | ComponentPublicInstance | null) {
+  companionModeVideoRef.value = element instanceof HTMLVideoElement ? element : null
+}
 
 const assistantSpeechSuppressedUntil = shallowRef(0)
 const assistantSpeechResumeTimer = shallowRef<ReturnType<typeof setTimeout>>()
@@ -719,6 +729,7 @@ const cursorPosition = computed(() => ({
         />
         <HoloCoupon />
         <ControlsIsland ref="controlsIslandRef" />
+        <video :ref="setCompanionModeVideoRef" class="hidden" muted playsinline />
       </div>
     </div>
     <!-- Loading overlay sits on top, does not hide the stage -->

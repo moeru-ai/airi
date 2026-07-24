@@ -70,12 +70,19 @@ describe('isCloudSyncableMessage', () => {
    * messages describe a per-device runtime failure that is meaningless to
    * other devices and gets rejected by the server's role validator.
    */
-  it('accepts only user / assistant; rejects tool / system / error', () => {
+  it('accepts user and visible assistant messages; rejects local-only messages', () => {
     expect(isCloudSyncableMessage({ role: 'tool', content: 'x', tool_call_id: 't' } as ChatHistoryItem)).toBe(false)
     expect(isCloudSyncableMessage({ role: 'system', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
     expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
+    expect(isCloudSyncableMessage({
+      role: 'assistant',
+      content: 'x',
+      slices: [],
+      tool_results: [],
+      isHiddenUserMessageResponse: true,
+    })).toBe(false)
   })
 })
 

@@ -8,8 +8,10 @@ const props = withDefaults(defineProps<{
   required?: boolean
   textareaClass?: string
   rows?: number
+  submitOnEnter?: boolean
 }>(), {
   rows: 6,
+  submitOnEnter: true,
 })
 
 const modelValue = defineModel<string>({ required: false })
@@ -36,6 +38,7 @@ const modelValue = defineModel<string>({ required: false })
         :rows="props.rows"
         :placeholder="props.placeholder"
         :class="props.textareaClass"
+        :submit-on-enter="props.submitOnEnter"
       />
     </label>
   </div>

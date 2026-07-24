@@ -12,6 +12,9 @@ interface ScreenCaptureSource extends SerializableDesktopCapturerSource {
   thumbnailURL?: string
 }
 
+const SELECTED_SOURCE_CAPTURE_LEASE_TIMEOUT_MS = 15_000
+const SELECTED_SOURCE_CAPTURE_RETRY_DELAY_MS = 500
+
 /**
  * Manages Electron-backed screen-capture sources and the active preview stream for vision workflows.
  *
@@ -33,6 +36,7 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
   const activeSourceId = ref('')
   const activeStream = shallowRef<MediaStream | null>(null)
   const activeStreamSourceId = ref('')
+  const inactiveStreamsPendingRelease = new Set<MediaStream>()
 
   watch(activeSourceId, (nextId) => {
     if (activeStreamSourceId.value && activeStreamSourceId.value !== nextId) {
@@ -56,13 +60,13 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   function clearActiveStream() {
     const stream = activeStream.value
-    if (!stream) {
-      activeStream.value = null
-      activeStreamSourceId.value = ''
-      return
-    }
+    if (stream)
+      inactiveStreamsPendingRelease.add(stream)
 
-    stream.getTracks().forEach(track => track.stop())
+    inactiveStreamsPendingRelease.forEach((inactiveStream) => {
+      inactiveStream.getTracks().forEach(track => track.stop())
+    })
+    inactiveStreamsPendingRelease.clear()
     activeStream.value = null
     activeStreamSourceId.value = ''
   }
@@ -80,11 +84,148 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     stream.getTracks().forEach((track) => {
       track.addEventListener('ended', () => {
         if (activeStream.value === stream && activeStreamSourceId.value === sourceId) {
+          // Keep the ended stream long enough for clearActiveStream() to stop
+          // and release its native resources before another capture starts.
+          inactiveStreamsPendingRelease.add(stream)
           activeStream.value = null
           activeStreamSourceId.value = ''
         }
       }, { once: true })
     })
+  }
+
+  function bytesToDataUrl(bytes: Uint8Array, mimeType = 'image/jpeg') {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.addEventListener('load', () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result)
+          return
+        }
+
+        reject(new Error('Failed to read captured source thumbnail'))
+      })
+      reader.addEventListener('error', () => {
+        reject(reader.error ?? new Error('Failed to read captured source thumbnail'))
+      })
+      const arrayBuffer = new ArrayBuffer(bytes.byteLength)
+      new Uint8Array(arrayBuffer).set(bytes)
+      reader.readAsDataURL(new Blob([arrayBuffer], { type: mimeType }))
+    })
+  }
+
+  function selectExistingSource(sources: SerializableDesktopCapturerSource[], sourceId: string) {
+    if (!sources.some(source => source.id === sourceId))
+      throw new Error(`Selected capture source "${sourceId}" is no longer available`)
+
+    return sourceId
+  }
+
+  function formatCaptureError(error: unknown) {
+    if (error instanceof Error)
+      return `${error.name}: ${error.message}`
+
+    return String(error)
+  }
+
+  function captureAbortReason(signal: AbortSignal) {
+    return signal.reason ?? new DOMException('Screen capture aborted', 'AbortError')
+  }
+
+  function throwIfCaptureAborted(signal?: AbortSignal) {
+    if (signal?.aborted)
+      throw captureAbortReason(signal)
+  }
+
+  function stopMediaStream(stream: MediaStream) {
+    stream.getTracks().forEach(track => track.stop())
+  }
+
+  function shouldRetrySelectedSourceCapture(error: unknown) {
+    if (error instanceof DOMException)
+      return error.name === 'NotReadableError'
+
+    return /notreadableerror|could not start video source/i.test(formatCaptureError(error))
+  }
+
+  function waitForSelectedSourceCaptureRetry(signal?: AbortSignal) {
+    throwIfCaptureAborted(signal)
+
+    return new Promise<void>((resolve, reject) => {
+      let timeoutHandle: ReturnType<typeof setTimeout>
+      const handleAbort = () => {
+        clearTimeout(timeoutHandle)
+        reject(captureAbortReason(signal!))
+      }
+      timeoutHandle = setTimeout(() => {
+        signal?.removeEventListener('abort', handleAbort)
+        resolve()
+      }, SELECTED_SOURCE_CAPTURE_RETRY_DELAY_MS)
+      signal?.addEventListener('abort', handleAbort, { once: true })
+    })
+  }
+
+  async function requestSelectedSourceStreamOnce(sourceId: string, signal?: AbortSignal) {
+    throwIfCaptureAborted(signal)
+
+    return await selectWithSource(
+      sources => selectExistingSource(sources, sourceId),
+      async () => {
+        throwIfCaptureAborted(signal)
+
+        try {
+          // Electron's display-media request handler receives the selected
+          // source lease above, so this bypasses the browser picker while using
+          // Chromium's primary screen-capture path.
+          return await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+        }
+        catch (displayMediaError) {
+          throwIfCaptureAborted(signal)
+          console.warn('[screen-capture] Selected getDisplayMedia failed, falling back to Electron desktop constraints:', displayMediaError)
+
+          try {
+            return await requestLegacyDesktopStream(sourceId)
+          }
+          catch (legacyDesktopError) {
+            throw new Error(
+              'Selected source capture failed. '
+              + `getDisplayMedia: ${formatCaptureError(displayMediaError)}; `
+              + `desktop constraints: ${formatCaptureError(legacyDesktopError)}`,
+            )
+          }
+        }
+      },
+      { timeout: SELECTED_SOURCE_CAPTURE_LEASE_TIMEOUT_MS },
+    )
+  }
+
+  async function requestSelectedSourceStream(sourceId: string, signal?: AbortSignal) {
+    try {
+      return await requestSelectedSourceStreamOnce(sourceId, signal)
+    }
+    catch (firstError) {
+      // Windows can keep a just-ended desktop stream alive briefly. Retrying
+      // after selectWithSource has released its lease lets Chromium recreate
+      // only the selected source without enumerating/capturing other sources.
+      if (!shouldRetrySelectedSourceCapture(firstError))
+        throw firstError
+
+      console.warn('[screen-capture] Selected source was temporarily unreadable; retrying once:', firstError)
+      await waitForSelectedSourceCaptureRetry(signal)
+      return await requestSelectedSourceStreamOnce(sourceId, signal)
+    }
+  }
+
+  async function requestLegacyDesktopStream(sourceId: string) {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        mandatory: {
+          chromeMediaSource: 'desktop',
+          chromeMediaSourceId: sourceId,
+        },
+      },
+    } as MediaStreamConstraints)
   }
 
   async function refetchSources() {
@@ -117,7 +258,9 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     }
   }
 
-  async function startStream() {
+  async function startStream(abortSignal?: AbortSignal) {
+    throwIfCaptureAborted(abortSignal)
+
     const sourceId = activeSourceId.value
     if (!sourceId)
       throw new Error('No active source selected')
@@ -127,12 +270,22 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
     clearActiveStream()
 
-    const stream = await selectWithSource(
-      () => sourceId,
-      async () => await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }),
-    )
+    const stream = await requestSelectedSourceStream(sourceId, abortSignal)
+
+    // stopStream() may have run while Electron or getDisplayMedia was still
+    // resolving. Never publish that late native stream, and stop this exact
+    // stream so a newer run's active stream remains untouched.
+    if (abortSignal?.aborted) {
+      stopMediaStream(stream)
+      throw captureAbortReason(abortSignal)
+    }
+    if (activeSourceId.value !== sourceId) {
+      stopMediaStream(stream)
+      throw new Error('Selected capture source changed before its stream became active')
+    }
+
     if (!isActiveStream(stream)) {
-      stream.getTracks().forEach(track => track.stop())
+      stopMediaStream(stream)
       throw new Error('Selected source did not provide a live video track')
     }
 
@@ -145,6 +298,17 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
 
   function stopStream() {
     clearActiveStream()
+  }
+
+  async function captureSourceThumbnail(sourceId = activeSourceId.value) {
+    if (!sourceId)
+      throw new Error('No active source selected')
+
+    const source = (await getSources()).find(source => source.id === sourceId)
+    if (!source?.thumbnail || source.thumbnail.length <= 0)
+      return null
+
+    return await bytesToDataUrl(source.thumbnail)
   }
 
   function cleanup() {
@@ -186,5 +350,6 @@ export function useVisionScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesO
     stopStream,
     cleanup,
     captureFrame,
+    captureSourceThumbnail,
   }
 }

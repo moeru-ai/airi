@@ -3,6 +3,11 @@ import type { DesktopCapturerSource, SourcesOptions, systemPreferences } from 'e
 import { defineInvokeEventa } from '@moeru/eventa'
 
 export interface SerializableDesktopCapturerSource extends Pick<DesktopCapturerSource, 'id' | 'name' | 'display_id'> {
+  /**
+   * Whether this screen source belongs to the display containing the requesting
+   * Electron window. This is metadata only; no thumbnail is captured for it.
+   */
+  isCurrentDisplay?: boolean
   appIcon?: Uint8Array
   thumbnail?: Uint8Array
 }

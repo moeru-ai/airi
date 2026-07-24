@@ -261,6 +261,11 @@ Auto-resizing textarea with submit and paste-file events.
 
 Styled textarea wrapping `BasicTextarea`.
 
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `defaultHeight` | `string?` | — | Initial height when empty |
+| `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
+
 **v-model**: `modelValue: string`
 
 ---
@@ -475,6 +480,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `required` | `boolean?` | — | Required indicator |
 | `textareaClass` | `string?` | — | Custom textarea class |
 | `rows` | `number?` | `6` | Rows |
+| `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
 
 **v-model**: `modelValue: string`
 

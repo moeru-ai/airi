@@ -188,6 +188,10 @@ export async function setupMainWindow(params: {
     windowAuthManager: params.windowAuthManager,
   })
 
+  // Register capture IPC before renderer code mounts. Companion Mode may start
+  // immediately from persisted settings during the first page load.
+  initScreenCaptureForWindow(window)
+
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
 
   /**
@@ -220,8 +224,6 @@ export async function setupMainWindow(params: {
       cleanUpWindowDraggingInvokeHandler()
     })
   }
-
-  initScreenCaptureForWindow(window)
 
   return window
 }

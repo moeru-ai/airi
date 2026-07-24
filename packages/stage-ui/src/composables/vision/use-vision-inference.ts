@@ -15,6 +15,7 @@ export interface VisionInferenceInput {
   imageDataUrl: string
   workloadId: VisionWorkloadId
   promptOverride?: string
+  abortSignal?: AbortSignal
 }
 
 // TODO: this should be configurable
@@ -78,6 +79,15 @@ export function useVisionInference() {
 
     let buffer = ''
     const abortController = new AbortController()
+    const abortFromInput = () => {
+      abortController.abort(input.abortSignal?.reason)
+    }
+
+    if (input.abortSignal?.aborted)
+      abortFromInput()
+    else
+      input.abortSignal?.addEventListener('abort', abortFromInput, { once: true })
+
     const timeoutHandle = setTimeout(() => {
       abortController.abort(new Error(`Vision inference timed out after ${VISION_INFERENCE_TIMEOUT_MS}ms`))
     }, VISION_INFERENCE_TIMEOUT_MS)
@@ -102,6 +112,7 @@ export function useVisionInference() {
     }
     finally {
       clearTimeout(timeoutHandle)
+      input.abortSignal?.removeEventListener('abort', abortFromInput)
     }
 
     lastText.value = buffer.trim()

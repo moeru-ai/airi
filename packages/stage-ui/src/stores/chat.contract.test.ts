@@ -1,3 +1,4 @@
+import type { StreamOptions } from '@proj-airi/core-agent'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
 
@@ -12,6 +13,8 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/analytics-headers'
 import { useChatOrchestratorStore } from './chat'
+
+type LlmStreamTestOptions = StreamOptions & Required<Pick<StreamOptions, 'onStreamEvent' | 'onUsage'>>
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -71,6 +74,7 @@ const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
+const pushMessageToCloudMock = vi.fn()
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -144,7 +148,7 @@ vi.mock('./chat/session-store', () => ({
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
-    pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
+    pushMessageToCloud: pushMessageToCloudMock,
   }),
 }))
 
@@ -215,6 +219,7 @@ describe('chat orchestrator contract', () => {
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
+    pushMessageToCloudMock.mockReset().mockResolvedValue(undefined)
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
@@ -308,6 +313,59 @@ describe('chat orchestrator contract', () => {
     })
   })
 
+  it('does not emit custom-provider generation telemetry for hidden companion usage', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: LlmStreamTestOptions) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'hidden reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+      await options.onUsage({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        source: 'reported',
+      })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('internal companion observation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    expect(chatAnalyticsMocks.trackAiGeneration).not.toHaveBeenCalled()
+  })
+
+  it('omits official chat correlation headers for hidden companion sends', async () => {
+    activeProviderRef.value = 'official-provider'
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: LlmStreamTestOptions) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('internal companion observation', {
+      model: 'chat-auto',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    const hiddenHeaders = llmStreamMock.mock.calls[0]?.[3]?.headers
+    expect(hiddenHeaders).not.toHaveProperty(AIRI_CHAT_SESSION_ID_HEADER)
+    expect(hiddenHeaders).not.toHaveProperty(AIRI_CHAT_ROUND_ID_HEADER)
+    expect(hiddenHeaders).not.toHaveProperty(AIRI_CHAT_APP_SURFACE_HEADER)
+
+    await store.ingest('visible user turn', {
+      model: 'chat-auto',
+      chatProvider: provider,
+    })
+
+    expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
+      [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+  })
+
   it('emits second turn analytics from chat sends', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
@@ -359,6 +417,26 @@ describe('chat orchestrator contract', () => {
     expect(redundantChatAnalyticsMocks.trackAssistantResponseCompleted).not.toHaveBeenCalled()
     expect(redundantChatAnalyticsMocks.trackChatFailed).not.toHaveBeenCalled()
     expect(redundantChatAnalyticsMocks.trackFeatureUsed).not.toHaveBeenCalled()
+  })
+
+  it('keeps hidden companion replies local instead of uploading them to cloud sync', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: LlmStreamTestOptions) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'I can see the selected screen.' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatOrchestratorStore()
+    await store.ingest('internal companion observation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    expect(sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      isHiddenUserMessageResponse: true,
+    })
+    expect(pushMessageToCloudMock).not.toHaveBeenCalled()
   })
 
   it('forwards later-turn failures to the canonical round failure event', async () => {
