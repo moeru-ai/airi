@@ -80,7 +80,9 @@ type AnthropicContentBlock
   = | { type: 'text', text: string }
     | { type: 'image', source: AnthropicImageSource }
     | { type: 'tool_use', id: string, name: string, input: Record<string, unknown> }
-    | { type: 'tool_result', tool_use_id: string, content: AnthropicToolResultContent }
+    // `content` is optional on the Messages API, and omitting it is how the
+    // docs represent a tool that produced no output.
+    | { type: 'tool_result', tool_use_id: string, content?: AnthropicToolResultContent }
 
 interface AnthropicMessage {
   role: 'user' | 'assistant'
@@ -193,9 +195,20 @@ function mapContentParts(content: OpenAIWireMessage['content'] | undefined): Ant
   return blocks
 }
 
-function mapToolResultContent(content: OpenAIWireMessage['content'] | undefined): AnthropicToolResultContent {
+/**
+ * Maps a `tool` message's content onto a `tool_result` block's `content`.
+ *
+ * Returns `undefined` when the tool produced nothing: a tool legitimately
+ * returns `''` (`builtIn_mcpListTools` does so on its failure path), and the
+ * Messages API represents an empty result by omitting the field rather than by
+ * sending an empty string, which would otherwise ride along as empty content in
+ * the next round of the tool loop — after the tool has already run. A
+ * placeholder is deliberately not substituted; inventing output the tool never
+ * produced would misinform the model.
+ */
+function mapToolResultContent(content: OpenAIWireMessage['content'] | undefined): AnthropicToolResultContent | undefined {
   if (typeof content === 'string' || content == null)
-    return content ?? ''
+    return content == null || content.length === 0 ? undefined : content
   // xsai already stringifies a structured tool return before it becomes message
   // content (`wrapToolResult` in `@xsai/shared-chat`), so this guards the wire
   // shape rather than that path: a caller that serializes the object itself
@@ -205,7 +218,9 @@ function mapToolResultContent(content: OpenAIWireMessage['content'] | undefined)
 
   const blocks: Array<{ type: 'text', text: string } | { type: 'image', source: AnthropicImageSource }> = []
   for (const part of content) {
-    if (part.type === 'text' && part.text != null) {
+    // The API rejects empty text blocks, so a part carrying no text is dropped
+    // rather than forwarded.
+    if (part.type === 'text' && part.text) {
       blocks.push({ type: 'text', text: part.text })
     }
     else if (part.type === 'image_url' && part.image_url?.url) {
@@ -214,7 +229,7 @@ function mapToolResultContent(content: OpenAIWireMessage['content'] | undefined)
         blocks.push(image)
     }
   }
-  return blocks.length > 0 ? blocks : ''
+  return blocks.length > 0 ? blocks : undefined
 }
 
 /**
