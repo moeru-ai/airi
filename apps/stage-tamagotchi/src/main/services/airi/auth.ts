@@ -271,26 +271,11 @@ export function createAuthService(params: {
     // through the Steam-anchored path so no IPC call can create an unlinked
     // AIRI account. Plain OIDC only runs when Steam is not available.
     const initResult = await initSteam()
-    // #region agent log
-    fetch('http://127.0.0.1:7272/ingest/025a1957-803e-4aec-a183-f77d1570779e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '7c9b4e' },
-      body: JSON.stringify({ sessionId: '7c9b4e', location: 'airi/auth.ts', message: 'electronAuthStartLogin: initSteam result', data: initResult, timestamp: Date.now() }),
-    }).catch(() => {})
-    log.debug('electronAuthStartLogin: initSteam result', initResult)
-    // #endregion
     if (initResult.ok) {
       await startSteamSignIn(params.windowAuthManager, { openBrowserOnNeedsEnrollment: true })
       return
     }
 
-    // #region agent log
-    fetch('http://127.0.0.1:7272/ingest/025a1957-803e-4aec-a183-f77d1570779e', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '7c9b4e' },
-      body: JSON.stringify({ sessionId: '7c9b4e', location: 'airi/auth.ts', message: 'electronAuthStartLogin: falling back to OIDC', data: { reason: initResult.reason }, timestamp: Date.now() }),
-    }).catch(() => {})
-    // #endregion
     await startOidcLoopbackFlow(params.windowAuthManager, {
       promptLogin: true,
       buildBrowserUrl: url => url,
