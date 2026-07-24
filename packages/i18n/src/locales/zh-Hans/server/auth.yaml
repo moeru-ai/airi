@@ -157,6 +157,7 @@ profile:
     status:
       linked: 已关联
       notLinked: 未关联
+      notLinkedSteam: 未关联。请在 Steam 版 AIRI 中登录以绑定。
       linkedSince: 关联于 {date}
     action:
       link: 关联

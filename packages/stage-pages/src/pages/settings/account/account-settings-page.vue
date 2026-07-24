@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { SignInProviderId } from '@proj-airi/stage-ui/components/auth'
+
 import { errorMessageFrom } from '@moeru/std'
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { defaultSignInProviders, isOAuthProviderId } from '@proj-airi/stage-ui/components/auth'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
@@ -216,7 +218,9 @@ function handleUnlinkProvider(providerId: string) {
   return unlinkLinkedProvider(providerId, providerName)
 }
 
-function handleLinkProvider(providerId: 'github' | 'google') {
+function handleLinkProvider(providerId: SignInProviderId) {
+  if (!isOAuthProviderId(providerId))
+    return
   linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
@@ -751,6 +755,9 @@ async function handleConfirmDelete(event: Event) {
                           })
                         }}
                       </template>
+                      <template v-else-if="provider.id === 'steam'">
+                        {{ t('settings.pages.account.connections.status.notLinkedSteam') }}
+                      </template>
                       <template v-else>
                         {{ t('settings.pages.account.connections.status.notLinked') }}
                       </template>
@@ -759,7 +766,7 @@ async function handleConfirmDelete(event: Event) {
                 </div>
 
                 <Button
-                  v-if="linkedAccountsByProvider.get(provider.id)"
+                  v-if="isOAuthProviderId(provider.id) && linkedAccountsByProvider.get(provider.id)"
                   variant="secondary"
                   :class="['shrink-0 px-3 py-1 text-xs']"
                   :loading="linkActionInFlight === provider.id"
@@ -768,7 +775,7 @@ async function handleConfirmDelete(event: Event) {
                   @click="handleUnlinkProvider(provider.id)"
                 />
                 <Button
-                  v-else
+                  v-else-if="isOAuthProviderId(provider.id)"
                   :class="['shrink-0 px-3 py-1 text-xs']"
                   :loading="linkActionInFlight === provider.id"
                   :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"

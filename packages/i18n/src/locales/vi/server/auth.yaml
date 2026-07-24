@@ -157,6 +157,7 @@ profile:
     status:
       linked: Đã liên kết
       notLinked: Chưa được liên kết
+      notLinkedSteam: Not linked. Sign in from the Steam version of AIRI to connect.
       linkedSince: Đã liên kết vào {date}
     action:
       link: Liên kết

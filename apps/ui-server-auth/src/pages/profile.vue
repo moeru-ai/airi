@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { SignInProviderId } from '@proj-airi/stage-ui/components/auth'
+
 import type { ProfileUser } from '../modules/profile'
 
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { defaultSignInProviders, isOAuthProviderId } from '@proj-airi/stage-ui/components/auth'
 import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { Button, FieldInput } from '@proj-airi/ui'
@@ -285,7 +287,9 @@ function handleUnlinkProvider(providerId: string) {
   return unlinkLinkedProvider(providerId, providerName)
 }
 
-function handleLinkProvider(providerId: 'github' | 'google') {
+function handleLinkProvider(providerId: SignInProviderId) {
+  if (!isOAuthProviderId(providerId))
+    return
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
 }
@@ -582,6 +586,9 @@ function formatLinkedSince(iso: string): string {
                       })
                     }}
                   </template>
+                  <template v-else-if="provider.id === 'steam'">
+                    {{ t('server.auth.profile.linkedAccounts.status.notLinkedSteam') }}
+                  </template>
                   <template v-else>
                     {{ t('server.auth.profile.linkedAccounts.status.notLinked') }}
                   </template>
@@ -590,7 +597,7 @@ function formatLinkedSince(iso: string): string {
             </div>
 
             <Button
-              v-if="linkedAccountsByProvider.get(provider.id)"
+              v-if="isOAuthProviderId(provider.id) && linkedAccountsByProvider.get(provider.id)"
               variant="secondary"
               :class="['shrink-0 px-3 py-1 text-xs']"
               :loading="linkActionInFlight === provider.id"
@@ -600,7 +607,7 @@ function formatLinkedSince(iso: string): string {
               <span>{{ t('server.auth.profile.linkedAccounts.action.unlink') }}</span>
             </Button>
             <Button
-              v-else
+              v-else-if="isOAuthProviderId(provider.id)"
               :class="['shrink-0 px-3 py-1 text-xs']"
               :loading="linkActionInFlight === provider.id"
               :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"

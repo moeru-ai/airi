@@ -235,6 +235,7 @@ pages:
       status:
         linked: Vinculado
         notLinked: No vinculado
+        notLinkedSteam: Not linked. Sign in from the Steam version of AIRI to connect.
         linkedSince: Enlazado en {date}
       action:
         link: Vincular

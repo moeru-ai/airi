@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { oauthProviders } from '@proj-airi/stage-ui/components/auth'
 import { Button, FieldInput } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -170,10 +170,10 @@ const description = computed(() => {
 
       <div :class="['max-w-xs w-full flex flex-col gap-3']">
         <Button
-          v-for="provider in defaultSignInProviders"
+          v-for="provider in oauthProviders"
           :key="provider.id"
           :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-          :icon="provider.id === 'google' ? 'i-simple-icons-google' : provider.id === 'github' ? 'i-simple-icons-github' : undefined"
+          :icon="provider.icon"
           :loading="flow.pendingProvider.value === provider.id"
           @click="flow.handleProviderSelect(provider.id)"
         >

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { OAuthProvider } from '../../libs/auth'
-import type { SignInProviderDefinition } from './providers'
+import type { OAuthProviderDefinition } from './providers'
 
 import { Button, Callout } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -10,7 +10,7 @@ import Alert from '../misc/alert.vue'
 const props = withDefaults(defineProps<{
   title?: string
   subtitle?: string
-  providers: readonly SignInProviderDefinition[]
+  providers: readonly OAuthProviderDefinition[]
   pendingProvider?: OAuthProvider | null
   error?: string | null
 }>(), {

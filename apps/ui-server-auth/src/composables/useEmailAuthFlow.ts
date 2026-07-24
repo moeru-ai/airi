@@ -2,7 +2,7 @@ import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
 import type { EmailStep } from '../modules/email-auth-flow'
 
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { oauthProviders } from '@proj-airi/stage-ui/components/auth'
 import { reactive, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -52,7 +52,7 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
   const credentialsLoading = shallowRef(false)
   const credentials = reactive({ email: '', password: '', confirmPassword: '', name: '' })
 
-  const providerLookup = new Set<OAuthProvider>(defaultSignInProviders.map(provider => provider.id))
+  const providerLookup = new Set<OAuthProvider>(oauthProviders.map(provider => provider.id))
 
   // Surface a redirect-borne `?error=` on the identify step (e.g. a failed
   // OAuth callback bounce-back).

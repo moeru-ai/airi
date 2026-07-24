@@ -157,6 +157,7 @@ profile:
     status:
       linked: Vinculado
       notLinked: No vinculado
+      notLinkedSteam: Not linked. Sign in from the Steam version of AIRI to connect.
       linkedSince: Vinculado el {date}
     action:
       link: Vincular
