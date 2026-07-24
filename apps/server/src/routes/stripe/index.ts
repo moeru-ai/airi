@@ -4,6 +4,7 @@ import type { Env } from '../../libs/env'
 import type { RateLimitMetrics, RevenueMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { BillingService } from '../../services/domain/billing/billing-service'
+import type { CommunitySurveyService } from '../../services/domain/community-survey'
 import type { FluxService } from '../../services/domain/flux'
 import type { ProductEventService } from '../../services/domain/product-events'
 import type { StripeService } from '../../services/domain/stripe'
@@ -47,6 +48,7 @@ export function createStripeRoutes(
   metrics?: RevenueMetrics | null,
   rateLimitMetrics?: RateLimitMetrics | null,
   productEventService?: ProductEventService,
+  communitySurveyService?: CommunitySurveyService | null,
 ) {
   const stripe = env.STRIPE_SECRET_KEY ? new Stripe(env.STRIPE_SECRET_KEY) : null
   const priceCatalog = stripe ? createStripePriceCatalog(stripe, redis) : null
@@ -59,6 +61,7 @@ export function createStripeRoutes(
     billingService,
     metrics,
     productEventService,
+    communitySurveyService,
   })
 
   return new Hono<HonoEnv>()

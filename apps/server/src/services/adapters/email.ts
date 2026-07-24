@@ -28,6 +28,8 @@ export interface EmailPayload {
   html: string
   /** Plain-text body. Required for spam-filter parity and accessibility. */
   text: string
+  /** Provider-side idempotency key for retryable transactional emails. */
+  idempotencyKey?: string
 }
 
 /**
@@ -49,6 +51,7 @@ export interface EmailService {
   sendPasswordReset: (params: { to: string, url: string }) => Promise<void>
   sendMagicLink: (params: { to: string, url: string }) => Promise<void>
   sendChangeEmailConfirmation: (params: { to: string, newEmail: string, url: string }) => Promise<void>
+  sendCommunitySurveyInvite: (params: { to: string, subject: string, html: string, text: string, idempotencyKey: string }) => Promise<void>
   /**
    * Send the irreversible-action confirmation for `user.deleteUser` flow.
    *
@@ -67,6 +70,11 @@ interface EmailConfig {
   fromEmail: string
   fromName?: string
 }
+
+interface EmailClient {
+  emails: Pick<Resend['emails'], 'send'>
+}
+type CreateEmailClient = (apiKey: string) => EmailClient
 
 /**
  * Format an RFC 5322 display-name + address pair for the `From` header.
@@ -93,8 +101,14 @@ function formatFrom(config: EmailConfig): string {
  * - `RESEND_API_KEY` is set in env. When empty, `send` throws an `ApiError`
  *   instead of silently dropping mail — Better Auth surfaces it back to the
  *   caller so frontend can show a clear "email service not configured" error.
+ * - `createClient` is overridden only at the external provider boundary in tests.
  */
-export function createEmailService(config: EmailConfig, logger: Logger = useLogger('email'), metrics?: EmailMetrics | null): EmailService {
+export function createEmailService(
+  config: EmailConfig,
+  logger: Logger = useLogger('email'),
+  metrics?: EmailMetrics | null,
+  createClient: CreateEmailClient = apiKey => new Resend(apiKey),
+): EmailService {
   // NOTICE:
   // Construct Resend lazily so the server can boot in environments where the
   // RESEND_API_KEY is intentionally empty (e.g. local dev that never exercises
@@ -103,8 +117,8 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
   // keys; explicit guard keeps the failure mode visible at the call site.
   // Source: node_modules/.pnpm/resend@*/node_modules/resend/dist/index.cjs
   // Removal condition: when we make RESEND_API_KEY required at env-parse time.
-  let client: Resend | null = null
-  function getClient(): Resend {
+  let client: EmailClient | null = null
+  function getClient(): EmailClient {
     if (!client) {
       if (!config.apiKey) {
         throw new ApiError(
@@ -113,7 +127,7 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
           'Email service not configured (RESEND_API_KEY is missing).',
         )
       }
-      client = new Resend(config.apiKey)
+      client = createClient(config.apiKey)
     }
     return client
   }
@@ -123,13 +137,17 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
   async function send(payload: EmailPayload, template: string = 'unknown'): Promise<void> {
     const startedAt = Date.now()
     try {
-      const { error } = await getClient().emails.send({
-        from,
-        to: [payload.to],
-        subject: payload.subject,
-        html: payload.html,
-        text: payload.text,
-      })
+      const sendOptions = payload.idempotencyKey ? { idempotencyKey: payload.idempotencyKey } : undefined
+      const { error } = await getClient().emails.send(
+        {
+          from,
+          to: [payload.to],
+          subject: payload.subject,
+          html: payload.html,
+          text: payload.text,
+        },
+        sendOptions,
+      )
 
       if (error) {
         logger.withFields({ to: payload.to, subject: payload.subject, errorName: error.name }).error(error.message)
@@ -185,6 +203,15 @@ export function createEmailService(config: EmailConfig, logger: Logger = useLogg
         html: renderChangeEmailHtml(url, newEmail),
         text: renderChangeEmailText(url, newEmail),
       }, 'change_email')
+    },
+    async sendCommunitySurveyInvite({ to, subject, html, text, idempotencyKey }) {
+      await send({
+        to,
+        subject,
+        html,
+        text,
+        idempotencyKey,
+      }, 'community_survey')
     },
     async sendDeleteAccountVerification({ to, url }) {
       await send({
