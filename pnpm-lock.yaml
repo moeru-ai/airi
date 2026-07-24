@@ -5058,6 +5058,9 @@ importers:
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../../packages/core-agent
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk

@@ -12,11 +12,120 @@ interface MarkerParserOptions {
   minLiteralEmitLength?: number
 }
 
+interface ControlTokenSyntax {
+  prefix: string
+  suffix: string
+}
+
 interface StreamController<T> {
   stream: ReadableStream<T>
   write: (value: T) => void
   close: () => void
   error: (err: unknown) => void
+}
+
+const controlTokenSyntaxes: ControlTokenSyntax[] = [
+  { prefix: '<|ACT ', suffix: '|>' },
+  { prefix: '<|ACT:', suffix: '|>' },
+  { prefix: '|ACT:', suffix: '|' },
+  { prefix: '<|ACT|>', suffix: '' },
+  { prefix: '<|DELAY ', suffix: '|>' },
+  { prefix: '<|DELAY:', suffix: '|>' },
+  { prefix: '|DELAY:', suffix: '|' },
+  { prefix: '<|DELAY|>', suffix: '' },
+  { prefix: '<|CALL ', suffix: '|>' },
+  { prefix: '<|CALL:', suffix: '|>' },
+  { prefix: '|CALL:', suffix: '|' },
+  { prefix: '<|CALL|>', suffix: '' },
+]
+
+function findNextControlToken(text: string, startIndex: number) {
+  let match: (ControlTokenSyntax & { index: number }) | undefined
+
+  for (const syntax of controlTokenSyntaxes) {
+    const index = text.indexOf(syntax.prefix, startIndex)
+    if (index < 0 || (match && index >= match.index))
+      continue
+
+    match = { ...syntax, index }
+  }
+
+  return match
+}
+
+function findControlTokenEnd(
+  text: string,
+  startIndex: number,
+  suffix: string,
+) {
+  let quote: '"' | '\'' | undefined
+  let escaped = false
+
+  for (let index = startIndex; index < text.length; index++) {
+    const character = text[index]
+
+    if (quote) {
+      if (escaped) {
+        escaped = false
+      }
+      else if (character === '\\') {
+        escaped = true
+      }
+      else if (character === quote) {
+        quote = undefined
+      }
+
+      continue
+    }
+
+    if (character === '"' || character === '\'') {
+      quote = character
+      continue
+    }
+
+    if (text.startsWith(suffix, index))
+      return index + suffix.length
+  }
+
+  return -1
+}
+
+/**
+ * Removes AIRI streaming-control tokens from a completed model response.
+ *
+ * Validity is intentionally not checked here: this is a presentation boundary,
+ * so completed legacy or malformed control tokens must not expose their private
+ * metadata. An incomplete recognized token suppresses the remaining suffix for
+ * the same reason.
+ */
+export function stripLlmControlTokens(text: string): string {
+  let visibleText = ''
+  let cursor = 0
+
+  while (cursor < text.length) {
+    const token = findNextControlToken(text, cursor)
+
+    if (!token) {
+      visibleText += text.slice(cursor)
+      break
+    }
+
+    visibleText += text.slice(cursor, token.index)
+
+    const tokenEnd = findControlTokenEnd(
+      text,
+      token.index + token.prefix.length,
+      token.suffix,
+    )
+
+    // An unterminated control token may contain private model metadata.
+    if (tokenEnd < 0)
+      break
+
+    cursor = tokenEnd
+  }
+
+  return visibleText
 }
 
 function createPushStream<T>(): StreamController<T> {
