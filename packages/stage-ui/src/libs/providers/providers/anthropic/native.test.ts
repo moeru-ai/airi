@@ -567,6 +567,51 @@ describe('fetch wiring', () => {
     expect(sent.tools[0].input_schema).toEqual(parameters)
   })
 
+  it('omits tool_result content when the tool produced nothing', async () => {
+    // `builtIn_mcpListTools` returns '' on its failure path, and the Messages
+    // API represents an empty result by leaving `content` out entirely.
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [
+        { role: 'user', content: 'list them' },
+        { role: 'assistant', tool_calls: [{ id: 'toolu_1', type: 'function', function: { name: 'list_tools', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'toolu_1', content: '' },
+      ],
+    })
+
+    expect(sent.messages[2]).toEqual({
+      role: 'user',
+      content: [{ type: 'tool_result', tool_use_id: 'toolu_1' }],
+    })
+    expect('content' in sent.messages[2].content[0]).toBe(false)
+  })
+
+  it('omits tool_result content when every content part is empty', async () => {
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [
+        { role: 'user', content: 'list them' },
+        { role: 'assistant', tool_calls: [{ id: 'toolu_1', type: 'function', function: { name: 'list_tools', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'toolu_1', content: [{ type: 'text', text: '' }] },
+      ],
+    })
+
+    expect(sent.messages[2].content[0]).toEqual({ type: 'tool_result', tool_use_id: 'toolu_1' })
+  })
+
+  it('keeps tool_result content when the tool produced output', async () => {
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [
+        { role: 'user', content: 'weather?' },
+        { role: 'assistant', tool_calls: [{ id: 'toolu_1', type: 'function', function: { name: 'get_weather', arguments: '{}' } }] },
+        { role: 'tool', tool_call_id: 'toolu_1', content: 'Sunny' },
+      ],
+    })
+
+    expect(sent.messages[2].content[0]).toEqual({ type: 'tool_result', tool_use_id: 'toolu_1', content: 'Sunny' })
+  })
+
   it('forwards a structured tool result as JSON text instead of throwing', async () => {
     // xsai stringifies structured tool returns before they become message
     // content, so this covers a caller that serializes the object itself: the
