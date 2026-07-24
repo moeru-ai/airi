@@ -1,9 +1,6 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
-import { appendFileSync } from 'node:fs'
-import { join } from 'node:path'
-
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -12,7 +9,7 @@ import {
   generateCodeVerifier,
   generateState,
 } from '@proj-airi/stage-shared/auth'
-import { app, shell } from 'electron'
+import { shell } from 'electron'
 
 import {
   electronAuthCallback,
@@ -25,24 +22,6 @@ import { startLoopbackServer } from './http-server/http/auth'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
 const log = useLogg('auth-service').useGlobalConfig()
-
-// #region agent log
-/** Temporary ETE markers for C3/C8/C10. Session af8d97. */
-function authEteLog(message: string, data?: Record<string, unknown>): void {
-  const line = `[${new Date().toISOString()}] ${message}${data ? ` ${JSON.stringify(data)}` : ''}\n`
-  try {
-    appendFileSync(join(app.getPath('userData'), 'steam-debug.log'), line, 'utf8')
-  }
-  catch {
-    // ignore
-  }
-  fetch('http://127.0.0.1:7272/ingest/025a1957-803e-4aec-a183-f77d1570779e', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'af8d97' },
-    body: JSON.stringify({ sessionId: 'af8d97', location: 'airi/auth.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {})
-}
-// #endregion
 
 type MainContext = ReturnType<typeof createContext>['context']
 
@@ -73,16 +52,10 @@ export interface WindowAuthManager {
 export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Promise<void> {
   const initResult = await initSteam()
   if (!initResult.ok) {
-    // #region agent log
-    authEteLog('steam:startup:skip', { caseId: 'C8', reason: initResult.reason })
-    // #endregion
     log.withFields({ reason: initResult.reason }).debug('Steam sign-in skipped')
     return
   }
 
-  // #region agent log
-  authEteLog('steam:startup:attempt', { caseId: 'C8' })
-  // #endregion
   // Silent startup attempt: linked → broadcastAuthCallback (auto-login, no
   // click needed); unlinked → no-op, wait for the user to click Sign in, which
   // re-runs startSteamSignIn with openBrowserOnNeedsEnrollment=true.
@@ -175,32 +148,13 @@ async function startOidcLoopbackFlow(
     url.searchParams.set('resource', SERVER_URL)
 
     // Open system browser
-    const browserUrl = options.buildBrowserUrl(url.toString())
-    // #region agent log
-    let openedUrlPath = ''
-    try {
-      openedUrlPath = new URL(browserUrl).pathname
-    }
-    catch {
-      openedUrlPath = 'invalid'
-    }
-    authEteLog('oidc:openExternal', {
-      caseId: openedUrlPath.includes('/enroll') ? 'C3' : 'C10',
-      openedUrlPath,
-      hasEnrollToken: browserUrl.includes('token='),
-      promptLogin: options.promptLogin,
-    })
-    // #endregion
-    await shell.openExternal(browserUrl)
+    await shell.openExternal(options.buildBrowserUrl(url.toString()))
 
     // Wait for the callback in the background
     loopback.result
       .then(async ({ code }) => {
         const tokens = await exchangeCode(code, codeVerifier, redirectUri)
         windowAuthManager.broadcastAuthCallback(tokens)
-        // #region agent log
-        authEteLog('oidc:tokenExchange:ok', { caseId: 'C7' })
-        // #endregion
         log.log('OIDC token exchange successful')
       })
       .catch((err) => {
@@ -261,31 +215,9 @@ async function startSteamSignIn(
 ): Promise<void> {
   const ticketResult = await getWebApiTicket()
   if (!ticketResult.ok) {
-    // #region agent log
-    authEteLog('steam:ticket:fail', {
-      caseId: 'C3',
-      openBrowserOnNeedsEnrollment: options.openBrowserOnNeedsEnrollment,
-      reason: ticketResult.reason,
-    })
-    // #endregion
     windowAuthManager.broadcastAuthError(ticketResult.reason)
     return
   }
-
-  // #region agent log
-  let serverHost = ''
-  try {
-    serverHost = new URL(SERVER_URL).host
-  }
-  catch {
-    serverHost = 'invalid'
-  }
-  authEteLog('steam:ticket:ok', {
-    caseId: 'C3',
-    openBrowserOnNeedsEnrollment: options.openBrowserOnNeedsEnrollment,
-    serverHost,
-  })
-  // #endregion
 
   const exchangeResult = await exchangeSteamTicketForTokens({
     serverUrl: SERVER_URL,
@@ -294,13 +226,6 @@ async function startSteamSignIn(
 
   if (!exchangeResult.ok) {
     if (exchangeResult.kind === 'needs_enrollment') {
-      // #region agent log
-      authEteLog('steam:exchange:needs_enrollment', {
-        caseId: 'C3',
-        openBrowserOnNeedsEnrollment: options.openBrowserOnNeedsEnrollment,
-        willOpenBrowser: options.openBrowserOnNeedsEnrollment,
-      })
-      // #endregion
       if (options.openBrowserOnNeedsEnrollment) {
         await startEnrollmentFlow(windowAuthManager, {
           enrollToken: exchangeResult.enrollToken,
@@ -311,20 +236,10 @@ async function startSteamSignIn(
       // one so the short TTL covers only the browser → verify → relay window.
       return
     }
-    // #region agent log
-    authEteLog('steam:exchange:error', {
-      caseId: 'C3',
-      kind: exchangeResult.kind,
-      reason: exchangeResult.reason.slice(0, 200),
-    })
-    // #endregion
     windowAuthManager.broadcastAuthError(exchangeResult.reason)
     return
   }
 
-  // #region agent log
-  authEteLog('steam:exchange:ok', { caseId: 'C8' })
-  // #endregion
   windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
   log.log('Steam sign-in successful')
 }
@@ -355,12 +270,6 @@ export function createAuthService(params: {
     // attempt (same policy as startOidcLoopbackFlow) so a fresh click always
     // can open the browser again.
     if (signingInFlight) {
-      // #region agent log
-      authEteLog('login:replace-in-flight', {
-        caseId: 'C11',
-        hadCloseLoopback: closeLoopback !== null,
-      })
-      // #endregion
       log.warn('Replacing in-flight sign-in with a new request')
       closeLoopback?.()
       closeLoopback = null
@@ -371,14 +280,6 @@ export function createAuthService(params: {
     // through the Steam-anchored path so no IPC call can create an unlinked
     // AIRI account. Plain OIDC only runs when Steam is not available.
     const initResult = await initSteam()
-    // #region agent log
-    authEteLog('login:click', {
-      caseId: initResult.ok ? 'C3' : 'C10',
-      initOk: initResult.ok,
-      reason: initResult.ok ? undefined : initResult.reason,
-      route: initResult.ok ? 'steam' : 'plain-oidc',
-    })
-    // #endregion
     if (initResult.ok) {
       await startSteamSignIn(params.windowAuthManager, { openBrowserOnNeedsEnrollment: true })
       return

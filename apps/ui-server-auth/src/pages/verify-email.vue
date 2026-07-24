@@ -54,52 +54,11 @@ const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, Verify
 function navigateToContinue(): boolean {
   if (!continueURL.value)
     return false
-  // #region agent log
-  let continueHost = ''
-  let continueHasEnrollToken = false
-  try {
-    const parsed = new URL(continueURL.value)
-    continueHost = parsed.host
-    continueHasEnrollToken = parsed.searchParams.has('enrollToken')
-  }
-  catch {
-    continueHost = 'invalid'
-  }
-  console.info('[airi-debug:af8d97]', 'verify-email:navigate', {
-    caseId: 'C6',
-    continueHost,
-    continueHasEnrollToken,
-  })
-  // #endregion
   window.location.href = continueURL.value
   return true
 }
 
 async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'verified-success'): Promise<boolean> {
-  // #region agent log
-  let continueHost = ''
-  let apiServerHost = ''
-  try {
-    continueHost = continueURL.value ? new URL(continueURL.value).host : ''
-  }
-  catch {
-    continueHost = 'invalid'
-  }
-  try {
-    apiServerHost = new URL(apiServerUrl).host
-  }
-  catch {
-    apiServerHost = 'invalid'
-  }
-  console.info('[airi-debug:af8d97]', 'resumeIfSessionReady:start', {
-    caseId: 'C6',
-    source,
-    hasContinueURL: Boolean(continueURL.value),
-    continueHost,
-    apiServerHost,
-    skipGetSession: source === 'broadcast' || source === 'verified-success',
-  })
-  // #endregion
   if (source === 'broadcast' || source === 'verified-success')
     return navigateToContinue()
 
@@ -108,61 +67,25 @@ async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'ver
       credentials: 'include',
       cache: 'no-store',
     })
-    if (!response.ok) {
-      // #region agent log
-      console.info('[airi-debug:af8d97]', 'resumeIfSessionReady:get-session-not-ok', {
-        caseId: 'C6',
-        source,
-        status: response.status,
-      })
-      // #endregion
+    if (!response.ok)
       return false
-    }
 
     const payload = await response.json().catch(() => null) as { session?: unknown } | null
-    if (!payload?.session) {
-      // #region agent log
-      console.info('[airi-debug:af8d97]', 'resumeIfSessionReady:no-session', {
-        caseId: 'C6',
-        source,
-      })
-      // #endregion
+    if (!payload?.session)
       return false
-    }
 
     return navigateToContinue()
   }
-  catch (error) {
-    // #region agent log
-    console.info('[airi-debug:af8d97]', 'resumeIfSessionReady:threw', {
-      caseId: 'C6',
-      source,
-      errorName: error instanceof Error ? error.name : 'unknown',
-    })
-    // #endregion
+  catch {
     return false
   }
 }
 
 onMounted(async () => {
-  // #region agent log
-  console.info('[airi-debug:af8d97]', 'verify-email:mount', {
-    caseId: 'C6',
-    verified: verified.value,
-    hasError: Boolean(error.value),
-    hasContinueURL: Boolean(continueURL.value),
-    hasEmail: Boolean(email.value),
-    broadcastSupported: isSupported.value,
-  })
-  // #endregion
   if (verified.value) {
     trackEmailVerificationCompleted()
-    if (isSupported.value) {
-      // #region agent log
-      console.info('[airi-debug:af8d97]', 'verify-email:broadcast-post', { caseId: 'C6' })
-      // #endregion
+    if (isSupported.value)
       post('verified')
-    }
     if (continueURL.value)
       await resumeIfSessionReady('verified-success')
     return
@@ -181,9 +104,6 @@ watch(data, async (event) => {
   if (event !== 'verified' || verified.value || error.value)
     return
 
-  // #region agent log
-  console.info('[airi-debug:af8d97]', 'verify-email:broadcast-received', { caseId: 'C6' })
-  // #endregion
   await resumeIfSessionReady('broadcast')
 })
 </script>

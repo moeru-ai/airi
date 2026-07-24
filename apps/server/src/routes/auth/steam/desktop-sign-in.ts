@@ -108,20 +108,6 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
         const profile = await collaborators.getPlayerSummaries({ publisherKey: deps.env.STEAM_PUBLISHER_KEY, steamId })
         const enrollToken = await collaborators.createEnrollmentToken(deps.db, { steamId, profile })
         const authUiUrl = resolveAuthUiUrl(deps.env.AUTH_UI_URL, deps.env.API_SERVER_URL)
-        // #region agent log
-        let authUiHost = ''
-        try {
-          authUiHost = new URL(authUiUrl).host
-        }
-        catch {
-          authUiHost = 'invalid'
-        }
-        console.info('[airi-debug:af8d97]', 'desktop-sign-in:needs_enrollment', {
-          caseId: 'C3',
-          hasEnrollToken: Boolean(enrollToken),
-          authUiHost,
-        })
-        // #endregion
         return c.json({ errorCode: 'STEAM_NEEDS_ENROLLMENT', enrollToken, authUiUrl }, 403)
       }
 
@@ -142,9 +128,6 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
         userId,
       })
 
-      // #region agent log
-      console.info('[airi-debug:af8d97]', 'desktop-sign-in:ok', { caseId: 'C8' })
-      // #endregion
       return c.json({
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,

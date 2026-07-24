@@ -2,7 +2,6 @@ import type { SteamInitResult, SteamTicketResult } from './types'
 
 import process from 'node:process'
 
-import { appendFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 import { is } from '@electron-toolkit/utils'
@@ -12,24 +11,6 @@ import { app } from 'electron'
 import { STEAM_APP_ID } from './types'
 
 const log = useLogg('steam-client').useGlobalConfig()
-
-// #region agent log
-/** Temporary ETE markers for C1/C2 (packaged Steam init). Session af8d97. */
-function steamDebugLog(message: string, data?: Record<string, unknown>): void {
-  const line = `[${new Date().toISOString()}] ${message}${data ? ` ${JSON.stringify(data)}` : ''}\n`
-  try {
-    appendFileSync(join(app.getPath('userData'), 'steam-debug.log'), line, 'utf8')
-  }
-  catch {
-    // Before app.ready or sandboxed write — ignore.
-  }
-  fetch('http://127.0.0.1:7272/ingest/025a1957-803e-4aec-a183-f77d1570779e', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'af8d97' },
-    body: JSON.stringify({ sessionId: 'af8d97', location: 'steam/client.ts', message, data, timestamp: Date.now() }),
-  }).catch(() => {})
-}
-// #endregion
 
 type SteamworksModule = typeof import('steamworks-ffi-node')
 type SteamworksSdkClass = SteamworksModule['SteamworksSDK']
@@ -76,18 +57,9 @@ async function loadSteamModule(): Promise<SteamworksModule | null> {
 
   try {
     steamModule = await import('steamworks-ffi-node')
-    // #region agent log
-    steamDebugLog('loadSteamModule:ok', { caseId: 'C1' })
-    // #endregion
     return steamModule
   }
   catch (error) {
-    // #region agent log
-    steamDebugLog('loadSteamModule:fail', {
-      caseId: 'C1',
-      error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
-    })
-    // #endregion
     log.withError(error).debug('steamworks-ffi-node is not available')
     return null
   }
@@ -97,49 +69,20 @@ export async function initSteam(): Promise<SteamInitResult> {
   if (steamInitialized)
     return { ok: true }
 
-  // #region agent log
-  steamDebugLog('initSteam:start', {
-    caseId: 'C1',
-    cwd: process.cwd(),
-    exe: is.dev ? '(dev)' : app.getPath('exe'),
-    isDev: is.dev,
-    platform: process.platform,
-  })
-  // #endregion
-
   const module = await loadSteamModule()
   if (!module) {
-    // #region agent log
-    steamDebugLog('initSteam:result', { caseId: 'C1', initOk: false, reason: 'not_steam' })
-    // #endregion
     return { ok: false, reason: 'not_steam' }
   }
 
   const instance = getSteamworksSdk(module)
-  if (!instance) {
-    // #region agent log
-    steamDebugLog('initSteam:result', { caseId: 'C1', initOk: false, reason: 'api_unavailable' })
-    // #endregion
+  if (!instance)
     return { ok: false, reason: 'api_unavailable' }
-  }
-  if (!instance.user?.getAuthTicketForWebApi) {
-    // #region agent log
-    steamDebugLog('initSteam:result', { caseId: 'C1', initOk: false, reason: 'api_unavailable' })
-    // #endregion
+  if (!instance.user?.getAuthTicketForWebApi)
     return { ok: false, reason: 'api_unavailable' }
-  }
 
   // Pin the SDK location so we never depend on the library's cwd-based search
   // (which fails on macOS where .app bundles launch with cwd=/).
-  const sdkPath = resolveSteamworksSdkPath()
-  // #region agent log
-  steamDebugLog('initSteam:setSdkPath', {
-    caseId: 'C1',
-    sdkPath,
-    sdkExists: existsSync(sdkPath),
-  })
-  // #endregion
-  instance.setSdkPath(sdkPath)
+  instance.setSdkPath(resolveSteamworksSdkPath())
 
   // SteamAPICore.init() can throw (e.g. dlopen failure) rather than returning
   // false, so we must catch to avoid propagating an unhandled error through
@@ -149,31 +92,16 @@ export async function initSteam(): Promise<SteamInitResult> {
     initialized = instance.init({ appId: STEAM_APP_ID })
   }
   catch (initError) {
-    // #region agent log
-    steamDebugLog('initSteam:result', {
-      caseId: 'C2',
-      initOk: false,
-      reason: 'init_failed',
-      threw: true,
-      error: initError instanceof Error ? `${initError.name}: ${initError.message}` : String(initError),
-    })
-    // #endregion
     log.withError(initError).warn('SteamAPI init threw')
     return { ok: false, reason: 'init_failed' }
   }
   if (!initialized) {
-    // #region agent log
-    steamDebugLog('initSteam:result', { caseId: 'C2', initOk: false, reason: 'init_failed', threw: false })
-    // #endregion
     log.warn('SteamAPI_Init returned false')
     return { ok: false, reason: 'init_failed' }
   }
 
   steam = instance
   steamInitialized = true
-  // #region agent log
-  steamDebugLog('initSteam:result', { caseId: 'C1', initOk: true, sdkPath })
-  // #endregion
   return { ok: true }
 }
 
