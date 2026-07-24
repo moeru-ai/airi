@@ -537,6 +537,36 @@ describe('fetch wiring', () => {
     expect(init.signal).toBe(abortController.signal)
   })
 
+  it('completes tool schemas that arrive without a type, preserving the rest', async () => {
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: [
+        // `rawTool({ parameters: {} })` in @xsai/tool emits exactly this for a
+        // zero-argument tool: no `type`, so the Messages API has no object
+        // schema to validate against.
+        { type: 'function', function: { name: 'zero_args', description: 'no inputs', parameters: { additionalProperties: false } } },
+        { type: 'function', function: { name: 'empty_schema', description: 'no inputs', parameters: {} } },
+      ],
+    })
+
+    expect(sent.tools).toEqual([
+      { name: 'zero_args', description: 'no inputs', input_schema: { additionalProperties: false, type: 'object' } },
+      { name: 'empty_schema', description: 'no inputs', input_schema: { type: 'object' } },
+    ])
+  })
+
+  it('leaves a complete tool schema untouched', async () => {
+    const parameters = { type: 'object', properties: { city: { type: 'string' } }, required: ['city'], additionalProperties: false }
+    const { sent } = await capture({
+      model: 'claude-sonnet-4-5-20250929',
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: [{ type: 'function', function: { name: 'get_weather', parameters } }],
+    })
+
+    expect(sent.tools[0].input_schema).toEqual(parameters)
+  })
+
   it('forwards a structured tool result as JSON text instead of throwing', async () => {
     // xsai stringifies structured tool returns before they become message
     // content, so this covers a caller that serializes the object itself: the
