@@ -66,6 +66,13 @@ export async function createEnrollmentToken(
     createdAt: now,
     updatedAt: now,
   })
+  // #region agent log
+  console.info('[airi-debug:af8d97]', 'enrollment-token:created', {
+    caseId: 'C4',
+    hasJti: true,
+    identifierPrefix: ENROLLMENT_IDENTIFIER_PREFIX,
+  })
+  // #endregion
   return id
 }
 
