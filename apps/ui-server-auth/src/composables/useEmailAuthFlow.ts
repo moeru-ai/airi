@@ -182,6 +182,28 @@ export function useEmailAuthFlow(options: UseEmailAuthFlowOptions) {
         apiServerUrlQueryParam: API_SERVER_URL_QUERY_PARAM,
         continueURL: options.verifyContinueUrl || undefined,
       })
+      // #region agent log
+      let callbackApiHost = ''
+      let callbackHasContinue = false
+      let callbackHasApiServer = false
+      try {
+        const parsed = new URL(signUpCallbackURL)
+        callbackApiHost = parsed.searchParams.get(API_SERVER_URL_QUERY_PARAM) ?? ''
+        callbackHasContinue = parsed.searchParams.has('continueURL')
+        callbackHasApiServer = parsed.searchParams.has(API_SERVER_URL_QUERY_PARAM)
+      }
+      catch {
+        callbackApiHost = 'invalid'
+      }
+      console.info('[airi-debug:af8d97]', 'signup:callbackURL', {
+        caseId: 'C5',
+        scope: options.scope,
+        callbackHasApiServer,
+        callbackHasContinue,
+        callbackApiHost,
+        hasVerifyContinueUrl: Boolean(options.verifyContinueUrl),
+      })
+      // #endregion
       const result = await signUpWithEmail({
         apiServerUrl: options.apiServerUrl,
         email,
