@@ -90,7 +90,7 @@ about:
       check-for-updates: 检查更新
       checking: 正在检查...
       latest-version: 最新版本
-      disabled-dev: 已禁用开发环境时的更新
+      managed-by-store: 更新由应用商店管理
       retry-check: 重新检查
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新

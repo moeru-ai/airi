@@ -90,7 +90,7 @@ about:
       check-for-updates: Проверить обновления
       checking: Проверка...
       latest-version: Последняя версия
-      disabled-dev: Обновления отключены в Dev
+      managed-by-store: Обновления управляются магазином приложений
       retry-check: Повторить проверку
       restart-silent: Перезапустите, чтобы обновить автоматически
       restart-install: Перезапустите для установки обновления

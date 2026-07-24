@@ -90,7 +90,7 @@ about:
       check-for-updates: アップデートを確認
       checking: 確認中…
       latest-version: 最新バージョン
-      disabled-dev: Updates disabled in Dev
+      managed-by-store: アップデートはアプリストアによって管理されています
       retry-check: Retry Check
       restart-silent: Restart to update silently
       restart-install: 再起動してアップデートをインストールする

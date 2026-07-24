@@ -285,6 +285,7 @@ onMounted(() => {
             </div>
 
             <FieldSelect
+              v-if="!isDisabled"
               :model-value="selectedUpdateChannel"
               :disabled="isUpdateChannelUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"
@@ -393,7 +394,7 @@ onMounted(() => {
                       : isLatestVersion
                         ? t('tamagotchi.stage.about.update.actions.latest-version')
                         : isDisabled
-                          ? t('tamagotchi.stage.about.update.actions.disabled-dev')
+                          ? t('tamagotchi.stage.about.update.actions.managed-by-store')
                           : isError
                             ? t('tamagotchi.stage.about.update.actions.retry-check')
                             : t('tamagotchi.stage.about.update.actions.check-for-updates')"
