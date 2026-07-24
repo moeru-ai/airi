@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Мы поддерживаем 2D и 3D модели
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Нажмите {select-button}, чтобы выбрать или импортировать модели. В настоящее время поддерживаются {zip} (для моделей Live2D и Spine) и {vrm} (для моделей VRM).
     model-type-example: >
       Neuro-sama использует 2D модель, основанную на фреймворк, разработанной компанией Live2D Inc, В то время как Grok Ani (в компании Grok) использует 3D-модели, основанные на открытых форматах VRM / MMD.
   select-model:
@@ -413,7 +413,7 @@ pages:
         delete: Удалить все сеансы чата
       models:
         title: Модели
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Удалить импортированные модели Live2D/VRM.
         delete: Удалить все модели
       modules:
         title: Модули
@@ -454,7 +454,7 @@ pages:
       desktop_window_centered: Окно рабочего стола перемещено в центр экрана.
       desktop_reset: Данные рабочего стола сброшены.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine и др.
     title: Модели
     sections:
       section:
@@ -771,7 +771,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
