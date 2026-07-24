@@ -1081,6 +1081,16 @@ pages:
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
+      fishaudio-speech:
+        description: fish.audio
+        title: Fish Audio
+        voice_browser:
+          my_voices: 我的声线
+          discover_voices: 探索声线
+          mine_description: 搜索你的 Fish Audio 声线
+          discover_description: 搜索 Fish Audio 的公共声线库，无需下载完整目录
+          showing_results: 已显示 {count} / {total} 个声线
+          load_more: 加载更多
       speech-noop:
         title: 无
         description: 不使用语音合成

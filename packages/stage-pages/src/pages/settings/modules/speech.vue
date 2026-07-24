@@ -9,20 +9,23 @@ import {
   RadioCardManySelect,
   RadioCardSimple,
   TestDummyMarker,
-  VoiceCardManySelect,
 } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { getFishAudioApiKey, searchFishAudioVoices } from '@proj-airi/stage-ui/stores/providers/fishaudio'
 import {
+  Button,
   FieldCheckbox,
+  FieldCombobox,
   FieldInput,
   FieldRange,
   Skeleton,
   Textarea,
 } from '@proj-airi/ui'
+import { useDebounceFn } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -61,7 +64,6 @@ const {
   trackVoiceSelected,
 } = useAnalytics()
 
-const voiceSearchQuery = ref('')
 const useSSML = ref(false)
 const testText = ref('Hello, my name is AI Assistant')
 const ssmlText = ref('')
@@ -70,6 +72,17 @@ const audioUrl = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const errorMessage = ref('')
 let lastOfficialTtsExposureKey = ''
+
+const fishAudioProviderId = 'fishaudio-speech'
+const fishAudioVoiceSearchTerm = ref('')
+const fishAudioVoiceOptions = ref<{ value: string, label: string }[]>([])
+const fishAudioVoiceCatalog = ref<'discover' | 'mine'>('mine')
+const fishAudioVoicePage = ref(1)
+const fishAudioVoiceTotal = ref(0)
+const fishAudioVoiceHasMore = ref(false)
+const isLoadingFishAudioVoices = ref(false)
+const fishAudioVoiceSearchError = ref('')
+let latestFishAudioVoiceSearchRequestId = 0
 
 const STREAMING_MODEL_OPTION_PREFIX = 'streaming:'
 
@@ -182,6 +195,33 @@ const displayedVoiceOptions = computed(() => {
     }))
 })
 
+const compactVoiceOptions = computed(() => {
+  const options = displayedVoiceOptions.value.map(voice => ({
+    value: voice.id,
+    label: voice.name,
+    description: voice.description,
+  }))
+  const selectedVoiceId = activeSpeechVoiceId.value
+
+  if (selectedVoiceId && !options.some(voice => voice.value === selectedVoiceId)) {
+    options.unshift({
+      value: selectedVoiceId,
+      label: activeSpeechVoice.value?.name || selectedVoiceId,
+      description: activeSpeechVoice.value?.description,
+    })
+  }
+
+  return options
+})
+
+const fishAudioApiKey = computed(() => {
+  return getFishAudioApiKey(providersStore.getProviderConfig(fishAudioProviderId)?.apiKey)
+})
+
+const fishAudioApiKeyConfigured = computed(() => {
+  return Boolean(providersStore.configuredProviders[fishAudioProviderId]) && Boolean(fishAudioApiKey.value)
+})
+
 const displayedSpeechVoiceId = computed({
   get: () => activeSpeechVoiceId.value,
   set: (value: string) => {
@@ -190,6 +230,149 @@ const displayedSpeechVoiceId = computed({
 })
 
 const currentSpeechVoiceId = computed(() => activeSpeechVoiceId.value || '')
+
+function resetFishAudioVoiceSearch() {
+  fishAudioVoiceOptions.value = []
+  fishAudioVoicePage.value = 1
+  fishAudioVoiceTotal.value = 0
+  fishAudioVoiceHasMore.value = false
+}
+
+function mergeFishAudioVoiceOptions(current: { value: string, label: string }[], next: { value: string, label: string }[]) {
+  const voicesById = new Map(current.map(voice => [voice.value, voice]))
+  for (const voice of next) {
+    voicesById.set(voice.value, voice)
+  }
+
+  return [...voicesById.values()]
+}
+
+function applyFishAudioVoice(voiceId: string) {
+  const voiceOption = fishAudioVoiceOptions.value.find(voice => voice.value === voiceId)
+  if (!voiceOption) {
+    return
+  }
+
+  activeSpeechVoice.value = {
+    id: voiceOption.value,
+    name: voiceOption.label,
+    description: voiceOption.label,
+    previewURL: '',
+    languages: [{ code: 'en', title: 'English' }],
+    provider: fishAudioProviderId,
+    gender: 'neutral',
+  }
+}
+
+async function loadFishAudioVoiceOptions(searchTerm: string, loadMore = false) {
+  if (!fishAudioApiKey.value) {
+    latestFishAudioVoiceSearchRequestId += 1
+    isLoadingFishAudioVoices.value = false
+    fishAudioVoiceSearchError.value = ''
+    resetFishAudioVoiceSearch()
+    return
+  }
+
+  const requestId = ++latestFishAudioVoiceSearchRequestId
+  const nextPage = loadMore ? fishAudioVoicePage.value + 1 : 1
+  isLoadingFishAudioVoices.value = true
+  fishAudioVoiceSearchError.value = ''
+
+  try {
+    const providerConfig = providersStore.getProviderConfig(fishAudioProviderId)
+    const result = await searchFishAudioVoices({
+      apiKey: providerConfig.apiKey,
+      baseUrl: providerConfig.baseUrl,
+      pageNumber: nextPage,
+      pageSize: 20,
+      searchTerm,
+      self: fishAudioVoiceCatalog.value === 'mine',
+      sortBy: searchTerm ? 'score' : 'task_count',
+    })
+
+    if (requestId !== latestFishAudioVoiceSearchRequestId) {
+      return
+    }
+
+    const mappedVoices = [...result.items]
+    const selectedVoiceId = activeSpeechVoiceId.value
+    if (selectedVoiceId && !mappedVoices.some(voice => voice.value === selectedVoiceId)) {
+      try {
+        const fishAudioMetadata = providersStore.getProviderMetadata(fishAudioProviderId)
+        const selectedVoice = await fishAudioMetadata.capabilities.listVoices?.(providerConfig, { id: selectedVoiceId }) || []
+
+        if (selectedVoice.length > 0) {
+          mappedVoices.unshift(...selectedVoice.map(voice => ({
+            value: voice.id,
+            label: voice.name,
+          })))
+        }
+      }
+      catch (error) {
+        console.error('Failed to hydrate Fish Audio voice by ID:', error)
+      }
+    }
+
+    if (requestId !== latestFishAudioVoiceSearchRequestId) {
+      return
+    }
+
+    fishAudioVoiceOptions.value = loadMore
+      ? mergeFishAudioVoiceOptions(fishAudioVoiceOptions.value, mappedVoices)
+      : mappedVoices
+    fishAudioVoicePage.value = result.pageNumber
+    fishAudioVoiceTotal.value = result.total
+    fishAudioVoiceHasMore.value = result.hasMore
+    applyFishAudioVoice(selectedVoiceId)
+  }
+  catch (error) {
+    if (requestId !== latestFishAudioVoiceSearchRequestId) {
+      return
+    }
+
+    fishAudioVoiceSearchError.value = errorMessageFrom(error) ?? 'Failed to load Fish Audio voices'
+  }
+  finally {
+    if (requestId === latestFishAudioVoiceSearchRequestId) {
+      isLoadingFishAudioVoices.value = false
+    }
+  }
+}
+
+const debouncedLoadFishAudioVoiceOptions = useDebounceFn((searchTerm: string) => {
+  void loadFishAudioVoiceOptions(searchTerm)
+}, 300)
+
+function searchFishAudioVoicesFromSpeechPage(searchTerm: string) {
+  fishAudioVoiceSearchTerm.value = searchTerm
+  void debouncedLoadFishAudioVoiceOptions(searchTerm)
+}
+
+function switchFishAudioVoiceCatalog(catalog: 'discover' | 'mine') {
+  if (fishAudioVoiceCatalog.value === catalog) {
+    return
+  }
+
+  fishAudioVoiceCatalog.value = catalog
+  void loadFishAudioVoiceOptions(fishAudioVoiceSearchTerm.value)
+}
+
+function loadMoreFishAudioVoices() {
+  if (!fishAudioVoiceHasMore.value || isLoadingFishAudioVoices.value) {
+    return
+  }
+
+  void loadFishAudioVoiceOptions(fishAudioVoiceSearchTerm.value, true)
+}
+
+function selectFishAudioVoice(voiceId: string | undefined) {
+  if (!voiceId) {
+    return
+  }
+
+  applyFishAudioVoice(voiceId)
+  void selectSpeechVoice(voiceId)
+}
 
 /**
  * Resolves the current TTS model id for low-cardinality analytics payloads.
@@ -361,6 +544,9 @@ onMounted(async () => {
   speechStore.ensureActiveSpeechModel()
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined)
   syncOpenAICompatibleSettings()
+  if (activeSpeechProvider.value === fishAudioProviderId) {
+    void loadFishAudioVoiceOptions(fishAudioVoiceSearchTerm.value)
+  }
   trackOfficialTtsExposure()
 })
 
@@ -389,6 +575,9 @@ watch(activeSpeechProvider, async (newProvider, oldProvider) => {
   trackOfficialTtsExposure(newProvider, currentTtsModelId())
 
   syncOpenAICompatibleSettings()
+  if (newProvider === fishAudioProviderId) {
+    void loadFishAudioVoiceOptions(fishAudioVoiceSearchTerm.value)
+  }
 })
 
 watch(activeSpeechModel, async (model) => {
@@ -400,6 +589,14 @@ watch(activeSpeechModel, async (model) => {
 
   await speechStore.loadVoicesForProvider(activeSpeechProvider.value, model || undefined)
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
+})
+
+watch(fishAudioApiKey, (apiKey, previousApiKey) => {
+  if (apiKey === previousApiKey || activeSpeechProvider.value !== fishAudioProviderId) {
+    return
+  }
+
+  void loadFishAudioVoiceOptions(fishAudioVoiceSearchTerm.value)
 })
 
 watch([activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], ([provider, model, voiceId]) => {
@@ -808,29 +1005,79 @@ function handleDeleteProvider(providerId: string) {
           </div>
 
           <!-- Error state -->
-          <!-- Voice selection with RadioCardManySelect (skip for OpenAI Compatible) -->
+          <!-- Voice selection (skip for OpenAI Compatible) -->
           <div
-            v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && displayedVoiceOptions.length > 0"
-            class="space-y-6"
+            v-else-if="activeSpeechProvider !== 'openai-compatible-audio-speech' && (activeSpeechProvider === fishAudioProviderId || displayedVoiceOptions.length > 0)"
+            :class="['space-y-3']"
           >
-            <VoiceCardManySelect
-              v-model:search-query="voiceSearchQuery"
-              v-model:voice-id="displayedSpeechVoiceId"
-              :voices="displayedVoiceOptions"
-              :searchable="true"
-              :search-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
-              :search-no-results-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
-              :search-no-results-description="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description')"
-              :search-results-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_results', { count: '{count}', total: '{total}' })"
-              :unsupported-voice-warning-title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_title')"
-              :unsupported-voice-warning-content="t('settings.pages.modules.speech.sections.section.provider-voice-selection.unsupported_voice_warning_content')"
-              :custom-input-placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.custom_voice_placeholder')"
-              :expand-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_more')"
-              :collapse-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.show_less')"
-              :play-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.play_sample')"
-              :pause-button-text="t('settings.pages.modules.speech.sections.section.provider-voice-selection.pause')"
-              @update:custom-value="updateCustomVoiceName"
-              @update:voice-id="selectSpeechVoice"
+            <template v-if="activeSpeechProvider === fishAudioProviderId">
+              <div :class="['flex', 'items-center', 'gap-2']">
+                <Button
+                  size="sm"
+                  :variant="fishAudioVoiceCatalog === 'mine' ? 'primary' : 'secondary-muted'"
+                  :disabled="!fishAudioApiKeyConfigured"
+                  @click="switchFishAudioVoiceCatalog('mine')"
+                >
+                  {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.my_voices') }}
+                </Button>
+                <Button
+                  size="sm"
+                  :variant="fishAudioVoiceCatalog === 'discover' ? 'primary' : 'secondary-muted'"
+                  :disabled="!fishAudioApiKeyConfigured"
+                  @click="switchFishAudioVoiceCatalog('discover')"
+                >
+                  {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.discover_voices') }}
+                </Button>
+              </div>
+              <FieldCombobox
+                v-model="displayedSpeechVoiceId"
+                v-model:search-term="fishAudioVoiceSearchTerm"
+                label="Voice"
+                :description="fishAudioVoiceCatalog === 'mine'
+                  ? t('settings.pages.providers.provider.fishaudio-speech.voice_browser.mine_description')
+                  : t('settings.pages.providers.provider.fishaudio-speech.voice_browser.discover_description')"
+                :options="fishAudioVoiceOptions"
+                :disabled="!fishAudioApiKeyConfigured"
+                placeholder="Search Fish Audio voices..."
+                @search="searchFishAudioVoicesFromSpeechPage"
+                @update:model-value="selectFishAudioVoice"
+              >
+                <template #label>
+                  <div :class="['flex', 'items-center', 'gap-2']">
+                    <span>Voice</span>
+                    <span v-if="isLoadingFishAudioVoices" :class="['i-lucide:loader-2', 'animate-spin', 'text-neutral-400']" />
+                  </div>
+                </template>
+              </FieldCombobox>
+              <p v-if="fishAudioVoiceSearchError" class="text-sm text-red-500">
+                {{ fishAudioVoiceSearchError }}
+              </p>
+              <div v-else-if="fishAudioApiKeyConfigured" :class="['flex', 'items-center', 'justify-between', 'gap-3', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+                <span>
+                  {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.showing_results', {
+                    count: fishAudioVoiceOptions.length,
+                    total: fishAudioVoiceTotal,
+                  }) }}
+                </span>
+                <Button
+                  v-if="fishAudioVoiceHasMore"
+                  size="sm"
+                  variant="secondary"
+                  :disabled="isLoadingFishAudioVoices"
+                  @click="loadMoreFishAudioVoices"
+                >
+                  {{ t('settings.pages.providers.provider.fishaudio-speech.voice_browser.load_more') }}
+                </Button>
+              </div>
+            </template>
+            <FieldCombobox
+              v-else
+              v-model="displayedSpeechVoiceId"
+              label="Voice"
+              description="Search voices loaded by the selected provider"
+              :options="compactVoiceOptions"
+              :placeholder="t('settings.pages.modules.speech.sections.section.provider-voice-selection.search_voices_placeholder')"
+              @update:model-value="selectSpeechVoice"
             />
           </div>
 

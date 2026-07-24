@@ -32,7 +32,11 @@ const props = withDefaults(defineProps<{
   openOnClick: true,
 })
 
+const emit = defineEmits<{
+  search: [value: string]
+}>()
 const modelValue = defineModel<T>({ required: false })
+const searchTerm = defineModel<string>('searchTerm', { required: false })
 
 const normalizedOptions = computed<ComboboxOptionGroupItem<T>[]>(() => {
   if (!props.options.length) {
@@ -68,6 +72,12 @@ function toCssSize(value?: string | number): string | undefined {
 
   return typeof value === 'number' ? `${value}px` : value
 }
+
+function handleInput(event: Event) {
+  const value = event.target instanceof HTMLInputElement ? event.target.value : ''
+  searchTerm.value = value
+  emit('search', value)
+}
 </script>
 
 <template>
@@ -97,6 +107,7 @@ function toCssSize(value?: string | number): string | undefined {
         :disabled="props.disabled"
         :placeholder="props.placeholder"
         :display-value="(val) => toDisplayValue(val)"
+        @input="handleInput"
       />
       <ComboboxTrigger>
         <div
