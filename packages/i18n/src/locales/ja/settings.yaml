@@ -411,6 +411,14 @@ pages:
         export: チャットをエクスポート
         import: チャットをインポート
         delete: 全てのチャットセッションを削除
+      settings:
+        title: 設定
+        description: アプリ設定、モジュール設定、プロバイダー設定を JSON バックアップとしてエクスポート／インポートします。
+        export: 設定をエクスポート
+        import: 設定をインポート
+        include_secrets: API キーとトークンを含める
+        include_secrets_description: シークレットは平文でエクスポートされます。バックアップファイルは安全に保管してください。
+        export_secrets_confirm: シークレットを含めてエクスポートしますか？
       models:
         title: モデル
         description: Remove imported Live2D, VRM, Spine, and MMD models.
@@ -447,6 +455,8 @@ pages:
       imported: チャットセッションをインポートしました。
       import_error: チャットセッションのインポートに失敗しました。ファイルの形式を確認してください。
       chats_deleted: チャットセッションを削除しました。
+      settings_exported: 設定をエクスポートしました。
+      settings_imported: 設定をインポートしました。再読み込みします…
       models_deleted: モデルを削除しました。
       modules_reset: モジュールの設定をリセットしました。
       providers_reset: プロバイダーの設定をリセットしました。

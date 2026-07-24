@@ -411,6 +411,14 @@ pages:
         export: Xuất hội thoại
         import: Nhập hội thoại
         delete: Xóa tất cả hội thoại
+      settings:
+        title: Cài đặt
+        description: Xuất hoặc nhập cài đặt ứng dụng, mô-đun và nhà cung cấp dưới dạng bản sao lưu JSON.
+        export: Xuất cài đặt
+        import: Nhập cài đặt
+        include_secrets: Bao gồm khóa API và token
+        include_secrets_description: Khóa bí mật được xuất dưới dạng văn bản thuần. Hãy giữ tệp sao lưu an toàn.
+        export_secrets_confirm: Xuất kèm khóa bí mật?
       models:
         title: Mô hình
         description: Remove imported Live2D, VRM, Spine, and MMD models.
@@ -447,6 +455,8 @@ pages:
       imported: Đã nhập phiên trò chuyện.
       import_error: Lỗi nhập dữ liệu. Vui lòng kiểm tra định dạng tệp.
       chats_deleted: Đã xóa các phiên trò chuyện.
+      settings_exported: Đã xuất cài đặt.
+      settings_imported: Đã nhập cài đặt. Đang tải lại…
       models_deleted: Đã xóa các mô hình.
       modules_reset: Đã đặt lại cài đặt mô-đun.
       providers_reset: Đã đặt lại cài đặt nhà cung cấp.

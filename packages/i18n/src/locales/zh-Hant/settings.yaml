@@ -411,6 +411,14 @@ pages:
         export: 匯出聊天記錄
         import: 匯入聊天記錄
         delete: 刪除所有聊天記錄
+      settings:
+        title: 設定
+        description: 將應用設定、模組偏好和供應商設定匯出或匯入為 JSON 備份。
+        export: 匯出設定
+        import: 匯入設定
+        include_secrets: 包含 API 金鑰和權杖
+        include_secrets_description: 金鑰將以明文匯出，請妥善保管備份檔案。
+        export_secrets_confirm: 確認匯出金鑰？
       models:
         title: 模型
         description: 移除匯入的 Live2D/VRM 模型
@@ -447,6 +455,8 @@ pages:
       imported: 對話階段已匯入。
       import_error: 匯入對話階段失敗，請檢查檔案格式。
       chats_deleted: 對話階段已刪除。
+      settings_exported: 設定已匯出。
+      settings_imported: 設定已匯入，即將重新整理…
       models_deleted: 模型已刪除
       modules_reset: 模組設定已重設
       providers_reset: 服務提供者設定已重設

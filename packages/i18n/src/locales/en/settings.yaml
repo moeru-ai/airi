@@ -431,6 +431,14 @@ pages:
         export: Export chats
         import: Import chats
         delete: Delete all chat sessions
+      settings:
+        title: Settings
+        description: Export or import app settings, module preferences, and provider configurations as a JSON backup.
+        export: Export settings
+        import: Import settings
+        include_secrets: Include API keys and tokens
+        include_secrets_description: Secrets are exported in plain text. Keep the backup file safe.
+        export_secrets_confirm: Export with secrets?
       models:
         title: Models
         description: Remove imported Live2D, VRM, Spine, and MMD models.
@@ -467,6 +475,8 @@ pages:
       imported: Chat sessions imported.
       import_error: Failed to import chat sessions. Please check the file format.
       chats_deleted: Chat sessions deleted.
+      settings_exported: Settings exported.
+      settings_imported: Settings imported. Reloading...
       models_deleted: Models deleted.
       modules_reset: Module settings reset.
       providers_reset: Provider settings reset.
