@@ -1,14 +1,14 @@
 ---
 title: キャラクターカードテンプレート
-description: Project AIRI 用の Character Card V3 JSON テンプレートです。
+description: Project AIRI の Character Card V3 JSON テンプレート。
 ---
 
-このテンプレートは、AIRI のキャラクターカードを作成するための最小構成の Character Card V3 JSON です。下の JSON をコピーし、サンプルの値を自分のキャラクター設定に置き換えてください。フィールド名と階層構造はそのまま残します。
+このテンプレートは、AIRI キャラクター カードを作成する際の開始点として使用できる、最小限の使用可能な Character Card V3 構造を提供します。以下の JSON をコピーし、サンプルコンテンツを独自のロール設定に置き換えて、フィールド名と階層を変更しないでください。
 
 ::: tip 編集のヒント
-- まずは `name`、`description`、`personality`、`scenario`、`first_mes` から入力します。
-- まだ使わない任意項目は空のままで問題ありません。
-- インポートまたは共有する前に、最終的な内容が正しい JSON であることを確認してください。
+- `name`、`description`、`personality`、`scenario`、`first_mes`を最初に入力することもできます。
+- 一時的に使用しないオプションフィールドは空白のままにすることができます。
+- インポートまたは共有する前に、最終的なコンテンツがまだ正当な JSON であることを確認してください。
 :::
 
 ## テンプレート
@@ -18,21 +18,21 @@ description: Project AIRI 用の Character Card V3 JSON テンプレートです
   "spec": "chara_card_v3",
   "spec_version": "3.0",
   "data": {
-    "name": "サンプルキャラクター",
-    "nickname": "サンプル",
-    "description": "このキャラクターがどのような存在かを短く説明します。",
-    "personality": "好奇心が強く、温かく、少し遊び心があります。",
-    "scenario": "このキャラクターはユーザーとはじめて出会います。",
-    "first_mes": "こんにちは！お会いできてうれしいです。",
+    "name": "示例角色",
+    "nickname": "示例",
+    "description": "关于这个角色是谁的简短描述。",
+    "personality": "好奇、温暖，也有一点俏皮。",
+    "scenario": "这个角色正在第一次见到用户。",
+    "first_mes": "你好！很高兴见到你。",
     "alternate_greetings": [],
     "group_only_greetings": [],
     "mes_example": "",
-    "creator": "あなたの名前",
+    "creator": "你的名字",
     "creator_notes": "",
     "character_version": "1.0.0",
     "system_prompt": "",
     "post_history_instructions": "",
-    "tags": ["サンプル"],
+    "tags": ["示例"],
     "extensions": {}
   }
 }
