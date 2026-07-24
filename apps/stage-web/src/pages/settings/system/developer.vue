@@ -75,6 +75,12 @@ const menu = computed(() => [
     to: '/devtools/websocket-inspector',
   },
   {
+    title: 'Provider Config Transfer',
+    description: 'Export and import provider configurations (YAML / JSON / .env)',
+    icon: 'i-solar:import-bold-duotone',
+    to: '/devtools/provider-config-transfer',
+  },
+  {
     title: 'Web Haptics',
     description: 'Trigger built-in haptic presets and custom pulse patterns',
     icon: 'i-solar:bolt-circle-bold-duotone',

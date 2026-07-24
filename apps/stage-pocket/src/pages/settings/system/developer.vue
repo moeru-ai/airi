@@ -86,6 +86,12 @@ const menu = computed(() => [
     icon: 'i-solar:transfer-horizontal-bold-duotone',
     to: '/devtools/websocket-inspector',
   },
+  {
+    title: 'Provider Config Transfer',
+    description: 'Export and import provider configurations (YAML / JSON / .env)',
+    icon: 'i-solar:import-bold-duotone',
+    to: '/devtools/provider-config-transfer',
+  },
 ])
 </script>
 

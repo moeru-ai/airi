@@ -159,6 +159,7 @@
     "xast-util-to-xml": "catalog:",
     "xastscript": "catalog:",
     "xsschema": "catalog:",
+    "yaml": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

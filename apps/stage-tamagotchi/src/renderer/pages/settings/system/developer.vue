@@ -68,6 +68,12 @@ const menu = computed(() => [
     to: '/devtools/websocket-inspector',
   },
   {
+    title: 'Provider Config Transfer',
+    description: 'Export and import provider configurations (YAML / JSON / .env)',
+    icon: 'i-solar:import-bold-duotone',
+    to: '/devtools/provider-config-transfer',
+  },
+  {
     title: 'Plugin Host Debug',
     description: 'Inspect discovered/enabled/loaded plugins and control load/unload lifecycle',
     icon: 'i-solar:bug-bold-duotone',
