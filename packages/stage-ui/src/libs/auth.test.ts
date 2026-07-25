@@ -69,10 +69,17 @@ describe('signOut', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const promise = signOut()
+    // Attach a no-op rejection handler up front so that when the abort timer
+    // fires inside `advanceTimersByTimeAsync` and signOut's awaited fetch
+    // rejects, vitest's microtask drain does not briefly see the parent
+    // promise as unhandled before `expect(promise).rejects` attaches its own
+    // handler further down. The explicit rejection assertion below still
+    // verifies the error shape.
+    promise.catch(() => {})
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://api.airi.test/api/auth/oauth2/end-session?id_token_hint=id-token&client_id=client-id')
-    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).method).toBe('GET')
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('GET')
     expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
 
     await vi.advanceTimersByTimeAsync(SIGN_OUT_REQUEST_TIMEOUT_MS - 1)
@@ -81,7 +88,7 @@ describe('signOut', () => {
     await vi.advanceTimersByTimeAsync(1)
     await expect(promise).rejects.toThrow('sign-out timed out')
     expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
-    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true)
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
   })
 
   it('still waits for a responsive server sign-out before clearing local state', async () => {
@@ -115,11 +122,13 @@ describe('signOut', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const promise = signOut()
+    // See OIDC test above for why we attach a no-op rejection handler up front.
+    promise.catch(() => {})
 
     await vi.advanceTimersByTimeAsync(SIGN_OUT_REQUEST_TIMEOUT_MS)
     await expect(promise).rejects.toThrow('sign-out timed out')
     expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
-    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal?.aborted).toBe(true)
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
   })
 
   it('clears local auth state when no server sign-out credential is available', async () => {
