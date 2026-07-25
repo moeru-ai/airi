@@ -238,7 +238,7 @@ describe('createChatOrchestratorRuntime', () => {
 
   it('keeps timestamp prefixes stable for legacy user messages without createdAt', async () => {
     const harness = createHarness()
-    const legacyUserMessage = {
+    const legacyUserMessage: ChatHistoryItem = {
       role: 'user' as const,
       content: 'legacy prompt',
       id: 'legacy-user',
