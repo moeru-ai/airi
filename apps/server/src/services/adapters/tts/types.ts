@@ -82,7 +82,7 @@ export interface TtsResult {
  * `./index.ts` — the union is intentionally tight so unknown ids fail at the
  * type level (router config validation handles runtime).
  */
-export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'volcengine'
+export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcengine'
 
 /**
  * Per-call context for {@link TtsAdapter.getVoiceCatalog}.

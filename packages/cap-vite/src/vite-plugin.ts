@@ -102,8 +102,7 @@ function bindCapViteShortcuts(
 }
 
 export function capVitePlugin(options: CapVitePluginOptions): Plugin {
-  const resolvedCapArgs = resolveCapRunArgs(options.capArgs)
-  const platform = parseCapacitorPlatform(resolvedCapArgs[0])
+  const platform = parseCapacitorPlatform(options.capArgs[0])
   if (!platform) {
     throw new Error('The first `cap run` argument must be `ios` or `android`.')
   }
@@ -112,7 +111,8 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
   return {
     apply: 'serve',
     name: 'cap-vite:run-capacitor',
-    configureServer(server) {
+    async configureServer(server) {
+      const resolvedCapArgs = await resolveCapRunArgs(options.capArgs)
       const cwd = resolve(server.config.root)
       const platformRoot = resolve(cwd, resolvedPlatform)
       const debounceMs = 300

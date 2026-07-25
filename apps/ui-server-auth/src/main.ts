@@ -14,6 +14,8 @@ import { routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
+import { initAuthAnalytics } from './modules/analytics'
+import { AUTH_UI_ROUTER_BASE_PATH } from './modules/auth-ui-base'
 import { i18n } from './modules/i18n'
 
 import '@proj-airi/font-chillroundm/index.css'
@@ -22,6 +24,8 @@ import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
 
+initAuthAnalytics()
+
 const pinia = createPinia()
 
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
@@ -29,9 +33,9 @@ const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
 if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE))
-  router = createRouter({ routes: routeRecords, history: createWebHashHistory('/auth/') })
+  router = createRouter({ routes: routeRecords, history: createWebHashHistory(AUTH_UI_ROUTER_BASE_PATH) })
 else
-  router = createRouter({ routes: routeRecords, history: createWebHistory('/auth/') })
+  router = createRouter({ routes: routeRecords, history: createWebHistory(AUTH_UI_ROUTER_BASE_PATH) })
 
 router.beforeEach((to, from) => {
   if (to.path !== from.path)

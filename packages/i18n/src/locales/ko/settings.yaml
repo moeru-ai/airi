@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -248,6 +248,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: 이 OAuth 계정은 이미 다른 AIRI 계정에 연결되어 있습니다. 다른 제공자 계정을 선택하거나, 먼저 다른 AIRI 계정에서 연결을 해제하세요.
+        oauthCallbackFailed: 이 OAuth 계정을 연결할 수 없습니다. 다시 시도하거나 다른 제공자 계정을 선택하세요.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
@@ -308,6 +310,9 @@ pages:
       provider: 채팅 / 제공자
     consciousness:
       model: 의식 / 모델
+    vision:
+      provider: 비전 / 제공자
+      model: 비전 / 모델
     created_by: 만든이
     creator_notes: 제작자 노트
     delete: 삭제
@@ -385,8 +390,14 @@ pages:
     systemprompt: 시스템 프롬프트
     title: AIRI 카드
     try_different_search: 다른 검색어를 시도해보세요
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: 업로드
-    upload_desc: 클릭 또는 파일을 드래그하여 업로드
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: 기억이 저장되고 정리된 곳
     title: 메모리
@@ -402,7 +413,7 @@ pages:
         delete: 모든 채팅 세션 삭제
       models:
         title: 모델
-        description: 가져온 Live2D/VRM 모델을 삭제합니다.
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: 모든 모델 삭제
       modules:
         title: 모듈
@@ -426,6 +437,7 @@ pages:
       desktop:
         title: 데스크탑 설정 및 상태 초기화
         description: AIRI 데스크탑 설정 및 런타임 상태를 전부 지웁니다.
+        center: Move desktop window to center
         reset: 데스크탑 데이터 지우기
     confirmations:
       tooltip: 정말 진행하실 건가요?
@@ -439,9 +451,10 @@ pages:
       modules_reset: 모듈 설정이 초기화되었습니다.
       providers_reset: 제공자 설정이 초기화되었습니다.
       all_deleted: 로컬 데이터가 초기화되었습니다.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
-    description: Live2D, VRM, 기타 등등.
+    description: Live2D, VRM, Spine, MMD, etc.
     title: 모델
     sections:
       section:
@@ -735,6 +748,15 @@ pages:
       access-token-secret-description: X / 트위터의 액세스 토큰 시크릿
       access-token-secret-placeholder: X / 트위터의 액세스 토큰 시크릿을 입력해주세요
       configured: X / 트위터 구성 완료!
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: MCP servers
       description: Configure MCP servers and bring their tools into AIRI.
@@ -958,6 +980,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1221,6 +1246,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1279,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - 고성능 AI API 제공자.
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: openrouter.ai
         title: OpenRouter
@@ -1645,6 +1676,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: 외형
   variant:
     title: Variant
     current-variant: Active Variant
@@ -1658,6 +1691,51 @@ spine:
   fps:
     options:
       unlimited: Unlimited
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 websocket-secure-enabled:
   title: 보안 웹소켓 (WSS) 활성화
   description: >-

@@ -10,6 +10,9 @@ import { CHAT_COMPLETIONS_VALIDATOR_ID, isModelProvider } from '../../libs/provi
 import { getValidatorsOfProvider, validateProvider } from '../../libs/providers/validators/run'
 
 function getCategoryFromTasks(tasks: string[]): ProviderMetadata['category'] {
+  if (tasks.some(task => ['vision', 'image-understanding', 'image-to-text', 'multimodal'].includes(task.toLowerCase()))) {
+    return 'vision'
+  }
   if (tasks.some(task => ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'].includes(task.toLowerCase()))) {
     return 'transcription'
   }

@@ -4,6 +4,7 @@ import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
+import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import type { AdminRouterConfigService } from './services/domain/admin/router-config'
@@ -16,6 +17,7 @@ import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
 import type { ProductEventService } from './services/domain/product-events'
+import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
 import type { StripeService } from './services/domain/stripe'
@@ -54,11 +56,14 @@ import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
+import { createAdminCapabilityAliasRoutes } from './routes/admin/capability-aliases'
 import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
 import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
+import { createAdminProviderCatalogRoutes } from './routes/admin/provider-catalog'
 import { createAdminUsersRoutes } from './routes/admin/users'
 import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
+import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
@@ -70,6 +75,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createEmailService } from './services/adapters/email'
+import { createPosthogSink } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
 import { createAdminUsersService } from './services/domain/admin/users'
@@ -81,6 +87,7 @@ import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createProductEventService } from './services/domain/product-events'
+import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
 import { createStripeService } from './services/domain/stripe'
@@ -115,6 +122,7 @@ interface AppDeps {
   otel: OtelInstance | null
   userDeletionService: UserDeletionService
   llmRouter: LlmRouterService
+  providerCatalogService: ProviderCatalogService
 }
 
 export async function buildApp(deps: AppDeps) {
@@ -212,7 +220,19 @@ export async function buildApp(deps: AppDeps) {
     return audioSpeechWsSetup(session.user.id, {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
+      voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
     })
+  }))
+
+  // Realtime ASR proxy. Mounted before the global bodyLimit middleware because
+  // the request body is a live microphone PCM stream rather than a bounded JSON
+  // payload. Auth is resolved manually here for the same reason.
+  app.post('/api/v1/audio/transcriptions/stream', createAudioTranscriptionStreamHandler({
+    auth: deps.auth,
+    env: deps.env,
+    configKV: deps.configKV,
+    envelopeCrypto: deps.envelopeCrypto,
+    providerCatalogService: deps.providerCatalogService,
   }))
 
   // Cross-instance config invalidation. The subscriber owns its own
@@ -236,6 +256,7 @@ export async function buildApp(deps: AppDeps) {
     productEventService: deps.productEventService,
     ttsMeter: deps.ttsMeter,
     llmRouter: deps.llmRouter,
+    providerCatalogService: deps.providerCatalogService,
     voicePackService: deps.voicePackService,
     genAi: deps.otel?.genAi,
     revenue: deps.otel?.revenue,
@@ -334,8 +355,9 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     /**
-     * Admin dashboard SPA. Auth is enforced by `/api/admin/*`; the bundle
-     * itself is public so unauthenticated users can be redirected cleanly.
+     * Admin dashboard entrypoint. Auth is enforced by `/api/admin/*`; the
+     * standalone UI itself is public so unauthenticated users can be redirected
+     * cleanly.
      */
     .route('/', createAdminUiRoutes(deps.env))
 
@@ -401,6 +423,23 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     /**
+     * Admin product capability alias curation routes.
+     */
+    .route('/api/admin/capability-aliases', createAdminCapabilityAliasRoutes({
+      configKV: deps.configKV,
+      service: deps.providerCatalogService,
+    }))
+
+    /**
+     * Admin provider catalog curation routes.
+     */
+    .route('/api/admin/provider-catalog', createAdminProviderCatalogRoutes({
+      configKV: deps.configKV,
+      llmRouter: deps.llmRouter,
+      service: deps.providerCatalogService,
+    }))
+
+    /**
      * Admin LLM router config seeding/patching. Single entry point for
      * writing `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
      * `DEFAULT_{CHAT,TTS}_MODEL` aliases — see
@@ -443,6 +482,23 @@ function parseTtsSource(
       return value
     default:
       return fallback
+  }
+}
+
+/**
+ * Normalizes the client-provided streaming TTS voice bucket for product events.
+ */
+function parseTtsVoiceType(
+  value: string | undefined,
+): StreamingTtsVoiceType {
+  switch (value) {
+    case 'official_default':
+    case 'official_selected':
+    case 'custom_configured':
+    case 'voice_pack':
+      return value
+    default:
+      return 'unknown'
   }
 }
 
@@ -538,9 +594,27 @@ export async function createApp() {
     }, undefined, dependsOn.otel?.email),
   })
 
+  const posthogSink = injeca.provide('services:posthogSink', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
+    // branch is only reachable via the documented off-switch: setting the
+    // env var to an empty string (valibot defaults don't apply to '').
+    build: ({ dependsOn }) => {
+      if (!dependsOn.env.POSTHOG_PROJECT_KEY)
+        return null
+
+      const sink = createPosthogSink({
+        projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
+        host: dependsOn.env.POSTHOG_API_HOST,
+      })
+      dependsOn.lifecycle.appHooks.onStop(() => sink.shutdown())
+      return sink
+    },
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { db, otel },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product),
+    dependsOn: { db, otel, posthogSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product, dependsOn.posthogSink),
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -628,6 +702,11 @@ export async function createApp() {
   const voicePackService = injeca.provide('services:voicePack', {
     dependsOn: { db },
     build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
+  })
+
+  const providerCatalogService = injeca.provide('services:providerCatalog', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createProviderCatalogService(dependsOn.db),
   })
 
   const billingService = injeca.provide('services:billing', {
@@ -740,6 +819,7 @@ export async function createApp() {
     otel,
     userDeletionService,
     llmRouter,
+    providerCatalogService,
     ttsConcurrencyLedger,
   })
   // Register the cluster-wide ObservableGauges for sessions / users. Each
@@ -784,6 +864,7 @@ export async function createApp() {
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
     llmRouter: resolved.llmRouter,
+    providerCatalogService: resolved.providerCatalogService,
   })
 
   logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')

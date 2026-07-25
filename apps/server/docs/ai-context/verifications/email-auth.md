@@ -61,13 +61,13 @@ Two follow-up issues surfaced and were fixed in the same session:
 
 1. From `/sign-in`, click "Forgot password?" → `/forgot-password`.
 2. Submit the registered email. Expect `POST /api/auth/request-password-reset` returns 200, an email arrives ("Reset your Project AIRI password").
-3. Click the email link. Expect server validates and 302s to `${UI}/auth/reset-password?token=<token>`.
+3. Click the email link. Expect server validates and 302s to `${UI}/ui/reset-password?token=<token>`.
 4. Submit a new password. Expect `POST /api/auth/reset-password?token=...` returns 200; UI shows "Password updated".
 5. Sign in with the new password and confirm session is issued.
 
 ### Path 3 — OIDC-bridged sign-in
 
-1. Open a stage app (e.g. `apps/stage-web`) → triggers OIDC `/oauth2/authorize` → bounces to `ui-server-auth /sign-in?...`.
+1. Open a stage app (e.g. `apps/stage-web`) → triggers OIDC `/oauth2/authorize` → bounces to `ui-server-auth /ui/sign-in?...`.
 2. Submit email + password against the verified user. Expect session cookie set; browser redirects to the OIDC continuation URL; stage app yields `code` → token exchange.
 3. Stage app shows a signed-in state.
 
@@ -82,4 +82,4 @@ Treat the email-auth feature as **partially shipped**. Sign-up + verify-email is
 - Email i18n (only English).
 - Resend bounce / complaint webhook ingestion.
 - Email send audit log in `request_log`.
-- dev/prod served-from parity (dev runs Vite at `:5174`; prod expects ui-server-auth dist under `apps/server/public/ui-server-auth`).
+- dev/prod served-from parity (dev runs Vite at `:5174`; prod expects ui-server-auth to be deployed from `apps/ui-server-auth/dist` via Cloudflare Workers Static Assets).

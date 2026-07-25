@@ -9,6 +9,13 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
+  trackLoginFailed,
+  trackLoginStarted,
+  trackLoginSucceeded,
+  trackSignupFormCompleted,
+} from '../modules/analytics'
+import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
+import {
   checkEmail,
   describeAuthError,
   signInWithEmail,
@@ -46,10 +53,10 @@ const signInContext = computed(() => createServerSignInContext(currentUrl, apiSe
 
 // Outside an OIDC flow signInContext.callbackURL is bare `/` which Better Auth
 // resolves against the API server origin (404). Fall back to the UI root so
-// the user lands somewhere useful — the `/auth/` index route redirects to
-// `/auth/profile` so this is not the dead-end empty RouterView it once was.
-const uiHomeURL = `${window.location.origin}/auth/`
-const verifySuccessURL = `${window.location.origin}/auth/verify-email?verified=true`
+// the user lands somewhere useful — the `/ui/` index route redirects to
+// `/ui/profile` so this is not the dead-end empty RouterView it once was.
+const uiHomeURL = buildCurrentOriginAuthUiUrl()
+const verifySuccessURL = buildCurrentOriginAuthUiUrl('/verify-email?verified=true')
 
 const effectiveCallbackURL = computed(() =>
   signInContext.value.callbackURL === '/' ? uiHomeURL : signInContext.value.callbackURL,
@@ -126,9 +133,11 @@ async function handleProviderSelect(provider: OAuthProvider) {
       callbackURL: effectiveCallbackURL.value,
     })
 
+    trackLoginStarted({ method: provider })
     window.location.href = redirectUrl
   }
   catch (error) {
+    trackLoginFailed({ method: provider })
     errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
     pendingProvider.value = null
   }
@@ -149,7 +158,7 @@ async function handleIdentify(event: Event) {
     if (result.exists && !result.hasPassword) {
       // User signed up via a social provider only. Stay on the identifier step
       // so the OAuth buttons remain visible, and steer them there with a hint.
-      errorMessage.value = t('server.auth.signIn.error.authFailed')
+      errorMessage.value = t('server.auth.signIn.error.socialOnlyNoPassword')
       // NOTICE:
       // We avoid disclosing *which* social provider they used here. The
       // generic OAuth button row is right below; users who registered via
@@ -186,7 +195,7 @@ async function handleEmailSignIn(event: Event) {
     if (result.requiresVerification) {
       // Existing-but-unverified accounts that started from /oauth2/authorize
       // must carry the OIDC continuation through verification. Without it the
-      // verify-email tab would resume to /auth/profile after the cookie lands
+      // verify-email tab would resume to /ui/profile after the cookie lands
       // and the upstream stage app never receives its auth code/tokens.
       await router.push({
         path: '/verify-email',
@@ -201,9 +210,11 @@ async function handleEmailSignIn(event: Event) {
     // After a successful credential sign-in better-auth has set the session
     // cookie. Bounce into the OIDC `/oauth2/authorize` flow (or wherever the
     // OIDC client originally pointed) so the upstream stage app gets its tokens.
+    trackLoginSucceeded({ method: 'email' })
     window.location.href = result.redirectURL ?? effectiveCallbackURL.value
   }
   catch (error) {
+    trackLoginFailed({ method: 'email' })
     errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
   }
   finally {
@@ -236,6 +247,7 @@ async function handleEmailSignUp(event: Event) {
     })
 
     if (result.requiresVerification) {
+      trackSignupFormCompleted({ source: 'email', requires_verification: true })
       await router.push({
         path: '/verify-email',
         query: {
@@ -248,6 +260,7 @@ async function handleEmailSignUp(event: Event) {
 
     // Verification disabled at server config: session is live, fall through
     // to the OIDC continuation just like sign-in.
+    trackSignupFormCompleted({ source: 'email', requires_verification: false })
     window.location.href = effectiveCallbackURL.value
   }
   catch (error) {
@@ -277,7 +290,7 @@ async function handleEmailSignUp(event: Event) {
          when there's nothing to show; the role swaps to alert when populated. -->
     <div
       :class="[
-        'mb-2 max-w-xs w-full min-h-[1.25rem] text-center text-sm',
+        'mb-2 max-w-sm w-full min-h-[1.25rem] text-center text-sm',
         errorMessage ? 'text-red-500' : 'text-transparent select-none',
       ]"
       :role="errorMessage ? 'alert' : undefined"

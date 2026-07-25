@@ -1,10 +1,13 @@
+import type { CapabilityAliasRoute } from '../../../../../schemas/provider-catalog'
 import type { UsageInfo } from '../../../../../services/domain/billing/billing'
+import type { AiGenerationAppSurface } from '../../../../../services/domain/product-events'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 
 import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
+import { createBadRequestError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
@@ -18,7 +21,23 @@ export interface ChatCompletionsOperationRequest {
   userId: string
   body: Record<string, unknown>
   sessionId?: string
+  roundId?: string
+  appSurface?: AiGenerationAppSurface
   abortSignal?: AbortSignal
+}
+
+interface GenerationCaptureInput {
+  deps: V1RouteDeps
+  userId: string
+  requestId: string
+  sessionId?: string
+  roundId?: string
+  appSurface?: AiGenerationAppSurface
+  generationModel: string
+  routeCtxProvider: string
+  usage: UsageInfo
+  durationMs: number
+  stream: boolean
 }
 
 export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.completions'> {
@@ -40,11 +59,9 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     const billingPolicy = await billing.authorizeChat(input.userId)
 
     const body = input.body
-    let requestModel = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
-
-    if (requestModel === 'auto') {
-      requestModel = await deps.configKV.getOrThrow('DEFAULT_CHAT_MODEL')
-    }
+    const requestedAlias = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
+    const aliasPlan = await resolveChatModelAliasPlan(deps, requestedAlias)
+    let requestModel = aliasPlan.modelIds[0]
 
     const stream = !!body.stream
     logger.withFields({
@@ -84,11 +101,19 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     // fluxConsumed: 0 while real cost was incurred — a silent revenue leak.
     // Source: codex review 2026-05-15 HIGH #1.
     const clientAbort = input.abortSignal
-    const routeCtx = newRouteContext()
+    let routeCtx = newRouteContext()
     let response: Response
     try {
-      response = await telemetry.runWithSpan(span, () =>
-        deps.llmRouter.route({ modelName: requestModel, body, headers: {}, abortSignal: clientAbort }, routeCtx))
+      const routed = await telemetry.runWithSpan(span, () =>
+        routeChatAliasCandidates({
+          deps,
+          body,
+          modelIds: aliasPlan.modelIds,
+          abortSignal: clientAbort,
+        }))
+      response = routed.response
+      routeCtx = routed.routeCtx
+      requestModel = routed.modelId
     }
     catch (err) {
       telemetry.failSpan(span, 'Router exhausted or unknown model')
@@ -174,7 +199,11 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         durationMs,
         requestId,
         userId: input.userId,
+        sessionId: input.sessionId,
+        roundId: input.roundId,
+        appSurface: input.appSurface,
         requestModel,
+        generationModel: langfuseModel,
         routeCtxProvider: routeCtx.provider,
         billing,
         billingPolicy,
@@ -191,7 +220,11 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       durationMs,
       requestId,
       userId: input.userId,
+      sessionId: input.sessionId,
+      roundId: input.roundId,
+      appSurface: input.appSurface,
       requestModel,
+      generationModel: langfuseModel,
       routeCtxProvider: routeCtx.provider,
       billing,
       billingPolicy,
@@ -199,6 +232,121 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       logger,
     })
   }
+}
+
+interface ChatModelAliasPlan {
+  modelIds: string[]
+}
+
+function captureGeneration(input: GenerationCaptureInput): void {
+  const generationId = input.roundId ?? input.requestId
+  const conversationId = input.sessionId ?? input.requestId
+  const totalTokens = input.usage.promptTokens != null && input.usage.completionTokens != null
+    ? input.usage.promptTokens + input.usage.completionTokens
+    : undefined
+
+  input.deps.productEventService.trackGeneration({
+    userId: input.userId,
+    traceId: conversationId,
+    generationId,
+    model: input.generationModel,
+    provider: input.routeCtxProvider || 'unknown',
+    providerType: 'official',
+    usageSource: input.usage.promptTokens != null || input.usage.completionTokens != null
+      ? 'reported'
+      : 'unavailable',
+    inputTokens: input.usage.promptTokens,
+    outputTokens: input.usage.completionTokens,
+    totalTokens,
+    costUsdSource: 'unavailable',
+    conversationId,
+    conversationIdSource: input.sessionId ? 'client_header' : 'server_request',
+    roundId: generationId,
+    ...(input.appSurface && { appSurface: input.appSurface }),
+    captureSurface: 'server',
+    latencySeconds: input.durationMs / 1000,
+    stream: input.stream,
+  })
+}
+
+async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ChatModelAliasPlan> {
+  const alias = await deps.providerCatalogService.resolveEnabledAlias('llm', aliasId)
+  const primaryRoutes = alias.routes.filter(route => route.pool === 'primary')
+  const fallbackRoutes = alias.fallbackEnabled
+    ? alias.routes.filter(route => route.pool === 'fallback')
+    : []
+  const orderedPrimaryRoutes = alias.loadBalancingEnabled
+    ? weightedRouteOrder(primaryRoutes)
+    : primaryRoutes
+  const routedModelIds = uniqueModelIds([...orderedPrimaryRoutes, ...fallbackRoutes])
+
+  if (routedModelIds.length === 0) {
+    throw createBadRequestError('Capability alias has no enabled route', 'CAPABILITY_ALIAS_ROUTE_NOT_FOUND', {
+      surface: 'llm',
+      aliasId,
+    })
+  }
+
+  return { modelIds: routedModelIds }
+}
+
+async function routeChatAliasCandidates(input: {
+  deps: V1RouteDeps
+  body: Record<string, unknown>
+  modelIds: string[]
+  abortSignal?: AbortSignal
+}): Promise<{
+  modelId: string
+  response: Response
+  routeCtx: ReturnType<typeof newRouteContext>
+}> {
+  let lastError: unknown
+  for (const modelId of input.modelIds) {
+    const routeCtx = newRouteContext()
+    try {
+      const response = await input.deps.llmRouter.route({
+        modelName: modelId,
+        body: input.body,
+        headers: {},
+        abortSignal: input.abortSignal,
+      }, routeCtx)
+      return { modelId, response, routeCtx }
+    }
+    catch (err) {
+      if (input.abortSignal?.aborted)
+        throw err
+      lastError = err
+    }
+  }
+
+  throw lastError
+}
+
+function weightedRouteOrder(routes: CapabilityAliasRoute[]): CapabilityAliasRoute[] {
+  if (routes.length <= 1)
+    return routes
+
+  const totalWeight = routes.reduce((sum, route) => sum + Math.max(route.weight, 0), 0)
+  if (totalWeight <= 0)
+    return routes
+
+  let cursor = Math.random() * totalWeight
+  const selectedIndex = routes.findIndex((route) => {
+    cursor -= Math.max(route.weight, 0)
+    return cursor < 0
+  })
+  if (selectedIndex < 0)
+    return routes
+
+  const selected = routes[selectedIndex]
+  return [
+    selected,
+    ...routes.filter((_, index) => index !== selectedIndex),
+  ]
+}
+
+function uniqueModelIds(routes: CapabilityAliasRoute[]): string[] {
+  return Array.from(new Set(routes.map(route => route.routerModelId)))
 }
 
 function streamChatCompletion(input: {
@@ -210,7 +358,11 @@ function streamChatCompletion(input: {
   durationMs: number
   requestId: string
   userId: string
+  sessionId?: string
+  roundId?: string
+  appSurface?: AiGenerationAppSurface
   requestModel: string
+  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -329,6 +481,20 @@ function streamChatCompletion(input: {
         })
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
 
+        captureGeneration({
+          deps: input.deps,
+          userId: input.userId,
+          requestId: input.requestId,
+          sessionId: input.sessionId,
+          roundId: input.roundId,
+          appSurface: input.appSurface,
+          generationModel: input.generationModel,
+          routeCtxProvider: input.routeCtxProvider,
+          usage,
+          durationMs: input.durationMs,
+          stream: true,
+        })
+
         // Debit flux via DB transaction (source of truth)
         // NOTICE: streaming response is already sent, so we cannot reject on failure.
         // Log at error level so unpaid usage is visible in monitoring/alerts.
@@ -415,7 +581,11 @@ async function completeNonStreamingChat(input: {
   durationMs: number
   requestId: string
   userId: string
+  sessionId?: string
+  roundId?: string
+  appSurface?: AiGenerationAppSurface
   requestModel: string
+  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -463,6 +633,20 @@ async function completeNonStreamingChat(input: {
     fluxConsumed,
   })
   input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
+
+  captureGeneration({
+    deps: input.deps,
+    userId: input.userId,
+    requestId: input.requestId,
+    sessionId: input.sessionId,
+    roundId: input.roundId,
+    appSurface: input.appSurface,
+    generationModel: input.generationModel,
+    routeCtxProvider: input.routeCtxProvider,
+    usage,
+    durationMs: input.durationMs,
+    stream: false,
+  })
 
   // Debit flux via DB transaction (source of truth).
   // The upstream call has already happened (cost incurred), so partial

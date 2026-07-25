@@ -1,5 +1,5 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { Message, Tool, Usage } from '@xsai/shared-chat'
 
 import type { StreamFromOptions, StreamOptions } from '../types/llm'
 
@@ -113,6 +113,19 @@ function createCapturedToolErrorResult(toolName: string, error: unknown): string
   return `Tool call error for "${toolName}": ${errorMessageFromValue(error)}`
 }
 
+function normalizeUsage(usage: Usage | undefined) {
+  if (!usage || (usage.prompt_tokens == null && usage.completion_tokens == null && usage.total_tokens == null)) {
+    return { source: 'unavailable' as const }
+  }
+
+  return {
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
+    totalTokens: usage.total_tokens,
+    source: 'reported' as const,
+  }
+}
+
 function withCapturedToolErrors(
   tools: Tool[],
   capturedToolErrorByCallId: Map<string, string>,
@@ -187,6 +200,7 @@ export async function streamFrom({
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
+    let stepsSettled = false
     const resolveOnce = () => {
       if (settled)
         return
@@ -194,7 +208,7 @@ export async function streamFrom({
       resolve()
     }
     const rejectOnce = (error: unknown) => {
-      if (settled)
+      if (settled || stepsSettled)
         return
       settled = true
       reject(error)
@@ -204,13 +218,7 @@ export async function streamFrom({
       try {
         const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
         await options?.onStreamEvent?.(streamEvent as any)
-        if (event && (event as any).type === 'finish') {
-          const finishReason = (event as any).finishReason
-          const waitingForToolRound = finishReason === 'tool_calls' || finishReason === 'tool-calls'
-          if (!waitingForToolRound || !options?.waitForTools)
-            resolveOnce()
-        }
-        else if (event && (event as any).type === 'error') {
+        if (event && (event as any).type === 'error') {
           rejectOnce((event as any).error ?? new Error('Stream error'))
         }
       }
@@ -225,6 +233,7 @@ export async function streamFrom({
         abortSignal: options?.abortSignal,
         messages: sanitized,
         headers: options?.headers,
+        streamOptions: { includeUsage: true },
         stopWhen: stepCountAtLeast(10),
         // NOTICE:
         // Do not pass xsAI's `captureToolErrors` option here. In the installed
@@ -249,12 +258,42 @@ export async function streamFrom({
       // from starting.
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
-      void streamResult.steps.then(resolveOnce).catch((error) => {
+      void streamResult.steps.then(async () => {
+        // Ignore any late provider error event emitted after xsAI has already
+        // resolved the authoritative full-step lifecycle.
+        stepsSettled = true
+        let usage: Usage | undefined
+        try {
+          usage = await streamResult.totalUsage
+        }
+        catch (error) {
+          console.error('Stream totalUsage error:', error)
+        }
+        try {
+          await options?.onUsage?.(normalizeUsage(usage))
+        }
+        catch (error) {
+          // Usage observers are telemetry-only and must not turn a completed
+          // provider response into a failed user message.
+          console.error('Stream usage callback error:', error)
+        }
+        resolveOnce()
+      }).catch((error) => {
+        // A failure after `steps` resolved belongs to optional usage
+        // observation and cannot invalidate the completed response.
+        if (stepsSettled) {
+          console.error('Stream usage observation error:', error)
+          resolveOnce()
+          return
+        }
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
       void streamResult.messages.catch(error => console.error('Stream messages error:', error))
       void streamResult.usage.catch(error => console.error('Stream usage error:', error))
+      // `steps` and `totalUsage` reject independently when xsAI fails a
+      // stream. The success path awaits `totalUsage`, but if `steps` rejects
+      // first that await never runs, so keep this unconditional rejection sink.
       void streamResult.totalUsage.catch(error => console.error('Stream totalUsage error:', error))
     }
     catch (error) {

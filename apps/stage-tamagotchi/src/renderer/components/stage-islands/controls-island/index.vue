@@ -14,11 +14,13 @@ import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
+import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
   electron,
   electronAppQuit,
+  electronCenterMainWindow,
   electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
@@ -38,6 +40,7 @@ const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const closeWindow = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
+const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
@@ -128,6 +131,13 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
 function refreshWindow() {
   window.location.reload()
 }
+
+/**
+ * Requests the main process to move the AIRI desktop window back to screen center.
+ */
+function resetMainWindowPosition() {
+  centerMainWindow().catch(console.error)
+}
 </script>
 
 <template>
@@ -184,6 +194,15 @@ function refreshWindow() {
               </ControlButton>
               <template #tooltip>
                 {{ t('tamagotchi.stage.controls-island.refresh') }}
+              </template>
+            </ControlButtonTooltip>
+
+            <ControlButtonTooltip disable-hoverable-content>
+              <ControlButton :button-style="adjustStyleClasses.button" @click="resetMainWindowPosition()">
+                <div i-solar:target-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+              </ControlButton>
+              <template #tooltip>
+                {{ t('tamagotchi.stage.controls-island.center-main-window') }}
               </template>
             </ControlButtonTooltip>
 
@@ -253,6 +272,11 @@ function refreshWindow() {
             {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
           </template>
         </ControlButtonTooltip>
+
+        <ControlsIslandStopSpeaking
+          :button-style="adjustStyleClasses.button"
+          :icon-class="adjustStyleClasses.icon"
+        />
 
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">

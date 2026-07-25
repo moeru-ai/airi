@@ -1,3 +1,5 @@
+import type { H3CrossWsApp, H3CrossWsResponse } from '@proj-airi/better-ws/server/h3'
+
 import type { AppOptions } from '..'
 
 import { isIP } from 'node:net'
@@ -5,7 +7,7 @@ import { networkInterfaces } from 'node:os'
 
 import { useLogg } from '@guiiai/logg'
 import { merge } from '@moeru/std'
-import { plugin as ws } from 'crossws/server'
+import { createH3CrossWsPlugin } from '@proj-airi/better-ws/server/h3'
 import { serve } from 'h3'
 
 import { normalizeLoggerConfig, setupApp } from '..'
@@ -151,13 +153,15 @@ export function createServer(opts?: ServerOptions): Server {
     startTask = (async () => {
       const secureEnabled = options?.tlsConfig != null
       const h3App = setupApp(options)
+      const crossWsApp = {
+        fetch: async request => await h3App.app.fetch(request) as H3CrossWsResponse,
+      } satisfies H3CrossWsApp
 
       const port = options.port
       const hostname = options.hostname
 
       const instance = serve(h3App.app, {
-        // @ts-expect-error - the .crossws property wasn't extended in types
-        plugins: [ws({ resolve: async req => (await h3App.app.fetch(req)).crossws })],
+        plugins: [createH3CrossWsPlugin(crossWsApp)],
         port,
         hostname,
         tls: options?.tlsConfig || undefined,

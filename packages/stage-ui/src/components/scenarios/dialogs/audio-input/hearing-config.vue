@@ -1,25 +1,49 @@
 <script setup lang="ts">
-import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
-import { useAudioAnalyzer, useAudioDevice } from '../../../../composables'
+import { useAudioAnalyzer } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = withDefaults(defineProps<{
   granted?: boolean // permission status on OS level
-  transcription?: boolean
 }>(), {
   granted: false,
 })
 
-const emit = defineEmits(['toggleTranscription'])
 const deviceStore = useSettingsAudioDevice()
-const { enabled, selectedAudioInput } = storeToRefs(deviceStore)
-const { audioInputs, permissionGranted, askPermission } = useAudioDevice()
+const { askPermission } = deviceStore
+const { audioInputs, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
 const { volumeLevel } = useAudioAnalyzer()
 
-const autoSend = defineModel<boolean>('autoSend')
+const autoSend = defineModel<boolean | undefined>('autoSend')
+const hasAutoSendControl = computed(() => autoSend.value !== undefined)
+const autoSendEnabled = computed({
+  get: () => autoSend.value ?? false,
+  set: value => autoSend.value = value,
+})
+const hearingToggleLabel = computed(() => enabled.value ? 'Disable microphone input' : 'Enable microphone input')
+const hearingToggleClass = computed(() => [
+  'absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center outline-none -translate-x-1/2 -translate-y-1/2',
+  'rounded-2xl backdrop-blur-md',
+  'transition-colors duration-150 ease-in-out',
+  'focus-visible:ring-2 focus-visible:ring-primary-400/40',
+  'active:scale-95',
+  enabled.value
+    ? [
+        'border-2 border-solid border-primary-300/30 bg-primary-200/90~45 text-primary-950',
+        'hover:border-primary-400/55 active:border-primary-500/60',
+        'dark:border-primary-400/30 dark:bg-primary-500/75~45*90 dark:text-primary-50',
+        'dark:hover:border-primary-300/55 dark:active:border-primary-300/70',
+      ]
+    : [
+        'border-2 border-solid border-neutral-300/40 bg-neutral-100/70 text-neutral-700',
+        'hover:border-neutral-400/55 active:border-neutral-500/60',
+        'dark:border-neutral-700/45 dark:bg-neutral-800/70 dark:text-neutral-200',
+        'dark:hover:border-neutral-600/65 dark:active:border-neutral-500/70',
+      ],
+])
 const ringEnabledClass = computed(() => enabled.value
   ? 'bg-primary-500/15 dark:bg-primary-600/20'
   : 'bg-neutral-300/20 dark:bg-neutral-700/20',
@@ -59,10 +83,9 @@ function toggleHearingEnabled() {
 
         <!-- Mic icon button -->
         <button
-          class="absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center rounded-full shadow-md outline-none transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-          :class="[
-            enabled ? 'bg-primary-500 text-white hover:bg-primary-600 active:scale-95' : 'bg-neutral-200 text-neutral-600 hover:bg-neutral-300 active:scale-95 dark:bg-neutral-700 dark:text-neutral-200',
-          ]"
+          :aria-label="hearingToggleLabel"
+          :title="hearingToggleLabel"
+          :class="hearingToggleClass"
           @click="toggleHearingEnabled"
         >
           <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
@@ -82,20 +105,11 @@ function toggleHearingEnabled() {
       </div>
     </div>
 
-    <div class="flex flex-wrap gap-2">
-      <Button
-        v-if="props.transcription !== undefined"
-        label="Transcription"
-        :variant="props.transcription ? 'primary' : 'secondary'"
-        flex-1
-        @click="() => emit('toggleTranscription')"
-      />
-      <Button
-        v-if="autoSend !== undefined"
+    <div v-if="hasAutoSendControl" class="mt-3">
+      <FieldCheckbox
+        v-model="autoSendEnabled"
         label="Auto send"
-        :variant="autoSend ? 'primary' : 'secondary'"
-        flex-1
-        @click="autoSend = !autoSend"
+        description="Send transcribed text to chat automatically."
       />
     </div>
 

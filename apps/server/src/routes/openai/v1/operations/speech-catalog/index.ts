@@ -1,9 +1,25 @@
+import type { VoicePack } from '../../../../../schemas/voice-packs'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 import { ofetch } from 'ofetch'
 
+import { catalogVoiceResponse } from '../../../../../services/domain/provider-catalog/provider-voices'
 import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
+
+const VOICE_PACK_MODEL_ID = 'voice-pack'
+
+function voicePackCatalogVoice(pack: VoicePack) {
+  const cost = `Flux cost: ${pack.costMultiplier}x`
+  return {
+    id: pack.voiceId,
+    name: pack.name,
+    description: pack.description ? `${pack.description} · ${cost}` : cost,
+    labels: { type: 'voice_pack' },
+    tags: ['voice_pack'],
+    languages: [{ code: 'en', title: 'English' }],
+  }
+}
 
 export interface SpeechCatalogOperation {
   listSpeechModels: () => Promise<Response>
@@ -42,13 +58,19 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
       ? await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
       : requested
 
-    const voices = await deps.llmRouter.listTtsVoices(model)
+    const voicePacks = await deps.voicePackService.listEnabled()
+    if (model === VOICE_PACK_MODEL_ID) {
+      logger.withFields({ model, voiceCount: voicePacks.length, voicePackCount: voicePacks.length }).debug('list tts voices')
+      return Response.json({ voices: voicePacks.map(voicePackCatalogVoice), recommended: {} })
+    }
+
+    const voices = await deps.providerCatalogService.listEnabledTtsVoices(model)
     const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[model] ?? {}
     // Debug level: high-frequency catalog poll from UI selectors, no
     // billing / user-facing side effect — useful only when debugging
     // voice-picker drift, never as a permanent audit trail line.
-    logger.withFields({ model, voiceCount: voices.length }).debug('list tts voices')
-    return Response.json({ voices, recommended })
+    logger.withFields({ model, voiceCount: voices.length, voicePackCount: voicePacks.length }).debug('list tts voices')
+    return Response.json({ voices: voices.map(catalogVoiceResponse), recommended })
   }
 
   /**
@@ -123,17 +145,17 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
   }
 
   async function listSpeechModels() {
-    // Surface the concrete TTS models the operator has configured. The UI
-    // should select an explicit model id so voice catalog requests stay
-    // model-scoped instead of hiding behind DEFAULT_TTS_MODEL.
-    const config = await deps.configKV.getOrThrow('LLM_ROUTER_CONFIG')
-    // `LLM_ROUTER_CONFIG` is `optional()` at the schema, so its inferred type
-    // tolerates `undefined`. `getOrThrow` already throws on missing entries,
-    // so by this line we know `config` is present — the `?.` here is purely
-    // a TS narrowing aid.
-    const modelIds = Object.keys(config?.tts?.models ?? {}).sort()
+    const defaultModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
+    const models = await deps.providerCatalogService.listEnabledTtsModels()
+    const publicDefaultModel = models.some(model => model.routerModelId === defaultModel)
+      ? defaultModel
+      : null
     return Response.json({
-      models: modelIds.map(id => ({ id, name: id })),
+      models: [
+        { id: VOICE_PACK_MODEL_ID, name: 'Voice Pack', description: 'Server-curated voices' },
+        ...models.map(model => ({ id: model.routerModelId, name: model.displayName })),
+      ],
+      default: publicDefaultModel,
     })
   }
 

@@ -1,67 +1,84 @@
 import type { EventContext } from '@moeru/eventa'
+import type {
+  ExtensionIdentity,
+  ExtensionModuleIdentity,
+} from '@proj-airi/plugin-protocol/types'
 
 import { createContext } from '@moeru/eventa'
 
 /**
- * Holds the active plugin-sdk channel contexts for the current process.
- *
- * Use when:
- * - Bootstrapping local or remote plugin transports
- * - Reading the current control-plane or data-plane Eventa context
- *
- * Expects:
- * - Callers replace the fallback contexts with a concrete transport during startup
- *
- * Returns:
- * - Mutable host and data channel references shared by the SDK runtime
+ * Describes one extension-scoped Eventa channel context.
  */
-export const channels = {
-  /**
-   * Channel for talking to Plugin Host.
-   * Can be seen as Control plane.
-   *
-   * createContext() here is for fallback internal channel preventing undefined access.
-   * In real usage, either local/* or remote/* channel implementation should be set as active channel.
-   */
-  host: createContext(),
-  /**
-   * Channel for initialized plugin to transmit events to each other, includes plugins, and stage, configurator, etc.
-   * Can be seen as Data plane.
-   *
-   * createContext() here is for fallback internal channel preventing undefined access.
-   * In real usage, either local/* or remote/* channel implementation should be set as active channel.
-   */
-  data: createContext(),
+export interface ExtensionChannelScope {
+  /** Extension session identity associated with this scope. */
+  identity: ExtensionIdentity
+  /** Eventa context that carries scoped extension/module traffic. */
+  context: EventContext<any, any>
 }
 
 /**
- * Replaces the active control-plane channel used to talk to Plugin Host.
- *
- * Use when:
- * - A runtime has created its concrete host transport context
- *
- * Expects:
- * - `context` is compatible with the current plugin transport implementation
- *
- * Returns:
- * - Nothing. Future reads from {@link channels}.host use the provided context.
+ * Describes one module-scoped Eventa channel context.
  */
-export function setActiveHostChannel(context: EventContext<any, any>) {
-  channels.host = context
+export interface ModuleChannelScope {
+  /** Module identity associated with this scope. */
+  identity: ExtensionModuleIdentity
+  /** Eventa context shared with the owning extension scope. */
+  context: EventContext<any, any>
 }
 
 /**
- * Replaces the active data-plane channel used for plugin-to-plugin or stage messaging.
+ * Creates an extension-scoped channel context.
  *
  * Use when:
- * - A runtime has created its concrete data transport context
+ * - A host or transport adapter starts one extension session
+ * - Code needs identity metadata attached beside the Eventa context
  *
  * Expects:
- * - `context` is compatible with the current plugin transport implementation
+ * - `extensionId` is the stable extension id
+ * - `context` is already bound to the desired transport when provided
  *
  * Returns:
- * - Nothing. Future reads from {@link channels}.data use the provided context.
+ * - Extension identity plus the Eventa context used by child module scopes
  */
-export function setActiveDataChannel(context: EventContext<any, any>) {
-  channels.data = context
+export function createExtensionChannelScope(input: {
+  extensionId: string
+  sessionId?: string
+  version?: string
+  context?: EventContext<any, any>
+}): ExtensionChannelScope {
+  return {
+    identity: {
+      id: input.extensionId,
+      sessionId: input.sessionId,
+      version: input.version,
+    },
+    context: input.context ?? createContext(),
+  }
+}
+
+/**
+ * Creates a module-scoped channel context from an extension scope.
+ *
+ * Use when:
+ * - An extension registers a module that needs scoped protocol identity
+ *
+ * Expects:
+ * - `extension` is the owning extension channel scope
+ * - `moduleId` is stable within that extension session
+ *
+ * Returns:
+ * - Module identity plus the same Eventa context used by the extension
+ */
+export function createModuleChannelScope(
+  extension: ExtensionChannelScope,
+  input: { moduleId: string, labels?: Record<string, string> },
+): ModuleChannelScope {
+  return {
+    identity: {
+      id: input.moduleId,
+      extension: extension.identity,
+      labels: input.labels,
+    },
+    context: extension.context,
+  }
 }

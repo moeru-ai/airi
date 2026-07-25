@@ -27,7 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const characterStore = useCharacterStore()
-const { trackCharacterCreated } = useAnalytics()
+const { trackCharacterCreated, trackCharacterUpdated } = useAnalytics()
 
 // Form State
 const form = reactive({
@@ -154,6 +154,7 @@ async function handleSubmit() {
         version: form.version,
         coverUrl: form.coverUrl,
       })
+      trackCharacterUpdated({ character_id: props.character.id })
       // Capabilities/I18n update not supported in simple UpdateCharacterSchema yet?
       // Checking types/character.ts: UpdateCharacterSchema only has version, coverUrl, characterId.
       // So deep update is not supported by the simple endpoint yet?

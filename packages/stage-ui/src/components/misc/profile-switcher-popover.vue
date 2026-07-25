@@ -127,7 +127,7 @@ function confirmCreate() {
   const newId = cardStore.addCard({
     ...structuredClone(toRaw(current)),
     name,
-  })
+  }, 'duplicate')
 
   activeCardId.value = newId
   cancelCreate()

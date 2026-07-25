@@ -12,6 +12,7 @@ interface SendSpeechOptions {
   model: string
   input: string
   voice: string
+  speed?: number
   responseFormat: string
   extraBody?: Record<string, unknown>
   fallbackContentType: string
@@ -41,6 +42,7 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
     model,
     providerLabel,
     responseFormat,
+    speed,
     voice,
   } = options
 
@@ -52,6 +54,7 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
       input,
       model,
       responseFormat,
+      speed,
       voice,
       abortSignal: ctx.abortSignal,
       extraBody,

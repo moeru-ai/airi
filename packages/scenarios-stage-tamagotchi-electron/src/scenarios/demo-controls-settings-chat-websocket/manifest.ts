@@ -1,6 +1,6 @@
-import { devtoolsSection } from './sections/devtools'
-import { overviewSection } from './sections/overview'
-import { settingsSection } from './sections/settings'
+import { devtoolsSection } from './sections/devtools.ts'
+import { overviewSection } from './sections/overview.ts'
+import { settingsSection } from './sections/settings.ts'
 
 export const manualCaptureSections = [
   overviewSection,

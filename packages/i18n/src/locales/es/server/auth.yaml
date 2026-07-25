@@ -60,7 +60,7 @@ signIn:
   error:
     fallback: Error en el inicio de sesión
     unknown: S produjo un error inesperado
-    authFailed: La autenticación ha fallado. Por favor inténtelo otra vez.
+    socialOnlyNoPassword: This email was registered with Google or GitHub. Sign in with a button below; you can add a password in account settings after signing in.
     passwordMismatch: Las contraseñas no coinciden.
     invalidEmail: Por favor, introduzca una dirección de correo electrónico válida.
   footer:

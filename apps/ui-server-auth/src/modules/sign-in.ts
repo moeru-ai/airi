@@ -1,6 +1,19 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
 import { extractAuthError } from './auth-fetch'
+import { buildAuthUiPath } from './auth-ui-base'
+
+const TRUSTED_ADMIN_REDIRECT_ORIGINS = [
+  'https://admin.airi.build',
+  'https://server-dev.airi-server-admin.pages.dev',
+]
+
+const TRUSTED_LOCAL_ADMIN_REDIRECT_ORIGIN_PATTERNS = [
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
+  /^https:\/\/localhost(:\d+)?$/,
+  /^https:\/\/127\.0\.0\.1(:\d+)?$/,
+]
 
 export interface ServerSignInContext {
   callbackURL: string
@@ -23,6 +36,7 @@ export function createServerSignInContext(currentUrl: string, apiServerUrl: stri
   oidcParams.delete('provider')
   oidcParams.delete('redirect')
   oidcParams.delete('prompt')
+  oidcParams.delete('api_server_url')
 
   // NOTICE:
   // Only synthesize an OIDC authorize callback when the page query genuinely
@@ -53,13 +67,36 @@ export function createServerSignInContext(currentUrl: string, apiServerUrl: stri
 }
 
 function normalizeStandaloneRedirect(currentUrl: URL, redirect: string | null): string | null {
-  if (!redirect || !redirect.startsWith('/') || redirect.startsWith('//'))
+  if (!redirect)
     return null
 
-  if (redirect.startsWith('/admin') || redirect.startsWith('/auth'))
+  const trustedAdminRedirect = normalizeTrustedAdminRedirect(redirect)
+  if (trustedAdminRedirect)
+    return trustedAdminRedirect
+
+  if (!redirect.startsWith('/') || redirect.startsWith('//'))
+    return null
+
+  if (redirect.startsWith('/admin'))
     return `${currentUrl.origin}${redirect}`
 
-  return `${currentUrl.origin}/auth${redirect}`
+  return `${currentUrl.origin}${buildAuthUiPath(redirect)}`
+}
+
+function normalizeTrustedAdminRedirect(redirect: string): string | null {
+  try {
+    const url = new URL(redirect)
+    if (TRUSTED_ADMIN_REDIRECT_ORIGINS.includes(url.origin))
+      return url.toString()
+
+    if (TRUSTED_LOCAL_ADMIN_REDIRECT_ORIGIN_PATTERNS.some(pattern => pattern.test(url.origin)))
+      return url.toString()
+
+    return null
+  }
+  catch {
+    return null
+  }
 }
 
 export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {

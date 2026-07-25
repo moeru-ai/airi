@@ -254,17 +254,6 @@ export class McpReplServer {
 
     this.server = createServer(async (req, res) => {
       try {
-        res.setHeader('Access-Control-Allow-Origin', '*')
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, MCP-Session-Id, Last-Event-ID')
-        res.setHeader('Access-Control-Expose-Headers', 'MCP-Session-Id')
-
-        if (req.method === 'OPTIONS') {
-          res.statusCode = 204
-          res.end()
-          return
-        }
-
         const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
 
         if (req.method === 'GET' && url.pathname === '/') {
@@ -358,7 +347,7 @@ export class McpReplServer {
       }
     })
 
-    this.server.listen(this.port, () => {
+    this.server.listen(this.port, '127.0.0.1', () => {
       logger.log(`MCP REPL server running at http://localhost:${this.port}`)
     })
   }

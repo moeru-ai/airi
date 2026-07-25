@@ -7,6 +7,8 @@ import type { InferOutput } from 'valibot'
 // here.
 // Source: apps/server/src/services/config-kv.ts (llmRouterConfigSchema).
 import type {
+  asrModelSchema,
+  asrUpstreamSchema,
   fallbackTriggersSchema,
   keyEntrySchema,
   llmModelSchema,
@@ -47,6 +49,16 @@ export type TtsUpstream = InferOutput<typeof ttsUpstreamSchema>
  * TTS model entry — provider tag + ordered upstreams.
  */
 export type TtsModel = InferOutput<typeof ttsModelSchema>
+
+/**
+ * ASR model entry — provider tag + ordered upstreams for realtime transcription.
+ */
+export type AsrModel = InferOutput<typeof asrModelSchema>
+
+/**
+ * ASR upstream — one provider credential set plus adapter params.
+ */
+export type AsrUpstream = InferOutput<typeof asrUpstreamSchema>
 
 /**
  * Per-(upstream) fallback trigger config: which upstream HTTP codes should

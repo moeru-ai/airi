@@ -1,4 +1,4 @@
-import type { ArtifactTransformer } from '@proj-airi/vishot-runner-browser'
+import type { ArtifactTransformer } from '@vishot/renderer-browser'
 
 import path from 'node:path'
 
@@ -6,7 +6,7 @@ import { readFile, rm, writeFile } from 'node:fs/promises'
 import { argv, cwd } from 'node:process'
 
 import { Transformer } from '@napi-rs/image'
-import { captureBrowserRoots } from '@proj-airi/vishot-runner-browser'
+import { captureBrowserRoots } from '@vishot/renderer-browser'
 
 const DEFAULT_AVIF_MAX_WIDTH = 1200
 const DEFAULT_AVIF_QUALITY = 35

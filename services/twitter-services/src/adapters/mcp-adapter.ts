@@ -424,23 +424,6 @@ export class MCPAdapter {
   private setupRoutes(): void {
     const router = createRouter()
 
-    // Set up CORS
-    router.use('*', defineEventHandler((event) => {
-      const node = event.node
-      if (!node?.res || !node.req) {
-        return
-      }
-
-      node.res.setHeader('Access-Control-Allow-Origin', '*')
-      node.res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      node.res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
-      if (node.req.method === 'OPTIONS') {
-        node.res.statusCode = 204
-        node.res.end()
-      }
-    }))
-
     // SSE endpoint
     router.get('/sse', defineEventHandler(async (event) => {
       const node = event.node
@@ -561,7 +544,7 @@ export class MCPAdapter {
           })
         }
 
-        this.server.listen(this.port, () => {
+        this.server.listen(this.port, '127.0.0.1', () => {
           const serverAddress = `http://localhost:${this.port}`
           logger.mcp.log(`MCP server started at: ${serverAddress}`)
           logger.mcp.log(`SSE endpoint: ${serverAddress}/sse`)

@@ -103,7 +103,7 @@ export class DebugServer {
       this.sendHeartbeat()
     }, this.HEARTBEAT_INTERVAL)
 
-    this.httpServer.listen(port, () => {
+    this.httpServer.listen(port, '127.0.0.1', () => {
       useLogger().log(`Debug server running at http://localhost:${port}`)
     })
   }

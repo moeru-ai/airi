@@ -13,15 +13,15 @@ import { toast } from 'vue-sonner'
 
 const store = usePluginHostInspectorStore()
 const filter = ref('')
-const selectedPluginName = ref('')
+const selectedExtensionId = ref('')
 
 const discoveredPlugins = computed(() => {
   const query = filter.value.trim().toLowerCase()
-  const plugins = store.discoveredPlugins.slice().sort((left, right) => left.name.localeCompare(right.name))
+  const plugins = store.discoveredPlugins.slice().sort((left, right) => left.extensionId.localeCompare(right.extensionId))
   if (!query)
     return plugins
   return plugins.filter(plugin =>
-    plugin.name.toLowerCase().includes(query)
+    plugin.extensionId.toLowerCase().includes(query)
     || plugin.path.toLowerCase().includes(query),
   )
 })
@@ -34,10 +34,10 @@ const loadedPlugins = computed(() => {
   return discoveredPlugins.value.filter(plugin => plugin.loaded)
 })
 
-const sessionByPluginName = computed(() => {
+const sessionByExtensionId = computed(() => {
   const map = new Map<string, PluginHostSessionSummary>()
   for (const session of store.sessions) {
-    map.set(session.manifestName, session)
+    map.set(session.extensionId, session)
   }
   return map
 })
@@ -110,58 +110,58 @@ async function loadEnabled() {
 async function setAutoReload(plugin: PluginManifestSummary, enabled: boolean) {
   try {
     await store.setAutoReload({
-      name: plugin.name,
+      extensionId: plugin.extensionId,
       enabled,
     })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to update auto-reload state for ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to update auto-reload state for ${plugin.extensionId}.`)
   }
 }
 
 async function setEnabled(plugin: PluginManifestSummary, enabled: boolean) {
   try {
     await store.setEnabled({
-      name: plugin.name,
+      extensionId: plugin.extensionId,
       enabled,
       path: plugin.path,
     })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to update enabled state for ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to update enabled state for ${plugin.extensionId}.`)
   }
 }
 
 async function loadPlugin(plugin: PluginManifestSummary) {
   try {
-    await store.load({ name: plugin.name })
+    await store.load({ extensionId: plugin.extensionId })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to load plugin ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to load plugin ${plugin.extensionId}.`)
   }
 }
 
 async function unloadPlugin(plugin: PluginManifestSummary) {
   try {
-    await store.unload({ name: plugin.name })
+    await store.unload({ extensionId: plugin.extensionId })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to unload plugin ${plugin.name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to unload plugin ${plugin.extensionId}.`)
   }
 }
 
 async function loadSelectedPlugin() {
-  const name = selectedPluginName.value.trim()
-  if (!name) {
-    toast.error('Enter a plugin name to load.')
+  const extensionId = selectedExtensionId.value.trim()
+  if (!extensionId) {
+    toast.error('Enter an extension id to load.')
     return
   }
 
   try {
-    await store.load({ name })
+    await store.load({ extensionId })
   }
   catch (error) {
-    toast.error(errorMessageFrom(error) ?? `Failed to load plugin ${name}.`)
+    toast.error(errorMessageFrom(error) ?? `Failed to load plugin ${extensionId}.`)
   }
 }
 
@@ -253,15 +253,15 @@ onMounted(async () => {
 
     <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
       <Input
-        v-model="selectedPluginName"
-        placeholder="Load discovered plugin by exact name..."
+        v-model="selectedExtensionId"
+        placeholder="Load discovered extension by exact id..."
         class="max-w-[520px] min-w-[320px]"
       />
       <Button
         label="Load Plugin"
         icon="i-solar:download-minimalistic-bold-duotone"
         size="sm"
-        :disabled="!selectedPluginName.trim()"
+        :disabled="!selectedExtensionId.trim()"
         :loading="store.loading"
         @click="loadSelectedPlugin"
       />
@@ -288,7 +288,7 @@ onMounted(async () => {
           <div :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']">
             <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
               <div :class="['font-semibold']">
-                {{ plugin.name }}
+                {{ plugin.extensionId }}
               </div>
               <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(plugin.enabled ? 'emerald' : 'neutral')]">
                 {{ plugin.enabled ? 'enabled' : 'disabled' }}
@@ -348,14 +348,14 @@ onMounted(async () => {
             entrypoints: {{ JSON.stringify(plugin.entrypoints) }}
           </div>
           <div
-            v-if="sessionByPluginName.get(plugin.name)"
+            v-if="sessionByExtensionId.get(plugin.extensionId)"
             :class="['mt-2', 'flex', 'items-center', 'gap-2', 'text-sm']"
           >
             <span>phase:</span>
-            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(phaseChipTheme(sessionByPluginName.get(plugin.name)!.phase))]">
-              {{ sessionByPluginName.get(plugin.name)!.phase }}
+            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(phaseChipTheme(sessionByExtensionId.get(plugin.extensionId)!.phase))]">
+              {{ sessionByExtensionId.get(plugin.extensionId)!.phase }}
             </span>
-            <span :class="['opacity-70', 'font-mono']">{{ sessionByPluginName.get(plugin.name)!.moduleId }}</span>
+            <span :class="['opacity-70', 'font-mono']">{{ sessionByExtensionId.get(plugin.extensionId)!.moduleId }}</span>
           </div>
         </div>
       </div>
@@ -375,7 +375,7 @@ onMounted(async () => {
           :key="`enabled-${plugin.path}`"
           :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses('emerald')]"
         >
-          {{ plugin.name }}
+          {{ plugin.extensionId }}
         </span>
       </div>
     </Section>
@@ -395,9 +395,9 @@ onMounted(async () => {
           :class="['rounded-lg', 'bg-neutral-100', 'p-2', 'dark:bg-neutral-900/70']"
         >
           <div :class="['flex', 'items-center', 'justify-between', 'gap-2']">
-            <span :class="['font-semibold']">{{ plugin.name }}</span>
-            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(phaseChipTheme(sessionByPluginName.get(plugin.name)?.phase ?? 'unknown'))]">
-              {{ sessionByPluginName.get(plugin.name)?.phase ?? 'unknown' }}
+            <span :class="['font-semibold']">{{ plugin.extensionId }}</span>
+            <span :class="['rounded-full', 'border', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(phaseChipTheme(sessionByExtensionId.get(plugin.extensionId)?.phase ?? 'unknown'))]">
+              {{ sessionByExtensionId.get(plugin.extensionId)?.phase ?? 'unknown' }}
             </span>
           </div>
         </div>

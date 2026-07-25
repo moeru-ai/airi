@@ -40,14 +40,16 @@ const airiCardStore = useAiriCardStore()
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
-const { activeCardId } = storeToRefs(airiCardStore)
+const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
+const sessionsDrawerOpen = defineModel<boolean>('sessionsDrawerOpen', { default: false })
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
+type ToolCallRerunToolset = 'widgets' | 'artistry'
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
@@ -202,6 +204,7 @@ watch(sendMode, () => {
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
@@ -226,6 +229,31 @@ async function handleRetryMessage(index: number) {
   })
 }
 
+function resolveToolCallRerunToolset(toolName: string): ToolCallRerunToolset | undefined {
+  // TODO: Stop hardcoding tool names to app-local toolsets. Tool registration
+  // should expose the owning runtime/toolset id so reruns can reuse the exact
+  // source that created the original tool call.
+  if (toolName === 'image_journal' || toolName === 'text_journal')
+    return 'artistry'
+
+  if (toolName === 'stage_widgets' || toolName === 'get_weather')
+    return 'widgets'
+
+  return undefined
+}
+
+async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }) {
+  await chatSyncStore.requestToolCallRerun({
+    sessionId: chatSession.activeSessionId,
+    messageId: payload.message.id,
+    index: payload.index,
+    toolset: resolveToolCallRerunToolset(payload.toolName),
+    toolCallId: payload.toolCallId,
+    toolName: payload.toolName,
+    args: payload.args,
+  })
+}
+
 async function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
   await chatSyncStore.requestCleanup()
@@ -241,11 +269,13 @@ async function handleCleanupMessages() {
     <div w-full flex-1 overflow-hidden>
       <ChatHistory
         :messages="historyMessages"
+        :assistant-label="assistantLabel"
         :sending="sending"
         :streaming-message="streamingMessage"
         :tool-call-renderers="toolCallRenderers"
         @delete-message="handleDeleteMessage($event.index)"
         @retry-message="handleRetryMessage($event.index)"
+        @tool-call-rerun="handleToolCallRerun"
       />
     </div>
 
@@ -299,6 +329,17 @@ async function handleCleanupMessages() {
       </div>
     </div>
     <div :class="['flex items-center justify-end gap-2 py-1']">
+      <button
+        :class="[
+          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+          'bg-neutral-100 text-lg text-neutral-500 transition-colors transition-transform active:scale-95',
+          'dark:bg-neutral-800 dark:text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400',
+        ]"
+        title="Conversations"
+        @click="sessionsDrawerOpen = true"
+      >
+        <div class="i-solar:chat-line-bold-duotone" />
+      </button>
       <DropdownMenuRoot>
         <DropdownMenuTrigger as-child>
           <button

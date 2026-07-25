@@ -22,11 +22,6 @@ const STATUS_CONTEXT_ID = 'minecraft:status'
 const STATUS_LANE = 'minecraft:status'
 const STATUS_REFRESH_INTERVAL_MS = 5_000
 
-// NOTICE: hint prefix carrying the master's in-game username to the desktop. The desktop skips the
-// minecraft:status text for its runtime context, so the binding rides on `hints` instead, where the
-// desktop store extracts it (gaming-minecraft.ts). Keep this literal in sync with the desktop side.
-const MASTER_HINT_PREFIX = 'master:'
-
 function toPositionString(bot: MineflayerWithAgents) {
   const position = bot.bot.entity?.position
   return position
@@ -138,7 +133,6 @@ export class MinecraftContextService {
       hints: [
         'status',
         snapshot.botUsername,
-        ...(snapshot.masterUsername ? [`${MASTER_HINT_PREFIX}${snapshot.masterUsername}`] : []),
       ],
       strategy: ContextUpdateStrategy.ReplaceSelf,
     }

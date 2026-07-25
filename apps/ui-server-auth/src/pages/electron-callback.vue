@@ -4,6 +4,7 @@ import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { parseElectronCallbackQuery } from '../composables/electron-callback.shared'
+import { trackOauthCallbackFailed } from '../modules/analytics'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
 type CallbackStatus = 'loading' | 'success' | 'fallback' | 'error'
@@ -55,6 +56,7 @@ async function runRelayFlow() {
   const parsed = parseElectronCallbackQuery(query)
 
   if (parsed.status === 'error') {
+    trackOauthCallbackFailed({ stage: 'parse' })
     setViewModel({
       description: t('server.auth.electronCallback.message.invalidResponse'),
       detail: parsed.message,
@@ -98,6 +100,7 @@ async function runRelayFlow() {
     }, 1200)
   }
   catch {
+    trackOauthCallbackFailed({ stage: 'relay_unreachable' })
     setViewModel({
       description: t('server.auth.electronCallback.message.loopbackUnreachable'),
       detail: t('server.auth.electronCallback.message.tryOpenDirectly'),

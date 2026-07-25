@@ -2,6 +2,7 @@
 import type { ProviderSourceDeployment, ProviderSourcePricing } from '@proj-airi/stage-ui/libs/providers/source-metadata'
 import type { Ref } from 'vue'
 
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
@@ -49,9 +50,10 @@ const {
   allChatProvidersMetadata,
   allAudioSpeechProvidersMetadata,
   allAudioTranscriptionProvidersMetadata,
+  allVisionProvidersMetadata,
 } = storeToRefs(providersStore)
 
-const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
+const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): ProviderSourceCard[] => {
   return [
     {
       id: 'comfyui',
@@ -69,36 +71,40 @@ const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>(() => {
       beginnerRecommended: true,
       iconImage: undefined,
     },
-    {
-      id: 'replicate',
-      category: 'artistry',
-      icon: 'i-lobe-icons:replicate',
-      iconColor: 'i-lobe-icons:replicate-color',
-      name: 'Replicate',
-      localizedName: 'Replicate',
-      description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-      localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
-      configured: !!artistryStore.replicateApiKey,
-      to: '/settings/providers/artistry/replicate',
-      pricing: 'paid',
-      deployment: 'cloud',
-      iconImage: undefined,
-    },
-    {
-      id: 'nanobanana',
-      category: 'artistry',
-      icon: 'i-solar:gallery-round-bold-duotone',
-      iconColor: 'text-amber-500',
-      name: 'Nano Banana',
-      localizedName: 'Nano Banana',
-      description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-      localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
-      configured: !!artistryStore.nanobananaApiKey,
-      to: '/settings/providers/artistry/nanobanana',
-      pricing: 'free',
-      deployment: 'cloud',
-      iconImage: undefined,
-    },
+    ...(isCustomProvidersDisabled()
+      ? []
+      : ([
+          {
+            id: 'replicate',
+            category: 'artistry',
+            icon: 'i-lobe-icons:replicate',
+            iconColor: 'i-lobe-icons:replicate-color',
+            name: 'Replicate',
+            localizedName: 'Replicate',
+            description: t('settings.pages.providers.categories.artistry.items.replicate.description'),
+            localizedDescription: t('settings.pages.providers.categories.artistry.items.replicate.description'),
+            configured: !!artistryStore.replicateApiKey,
+            to: '/settings/providers/artistry/replicate',
+            pricing: 'paid',
+            deployment: 'cloud',
+            iconImage: undefined,
+          },
+          {
+            id: 'nanobanana',
+            category: 'artistry',
+            icon: 'i-solar:gallery-round-bold-duotone',
+            iconColor: 'text-amber-500',
+            name: 'Nano Banana',
+            localizedName: 'Nano Banana',
+            description: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
+            localizedDescription: t('settings.pages.providers.categories.artistry.items.nanobanana.description'),
+            configured: !!artistryStore.nanobananaApiKey,
+            to: '/settings/providers/artistry/nanobanana',
+            pricing: 'free',
+            deployment: 'cloud',
+            iconImage: undefined,
+          },
+        ] satisfies ProviderSourceCard[])),
   ]
 })
 
@@ -109,6 +115,13 @@ const providerBlocksConfig: ProviderBlockConfig[] = [
     title: t('settings.pages.providers.categories.chat.title'),
     description: t('settings.pages.providers.categories.chat.description'),
     providersRef: allChatProvidersMetadata,
+  },
+  {
+    id: 'vision',
+    icon: 'i-solar:eye-bold-duotone',
+    title: t('settings.pages.providers.categories.vision.title'),
+    description: t('settings.pages.providers.categories.vision.description'),
+    providersRef: allVisionProvidersMetadata,
   },
   {
     id: 'speech',
@@ -160,6 +173,8 @@ const providerBlocks = computed(() => {
     .map((block) => {
       const filteredProviders = block.providersRef.value
         .filter((p) => {
+          if (p.id === 'speech-noop')
+            return false
           if (filterPricing.value !== 'all' && p.pricing !== filterPricing.value)
             return false
           if (filterDeployment.value !== 'all' && p.deployment !== filterDeployment.value)

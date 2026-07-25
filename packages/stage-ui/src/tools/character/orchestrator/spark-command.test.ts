@@ -7,8 +7,9 @@ import { rawTool } from '@xsai/tool'
 import { describe, expect, it, vi } from 'vitest'
 import { toJsonSchema } from 'xsschema'
 
+import { normalizeNullableAnyOf } from '../../json-schema'
 import { createSparkCommandTool } from './spark-command'
-import { normalizeNullableAnyOf, sparkNotifyCommandItemSchema } from './spark-command-shared'
+import { sparkNotifyCommandItemSchema } from './spark-command-shared'
 
 function isJsonSchema(value: JsonSchema | boolean | undefined): value is JsonSchema {
   return Boolean(value && typeof value === 'object')
@@ -299,5 +300,29 @@ describe('tools/character/orchestrator/spark-command', () => {
     expect(command.contexts?.[0].contextId).toEqual(expect.any(String))
     expect(result).toContain('spark:command sent')
     expect(result).toContain(command.commandId)
+  })
+
+  it('reports a broadcast without crashing when the channel sender clears destinations', async () => {
+    // The real sendSparkCommand (stores/llm.ts) deletes command.destinations to broadcast to every
+    // authenticated peer; the success message must not then call .join on undefined.
+    const sendSparkCommand = vi.fn((command: { destinations?: unknown }) => {
+      delete command.destinations
+    })
+    const tools = await createSparkCommandTool({ sendSparkCommand })
+
+    const result = await tools[0].execute({
+      destinations: [],
+      interrupt: 'soft',
+      priority: 'normal',
+      intent: 'action',
+      ack: null,
+      parentEventId: null,
+      guidance: null,
+      contexts: null,
+    }, { messages: [], toolCallId: 'tool-call-id' })
+
+    expect(sendSparkCommand).toHaveBeenCalledOnce()
+    expect(result).toContain('spark:command sent')
+    expect(result).toContain('broadcast')
   })
 })

@@ -6,13 +6,14 @@ interface EventSourcePayload {
 }
 
 function formatMetadataSource(source?: MetadataEventSource) {
-  if (!source?.plugin)
+  if (!source)
     return undefined
 
-  const pluginId = source.plugin.id
-  const instanceId = source.id
+  if ('extension' in source) {
+    return `${source.extension.id}:${source.id}`
+  }
 
-  return instanceId ? `${pluginId}:${instanceId}` : pluginId
+  return source.id
 }
 
 /**
@@ -20,7 +21,7 @@ function formatMetadataSource(source?: MetadataEventSource) {
  *
  * Before:
  * - `{ source: "minecraft" }`
- * - `{ metadata: { source: { plugin: { id: "p" }, id: "i" } } }`
+ * - `{ metadata: { source: { extension: { id: "p" }, id: "i" } } }`
  *
  * After:
  * - `"minecraft"`

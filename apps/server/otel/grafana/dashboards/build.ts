@@ -29,12 +29,12 @@
 
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { exit } from 'node:process'
-import { fileURLToPath } from 'node:url'
+import { argv, exit } from 'node:process'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const PROM = { name: 'grafanacloud-projairi-prom' }
 const LOKI = { name: 'grafanacloud-projairi-logs' }
-const SCHEMA_VERSION = '13.0.0-23630096546'
+const SCHEMA_VERSION = '13.2.0-28666480772'
 
 // Service / env filter applied to every Prom query. Pulled into a helper so
 // the variable name only appears once.
@@ -62,9 +62,10 @@ function query(expr: string, legend: string, refId = 'A', datasource: DataSource
         group: datasource === LOKI ? 'loki' : 'prometheus',
         kind: 'DataQuery',
         spec: {
+          editorMode: 'code',
           expr,
           legendFormat: legend,
-          ...(opts.instant && { instant: true, range: false }),
+          ...(opts.instant ? { instant: true, range: false } : { range: true }),
         },
         version: 'v0',
       },
@@ -128,6 +129,8 @@ interface TimeseriesPanelOpts {
   stack?: boolean
   fillOpacity?: number
   legendCalcs?: LegendCalc[]
+  legendPlacement?: 'bottom' | 'right'
+  legendDisplayMode?: 'list' | 'table'
 }
 
 // `noValue` shows a friendly placeholder instead of "No data" red text when
@@ -269,7 +272,14 @@ function barGaugePanel(id: number, title: string, description: string, queries: 
 }
 
 function timeseriesPanel(id: number, title: string, description: string, queries: PanelQuery[], opts: TimeseriesPanelOpts = {}) {
-  const { unit = 'short', stack = false, fillOpacity = 20, legendCalcs = ['lastNotNull', 'max'] } = opts
+  const {
+    unit = 'short',
+    stack = false,
+    fillOpacity = 20,
+    legendCalcs = ['lastNotNull', 'max'],
+    legendPlacement = 'right',
+    legendDisplayMode = 'table',
+  } = opts
   return {
     kind: 'Panel',
     spec: {
@@ -318,8 +328,128 @@ function timeseriesPanel(id: number, title: string, description: string, queries
             // Show last + max in the legend table so viewers don't have to
             // click each line to see numbers — same trick as Keycloak's
             // "Login Errors" panel.
-            legend: { calcs: legendCalcs, displayMode: 'table', placement: 'right', showLegend: true },
+            legend: {
+              calcs: legendCalcs,
+              displayMode: legendDisplayMode,
+              enableFacetedFilter: false,
+              overflow: 'ellipsis',
+              placement: legendPlacement,
+              showLegend: true,
+            },
             tooltip: { hideZeros: false, mode: 'multi', sort: 'desc' },
+          },
+        },
+        version: SCHEMA_VERSION,
+      },
+    },
+  }
+}
+
+function pieChartPanel(id: number, title: string, description: string, queries: PanelQuery[], unit = 'short') {
+  return {
+    kind: 'Panel',
+    spec: {
+      data: { kind: 'QueryGroup', spec: { queries, queryOptions: {}, transformations: [] } },
+      description,
+      id,
+      links: [],
+      title,
+      vizConfig: {
+        group: 'piechart',
+        kind: 'VizConfig',
+        spec: {
+          fieldConfig: {
+            defaults: {
+              color: { fixedColor: '#73BF69', mode: 'palette-classic' },
+              custom: { hideFrom: { legend: false, tooltip: false, viz: false } },
+              unit,
+            },
+            overrides: [],
+          },
+          options: {
+            displayLabels: ['percent'],
+            legend: { displayMode: 'table', overflow: 'ellipsis', placement: 'bottom', showLegend: true },
+            pieType: 'pie',
+            reduceOptions: { calcs: ['sum'], fields: '', values: false },
+            sort: 'desc',
+            tooltip: { hideZeros: false, mode: 'single', sort: 'none' },
+          },
+        },
+        version: SCHEMA_VERSION,
+      },
+    },
+  }
+}
+
+// Custom Grafana UI panel retained as code so the generated dashboard matches
+// the latest hand-tuned cloud version without checking in cloud metadata.
+function dailyActiveUsersTrendPanel() {
+  return {
+    kind: 'Panel',
+    spec: {
+      data: {
+        kind: 'QueryGroup',
+        spec: {
+          queries: [
+            query(
+              `max (user_active_rolling{${SERVICE_FILTER}, window="24h"})`,
+              '__auto',
+            ),
+          ],
+          queryOptions: {},
+          transformations: [],
+        },
+      },
+      description: '',
+      id: 99,
+      links: [],
+      title: '日活',
+      vizConfig: {
+        group: 'timeseries',
+        kind: 'VizConfig',
+        spec: {
+          fieldConfig: {
+            defaults: {
+              color: { mode: 'continuous-GrYlRd', seriesBy: 'last' },
+              custom: {
+                axisBorderShow: false,
+                axisCenteredZero: false,
+                axisColorMode: 'text',
+                axisLabel: '',
+                axisPlacement: 'auto',
+                barAlignment: 0,
+                barWidthFactor: 0.6,
+                drawStyle: 'line',
+                fillOpacity: 17,
+                gradientMode: 'scheme',
+                hideFrom: { legend: false, tooltip: false, viz: false },
+                insertNulls: false,
+                lineInterpolation: 'linear',
+                lineStyle: { fill: 'solid' },
+                lineWidth: 2,
+                pointSize: 3,
+                scaleDistribution: { type: 'linear' },
+                showPoints: 'auto',
+                showValues: false,
+                spanNulls: false,
+                stacking: { group: 'A', mode: 'none' },
+                thresholdsStyle: { mode: 'off' },
+              },
+              thresholds: thresholds([{ color: 'green', value: 0 }, { color: 'red', value: 80 }]),
+            },
+            overrides: [],
+          },
+          options: {
+            annotations: { clustering: -1, multiLane: false },
+            legend: {
+              calcs: [],
+              displayMode: 'list',
+              enableFacetedFilter: false,
+              overflow: 'ellipsis',
+              placement: 'bottom',
+              showLegend: true,
+            },
+            tooltip: { hideZeros: false, mode: 'single', sort: 'none' },
           },
         },
         version: SCHEMA_VERSION,
@@ -527,7 +657,7 @@ elements['panel-92'] = timeseriesPanel(
   { unit: 'short', fillOpacity: 30 },
 )
 
-// --- Product Analytics — event-volume view only ---------------------------
+// --- Product Analytics — event volume + server-side TTS health -------------
 // Prometheus deliberately does not carry user_id. These panels answer
 // "which product actions are happening and failing"; DB-side product_events
 // queries answer "how many distinct users used each feature".
@@ -577,13 +707,15 @@ elements['panel-98'] = timeseriesPanel(
   { unit: 'eps', fillOpacity: 15 },
 )
 
+elements['panel-99'] = dailyActiveUsersTrendPanel()
+
 // --- Row 2: HTTP — traffic ranking, error trend, latency trend -------------
 elements['panel-16'] = barGaugePanel(
   16,
   'Top Routes by Requests (range)',
   'Top Hono-matched routes by request count over the dashboard range. The main traffic list: which API surfaces are hottest. Wildcard patterns like `/api/v1/openai/*` are requests that did not reach a concrete handler (404 / auth-rejected); concrete paths are successful routes.',
   [query(
-    `topk(10, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[$__range])))`,
+    `topk(50, sum by (http_route) (increase(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!=""}[$__range])))`,
     '{{http_route}}',
     'A',
     PROM,
@@ -594,7 +726,7 @@ elements['panel-16'] = barGaugePanel(
 
 elements['panel-40'] = heatmapPanel(
   40,
-  'Error Rate %',
+  'Status Distribution',
   'HTTP status-code mix over time, one row per status code, colour = request rate in each time bucket. The 200 row dominates in steady state; a 5xx / 4xx row suddenly lighting up flags an incident at a glance. Non-OPTIONS traffic only.',
   [query(
     `sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[$__rate_interval]))`,
@@ -605,13 +737,15 @@ elements['panel-40'] = heatmapPanel(
 
 elements['panel-20'] = timeseriesPanel(
   20,
-  'HTTP P95 by Route',
-  'P95 latency per Hono-matched route, excluding /api/v1/openai/* (LLM gateway latency lives in the LLM Gateway row). 404s excluded so missing-route noise does not skew the curve.',
+  'Request Latency (by Route)',
+  '',
   [query(
-    `histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!~"/api/v1/openai/.*", http_response_status_code!="404"}[$__rate_interval])))`,
+    `sum by (http_route) (
+    rate(http_server_request_duration_seconds_bucket{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!~"/api/v1/openai/.*", http_response_status_code!="404"}[$__rate_interval])
+)`,
     '{{http_route}}',
   )],
-  { unit: 's' },
+  { unit: 's', legendPlacement: 'bottom' },
 )
 
 elements['panel-94'] = timeseriesPanel(
@@ -626,7 +760,7 @@ elements['panel-94'] = timeseriesPanel(
 )
 
 // --- Row 3: LLM Gateway — request mix + latency ----------------------------
-elements['panel-11'] = timeseriesPanel(
+elements['panel-11'] = pieChartPanel(
   11,
   'LLM Request Rate by Model',
   'Per-model request rate (chat + tts). Useful for capacity planning and spotting model-routing regressions.',
@@ -634,7 +768,7 @@ elements['panel-11'] = timeseriesPanel(
     `sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, gen_ai_request_model!=""}[$__rate_interval]))`,
     '{{gen_ai_request_model}}',
   )],
-  { unit: 'reqps' },
+  'reqps',
 )
 
 elements['panel-21'] = timeseriesPanel(
@@ -642,7 +776,7 @@ elements['panel-21'] = timeseriesPanel(
   'LLM Latency P95',
   'Two P95 latency signals for the LLM gateway, aggregated across models. TTFB = time to first streamed token (streaming chat UX). End-to-end = full operation duration — the only latency signal for non-streaming chat and TTS, which have no first-token event.',
   [
-    query(`histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_first_token_duration_seconds_bucket{${SERVICE_FILTER}}[$__rate_interval])))`, 'TTFB p95', 'A'),
+    query(`sum by () (rate(gen_ai_client_first_token_duration_seconds_bucket{${SERVICE_FILTER}}[$__rate_interval]))`, 'TTFB p95', 'A'),
     query(`histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket{${SERVICE_FILTER}}[$__rate_interval])))`, 'end-to-end p95', 'B'),
   ],
   { unit: 's' },
@@ -821,51 +955,6 @@ elements['panel-32'] = statPanel(
   { unit: 'short', variant: 'count', noValue: '—', graphMode: 'none' },
 )
 
-// --- Row 7: Infrastructure (collapsed) — process / DB health ---------------
-elements['panel-50'] = statPanel(
-  50,
-  'DB Query P95 (5m)',
-  'PostgreSQL query duration P95 from PgInstrumentation. Fixed 5m window. Spikes correlate with index misses, connection exhaustion, or backend lock contention.',
-  [query(
-    `histogram_quantile(0.95, sum by (le) (rate(db_client_operation_duration_seconds_bucket{${SERVICE_FILTER}}[5m])))`,
-    'p95',
-  )],
-  { unit: 's', steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 0.05 }, { color: 'red', value: 0.5 }], decimals: 3 },
-)
-
-elements['panel-51'] = timeseriesPanel(
-  51,
-  'DB Pool Connections by Instance',
-  'Open PostgreSQL connections, per replica (`service_instance_id`). Each instance has its own pool sized by env `DB_POOL_MAX`. One instance with a permanently-high count = pool leak on that pod.',
-  [query(
-    `sum by (service_instance_id) (db_client_connection_count{${SERVICE_FILTER}})`,
-    '{{service_instance_id}}',
-  )],
-  { unit: 'short' },
-)
-
-elements['panel-52'] = timeseriesPanel(
-  52,
-  'Heap Used % by Instance',
-  'V8 heap used ÷ heap limit, per replica (`service_instance_id`). A single replica trending up while others stay flat = leak on that pod.',
-  [query(
-    `100 * sum by (service_instance_id) (v8js_memory_heap_used_bytes{${SERVICE_FILTER}}) / clamp_min(sum by (service_instance_id) (v8js_memory_heap_limit_bytes{${SERVICE_FILTER}}), 1)`,
-    '{{service_instance_id}}',
-  )],
-  { unit: 'percent' },
-)
-
-elements['panel-53'] = timeseriesPanel(
-  53,
-  'Event Loop Delay P99 by Instance',
-  'P99 event-loop delay per replica. One replica climbing while others stay flat = CPU-bound work pinning that pod. >50ms sustained is bad anywhere.',
-  [query(
-    `max by (service_instance_id) (nodejs_eventloop_delay_p99_seconds{${SERVICE_FILTER}})`,
-    '{{service_instance_id}}',
-  )],
-  { unit: 's' },
-)
-
 // --- Row 8: Logs ------------------------------------------------------------
 elements['panel-91'] = logsPanel(
   91,
@@ -886,63 +975,53 @@ elements['panel-90'] = logsPanel(
 // ---------------------------------------------------------------------------
 
 const rows = [
-  // Row 1: Service Health — two rows of glance stats + the status-code heatmap
-  // standing tall on the right, with the live WS-connections trend full-width
-  // underneath. counts (New Users / Active Sessions / WS Online) read blue with
-  // a trend delta; req-rate + 5xx stay traffic-light.
+  // Row 1: Service Health — dense single-screen operations layout from the
+  // latest Grafana Cloud edit. Logs stay docked on the right while traffic,
+  // latency, LLM, token, and provider panels fill the left.
   row('Service Health', [
-    item('panel-1', 0, 0, 6, 4),
-    item('panel-3', 6, 0, 6, 4),
-    item('panel-4', 12, 0, 6, 4),
-    item('panel-40', 18, 0, 6, 8),
-    item('panel-15', 0, 4, 6, 4),
-    item('panel-5', 6, 4, 6, 4),
-    item('panel-93', 12, 4, 6, 4),
-    item('panel-92', 0, 8, 24, 5),
+    item('panel-3', 0, 0, 4, 5),
+    item('panel-5', 4, 0, 4, 5),
+    item('panel-40', 8, 0, 10, 6),
+    item('panel-90', 18, 0, 6, 38),
+    item('panel-93', 0, 5, 4, 5),
+    item('panel-4', 4, 5, 4, 5),
+    item('panel-20', 8, 6, 10, 15),
+    item('panel-92', 0, 10, 4, 10),
+    item('panel-73', 4, 10, 2, 10),
+    item('panel-11', 6, 10, 2, 10),
+    item('panel-16', 0, 20, 8, 18),
+    item('panel-71', 8, 21, 5, 5),
+    item('panel-21', 13, 21, 5, 5),
+    item('panel-69', 8, 26, 5, 6),
+    item('panel-67', 13, 26, 5, 6),
+    item('panel-66', 8, 32, 5, 6),
+    item('panel-68', 13, 32, 5, 6),
   ]),
-  // Row 2: User Engagement — rolling-window active users (DAU/WAU/MAU) from
-  // user.last_seen_at. Kept its own row so it can grow (retention, cohorts)
-  // without crowding the health glance above.
+  // Row 2: User Engagement — rolling-window active users and Prom-safe product
+  // analytics. The hand-tuned "日活" trend gives the row a visual engagement
+  // anchor while compact stats keep user/session totals nearby.
   row('User Engagement', [
-    item('panel-80', 0, 0, 8, 4),
-    item('panel-81', 8, 0, 8, 4),
-    item('panel-82', 16, 0, 8, 4),
+    item('panel-80', 0, 0, 3, 5),
+    item('panel-1', 3, 0, 3, 5),
+    item('panel-99', 6, 0, 12, 11),
+    item('panel-98', 18, 0, 6, 11),
+    item('panel-82', 0, 5, 3, 3),
+    item('panel-15', 3, 5, 3, 6),
+    item('panel-81', 0, 8, 3, 3),
+    item('panel-95', 0, 11, 6, 9),
+    item('panel-96', 6, 11, 6, 9),
+    item('panel-97', 12, 11, 12, 9),
   ]),
-  // Row 3: Product Analytics — Prom-safe event volume and failure trend.
-  // Distinct-user analytics stay in Postgres `product_events`; this row
-  // intentionally never uses user_id/session/request labels.
-  row('Product Analytics', [
-    item('panel-95', 0, 0, 6, 5),
-    item('panel-96', 6, 0, 6, 5),
-    item('panel-97', 12, 0, 12, 9),
-    item('panel-98', 0, 5, 12, 4),
-  ]),
-  // Row 3: HTTP — full-width error breakdown on top, then traffic ranking +
-  // latency trend side by side.
+  row('Product Analytics', []),
+  // Row 3: HTTP — full-width error breakdown; traffic ranking and latency moved
+  // into the dense Service Health screen above.
   row('HTTP', [
     item('panel-94', 0, 0, 24, 8),
-    item('panel-16', 0, 8, 7, 11),
-    item('panel-20', 7, 8, 17, 11),
-  ]),
-  // Row 4: LLM gateway — request mix + latency side by side.
-  row('LLM Gateway', [
-    item('panel-11', 0, 0, 12, 8),
-    item('panel-21', 12, 0, 12, 8),
-  ]),
-  // Row 5: Provider Upstreams — per-provider rollup so the vendor consoles
-  // don't have to be opened one by one. Four wide, one screen line.
-  row('Provider Upstreams', [
-    item('panel-66', 0, 0, 6, 7),
-    item('panel-67', 6, 0, 6, 7),
-    item('panel-68', 12, 0, 6, 7),
-    item('panel-69', 18, 0, 6, 7),
   ]),
   // Row 4: token totals + throughput + the two revenue/quality alert stats.
   row('LLM Tokens & Quality', [
-    item('panel-73', 0, 0, 6, 7),
-    item('panel-71', 6, 0, 10, 7),
-    item('panel-43', 16, 0, 4, 7),
-    item('panel-41', 20, 0, 4, 7),
+    item('panel-43', 0, 0, 6, 7),
+    item('panel-41', 6, 0, 6, 7),
   ]),
   // Row 5: router health — three "wake someone up" stats/gauge + upstream errors.
   row('LLM Router Health', [
@@ -957,17 +1036,10 @@ const rows = [
     item('panel-31', 8, 0, 8, 7),
     item('panel-32', 16, 0, 8, 7),
   ]),
-  // Row 7: infra (collapsed) — by-instance breakdowns catch single-replica issues.
-  row('Infrastructure', [
-    item('panel-50', 0, 0, 6, 6),
-    item('panel-51', 6, 0, 6, 6),
-    item('panel-52', 12, 0, 6, 6),
-    item('panel-53', 18, 0, 6, 6),
-  ], { collapse: true }),
-  // Row 8: full-width logs — errors on top (triage focus), firehose below.
+  // Row 8: focused error logs; the live application firehose is docked in
+  // Service Health for the latest cloud layout.
   row('Logs', [
-    item('panel-91', 0, 0, 24, 10),
-    item('panel-90', 0, 10, 24, 10),
+    item('panel-91', 0, 0, 24, 8),
   ]),
 ]
 
@@ -1036,18 +1108,15 @@ const variables = [
  * AIRI Server Overview dashboard.
  *
  * Reading order:
- *   1. Service Health — signup/sessions/WS counts, req-rate, 5xx, status-code
- *      heatmap, live WS trend: "is anything broken right now?"
- *   2. User Engagement — rolling DAU/WAU/MAU from user.last_seen_at
- *   3. Product Analytics — Prom-safe product event volume + failure trend
- *   4. HTTP — error breakdown by route, request ranking, latency by route
- *   5. LLM Gateway — per-model request rate + latency (TTFB + end-to-end)
- *   6. Provider Upstreams — per-provider rate/latency/failure + TTS chars
- *   7. LLM Tokens & Quality — token totals/throughput, revenue-leak alerts
- *   8. LLM Router Health — key/decrypt/fallback "wake someone up" signals
- *   9. Business — Stripe / Flux money flow
- *  10. Infrastructure (collapsed) — DB / runtime health for triage
- *  11. Logs — Loki for live debugging
+ *   1. Service Health — dense operations screen with request, LLM, provider,
+ *      token, WebSocket, status, and live application-log signals.
+ *   2. User Engagement — rolling DAU/WAU/MAU, total users, sessions, product
+ *      event health, and the hand-tuned daily-active-user trend.
+ *   3. HTTP — full-width route error breakdown.
+ *   4. LLM Tokens & Quality — revenue-leak and stream-interruption alerts.
+ *   5. LLM Router Health — key/decrypt/fallback "wake someone up" signals.
+ *   6. Business — Stripe / Flux money flow.
+ *   7. Logs — Loki warning/error logs for live debugging.
  *
  * One metric, one panel: we deliberately do not duplicate a metric across
  * stat/trend/bar/pie forms. Counter conventions: rate() for "now" trends,
@@ -1056,7 +1125,7 @@ const variables = [
  * Variables source from `target_info` (always present, no business-metric
  * dependency) so the dashboard never goes blank when an app metric is renamed.
  */
-const dashboard = {
+export const dashboard = {
   annotations: [
     {
       kind: 'AnnotationQuery',
@@ -1085,10 +1154,10 @@ const dashboard = {
   preload: false,
   tags: ['airi', 'observability', 'grafana-cloud'],
   timeSettings: {
-    autoRefresh: '30s',
+    autoRefresh: '',
     autoRefreshIntervals: ['5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '2h', '1d'],
     fiscalYearStartMonth: 0,
-    from: 'now-1h',
+    from: 'now-6h',
     hideTimepicker: false,
     timezone: 'browser',
     to: 'now',
@@ -1097,28 +1166,65 @@ const dashboard = {
   variables,
 }
 
-const here = dirname(fileURLToPath(import.meta.url))
-const outPath = join(here, 'airi-server-overview-cloud.json')
-writeFileSync(outPath, `${JSON.stringify(dashboard, null, 2)}\n`)
-console.info(`wrote ${outPath}`)
+export interface DashboardLayoutCheckResult {
+  orphanRefs: string[]
+  unusedElems: string[]
+}
 
-// Cross-check elements ↔ layout references
-const elementNames = new Set(Object.keys(dashboard.elements))
-const refs = new Set<string>()
-function walk(o: unknown): void {
-  if (!o || typeof o !== 'object')
+/**
+ * Validates that every dashboard layout reference points to a defined element.
+ *
+ * Use when:
+ * - Regenerating the Grafana JSON from this dashboard builder.
+ * - Testing that row changes did not orphan panels or leave panels unused.
+ *
+ * Expects:
+ * - A Grafana dashboard object shaped like {@link dashboard}.
+ *
+ * Returns:
+ * - Orphan layout references and unused element names.
+ */
+export function checkDashboardLayoutReferences(targetDashboard: typeof dashboard): DashboardLayoutCheckResult {
+  const elementNames = new Set(Object.keys(targetDashboard.elements))
+  const refs = new Set<string>()
+  collectElementReferences(targetDashboard.layout, refs)
+  return {
+    orphanRefs: [...refs].filter(r => !elementNames.has(r)),
+    unusedElems: [...elementNames].filter(e => !refs.has(e)),
+  }
+}
+
+/**
+ * Recursively collects Grafana row element references from the layout tree.
+ */
+function collectElementReferences(node: unknown, refs: Set<string>): void {
+  if (!node || typeof node !== 'object')
     return
-  const node = o as { kind?: unknown, name?: unknown }
-  if (node.kind === 'ElementReference' && typeof node.name === 'string')
-    refs.add(node.name)
-  for (const v of Object.values(o)) walk(v)
+  const layoutNode = node as { kind?: unknown, name?: unknown }
+  if (layoutNode.kind === 'ElementReference' && typeof layoutNode.name === 'string')
+    refs.add(layoutNode.name)
+  for (const value of Object.values(node)) collectElementReferences(value, refs)
 }
-walk(dashboard.layout)
-const orphanRefs = [...refs].filter(r => !elementNames.has(r))
-const unusedElems = [...elementNames].filter(e => !refs.has(e))
-console.info(`panels defined: ${elementNames.size}, referenced: ${refs.size}, orphans: ${orphanRefs.length}, unused: ${unusedElems.length}`)
-if (orphanRefs.length || unusedElems.length) {
-  console.error('orphans:', orphanRefs)
-  console.error('unused:', unusedElems)
-  exit(1)
+
+/**
+ * Writes the generated dashboard JSON and fails the CLI on layout drift.
+ */
+function writeDashboard(): void {
+  const here = dirname(fileURLToPath(import.meta.url))
+  const outPath = join(here, 'airi-server-overview-cloud.json')
+  writeFileSync(outPath, `${JSON.stringify(dashboard, null, 2)}\n`)
+  console.info(`wrote ${outPath}`)
+
+  const { orphanRefs, unusedElems } = checkDashboardLayoutReferences(dashboard)
+  const definedCount = Object.keys(dashboard.elements).length
+  const referencedCount = definedCount - unusedElems.length + orphanRefs.length
+  console.info(`panels defined: ${definedCount}, referenced: ${referencedCount}, orphans: ${orphanRefs.length}, unused: ${unusedElems.length}`)
+  if (orphanRefs.length || unusedElems.length) {
+    console.error('orphans:', orphanRefs)
+    console.error('unused:', unusedElems)
+    exit(1)
+  }
 }
+
+if (import.meta.url === pathToFileURL(argv[1] ?? '').href)
+  writeDashboard()

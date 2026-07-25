@@ -94,6 +94,11 @@ export interface WhisperAdapter {
 const LOAD_TIMEOUT = TIMEOUTS.WHISPER_LOAD
 const TRANSCRIBE_TIMEOUT = TIMEOUTS.WHISPER_TRANSCRIBE
 
+interface PendingWaiter {
+  cleanup: () => void
+  reject: (error: Error) => void
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -106,6 +111,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
   let messageListener: ((event: MessageEvent) => void) | null = null
   let errorListener: ((event: ErrorEvent) => void) | null = null
   const messageHandlers = new Set<(event: WhisperEvent) => void>()
+  const pendingWaiters = new Map<string, PendingWaiter>()
 
   // NOTICE: Device-loss resilience state. See kokoro.ts for rationale.
   let lastManifest: { device: string } | null = null
@@ -113,16 +119,37 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   const operationMutex = new Mutex()
 
+  function toWorkerError(event: ErrorEvent | Error, fallback = 'Whisper worker failed'): Error {
+    if (event instanceof Error)
+      return event
+
+    if (event.error instanceof Error)
+      return event.error
+
+    return new Error(event.message || fallback)
+  }
+
+  function rejectPendingWaiters(error: Error): void {
+    for (const [requestId, waiter] of pendingWaiters) {
+      waiter.cleanup()
+      pendingWaiters.delete(requestId)
+      waiter.reject(error)
+    }
+  }
+
   function handleWorkerError(event: ErrorEvent | Error): void {
     state = 'error'
     operationMutex.cancel()
 
-    const code = classifyError(event instanceof Error ? event : (event as ErrorEvent).error ?? event)
+    const error = toWorkerError(event)
+    rejectPendingWaiters(error)
+
+    const code = classifyError(error)
     if (code === 'DEVICE_LOST') {
       deviceLossCount++
       getGPUCoordinator().recordDeviceLoss({
         modelId: MODEL_NAMES.WHISPER,
-        reason: classifyDeviceLossReason(event instanceof Error ? event : (event as ErrorEvent).error ?? event),
+        reason: classifyDeviceLossReason(error),
         occurredAt: Date.now(),
       })
     }
@@ -218,6 +245,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       function cleanup(): void {
         if (timeoutId !== undefined)
           clearTimeout(timeoutId)
+        pendingWaiters.delete(requestId)
         w.removeEventListener('message', handler)
         if (abortListener && signal)
           signal.removeEventListener('abort', abortListener)
@@ -245,6 +273,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
       }
 
       w.addEventListener('message', handler)
+      pendingWaiters.set(requestId, { cleanup, reject })
 
       timeoutId = setTimeout(() => {
         cleanup()
@@ -387,6 +416,7 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
 
   function terminateAdapter(): void {
     operationMutex.cancel()
+    rejectPendingWaiters(new InferenceAbortError('Whisper adapter terminated.'))
     destroyWorker()
     if (allocationToken) {
       removeInferenceStatus(MODEL_NAMES.WHISPER)

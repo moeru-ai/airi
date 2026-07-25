@@ -108,6 +108,49 @@ describe('configKVService', () => {
     expect(value).toBe(500)
   })
 
+  /**
+   * @example
+   * service.set('LLM_ROUTER_CONFIG', { asr: { models: { auto: model } } })
+   */
+  it('llm router config should preserve official ASR model config', async () => {
+    await service.set('LLM_ROUTER_CONFIG', {
+      llm: { models: {} },
+      tts: { models: {} },
+      asr: {
+        models: {
+          auto: {
+            provider: 'aliyun-nls',
+            upstreams: [{
+              keys: [{ id: 'aliyun-nls-asr-prod-1', ciphertext: 'ciphertext' }],
+              adapterParams: {
+                accessKeyId: 'ak',
+                appKey: 'app',
+                region: 'cn-shanghai',
+              },
+            }],
+          },
+        },
+      },
+      defaults: {
+        perAttemptTimeoutMs: 30000,
+        fullChainTimeoutMs: 60000,
+        fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+      },
+    })
+
+    const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+    const asr = value.asr
+    if (!asr)
+      throw new Error('Expected ASR config to be preserved')
+
+    expect(asr.models.auto.provider).toBe('aliyun-nls')
+    expect(asr.models.auto.upstreams[0].adapterParams).toEqual({
+      accessKeyId: 'ak',
+      appKey: 'app',
+      region: 'cn-shanghai',
+    })
+  })
+
   it('set should store string values as JSON strings', async () => {
     await service.set('STRIPE_FLUX_PRODUCT_ID', 'prod_abc123')
 

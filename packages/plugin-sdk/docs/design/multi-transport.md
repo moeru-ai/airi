@@ -44,7 +44,7 @@ Eventa is context-oriented: contexts are created per transport (in-memory, WebSo
 
 - Designing the full plugin lifecycle orchestration (phase transitions, capability config, etc.).
 - Implementing a new transport stack beyond Eventa adapters (unless required by runtime gaps).
-- Defining plugin packaging or distribution formats beyond `ManifestV1` entrypoints.
+- Defining extension packaging or distribution formats beyond `ExtensionManifestV1` entrypoints.
 
 ## Proposal
 

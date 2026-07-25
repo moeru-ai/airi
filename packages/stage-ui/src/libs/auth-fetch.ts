@@ -1,5 +1,7 @@
+import { getPosthogIdentitySnapshot } from '../stores/analytics/posthog'
 import { useAuthStore } from '../stores/auth'
 import { getAuthToken } from './auth'
+import { SERVER_URL } from './server'
 
 /**
  * Fetch wrapper that transparently refreshes the OIDC access token on 401
@@ -25,6 +27,12 @@ export async function authedFetch(
     const headers = new Headers(init?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
+    const posthogIdentity = shouldAttachPosthogIdentity(input) ? getPosthogIdentitySnapshot() : null
+    if (posthogIdentity) {
+      headers.set('x-posthog-distinct-id', posthogIdentity.distinctId)
+      if (posthogIdentity.sessionId)
+        headers.set('x-posthog-session-id', posthogIdentity.sessionId)
+    }
     return fetch(input, { ...init, headers, credentials: 'omit' })
   }
 
@@ -50,6 +58,14 @@ export async function authedFetch(
   if (retried.status === 401)
     promptReLogin(authStore)
   return retried
+}
+
+function shouldAttachPosthogIdentity(input: RequestInfo | URL): boolean {
+  const url = typeof input === 'string'
+    ? input
+    : input instanceof URL ? input.toString() : input.url
+
+  return new URL(url, SERVER_URL).origin === new URL(SERVER_URL).origin
 }
 
 function promptReLogin(authStore: ReturnType<typeof useAuthStore>): void {

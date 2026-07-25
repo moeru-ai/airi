@@ -28,7 +28,7 @@ export interface PluginIdentity {
    */
   version?: string
   /**
-   * Optional labels attached to the plugin manifest.
+   * Optional labels attached to the extension manifest.
    * Example: { env: "prod", app: "telegram", devtools: "true" }.
    */
   labels?: Record<string, string>
@@ -55,7 +55,72 @@ export interface ModuleIdentity {
   labels?: Record<string, string>
 }
 
-export type MetadataEventSource = ModuleIdentity
+/**
+ * Identifies an extension package/session that is loaded by an extension host.
+ *
+ * Extension identity is the package/session-level scope. Modules registered by
+ * the extension get their own {@link ExtensionModuleIdentity}.
+ */
+export interface ExtensionIdentity {
+  /**
+   * Stable extension identifier from `extension.airi.json`.
+   */
+  id: string
+  /**
+   * Optional semantic version for the extension package.
+   */
+  version?: string
+  /**
+   * Optional runtime session id assigned by the host for this loaded extension.
+   */
+  sessionId?: string
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+/**
+ * Identifies one runtime module registered by an extension setup function.
+ */
+export interface ExtensionModuleIdentity {
+  /**
+   * Stable module id within one extension session.
+   */
+  id: string
+  /**
+   * Owning extension session identity.
+   */
+  extension: ExtensionIdentity
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+/**
+ * Identifies a kit API surface that can be used by extension modules.
+ */
+export interface ExtensionKitIdentity {
+  /**
+   * Stable kit id.
+   */
+  id: string
+  /**
+   * Optional semantic version for compatibility checks.
+   */
+  version?: string
+  /**
+   * Optional owner for future extension-provided kits. Host-provided kits omit this field.
+   */
+  ownerExtension?: ExtensionIdentity
+  /**
+   * Optional labels used for routing, inspection, and policy selectors.
+   */
+  labels?: Record<string, string>
+}
+
+export type MetadataEventSource = ModuleIdentity | ExtensionIdentity | ExtensionModuleIdentity | ExtensionKitIdentity
 
 /**
  * Static schema metadata for module configuration.
@@ -588,6 +653,57 @@ export type WithOutputSource<Source extends keyof OutputSource> = {
 // 10) module:status (ready)
 // 11) module:status:change (to re-run phases)
 
+interface PeerAuthenticateEvent {
+  token?: string
+  peerId?: string
+}
+
+interface PeerAuthenticatedEvent {
+  authenticated: boolean
+  peerId: string
+}
+
+interface PeerStatusEvent {
+  peerId: string
+  phase: 'connected' | 'authenticated' | 'de-authenticated' | 'closed' | 'failed'
+  reason?: string
+}
+
+interface PeerDeAuthenticatedEvent {
+  peerId: string
+  reason?: string
+}
+
+interface ExtensionAuthenticateEvent {
+  identity: ExtensionIdentity
+  token?: string
+}
+
+interface ExtensionAuthenticatedEvent {
+  identity: ExtensionIdentity
+  authenticated: boolean
+  reason?: string
+}
+
+interface ExtensionAnnounceEvent {
+  identity: ExtensionIdentity
+  permissions?: ModulePermissionDeclaration
+}
+
+interface ExtensionModuleAnnounceEvent<C = undefined> {
+  name: string
+  identity: ExtensionModuleIdentity
+  possibleEvents: Array<(keyof ProtocolEvents<C>)>
+  permissions?: ModulePermissionDeclaration
+  configSchema?: ModuleConfigSchema
+  dependencies?: ModuleDependency[]
+}
+
+interface ExtensionKitAnnounceEvent {
+  identity: ExtensionKitIdentity
+  capabilities?: ModuleCapability[]
+}
+
 interface ModuleAuthenticateEvent {
   token: string
 }
@@ -614,7 +730,7 @@ export interface RegistryModulesSyncEvent {
   modules: Array<{
     name: string
     index?: number
-    identity: ModuleIdentity
+    identity: MetadataEventSource
   }>
 }
 
@@ -651,14 +767,14 @@ interface ModuleDeAnnouncedEvent {
 interface RegistryModulesHealthUnhealthyEvent {
   name: string
   index?: number
-  identity: ModuleIdentity
+  identity: MetadataEventSource
   reason?: string
 }
 
 interface RegistryModulesHealthHealthyEvent {
   name: string
   index?: number
-  identity: ModuleIdentity
+  identity: MetadataEventSource
 
 }
 
@@ -743,7 +859,7 @@ interface ModulePermissionsDeniedEvent {
  * Emitted with the module's reconciled current permission snapshot.
  *
  * Typical use cases:
- * - bootstrapping plugin runtime state after startup or reload
+ * - bootstrapping extension runtime state after startup or reload
  * - synchronizing UI/debug tools with the final requested vs granted view
  *
  * Protocol expectations:
@@ -1042,6 +1158,25 @@ interface TransportConnectionHeartbeatEvent {
 
 type ContextUpdateEvent = ContextUpdate
 
+export const peerAuthenticate = defineEventa<PeerAuthenticateEvent>('peer:authenticate')
+export const peerAuthenticated = defineEventa<PeerAuthenticatedEvent>('peer:authenticated')
+export const peerStatus = defineEventa<PeerStatusEvent>('peer:status')
+export const peerDeAuthenticated = defineEventa<PeerDeAuthenticatedEvent>('peer:de-authenticated')
+
+export const extensionAuthenticate = defineEventa<ExtensionAuthenticateEvent>('extension:authenticate')
+export const extensionAuthenticated = defineEventa<ExtensionAuthenticatedEvent>('extension:authenticated')
+export const extensionAnnounce = defineEventa<ExtensionAnnounceEvent>('extension:announce')
+export const extensionAnnounced = defineEventa<ExtensionAnnounceEvent>('extension:announced')
+export const extensionDeAnnounced = defineEventa<ExtensionAnnounceEvent & { reason?: string }>('extension:de-announced')
+
+export const extensionModuleAnnounce = defineEventa<ExtensionModuleAnnounceEvent>('extension:module:announce')
+export const extensionModuleAnnounced = defineEventa<ExtensionModuleAnnounceEvent>('extension:module:announced')
+export const extensionModuleDeAnnounced = defineEventa<ExtensionModuleAnnounceEvent & { reason?: string }>('extension:module:de-announced')
+
+export const extensionKitAnnounce = defineEventa<ExtensionKitAnnounceEvent>('extension:kit:announce')
+export const extensionKitAnnounced = defineEventa<ExtensionKitAnnounceEvent>('extension:kit:announced')
+export const extensionKitDeAnnounced = defineEventa<ExtensionKitAnnounceEvent & { reason?: string }>('extension:kit:de-announced')
+
 export const moduleAuthenticate = defineEventa<ModuleAuthenticateEvent>('module:authenticate')
 export const moduleAuthenticated = defineEventa<ModuleAuthenticatedEvent>('module:authenticated')
 export const moduleCompatibilityRequest = defineEventa<ModuleCompatibilityRequestEvent>('module:compatibility:request')
@@ -1160,6 +1295,23 @@ export function getProtocolEventMetadata(eventType: keyof ProtocolEvents | strin
 export interface ProtocolEvents<C = undefined> {
   'error': ErrorEvent
   'error:permission': ErrorPermissionEvent
+
+  'peer:authenticate': PeerAuthenticateEvent
+  'peer:authenticated': PeerAuthenticatedEvent
+  'peer:status': PeerStatusEvent
+  'peer:de-authenticated': PeerDeAuthenticatedEvent
+
+  'extension:authenticate': ExtensionAuthenticateEvent
+  'extension:authenticated': ExtensionAuthenticatedEvent
+  'extension:announce': ExtensionAnnounceEvent
+  'extension:announced': ExtensionAnnounceEvent
+  'extension:de-announced': ExtensionAnnounceEvent & { reason?: string }
+  'extension:module:announce': ExtensionModuleAnnounceEvent<C>
+  'extension:module:announced': ExtensionModuleAnnounceEvent<C>
+  'extension:module:de-announced': ExtensionModuleAnnounceEvent<C> & { reason?: string }
+  'extension:kit:announce': ExtensionKitAnnounceEvent
+  'extension:kit:announced': ExtensionKitAnnounceEvent
+  'extension:kit:de-announced': ExtensionKitAnnounceEvent & { reason?: string }
 
   'module:authenticate': ModuleAuthenticateEvent
   'module:authenticated': ModuleAuthenticatedEvent

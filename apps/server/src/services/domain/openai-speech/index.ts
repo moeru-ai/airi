@@ -5,6 +5,7 @@ import type { FluxService } from '../flux'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProductEventService } from '../product-events'
+import type { ProviderCatalogService } from '../provider-catalog'
 import type { RequestLogService } from '../request-log'
 import type { VoicePackService } from '../voice-packs'
 
@@ -18,6 +19,7 @@ import {
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
+import { fluxBalanceBucket } from '../flux-balance'
 
 const tracer = trace.getTracer('v1-completions')
 
@@ -48,6 +50,7 @@ export interface OpenAiSpeechServiceDeps {
   ttsMeter: FluxMeter
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
+  providerCatalogService: ProviderCatalogService
   productEventService: ProductEventService
   genAi?: GenAiMetrics | null
   llmTracing: {
@@ -63,10 +66,12 @@ export interface OpenAiSpeechRequest {
 }
 
 type TtsTrigger = 'auto' | 'manual'
+type TtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
 
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  voiceType: TtsVoiceType
 }
 
 /**
@@ -88,17 +93,29 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
   async function handleSpeechRequest(input: OpenAiSpeechRequest): Promise<Response> {
     const requestId = nanoid()
-    let requestModel = typeof input.body.model === 'string' ? input.body.model : 'auto'
+    const requestedModel = typeof input.body.model === 'string' ? input.body.model : 'auto'
+    let requestModel = requestedModel
+    const requestVoice = typeof input.body.voice === 'string' ? input.body.voice : undefined
     const inputText = typeof input.body.input === 'string' ? input.body.input : ''
     const analytics = ttsAnalyticsContext(input.body)
 
+    const voicePackRequest = await voicePackRequestOptions(input.body, {
+      requestedModel,
+      voice: requestVoice,
+      voicePackService: deps.voicePackService,
+    })
+    requestModel = voicePackRequest.model ?? requestModel
     if (requestModel === 'auto')
       requestModel = await deps.configKV.getOrThrow('DEFAULT_TTS_MODEL')
+    const routedVoice = voicePackRequest.voice ?? requestVoice
+    await deps.providerCatalogService.assertTtsModelEnabled(requestModel)
+    if (!voicePackRequest.voicePackId && routedVoice)
+      await deps.providerCatalogService.assertTtsVoiceEnabled(requestModel, routedVoice)
 
-    const voicePackRequest = await voicePackRequestOptions(input.body, {
-      model: requestModel,
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
-      voicePackService: deps.voicePackService,
+    const voiceMetadata = ttsVoiceMetadata({
+      voice: requestVoice,
+      voicePackId: voicePackRequest.voicePackId,
+      voiceType: analytics.voiceType,
     })
     const billingUnits = Math.ceil(inputText.length * voicePackRequest.costMultiplier)
 
@@ -107,7 +124,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       userId: input.userId,
       model: requestModel,
       inputChars: inputText.length,
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
+      voice: requestVoice,
     }).log('tts speech request')
 
     void deps.productEventService.track({
@@ -120,6 +137,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       metadata: {
         input_chars: inputText.length,
         trigger: analytics.trigger,
+        ...voiceMetadata,
       },
     })
 
@@ -142,8 +160,11 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         metadata: {
           input_chars: inputText.length,
           billing_units: billingUnits,
+          block_reason: 'insufficient_balance',
           balance_state: 'insufficient',
+          flux_balance_bucket: fluxBalanceBucket(flux.flux),
           trigger: analytics.trigger,
+          ...voiceMetadata,
         },
       })
       logger.withError(err).withFields({
@@ -162,8 +183,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     const ttsInput = {
       text: inputText,
-      voice: typeof input.body.voice === 'string' ? input.body.voice : undefined,
-      speed: typeof input.body.speed === 'number' ? input.body.speed : undefined,
+      voice: routedVoice,
+      speed: voicePackRequest.speed ?? (typeof input.body.speed === 'number' ? input.body.speed : undefined),
       responseFormat: typeof input.body.response_format === 'string' ? input.body.response_format : undefined,
       extraOptions: voicePackRequest.extraOptions,
     }
@@ -218,7 +239,9 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         metadata: {
           http_status: failure.status,
           duration_ms: Date.now() - startedAt,
+          failure_reason: failure.reason,
           trigger: analytics.trigger,
+          ...voiceMetadata,
         },
       })
       throw err
@@ -244,7 +267,9 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         metadata: {
           http_status: response.status,
           duration_ms: durationMs,
+          failure_reason: 'upstream_error',
           trigger: analytics.trigger,
+          ...voiceMetadata,
         },
       })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
@@ -297,6 +322,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         duration_ms: durationMs,
         flux_consumed: fluxConsumed,
         trigger: analytics.trigger,
+        ...voiceMetadata,
       },
     })
     deps.requestLogService.logRequest({
@@ -354,64 +380,112 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
+  const voiceType = normalizeVoiceType(analytics?.voice_type)
 
-  return { trigger, source }
+  return { trigger, source, voiceType }
+}
+
+/**
+ * Normalizes client-provided TTS voice type into bounded analytics values.
+ */
+function normalizeVoiceType(value: unknown): TtsVoiceType {
+  switch (value) {
+    case 'official_default':
+    case 'official_selected':
+    case 'custom_configured':
+    case 'voice_pack':
+      return value
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Builds reusable low-cardinality voice metadata for every TTS product event.
+ */
+function ttsVoiceMetadata(input: {
+  voice?: string
+  voicePackId?: string
+  voiceType: TtsVoiceType
+}): Record<string, unknown> {
+  const voiceType = input.voicePackId ? 'voice_pack' : input.voiceType
+  return {
+    ...(input.voice ? { voice_id: input.voice } : {}),
+    voice_type: voiceType,
+    ...(input.voicePackId ? { voice_pack_id: input.voicePackId } : {}),
+  }
 }
 
 async function voicePackRequestOptions(
   body: Record<string, unknown>,
   context: {
-    model: string
+    requestedModel: string
     voice?: string
     voicePackService: VoicePackService
   },
-): Promise<{ extraOptions: Record<string, unknown> | undefined, costMultiplier: number }> {
+): Promise<{
+  extraOptions: Record<string, unknown> | undefined
+  costMultiplier: number
+  voicePackId?: string
+  model?: string
+  voice?: string
+  speed?: number
+}> {
   const extraBody = asRecord(body.extra_body)
   const voicePackOptions = asRecord(extraBody?.voice_pack)
   const pitch = readOptionalNumber(voicePackOptions, 'pitch')
   const volume = readOptionalNumber(voicePackOptions, 'volume')
-  const costMultiplier = await resolveVoicePackCostMultiplier(voicePackOptions, context)
+  const voicePack = await resolveVoicePackRequest(voicePackOptions, context)
   const extraOptions: Record<string, unknown> = {}
-  if (pitch != null)
-    extraOptions.pitch = pitch
-  if (volume != null)
-    extraOptions.volume = volume
+  const resolvedPitch = voicePack?.params.pitch ?? pitch
+  const resolvedVolume = voicePack?.params.volume ?? volume
+  if (resolvedPitch != null)
+    extraOptions.pitch = resolvedPitch
+  if (resolvedVolume != null)
+    extraOptions.volume = resolvedVolume
 
   return {
     extraOptions: Object.keys(extraOptions).length > 0 ? extraOptions : undefined,
-    costMultiplier,
+    costMultiplier: voicePack?.costMultiplier ?? 1,
+    voicePackId: voicePack?.id,
+    model: voicePack?.ttsModelId,
+    voice: voicePack?.upstreamVoiceId,
+    speed: voicePack?.params.rate,
   }
 }
 
-async function resolveVoicePackCostMultiplier(
+async function resolveVoicePackRequest(
   voicePackOptions: Record<string, unknown> | undefined,
   context: {
-    model: string
+    requestedModel: string
     voice?: string
     voicePackService: VoicePackService
   },
-): Promise<number> {
+): Promise<Awaited<ReturnType<VoicePackService['findById']>> | null> {
   const packId = voicePackOptions?.pack_id
-  const value = voicePackOptions?.cost_multiplier
-  if (packId == null && value == null)
-    return 1
-  if (typeof packId !== 'string' || !packId.trim())
-    throw createBadRequestError('voice_pack.pack_id is required when Voice Pack billing metadata is provided', 'INVALID_VOICE_PACK')
-
-  const pack = await context.voicePackService.findById(packId)
-  if (!pack)
-    throw createBadRequestError('Voice Pack not found', 'INVALID_VOICE_PACK', { packId })
-  if (pack.ttsModelId !== context.model || pack.voiceId !== context.voice) {
-    throw createBadRequestError('Voice Pack does not match requested model and voice', 'INVALID_VOICE_PACK', {
-      packId,
-      expectedModel: pack.ttsModelId,
-      actualModel: context.model,
-      expectedVoice: pack.voiceId,
-      actualVoice: context.voice,
+  const requestedVoice = context.voice?.trim()
+  if (voicePackOptions?.cost_multiplier != null) {
+    throw createBadRequestError('voice_pack.cost_multiplier is server-managed', 'INVALID_VOICE_PACK', {
+      field: 'voice_pack.cost_multiplier',
     })
   }
+  if (packId != null && (typeof packId !== 'string' || !packId.trim()))
+    throw createBadRequestError('voice_pack.pack_id is required when Voice Pack billing metadata is provided', 'INVALID_VOICE_PACK')
 
-  return pack.costMultiplier
+  const pack = typeof packId === 'string'
+    ? await context.voicePackService.findById(packId)
+    : requestedVoice
+      ? await context.voicePackService.findEnabledByVoiceId(requestedVoice)
+      : null
+  if (!pack && packId == null)
+    return null
+
+  if (!pack)
+    throw createBadRequestError('Voice Pack not found', 'INVALID_VOICE_PACK', { packId })
+  if (!pack.enabled)
+    throw createBadRequestError('Voice Pack not found', 'INVALID_VOICE_PACK', { packId })
+
+  return pack
 }
 
 function routerFailure(error: unknown): { status: number, reason: string, message: string } {
