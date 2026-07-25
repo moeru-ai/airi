@@ -9,13 +9,12 @@ import { useChatContextStore } from './context-store'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
-function createMetadata(pluginId: string, instanceId: string): NonNullable<ContextMessage['metadata']> {
+function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
   return {
     source: {
-      id: instanceId,
-      kind: 'plugin',
-      plugin: {
-        id: pluginId,
+      id: moduleId,
+      extension: {
+        id: extensionId,
       },
     },
   }

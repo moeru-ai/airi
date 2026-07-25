@@ -1,0 +1,68 @@
+name: Cloudflare Pages (Auth UI)
+
+on:
+  push:
+    branches:
+      - 'main'
+
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy - ui-server-auth
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    environment:
+      name: Auth Production
+      url: https://accounts.airi.build/ui/
+
+    steps:
+      - uses: actions/checkout@v6
+      # Turborepo
+      - name: Cache turbo build setup
+        uses: actions/cache@v5
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      # NOTICE:
+      #
+      # Keep the wrangler setup consistent with the stage-web deployment
+      # workflow. cloudflare/wrangler-action expects a usable wrangler binary
+      # when running repository-local pnpm workspaces.
+      - run: pnpm i -g wrangler@4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build:packages
+      - name: Build ui-server-auth
+        run: pnpm -F @proj-airi/ui-server-auth run build
+        env:
+          VITE_ENABLE_POSTHOG: 'true'
+          VITE_SERVER_URL: 'https://api.airi.build'
+      - run: |
+          CI=true pnpm install -g @posthog/cli
+          pnpm exec posthog-cli sourcemap inject --directory ./apps/ui-server-auth/dist
+          pnpm exec posthog-cli sourcemap upload --directory ./apps/ui-server-auth/dist
+        env:
+          POSTHOG_CLI_ENV_ID: ${{ secrets.POSTHOG_ENV_ID }}
+          POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
+        continue-on-error: true
+
+      - uses: cloudflare/wrangler-action@v3.14.1
+        with:
+          apiToken: ${{ secrets.MOERU_CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.MOERU_CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./apps/ui-server-auth/dist --project-name=moeru-ai-airi-auth --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}

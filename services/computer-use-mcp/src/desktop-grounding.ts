@@ -45,7 +45,12 @@ let nextSnapshotId = 1
  * If Chrome browser surfaces are available (and `includeChrome` is not false),
  * also captures Chrome semantic data.
  *
- * @param params - Capture parameters (config, executor, input, bridges)
+ * @param params - Capture parameters.
+ * @param params.config - Runtime configuration for platform-specific capture.
+ * @param params.executor - Desktop executor used for screenshots and windows.
+ * @param params.input - Optional capture flags from the tool request.
+ * @param params.extensionBridge - Optional browser extension DOM bridge.
+ * @param params.cdpBridge - Optional Chrome DevTools Protocol bridge.
  * @returns Unified desktop grounding snapshot
  */
 export async function captureDesktopGrounding(params: {
@@ -77,34 +82,15 @@ export async function captureDesktopGrounding(params: {
   // are requested. The generic top-N window snapshot is often dominated by
   // system UI and can miss Chrome entirely, which would prevent chrome_dom
   // candidates from being mapped to screen coordinates.
-  let chromeWindowBounds = findChromeWindowBounds(windowObs)
+  let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
   let chromeWindowObservation: WindowObservation | undefined
   if (shouldCaptureChrome && !chromeWindowBounds) {
     try {
       chromeWindowObservation = await executor.observeWindows({
-        app: 'Google Chrome',
+        app: foregroundApp.toLowerCase().includes('chrome') ? foregroundApp : 'Google Chrome',
         limit: 12,
       })
-      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation)
-    }
-    catch {
-      // Best-effort only. Fall back to AX-only candidates if filtered window
-      // enumeration fails.
-    }
-  }
-
-  // If Chrome is foreground, ask the executor for a Chrome-filtered window list.
-  // The generic top-N window snapshot is often dominated by system UI and can
-  // miss Chrome entirely, which would prevent chrome_dom candidates from being
-  // mapped to screen coordinates.
-  let chromeWindowBounds = findChromeWindowBounds(windowObs, foregroundApp)
-  if (isChromeInFront && !chromeWindowBounds) {
-    try {
-      const chromeWindows = await executor.observeWindows({
-        app: foregroundApp,
-        limit: 12,
-      })
-      chromeWindowBounds = findChromeWindowBounds(chromeWindows, foregroundApp)
+      chromeWindowBounds = findChromeWindowBounds(chromeWindowObservation, foregroundApp)
     }
     catch {
       // Best-effort only. Fall back to AX-only candidates if filtered window

@@ -50,7 +50,7 @@ export function useVisionInference() {
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider = activeProvider.value === 'ollama'
+    const visionProvider = activeProvider.value === 'vision-ollama'
       ? {
         ...provider,
         chat(model: string) {

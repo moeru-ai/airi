@@ -13,5 +13,7 @@ export default defineConfig({
     env: loadEnv('test', cwd(), ''),
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     exclude: ['**/node_modules/**', '**/.git/**'],
+    fileParallelism: false,
+    maxWorkers: 1,
   },
 })

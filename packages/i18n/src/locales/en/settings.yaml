@@ -119,7 +119,8 @@ model-select:
     support-status-header: We support both 2D and 3D models
     support-status: >
       Click {select-button} to select or import models.
-      Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models),
+      and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc,
       while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
@@ -262,6 +263,8 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
+        accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
+        oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
     security:
       tab: Security
@@ -322,6 +325,9 @@ pages:
       provider: Chat / Provider
     consciousness:
       model: Consciousness / Model
+    vision:
+      provider: Vision / Provider
+      model: Vision / Model
     created_by: created by
     creator_notes: Creator Notes
     delete: Delete
@@ -404,8 +410,14 @@ pages:
     systemprompt: System Prompt
     title: AIRI Card
     try_different_search: Try a different search term
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Upload
-    upload_desc: Click or drag file to upload
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Where memories got stored, and organized
     title: Memory
@@ -421,7 +433,7 @@ pages:
         delete: Delete all chat sessions
       models:
         title: Models
-        description: Remove imported Live2D/VRM models.
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: Delete all models
       modules:
         title: Modules
@@ -445,6 +457,7 @@ pages:
       desktop:
         title: Reset desktop settings & states
         description: Clear AIRI desktop settings and runtime state.
+        center: Move desktop window to center
         reset: Reset desktop data
     confirmations:
       tooltip: Are you sure?
@@ -458,9 +471,10 @@ pages:
       modules_reset: Module settings reset.
       providers_reset: Provider settings reset.
       all_deleted: All local data deleted.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
-    description: Live2D, VRM, etc.
+    description: Live2D, VRM, Spine, MMD, etc.
     title: Models
     sections:
       section:
@@ -712,6 +726,12 @@ pages:
             select-voice:
               loading: Loading model...
               required: Please select a voice
+          voice-pack:
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: Enter custom model name...
             custom_voice_placeholder: Enter custom voice ID...
@@ -765,6 +785,15 @@ pages:
       access-token-secret-description: Your X / Twitter access token secret
       access-token-secret-placeholder: Enter your X / Twitter access token secret
       configured: X / Twitter is properly configured!
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: MCP servers
       description: Configure MCP servers and bring their tools into AIRI.
@@ -998,6 +1027,9 @@ pages:
       chat:
         title: Chat
         description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Speech
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1269,6 +1301,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1327,6 +1362,9 @@ pages:
       n1n:
         description: n1n.ai - High-performance AI API provider.
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: openrouter.ai
         title: OpenRouter
@@ -1705,6 +1743,8 @@ spine:
     idle-animation: Idle Animation
     mix-duration: Mix Duration (seconds)
     speed: Animation Speed
+  appearance:
+    title: Appearance
   variant:
     title: Variant
     current-variant: Active Variant
@@ -1718,6 +1758,55 @@ spine:
   fps:
     options:
       unlimited: Unlimited
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a
+      one-shot gesture. Map emotions to motions to play gestures alongside
+      facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお,
+      まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing,
+      accessories). Set a part to 0 to hide it.
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-

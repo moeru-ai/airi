@@ -1,8 +1,12 @@
 import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-shared/types'
 
+import type { ConsumerStickyAssignment } from './server-ws/airi/consumers'
+
 import { describe, expect, it } from 'vitest'
 
-import { heartbeatFrameFrom, resolveEventDelivery, selectConsumerPeerId } from './index'
+import { heartbeatFrameFrom } from './server-ws/airi/codec'
+import { selectConsumerPeerId } from './server-ws/airi/consumers'
+import { resolveEventDelivery } from './server-ws/airi/routing'
 
 function createInputTextEvent(
   overrides: Partial<WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>> = {},
@@ -133,7 +137,7 @@ describe('selectConsumerPeerId', () => {
   })
 
   it('keeps sticky delivery on the same consumer when available', () => {
-    const stickyAssignments = new Map<string, string>()
+    const stickyAssignments = new Map<string, ConsumerStickyAssignment>()
 
     const firstSelectedPeerId = selectConsumerPeerId({
       eventType: 'input:text',

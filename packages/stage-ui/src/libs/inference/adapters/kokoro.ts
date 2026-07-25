@@ -149,7 +149,7 @@ function waitForWorkerMessage<T = any>(
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     let abortListener: (() => void) | null = null
 
-    const cleanup = (): void => {
+    function cleanup(): void {
       if (timeoutId !== undefined)
         clearTimeout(timeoutId)
       worker.removeEventListener('message', handler)
@@ -157,7 +157,7 @@ function waitForWorkerMessage<T = any>(
         signal.removeEventListener('abort', abortListener)
     }
 
-    const handler = (event: MessageEvent): void => {
+    function handler(event: MessageEvent): void {
       if (event.data.requestId !== requestId)
         return
 
@@ -462,6 +462,15 @@ export function createKokoroAdapter(): KokoroAdapter {
     }), { text: text.slice(0, 50), voice }).catch((error) => {
       if (error === notReadyError)
         throw error
+
+      // Cancellation is a caller-controlled lifecycle outcome, not a worker
+      // failure. Keep the loaded model available and avoid restarting the
+      // worker after waitForWorkerMessage has already posted `cancel`.
+      if ((error as Error)?.name === 'AbortError') {
+        if (state === 'running')
+          state = 'ready'
+        throw error
+      }
 
       handleWorkerError(error instanceof Error ? error : new Error(String(error)))
       throw error

@@ -1,18 +1,12 @@
-import type {
-  KitDescriptor,
-  PluginHost,
-} from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
-export {
-  resolveWidgetAssetRoute,
-  rewriteWidgetModuleAssetUrl,
-} from './asset-url'
+export { resolveWidgetAssetRoute, rewriteWidgetModuleAssetUrl } from './asset-url'
 
 /**
  * Declares the built-in widget kit exposed by `stage-tamagotchi`.
  *
  * Use when:
- * - Bootstrapping the Electron plugin host with widget support
+ * - Bootstrapping the Electron extension host with widget support
  * - Reading the stable built-in widget kit descriptor in tests or snapshots
  *
  * Expects:
@@ -34,15 +28,15 @@ export const widgetPluginKitDescriptor = {
  * Registers the built-in widget kit on one host instance.
  *
  * Use when:
- * - Bootstrapping the Electron plugin host with widget kit support
+ * - Bootstrapping the Electron extension host with widget kit support
  * - Keeping widget descriptor registration inside the widget kit module
  *
  * Expects:
- * - `host` is the initialized plugin host instance
+ * - `host` is the initialized extension host instance
  *
  * Returns:
  * - The registered widget kit descriptor
  */
-export function registerWidgetPluginKit(host: PluginHost): KitDescriptor {
+export function registerWidgetPluginKit(host: ExtensionHost): KitDescriptor {
   return host.registerKit(widgetPluginKitDescriptor)
 }

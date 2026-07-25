@@ -88,6 +88,33 @@ describe('dashscopeCosyvoiceAdapter', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
+  /**
+   * @example
+   * dashscopeCosyvoiceAdapter.send({ text: 'hi', extraOptions: { volume: 5 } }, ctx)
+   */
+  it('fails fast when Voice Pack pitch or volume params reach DashScope cosyvoice', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(binaryResponse(new Uint8Array([0])))
+
+    await expect(dashscopeCosyvoiceAdapter.send(
+      {
+        text: 'hi',
+        voice: 'longxiaochun_v2',
+        extraOptions: {
+          volume: 5,
+        },
+      },
+      {
+        keyPlaintext: Buffer.from('sk-test', 'utf8'),
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
+        unspeechBaseURL: UNSPEECH,
+        adapterParams: {},
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    )).rejects.toMatchObject({ statusCode: 400 })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('voice catalog is proxied through unspeech with the selected cosyvoice model', async () => {
     // The catalog itself is unspeech-owned now (embedded JSON in
     // unspeech/pkg/backend/alibaba/voices.go). This test only verifies the

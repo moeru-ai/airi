@@ -36,7 +36,7 @@ export const bindingStateValues = ['announced', 'active', 'degraded', 'withdrawn
 export const bindingRecordSchema = object({
   moduleId: string(),
   ownerSessionId: string(),
-  ownerPluginId: string(),
+  ownerExtensionId: string(),
   kitId: string(),
   kitModuleType: string(),
   state: picklist(bindingStateValues),
@@ -76,7 +76,7 @@ export type BindingState = typeof bindingStateValues[number]
 export interface BindingRecord<C extends HostDataRecord = HostDataRecord> {
   moduleId: string
   ownerSessionId: string
-  ownerPluginId: string
+  ownerExtensionId: string
   kitId: string
   kitModuleType: string
   state: BindingState

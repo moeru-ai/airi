@@ -1,3 +1,48 @@
+import { array, check, finite, number, object, parse, pipe, string, unknown } from 'valibot'
+
+const NonEmptyChatBroadcastUserIdSchema = pipe(
+  string('chat broadcast userId must be a non-empty string'),
+  check(value => value.trim().length > 0, 'chat broadcast userId must be a non-empty string'),
+)
+
+const NonEmptyChatBroadcastChatIdSchema = pipe(
+  string('chat broadcast payload.chatId must be a non-empty string'),
+  check(value => value.trim().length > 0, 'chat broadcast payload.chatId must be a non-empty string'),
+)
+
+const ChatBroadcastMessagesSchema = array(
+  unknown(),
+  'chat broadcast payload.messages must be an array',
+)
+
+const ChatBroadcastFromSeqSchema = pipe(
+  number('chat broadcast payload.fromSeq must be a finite number'),
+  finite('chat broadcast payload.fromSeq must be a finite number'),
+)
+
+const ChatBroadcastToSeqSchema = pipe(
+  number('chat broadcast payload.toSeq must be a finite number'),
+  finite('chat broadcast payload.toSeq must be a finite number'),
+)
+
+const NonEmptyChatBroadcastOriginInstanceIdSchema = pipe(
+  string('chat broadcast originInstanceId must be a non-empty string'),
+  check(value => value.trim().length > 0, 'chat broadcast originInstanceId must be a non-empty string'),
+)
+
+const ChatBroadcastPayloadSchema = object({
+  chatId: NonEmptyChatBroadcastChatIdSchema,
+  messages: ChatBroadcastMessagesSchema,
+  fromSeq: ChatBroadcastFromSeqSchema,
+  toSeq: ChatBroadcastToSeqSchema,
+})
+
+const ChatBroadcastMessageSchema = object({
+  userId: NonEmptyChatBroadcastUserIdSchema,
+  payload: ChatBroadcastPayloadSchema,
+  originInstanceId: NonEmptyChatBroadcastOriginInstanceIdSchema,
+})
+
 export interface ChatBroadcastPayload {
   chatId: string
   messages: unknown[]
@@ -18,20 +63,6 @@ export interface ChatBroadcastMessage {
    * the sender's own ctx).
    */
   originInstanceId: string
-}
-
-function assertNonEmptyString(value: unknown, fieldName: string): string {
-  if (typeof value !== 'string' || value.trim().length === 0)
-    throw new TypeError(`${fieldName} must be a non-empty string`)
-
-  return value
-}
-
-function assertFiniteNumber(value: unknown, fieldName: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value))
-    throw new TypeError(`${fieldName} must be a finite number`)
-
-  return value
 }
 
 /**
@@ -55,16 +86,7 @@ export function createChatBroadcastMessage(
   payload: ChatBroadcastPayload,
   originInstanceId: string,
 ): ChatBroadcastMessage {
-  return {
-    userId: assertNonEmptyString(userId, 'chat broadcast userId'),
-    payload: {
-      chatId: assertNonEmptyString(payload.chatId, 'chat broadcast payload.chatId'),
-      messages: assertMessages(payload.messages),
-      fromSeq: assertFiniteNumber(payload.fromSeq, 'chat broadcast payload.fromSeq'),
-      toSeq: assertFiniteNumber(payload.toSeq, 'chat broadcast payload.toSeq'),
-    },
-    originInstanceId: assertNonEmptyString(originInstanceId, 'chat broadcast originInstanceId'),
-  }
+  return parse(ChatBroadcastMessageSchema, { userId, payload, originInstanceId })
 }
 
 /**
@@ -101,21 +123,14 @@ export function parseChatBroadcastMessage(raw: string): ChatBroadcastMessage {
 
   const payloadRecord = payload as Record<string, unknown>
 
-  return createChatBroadcastMessage(
-    assertNonEmptyString(message.userId, 'chat broadcast userId'),
-    {
-      chatId: assertNonEmptyString(payloadRecord.chatId, 'chat broadcast payload.chatId'),
-      messages: assertMessages(payloadRecord.messages),
-      fromSeq: assertFiniteNumber(payloadRecord.fromSeq, 'chat broadcast payload.fromSeq'),
-      toSeq: assertFiniteNumber(payloadRecord.toSeq, 'chat broadcast payload.toSeq'),
+  return parse(ChatBroadcastMessageSchema, {
+    userId: message.userId,
+    payload: {
+      chatId: payloadRecord.chatId,
+      messages: payloadRecord.messages,
+      fromSeq: payloadRecord.fromSeq,
+      toSeq: payloadRecord.toSeq,
     },
-    assertNonEmptyString(message.originInstanceId, 'chat broadcast originInstanceId'),
-  )
-}
-
-function assertMessages(value: unknown): unknown[] {
-  if (!Array.isArray(value))
-    throw new TypeError('chat broadcast payload.messages must be an array')
-
-  return value
+    originInstanceId: message.originInstanceId,
+  })
 }

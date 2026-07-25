@@ -43,7 +43,7 @@ async function main() {
   // the router is actually sending when E2E fails. Remove after E2E passes.
   const debugFetch: typeof fetch = async (input, init) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    console.log(`  fetch → POST ${url}`)
+    console.info(`  fetch → POST ${url}`)
     if (init?.headers) {
       const hdrs = init.headers as Record<string, string>
       const auth = hdrs.authorization || hdrs.Authorization
@@ -51,16 +51,16 @@ async function main() {
       // Never log credential substrings: a 30-char prefix of an OpenRouter
       // key (`sk-or-v1-bb1a38505a7309...`) is enough to identify the account.
       // Print presence only. Source: codex review 2026-05-15 #10.
-      console.log(`  auth   = ${auth ? '<set>' : '<none>'}`)
+      console.info(`  auth   = ${auth ? '<set>' : '<none>'}`)
     }
     if (init?.body) {
-      console.log(`  body   = ${String(init.body).slice(0, 200)}`)
+      console.info(`  body   = ${String(init.body).slice(0, 200)}`)
     }
     const res = await fetch(input as any, init as any)
     if (!res.ok) {
       const clone = res.clone()
       const text = await clone.text().catch(() => '<unreadable>')
-      console.log(`  ← ${res.status} body: ${text.slice(0, 300)}`)
+      console.info(`  ← ${res.status} body: ${text.slice(0, 300)}`)
     }
     return res
   }
@@ -72,7 +72,7 @@ async function main() {
     fetchImpl: debugFetch,
   })
 
-  console.log('→ calling router.route() with model=chat-default')
+  console.info('→ calling router.route() with model=chat-default')
   const start = Date.now()
   let response: Response
   try {
@@ -94,7 +94,7 @@ async function main() {
   }
 
   const elapsed = Date.now() - start
-  console.log(`← status ${response.status} (${elapsed}ms)`)
+  console.info(`← status ${response.status} (${elapsed}ms)`)
 
   if (!response.ok) {
     const text = await response.text()
@@ -109,11 +109,11 @@ async function main() {
     model?: string
   }
   const content = payload.choices?.[0]?.message?.content
-  console.log()
-  console.log('Assistant response:')
-  console.log(`  model:  ${payload.model ?? '<unknown>'}`)
-  console.log(`  text:   ${JSON.stringify(content)}`)
-  console.log(`  tokens: prompt=${payload.usage?.prompt_tokens ?? '?'} completion=${payload.usage?.completion_tokens ?? '?'}`)
+  console.info()
+  console.info('Assistant response:')
+  console.info(`  model:  ${payload.model ?? '<unknown>'}`)
+  console.info(`  text:   ${JSON.stringify(content)}`)
+  console.info(`  tokens: prompt=${payload.usage?.prompt_tokens ?? '?'} completion=${payload.usage?.completion_tokens ?? '?'}`)
 
   if (!content) {
     console.error('error: response.choices[0].message.content was empty')
@@ -121,8 +121,8 @@ async function main() {
     exit(1)
   }
 
-  console.log()
-  console.log('E2E PASS — router service successfully called OpenRouter and returned a usable response.')
+  console.info()
+  console.info('E2E PASS — router service successfully called OpenRouter and returned a usable response.')
   await redis.quit()
 }
 

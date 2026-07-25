@@ -1,9 +1,41 @@
+// NOTICE: fixtures below are string literals that REPRESENT bot code containing
+// template literals (e.g. `我有 ${n} 颗钻石`). The `${...}` is intentional test
+// data, not a mistaken template string, so disable no-template-curly-in-string here.
+/* eslint-disable no-template-curly-in-string */
 import type { Action } from '../../libs/mineflayer/action'
 
+import { Vec3 } from 'vec3'
 import { describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
-import { JavaScriptPlanner } from './js-planner'
+import { extractJavaScriptCandidate, JavaScriptPlanner } from './js-planner'
+
+describe('extractJavaScriptCandidate', () => {
+  it('takes the inner code of a fenced block, leaving template literals intact', () => {
+    const reply = '好的主人:\n```js\nconst n = query.inventory().count("diamond")\nawait chat({ message: `我有 ${n} 颗钻石~` })\n```\n这样就安全了!'
+    expect(extractJavaScriptCandidate(reply)).toBe('const n = query.inventory().count("diamond")\nawait chat({ message: `我有 ${n} 颗钻石~` })')
+  })
+
+  it('returns clean code unchanged', () => {
+    const code = 'const n = 5\nawait chat({ message: `我有 ${n} 颗钻石` })'
+    expect(extractJavaScriptCandidate(code)).toBe(code)
+  })
+
+  it('salvages code when the model adds trailing prose without a fence', () => {
+    const reply = 'await chat({ message: "好的主人" })\n然后我去做盔甲'
+    expect(extractJavaScriptCandidate(reply)).toBe('await chat({ message: "好的主人" })')
+  })
+
+  it('salvages code when the model adds a leading prose line without a fence', () => {
+    const reply = '好的,我来做:\nawait craftRecipe({ item_name: "diamond_helmet" })'
+    expect(extractJavaScriptCandidate(reply)).toBe('await craftRecipe({ item_name: "diamond_helmet" })')
+  })
+
+  it('leaves pure prose untouched (nothing executable to salvage)', () => {
+    const reply = '我来给自己做钻石盔甲保护一下。'
+    expect(extractJavaScriptCandidate(reply)).toBe(reply)
+  })
+})
 
 function createAction(name: string, schema: Action['schema']): Action {
   return {
@@ -150,6 +182,30 @@ describe('javaScriptPlanner', () => {
     const planned = await planner.evaluate('await chat("count=" + mem.count)', actions, globals, executeAction)
 
     expect(planned.actions.map(a => a.action)).toEqual([{ tool: 'chat', params: { message: 'count=2' } }])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1915 (Codex P2)
+  it('exposes self.pos / self.position as aliases of self.location in the sandbox', async () => {
+    // ROOT CAUSE:
+    // The prompt promises self.pos.x, but the worker bound `self` straight from the reflex snapshot
+    // (only `.location`), so self.pos / self.position were undefined and scripts crashed with
+    // "Cannot read properties of undefined". buildRuntimeSnapshot now aliases pos/position -> location
+    // on the isolate snapshot the worker binds from. Earlier the alias only reached the debug preview.
+    const planner = new JavaScriptPlanner()
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+    const withSelf = {
+      ...globals,
+      snapshot: { ...globals.snapshot, self: { health: 20, food: 20, location: { x: 12, y: 64, z: -7 } } },
+    }
+
+    const planned = await planner.evaluate(
+      'return self.pos.x + "," + self.position.z + "," + self.location.y',
+      actions,
+      withSelf as any,
+      executeAction,
+    )
+
+    expect(planned.returnValue).toContain('12,-7,64')
   })
 
   it('persists typed previous return via prevRun.returnRaw', async () => {
@@ -437,5 +493,108 @@ describe('javaScriptPlanner', () => {
     const planner = new JavaScriptPlanner()
     expect(planner.canEvaluateAsExpression('2 + 3')).toBe(true)
     expect(planner.canEvaluateAsExpression('const a = 1; a + 1')).toBe(false)
+  })
+
+  it('botCall invokes the named bot method with a marshaled Vec3 position arg', async () => {
+    const planner = new JavaScriptPlanner()
+    const lookAt = vi.fn<(pos: unknown, force: unknown) => Promise<void>>(async () => undefined)
+    const globalsWithBot = { ...globals, mineflayer: { bot: { lookAt } } } as any
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    await planner.evaluate('await botCall("lookAt", [{ x: 1, y: 2, z: 3 }, true])', actions, globalsWithBot, executeAction)
+
+    expect(lookAt).toHaveBeenCalledTimes(1)
+    const [posArg, forceArg] = lookAt.mock.calls[0]
+    expect(posArg).toBeInstanceOf(Vec3)
+    expect(posArg).toMatchObject({ x: 1, y: 2, z: 3 })
+    expect(forceArg).toBe(true)
+  })
+
+  it('botCall rejects a denylisted bot method', async () => {
+    const planner = new JavaScriptPlanner()
+    const end = vi.fn()
+    const globalsWithBot = { ...globals, mineflayer: { bot: { end } } } as any
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    await expect(
+      planner.evaluate('await botCall("end", [])', actions, globalsWithBot, executeAction),
+    ).rejects.toThrow(/not allowed/i)
+    expect(end).not.toHaveBeenCalled()
+  })
+
+  it('query.entities().whereName filters nearby entities by name in the sandbox', async () => {
+    const planner = new JavaScriptPlanner()
+    const mineflayer = {
+      bot: {
+        version: '1.21.1',
+        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
+        health: 20,
+        food: 20,
+        heldItem: null,
+        game: { gameMode: 'survival' },
+        isRaining: false,
+        time: { timeOfDay: 0 },
+        entities: {
+          1: { id: 1, name: 'dssadg', type: 'player', username: 'dssadg', position: { x: 3, y: 64, z: 0 } },
+        },
+        players: {},
+        findBlocks: () => [],
+        blockAt: () => null,
+        inventory: { items: () => [], emptySlotCount: () => 36 },
+        registry: { items: {}, itemsByName: {}, blocksByName: { crafting_table: { id: 58 } } },
+        recipesFor: () => [],
+      },
+    }
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    const planned = await planner.evaluate(
+      'const e = query.entities().whereName("dssadg").first(); return e ? e.name : "none"',
+      actions,
+      { ...globals, mineflayer } as any,
+      executeAction,
+    )
+
+    expect(planned.returnValue).toContain('dssadg')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1915 (Codex P2)
+  it('query.entities().whereType("player") still matches players after name is projected to username', async () => {
+    // ROOT CAUSE:
+    // Player records now expose `name` = username (e.g. "dssadg"), but the sandbox whereType()
+    // predicate only checked `entity.name ?? entity.type`, so whereType("player") computed "dssadg"
+    // and matched nothing. The TS EntityQueryChain was fixed to also check `entity.type`; the
+    // sandbox runtime must mirror it. Before the fix this returned "none".
+    const planner = new JavaScriptPlanner()
+    const mineflayer = {
+      bot: {
+        version: '1.21.1',
+        entity: { id: 0, position: { x: 0, y: 64, z: 0 } },
+        health: 20,
+        food: 20,
+        heldItem: null,
+        game: { gameMode: 'survival' },
+        isRaining: false,
+        time: { timeOfDay: 0 },
+        entities: {
+          1: { id: 1, name: 'dssadg', type: 'player', username: 'dssadg', position: { x: 3, y: 64, z: 0 } },
+        },
+        players: {},
+        findBlocks: () => [],
+        blockAt: () => null,
+        inventory: { items: () => [], emptySlotCount: () => 36 },
+        registry: { items: {}, itemsByName: {}, blocksByName: { crafting_table: { id: 58 } } },
+        recipesFor: () => [],
+      },
+    }
+    const executeAction = vi.fn(async action => `ok:${action.tool}`)
+
+    const planned = await planner.evaluate(
+      'const e = query.entities().whereType("player").first(); return e ? e.name : "none"',
+      actions,
+      { ...globals, mineflayer } as any,
+      executeAction,
+    )
+
+    expect(planned.returnValue).toContain('dssadg')
   })
 })

@@ -1,8 +1,9 @@
-import type { WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { MetadataEventSource, WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
+import { getMetadataSourceLabel } from '../../utils/event-source'
 import { useModsServerChannelStore } from '../mods/api/channel-server'
 
 export interface MinecraftTrafficEntry {
@@ -18,17 +19,15 @@ const RUNTIME_CONTEXT_TICK_MS = 1_000
 const MAX_TRAFFIC_ENTRIES = 50
 const MINECRAFT_SERVICE_NAME = 'minecraft-bot'
 
-function getEventSourceLabel(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }) {
-  return event.metadata?.source?.plugin?.id
-    ?? event.metadata?.source?.id
-    ?? 'unknown'
+function getEventSourceLabel(event: { metadata?: { source?: MetadataEventSource } }) {
+  return getMetadataSourceLabel(event.metadata?.source) ?? 'unknown'
 }
 
-function isMinecraftSource(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }) {
-  const sourcePluginId = event.metadata?.source?.plugin?.id
+function isMinecraftSource(event: { metadata?: { source?: MetadataEventSource } }) {
+  const sourceLabel = getMetadataSourceLabel(event.metadata?.source)
   const sourceId = event.metadata?.source?.id
 
-  return sourcePluginId === MINECRAFT_SERVICE_NAME || sourceId === MINECRAFT_SERVICE_NAME
+  return sourceLabel === MINECRAFT_SERVICE_NAME || sourceId === MINECRAFT_SERVICE_NAME
 }
 
 function summarizeContextUpdate(event: WebSocketBaseEvent<'context:update', WebSocketEvents['context:update']>) {
@@ -46,8 +45,8 @@ function summarizeSparkCommand(event: WebSocketBaseEvent<'spark:command', WebSoc
   return `${event.data.intent} -> ${destinations}`
 }
 
-function isMinecraftModuleIdentity(value: { name?: string, identity?: { plugin?: { id?: string } } }) {
-  return value.name === MINECRAFT_SERVICE_NAME || value.identity?.plugin?.id === MINECRAFT_SERVICE_NAME
+function isMinecraftModuleIdentity(value: { name?: string, identity?: MetadataEventSource }) {
+  return value.name === MINECRAFT_SERVICE_NAME || getMetadataSourceLabel(value.identity) === MINECRAFT_SERVICE_NAME
 }
 
 export const useMinecraftStore = defineStore('minecraft', () => {

@@ -60,6 +60,24 @@ describe('query DSL', () => {
     expect(zombies[0]?.name).toBe('zombie')
   })
 
+  it('exposes a player\'s username as its name, not the literal "player"', () => {
+    // Regression: mineflayer entity.name for a player is the type "player"; reading it as the name
+    // made the bot see its master (dssadg/Alex) as an unknown player. The projected name must be the
+    // username. whereType('player') must still match via the entity type.
+    const query = createQueryRuntime(createMineflayerStub())
+    const players = query.entities().within(16).whereType('player').list()
+    expect(players).toHaveLength(1) // self (id 99) is excluded
+    expect(players[0]?.name).toBe('Alex')
+    expect(players[0]?.username).toBe('Alex')
+  })
+
+  it('matches a player by username via whereName', () => {
+    const query = createQueryRuntime(createMineflayerStub())
+    const found = query.entities().within(16).whereName('Alex').first()
+    expect(found?.name).toBe('Alex')
+    expect(found?.type).toBe('player')
+  })
+
   it('aggregates inventory counts', () => {
     const query = createQueryRuntime(createMineflayerStub())
     expect(query.inventory().countByName()).toEqual({

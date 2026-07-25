@@ -5,6 +5,7 @@ import { computed, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import { trackPasswordResetCompleted } from '../modules/analytics'
 import { describeAuthError, resetPasswordWithToken } from '../modules/email-password'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 
@@ -52,6 +53,7 @@ async function handleSubmit(event: Event) {
       newPassword: form.password,
       token: token.value,
     })
+    trackPasswordResetCompleted()
     completed.value = true
   }
   catch (error) {

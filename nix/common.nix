@@ -3,13 +3,16 @@
   stdenvNoCC,
   fetchPnpmDeps,
 
-  pnpm_10,
-  pnpmConfigHook,
-
   cacert,
   gitMinimal,
   nodejs,
+  pnpm_10,
+  pnpmConfigHook,
 }:
+
+let
+  pnpm = pnpm_10;
+in
 
 stdenvNoCC.mkDerivation (final: {
   pname = "airi";
@@ -41,7 +44,7 @@ stdenvNoCC.mkDerivation (final: {
       cacert # For network request
       gitMinimal # For unplugin-info
       nodejs
-      pnpm_10
+      pnpm
       pnpmConfigHook
     ];
 

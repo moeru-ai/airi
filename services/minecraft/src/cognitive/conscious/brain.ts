@@ -197,7 +197,11 @@ interface ErrorBurstGuardState {
 }
 
 function truncateForPrompt(value: string, maxLength = 220): string {
-  return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}...`
+  // NOTICE: callers can pass undefined despite the `string` type — a successful action with no return
+  // value hits `JSON.stringify(undefined) === undefined` upstream, which previously crashed the whole
+  // brain turn here with "Cannot read properties of undefined (reading 'length')". Coerce defensively.
+  const text = typeof value === 'string' ? value : String(value ?? '')
+  return text.length <= maxLength ? text : `${text.slice(0, maxLength - 1)}...`
 }
 
 function stringifyForLog(value: unknown): string {
@@ -216,9 +220,9 @@ const NO_ACTION_BUDGET_ALERT_SOURCE_ID = 'brain:no_action_budget'
 
 /**
  * Priority tiers for event scheduling (lower = higher priority).
- * Player chat always takes precedence over stale system feedback.
+ * Player chat and AIRI commands always take precedence over stale system feedback.
  */
-const EVENT_PRIORITY_PLAYER_CHAT = 0
+const EVENT_PRIORITY_URGENT_PERCEPTION = 0
 const EVENT_PRIORITY_PERCEPTION = 1
 const EVENT_PRIORITY_FEEDBACK = 2
 const EVENT_PRIORITY_NO_ACTION_FOLLOWUP = 3
@@ -237,11 +241,32 @@ const MAX_EVENT_QUEUE_LENGTH = 256
 const MAX_CONSECUTIVE_HIGH_PRIORITY_TURNS = 8
 const PAUSE_ABORT_ERROR_NAME = 'AbortError'
 
+/**
+ * Turn a cryptic sandbox runtime error into actionable guidance the LLM can act on next turn.
+ *
+ * The dominant recurring failure is reading a coordinate (`.x`/`.y`/`.z`/`.pos`) off a query result
+ * that was `null` — e.g. `query.entities().whereName("pig").first().pos.x` when no pig was found.
+ * The raw message ("Cannot read properties of undefined (reading 'x')") gave the model nothing to
+ * fix, so it would repeat the same crash for several turns and then give up. Appending the concrete
+ * fix lets it recover in one turn.
+ *
+ * Before:
+ * - "Cannot read properties of undefined (reading 'x')"
+ * After:
+ * - "...reading 'x') — 你读取了不存在对象的坐标。query 的 .first() 找不到时是 null,先判空… "
+ */
+function augmentDecisionError(message: string): string {
+  if (/Cannot read properties of (?:undefined|null) \(reading '(?:[xyz]|pos|position|location)'\)/.test(message)) {
+    return `${message} — 你读取了一个不存在对象的坐标。query.entities()/query.blocks() 的 .first() 在没找到目标时返回 null,直接读它的 .pos/.x 就会这样崩。修法:先判空再读,例如 const t = query.entities().whereName("pig").first(); if (!t) { await chat({ message: "附近没有目标,我换个方向找找", feedback: false }) } else { await goToCoordinate({ x: t.pos.x, y: t.pos.y, z: t.pos.z, closeness: 1 }) }。提示:杀动物直接用 attack({ type: "pig" }) 击杀最近的,通常根本不用手动查坐标。`
+  }
+  return message
+}
+
 function getEventPriority(event: BotEvent): number {
   if (event.type === 'perception') {
     const signal = event.payload as PerceptionSignal
-    if (signal.type === 'chat_message')
-      return EVENT_PRIORITY_PLAYER_CHAT
+    if (signal.type === 'chat_message' || signal.type === 'airi_command')
+      return EVENT_PRIORITY_URGENT_PERCEPTION
     return EVENT_PRIORITY_PERCEPTION
   }
   if (event.source.type === 'system' && event.source.id === NO_ACTION_FOLLOWUP_SOURCE_ID)
@@ -1553,7 +1578,7 @@ export class Brain {
   }
 
   /**
-   * Coalesce the event queue: promote high-priority events (player chat)
+   * Coalesce the event queue: promote high-priority events (player chat, AIRI commands)
    * ahead of stale low-priority events (feedback, no-action follow-ups),
    * and drop redundant stale follow-ups when a higher-priority event exists.
    */
@@ -1567,11 +1592,11 @@ export class Brain {
     if (!hasHighPriority)
       return
 
-    // Drop redundant no-action follow-ups when a player chat is waiting
-    const hasPlayerChat = this.queue.some(
-      item => getEventPriority(item.event) === EVENT_PRIORITY_PLAYER_CHAT,
+    // Drop redundant no-action follow-ups when an urgent perception is waiting
+    const hasUrgentPerception = this.queue.some(
+      item => getEventPriority(item.event) === EVENT_PRIORITY_URGENT_PERCEPTION,
     )
-    if (hasPlayerChat) {
+    if (hasUrgentPerception) {
       const before = this.queue.length
       const dropped: QueuedEvent[] = []
       this.queue = this.queue.filter((item) => {
@@ -1593,12 +1618,12 @@ export class Brain {
           sourceType: 'system',
           sourceId: 'brain:coalesce',
           tags: ['scheduler', 'coalesce', 'drop_followups'],
-          text: `Coalesced queue: dropped ${before - this.queue.length} stale no-action follow-ups (player chat waiting)`,
+          text: `Coalesced queue: dropped ${before - this.queue.length} stale no-action follow-ups (urgent perception waiting)`,
         })
       }
     }
 
-    // Stable-sort by priority so player chat events are processed first
+    // Stable-sort by priority so urgent perception events are processed first
     this.queue.sort((a, b) => getEventPriority(a.event) - getEventPriority(b.event))
   }
 
@@ -1773,8 +1798,8 @@ export class Brain {
     // Update state after consuming difference
     this.lastContextView = contextView
 
-    // 2. Prepare System Prompt (static)
-    const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions())
+    // 2. Prepare System Prompt (static + bound master identity)
+    const systemPrompt = generateBrainSystemPrompt(this.deps.taskExecutor.getAvailableActions(), { masterUsername: config.bot.masterUsername })
     this.currentInputEnvelope = {
       id: turnId,
       turnId,
@@ -2172,18 +2197,19 @@ export class Brain {
         },
       })
       this.maybeActivateErrorBurstGuard(bot, event, turnId)
+      const augmentedError = augmentDecisionError(toErrorMessage(err))
       this.debugService.emit('debug:repl_result', {
         source: 'llm',
         code: result,
         logs: [],
         actions: [],
-        error: toErrorMessage(err),
+        error: augmentedError,
         durationMs: 0,
         timestamp: Date.now(),
       })
       void this.enqueueEvent(bot, {
         type: 'feedback',
-        payload: { status: 'failure', error: toErrorMessage(err) },
+        payload: { status: 'failure', error: augmentedError },
         source: { type: 'system', id: 'brain' },
         timestamp: Date.now(),
       })
@@ -2279,7 +2305,7 @@ export class Brain {
       return true
 
     const signal = event.payload as PerceptionSignal
-    return signal.type !== 'chat_message'
+    return !this.canResumeFromGiveUp(signal)
   }
 
   private resumeFromGiveUpIfNeeded(event: BotEvent): void {
@@ -2290,10 +2316,14 @@ export class Brain {
       return
 
     const signal = event.payload as PerceptionSignal
-    if (signal.type !== 'chat_message')
+    if (!this.canResumeFromGiveUp(signal))
       return
 
     this.givenUp = false
     this.giveUpReason = undefined
+  }
+
+  private canResumeFromGiveUp(signal: PerceptionSignal): boolean {
+    return signal.type === 'chat_message' || signal.type === 'airi_command'
   }
 }

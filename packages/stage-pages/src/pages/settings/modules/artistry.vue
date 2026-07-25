@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { storeToRefs } from 'pinia'
@@ -26,20 +27,24 @@ const availableProviders = computed(() => [
     icon: 'i-solar:monitor-camera-bold-duotone',
     configRoute: '/settings/providers/artistry/comfyui',
   },
-  {
-    id: 'replicate',
-    name: t('settings.pages.modules.artistry.providers.replicate.name'),
-    description: t('settings.pages.modules.artistry.providers.replicate.description'),
-    icon: 'i-solar:cloud-upload-bold-duotone',
-    configRoute: '/settings/providers/artistry/replicate',
-  },
-  {
-    id: 'nanobanana',
-    name: t('settings.pages.modules.artistry.providers.nanobanana.name'),
-    description: t('settings.pages.modules.artistry.providers.nanobanana.description'),
-    icon: 'i-solar:gallery-round-bold-duotone',
-    configRoute: '/settings/providers/artistry/nanobanana',
-  },
+  ...(isCustomProvidersDisabled()
+    ? []
+    : [
+        {
+          id: 'replicate',
+          name: t('settings.pages.modules.artistry.providers.replicate.name'),
+          description: t('settings.pages.modules.artistry.providers.replicate.description'),
+          icon: 'i-solar:cloud-upload-bold-duotone',
+          configRoute: '/settings/providers/artistry/replicate',
+        },
+        {
+          id: 'nanobanana',
+          name: t('settings.pages.modules.artistry.providers.nanobanana.name'),
+          description: t('settings.pages.modules.artistry.providers.nanobanana.description'),
+          icon: 'i-solar:gallery-round-bold-duotone',
+          configRoute: '/settings/providers/artistry/nanobanana',
+        },
+      ]),
 ])
 </script>
 

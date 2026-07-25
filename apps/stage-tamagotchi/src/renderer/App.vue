@@ -5,6 +5,7 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -48,154 +49,231 @@ import {
   electronPluginSetEnabled,
   electronPluginUnload,
 } from '../shared/eventa/plugin/host'
+import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { createChatSyncWindowLifecycle } from './stores/chat-sync-lifecycle'
+import { createChatSyncWindowLifecycle, resolveInitialChatSyncRoutePath } from './stores/chat-sync-lifecycle'
 import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 
 const { isDark: dark } = useTheme()
-const contextBridgeStore = useContextBridgeStore()
-const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settingsStore)
-const serverChannelSettingsStore = useServerChannelSettingsStore()
 const router = useRouter()
 const route = useRoute()
-const cardStore = useAiriCardStore()
 const chatSessionStore = useChatSessionStore()
-const serverChannelStore = useModsServerChannelStore()
-const characterOrchestratorStore = useCharacterOrchestratorStore()
-const analyticsStore = useSharedAnalyticsStore()
-const inferencePreload = useInferencePreload()
-const pluginHostInspectorStore = usePluginHostInspectorStore()
-const mcpToolsStore = useTamagotchiMcpToolsStore()
-const pluginToolsStore = useTamagotchiPluginToolsStore()
-const stageWindowLifecycleStore = useStageWindowLifecycleStore()
-const settingsAudioDeviceStore = useSettingsAudioDevice()
-const artistryStore = useArtistryStore()
-const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
 const context = useElectronEventaContext()
-usePerfTracerBridgeStore()
-initializeStageThreeRuntimeTraceBridge()
-initializeElectronAuthCallbackBridge()
-void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
-const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
-const listPlugins = useElectronEventaInvoke(electronPluginList)
-const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
-const setPluginAutoReload = useElectronEventaInvoke(electronPluginSetAutoReload)
-const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
-const loadPlugin = useElectronEventaInvoke(electronPluginLoad)
-const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
-const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
-const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
-const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
-const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
-const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
+const initialWindowRoutePath = resolveInitialChatSyncRoutePath(route.path)
 const chatSyncLifecycle = createChatSyncWindowLifecycle(route.path)
-const isChatWindowRoute = () => route.path === '/chat'
-const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
-const isWidgetsWindowRoute = () => route.path === '/widgets'
+const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
+const isSettingsWindowRoute = initialWindowRoutePath.startsWith('/settings')
 
-function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
-  if (state.state === 'running') {
-    settingsStore.setStageModelRenderer('godot')
-    return
+if (!isSpotlightWindowRoute)
+  useAuthProviderSync()
+
+function createFullStageRuntime() {
+  const contextBridgeStore = useContextBridgeStore()
+  const displayModelsStore = useDisplayModelsStore()
+  const serverChannelSettingsStore = useServerChannelSettingsStore()
+  const cardStore = useAiriCardStore()
+  const serverChannelStore = useModsServerChannelStore()
+  const characterOrchestratorStore = useCharacterOrchestratorStore()
+  const analyticsStore = useSharedAnalyticsStore()
+  const inferencePreload = useInferencePreload()
+  const pluginHostInspectorStore = usePluginHostInspectorStore()
+  const mcpToolsStore = useTamagotchiMcpToolsStore()
+  const pluginToolsStore = useTamagotchiPluginToolsStore()
+  const stageWindowLifecycleStore = useStageWindowLifecycleStore()
+  const settingsAudioDeviceStore = useSettingsAudioDevice()
+  const artistryStore = useArtistryStore()
+  const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
+  const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
+  const listPlugins = useElectronEventaInvoke(electronPluginList)
+  const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
+  const setPluginAutoReload = useElectronEventaInvoke(electronPluginSetAutoReload)
+  const loadEnabledPlugins = useElectronEventaInvoke(electronPluginLoadEnabled)
+  const loadPlugin = useElectronEventaInvoke(electronPluginLoad)
+  const unloadPlugin = useElectronEventaInvoke(electronPluginUnload)
+  const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
+  const startTrackingCursorPoint = useElectronEventaInvoke(electronStartTrackMousePosition)
+  const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
+  const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
+  const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
+  const isAuxiliaryChatRoute = initialWindowRoutePath === '/chat'
+  const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
+  const isWidgetsWindowRoute = () => route.path === '/widgets'
+
+  function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
+    if (state.state === 'running') {
+      settingsStore.setStageModelRenderer('godot')
+      return
+    }
+
+    if ((state.state === 'stopped' || state.state === 'error') && settingsStore.stageModelRenderer === 'godot')
+      settingsStore.restoreBuiltInStageModelRenderer()
   }
 
-  if ((state.state === 'stopped' || state.state === 'error') && settingsStore.stageModelRenderer === 'godot')
-    settingsStore.restoreBuiltInStageModelRenderer()
+  async function refreshPluginRuntimeTools() {
+    try {
+      await pluginToolsStore.refresh()
+    }
+    catch (error) {
+      console.warn('[App] Failed to refresh plugin runtime tools:', error)
+    }
+  }
+
+  usePerfTracerBridgeStore()
+  initializeStageThreeRuntimeTraceBridge()
+  initializeElectronAuthCallbackBridge()
+  void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
+
+  watch(() => route.path, () => {
+    contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
+  }, { immediate: true })
+
+  // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
+  pluginHostInspectorStore.setBridge({
+    list: () => listPlugins(),
+    setEnabled: async (payload) => {
+      const result = await setPluginEnabled(payload)
+      await refreshPluginRuntimeTools()
+      return result
+    },
+    setAutoReload: payload => setPluginAutoReload(payload),
+    loadEnabled: async () => {
+      const result = await loadEnabledPlugins()
+      await refreshPluginRuntimeTools()
+      return result
+    },
+    load: async (payload) => {
+      const result = await loadPlugin(payload)
+      await refreshPluginRuntimeTools()
+      return result
+    },
+    unload: async (payload) => {
+      const result = await unloadPlugin(payload)
+      await refreshPluginRuntimeTools()
+      return result
+    },
+    inspect: () => inspectPluginHost(),
+  })
+
+  // NOTICE: Runtime tool stores must register during setup so renderer consumers can see them
+  // before `onMounted()` finishes the rest of the startup flow.
+  void mcpToolsStore.refresh().catch((error) => {
+    console.warn('[App] Failed to refresh MCP runtime tools:', error)
+  })
+  void refreshPluginRuntimeTools()
+
+  watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
+    if (activeProvider.value) {
+      void syncArtistryConfig({
+        provider: activeProvider.value as string,
+        globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
+        model: activeModel.value,
+        promptPrefix: defaultPromptPrefix.value,
+        options: providerOptions.value,
+      })
+    }
+  }, { deep: true, immediate: true })
+
+  context.value.on(electronGodotStageStatusChanged, (event) => {
+    if (!event.body) {
+      return
+    }
+
+    syncGodotStageRenderer(event.body)
+  })
+
+  context.value.on(electronPluginToolsChanged, () => {
+    void refreshPluginRuntimeTools()
+  })
+
+  return {
+    async initialize() {
+      analyticsStore.initialize()
+      await displayModelsStore.initialize()
+      cardStore.initialize()
+
+      await displayModelsStore.loadDisplayModelsFromIndexedDB()
+      await settingsStore.initializeStageModel()
+      await settingsAudioDeviceStore.initialize()
+
+      if (isGodotStageRoute()) {
+        try {
+          syncGodotStageRenderer(await getGodotStageStatus())
+        }
+        catch (error) {
+          console.warn('[App] Failed to fetch Godot stage status:', error)
+        }
+      }
+
+      const serverChannelConfig = await getServerChannelConfig()
+      serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
+      serverChannelSettingsStore.hostname = serverChannelConfig.hostname
+      serverChannelSettingsStore.authToken = serverChannelConfig.authToken
+
+      await serverChannelStore.initialize({
+        token: serverChannelConfig.authToken || undefined,
+        possibleEvents: ['ui:configure'],
+      }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
+      if (!isAuxiliaryChatRoute) {
+        contextBridgeStore.initialize()
+        if (!isWidgetsWindowRoute()) {
+          characterOrchestratorStore.initialize()
+          await startTrackingCursorPoint()
+        }
+      }
+
+      defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
+
+      if (shouldPublishPluginHostCapabilities()) {
+        await reportPluginCapability({
+          key: pluginProtocolListProvidersEventName,
+          state: 'ready',
+          metadata: {
+            source: 'stage-ui',
+          },
+        })
+      }
+
+      inferencePreload.triggerPreload()
+    },
+    dispose() {
+      if (!isAuxiliaryChatRoute)
+        contextBridgeStore.dispose()
+      mcpToolsStore.dispose()
+      pluginToolsStore.dispose()
+    },
+  }
 }
 
-async function refreshPluginRuntimeTools() {
-  try {
-    await pluginToolsStore.refresh()
-  }
-  catch (error) {
-    console.warn('[App] Failed to refresh plugin runtime tools:', error)
-  }
-}
-
-watch(() => route.path, () => {
-  contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
-}, { immediate: true })
-
-// NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
-pluginHostInspectorStore.setBridge({
-  list: () => listPlugins(),
-  setEnabled: async (payload) => {
-    const result = await setPluginEnabled(payload)
-    await refreshPluginRuntimeTools()
-    return result
-  },
-  setAutoReload: payload => setPluginAutoReload(payload),
-  loadEnabled: async () => {
-    const result = await loadEnabledPlugins()
-    await refreshPluginRuntimeTools()
-    return result
-  },
-  load: async (payload) => {
-    const result = await loadPlugin(payload)
-    await refreshPluginRuntimeTools()
-    return result
-  },
-  unload: async (payload) => {
-    const result = await unloadPlugin(payload)
-    await refreshPluginRuntimeTools()
-    return result
-  },
-  inspect: () => inspectPluginHost(),
-})
-
-// NOTICE: Runtime tool stores must register during setup so renderer consumers can see them
-// before `onMounted()` finishes the rest of the startup flow.
-void mcpToolsStore.refresh().catch((error) => {
-  console.warn('[App] Failed to refresh MCP runtime tools:', error)
-})
-void refreshPluginRuntimeTools()
+const fullStageRuntime = isSpotlightWindowRoute ? null : createFullStageRuntime()
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
-
-watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
-  if (activeProvider.value) {
-    void syncArtistryConfig({
-      provider: activeProvider.value as string,
-      globals: JSON.parse(JSON.stringify(artistryGlobals.value)),
-      model: activeModel.value,
-      promptPrefix: defaultPromptPrefix.value,
-      options: providerOptions.value,
-    })
-  }
-}, { deep: true, immediate: true })
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue({ light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' }))
 watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
-context.value.on(electronSettingsNavigate, (event) => {
-  const targetRoute = event?.body?.route
-  if (!targetRoute || route.fullPath === targetRoute) {
-    return
-  }
+if (isSettingsWindowRoute) {
+  context.value.on(electronSettingsNavigate, (event) => {
+    const targetRoute = event?.body?.route
+    if (!targetRoute || route.fullPath === targetRoute) {
+      return
+    }
 
-  void router.push(targetRoute).catch((error) => {
-    console.warn('Failed to navigate settings window:', error)
+    void router.push(targetRoute).catch((error) => {
+      console.warn('Failed to navigate settings window:', error)
+    })
   })
-})
-
-context.value.on(electronGodotStageStatusChanged, (event) => {
-  if (!event.body) {
-    return
-  }
-
-  syncGodotStageRenderer(event.body)
-})
+}
 
 onMounted(async () => {
   chatSyncLifecycle.initialize()
@@ -208,56 +286,9 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
-  analyticsStore.initialize()
-  await displayModelsStore.initialize()
-  cardStore.initialize()
-
   await chatSessionStore.initialize()
-  await displayModelsStore.loadDisplayModelsFromIndexedDB()
-  await settingsStore.initializeStageModel()
-  await settingsAudioDeviceStore.initialize()
 
-  if (isGodotStageRoute()) {
-    try {
-      syncGodotStageRenderer(await getGodotStageStatus())
-    }
-    catch (error) {
-      console.warn('[App] Failed to fetch Godot stage status:', error)
-    }
-  }
-
-  const serverChannelConfig = await getServerChannelConfig()
-  serverChannelSettingsStore.tlsConfig = serverChannelConfig.tlsConfig ?? null
-  serverChannelSettingsStore.hostname = serverChannelConfig.hostname
-  serverChannelSettingsStore.authToken = serverChannelConfig.authToken
-
-  await serverChannelStore.initialize({
-    token: serverChannelConfig.authToken || undefined,
-    possibleEvents: ['ui:configure'],
-  }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  if (!isChatWindowRoute()) {
-    contextBridgeStore.initialize()
-    if (!isWidgetsWindowRoute()) {
-      characterOrchestratorStore.initialize()
-      await startTrackingCursorPoint()
-    }
-  }
-
-  // Expose stage provider definitions to plugin host APIs.
-  defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
-
-  if (shouldPublishPluginHostCapabilities()) {
-    await reportPluginCapability({
-      key: pluginProtocolListProvidersEventName,
-      state: 'ready',
-      metadata: {
-        source: 'stage-ui',
-      },
-    })
-  }
-
-  // Preload local inference models (Kokoro TTS, etc.) in background after a delay
-  inferencePreload.triggerPreload()
+  await fullStageRuntime?.initialize()
 })
 
 onUnmounted(() => {
@@ -273,11 +304,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  if (!isChatWindowRoute()) {
-    contextBridgeStore.dispose()
-  }
-  mcpToolsStore.dispose()
-  pluginToolsStore.dispose()
+  fullStageRuntime?.dispose()
 })
 </script>
 
@@ -285,7 +312,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler />
+  <ResizeHandler v-if="!isSpotlightWindowRoute" />
   <RouterView />
 </template>
 

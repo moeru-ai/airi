@@ -252,6 +252,15 @@ function resolveGodotStageDebugLaunchOptions() {
   }
 }
 
+function resolveGodotStageProcessEnv(): NodeJS.ProcessEnv {
+  return {
+    ...process.env,
+    AIRI_GODOT_STAGE_DEV_MODE: app.isPackaged
+      ? process.env.AIRI_GODOT_STAGE_DEV_MODE ?? '0'
+      : process.env.AIRI_GODOT_STAGE_DEV_MODE ?? '1',
+  }
+}
+
 interface GodotBinaryResolution {
   executable: string
   mode: 'engine' | 'exported'
@@ -758,6 +767,7 @@ export function createGodotStageManager(): GodotStageManager {
             spawnArgs,
             {
               cwd: spawnCwd,
+              env: resolveGodotStageProcessEnv(),
               stdio: ['ignore', 'pipe', 'pipe'],
               windowsHide: false,
             },

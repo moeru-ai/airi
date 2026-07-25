@@ -51,6 +51,13 @@ function createTestDeps() {
     adminUsersService: {} as any,
     ttsMeter: {} as any,
     requestLogService: {} as any,
+    voicePackService: {} as any,
+    providerCatalogService: {} as any,
+    productEventService: {
+      track: vi.fn(async () => undefined),
+      trackGeneration: vi.fn(async () => undefined),
+      countDistinctUsersByFeature: vi.fn(async () => []),
+    },
     configKV: {
       getOrThrow: vi.fn(async (key: string) => {
         switch (key) {
@@ -77,7 +84,6 @@ function createTestDeps() {
       encryptKey: vi.fn(),
       decryptKey: vi.fn(),
     } as any,
-    posthog: null,
   }
 
   return {

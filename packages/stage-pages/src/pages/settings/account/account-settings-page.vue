@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
-import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -10,7 +10,7 @@ import { storeToRefs } from 'pinia'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 type SectionId = 'profile' | 'security' | 'connections' | 'danger'
 
@@ -20,6 +20,15 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const {
+  trackAccountDeletionRequested,
+  trackOauthProviderLinkStarted,
+  trackOauthProviderUnlinked,
+  trackPasswordChanged,
+  trackPasswordResetRequested,
+} = useAnalytics()
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
 
@@ -45,7 +54,9 @@ const gravatarProfileUrl = computed(() => {
 // instead of rendering an alt-text overflow inside the circle. Resets when
 // the URL changes so a fixed URL re-attempts loading.
 const avatarLoadError = ref(false)
-watch(userAvatar, () => { avatarLoadError.value = false })
+watch(userAvatar, () => {
+  avatarLoadError.value = false
+})
 
 // Locale-aware thousand separator. Bare 5–6 digit numbers are noisy to scan
 // (e.g. "44965" reads as one block); Intl.NumberFormat respects user locale
@@ -106,6 +117,7 @@ const profileSectionRef = ref<HTMLElement | null>(null)
 const securitySectionRef = ref<HTMLElement | null>(null)
 const connectionsSectionRef = ref<HTMLElement | null>(null)
 const dangerSectionRef = ref<HTMLElement | null>(null)
+const linkedAccountsRouteErrorKey = shallowRef<string | null>(null)
 
 function scrollToSection(id: SectionId) {
   activeSection.value = id
@@ -152,7 +164,28 @@ const {
     unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
     linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
   },
+  onUnlinked: providerId => trackOauthProviderUnlinked({ provider: providerId }),
+  onLinkStarted: providerId => trackOauthProviderLinkStarted({ provider: providerId }),
 })
+
+watch(
+  () => route.query.error,
+  async (error) => {
+    const rawError = Array.isArray(error) ? error[0] : error
+    const messageKey = resolveLinkedAccountOAuthErrorMessageKey(rawError)
+    if (!messageKey)
+      return
+
+    linkedAccountsRouteErrorKey.value = messageKey
+    activeSection.value = 'connections'
+
+    const query = { ...route.query }
+    delete query.error
+    delete query.error_description
+    await router.replace({ query })
+  },
+  { immediate: true },
+)
 
 const connectionsDateFormatter = computed(() => {
   try {
@@ -178,11 +211,13 @@ function formatLinkedSince(iso: string): string {
 }
 
 function handleUnlinkProvider(providerId: string) {
+  linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return unlinkLinkedProvider(providerId, providerName)
 }
 
 function handleLinkProvider(providerId: 'github' | 'google') {
+  linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
 }
@@ -253,6 +288,7 @@ async function handleChangePassword(event: Event) {
     passwordForm.next = ''
     passwordForm.confirm = ''
     passwordSuccess.value = t('settings.pages.account.security.message.changed')
+    trackPasswordChanged()
   }
   catch (error) {
     passwordError.value = errorMessageFrom(error) ?? t('settings.pages.account.security.error.fallback')
@@ -290,6 +326,7 @@ async function handleSendSetPasswordLink() {
     if (error)
       throw new Error(error.message ?? 'requestPasswordReset failed')
     setPasswordSuccess.value = t('settings.pages.account.security.message.setLinkSent', { email })
+    trackPasswordResetRequested()
   }
   catch (error) {
     setPasswordError.value = errorMessageFrom(error) ?? t('settings.pages.account.security.error.setLinkFailed')
@@ -364,6 +401,7 @@ async function handleConfirmDelete(event: Event) {
 
     deleteSent.value = true
     deleteDialogOpen.value = false
+    trackAccountDeletionRequested()
   }
   catch (error) {
     deleteError.value = errorMessageFrom(error) ?? t('settings.pages.account.danger.deleteAccount.error.fallback')
@@ -741,12 +779,12 @@ async function handleConfirmDelete(event: Event) {
             </ul>
 
             <div
-              v-if="linkedAccountsError"
+              v-if="linkedAccountsRouteErrorKey || linkedAccountsError"
               :class="['text-sm text-red-500']"
               role="alert"
               aria-live="polite"
             >
-              {{ linkedAccountsError }}
+              {{ linkedAccountsRouteErrorKey ? t(linkedAccountsRouteErrorKey) : linkedAccountsError }}
             </div>
             <div
               v-else-if="linkedAccountsMessage"

@@ -23,6 +23,7 @@ import process from 'node:process'
 import { z } from 'zod'
 
 import { captureDesktopGrounding, formatGroundingForAgent } from '../desktop-grounding'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 import { registerToolWithDescriptor, requireDescriptor } from './tool-descriptors/register-helper'
 
@@ -133,7 +134,7 @@ export function registerDesktopGroundingTools(params: {
         return { content }
       }
       catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
+        const message = errorMessageFromValue(error)
         return {
           content: [textContent(`desktop_observe failed: ${message}`)],
           isError: true,

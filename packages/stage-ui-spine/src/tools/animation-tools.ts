@@ -15,7 +15,7 @@ function serialize(result: SpineToolResult): string {
 
 function ensureModelLoaded(): SpineToolResult | null {
   const store = useSpine()
-  if (store.availableAnimations.length === 0)
+  if (!store.isModelLoaded)
     return { success: false, error: 'No Spine model is currently loaded.' }
   return null
 }
@@ -45,18 +45,13 @@ export const tools = [
 
       const store = useSpine()
       if (oneShot) {
-        // The active model component watches a `nonce` field on
-        // currentAnimation to re-trigger the same animation, but for
-        // one-shot we let the Stage forward the call to setEmotion via
-        // the Spine instance ref. The store-level signal here updates
-        // the persisted idle when oneShot is false.
+        // One-shot plays on the dedicated emotion track over the persistent
+        // idle loop and reverts when it completes. The scene watches
+        // `oneShotAnimation` and resolves the closest matching name.
+        store.playOneShotAnimation(name, loop ?? false)
         return serialize({
           success: true,
-          data: {
-            queued: name,
-            mode: 'one-shot',
-            note: 'Forwarded to scene; the scene resolves the closest matching animation name.',
-          },
+          data: { queued: name, mode: 'one-shot', loop: loop ?? false },
         })
       }
 

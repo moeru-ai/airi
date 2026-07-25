@@ -47,12 +47,19 @@ export const METRIC_AUTH_ATTEMPTS = 'auth.attempts'
 export const METRIC_AUTH_FAILURES = 'auth.failures'
 export const METRIC_USER_REGISTERED = 'user.registered'
 export const METRIC_USER_LOGIN = 'user.login'
+export const METRIC_USER_TOTAL = 'user.total'
 export const METRIC_USER_ACTIVE_SESSIONS = 'user.active_sessions'
 // Distinct users with at least one non-expired session row. Pair with
 // USER_ACTIVE_SESSIONS to detect "session row inflation" (Better Auth
 // creates a new row per sign-in / per OIDC token refresh and never GCs)
 // vs real user growth.
 export const METRIC_USER_DISTINCT_ACTIVE = 'user.distinct_active'
+// Rolling-window distinct active users (DAU / WAU / MAU), sourced from
+// `user.last_seen_at` (touched on sign-in and every OIDC token refresh).
+// Single gauge, observed once per window with a `window="24h"|"7d"|"30d"`
+// attribute. Unlike USER_DISTINCT_ACTIVE (live-session count) this measures
+// activity over a trailing time window, not "currently signed in".
+export const METRIC_USER_ACTIVE_ROLLING = 'user.active_rolling'
 
 // Engagement (AIRI custom)
 export const METRIC_CHAT_MESSAGES = 'chat.messages'
@@ -89,6 +96,11 @@ export const METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS = 'airi.billing.tts.preflight_
 
 // AIRI observability — self-monitoring for the metric pipeline
 export const METRIC_AIRI_OBSERVABILITY_READ_ERRORS = 'airi.observability.read_errors'
+
+// Product analytics — low-cardinality event volume only. User-level product
+// analytics live in Postgres `product_events`; never add user identifiers to
+// this metric's labels.
+export const METRIC_AIRI_PRODUCT_EVENTS = 'airi.product.events'
 
 // AIRI revenue — actual money in (smallest currency unit, e.g. cents)
 export const METRIC_AIRI_STRIPE_REVENUE = 'airi.stripe.revenue'
@@ -138,6 +150,18 @@ export const METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES = 'airi.gen_ai.gateway.
 export const METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE = 'airi.gen_ai.gateway.subscriber_state'
 export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE = 'airi.gen_ai.gateway.config.write'
 export const METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC = 'airi.gen_ai.gateway.config.invalid_hmac'
+// TTSpool (per app_id concurrency pool) load-balancer signals.
+// pool_slot_rejected — capacity-aware routing skipped a pool because its app_id
+//                      was already at the concurrency cap (labels: provider, app_id).
+// pool_saturation_marked
+//                    — a pool was circuit-broken after exhausting with a 429
+//                      (labels: provider, app_id).
+// pool_inflight      — cluster-wide gauge of current in-flight requests per pool,
+//                      sourced from Redis (label: app_id). Dashboard must avg(),
+//                      not sum() — every replica reports the same value.
+export const METRIC_AIRI_GEN_AI_GATEWAY_POOL_SLOT_REJECTED = 'airi.gen_ai.gateway.pool.slot_rejected'
+export const METRIC_AIRI_GEN_AI_GATEWAY_POOL_SATURATION_MARKED = 'airi.gen_ai.gateway.pool.saturation_marked'
+export const METRIC_AIRI_GEN_AI_GATEWAY_POOL_INFLIGHT = 'airi.gen_ai.gateway.pool.inflight'
 
 // ---------------------------------------------------------------------------
 // Canonical gen_ai.system values

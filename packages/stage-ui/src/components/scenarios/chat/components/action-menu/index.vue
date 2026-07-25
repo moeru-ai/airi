@@ -4,8 +4,7 @@ import type { ComponentPublicInstance } from 'vue'
 
 import type { ChatActionMenuAction } from '.'
 
-import { errorMessageFrom } from '@moeru/std'
-import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { errorMessageFromValue, isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { useElementVisibility, useIntervalFn } from '@vueuse/core'
 import { createTimeline } from 'animejs'
 import { clamp } from 'es-toolkit'
@@ -264,7 +263,7 @@ async function handleAction(action: ChatActionMenuAction) {
       triggerCopyFeedbackReset()
     }
     catch (error) {
-      console.error('Failed to copy text:', errorMessageFrom(error) ?? String(error))
+      console.error('Failed to copy text:', errorMessageFromValue(error))
     }
 
     return

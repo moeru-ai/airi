@@ -14,17 +14,24 @@ jobs:
 
     steps:
       - name: Persist checkout metadata
+        env:
+          PR_NUM: ${{ github.event.number }}
+          REPO_FULL_NAME: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          cat <<EOF > preview_meta
-          PR_NUM=${{ github.event.number }}
-          REPO_FULL_NAME=${{ github.event.pull_request.head.repo.full_name }}
-          HEAD_REF=${{ github.event.pull_request.head.ref }}
-          HEAD_SHA=${{ github.event.pull_request.head.sha }}
-          EOF
+          node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises'
+
+          await writeFile('preview-meta.json', JSON.stringify({
+            prNumber: process.env.PR_NUM,
+            repositoryFullName: process.env.REPO_FULL_NAME,
+            headSha: process.env.HEAD_SHA,
+          }))
+          NODE
 
       - name: Upload metadata artifact
         uses: actions/upload-artifact@v7
         with:
           name: preview-meta
-          path: ./preview_meta
+          path: ./preview-meta.json
           overwrite: true

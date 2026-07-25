@@ -2,6 +2,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatHistory } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -13,6 +14,8 @@ import ChatActionButtons from '../Widgets/ChatActionButtons.vue'
 import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
 
+import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
+
 const { isReady } = useDeferredMount()
 const { sending } = storeToRefs(useChatOrchestratorStore())
 const { messages } = storeToRefs(useChatSessionStore())
@@ -20,9 +23,16 @@ const { streamingMessage } = storeToRefs(useChatStreamStore())
 
 const isLoading = ref(true)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const { trackChatMessageDeleted } = useAnalytics()
+const { rerunToolCall } = useChatToolCallRerun()
 
 function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+  trackChatMessageDeleted({
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
 }
 </script>
 
@@ -46,6 +56,7 @@ function handleDeleteMessage(index: number) {
             h-full
             variant="desktop"
             @delete-message="handleDeleteMessage($event.index)"
+            @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
         </div>

@@ -44,13 +44,16 @@ export class AiriBridge {
         },
       } as Parameters<typeof this.client.send>[0])
 
-      // Route by intent
-      if (cmd.intent === 'context') {
-        this.handleContextIntent(cmd)
-      }
-      else {
-        this.handleActionIntent(cmd)
-      }
+      // A spark:command is high-level guidance from the AIRI server. It must carry enough weight to
+      // trigger a fresh decision (Conscious) cycle, never be silently filed into history — so we
+      // always route it through handleActionIntent (→ signal:airi_command → enqueueEvent → decision cycle).
+      //
+      // We intentionally do not special-case `intent === 'context'`: that branch used to emit
+      // signal:airi_context which Brain pushes to conversationHistory WITHOUT waking the loop, so a
+      // command that mislabels its intent as "context" would be silently dropped from action. True
+      // passive context still has its own dedicated channel — `context:update` (see
+      // contextUpdateHandler) — which remains history-only and is unaffected by this routing.
+      this.handleActionIntent(cmd)
     }
 
     this.contextUpdateHandler = (event) => {
@@ -176,48 +179,41 @@ export class AiriBridge {
   }
 
   private handleActionIntent(cmd: SparkCommandData): void {
-    const steps = cmd.guidance?.options?.[0]?.steps ?? []
-    const instructionText = steps.length > 0
-      ? steps.join('\n')
-      : `${cmd.intent} command received`
+    // A spark:command is high-level guidance from the AIRI server. Route it through the explicit
+    // `airi_command` signal so the brain runs a fresh decision cycle
+    // (resetNoActionFollowupBudget('airi_command'), normal Conscious wake-up) instead of silently
+    // filing it into history. The directive is attributed to the AIRI server as a neutral source,
+    // not to any specific in-game player. Binding a relayed command to the master's in-game identity
+    // is desktop-relay policy and lives in the desktop Minecraft adapter, not in this bot service.
+    const firstOption = cmd.guidance?.options?.[0]
+    const label = firstOption?.label?.trim()
+    const steps = firstOption?.steps ?? []
+    // Prefer the short label (closest to the original instruction). Fall back to joined steps so the
+    // brain still has detail when label is missing.
+    const message = label && label.length > 0
+      ? label
+      : (steps.length > 0 ? steps.join(' / ') : `${cmd.intent} command received`)
+
+    const sourceId = 'airi'
+
+    this.logger.log('Routing spark:command as an AIRI directive', {
+      commandId: cmd.commandId,
+      message,
+    })
 
     this.eventBus.emit({
       type: 'signal:airi_command',
       payload: Object.freeze({
         type: 'airi_command' as const,
-        description: `[AIRI] Instruction: ${instructionText}`,
-        sourceId: 'airi',
+        description: `Directive from AIRI: "${message}"`,
+        sourceId,
         confidence: 1.0,
         timestamp: Date.now(),
         metadata: {
-          source: 'airi',
-          commandId: cmd.commandId,
-          intent: cmd.intent,
-          interrupt: cmd.interrupt,
-          priority: cmd.priority,
-        },
-      }),
-      source: { component: 'airi', id: 'bridge' },
-    })
-  }
-
-  private handleContextIntent(cmd: SparkCommandData): void {
-    const steps = cmd.guidance?.options?.[0]?.steps ?? []
-    const contextText = steps.length > 0
-      ? steps.join('\n')
-      : 'Context update from AIRI'
-
-    this.eventBus.emit({
-      type: 'signal:airi_context',
-      payload: Object.freeze({
-        type: 'airi_context' as const,
-        description: contextText,
-        sourceId: 'airi',
-        confidence: 1.0,
-        timestamp: Date.now(),
-        metadata: {
-          source: 'airi',
-          commandId: cmd.commandId,
+          message,
+          // Keep the spark provenance for debugging; the brain sees a typed AIRI directive.
+          sparkCommandId: cmd.commandId,
+          sparkIntent: cmd.intent,
         },
       }),
       source: { component: 'airi', id: 'bridge' },

@@ -2,6 +2,9 @@ import type auth from '../scripts/auth'
 import type { AuthInstance } from './auth'
 import type { Env } from './env'
 
+import { Buffer } from 'node:buffer'
+import { timingSafeEqual } from 'node:crypto'
+
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 export interface RequestAuthSession {
@@ -32,6 +35,48 @@ function readBearerToken(headers: Headers): string | null {
 
   const token = authorization.slice(7).trim()
   return token.length > 0 ? token : null
+}
+
+function timingSafeStringEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left)
+  const rightBuffer = Buffer.from(right)
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
+}
+
+function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession | null {
+  if (!env.TEST_AUTH_TOKEN || !timingSafeStringEqual(accessToken, env.TEST_AUTH_TOKEN))
+    return null
+
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000)
+  const role = env.TEST_AUTH_USER_ROLE.trim()
+
+  return {
+    user: {
+      id: env.TEST_AUTH_USER_ID,
+      email: env.TEST_AUTH_USER_EMAIL.toLowerCase(),
+      name: env.TEST_AUTH_USER_NAME,
+      emailVerified: true,
+      image: null,
+      role: role || null,
+      banned: false,
+      banReason: null,
+      banExpires: null,
+      lastSeenAt: now,
+      createdAt: now,
+      updatedAt: now,
+    } as RequestAuthSession['user'],
+    session: {
+      id: `test-auth:${env.TEST_AUTH_USER_ID}`,
+      token: accessToken,
+      userId: env.TEST_AUTH_USER_ID,
+      createdAt: now,
+      updatedAt: now,
+      expiresAt,
+      ipAddress: null,
+      userAgent: null,
+    } as RequestAuthSession['session'],
+  }
 }
 
 let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
@@ -123,6 +168,10 @@ export async function resolveSessionIgnoringBan(
   const accessToken = readBearerToken(headers)
   if (!accessToken)
     return null
+
+  const testSession = resolveTestAuthToken(env, accessToken)
+  if (testSession)
+    return testSession
 
   return await resolveJWTAccessToken(auth, env, accessToken)
 }

@@ -31,13 +31,13 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@vueuse/core": "catalog:",
-    "gpuu": "^1.0.7",
+    "gpuu": "catalog:",
     "pinia": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
-    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/preload": "catalog:",
     "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",

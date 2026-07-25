@@ -13,7 +13,7 @@ import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain } from 'electron'
+import { app, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
@@ -33,10 +33,11 @@ import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
-import { setupPluginHost } from './services/airi/plugins'
+import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
+import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -48,6 +49,7 @@ import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
+import { setupSpotlightWindowManager } from './windows/spotlight'
 import { setupWidgetsWindowManager } from './windows/widgets'
 
 // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -113,6 +115,8 @@ app.whenReady().then(async () => {
     return
   }
 
+  setupMediaPermissionHandlers(session.defaultSession)
+
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
 
@@ -171,7 +175,7 @@ app.whenReady().then(async () => {
 
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupPluginHost(dependsOn),
+    build: ({ dependsOn }) => setupExtensionHost(dependsOn),
   })
 
   const windowAuthManager = injeca.provide('services:window-auth-manager', () => createWindowAuthManagerService())
@@ -203,9 +207,18 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
   })
 
+  const spotlightWindow = injeca.provide('windows:spotlight', {
+    dependsOn: { serverChannel, i18n, chatWindow, globalShortcut, appConfig },
+    build: ({ dependsOn }) => setupSpotlightWindowManager(dependsOn),
+  })
+
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut },
-    build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, spotlightWindow },
+    build: async ({ dependsOn }) =>
+      setupSettingsWindowReusableFunc({
+        ...dependsOn,
+        getMainWindow: () => userFacingMainWindow,
+      }),
   })
 
   const mainWindow = injeca.provide('windows:main', {
@@ -245,7 +258,7 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       await setupArtistryBridge({
@@ -322,12 +335,20 @@ async function handleAppExit() {
   skipFileLogging = true
   await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
 
-  app.exit(exitedNormally ? 0 : 1)
+  if (!exitedNormally) {
+    app.exit(1)
+  }
+  else {
+    app.quit()
+  }
 }
 
 process.on('SIGINT', () => handleAppExit())
 
 app.on('before-quit', (event) => {
+  if (appExiting)
+    return
+
   event.preventDefault()
   handleAppExit()
 })
