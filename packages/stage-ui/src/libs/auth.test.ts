@@ -140,7 +140,10 @@ describe('signOut', () => {
     mocks.authStore.idToken = ''
     mocks.authStore.oidcClientId = ''
 
-    const fetchMock = vi.fn(async () => ({} as Response))
+    // Type the fetch signature so `mock.calls` is inferred as
+    // [RequestInfo | URL, RequestInit | undefined][] instead of an empty tuple,
+    // which lets the assertions below read calls[0][1] without `as RequestInit`.
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({} as Response))
     vi.stubGlobal('fetch', fetchMock)
 
     await signOut()
@@ -151,7 +154,7 @@ describe('signOut', () => {
       method: 'POST',
       headers: { Authorization: 'Bearer access-token' },
     })
-    expect((fetchMock.mock.calls[0]?.[1] as RequestInit).signal).toBeInstanceOf(AbortSignal)
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
     expect(mocks.authStore.clearAllAuthState).toHaveBeenCalledTimes(1)
   })
 })
