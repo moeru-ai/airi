@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { SIGN_OUT_REQUEST_TIMEOUT_MS, signOut } from './auth'
+
 const mocks = vi.hoisted(() => {
   return {
     authStore: {
@@ -28,8 +30,6 @@ vi.mock('../stores/auth', () => ({
 vi.mock('./server', () => ({
   SERVER_URL: 'https://api.airi.test',
 }))
-
-import { SIGN_OUT_REQUEST_TIMEOUT_MS, signOut } from './auth'
 
 describe('signOut', () => {
   beforeEach(() => {
