@@ -38,9 +38,21 @@ describe('signOut', () => {
     mocks.authStore.token = 'access-token'
     mocks.authStore.clearAllAuthState.mockClear()
     vi.restoreAllMocks()
+    // AbortSignal.timeout() schedules on a native libuv timer that vitest fake
+    // timers cannot intercept. Route it through setTimeout so the timeout
+    // tests below can drive it deterministically with vi.advanceTimersByTimeAsync.
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
+      const controller = new AbortController()
+      setTimeout(() => controller.abort(new DOMException('The operation timed out', 'TimeoutError')), ms)
+      return controller.signal
+    })
   })
 
   afterEach(() => {
+    // Drop any abort-timer callbacks the AbortSignal.timeout spy scheduled on
+    // real timers before the next test starts, so they cannot fire later and
+    // surface as unhandled abort errors detached from their owning test.
+    vi.clearAllTimers()
     vi.useRealTimers()
   })
 

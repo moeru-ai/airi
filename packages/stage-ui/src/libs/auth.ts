@@ -121,23 +121,6 @@ export async function listSessions() {
 
 export const SIGN_OUT_REQUEST_TIMEOUT_MS = 8000
 
-async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = SIGN_OUT_REQUEST_TIMEOUT_MS): Promise<Response> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => {
-    controller.abort()
-  }, timeoutMs)
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: controller.signal,
-    })
-  }
-  finally {
-    clearTimeout(timeoutId)
-  }
-}
-
 export async function signOut() {
   const authStore = useAuthStore()
 
@@ -177,16 +160,20 @@ export async function signOut() {
     const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
     url.searchParams.set('id_token_hint', idTokenHint)
     url.searchParams.set('client_id', clientId)
-    await fetchWithTimeout(url.toString(), { method: 'GET' })
+    await fetch(url.toString(), {
+      method: 'GET',
+      signal: AbortSignal.timeout(SIGN_OUT_REQUEST_TIMEOUT_MS),
+    })
     authStore.clearAllAuthState()
     return
   }
 
   if (bearerToken) {
     const url = new URL('/api/auth/sign-out', SERVER_URL)
-    await fetchWithTimeout(url.toString(), {
+    await fetch(url.toString(), {
       method: 'POST',
       headers: { Authorization: `Bearer ${bearerToken}` },
+      signal: AbortSignal.timeout(SIGN_OUT_REQUEST_TIMEOUT_MS),
     })
     authStore.clearAllAuthState()
     return
