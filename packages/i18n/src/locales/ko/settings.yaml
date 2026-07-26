@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: We support both 2D and 3D models
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
   select-model:
@@ -413,7 +413,7 @@ pages:
         delete: 모든 채팅 세션 삭제
       models:
         title: 모델
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: 가져온 Live2D/VRM 모델을 삭제합니다.
         delete: 모든 모델 삭제
       modules:
         title: 모듈
@@ -454,7 +454,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: 데스크탑 데이터가 초기화되었습니다.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine, 기타 등등.
     title: 모델
     sections:
       section:

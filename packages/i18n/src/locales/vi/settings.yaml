@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Chúng tôi hỗ trợ cả mô hình 2D và 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Nhấp vào {select-button} để chọn hoặc nhập các mô hình. Hiện tại, {zip} (cho Live2D và các Spine model) và {vrm} (cho các VRM model) đều được hỗ trợ.
     model-type-example: >
       Neuro-sama sử dụng mô hình 2D được vận hành bởi framework được phát triển bởi Live2D Inc, trong khi đó Grok Ani (trong Grok Companion) sử dụng mô hình 3D được vận hành bởi VRM /MMD định dạng mở.
   select-model:
@@ -413,7 +413,7 @@ pages:
         delete: Xóa tất cả hội thoại
       models:
         title: Mô hình
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Xóa các mô hình Live2D/VRM đã nhập.
         delete: Xóa tất cả mô hình
       modules:
         title: Các Mô-Đun
@@ -454,7 +454,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine, v.v.
     title: Mô hình
     sections:
       section:
