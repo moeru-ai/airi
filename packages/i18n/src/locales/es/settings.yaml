@@ -301,8 +301,10 @@ pages:
     activate: Activar
     active: Activo
     active_badge: Actualmente Activo
+    activation_notice: Se cambió a {name}. La conversación actual ahora usa este personaje.
     cancel: Cancelar acción
     save: Guardar cambios
+    save_and_activate: Guardar y activar
     card_not_found: Tarjeta no encontrada
     character: Personaje
     close: Cerrar

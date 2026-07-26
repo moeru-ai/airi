@@ -129,8 +129,21 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   const removeCard = (id: string) => {
-    cards.value.delete(id)
+    // The built-in card is the guaranteed fallback for every runtime profile.
+    if (id === 'default')
+      return false
+
+    const removed = cards.value.delete(id)
+    if (!removed)
+      return false
+
+    // The active id is persisted independently from the card map. Reset it
+    // before consumers observe a dangling runtime profile after deletion.
+    if (activeCardId.value === id)
+      activeCardId.value = 'default'
+
     capturePosthogEvent('character_deleted', { character_id: id })
+    return true
   }
 
   const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
