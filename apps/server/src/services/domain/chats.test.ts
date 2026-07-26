@@ -10,14 +10,11 @@ import * as schema from '../../schemas'
 
 describe('resolveSenderId', () => {
   it('returns userId for user role', () => {
-    expect(resolveSenderId('user', 'user-123', 'char-456')).toBe('user-123')
+    expect(resolveSenderId('user', 'user-123')).toBe('user-123')
   })
-  it('returns characterId for non-user role when available', () => {
-    expect(resolveSenderId('assistant', 'user-123', 'char-456')).toBe('char-456')
-  })
-  it('returns userId for assistant role without a characterId', () => {
+  it('returns userId for assistant role', () => {
     expect(resolveSenderId('assistant', 'user-123')).toBe('user-123')
-    expect(resolveSenderId('system', 'user-123', null)).toBeNull()
+    expect(resolveSenderId('system', 'user-123')).toBeNull()
   })
 })
 
@@ -136,13 +133,13 @@ describe('pushMessages', () => {
     expect(message?.seq).toBe(2)
   })
 
-  it('allows a user to update their character-owned assistant message', async () => {
+  it('acknowledges an unchanged legacy assistant retry without mutating it', async () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
-    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'author' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
     await db.insert(schema.messages).values({
       id: 'message',
       chatId: 'group',
-      senderId: 'character',
+      senderId: null,
       role: 'assistant',
       seq: 1,
       content: 'original response',
@@ -152,15 +149,50 @@ describe('pushMessages', () => {
 
     const service = createChatService(db)
 
-    await expect(service.pushMessages('author', 'group', [{ id: 'message', role: 'assistant', content: 'updated response' }], 'character'))
+    await expect(service.pushMessages('member', 'group', [{ id: 'message', role: 'assistant', content: 'original response' }]))
+      .resolves
+      .toMatchObject({ seq: 1, fromSeq: 2, toSeq: 1 })
+
+    const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
+    expect(message?.content).toBe('original response')
+    expect(message?.senderId).toBeNull()
+    expect(message?.role).toBe('assistant')
+    expect(message?.seq).toBe(1)
+  })
+
+  it('persists later messages batched with an unchanged legacy assistant retry', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(schema.messages).values({
+      id: 'legacy-assistant',
+      chatId: 'group',
+      senderId: null,
+      role: 'assistant',
+      seq: 1,
+      content: 'original response',
+      mediaIds: [],
+      stickerIds: [],
+    })
+
+    const service = createChatService(db)
+
+    await expect(service.pushMessages('member', 'group', [
+      { id: 'legacy-assistant', role: 'assistant', content: 'original response' },
+      { id: 'new-user-message', role: 'user', content: 'next turn' },
+    ]))
       .resolves
       .toMatchObject({ seq: 2, fromSeq: 2, toSeq: 2 })
 
-    const message = await db.query.messages.findFirst({ where: eq(schema.messages.id, 'message') })
-    expect(message?.content).toBe('updated response')
-    expect(message?.senderId).toBe('character')
-    expect(message?.role).toBe('assistant')
-    expect(message?.seq).toBe(2)
+    const messages = await db.query.messages.findMany({
+      where: eq(schema.messages.chatId, 'group'),
+      orderBy: schema.messages.seq,
+    })
+    expect(messages).toHaveLength(2)
+    expect(messages[0]?.id).toBe('legacy-assistant')
+    expect(messages[0]?.seq).toBe(1)
+    expect(messages[1]?.id).toBe('new-user-message')
+    expect(messages[1]?.senderId).toBe('member')
+    expect(messages[1]?.seq).toBe(2)
   })
 
   it('accepts an assistant message from local-first sync', async () => {
