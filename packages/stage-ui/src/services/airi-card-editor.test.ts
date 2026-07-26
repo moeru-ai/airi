@@ -1,8 +1,10 @@
 import type { Card } from '@proj-airi/ccc'
 
+import type { AiriExtension } from '../stores/modules/airi-card'
+
 import { describe, expect, it } from 'vitest'
 
-import { safeParseAiriCardDraft } from './airi-card-editor'
+import { mergeAiriCardEditorExtension, safeParseAiriCardDraft } from './airi-card-editor'
 
 describe('airi card editor validation', () => {
   // https://github.com/moeru-ai/airi/issues/2108
@@ -66,6 +68,94 @@ describe('airi card editor validation', () => {
       return
 
     expect(result.output.artistryOptions).toBeUndefined()
+  })
+
+  it('preserves AIRI extension fields that are not editable in the form', () => {
+    // ROOT CAUSE:
+    //
+    // Saving the editor rebuilt `extensions.airi.modules` from visible form
+    // controls and reset `agents` to an empty object. Hidden settings such as
+    // body models, backgrounds, advanced speech/artistry fields, and agent
+    // prompts were therefore lost after an otherwise unrelated edit.
+    //
+    // We fix this by applying the editor-owned fields as a structured patch
+    // over the existing extension.
+    const existing: AiriExtension = {
+      modules: {
+        consciousness: { provider: 'old-chat', model: 'old-chat-model' },
+        vision: { provider: 'old-vision', model: 'old-vision-model' },
+        speech: {
+          provider: 'old-speech',
+          model: 'old-speech-model',
+          voice_id: 'old-voice',
+          pitch: 1.2,
+          rate: 0.9,
+          ssml: true,
+          language: 'ja',
+        },
+        vrm: { source: 'url', url: 'https://example.com/avatar.vrm' },
+        live2d: { source: 'file', file: 'models/avatar.model3.json' },
+        displayModelId: 'old-display-model',
+        activeBackgroundId: 'background-1',
+        artistry: {
+          enabled: true,
+          provider: 'old-artistry',
+          model: 'old-artistry-model',
+          workflowId: 'workflow-1',
+          autonomousTarget: 'user',
+        },
+      },
+      agents: {
+        minecraft: { prompt: 'Keep building.', enabled: true },
+      },
+    }
+
+    const result = mergeAiriCardEditorExtension(existing, {
+      consciousness: { provider: 'new-chat', model: 'new-chat-model' },
+      vision: { provider: 'new-vision', model: 'new-vision-model' },
+      speech: { provider: 'new-speech', model: 'new-speech-model', voice_id: 'new-voice' },
+      displayModelId: 'new-display-model',
+      artistry: {
+        provider: 'new-artistry',
+        model: 'new-artistry-model',
+        promptPrefix: 'portrait',
+        widgetInstruction: 'Use the image widget.',
+        spawnMode: 'widget',
+        options: { steps: 12 },
+        autonomousEnabled: true,
+        autonomousThreshold: 80,
+      },
+    })
+
+    expect(result.modules.consciousness).toEqual({ provider: 'new-chat', model: 'new-chat-model' })
+    expect(result.modules.vision).toEqual({ provider: 'new-vision', model: 'new-vision-model' })
+    expect(result.modules.speech).toEqual({
+      provider: 'new-speech',
+      model: 'new-speech-model',
+      voice_id: 'new-voice',
+      pitch: 1.2,
+      rate: 0.9,
+      ssml: true,
+      language: 'ja',
+    })
+    expect(result.modules.vrm).toEqual(existing.modules.vrm)
+    expect(result.modules.live2d).toEqual(existing.modules.live2d)
+    expect(result.modules.displayModelId).toBe('new-display-model')
+    expect(result.modules.activeBackgroundId).toBe('background-1')
+    expect(result.modules.artistry).toEqual({
+      enabled: true,
+      provider: 'new-artistry',
+      model: 'new-artistry-model',
+      promptPrefix: 'portrait',
+      workflowId: 'workflow-1',
+      widgetInstruction: 'Use the image widget.',
+      spawnMode: 'widget',
+      options: { steps: 12 },
+      autonomousEnabled: true,
+      autonomousThreshold: 80,
+      autonomousTarget: 'user',
+    })
+    expect(result.agents).toEqual(existing.agents)
   })
 })
 

@@ -22,7 +22,7 @@ const MODEL_EXT: Partial<Record<DisplayModelFormat, string>> = {
 }
 
 type DisplayModelsStore = ReturnType<typeof useDisplayModelsStore>
-type ExportableCard = Card & { extensions: { airi: AiriExtension } }
+type ShareableAiriCard = Card & { extensions: { airi: AiriExtension } }
 
 const manifestSchema = object({
   format: literal(FORMAT),
@@ -68,7 +68,14 @@ export class AiriCardPackageError extends Error {
   }
 }
 
-/** Exports only the creation/edit form whitelist; provider globals and runtime state are never cloned. */
+/**
+ * Creates a portable AIRI Card share package.
+ *
+ * This format is intentionally not a lossless backup. It includes fields the
+ * creation editor lets the sender review, a sanitized AIRI module subset, and
+ * the selected display model. Unreviewed CCv3 metadata, custom extensions,
+ * agent prompts, and machine-local runtime references are omitted.
+ */
 export async function exportAiriCardPackage({ card, displayModelsStore }: { card: AiriCard, displayModelsStore: DisplayModelsStore }): Promise<Blob> {
   const exportableCard = cardFromAiriCard(card)
   const displayModel = await exportDisplayModel(exportableCard, displayModelsStore)
@@ -89,7 +96,13 @@ export async function exportAiriCardPackage({ card, displayModelsStore }: { card
   return zip.generateAsync({ type: 'blob' })
 }
 
-/** Imports a package as sanitized CCv3 JSON; edited zip payloads cannot smuggle extra AIRI fields through. */
+/**
+ * Imports a portable package through the same share-field whitelist.
+ *
+ * The returned CCv3 object is safe to pass through the normal card creation
+ * path: package authors cannot smuggle custom extensions, agent prompts, or
+ * machine-local references into persisted AIRI state.
+ */
 export async function importAiriCardPackage({ file, displayModelsStore }: { file: File, displayModelsStore: DisplayModelsStore }): Promise<ccv3.CharacterCardV3> {
   const zip = await loadZip(file)
   const manifest = await readJsonFile(zip, MANIFEST_PATH, manifestSchema)
@@ -99,7 +112,7 @@ export async function importAiriCardPackage({ file, displayModelsStore }: { file
   return exportToJSON(cardFromCharacterCard(cardJson, displayModelId))
 }
 
-async function exportDisplayModel(card: ExportableCard, store: DisplayModelsStore) {
+async function exportDisplayModel(card: ShareableAiriCard, store: DisplayModelsStore) {
   const displayModelId = card.extensions.airi.modules.displayModelId
   if (!displayModelId)
     return
@@ -167,7 +180,7 @@ async function readJsonFile<S extends GenericSchema>(zip: JSZip, path: string, s
   }
 }
 
-function cardFromAiriCard(card: AiriCard): ExportableCard {
+function cardFromAiriCard(card: AiriCard): ShareableAiriCard {
   return {
     name: card.name,
     nickname: card.nickname,
@@ -183,7 +196,7 @@ function cardFromAiriCard(card: AiriCard): ExportableCard {
   }
 }
 
-function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: string): ExportableCard {
+function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: string): ShareableAiriCard {
   const data = card.data
   return {
     name: data.name,

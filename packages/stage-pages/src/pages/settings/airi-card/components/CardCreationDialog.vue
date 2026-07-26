@@ -5,7 +5,7 @@ import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
-import { safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
+import { mergeAiriCardEditorExtension, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
@@ -320,35 +320,32 @@ function saveCard(card: Card, activate: boolean): boolean {
     ...rawCard,
     extensions: {
       ...rawCard.extensions,
-      airi: {
-        modules: {
-          consciousness: {
-            provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
-            model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
-          },
-          vision: {
-            provider: selectedVisionProvider.value || visionProvider.value,
-            model: selectedVisionModel.value || defaultVisionModel.value,
-          },
-          speech: {
-            provider: selectedSpeechProvider.value || speechProvider.value,
-            model: selectedSpeechModel.value || defaultSpeechModel.value,
-            voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
-          },
-          displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
-          artistry: {
-            provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
-            model: selectedArtistryModel.value,
-            promptPrefix: selectedArtistryPromptPrefix.value,
-            widgetInstruction: selectedArtistryWidgetInstruction.value,
-            spawnMode: selectedArtistrySpawnMode.value,
-            options: artistryOptions,
-            autonomousEnabled: selectedArtistryAutonomousEnabled.value,
-            autonomousThreshold: selectedArtistryAutonomousThreshold.value,
-          },
+      airi: mergeAiriCardEditorExtension(rawCard.extensions?.airi as AiriExtension | undefined, {
+        consciousness: {
+          provider: selectedConsciousnessProvider.value || consciousnessProvider.value,
+          model: selectedConsciousnessModel.value || defaultConsciousnessModel.value,
         },
-        agents: {},
-      } as AiriExtension,
+        vision: {
+          provider: selectedVisionProvider.value || visionProvider.value,
+          model: selectedVisionModel.value || defaultVisionModel.value,
+        },
+        speech: {
+          provider: selectedSpeechProvider.value || speechProvider.value,
+          model: selectedSpeechModel.value || defaultSpeechModel.value,
+          voice_id: selectedSpeechVoiceId.value || defaultSpeechVoiceId.value,
+        },
+        displayModelId: selectedDisplayModelId.value || defaultDisplayModelId.value,
+        artistry: {
+          provider: selectedArtistryProvider.value || defaultArtistryProvider.value,
+          model: selectedArtistryModel.value,
+          promptPrefix: selectedArtistryPromptPrefix.value,
+          widgetInstruction: selectedArtistryWidgetInstruction.value,
+          spawnMode: selectedArtistrySpawnMode.value,
+          options: artistryOptions,
+          autonomousEnabled: selectedArtistryAutonomousEnabled.value,
+          autonomousThreshold: selectedArtistryAutonomousThreshold.value,
+        },
+      }),
     },
   }
   let savedCardId: string

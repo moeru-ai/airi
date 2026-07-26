@@ -17,7 +17,7 @@ describe('airi card package import/export', () => {
     vi.unstubAllGlobals()
   })
 
-  it('exports sanitized packages and restores display models', async () => {
+  it('exports shareable fields, sanitizes runtime state, and restores display models', async () => {
     const displayModelsStore = useDisplayModelsStore()
     const fetch = vi.fn(async () => new Response('preset-vrm-model'))
     vi.stubGlobal('fetch', fetch)
@@ -47,6 +47,32 @@ describe('airi card package import/export', () => {
     expect(airi.agents).toEqual({})
     expect(displayModelsStore.addDisplayModel).toHaveBeenCalledWith(DisplayModelFormat.VRM, expect.objectContaining({ name: 'AvatarSample_A.vrm' }))
     expect(airiFrom(imported).modules.displayModelId).toBe('display-model-imported')
+  })
+
+  it('applies the share-field whitelist to externally edited package JSON', async () => {
+    const displayModelsStore = useDisplayModelsStore()
+    const source = exportToJSON(createCard('preset-live2d-1'))
+    source.data.extensions.third_party = { token: 'do-not-import' }
+
+    const imported = await importAiriCardPackage({
+      file: await packageFile(source),
+      displayModelsStore,
+    })
+    const airi = airiFrom(imported)
+
+    expect(imported.data).toMatchObject({
+      name: 'AIRI / Test Card',
+      nickname: 'Tester',
+      character_version: '1.2.3',
+      description: 'Description',
+      creator: '',
+      tags: [],
+      mes_example: '',
+    })
+    expect(imported.data.extensions).not.toHaveProperty('third_party')
+    expect(airi.modules).not.toHaveProperty('activeBackgroundId')
+    expect(airi.modules.artistry).not.toHaveProperty('workflowId')
+    expect(airi.agents).toEqual({})
   })
 
   it('classifies invalid packages', async () => {

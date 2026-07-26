@@ -84,6 +84,54 @@ export interface AiriCard extends Card {
   } & Card['extensions']
 }
 
+/**
+ * Character-card data resolved for runtime consumers.
+ *
+ * Stable identity and scenario text form the provider system prompt. Fields
+ * whose CCv3 semantics depend on message position remain separate so chat
+ * assembly can place them deliberately instead of flattening them into one
+ * prompt.
+ */
+export interface AiriCardRuntimeContext {
+  /** Stable character instructions sent as the provider system prompt. */
+  systemPrompt: string
+  /** Instructions reserved for placement after conversation history. */
+  postHistoryInstructions: string
+  /** Messages available when a new character session is bootstrapped. */
+  greetings: string[]
+  /** Few-shot conversations available to provider message assembly. */
+  messageExample: NonNullable<Card['messageExample']>
+}
+
+function resolveRuntimeContext(card: AiriCard | undefined): AiriCardRuntimeContext {
+  if (!card) {
+    return {
+      systemPrompt: '',
+      postHistoryInstructions: '',
+      greetings: [],
+      messageExample: [],
+    }
+  }
+
+  // Only stable character context belongs in the cached system prompt.
+  // Post-history instructions and example/greeting messages have ordering and
+  // role semantics, so they stay as separate runtime inputs.
+  const systemPromptParts = [
+    card.systemPrompt,
+    card.description,
+    card.personality,
+    card.scenario,
+    card.extensions.airi.modules.artistry?.widgetInstruction,
+  ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+
+  return {
+    systemPrompt: systemPromptParts.join('\n\n'),
+    postHistoryInstructions: card.postHistoryInstructions ?? '',
+    greetings: card.greetings ?? [],
+    messageExample: card.messageExample ?? [],
+  }
+}
+
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
@@ -408,6 +456,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     applyActiveCardSettings(newCard)
   }, { flush: 'sync', immediate: true })
 
+  const runtimeContext = computed(() => resolveRuntimeContext(activeCard.value))
+
   function resetState() {
     // Clear card data before the selected ID. Otherwise the synchronous
     // activation watcher can briefly resolve the old default card and restore
@@ -450,20 +500,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
       } satisfies AiriExtension['modules']
     }),
-
-    systemPrompt: computed(() => {
-      const card = activeCard.value
-      if (!card)
-        return ''
-
-      const components = [
-        card.systemPrompt,
-        card.description,
-        card.personality,
-        card.extensions?.airi?.modules?.artistry?.widgetInstruction,
-      ].filter(Boolean)
-
-      return components.join('\n\n')
-    }),
+    runtimeContext,
+    systemPrompt: computed(() => runtimeContext.value.systemPrompt),
   }
 })

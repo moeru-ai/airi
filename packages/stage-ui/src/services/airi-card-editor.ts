@@ -1,5 +1,7 @@
 import type { Card } from '@proj-airi/ccc'
 
+import type { AiriExtension } from '../stores/modules/airi-card'
+
 import {
   check,
   nonEmpty,
@@ -15,6 +17,25 @@ import {
 } from 'valibot'
 
 export type AiriCardDraftValidationError = 'name' | 'version' | 'invalid_artistry_json'
+
+/** Module settings owned by the AIRI Card editor form. */
+interface AiriCardEditorModules {
+  consciousness: AiriExtension['modules']['consciousness']
+  vision: AiriExtension['modules']['vision']
+  speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>
+  displayModelId?: string
+  artistry: Pick<
+    NonNullable<AiriExtension['modules']['artistry']>,
+    | 'provider'
+    | 'model'
+    | 'promptPrefix'
+    | 'widgetInstruction'
+    | 'spawnMode'
+    | 'options'
+    | 'autonomousEnabled'
+    | 'autonomousThreshold'
+  >
+}
 
 export type AiriCardDraftValidationResult
   = | {
@@ -84,6 +105,35 @@ export function safeParseAiriCardDraft(card: Card, artistryOptionsJson: string):
       card: { ...card, ...cardResult.output },
       artistryOptions: artistryResult.output,
     },
+  }
+}
+
+/**
+ * Applies fields owned by the editor without discarding extension state that
+ * the form cannot display.
+ *
+ * Existing body models, background selection, advanced speech/artistry
+ * settings, and agent configuration remain authoritative until a dedicated
+ * editor control changes them.
+ */
+export function mergeAiriCardEditorExtension(
+  existing: AiriExtension | undefined,
+  edited: AiriCardEditorModules,
+): AiriExtension {
+  return {
+    modules: {
+      ...existing?.modules,
+      ...edited,
+      speech: {
+        ...existing?.modules.speech,
+        ...edited.speech,
+      },
+      artistry: {
+        ...existing?.modules.artistry,
+        ...edited.artistry,
+      },
+    },
+    agents: existing?.agents ?? {},
   }
 }
 
