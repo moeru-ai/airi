@@ -51,6 +51,7 @@ function createHarness() {
     await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
+  let composeProviderMessages: ((messages: Message[], context: { sessionId: string }) => Message[]) | undefined
   let systemPromptSupplement: string | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
@@ -82,6 +83,7 @@ function createHarness() {
     getActiveSessionId: () => 'session-1',
     getActiveProvider: () => 'mock-provider',
     getSystemPromptSupplement: () => systemPromptSupplement,
+    composeProviderMessages: (messages, context) => composeProviderMessages?.(messages, context) ?? messages,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
@@ -107,6 +109,11 @@ function createHarness() {
   return {
     assistantAppended,
     assistantTurns,
+    composeProviderMessages: {
+      set: (next: typeof composeProviderMessages) => {
+        composeProviderMessages = next
+      },
+    },
     contextSnapshot,
     foregroundPatches,
     foregroundResets,
@@ -303,6 +310,35 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
+  it('projects platform-owned provider messages after generic prompt composition', async () => {
+    const harness = createHarness()
+    let composedMessages: Message[] = []
+    harness.systemPromptSupplement.set('Plugin toolset guidance.')
+    harness.composeProviderMessages.set((messages, context) => [
+      ...messages,
+      { role: 'system', content: `Runtime policy for ${context.sessionId}.` },
+    ])
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      composedMessages = messages
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('hello from user', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(composedMessages.at(-1)).toEqual({
+      role: 'system',
+      content: 'Runtime policy for session-1.',
+    })
+    expect(harness.promptProjections).toEqual([
+      expect.objectContaining({
+        composedMessage: composedMessages,
+      }),
+    ])
+  })
+
   /**
    * @example
    * A session has only user history.
@@ -456,6 +492,33 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.messageRound).toHaveLength(2)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3656646138
+  // ROOT CAUSE:
+  //
+  // Activation detection treated every persisted assistant message as a
+  // completed generation. Character greetings are assistant history too, so
+  // greeted sessions skipped activation before the user sent a first turn.
+  it('emits activation milestones for the first user turn after a character greeting', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: 'Character greeting.',
+      slices: [{ type: 'text', text: 'Character greeting.' }],
+      tool_results: [],
+      createdAt: 1,
+      id: 'greeting',
+    })
+
+    await harness.runtime.ingest('first user turn', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(0)
+  })
+
   /**
    * @example
    * await expect(runtime.ingest('hello', { model, chatProvider })).rejects.toThrow('provider rejected')
@@ -498,6 +561,35 @@ describe('createChatOrchestratorRuntime', () => {
       source: 'text',
       turnIndex: 1,
     }])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3657102697
+  // ROOT CAUSE:
+  //
+  // A failed first request persists its user message without an assistant
+  // response. Counting user turns therefore made the retry look ineligible for
+  // activation even though the conversation had never completed activation.
+  it('keeps a failed first-turn retry eligible for activation', async () => {
+    const harness = createHarness()
+    harness.stream.mockRejectedValueOnce(new Error('provider rejected'))
+
+    await expect(harness.runtime.ingest('first attempt', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })).rejects.toThrow('provider rejected')
+
+    await harness.runtime.ingest('retry', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.telemetry.chatActivationStarted).toHaveLength(2)
+    expect(harness.telemetry.chatActivationFailed).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded[0]).toMatchObject({
+      conversationId: 'session-1',
+      turnIndex: 2,
+    })
   })
 
   it('emits a round failure for later turns without repeating activation failure', async () => {

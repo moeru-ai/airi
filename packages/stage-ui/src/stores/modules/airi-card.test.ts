@@ -1,5 +1,6 @@
 import type { AiriCard } from './airi-card'
 
+import { exportToJSON } from '@proj-airi/ccc'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -283,6 +284,51 @@ describe('airi-card store', () => {
     expect(cardStore.systemPrompt).not.toContain('Answer the latest observation')
     expect(cardStore.systemPrompt).not.toContain('Welcome to the observatory')
     expect(cardStore.systemPrompt).not.toContain('What did you find?')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3656754238
+  // ROOT CAUSE:
+  //
+  // CCv3 normalization copied prompt and greeting fields but omitted
+  // `data.character_book`, so imported Lorebooks disappeared before runtime
+  // compilation could observe them.
+  it('preserves the Lorebook when normalizing an imported CCv3 card', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    const sourceCard: AiriCard = {
+      name: 'Lorebook import',
+      version: '1.0.0',
+      greetings: [],
+      messageExample: [],
+      characterBook: {
+        extensions: {},
+        entries: [
+          {
+            keys: ['comet'],
+            content: 'A remembered comet.',
+            extensions: {},
+            enabled: true,
+            insertion_order: 10,
+            use_regex: false,
+          },
+        ],
+      },
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }
+
+    const cardId = cardStore.addCard(exportToJSON(sourceCard), 'import')
+
+    expect(cardStore.getCard(cardId)?.characterBook).toEqual(sourceCard.characterBook)
   })
 
   it('falls back to the default card when the active custom card is deleted', () => {

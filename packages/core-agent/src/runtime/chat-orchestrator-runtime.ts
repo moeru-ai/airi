@@ -44,6 +44,24 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
   }
 }
 
+function hasGeneratedAssistantResponse(messages: ChatHistoryItem[]): boolean {
+  let hasUserTurn = false
+
+  for (const message of messages) {
+    if (message.role === 'user') {
+      hasUserTurn = true
+      continue
+    }
+
+    // Assistant history before the first user turn is seeded conversation
+    // content such as a character greeting, not a completed model response.
+    if (message.role === 'assistant' && hasUserTurn)
+      return true
+  }
+
+  return false
+}
+
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
@@ -184,6 +202,13 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Applies platform-owned prompt policy after generic context composition.
+   *
+   * The returned messages are the exact projection observed by hooks and sent
+   * to the provider; implementations must not mutate persisted session state.
+   */
+  composeProviderMessages?: (messages: Message[], context: { sessionId: string }) => Message[]
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -428,10 +453,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const existingSessionMessages = deps.session.getSessionMessages(sessionId)
     const turnIndex = existingSessionMessages.filter(message => message.role === 'user').length + 1
 
-    // Activation measures whether a conversation reaches its first assistant
-    // response. Later turns still emit message and latency telemetry, but they
-    // must not inflate the one-time activation milestones.
-    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
+    // Activation remains open until a generated assistant response follows a
+    // user turn. This excludes seeded greetings while keeping failed retries
+    // eligible for the eventual success milestone.
+    const isActivationAttempt = !hasGeneratedAssistantResponse(existingSessionMessages)
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -671,13 +696,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         })
       }
 
-      streamingMessageContext.composedMessage = newMessages as Message[]
+      const composedMessages = deps.composeProviderMessages?.(newMessages as Message[], { sessionId })
+        ?? newMessages as Message[]
+
+      streamingMessageContext.composedMessage = composedMessages
       deps.onPromptProjection?.({
         sessionId,
         message: sendingMessage,
         contexts: contextsSnapshot,
         promptMessage: undefined,
-        composedMessage: newMessages as Message[],
+        composedMessage: composedMessages,
       })
       deps.onLifecycle?.({
         phase: 'after-compose',
@@ -685,7 +713,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionId,
         textPreview: sendingMessage,
         details: {
-          composedMessage: newMessages,
+          composedMessage: composedMessages,
         },
       })
 
@@ -708,7 +736,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice: !!options.input,
       })
 
-      await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
+      await deps.llm.stream(options.model, options.chatProvider, composedMessages, {
         headers,
         requestCorrelation: {
           conversationId: correlation.conversationId,
