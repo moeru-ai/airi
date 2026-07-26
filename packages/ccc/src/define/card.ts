@@ -1,4 +1,4 @@
-import type { Data } from '../export/types'
+import type { Data } from '../codec/characterCardV3'
 import type { Message } from './types/mes_example'
 
 interface CardCore {
@@ -32,6 +32,21 @@ interface CardMeta {
 
 interface CardAdditional {
   /**
+   * Character assets such as icons, backgrounds, and emotions.
+   * - assets
+   */
+  assets?: Data['assets']
+  /**
+   * Character-specific Lorebook.
+   * - character_book
+   */
+  characterBook?: Data['character_book']
+  /**
+   * Creation time as a UTC Unix timestamp in seconds.
+   * - creation_date
+   */
+  creationDate?: Data['creation_date']
+  /**
    * Extensions.
    * - extensions
    */
@@ -59,6 +74,16 @@ interface CardAdditional {
    * @see {@link https://github.com/kwaroran/character-card-spec-v3/blob/main/SPEC_V3.md#creator_notes_multilingual}
    */
   notesMultilingual?: Data['creator_notes_multilingual']
+  /**
+   * Last modification time as a UTC Unix timestamp in seconds.
+   * - modification_date
+   */
+  modificationDate?: Data['modification_date']
+  /**
+   * IDs or URLs describing the card's provenance.
+   * - source
+   */
+  source?: Data['source']
 }
 
 interface CardDescription {

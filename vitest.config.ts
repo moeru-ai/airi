@@ -7,6 +7,7 @@ export default defineConfig({
       'apps/ui-server-auth',
       'apps/stage-tamagotchi',
       'packages/cap-vite',
+      'packages/ccc',
       'packages/core-agent',
       'packages/better-ws',
       'packages/plugin-sdk',
