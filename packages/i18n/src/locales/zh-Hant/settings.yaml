@@ -144,78 +144,78 @@ live2d:
   theme-color-from-model:
     title: 從模型中提取顏色
     description: >
-      登入即可使用 AIRI 官方提供者，享受最佳體驗。
+      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
     button-extract:
       title: 提取
   animation:
-    title: 登入
+    title: Animation
     focus:
-      title: 使用您的提供者設定
-      description: Flux
-      offset: 為 Flux 充值
+      title: Enable mouse tracking
+      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      offset: Eye offset(%)
     force-idle-eye-animation:
-      title: 通知
-      description: 您可以現在允許通知，或繼續操作並稍後設定。
+      title: Idle eye movement
+      description: Randomly look around when there is no active cursor focus.
     blink-enable:
-      title: 通知
-      description: 允許提醒與重要狀態更新。
+      title: Enable blink
+      description: Let the model blink.
     auto-blink:
-      title: 要求通知權限
-      description: 若拒絕，之後可以從 iOS 設定中啟用通知。
+      title: Auto
+      description: Use default blinking animation of the model
     force-auto-blink:
-      title: 開啟 iOS 設定
-      description: 即使未授予通知權限，您仍可繼續操作。
+      title: Force
+      description: Force blinking animation with external timer
     blink-mode:
-      title: 未要求
-      description: 要求中...
+      title: Blink mode
+      description: Choose the model built-in blink or AIRI's forced blink timer.
     idle-motion:
-      title: 已授予
-      no-motion: 未授予
-      placeholder: 錯誤回報
-      disable-motion: 糟糕，很抱歉我們出錯了。您願意告訴我們發生了什麼嗎？
-      disable-motion-description: 回報錯誤
+      title: Idle animation
+      no-motion: No animation available
+      placeholder: Select animation
+      disable-motion: Disabled
+      disable-motion-description: Disable idle animation
   parameters:
-    title: 傳送錯誤回報
+    title: Model Parameters
     render-scale:
-      title: 附上螢幕截圖和頁面內容，協助我們分流處理此問題。
+      title: Render scale
     fps:
-      title: 重現步驟、預期行為與實際行為
-      description: 附上目前頁面的螢幕截圖
+      title: FPS
+      description: Limit rendering frame rate
       options:
-        unlimited: 手動選擇螢幕截圖／錄影
-    shadow: 選填。
-    reset-parameters: 媒體檔案
-  clear-model-cache: 選填：手動選擇。
+        unlimited: '∞'
+    shadow: Drop shadow
+    reset-parameters: Reset to default parameters
+  clear-model-cache: Clear model cache
   expressions:
-    title: 選擇螢幕截圖或影片檔案
-    override-toggle: 已選取 {count} 個檔案
+    title: Expressions
+    override-toggle: Expression system
     sdk-preset-preserved-notice: >
-      上次提交的內容預覽
-    no-expression: 介面語言。您可以稍後設定角色語言。
-    llm-integration-wip: 使用分析
-    save-default: AIRI 會收集匿名使用分析，以協助我們了解應用程式的使用方式並提升穩定性。我們不會收集個人資料。
-    reset: 閱讀
-    expose-to-llm-toggle: 隱私權政策
+      SDK expression manager and eye blink are preserved when disabled.
+    no-expression: No expressions available for this model.
+    llm-integration-wip: LLM tool integration is not yet wired up.
+    save-default: Save expression defaults
+    reset: Reset all expressions
+    expose-to-llm-toggle: Expose to LLM
     expose-to-llm-options:
-      none: 您稍後可以在「設定 > 系統 > 一般」中關閉使用分析。
-      all: 您可以隨時關閉使用分析。
-      custom: 啟用使用分析
+      none: None
+      all: All
+      custom: Custom
 microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: 關閉此項以退出使用分析收集。
-    description: 此開發版本已停用使用分析
-    notLoggedIn: 我們支援 2D 和 3D 模型
-    login: 點擊 {select-button} 以選取或匯入模型。目前支援 Live2D 和 Spine 模型的 {zip}，以及 VRM 模型的 {vrm}。
-    logout: Neuro-sama 使用由 Live2D Inc 開發的框架驅動 2D 模型，而 Grok Ani（Grok Companion 中的角色）使用由 VRM / MMD 開放格式驅動的 3D 模型。
-    fluxBalance: 模型選擇器
-    viewFluxDetails: 選擇模型
-    signedInAs: 選取
+    title: Account
+    description: View your profile and manage your account
+    notLoggedIn: Sign in to view your account and access all features
+    login: Sign in
+    logout: Sign out
+    fluxBalance: Flux Balance
+    viewFluxDetails: View details
+    signedInAs: Signed in as
     profile:
-      tab: 匯入
-      title: 移除
-      description: 確認
+      tab: Profile
+      title: Profile
+      description: Manage your public display name.
       name:
         label: Display name
         placeholder: How others see you
