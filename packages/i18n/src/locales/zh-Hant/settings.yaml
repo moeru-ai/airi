@@ -1218,6 +1218,9 @@ pages:
           validation:
             error-missing-api-key: 需要填寫 API Key 才能使用喔！
         title: ElevenLabs (11labs)
+      fish-audio:
+        description: fish.audio
+        title: Fish Audio
       kokoro-local:
         description: 基於 Kokoro-82M 的本地文字轉語音。
         fields:

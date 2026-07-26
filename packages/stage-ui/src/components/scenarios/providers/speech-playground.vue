@@ -33,11 +33,20 @@ const useSSML = ref(false)
 const ssmlText = ref('')
 const selectedVoice = ref('')
 
-// Watch for changes in available voices
+// Watch for changes in available voices. Besides seeding the initial
+// selection, reseed when the current voice drops out of the list (e.g. the
+// page filtered the catalog by model compatibility) and clear it when no
+// voice is offered at all, so generation can't submit a hidden voice.
 watch(
   () => props.availableVoices,
   (newVoices) => {
-    if (newVoices.length > 0 && !selectedVoice.value) {
+    if (newVoices.length === 0) {
+      selectedVoice.value = ''
+      return
+    }
+
+    const selectionAvailable = newVoices.some(voice => voice.id === selectedVoice.value)
+    if (!selectedVoice.value || !selectionAvailable) {
       selectedVoice.value = newVoices[0]?.id || ''
     }
   },
