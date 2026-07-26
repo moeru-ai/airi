@@ -1,5 +1,7 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
+import type { AiriCard, AiriExtension } from '../../types/airiCard'
+
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -16,106 +18,14 @@ import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
-export interface AiriExtension {
-  modules: {
-    consciousness: {
-      provider: string // Example: "openai"
-      model: string // Example: "gpt-4o"
-    }
+export type { AiriCard, AiriExtension } from '../../types/airiCard'
 
-    vision: {
-      provider: string // Example: "ollama"
-      model: string // Example: "llava"
-    }
+function resolveSystemPrompt(card: AiriCard | undefined): string {
+  if (!card)
+    return ''
 
-    speech: {
-      provider: string // Example: "elevenlabs"
-      model: string // Example: "eleven_multilingual_v2"
-      voice_id: string // Example: "alloy"
-
-      pitch?: number
-      rate?: number
-      ssml?: boolean
-      language?: string
-    }
-
-    vrm?: {
-      source?: 'file' | 'url'
-      file?: string // Example: "vrm/model.vrm"
-      url?: string // Example: "https://example.com/vrm/model.vrm"
-    }
-
-    live2d?: {
-      source?: 'file' | 'url'
-      file?: string // Example: "live2d/model.json"
-      url?: string // Example: "https://example.com/live2d/model.json"
-    }
-
-    // ID from display-models store (e.g. 'preset-live2d-1', 'display-model-<nanoid>')
-    displayModelId?: string
-    activeBackgroundId?: string
-
-    artistry?: {
-      enabled?: boolean
-      provider?: string
-      model?: string
-      promptPrefix?: string
-      workflowId?: string
-      widgetInstruction?: string
-      spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
-      options?: Record<string, any>
-      autonomousEnabled?: boolean
-      autonomousThreshold?: number
-      autonomousTarget?: 'user' | 'assistant'
-    }
-  }
-
-  agents: {
-    [key: string]: { // example: minecraft
-      prompt: string
-      enabled?: boolean
-    }
-  }
-}
-
-export interface AiriCard extends Card {
-  extensions: {
-    airi: AiriExtension
-  } & Card['extensions']
-}
-
-/**
- * Character-card data resolved for runtime consumers.
- *
- * Stable identity and scenario text form the provider system prompt. Fields
- * whose CCv3 semantics depend on message position remain separate so chat
- * assembly can place them deliberately instead of flattening them into one
- * prompt.
- */
-export interface AiriCardRuntimeContext {
-  /** Stable character instructions sent as the provider system prompt. */
-  systemPrompt: string
-  /** Instructions reserved for placement after conversation history. */
-  postHistoryInstructions: string
-  /** Messages available when a new character session is bootstrapped. */
-  greetings: string[]
-  /** Few-shot conversations available to provider message assembly. */
-  messageExample: NonNullable<Card['messageExample']>
-}
-
-function resolveRuntimeContext(card: AiriCard | undefined): AiriCardRuntimeContext {
-  if (!card) {
-    return {
-      systemPrompt: '',
-      postHistoryInstructions: '',
-      greetings: [],
-      messageExample: [],
-    }
-  }
-
-  // Only stable character context belongs in the cached system prompt.
-  // Post-history instructions and example/greeting messages have ordering and
-  // role semantics, so they stay as separate runtime inputs.
+  // Position-sensitive CCv3 fields are deliberately excluded until provider
+  // message assembly owns their ordering and role semantics.
   const systemPromptParts = [
     card.systemPrompt,
     card.description,
@@ -124,12 +34,7 @@ function resolveRuntimeContext(card: AiriCard | undefined): AiriCardRuntimeConte
     card.extensions.airi.modules.artistry?.widgetInstruction,
   ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
 
-  return {
-    systemPrompt: systemPromptParts.join('\n\n'),
-    postHistoryInstructions: card.postHistoryInstructions ?? '',
-    greetings: card.greetings ?? [],
-    messageExample: card.messageExample ?? [],
-  }
+  return systemPromptParts.join('\n\n')
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
@@ -456,8 +361,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     applyActiveCardSettings(newCard)
   }, { flush: 'sync', immediate: true })
 
-  const runtimeContext = computed(() => resolveRuntimeContext(activeCard.value))
-
   function resetState() {
     // Clear card data before the selected ID. Otherwise the synchronous
     // activation watcher can briefly resolve the old default card and restore
@@ -500,7 +403,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
       } satisfies AiriExtension['modules']
     }),
-    runtimeContext,
-    systemPrompt: computed(() => runtimeContext.value.systemPrompt),
+    systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
   }
 })

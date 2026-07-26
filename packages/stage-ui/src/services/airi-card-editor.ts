@@ -1,6 +1,6 @@
 import type { Card } from '@proj-airi/ccc'
 
-import type { AiriExtension } from '../stores/modules/airi-card'
+import type { AiriExtension } from '../types/airiCard'
 
 import {
   check,
@@ -35,6 +35,12 @@ interface AiriCardEditorModules {
     | 'autonomousEnabled'
     | 'autonomousThreshold'
   >
+}
+
+type CardWithAiriExtension = Card & {
+  extensions: NonNullable<Card['extensions']> & {
+    airi: AiriExtension
+  }
 }
 
 export type AiriCardDraftValidationResult
@@ -109,32 +115,48 @@ export function safeParseAiriCardDraft(card: Card, artistryOptionsJson: string):
 }
 
 /**
- * Applies fields owned by the editor without discarding extension state that
- * the form cannot display.
+ * Applies editor-owned module fields to a complete character card.
  *
- * Existing body models, background selection, advanced speech/artistry
- * settings, and agent configuration remain authoritative until a dedicated
- * editor control changes them.
+ * The returned card preserves extension fields the form cannot display,
+ * including body models, backgrounds, advanced speech/artistry settings, and
+ * agent configuration.
  */
-export function mergeAiriCardEditorExtension(
-  existing: AiriExtension | undefined,
+export function applyAiriCardEditorModules(
+  card: Card,
   edited: AiriCardEditorModules,
-): AiriExtension {
+): CardWithAiriExtension {
+  const existing = isAiriExtension(card.extensions?.airi)
+    ? card.extensions.airi
+    : undefined
+
   return {
-    modules: {
-      ...existing?.modules,
-      ...edited,
-      speech: {
-        ...existing?.modules.speech,
-        ...edited.speech,
-      },
-      artistry: {
-        ...existing?.modules.artistry,
-        ...edited.artistry,
+    ...card,
+    extensions: {
+      ...card.extensions,
+      airi: {
+        ...existing,
+        modules: {
+          ...existing?.modules,
+          ...edited,
+          speech: {
+            ...existing?.modules.speech,
+            ...edited.speech,
+          },
+          artistry: {
+            ...existing?.modules.artistry,
+            ...edited.artistry,
+          },
+        },
+        agents: existing?.agents ?? {},
       },
     },
-    agents: existing?.agents ?? {},
   }
+}
+
+function isAiriExtension(value: unknown): value is AiriExtension {
+  return isRecord(value)
+    && isRecord(value.modules)
+    && isRecord(value.agents)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,10 +1,10 @@
 import type { Card } from '@proj-airi/ccc'
 
-import type { AiriExtension } from '../stores/modules/airi-card'
+import type { AiriExtension } from '../types/airiCard'
 
 import { describe, expect, it } from 'vitest'
 
-import { mergeAiriCardEditorExtension, safeParseAiriCardDraft } from './airi-card-editor'
+import { applyAiriCardEditorModules, safeParseAiriCardDraft } from './airi-card-editor'
 
 describe('airi card editor validation', () => {
   // https://github.com/moeru-ai/airi/issues/2108
@@ -110,7 +110,16 @@ describe('airi card editor validation', () => {
       },
     }
 
-    const result = mergeAiriCardEditorExtension(existing, {
+    const result = applyAiriCardEditorModules({
+      ...createCard(),
+      extensions: {
+        thirdParty: { keep: true },
+        airi: {
+          ...existing,
+          futureRootField: { keep: true },
+        },
+      },
+    }, {
       consciousness: { provider: 'new-chat', model: 'new-chat-model' },
       vision: { provider: 'new-vision', model: 'new-vision-model' },
       speech: { provider: 'new-speech', model: 'new-speech-model', voice_id: 'new-voice' },
@@ -127,9 +136,13 @@ describe('airi card editor validation', () => {
       },
     })
 
-    expect(result.modules.consciousness).toEqual({ provider: 'new-chat', model: 'new-chat-model' })
-    expect(result.modules.vision).toEqual({ provider: 'new-vision', model: 'new-vision-model' })
-    expect(result.modules.speech).toEqual({
+    const extension = result.extensions.airi
+
+    expect(result.extensions.thirdParty).toEqual({ keep: true })
+    expect(extension).toHaveProperty('futureRootField', { keep: true })
+    expect(extension.modules.consciousness).toEqual({ provider: 'new-chat', model: 'new-chat-model' })
+    expect(extension.modules.vision).toEqual({ provider: 'new-vision', model: 'new-vision-model' })
+    expect(extension.modules.speech).toEqual({
       provider: 'new-speech',
       model: 'new-speech-model',
       voice_id: 'new-voice',
@@ -138,11 +151,11 @@ describe('airi card editor validation', () => {
       ssml: true,
       language: 'ja',
     })
-    expect(result.modules.vrm).toEqual(existing.modules.vrm)
-    expect(result.modules.live2d).toEqual(existing.modules.live2d)
-    expect(result.modules.displayModelId).toBe('new-display-model')
-    expect(result.modules.activeBackgroundId).toBe('background-1')
-    expect(result.modules.artistry).toEqual({
+    expect(extension.modules.vrm).toEqual(existing.modules.vrm)
+    expect(extension.modules.live2d).toEqual(existing.modules.live2d)
+    expect(extension.modules.displayModelId).toBe('new-display-model')
+    expect(extension.modules.activeBackgroundId).toBe('background-1')
+    expect(extension.modules.artistry).toEqual({
       enabled: true,
       provider: 'new-artistry',
       model: 'new-artistry-model',
@@ -155,7 +168,7 @@ describe('airi card editor validation', () => {
       autonomousThreshold: 80,
       autonomousTarget: 'user',
     })
-    expect(result.agents).toEqual(existing.agents)
+    expect(extension.agents).toEqual(existing.agents)
   })
 })
 

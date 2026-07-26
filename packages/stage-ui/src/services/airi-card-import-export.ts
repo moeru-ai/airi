@@ -2,7 +2,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import type { GenericSchema, InferOutput } from 'valibot'
 
 import type { DisplayModel, useDisplayModelsStore } from '../stores/display-models'
-import type { AiriCard, AiriExtension } from '../stores/modules/airi-card'
+import type { AiriCard, AiriExtension } from '../types/airiCard'
 
 import JSZip from 'jszip'
 

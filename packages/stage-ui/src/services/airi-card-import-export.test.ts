@@ -1,6 +1,6 @@
 import type { ccv3 } from '@proj-airi/ccc'
 
-import type { AiriCard, AiriExtension } from '../stores/modules/airi-card'
+import type { AiriCard, AiriExtension } from '../types/airiCard'
 
 import JSZip from 'jszip'
 

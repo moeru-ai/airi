@@ -283,11 +283,6 @@ describe('airi-card store', () => {
     expect(cardStore.systemPrompt).not.toContain('Answer the latest observation')
     expect(cardStore.systemPrompt).not.toContain('Welcome to the observatory')
     expect(cardStore.systemPrompt).not.toContain('What did you find?')
-    expect(cardStore.runtimeContext.postHistoryInstructions).toBe('Answer the latest observation in one paragraph.')
-    expect(cardStore.runtimeContext.greetings).toEqual(['Welcome to the observatory.'])
-    expect(cardStore.runtimeContext.messageExample).toEqual([
-      ['{{user}}: What did you find?', '{{char}}: A new comet.'],
-    ])
   })
 
   it('falls back to the default card when the active custom card is deleted', () => {
