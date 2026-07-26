@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { SIGN_OUT_REQUEST_TIMEOUT_MS, signOut } from './auth'
+import { signOut } from './auth'
+
+// NOTICE: this constant mirrors `SIGN_OUT_REQUEST_TIMEOUT_MS` in `./auth`,
+// which is intentionally kept module-private (per AGENTS.md L231 — do not
+// widen exports solely to make private implementation details testable).
+// The fake-timer tests below need to drive time across the exact timeout
+// boundary, so the value is duplicated here. If you change one, change the
+// other; remove this NOTICE when the timeout boundary test is rewritten to
+// observe the abort via the public signal rather than by ticking fake time.
+const SIGN_OUT_REQUEST_TIMEOUT_MS = 8000
 
 const mocks = vi.hoisted(() => {
   return {
@@ -38,9 +47,14 @@ describe('signOut', () => {
     mocks.authStore.token = 'access-token'
     mocks.authStore.clearAllAuthState.mockClear()
     vi.restoreAllMocks()
-    // AbortSignal.timeout() schedules on a native libuv timer that vitest fake
-    // timers cannot intercept. Route it through setTimeout so the timeout
-    // tests below can drive it deterministically with vi.advanceTimersByTimeAsync.
+    // NOTICE: `AbortSignal.timeout()` schedules on a native libuv timer that
+    // vitest fake timers cannot intercept, so the timeout tests below would
+    // never actually fire the abort under `vi.useFakeTimers()`. This shim
+    // routes the timeout through `setTimeout` so fake timers can drive it
+    // deterministically via `vi.advanceTimersByTimeAsync`. It mirrors the
+    // production iOS-15 fallback in `createSignOutTimeoutSignal` and is safe
+    // to remove when vitest fake timers gain native-libuv coverage, or when
+    // `signOut` stops using `AbortSignal.timeout`.
     vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms: number) => {
       const controller = new AbortController()
       setTimeout(() => controller.abort(new DOMException('The operation timed out', 'TimeoutError')), ms)
@@ -165,5 +179,41 @@ describe('signOut', () => {
     })
     expect(fetchMock.mock.calls[0]?.[1]?.signal).toBeInstanceOf(AbortSignal)
     expect(mocks.authStore.clearAllAuthState).toHaveBeenCalledTimes(1)
+  })
+
+  // NOTICE: stage-pocket still targets iOS 15 (`IPHONEOS_DEPLOYMENT_TARGET = 15.0`),
+  // whose WKWebView does not ship `AbortSignal.timeout`. This test exercises
+  // the manual `AbortController` + `setTimeout` fallback in
+  // `createSignOutTimeoutSignal` by hiding the native static for one call.
+  it('falls back to a manual AbortController timer when AbortSignal.timeout is unavailable (iOS 15)', async () => {
+    vi.useFakeTimers()
+    const nativeTimeout = AbortSignal.timeout
+    // @ts-expect-error -- intentionally hide the static to simulate iOS 15 WKWebView
+    AbortSignal.timeout = undefined
+
+    try {
+      const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('sign-out timed out', 'AbortError'))
+          })
+        })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
+      const promise = signOut()
+      promise.catch(() => {})
+
+      await vi.advanceTimersByTimeAsync(SIGN_OUT_REQUEST_TIMEOUT_MS - 1)
+      expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(1)
+      await expect(promise).rejects.toThrow('sign-out timed out')
+      expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true)
+      expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
+    }
+    finally {
+      AbortSignal.timeout = nativeTimeout
+    }
   })
 })
