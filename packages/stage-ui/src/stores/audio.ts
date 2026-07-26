@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
+import { requestAudioSessionType } from '../libs/audio/audio-session'
+
 function calculateVolumeWithLinearNormalize(analyser: AnalyserNode) {
   const dataBuffer = new Uint8Array(analyser.frequencyBinCount)
   analyser.getByteFrequencyData(dataBuffer)
@@ -65,6 +67,12 @@ function calculateVolume(analyser: AnalyserNode, mode: 'linear' | 'minmax' = 'li
 }
 
 export const useAudioContext = defineStore('audio-context', () => {
+  // This context carries character speech (TTS) to the speakers. On iOS the
+  // hardware silent switch mutes Web Audio output unless the audio session is
+  // promoted to 'playback', which is how users on PWA/Safari end up with
+  // silent TTS: https://github.com/moeru-ai/airi/issues/894
+  requestAudioSessionType('playback')
+
   const audioContext = shallowRef<AudioContext>(new AudioContext())
 
   return {
