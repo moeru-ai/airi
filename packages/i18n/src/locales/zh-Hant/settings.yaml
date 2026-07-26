@@ -771,7 +771,7 @@ pages:
         empty: 目前沒有內容。請在下方新增一個！
       add:
         title: 新增
-        description: "填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。"
+        description: '填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。'
         pending-badge: 未儲存
       status:
         unknown: 未載入
@@ -803,7 +803,7 @@ pages:
         args:
           label: 引數
           description: 每行一個，依序排列。
-          placeholder: "-y some-package-name /tmp"
+          placeholder: '-y some-package-name /tmp'
         cwd:
           label: 工作目錄
           description: 用作程序工作目錄的選用目錄。
