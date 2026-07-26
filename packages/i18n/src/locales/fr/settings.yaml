@@ -411,6 +411,14 @@ pages:
         export: Exporter les chats
         import: Importer les chats
         delete: Supprimer toutes les sessions de chat
+      settings:
+        title: Paramètres
+        description: Exportez ou importez les paramètres de l'application, des modules et des fournisseurs sous forme de sauvegarde JSON.
+        export: Exporter les paramètres
+        import: Importer les paramètres
+        include_secrets: Inclure les clés API et jetons
+        include_secrets_description: Les secrets sont exportés en clair. Conservez le fichier de sauvegarde en lieu sûr.
+        export_secrets_confirm: Exporter avec les secrets ?
       models:
         title: Modèles
         description: Remove imported Live2D, VRM, Spine, and MMD models.
@@ -447,6 +455,8 @@ pages:
       imported: Sessions de discussion importées.
       import_error: Échec de l'importation des sessions. Veuillez vérifier le format du fichier.
       chats_deleted: Sessions de discussion supprimées.
+      settings_exported: Paramètres exportés.
+      settings_imported: Paramètres importés. Rechargement…
       models_deleted: Modèles supprimés.
       modules_reset: Paramètres du module réinitialisés.
       providers_reset: Paramètres du fournisseur réinitialisés.

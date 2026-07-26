@@ -411,6 +411,14 @@ pages:
         export: 导出聊天记录
         import: 导入聊天记录
         delete: 删除所有聊天会话
+      settings:
+        title: 设置
+        description: 将应用设置、模块偏好和提供商配置导出或导入为 JSON 备份。
+        export: 导出设置
+        import: 导入设置
+        include_secrets: 包含 API 密钥和令牌
+        include_secrets_description: 密钥将以明文导出，请妥善保管备份文件。
+        export_secrets_confirm: 确认导出密钥？
       models:
         title: 模型
         description: 删除导入的Live2D/VRM模型。
@@ -447,6 +455,8 @@ pages:
       imported: 聊天会话已导入。
       import_error: 无法导入聊天会话。请检查文件格式。
       chats_deleted: 聊天会话已删除。
+      settings_exported: 设置已导出。
+      settings_imported: 设置已导入，即将刷新…
       models_deleted: 模型已删除。
       modules_reset: 重置模块设置。
       providers_reset: 服务端设置重置。
