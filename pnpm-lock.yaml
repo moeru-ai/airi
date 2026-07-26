@@ -748,8 +748,8 @@ catalogs:
       specifier: ^1.3.1
       version: 1.3.1
     isolated-vm:
-      specifier: ^6.1.2
-      version: 6.1.2
+      specifier: ^7.0.0
+      version: 7.0.0
     jose:
       specifier: ^6.2.2
       version: 6.2.2
@@ -829,8 +829,8 @@ catalogs:
       specifier: ^5.1.9
       version: 5.1.11
     node-pty:
-      specifier: ^1.1.0
-      version: 1.1.0
+      specifier: npm:@lydell/node-pty@^1.2.0-beta.12
+      version: 1.2.0-beta.12
     node-vibrant:
       specifier: ^4.0.4
       version: 4.0.4
@@ -5026,7 +5026,7 @@ importers:
         version: 0.1.0-beta.17
       node-pty:
         specifier: 'catalog:'
-        version: 1.1.0
+        version: '@lydell/node-pty@1.2.0-beta.12'
       ws:
         specifier: 'catalog:'
         version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -5132,7 +5132,7 @@ importers:
         version: 5.0.4
       isolated-vm:
         specifier: 'catalog:'
-        version: 6.1.2
+        version: 7.0.0
       minecraft-data:
         specifier: 'catalog:'
         version: 3.102.3
@@ -7808,6 +7808,39 @@ packages:
 
   '@loaderkit/resolve@1.0.4':
     resolution: {integrity: sha512-rJzYKVcV4dxJv+vW6jlvagF8zvGxHJ2+HTr1e2qOejfmGhAApgJHl8Aog4mMszxceTRiKTTbnpgmTO1bEZHV/A==}
+
+  '@lydell/node-pty-darwin-arm64@1.2.0-beta.12':
+    resolution: {integrity: sha512-tqaifcY9Cr41SblO1+FLzh8oxxtkNhuW9Dhl22lKme9BreYvKvxEZcdPIXTuqkJc5tagOEC4QHShKmJjLyLXLQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@lydell/node-pty-darwin-x64@1.2.0-beta.12':
+    resolution: {integrity: sha512-4LrS5pCJwqHKDVf1zS2gyNV0m4hKAXch+XZNhbZ6LY8uwVL8BhchzQBO40Os5anuRxRCWzHpw4Sp64Ie8q7E4Q==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@lydell/node-pty-linux-arm64@1.2.0-beta.12':
+    resolution: {integrity: sha512-Sx+A71x5BDGHt9ansfrtGxwq2VFVDWvJUAdlUL0Hv0qeiJUfts+hgopx+CgT4PSwahKjdEgtu0+FAfY9rICKRw==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@lydell/node-pty-linux-x64@1.2.0-beta.12':
+    resolution: {integrity: sha512-bJzs94njofYhGg/UDqW1nj0dtvvu+2OvxMY+RlLS1T17VgcktKoIR6PuenTwE5HJ/D6StCPADmXcT0nNsCKmIQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@lydell/node-pty-win32-arm64@1.2.0-beta.12':
+    resolution: {integrity: sha512-p7POgjVEiFaBC3/y+AKuV1FzePCsJ6HmZDv2XK+jBZSfwP8+uBAw181ZiKYN1YuRa/XpmBGaWezcI8hZkbW++g==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@lydell/node-pty-win32-x64@1.2.0-beta.12':
+    resolution: {integrity: sha512-IDFa00g7qUDGUYgByrUBJtC+mOjYVt/8KYyWivCg5JjGOHbBUACUQZLl0jTWmnr+tld/UyTpX90a2PY6oTVtRw==}
+    cpu: [x64]
+    os: [win32]
+
+  '@lydell/node-pty@1.2.0-beta.12':
+    resolution: {integrity: sha512-qIK890UwPupoj07osVvgOIa++1mxeHbcGry4PKRHhNVNs81V2SCG34eJr46GybiOmBtc8Sj5PB1/GGM5PL549g==}
 
   '@malept/cross-spawn-promise@2.0.0':
     resolution: {integrity: sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg==}
@@ -15063,9 +15096,9 @@ packages:
     resolution: {integrity: sha512-WhB9zCku7EGTj/HQQRz5aUQEUeoQZH2bWcltRErOpymJ4boYE6wL9Tbr23krRPSZ+C5zqNSrSw+Cc7sZZ4b7vg==}
     engines: {node: '>=0.10.0'}
 
-  isolated-vm@6.1.2:
-    resolution: {integrity: sha512-GGfsHqtlZiiurZaxB/3kY7LLAXR3sgzDul0fom4cSyBjx6ZbjpTrFWiH3z/nUfLJGJ8PIq9LQmQFiAxu24+I7A==}
-    engines: {node: '>=22.0.0'}
+  isolated-vm@7.0.0:
+    resolution: {integrity: sha512-TXlJp9kiSf4AEpkCgB4VIf2M+6MRW3SEzlZUXFmQ6QcRypOnENRvK6RoZuQt/dlLOnqyFGUoZELUfH4ucsG4iw==}
+    engines: {node: '>=26.0.0'}
 
   isomorphic-fetch@3.0.0:
     resolution: {integrity: sha512-qvUtwJ3j6qwsF3jLxkZ72qCgjMysPzDfeV240JHiGZsANBYd+EEuu35v7dfrJ9Up0Ak07D7GGSkGhCHTqg/5wA==}
@@ -16159,9 +16192,6 @@ packages:
 
   node-notifier@10.0.1:
     resolution: {integrity: sha512-YX7TSyDukOZ0g+gmzjB6abKu+hTGvO8+8+gIFDsRCU2t8fLV/P2unmt+LGFaIa4y64aX98Qksa97rgz4vMNeLQ==}
-
-  node-pty@1.1.0:
-    resolution: {integrity: sha512-20JqtutY6JPXTUnL0ij1uad7Qe1baT46lyolh2sSENDd4sTzKZ4nmAFkeAARDKwmlLjPx6XKRlwRUxwjOy+lUg==}
 
   node-releases@2.0.27:
     resolution: {integrity: sha512-nmh3lCkYZ3grZvqcCH+fjmQ7X+H0OeZgP40OierEaAptX4XofMh5kwNbWh7lBduUzCcV/8kZ+NDLCwm2iorIlA==}
@@ -22161,6 +22191,33 @@ snapshots:
   '@loaderkit/resolve@1.0.4':
     dependencies:
       '@braidai/lang': 1.1.2
+
+  '@lydell/node-pty-darwin-arm64@1.2.0-beta.12':
+    optional: true
+
+  '@lydell/node-pty-darwin-x64@1.2.0-beta.12':
+    optional: true
+
+  '@lydell/node-pty-linux-arm64@1.2.0-beta.12':
+    optional: true
+
+  '@lydell/node-pty-linux-x64@1.2.0-beta.12':
+    optional: true
+
+  '@lydell/node-pty-win32-arm64@1.2.0-beta.12':
+    optional: true
+
+  '@lydell/node-pty-win32-x64@1.2.0-beta.12':
+    optional: true
+
+  '@lydell/node-pty@1.2.0-beta.12':
+    optionalDependencies:
+      '@lydell/node-pty-darwin-arm64': 1.2.0-beta.12
+      '@lydell/node-pty-darwin-x64': 1.2.0-beta.12
+      '@lydell/node-pty-linux-arm64': 1.2.0-beta.12
+      '@lydell/node-pty-linux-x64': 1.2.0-beta.12
+      '@lydell/node-pty-win32-arm64': 1.2.0-beta.12
+      '@lydell/node-pty-win32-x64': 1.2.0-beta.12
 
   '@malept/cross-spawn-promise@2.0.0':
     dependencies:
@@ -29976,7 +30033,7 @@ snapshots:
 
   isobject@3.0.1: {}
 
-  isolated-vm@6.1.2:
+  isolated-vm@7.0.0:
     dependencies:
       node-gyp-build: 4.8.4
 
@@ -31402,10 +31459,6 @@ snapshots:
       shellwords: 0.1.1
       uuid: 8.3.2
       which: 2.0.2
-
-  node-pty@1.1.0:
-    dependencies:
-      node-addon-api: 7.1.1
 
   node-releases@2.0.27: {}
 
