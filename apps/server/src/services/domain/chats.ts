@@ -263,8 +263,9 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         if (messages.some((message) => {
           const existingMessage = existingMessagesById.get(message.id)
           return existingMessage != null && existingMessage.senderId !== resolveSenderId(message.role, userId, characterId)
-        }))
+        })) {
           throw createForbiddenError()
+        }
 
         const existingIds = new Set(existingMessages.map(m => m.id))
 
