@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
+import type { ChatSessionMeta, ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
 import type { Tool } from '@xsai/shared-chat'
 import type { Ref } from 'vue'
 
@@ -105,9 +105,12 @@ function assistantMessage(content: string): MockChatMessage {
 interface MockState {
   activeSessionId: Ref<string>
   sessionMessages: Ref<Record<string, MockChatMessage[]>>
-  sessionMetas: Ref<Record<string, unknown>>
+  sessionMetas: Ref<Record<string, ChatSessionMeta>>
   applyRemoteSnapshot: ReturnType<typeof vi.fn>
+  createSession: ReturnType<typeof vi.fn>
+  deleteSession: ReturnType<typeof vi.fn>
   setSessionMessages: ReturnType<typeof vi.fn>
+  setActiveSession: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   importSessions: MockImportSessions
   ingest: ReturnType<typeof vi.fn>
@@ -121,6 +124,8 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     sessionMessages: mockState.sessionMessages,
     sessionMetas: mockState.sessionMetas,
     applyRemoteSnapshot: mockState.applyRemoteSnapshot,
+    createSession: mockState.createSession,
+    deleteSession: mockState.deleteSession,
     getSnapshot: vi.fn(() => ({
       activeSessionId: mockState.activeSessionId.value,
       sessionMessages: mockState.sessionMessages.value,
@@ -128,6 +133,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     })),
     getSessionMessages: mockState.getSessionMessages,
     importSessions: mockState.importSessions,
+    setActiveSession: mockState.setActiveSession,
     setSessionMessages: mockState.setSessionMessages,
   }),
 }))
@@ -208,11 +214,19 @@ describe('useChatSyncStore', async () => {
     const sessionMessages = ref<Record<string, MockChatMessage[]>>({
       'session-1': [{ role: 'system', content: 'init' }],
     })
-    const sessionMetas = ref<Record<string, unknown>>({})
+    const sessionMetas = ref<Record<string, ChatSessionMeta>>({
+      'session-1': {
+        sessionId: 'session-1',
+        userId: 'local',
+        characterId: 'default',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    })
     const applyRemoteSnapshot = vi.fn((snapshot: {
       activeSessionId: string
       sessionMessages: Record<string, MockChatMessage[]>
-      sessionMetas: Record<string, unknown>
+      sessionMetas: Record<string, ChatSessionMeta>
     }) => {
       activeSessionId.value = snapshot.activeSessionId
       sessionMessages.value = snapshot.sessionMessages
@@ -221,6 +235,29 @@ describe('useChatSyncStore', async () => {
 
     const setSessionMessages = vi.fn((sessionId: string, next: MockChatMessage[]) => {
       sessionMessages.value[sessionId] = next
+    })
+    const setActiveSession = vi.fn((sessionId: string) => {
+      activeSessionId.value = sessionId
+    })
+    const createSession = vi.fn(async (characterId: string, options?: { setActive?: boolean }) => {
+      const sessionId = 'session-2'
+      sessionMetas.value[sessionId] = {
+        sessionId,
+        userId: 'local',
+        characterId,
+        createdAt: 2,
+        updatedAt: 2,
+      }
+      sessionMessages.value[sessionId] = [{ role: 'system', content: 'new session' }]
+      if (options?.setActive !== false)
+        activeSessionId.value = sessionId
+      return sessionId
+    })
+    const deleteSession = vi.fn(async (sessionId: string) => {
+      delete sessionMetas.value[sessionId]
+      delete sessionMessages.value[sessionId]
+      if (activeSessionId.value === sessionId)
+        activeSessionId.value = 'session-1'
     })
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
@@ -244,7 +281,10 @@ describe('useChatSyncStore', async () => {
       sessionMessages,
       sessionMetas,
       applyRemoteSnapshot,
+      createSession,
+      deleteSession,
       setSessionMessages,
+      setActiveSession,
       getSessionMessages,
       importSessions,
       ingest,
@@ -471,10 +511,24 @@ describe('useChatSyncStore', async () => {
     store.dispose()
   })
 
-  it('keeps the follower chat window on its local session while applying remote snapshots', async () => {
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('issue #2085: keeps a follower-selected session when the authority has not loaded its messages', async () => {
+    // ROOT CAUSE:
+    //
+    // The authority snapshot can know a session through sessionMetas without
+    // having loaded that session's messages. The follower previously checked
+    // only snapshot.sessionMessages, so the next heartbeat replaced its local
+    // selection even though the selected session still existed.
     mockState.activeSessionId.value = 'session-2'
     mockState.sessionMessages.value = {
       'session-2': [{ role: 'system', content: 'chat-window' }],
+    }
+    mockState.sessionMetas.value['session-2'] = {
+      sessionId: 'session-2',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
     }
 
     const store = useChatSyncStore()
@@ -488,9 +542,23 @@ describe('useChatSyncStore', async () => {
         activeSessionId: 'session-1',
         sessionMessages: {
           'session-1': [{ role: 'system', content: 'main-window' }],
-          'session-2': [{ role: 'system', content: 'chat-window' }, { role: 'user', content: 'retry me' }],
         },
-        sessionMetas: {},
+        sessionMetas: {
+          'session-1': {
+            sessionId: 'session-1',
+            userId: 'local',
+            characterId: 'default',
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          'session-2': {
+            sessionId: 'session-2',
+            userId: 'local',
+            characterId: 'default',
+            createdAt: 2,
+            updatedAt: 2,
+          },
+        },
       },
     })
 
@@ -501,11 +569,45 @@ describe('useChatSyncStore', async () => {
     expect(mockState.activeSessionId.value).toBe('session-2')
     expect(mockState.sessionMessages.value['session-2']).toEqual([
       { role: 'system', content: 'chat-window' },
-      { role: 'user', content: 'retry me' },
     ])
 
     authority.close()
     store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('issue #2085: creates a session through the authority and activates it only in the follower', async () => {
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+
+    await expect(followerStore.requestCreateSession('default')).resolves.toBe('session-2')
+
+    expect(mockState.createSession).toHaveBeenCalledWith('default', { setActive: false })
+    expect(mockState.setActiveSession).toHaveBeenCalledWith('session-2')
+
+    authorityStore.dispose()
+    followerStore.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('issue #2085: deletes a session through the authority', async () => {
+    mockState.sessionMetas.value['session-2'] = {
+      sessionId: 'session-2',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    mockState.sessionMessages.value['session-2'] = [{ role: 'system', content: 'remove me' }]
+
+    const { authorityStore, followerStore } = initializeAuthorityAndFollower()
+
+    await expect(followerStore.requestDeleteSession('session-2')).resolves.toBeUndefined()
+
+    expect(mockState.deleteSession).toHaveBeenCalledWith('session-2')
+    expect(mockState.sessionMetas.value['session-2']).toBeUndefined()
+
+    authorityStore.dispose()
+    followerStore.dispose()
   })
 
   it('sends spotlight commands through shared request and response messages', async () => {

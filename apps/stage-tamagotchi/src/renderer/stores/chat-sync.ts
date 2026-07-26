@@ -59,6 +59,10 @@ interface SpotlightIngestResult {
   visibleText: string
 }
 
+interface CreateSessionResult {
+  sessionId: string
+}
+
 interface ChatCommandMessage<C extends string = string, P = unknown> {
   type: 'command'
   authorityId?: string
@@ -74,7 +78,7 @@ interface RetryCommandPayload {
 }
 
 type ChatResponsePayload
-  = | { ok: true, result?: SpotlightIngestResult }
+  = | { ok: true, result?: SpotlightIngestResult | CreateSessionResult }
     | { ok: false, error?: string }
 
 type ChatSyncMessage
@@ -88,6 +92,8 @@ type ChatSyncMessage
     | ChatCommandMessage<'tool-call-rerun', ToolCallRerunPayload<ToolsetId>>
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
+    | ChatCommandMessage<'create-session', { characterId: string }>
+    | ChatCommandMessage<'delete-session', { sessionId: string }>
     | ChatCommandMessage<'import-sessions', ChatSessionsExport>
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
@@ -277,15 +283,26 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   function applySessionSnapshot(snapshot: SessionSnapshotPayload) {
     const localActiveSessionId = activeSessionId.value
+    const localActiveSessionMessages = sessionMessages.value[localActiveSessionId]
     const shouldPreserveLocalActiveSession = mode.value === 'follower'
       && !!localActiveSessionId
-      && !!snapshot.sessionMessages[localActiveSessionId]
+      && !!snapshot.sessionMetas[localActiveSessionId]
+
+    const nextSessionMessages = shouldPreserveLocalActiveSession
+      && localActiveSessionMessages
+      && !snapshot.sessionMessages[localActiveSessionId]
+      ? {
+          ...snapshot.sessionMessages,
+          [localActiveSessionId]: localActiveSessionMessages,
+        }
+      : snapshot.sessionMessages
 
     chatSession.applyRemoteSnapshot({
       ...snapshot,
       activeSessionId: shouldPreserveLocalActiveSession
         ? localActiveSessionId
         : snapshot.activeSessionId,
+      sessionMessages: nextSessionMessages,
     })
   }
 
@@ -467,6 +484,17 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           break
         case 'delete-message':
           executeDeleteMessage(message.payload)
+          break
+        case 'create-session':
+          respond({
+            ok: true,
+            result: {
+              sessionId: await chatSession.createSession(message.payload.characterId, { setActive: false }),
+            },
+          })
+          return
+        case 'delete-session':
+          await chatSession.deleteSession(message.payload.sessionId)
           break
         case 'import-sessions':
           await chatSession.importSessions(message.payload)
@@ -707,6 +735,42 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  /**
+   * Creates a persisted session on the authority and activates it in the
+   * requesting window. A follower must not mutate its local session store
+   * first because the next authority snapshot would replace that mutation.
+   */
+  async function requestCreateSession(characterId: string) {
+    if (mode.value === 'authority')
+      return await chatSession.createSession(characterId, { setActive: true })
+
+    const result = await dispatch<CreateSessionResult>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'create-session',
+      payload: { characterId },
+    })
+    chatSession.setActiveSession(result.sessionId)
+    return result.sessionId
+  }
+
+  /** Deletes a persisted session through the authority that owns session state. */
+  async function requestDeleteSession(sessionId: string) {
+    if (mode.value === 'authority') {
+      await chatSession.deleteSession(sessionId)
+      return
+    }
+
+    await dispatch<void>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'delete-session',
+      payload: { sessionId },
+    })
+  }
+
   /** Imports persisted chat sessions through the authority so every chat window receives the resulting snapshot. */
   async function requestImportSessions(payload: ChatSessionsExport) {
     if (mode.value === 'authority') {
@@ -743,6 +807,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestToolCallRerun,
     requestCleanup,
     requestDeleteMessage,
+    requestCreateSession,
+    requestDeleteSession,
     requestImportSessions,
   }
 })

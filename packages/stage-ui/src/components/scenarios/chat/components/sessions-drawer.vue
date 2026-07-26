@@ -16,6 +16,24 @@ import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 
+const props = withDefaults(defineProps<{
+  /**
+   * Forces the dialog interaction boundary when a narrow desktop window
+   * would otherwise be mistaken for a touch layout.
+   *
+   * @default 'responsive'
+   */
+  presentation?: 'responsive' | 'dialog'
+  /** Routes session creation through the owning runtime when provided. */
+  createSession?: (characterId: string) => Promise<string>
+  /** Routes session deletion through the owning runtime when provided. */
+  deleteSession?: (sessionId: string) => Promise<void>
+}>(), {
+  presentation: 'responsive',
+})
+
+const showDialog = defineModel({ type: Boolean, default: false, required: false })
+
 /**
  * Bottom-sheet (mobile) / centered-modal (desktop) UI surface that lists every
  * chat session belonging to the current user, lets the user switch between
@@ -36,9 +54,8 @@ import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
  *   updatedAt timestamp.
  */
 
-const showDialog = defineModel({ type: Boolean, default: false, required: false })
-
 const { isDesktop } = useBreakpoints()
+const useDialogPresentation = computed(() => props.presentation === 'dialog' || isDesktop.value)
 const screenSafeArea = useScreenSafeArea()
 const { t } = useI18n()
 
@@ -172,7 +189,10 @@ async function startNewSession() {
   isCreatingSession.value = true
   try {
     const characterId = activeCardId.value || 'default'
-    await chatSession.createSession(characterId, { setActive: true })
+    if (props.createSession)
+      await props.createSession(characterId)
+    else
+      await chatSession.createSession(characterId, { setActive: true })
     // PostHog retention denominator. We pick this call site (UI new-session
     // button) rather than `createSession` in the store because the store also
     // creates sessions for cloud-reconcile / fork / restore flows that aren't
@@ -190,7 +210,10 @@ async function deleteRow(event: Event, sessionId: string) {
   // Stop the parent button's click — otherwise we'd switch into the session
   // we are about to remove and immediately need a fallback.
   event.stopPropagation()
-  await chatSession.deleteSession(sessionId)
+  if (props.deleteSession)
+    await props.deleteSession(sessionId)
+  else
+    await chatSession.deleteSession(sessionId)
 }
 
 // Per-open generation counter. The batch loadSession loop checks this before
@@ -225,7 +248,7 @@ watch(showDialog, async (open) => {
 </script>
 
 <template>
-  <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
+  <DialogRoot v-if="useDialogPresentation" :open="showDialog" @update:open="value => showDialog = value">
     <slot name="trigger" />
     <DialogPortal>
       <DialogOverlay
