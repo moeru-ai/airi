@@ -1,3 +1,4 @@
+import type { AiriCard } from '../../types/airiCard'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { createPinia, setActivePinia } from 'pinia'
@@ -7,6 +8,8 @@ import { nextTick, ref } from 'vue'
 // Refs the store reads through the mocked `useAuthStore` / `useAiriCardStore`.
 // Tests mutate these to simulate auth and card swaps.
 const userIdRef = ref<string>('local')
+const userRef = ref<{ name: string } | null>(null)
+const activeCardRef = ref<AiriCard>()
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
 
@@ -19,6 +22,8 @@ const getOutboxMock = vi.fn<(uid: string) => Promise<any[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
 const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>>()
+const listCloudChatsMock = vi.fn()
+const reconcileLocalAndRemoteMock = vi.fn()
 
 vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
@@ -29,11 +34,12 @@ vi.mock('pinia', async () => {
 })
 
 vi.mock('../auth', () => ({
-  useAuthStore: () => ({ userId: userIdRef }),
+  useAuthStore: () => ({ user: userRef, userId: userIdRef }),
 }))
 
 vi.mock('../modules/airi-card', () => ({
   useAiriCardStore: () => ({
+    activeCard: activeCardRef,
     activeCardId: activeCardIdRef,
     systemPrompt: systemPromptRef,
   }),
@@ -74,9 +80,9 @@ vi.mock('../../libs/server', () => ({
 // sufficient. We keep `extractMessageText` realistic so message previews work.
 vi.mock('../../libs/chat-sync', () => ({
   applyCreateActions: vi.fn().mockResolvedValue([]),
-  reconcileLocalAndRemote: vi.fn().mockReturnValue({ adopt: [], claim: [], create: [] }),
+  reconcileLocalAndRemote: (...args: unknown[]) => reconcileLocalAndRemoteMock(...args),
   createCloudChatMapper: () => ({
-    listChats: vi.fn().mockResolvedValue([]),
+    listChats: () => listCloudChatsMock(),
     deleteChat: vi.fn().mockResolvedValue(undefined),
   }),
   createChatWsClient: () => ({
@@ -99,6 +105,8 @@ const { useChatSessionStore } = await import('./session-store')
 beforeEach(() => {
   setActivePinia(createPinia())
   userIdRef.value = 'local'
+  userRef.value = null
+  activeCardRef.value = undefined
   activeCardIdRef.value = 'default'
   systemPromptRef.value = ''
 
@@ -111,6 +119,8 @@ beforeEach(() => {
   dropOutboxForSessionMock.mockReset().mockResolvedValue(undefined)
   getTombstonesMock.mockReset().mockResolvedValue([])
   removeTombstonesMock.mockReset().mockResolvedValue(undefined)
+  listCloudChatsMock.mockReset().mockResolvedValue([])
+  reconcileLocalAndRemoteMock.mockReset().mockReturnValue({ adopt: [], claim: [], create: [] })
 })
 
 async function flushMicrotasks(rounds = 8) {
@@ -390,5 +400,86 @@ describe('chat-session-store · active card prompt edits', () => {
     expect(store.messages[0]?.id).toBe('system-message')
     expect(store.messages[0]?.content).toContain('Updated persisted prompt')
     expect(store.messages[1]?.content).toBe('Persisted history')
+  })
+})
+
+describe('chat-session-store · character greeting', () => {
+  it('adds the active card greeting only when creating a new session', async () => {
+    userRef.value = { name: 'Mira' }
+    activeCardRef.value = {
+      name: 'ReLU',
+      nickname: 'Nova',
+      version: '1.0.0',
+      greetings: ['Hello, {{user}}. I am {{char}}.'],
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }
+
+    const store = useChatSessionStore()
+    await store.initialize()
+
+    expect(store.messages).toHaveLength(2)
+    expect(store.messages[0]?.role).toBe('system')
+    expect(store.messages[1]).toMatchObject({
+      role: 'assistant',
+      content: 'Hello, Mira. I am Nova.',
+      slices: [{ type: 'text', text: 'Hello, Mira. I am Nova.' }],
+      tool_results: [],
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2119#discussion_r3656443756
+  // ROOT CAUSE:
+  //
+  // Adopting a remote-only session reused local new-session initialization,
+  // which fabricated a greeting before authoritative cloud messages arrived.
+  // The later merge retained both that greeting and the synced conversation.
+  it('adopts a cloud session with only a local system placeholder', async () => {
+    const remoteChat = {
+      id: 'remote-session',
+      title: 'Remote conversation',
+      createdAt: new Date(1).toISOString(),
+      updatedAt: new Date(2).toISOString(),
+    }
+    userIdRef.value = 'signed-in-user'
+    activeCardRef.value = {
+      name: 'Local active card',
+      version: '1.0.0',
+      greetings: ['This greeting must not be fabricated.'],
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }
+    listCloudChatsMock.mockResolvedValue([remoteChat])
+    reconcileLocalAndRemoteMock.mockReturnValue({
+      adopt: [remoteChat],
+      claim: [],
+      create: [],
+    })
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    await vi.waitFor(() => {
+      expect(store.sessionMessages[remoteChat.id]).toBeDefined()
+    })
+
+    expect(store.sessionMessages[remoteChat.id]).toHaveLength(1)
+    expect(store.sessionMessages[remoteChat.id]?.[0]?.role).toBe('system')
+    expect(store.sessionMessages[remoteChat.id]?.some(message => message.role === 'assistant')).toBe(false)
   })
 })

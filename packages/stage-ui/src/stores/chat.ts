@@ -18,6 +18,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/analytics-headers'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { compileCharacterCardMessages } from '../services/airi-card/runtime'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
@@ -194,6 +195,13 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    composeProviderMessages: (messages, { sessionId }) => {
+      const characterId = chatSession.getSessionCharacterId(sessionId)
+      const sessionCard = characterId ? cardStore.getCard(characterId) : undefined
+      return compileCharacterCardMessages(sessionCard, messages, {
+        userName: chatSession.getCurrentUserName(),
+      })
+    },
     runtimeContextProviders: [
       createMinecraftContext,
     ],
