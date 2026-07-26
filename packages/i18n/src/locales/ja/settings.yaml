@@ -301,8 +301,10 @@ pages:
     activate: 有効化
     active: 有効
     active_badge: 現在有効
+    activation_notice: '{name} に切り替えました。現在の会話ではこのキャラクターが使用されます。'
     cancel: 操作の取消
     save: 変更を保存
+    save_and_activate: 保存して有効化
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる

@@ -301,8 +301,10 @@ pages:
     activate: Kích hoạt
     active: Đang hoạt động
     active_badge: Hiện đang hoạt động
+    activation_notice: Đã chuyển sang {name}. Cuộc trò chuyện hiện tại giờ sử dụng nhân vật này.
     cancel: Hủy thao tác
     save: Lưu thay đổi
+    save_and_activate: Lưu và kích hoạt
     card_not_found: Không tìm thấy thẻ
     character: Nhân vật
     close: Đóng

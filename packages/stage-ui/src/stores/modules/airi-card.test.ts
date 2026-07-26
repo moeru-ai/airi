@@ -120,4 +120,31 @@ describe('airi-card store', () => {
       voice_id: 'aria',
     })
   })
+
+  it('falls back to the default card when the active custom card is deleted', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    const cardId = cardStore.addCard({
+      name: 'Custom card',
+      version: '1.0.0',
+      description: 'A removable card.',
+    }, 'scratch')
+    cardStore.activeCardId = cardId
+
+    cardStore.removeCard(cardId)
+
+    expect(cardStore.cards.has(cardId)).toBe(false)
+    expect(cardStore.activeCardId).toBe('default')
+    expect(cardStore.activeCard?.name).toBe('ReLU')
+  })
+
+  it('keeps the built-in fallback card when deletion is requested directly', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    expect(cardStore.removeCard('default')).toBe(false)
+    expect(cardStore.cards.has('default')).toBe(true)
+    expect(cardStore.activeCardId).toBe('default')
+  })
 })

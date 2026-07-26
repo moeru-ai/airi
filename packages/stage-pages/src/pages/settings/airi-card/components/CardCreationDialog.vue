@@ -77,6 +77,7 @@ const { activeProvider: defaultArtistryProvider } = storeToRefs(artistryStore)
 
 // Determine if we're in edit mode
 const isEditMode = computed(() => !!props.cardId)
+const isEditingActiveCard = computed(() => isEditMode.value && props.cardId === cardStore.activeCardId)
 
 // Modules configuration
 const selectedConsciousnessProvider = ref<string>('')
@@ -303,7 +304,7 @@ watch(() => props.modelValue, (isOpen) => {
 const showError = ref<boolean>(false)
 const errorMessage = ref<string>('')
 
-function saveCard(card: Card): boolean {
+function saveCard(card: Card, activate: boolean): boolean {
   const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
   if (!draftResult.success) {
     showError.value = true
@@ -350,17 +351,23 @@ function saveCard(card: Card): boolean {
       } as AiriExtension,
     },
   }
+  let savedCardId: string
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    cardStore.updateCard(props.cardId, cardWithModules)
+    if (!cardStore.updateCard(props.cardId, cardWithModules)) {
+      showError.value = true
+      errorMessage.value = t('settings.pages.card.card_not_found')
+      return false
+    }
+    savedCardId = props.cardId
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    const newCardId = cardStore.addCard(cardWithModules, 'scratch')
-    // A new card becomes the runtime profile immediately so Create does not
-    // appear to succeed while conversations continue using the previous card.
-    cardStore.activeCardId = newCardId
+    savedCardId = cardStore.addCard(cardWithModules, 'scratch')
   }
+
+  if (activate)
+    cardStore.activeCardId = savedCardId
 
   modelValue.value = false // Close this
   return true
@@ -690,11 +697,19 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
               @click="modelValue = false"
             />
             <Button
-              variant="primary"
+              :variant="isEditingActiveCard ? 'primary' : 'secondary'"
               icon="i-solar:check-circle-bold-duotone"
-              :label="isEditMode ? t('settings.pages.card.save') : t('settings.pages.card.creation.create')"
+              :label="t('settings.pages.card.save')"
               :disabled="false"
-              @click="saveCard(card)"
+              @click="saveCard(card, false)"
+            />
+            <Button
+              v-if="!isEditingActiveCard"
+              variant="primary"
+              icon="i-solar:play-circle-bold-duotone"
+              :label="t('settings.pages.card.save_and_activate')"
+              :disabled="false"
+              @click="saveCard(card, true)"
             />
           </div>
         </div>

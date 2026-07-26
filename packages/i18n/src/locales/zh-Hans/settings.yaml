@@ -301,8 +301,10 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
+    activation_notice: 已切换到 {name}，当前会话将使用该角色。
     cancel: 取消操作
     save: 保存更改
+    save_and_activate: 保存并激活
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭

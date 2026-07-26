@@ -40,7 +40,7 @@ const isCardCreationDialogOpen = ref(false)
 const searchQuery = ref('')
 
 // Sort option
-const sortOption = ref('nameAsc')
+const sortOption = ref<'nameAsc' | 'nameDesc' | 'recent'>('nameAsc')
 
 const inputFiles = ref<File[]>([])
 
@@ -96,17 +96,17 @@ const filteredCards = computed<CardItem[]>(() => {
 
 // Sorted filtered cards based on sort option
 const sortedFilteredCards = computed<CardItem[]>(() => {
-  // Create a new array to avoid mutating the source
   const sorted = [...filteredCards.value]
 
   if (sortOption.value === 'nameAsc')
     return sorted.sort((a, b) => a.name.localeCompare(b.name))
-  else if (sortOption.value === 'nameDesc')
+
+  if (sortOption.value === 'nameDesc')
     return sorted.sort((a, b) => b.name.localeCompare(a.name))
-  else if (sortOption.value === 'recent')
-    return sorted.sort((a, b) => b.id.localeCompare(a.id))
-  else
-    return sorted
+
+  // The persisted Map retains insertion order; nanoids are random and cannot
+  // represent when a card was added.
+  return sorted.reverse()
 })
 
 // Delete confirmation
@@ -156,6 +156,15 @@ function handleCardCreationDialog() {
 function activateCard(id: string) {
   activeCardId.value = id
 }
+
+watch(activeCardId, (cardId, previousCardId) => {
+  if (!previousCardId || cardId === previousCardId)
+    return
+
+  const activeCard = cards.value.get(cardId)
+  if (activeCard)
+    toast(t('settings.pages.card.activation_notice', { name: activeCard.name }))
+})
 
 // Clear editing state when creation/edit dialog closes
 watch(isCardCreationDialogOpen, (isOpen) => {

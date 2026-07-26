@@ -316,8 +316,10 @@ pages:
     activate: Activate
     active: Active
     active_badge: Currently Active
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: Cancel action
     save: Save changes
+    save_and_activate: Save and activate
     card_not_found: Card not found
     character: Character
     close: Close

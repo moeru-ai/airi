@@ -301,8 +301,10 @@ pages:
     activate: Активировать
     active: Активно
     active_badge: Текущая
+    activation_notice: Выбран персонаж {name}. Текущий разговор теперь использует его.
     cancel: Отменить действие
     save: Сохранить изменения
+    save_and_activate: Сохранить и активировать
     card_not_found: Карта не найдена
     character: Персонаж
     close: Закрыть
