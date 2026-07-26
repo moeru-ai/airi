@@ -535,45 +535,45 @@ pages:
       card:
         description: 配置 AIRI 生成图像和视觉内容的方式。
         comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
-        exposed_fields: '投影'
-        open_on_replicate: 重置为默认参数
+        exposed_fields: '{count} exposed fields'
+        open_on_replicate: Open on Replicate
         instruction_sync:
-          title: 清除模型缓存
-          description: 表情
-          apply: 表情系统
-          keep: 禁用后仍会保留 SDK 表情管理器和眨眼功能。
-      provider: 此模型没有可用表情。
+          title: ComfyUI Instruction Sync
+          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          apply: Apply Recommended Prompt
+          keep: Keep Existing
+      provider: Artistry Provider
       spawn_mode:
-        label: LLM 工具集成尚未完成。
-        description: 保存默认表情设置
+        label: Manifestation Mode (Spawn Mode)
+        description: Choose how images are delivered to the interface.
         options:
-          bg: 重置所有表情
-          inline: 向 LLM 公开
-          widget: 无
-          bg_widget: 全部
+          bg: Background Environment
+          inline: Inline Chat
+          widget: Overlay Widget
+          bg_widget: Dual (Background + Widget)
       autonomous:
-        title: 自定义
-        description: 确认新密码
-        threshold: 此处包含不可撤销的账户操作。
-        threshold_description: 删除账户？
-        threshold_min: 邮箱不匹配。
-        threshold_max: 发送确认邮件
+        title: Cinematic Autonomy (Autonomous Artist)
+        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        threshold: Manifestation Threshold
+        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_min: Always Generate (0%)
+        threshold_max: Strict (100%)
       model:
-        label: 取消
-        description: 请查看 {email} 收件箱中的删除链接。
+        label: Artistry Model (Optional Override)
+        description: Model identifier if needed by provider
       prompt-prefix:
-        label: 无法开始删除操作，请稍后重试。
-        description: 视觉 / 提供商
+        label: Artistry Prompt Default Prefix
+        description: Pre-pended to every prompt sent to the image generator.
       options:
-        label: 视觉 / 模型
+        label: Artistry Provider Options (JSON)
       widget-instructions:
-        label: 错误：绘图服务提供商选项包含无效的 JSON。
-        description: 无
+        label: Widget System Prompt
+        description: Custom instructions for the AI on how to use the generation capabilities.
     categories:
       essential: 基础
-      messaging: 导出
-      gaming: 角色卡包已导出
-      artistry: 导出角色卡包失败
+      messaging: Messaging
+      gaming: Gaming
+      artistry: Artistry
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -693,11 +693,11 @@ pages:
               loading: 正在加载模型……
               required: 请选择声线
           voice-pack:
-            description: 角色卡包已导入
-            empty: 角色卡包缺少必需文件
-            error: 角色卡包文件无效
-            loading: 点击或拖放 AIRI 角色卡包以导入
-            title: 将桌面窗口移至中央
+            description: Select a curated voice for the active character
+            empty: No Voice Packs available
+            error: Error loading Voice Packs
+            loading: Loading Voice Packs...
+            title: Voice Pack
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -859,7 +859,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
-      typePromo: ComfyUI（本地）
+      typePromo: Promo Grant
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息
@@ -979,20 +979,20 @@ pages:
     categories:
       chat:
         title: 聊天
-        description: 通过 WSL 使用本地 ComfyUI 实例生成图像。
+        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
       vision:
-        title: Replicate.ai（云端）
-        description: 通过 Replicate API 使用云端模型。
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
-        title: Nano Banana（预览版）
-        description: 使用 Google AI Studio 生成预览图像和反应。
+        title: Speech
+        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
       transcription:
-        title: 配置 AIRI 如何生成图像和视觉内容。
+        title: Transcription
         description: >-
-          尚未配置 ComfyUI 工作流。请前往“设置 → 服务提供商 → ComfyUI”上传工作流模板。
+          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: 绘图
-        description: '{count} 个公开字段'
+        title: Artistry
+        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
         items:
           comfyui:
             description: 本地图像生成运行器。
