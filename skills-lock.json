@@ -11,6 +11,12 @@
       "sourceType": "github",
       "computedHash": "e28297714fd27dc7c3ebe2f3ab4c9f23d9e1e92abbb00248ca7878d833f190ea"
     },
+    "grilling": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/grilling/SKILL.md",
+      "computedHash": "368d3dd7251247c69f3656d93dc83c8f1577792eacac2111f1e7981db2ece49b"
+    },
     "pnpm": {
       "source": "antfu/skills",
       "sourceType": "github",
