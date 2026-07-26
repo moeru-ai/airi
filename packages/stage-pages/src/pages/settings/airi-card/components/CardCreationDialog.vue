@@ -2,11 +2,10 @@
 import type { Card } from '@proj-airi/ccc'
 import type { AiriExtension } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
-import kebabcase from '@stdlib/string-base-kebabcase'
-
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
+import { safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
@@ -305,80 +304,15 @@ const showError = ref<boolean>(false)
 const errorMessage = ref<string>('')
 
 function saveCard(card: Card): boolean {
-  // Before saving, let's validate what the user entered :
-  const rawCard: Card = toRaw(card)
-
-  if (!((rawCard.name?.length ?? 0) > 0)) {
-    // No name
+  const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
+  if (!draftResult.success) {
     showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.name')
+    errorMessage.value = t(`settings.pages.card.creation.errors.${draftResult.error}`)
     return false
-  }
-  else if (!/^(?:\d+\.)+\d+$/.test(rawCard.version)) {
-    // Invalid version
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.version')
-    return false
-  }
-  else if (!((rawCard.description?.length ?? 0) > 0)) {
-    // No description
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.description')
-    return false
-  }
-  else if (!((rawCard.personality?.length ?? 0) > 0)) {
-    // No personality
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.personality')
-    return false
-  }
-  else if (!((rawCard.scenario?.length ?? 0) > 0)) {
-    // No Scenario
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.scenario')
-    return false
-  }
-  else if (!((rawCard.systemPrompt?.length ?? 0) > 0)) {
-    // No sys prompt
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.systemprompt')
-    return false
-  }
-  else if (!((rawCard.postHistoryInstructions?.length ?? 0) > 0)) {
-    // No post history prompt
-    showError.value = true
-    errorMessage.value = t('settings.pages.card.creation.errors.posthistoryinstructions')
-    return false
-  }
-
-  // Validate Artistry JSON if provided
-  if (selectedArtistryConfigStr.value.trim()) {
-    try {
-      const parsed = JSON.parse(selectedArtistryConfigStr.value)
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        throw new Error('Not an object')
-      }
-    }
-    catch {
-      showError.value = true
-      errorMessage.value = t('settings.pages.card.creation.errors.invalid_artistry_json')
-      return false
-    }
   }
 
   showError.value = false
-
-  // Build options with final safety parse
-  let artistryOptions: Record<string, any> | undefined
-  if (selectedArtistryConfigStr.value.trim()) {
-    try {
-      artistryOptions = JSON.parse(selectedArtistryConfigStr.value)
-    }
-    catch {
-      // Should not happen due to validation above
-      artistryOptions = undefined
-    }
-  }
+  const { card: rawCard, artistryOptions } = draftResult.output
 
   // Build card with modules extension
   const cardWithModules = {
@@ -422,8 +356,10 @@ function saveCard(card: Card): boolean {
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    // Create mode: add new card
-    cardStore.addCard(cardWithModules, 'scratch')
+    const newCardId = cardStore.addCard(cardWithModules, 'scratch')
+    // A new card becomes the runtime profile immediately so Create does not
+    // appear to succeed while conversations continue using the previous card.
+    cardStore.activeCardId = newCardId
   }
 
   modelValue.value = false // Close this
@@ -490,31 +426,26 @@ const card = ref<Card>(initializeCard())
 // Reinitialize when cardId changes or dialog opens
 watch(() => [props.modelValue, props.cardId], () => {
   if (props.modelValue) {
+    showError.value = false
+    errorMessage.value = ''
     card.value = initializeCard()
   }
 })
 
-function makeComputed<T extends keyof Card>(
-  /*
-  Function used to generate Computed values, with an optional sanitize function
-  */
-  key: T,
-  transform?: (input: string) => string,
-) {
+function makeComputed<T extends keyof Card>(key: T) {
   return computed({
     get: () => {
       return card.value[key] ?? ''
     },
-    set: (val: string) => { // Set,
-      const input = val.trim() // We first trim the value
-      card.value[key] = (input.length > 0
-        ? (transform ? transform(input) : input) // then potentially transform it
-        : '') as Card[T]// or default to empty string value if nothing was given
+    set: (value: string) => {
+      // Preserve in-progress whitespace. Trimming on every input event makes
+      // multi-word names and prompts collapse while the user is typing.
+      card.value[key] = value as Card[T]
     },
   })
 }
 
-const cardName = makeComputed('name', input => kebabcase(input))
+const cardName = makeComputed('name')
 const cardNickname = makeComputed('nickname')
 const cardDescription = makeComputed('description')
 const cardNotes = makeComputed('notes')
@@ -591,15 +522,15 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
               <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
               <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.description')" />
+              <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" />
               <FieldInput v-model="cardNotes" :label="t('settings.pages.card.creator_notes')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.notes')" />
             </div>
           </div>
           <!-- Behavior -->
           <div v-else-if="activeTab === 'behavior'" class="tab-content ml-auto mr-auto w-95%">
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.personality')" />
-              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.scenario')" />
+              <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" />
+              <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" />
               <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" />
             </div>
           </div>
@@ -730,8 +661,8 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
           <!-- Settings -->
           <div v-else-if="activeTab === 'settings'" class="tab-content ml-auto mr-auto w-95%">
             <div class="input-list ml-auto mr-auto w-90% flex flex-row flex-wrap justify-center gap-8">
-              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
-              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :required="true" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
+              <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" />
+              <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" />
               <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
             </div>
           </div>
