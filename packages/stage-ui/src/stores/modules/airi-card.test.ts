@@ -242,6 +242,49 @@ describe('airi-card store', () => {
     })
   })
 
+  it('keeps position-sensitive CCv3 fields separate from the stable system prompt', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.initialize()
+
+    const cardId = cardStore.addCard({
+      name: 'Runtime context card',
+      version: '1.0.0',
+      systemPrompt: 'Follow the character rules.',
+      description: 'A patient field researcher.',
+      personality: 'Curious and precise.',
+      scenario: 'The conversation takes place in an observatory.',
+      postHistoryInstructions: 'Answer the latest observation in one paragraph.',
+      greetings: ['Welcome to the observatory.'],
+      messageExample: [
+        ['{{user}}: What did you find?', '{{char}}: A new comet.'],
+      ],
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
+            artistry: { widgetInstruction: 'Use the image widget for star charts.' },
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+
+    cardStore.activeCardId = cardId
+
+    expect(cardStore.systemPrompt).toBe([
+      'Follow the character rules.',
+      'A patient field researcher.',
+      'Curious and precise.',
+      'The conversation takes place in an observatory.',
+      'Use the image widget for star charts.',
+    ].join('\n\n'))
+    expect(cardStore.systemPrompt).not.toContain('Answer the latest observation')
+    expect(cardStore.systemPrompt).not.toContain('Welcome to the observatory')
+    expect(cardStore.systemPrompt).not.toContain('What did you find?')
+  })
+
   it('falls back to the default card when the active custom card is deleted', () => {
     const cardStore = useAiriCardStore()
     cardStore.initialize()
