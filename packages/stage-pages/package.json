@@ -34,7 +34,6 @@
     "@proj-airi/stage-ui-three": "workspace:*",
     "@proj-airi/ui": "workspace:*",
     "@shopify/draggable": "catalog:",
-    "@stdlib/string-base-kebabcase": "catalog:",
     "@vueuse/core": "catalog:",
     "@vueuse/shared": "catalog:",
     "@xsai-ext/providers": "catalog:",

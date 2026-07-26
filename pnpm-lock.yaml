@@ -411,9 +411,6 @@ catalogs:
     '@snazzah/davey':
       specifier: ^0.1.11
       version: 0.1.11
-    '@stdlib/string-base-kebabcase':
-      specifier: ^0.2.3
-      version: 0.2.3
     '@takumi-rs/image-response':
       specifier: 1.0.0-beta.20
       version: 1.0.0-beta.20
@@ -3888,9 +3885,6 @@ importers:
       '@shopify/draggable':
         specifier: 'catalog:'
         version: 1.2.1
-      '@stdlib/string-base-kebabcase':
-        specifier: 'catalog:'
-        version: 0.2.3
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
@@ -10395,26 +10389,6 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
-
-  '@stdlib/string-base-kebabcase@0.2.3':
-    resolution: {integrity: sha512-pHCAnDl4z1D0rqgx/29M2gwk3kK6Uy76bg2hNw8hoI2kypGNb1AOOf1WeIYVH8T9A0i/oZOrG7JWvyXKNdTndA==}
-    engines: {node: '>=0.10.0', npm: '>2.7.0'}
-    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
-
-  '@stdlib/string-base-lowercase@0.4.0':
-    resolution: {integrity: sha512-IH35Z5e4T+S3b3SfYY39mUhrD2qvJVp4VS7Rn3+jgj4+C3syocuAPsJ8C4OQXWGfblX/N9ymizbpFBCiVvMW8w==}
-    engines: {node: '>=0.10.0', npm: '>2.7.0'}
-    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
-
-  '@stdlib/string-base-replace@0.2.2':
-    resolution: {integrity: sha512-Y4jZwRV4Uertw7AlA/lwaYl1HjTefSriN5+ztRcQQyDYmoVN3gzoVKLJ123HPiggZ89vROfC+sk/6AKvly+0CA==}
-    engines: {node: '>=0.10.0', npm: '>2.7.0'}
-    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
-
-  '@stdlib/string-base-trim@0.2.3':
-    resolution: {integrity: sha512-Fd2KoPvQfLy2Sk37hB6A+kLKcCcM4LvDS0LEOiO5V455wAwOEDNaQNw+G3T/7V/j9h6UXfY7VUJNXtE4IZddiA==}
-    engines: {node: '>=0.10.0', npm: '>2.7.0'}
-    os: [aix, darwin, freebsd, linux, macos, openbsd, sunos, win32, windows]
 
   '@stylistic/eslint-plugin@5.10.0':
     resolution: {integrity: sha512-nPK52ZHvot8Ju/0A4ucSX1dcPV2/1clx0kLcH5wDmrE4naKso7TUC/voUyU1O9OTKTrR6MYip6LP0ogEMQ9jPQ==}
@@ -24483,20 +24457,6 @@ snapshots:
   '@stablelib/base64@1.0.1': {}
 
   '@standard-schema/spec@1.1.0': {}
-
-  '@stdlib/string-base-kebabcase@0.2.3':
-    dependencies:
-      '@stdlib/string-base-lowercase': 0.4.0
-      '@stdlib/string-base-replace': 0.2.2
-      '@stdlib/string-base-trim': 0.2.3
-
-  '@stdlib/string-base-lowercase@0.4.0': {}
-
-  '@stdlib/string-base-replace@0.2.2': {}
-
-  '@stdlib/string-base-trim@0.2.3':
-    dependencies:
-      '@stdlib/string-base-replace': 0.2.2
 
   '@stylistic/eslint-plugin@5.10.0(eslint@10.2.1(jiti@2.6.1))':
     dependencies:
