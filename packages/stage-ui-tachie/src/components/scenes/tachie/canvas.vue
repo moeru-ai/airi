@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Application } from '@pixi/app'
+import { BatchRenderer } from '@pixi/core'
+import { extensions } from '@pixi/extensions'
 import { onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -50,6 +52,7 @@ function resize() {
 function initialize(parent: HTMLDivElement) {
   componentState.value = 'loading'
   const resolution = logicalRenderScale()
+  extensions.add(BatchRenderer)
   const nextApp = new Application({
     width: Math.max(1, Math.floor(props.width * resolution)),
     height: Math.max(1, Math.floor(props.height * resolution)),

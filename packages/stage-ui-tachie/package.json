@@ -33,6 +33,7 @@
     "@moeru/std": "catalog:",
     "@pixi/app": "catalog:",
     "@pixi/core": "catalog:",
+    "@pixi/extensions": "catalog:",
     "@pixi/sprite": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
