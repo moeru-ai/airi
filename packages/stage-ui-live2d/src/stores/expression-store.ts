@@ -207,6 +207,21 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
 
   /**
    * Set an expression or parameter value.
+   *
+   * For expression groups:
+   * - `true`  → activate with each parameter's own `value` from the group def.
+   * - `false` → reset each parameter to its `defaultValue`.
+   *
+   * For direct parameters:
+   * - `true`  → apply the parameter's `targetValue` (from exp3.json).
+   * - `false` → apply the parameter's `defaultValue`.
+   *
+   * When `value` is a number, apply it directly (explicit override).
+   *
+   * Reads from the group definition's per-parameter `value` rather than the
+   * global `entry.targetValue` because the same parameter can appear in
+   * multiple groups with different activation values (e.g. ParamEyeLOpen = 1
+   * in exp_01 / neutral, but = 1.2 in exp_04 / happy).
    */
   function set(name: string, value: boolean | number, duration?: number): ExpressionToolResult {
     const resolved = resolve(name)
@@ -219,14 +234,15 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
       }
     }
 
-    const numericValue = typeof value === 'boolean' ? (value ? 1 : 0) : value
-
     if (resolved.kind === 'group') {
       const states: ExpressionState[] = []
       for (const param of resolved.group.parameters) {
         const entry = expressions.value.get(param.parameterId)
         if (entry) {
-          applyValue(entry, numericValue, duration)
+          const appliedValue = typeof value === 'boolean'
+            ? (value ? param.value : entry.defaultValue)
+            : value
+          applyValue(entry, appliedValue, duration)
           states.push(toState(entry))
         }
       }
@@ -234,7 +250,10 @@ export const useExpressionStore = defineStore('live2d-expressions', () => {
     }
 
     // Direct parameter
-    applyValue(resolved.entry, numericValue, duration)
+    const appliedValue = typeof value === 'boolean'
+      ? (value ? resolved.entry.targetValue : resolved.entry.defaultValue)
+      : value
+    applyValue(resolved.entry, appliedValue, duration)
     return { success: true, state: toState(resolved.entry) }
   }
 
