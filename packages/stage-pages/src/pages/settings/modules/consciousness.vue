@@ -47,9 +47,9 @@ watch(activeProvider, async (provider, oldProvider) => {
   if (!provider)
     return
 
-  // Reset model when switching providers (but not on initial load)
+  // The consciousness store clears the model selection on provider changes;
+  // the page only tracks the selection and loads the new provider's catalog.
   if (oldProvider !== undefined && oldProvider !== provider) {
-    activeModel.value = ''
     trackOfficialProviderSelection(provider, activeModel.value)
   }
 

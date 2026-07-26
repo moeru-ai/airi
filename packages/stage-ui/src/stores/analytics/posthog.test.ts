@@ -1,8 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { ensurePosthogInitialized } from './posthog'
+import { ensurePosthogInitialized, getPosthogIdentitySnapshot } from './posthog'
 
 const posthogMocks = vi.hoisted(() => ({
+  get_distinct_id: vi.fn(() => 'distinct-1'),
+  get_session_id: vi.fn(() => 'session-1'),
+  has_opted_out_capturing: vi.fn(() => false),
   init: vi.fn(),
   register: vi.fn(),
 }))
@@ -31,5 +34,14 @@ describe('stage PostHog initialization', () => {
   it('registers the runtime under the dedicated app_surface property', () => {
     expect(ensurePosthogInitialized(true)).toBe(true)
     expect(posthogMocks.register).toHaveBeenCalledWith({ app_surface: 'web' })
+  })
+
+  it('exposes the current PostHog identity for server-side conversion linking', () => {
+    expect(ensurePosthogInitialized(true)).toBe(true)
+
+    expect(getPosthogIdentitySnapshot()).toEqual({
+      distinctId: 'distinct-1',
+      sessionId: 'session-1',
+    })
   })
 })

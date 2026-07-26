@@ -668,7 +668,16 @@ describe('setupExtensionHost', () => {
     while (Date.now() < deadline && afterSessionId === beforeSession?.id) {
       await new Promise(resolve => setTimeout(resolve, 100))
       const snapshot = await invokeInspect()
-      afterSessionId = snapshot.sessions.find(session => session.extensionId === 'test-auto-reload-reload')?.id
+      const currentSessionId = snapshot.sessions.find(session => session.extensionId === 'test-auto-reload-reload')?.id
+
+      // ROOT CAUSE:
+      //
+      // Reload stops the old session before starting the replacement, so an inspect call can
+      // observe the intentional short-lived gap with no session. Treat that state as pending
+      // instead of ending the poll before the replacement session is available.
+      if (currentSessionId && currentSessionId !== beforeSession?.id) {
+        afterSessionId = currentSessionId
+      }
     }
 
     expect(afterSessionId).toBeDefined()

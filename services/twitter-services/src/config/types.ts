@@ -93,7 +93,7 @@ export function getDefaultConfig(): Config {
       },
       mcp: {
         port: Number(process.env.MCP_PORT || 8080),
-        enabled: process.env.ENABLE_MCP === 'true' || true,
+        enabled: process.env.ENABLE_MCP === 'true',
       },
     },
     system: {

@@ -10,6 +10,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createStripeRoutes, formatPrice } from '.'
 import { ApiError } from '../../utils/error'
+import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
 
 // --- Mock helpers ---
@@ -302,6 +303,77 @@ describe('stripeRoutes', () => {
       )
       expect(res.status).toBe(503)
     })
+
+    it('stores browser PostHog identity in Stripe checkout metadata', async () => {
+      const createSession = vi.fn(async input => ({
+        id: 'cs_1',
+        url: 'https://checkout.stripe.com/cs_1',
+        customer: null,
+        mode: 'payment',
+        status: 'open',
+        payment_status: 'unpaid',
+        amount_total: 500,
+        currency: 'usd',
+        success_url: 'http://localhost/settings/flux?success=true',
+        cancel_url: 'http://localhost/settings/flux?canceled=true',
+        payment_intent: null,
+        subscription: null,
+        metadata: input.metadata,
+        expires_at: null,
+      }))
+      const productEventService = { track: vi.fn() }
+      const operation = createCheckoutOperation({
+        stripe: {
+          checkout: {
+            sessions: {
+              create: createSession,
+            },
+          },
+        } as any,
+        priceCatalog: {
+          findActivePrice: vi.fn(async () => ({
+            id: 'price_test_500',
+            currency: 'usd',
+            unitAmount: 500,
+            currencyOptions: {},
+            metadata: { fluxAmount: '500' },
+          })),
+          getActivePrices: vi.fn(),
+        } as any,
+        stripeService: createMockStripeService(),
+        configKV: createMockConfigKV({ STRIPE_PAYMENT_METHODS: undefined }),
+        env: testEnv,
+        productEventService: productEventService as any,
+      })
+
+      await operation({
+        user: testUser as any,
+        body: { stripePriceId: 'price_test_500' },
+        request: new Request('http://localhost/api/v1/stripe/checkout', {
+          headers: {
+            'x-posthog-distinct-id': 'anon-browser-1',
+            'x-posthog-session-id': 'ph-session-1',
+          },
+        }),
+      })
+
+      expect(createSession).toHaveBeenCalledWith(expect.objectContaining({
+        metadata: {
+          userId: 'user-1',
+          fluxAmount: '500',
+          posthogDistinctId: 'anon-browser-1',
+          posthogSessionId: 'ph-session-1',
+        },
+      }))
+      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+        userId: 'user-1',
+        action: 'checkout_started',
+        metadata: expect.objectContaining({
+          posthog_distinct_id: 'anon-browser-1',
+          posthog_session_id: 'ph-session-1',
+        }),
+      }))
+    })
   })
 
   describe('gET /api/v1/stripe/orders', () => {
@@ -469,6 +541,75 @@ describe('stripeRoutes', () => {
         body: '{}',
       })
       expect(res.status).toBe(503)
+    })
+
+    it('records payment completion with Stripe and PostHog identity from checkout metadata', async () => {
+      const checkoutEvent = {
+        id: 'evt_checkout_completed',
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            id: 'cs_1',
+            customer: 'cus_1',
+            customer_email: 'test@example.com',
+            mode: 'payment',
+            status: 'complete',
+            payment_status: 'paid',
+            amount_total: 500,
+            currency: 'usd',
+            success_url: 'http://localhost/settings/flux?success=true',
+            cancel_url: 'http://localhost/settings/flux?canceled=true',
+            payment_intent: 'pi_1',
+            subscription: null,
+            metadata: {
+              userId: 'user-1',
+              fluxAmount: '500',
+              posthogDistinctId: 'anon-browser-1',
+              posthogSessionId: 'ph-session-1',
+            },
+            expires_at: null,
+          },
+        },
+      }
+      const productEventService = { track: vi.fn() }
+      const billingService = createMockBillingService()
+      const webhook = createWebhookOperation({
+        stripe: {
+          webhooks: {
+            constructEvent: vi.fn(() => checkoutEvent),
+          },
+        } as any,
+        webhookSecret: 'whsec_test',
+        fluxService: createMockFluxService(),
+        stripeService: createMockStripeService(),
+        billingService,
+        productEventService: productEventService as any,
+      })
+
+      await webhook({ signature: 'test_sig', body: '{}' })
+
+      expect(billingService.creditFluxFromStripeCheckout).toHaveBeenCalledWith(expect.objectContaining({
+        stripeEventId: 'evt_checkout_completed',
+        userId: 'user-1',
+        stripeSessionId: 'cs_1',
+        fluxAmount: 500,
+      }))
+      expect(productEventService.track).toHaveBeenCalledWith({
+        userId: 'user-1',
+        feature: 'billing',
+        action: 'payment_completed',
+        status: 'succeeded',
+        source: 'stripe.webhook',
+        metadata: {
+          amount_total: 500,
+          currency: 'usd',
+          flux_amount: 500,
+          stripe_checkout_session_id: 'cs_1',
+          stripe_customer_id: 'cus_1',
+          posthog_distinct_id: 'anon-browser-1',
+          posthog_session_id: 'ph-session-1',
+        },
+      })
     })
 
     it('records subscription lifecycle product events from Stripe webhooks', async () => {

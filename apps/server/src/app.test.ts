@@ -55,6 +55,7 @@ function createTestDeps() {
     providerCatalogService: {} as any,
     productEventService: {
       track: vi.fn(async () => undefined),
+      trackGeneration: vi.fn(async () => undefined),
       countDistinctUsersByFeature: vi.fn(async () => []),
     },
     configKV: {

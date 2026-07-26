@@ -27,4 +27,15 @@ describe('speech output control store', () => {
       reason: 'manual-chat',
     })
   })
+
+  it('records manual-all stop requests with monotonic sequence numbers', () => {
+    const store = useSpeechOutputControlStore()
+
+    store.requestStopSpeaking('manual-all')
+
+    expect(store.latestStopRequest).toEqual({
+      id: 1,
+      reason: 'manual-all',
+    })
+  })
 })

@@ -2,6 +2,8 @@ FROM node:24-alpine
 
 WORKDIR /app
 
+RUN addgroup -S airi && adduser -S airi -G airi
+
 RUN corepack enable
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
@@ -35,5 +37,7 @@ RUN pnpm -F @proj-airi/server-sdk-shared run build
 RUN pnpm -F @proj-airi/server run build
 
 EXPOSE 3000
+
+USER airi
 
 CMD ["pnpm", "-F", "@proj-airi/server", "start"]

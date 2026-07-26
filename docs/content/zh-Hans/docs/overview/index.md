@@ -112,10 +112,10 @@ AIRI 的主技术栈是 Vue 3、TypeScript、Vite、Pinia、VueUse、UnoCSS 和 
 - `packages/server-runtime`、`packages/server-sdk`、`packages/server-shared`：服务通道和外部智能体连接；
 - `services/discord-bot`、`services/telegram-bot`、`services/minecraft`：需要源码配置运行的服务侧实验模块。
 
-如果你想贡献代码，可以从[贡献指南](../contributing/)开始；如果你想改进界面，请先阅读[设计指南](../contributing/design-guidelines/resources)。
+如果你想贡献代码，可以从[开发者指南](../contributing/)开始；如果你想改进界面，请先阅读[设计指南](../contributing/design-guidelines/resources)。
 
 ::: warning 实验性功能与早期开发声明
 Project AIRI 仍处于活跃开发阶段。发布版会优先保证基础体验；一些高级能力，例如 Minecraft 智能体、Discord / Telegram 机器人、Factorio、插件宿主、MCP、computer-use、更完整的长期记忆等，可能还需要从源码配置、运行或参与开发。
 
-如果你希望体验这些功能，请参考[贡献指南](../contributing/)和对应服务文档。
+如果你希望体验这些功能，请参考[开发者指南](../contributing/)和对应服务文档。
 :::

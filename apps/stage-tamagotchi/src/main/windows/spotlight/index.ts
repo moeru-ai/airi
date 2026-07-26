@@ -24,7 +24,7 @@ import {
 import { isSafeSpotlightAccelerator } from '../../../shared/spotlight-shortcut'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
 const SPOTLIGHT_WINDOW_WIDTH = 720
 const SPOTLIGHT_WINDOW_HEIGHT = 100
@@ -117,6 +117,8 @@ export function setupSpotlightWindowManager(params: {
         sandbox: false,
       },
     })
+
+    protectPrivilegedWindowNavigation(window)
 
     window.on('blur', () => window.hide())
 

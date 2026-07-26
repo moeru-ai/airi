@@ -18,6 +18,8 @@ docs:
   'center-main-window': Move to screen center
   'open-hearing-controls': Kiểm soát thính giác mở
   'drag-to-move-window': Kéo để di chuyển cửa sổ
+  'stop-speaking': Dừng nói
+  'speaker-idle': Loa
   'switch-to-light-mode': Chuyển sang chế độ sáng
   'switch-to-dark-mode': Chuyển sang chế độ tối
   'pin-on-top': Ghim lên trên

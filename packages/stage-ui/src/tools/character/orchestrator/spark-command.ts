@@ -5,8 +5,8 @@ import { rawTool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { toJsonSchema } from 'xsschema'
 
+import { normalizeNullableAnyOf } from '../../json-schema'
 import {
-  normalizeNullableAnyOf,
   normalizeSparkCommandDestinations,
   normalizeSparkCommandGuidanceOptions,
   normalizeSparkCommandMetadata,

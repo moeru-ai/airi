@@ -6,6 +6,7 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+import { shell } from 'electron'
 import { isMacOS } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
@@ -35,6 +36,46 @@ export function transparentWindowConfig(): BrowserWindowConstructorOptions {
     transparent: true,
     hasShadow: false,
   }
+}
+
+/**
+ * Blocks renderer navigation while allowing safe links to open in the system browser.
+ *
+ * Use when:
+ * - Creating an Electron window that receives the shared privileged preload
+ *
+ * Expects:
+ * - The window loads only AIRI-controlled renderer content
+ *
+ * Returns:
+ * - Nothing; installs navigation and popup guards on the window's web contents
+ */
+export function protectPrivilegedWindowNavigation(window: BrowserWindow): void {
+  function openSafeExternalUrl(rawUrl: string): void {
+    try {
+      const url = new URL(rawUrl)
+      if (url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:')
+        void shell.openExternal(url.toString())
+    }
+    catch {
+      // Ignore malformed navigation targets.
+    }
+  }
+
+  window.webContents.setWindowOpenHandler((details) => {
+    openSafeExternalUrl(details.url)
+    return { action: 'deny' }
+  })
+  window.webContents.on('will-navigate', (event, navigationUrl) => {
+    // Renderer-initiated reloads keep the exact current URL in both packaged
+    // (`file:`) and Vite (`http:`) builds. Let those through without widening
+    // navigation to other local files or development-server paths.
+    if (navigationUrl === window.webContents.getURL())
+      return
+
+    event.preventDefault()
+    openSafeExternalUrl(navigationUrl)
+  })
 }
 
 export function blurryWindowConfig(): BrowserWindowConstructorOptions {

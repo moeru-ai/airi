@@ -89,6 +89,8 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
           const userId = event.data.object.metadata?.userId
           if (userId) {
             const fluxAmount = Number(event.data.object.metadata?.fluxAmount)
+            const posthogDistinctId = event.data.object.metadata?.posthogDistinctId
+            const posthogSessionId = event.data.object.metadata?.posthogSessionId
             void deps.productEventService?.track({
               userId,
               feature: 'billing',
@@ -99,6 +101,10 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
                 amount_total: event.data.object.amount_total,
                 currency: event.data.object.currency,
                 flux_amount: Number.isFinite(fluxAmount) ? fluxAmount : null,
+                stripe_checkout_session_id: event.data.object.id,
+                stripe_customer_id: typeof event.data.object.customer === 'string' ? event.data.object.customer : event.data.object.customer?.id ?? null,
+                ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
+                ...(posthogSessionId && { posthog_session_id: posthogSessionId }),
               },
             })
           }

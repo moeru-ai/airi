@@ -33,12 +33,25 @@ jobs:
       - name: Parse metadata
         id: meta
         run: |
-          source preview-meta/preview_meta
-          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
-          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
-          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "BRANCH_NAME=$HEAD_REF" >> "$GITHUB_ENV"
+          node --input-type=module <<'NODE'
+          import { appendFile, readFile } from 'node:fs/promises'
+
+          const metadata = JSON.parse(await readFile('preview-meta/preview-meta.json', 'utf8'))
+          if (
+            !/^\d+$/.test(metadata.prNumber)
+            || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(metadata.repositoryFullName)
+            || !/^[a-f0-9]{40}$/i.test(metadata.headSha)
+          ) {
+            throw new Error('Preview metadata has an invalid shape')
+          }
+
+          await appendFile(process.env.GITHUB_OUTPUT, [
+            `PR_NUM=${metadata.prNumber}`,
+            `REPO_FULL_NAME=${metadata.repositoryFullName}`,
+            `HEAD_SHA=${metadata.headSha}`,
+            '',
+          ].join('\n'))
+          NODE
 
       - name: Find Comment
         if: ${{ always() }}
@@ -103,12 +116,25 @@ jobs:
       - name: Parse metadata
         id: meta
         run: |
-          source preview-meta/preview_meta
-          echo "PR_NUM=$PR_NUM" >> "$GITHUB_OUTPUT"
-          echo "REPO_FULL_NAME=$REPO_FULL_NAME" >> "$GITHUB_OUTPUT"
-          echo "HEAD_REF=$HEAD_REF" >> "$GITHUB_OUTPUT"
-          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "BRANCH_NAME=$HEAD_REF" >> "$GITHUB_ENV"
+          node --input-type=module <<'NODE'
+          import { appendFile, readFile } from 'node:fs/promises'
+
+          const metadata = JSON.parse(await readFile('preview-meta/preview-meta.json', 'utf8'))
+          if (
+            !/^\d+$/.test(metadata.prNumber)
+            || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(metadata.repositoryFullName)
+            || !/^[a-f0-9]{40}$/i.test(metadata.headSha)
+          ) {
+            throw new Error('Preview metadata has an invalid shape')
+          }
+
+          await appendFile(process.env.GITHUB_OUTPUT, [
+            `PR_NUM=${metadata.prNumber}`,
+            `REPO_FULL_NAME=${metadata.repositoryFullName}`,
+            `HEAD_SHA=${metadata.headSha}`,
+            '',
+          ].join('\n'))
+          NODE
 
       - name: Checkout repository
         uses: actions/checkout@v6

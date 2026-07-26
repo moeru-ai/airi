@@ -2,6 +2,8 @@ import type { Live2DFactoryContext, Middleware } from 'pixi-live2d-display/cubis
 
 import JSZip from 'jszip'
 
+import { decodeZipFileName } from './decode-zip-filename'
+
 interface OPFSContext extends Live2DFactoryContext {
   opfsKey?: string
   opfsUrl?: string
@@ -17,8 +19,11 @@ interface OPFSCacheMeta {
  * Cache schema version for OPFS-stored Live2D zip directories.
  *
  * Increment when the persisted directory shape changes.
+ *
+ * v3: entry paths are now decoded via `decodeZipFileName`; bumping invalidates
+ * caches written with the previous mojibake filenames so they are re-saved.
  */
-const live2DOpfsCacheVersion = 2
+const live2DOpfsCacheVersion = 3
 
 interface IgnoredArchivePathSegmentRule {
   matches: (segment: string) => boolean
@@ -190,7 +195,7 @@ export class OPFSCache {
    */
   static async save(key: string, zipBlob: Blob, sourceUrl?: string): Promise<void> {
     try {
-      const zip = await JSZip.loadAsync(await zipBlob.arrayBuffer())
+      const zip = await JSZip.loadAsync(await zipBlob.arrayBuffer(), { decodeFileName: decodeZipFileName })
       const fileEntries = Object.values(zip.files)
         .filter(file => !file.dir && !shouldIgnoreLive2DArchiveEntry(file.name))
 

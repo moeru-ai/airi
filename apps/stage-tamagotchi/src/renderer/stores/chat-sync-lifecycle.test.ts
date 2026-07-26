@@ -62,24 +62,25 @@ describe('createChatSyncWindowLifecycle', async () => {
     expect(chatSyncStoreMock.dispose).not.toHaveBeenCalled()
   })
 
-  it('does not initialize chat sync for settings windows', () => {
+  // https://github.com/moeru-ai/airi/issues/2087
+  it('issue #2087: initializes settings windows as command clients', () => {
     const lifecycle = createChatSyncWindowLifecycle('/', '#/settings')
 
     lifecycle.initialize()
     lifecycle.dispose()
 
-    expect(chatSyncStoreMock.initialize).not.toHaveBeenCalled()
-    expect(chatSyncStoreMock.dispose).not.toHaveBeenCalled()
+    expect(chatSyncStoreMock.initialize).toHaveBeenCalledWith('client')
+    expect(chatSyncStoreMock.dispose).toHaveBeenCalledTimes(1)
   })
 
-  it('does not initialize chat sync for nested settings windows', () => {
+  it('initializes nested settings windows as command clients', () => {
     const lifecycle = createChatSyncWindowLifecycle('/', '#/settings/unrelated')
 
     lifecycle.initialize()
     lifecycle.dispose()
 
-    expect(chatSyncStoreMock.initialize).not.toHaveBeenCalled()
-    expect(chatSyncStoreMock.dispose).not.toHaveBeenCalled()
+    expect(chatSyncStoreMock.initialize).toHaveBeenCalledWith('client')
+    expect(chatSyncStoreMock.dispose).toHaveBeenCalledTimes(1)
   })
 
   it('normalizes hash query strings when resolving the initial route', () => {

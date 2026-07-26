@@ -18,6 +18,8 @@ docs:
   'center-main-window': Move to screen center
   'open-hearing-controls': Open hearing Controls
   'drag-to-move-window': Drag to move window
+  'stop-speaking': Stop speaking
+  'speaker-idle': Speaker
   'switch-to-light-mode': Switch to light mode
   'switch-to-dark-mode': Switch to dark mode
   'pin-on-top': Pin on top

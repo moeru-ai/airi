@@ -1,7 +1,7 @@
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ToolCallRerunPayload } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '@proj-airi/stage-ui/types/chat'
-import type { ChatSessionMeta } from '@proj-airi/stage-ui/types/chat-session'
+import type { ChatSessionMeta, ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -22,7 +22,7 @@ import { imageJournalTools } from './tools/builtin/image-journal'
 import { weatherTools } from './tools/builtin/weather'
 import { widgetsTools } from './tools/builtin/widgets'
 
-type ChatSyncMode = 'inactive' | 'authority' | 'follower'
+type ChatSyncMode = 'inactive' | 'authority' | 'follower' | 'client'
 type ToolsetId = 'widgets' | 'artistry'
 
 interface AttachmentPayload {
@@ -88,6 +88,7 @@ type ChatSyncMessage
     | ChatCommandMessage<'tool-call-rerun', ToolCallRerunPayload<ToolsetId>>
     | ChatCommandMessage<'cleanup', { sessionId?: string }>
     | ChatCommandMessage<'delete-message', { sessionId?: string, messageId?: string, index?: number }>
+    | ChatCommandMessage<'import-sessions', ChatSessionsExport>
     | ({ type: 'response', requestId: string, authorityId: string } & ChatResponsePayload)
 
 interface PendingRequest {
@@ -467,6 +468,9 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
         case 'delete-message':
           executeDeleteMessage(message.payload)
           break
+        case 'import-sessions':
+          await chatSession.importSessions(message.payload)
+          break
       }
 
       respond({ ok: true })
@@ -703,6 +707,22 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
+  /** Imports persisted chat sessions through the authority so every chat window receives the resulting snapshot. */
+  async function requestImportSessions(payload: ChatSessionsExport) {
+    if (mode.value === 'authority') {
+      await chatSession.importSessions(payload)
+      return
+    }
+
+    return await dispatch<void>({
+      type: 'command',
+      requestId: createRequestId(),
+      senderId: instanceId,
+      command: 'import-sessions',
+      payload,
+    })
+  }
+
   function dispose() {
     stopWatchers()
     clearHeartbeat()
@@ -723,5 +743,6 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     requestToolCallRerun,
     requestCleanup,
     requestDeleteMessage,
+    requestImportSessions,
   }
 })

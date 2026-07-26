@@ -4,7 +4,13 @@ import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
 
-ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data)
+import { decodeZipFileName } from './decode-zip-filename'
+
+// Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
+// codepage; decode them so non-ASCII names (e.g. `手姿势切换.exp3.json`) don't become
+// mojibake. The same decoder must be used by `validateLive2DZip`, otherwise validation
+// sees mojibake paths and rejects archives before they reach this loader.
+ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
 
 interface IgnoredArchivePathSegmentRule {
   matches: (segment: string) => boolean
@@ -109,22 +115,7 @@ function createModelSettings(text: string, url: string): ModelSettings {
     throw new Error('Unknown settings JSON')
   }
 
-  // pixi-live2d-display validates files with encodeURI(file.webkitRelativePath).
-  // Decode first so archives that already store URI-encoded references do not
-  // get `%` encoded again.
-  const settings = runtime.createModelSettings(settingsJSON)
-  const normalizeFileReference = (file: string) => {
-    try {
-      return encodeURI(decodeURI(file))
-    }
-    catch {
-      return encodeURI(file)
-    }
-  }
-  settings.url = normalizeFileReference(settings.url)
-  settings.replaceFiles(normalizeFileReference)
-
-  return settings
+  return runtime.createModelSettings(settingsJSON)
 }
 
 export function isSettingsFile(file: string) {

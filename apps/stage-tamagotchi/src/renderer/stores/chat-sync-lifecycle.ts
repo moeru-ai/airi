@@ -1,6 +1,6 @@
 import { useChatSyncStore } from './chat-sync'
 
-type ChatSyncWindowRole = 'authority' | 'follower'
+type ChatSyncWindowRole = 'authority' | 'follower' | 'client'
 
 function normalizeRoutePath(routePath: string) {
   const [path = ''] = routePath.split(/[?#]/)
@@ -21,6 +21,8 @@ function resolveChatSyncWindowRole(routePath: string): ChatSyncWindowRole | null
     return 'authority'
   if (path === '/chat' || path === '/spotlight')
     return 'follower'
+  if (path === '/settings' || path.startsWith('/settings/'))
+    return 'client'
   return null
 }
 

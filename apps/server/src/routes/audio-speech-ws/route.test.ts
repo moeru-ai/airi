@@ -186,6 +186,7 @@ function makeFakeDeps(overrides: {
   }
   const productEventService = {
     track: vi.fn(async () => undefined),
+    trackGeneration: vi.fn(async () => undefined),
     countDistinctUsersByFeature: vi.fn(async () => []),
   }
   const configKV = {

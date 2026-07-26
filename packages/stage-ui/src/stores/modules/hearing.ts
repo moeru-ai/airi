@@ -336,7 +336,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeTranscriptionProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.findProviderMetadata(activeTranscriptionProvider.value)?.capabilities.listModels !== undefined
   })
 
   const providerModels = computed(() => {
@@ -352,13 +352,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
-    if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+    if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
   }
 
   async function getModelsForProvider(provider: string) {
-    if (provider && providersStore.getProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+    if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       return providersStore.getModelsForProvider(provider)
     }
 

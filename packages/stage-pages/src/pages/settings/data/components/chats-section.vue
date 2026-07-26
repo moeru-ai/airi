@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ChatSessionsExport } from '@proj-airi/stage-ui/types/chat-session'
+
 import type { DataSettingsStatusEmits } from '../status'
 
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
@@ -9,6 +11,12 @@ import { useI18n } from 'vue-i18n'
 
 import { createDataSettingsStatusHelpers } from '../status'
 
+interface Props {
+  /** Mirrors a validated desktop import into the chat authority renderer. */
+  syncImportedChats?: (payload: ChatSessionsExport) => Promise<void>
+}
+
+const props = defineProps<Props>()
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
 const { trackDataAction } = useAnalytics()
@@ -62,7 +70,8 @@ async function handleImport(event: Event) {
   try {
     const raw = await file.text()
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    await importChatSessions(parsed)
+    const imported = await importChatSessions(parsed)
+    await props.syncImportedChats?.(imported)
     importError.value = ''
     trackDataAction({ action: 'chats_imported' })
     emitStatus(t('settings.pages.data.status.imported'))
