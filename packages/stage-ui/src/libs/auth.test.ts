@@ -108,7 +108,7 @@ describe('signOut', () => {
   it('still waits for a responsive server sign-out before clearing local state', async () => {
     let resolveFetch!: () => void
     const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
-      resolveFetch = () => resolve({} as Response)
+      resolveFetch = () => resolve(new Response(null, { status: 200 }))
     }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -159,6 +159,25 @@ describe('signOut', () => {
     expect(mocks.authStore.clearAllAuthState).toHaveBeenCalledTimes(1)
   })
 
+  it('does NOT clear local auth state when the OIDC end-session returns non-2xx', async () => {
+    const fetchMock = vi.fn(async () => new Response('Bad Gateway', { status: 502 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(signOut()).rejects.toThrow(/HTTP 502/)
+    expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
+  })
+
+  it('does NOT clear local auth state when the bearer sign-out fallback returns non-2xx', async () => {
+    mocks.authStore.idToken = ''
+    mocks.authStore.oidcClientId = ''
+
+    const fetchMock = vi.fn(async () => new Response('Unauthorized', { status: 401 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(signOut()).rejects.toThrow(/HTTP 401/)
+    expect(mocks.authStore.clearAllAuthState).not.toHaveBeenCalled()
+  })
+
   it('applies the same timeout signal to the bearer sign-out fallback', async () => {
     mocks.authStore.idToken = ''
     mocks.authStore.oidcClientId = ''
@@ -166,7 +185,7 @@ describe('signOut', () => {
     // Type the fetch signature so `mock.calls` is inferred as
     // [RequestInfo | URL, RequestInit | undefined][] instead of an empty tuple,
     // which lets the assertions below read calls[0][1] without `as RequestInit`.
-    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => ({} as Response))
+    const fetchMock = vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) => new Response(null, { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
     await signOut()

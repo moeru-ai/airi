@@ -138,6 +138,11 @@ function createSignOutTimeoutSignal(ms: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') {
     return AbortSignal.timeout(ms)
   }
+  // NOTICE: temporary fallback for runtimes that predate `AbortSignal.timeout`,
+  // notably iOS 15's WKWebView (stage-pocket's `IPHONEOS_DEPLOYMENT_TARGET = 15.0`;
+  // `AbortSignal.timeout` only ships on iOS 16+). Mirrors the native semantics:
+  // abort with a `TimeoutError` DOMException after `ms`. Remove this branch
+  // once stage-pocket's deployment target moves to iOS 16+.
   const controller = new AbortController()
   setTimeout(() => controller.abort(new DOMException('The operation timed out', 'TimeoutError')), ms)
   return controller.signal
@@ -204,21 +209,31 @@ export async function signOut() {
     const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
     url.searchParams.set('id_token_hint', idTokenHint)
     url.searchParams.set('client_id', clientId)
-    await fetch(url.toString(), {
+    const response = await fetch(url.toString(), {
       method: 'GET',
       signal: createSignOutTimeoutSignal(SIGN_OUT_REQUEST_TIMEOUT_MS),
     })
+    // Treat non-2xx as a failed server sign-out: re-throw so the rejection
+    // contract documented above holds and local state stays intact. Without
+    // this, a 5xx (or a misconfigured 4xx) would resolve fetch and clear local
+    // state even though the server session row is still live.
+    if (!response.ok) {
+      throw new Error(`sign-out end-session failed: HTTP ${response.status}`)
+    }
     authStore.clearAllAuthState()
     return
   }
 
   if (bearerToken) {
     const url = new URL('/api/auth/sign-out', SERVER_URL)
-    await fetch(url.toString(), {
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: { Authorization: `Bearer ${bearerToken}` },
       signal: createSignOutTimeoutSignal(SIGN_OUT_REQUEST_TIMEOUT_MS),
     })
+    if (!response.ok) {
+      throw new Error(`sign-out bearer fallback failed: HTTP ${response.status}`)
+    }
     authStore.clearAllAuthState()
     return
   }
