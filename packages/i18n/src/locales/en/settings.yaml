@@ -318,8 +318,13 @@ pages:
     active_badge: Currently Active
     activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: Cancel action
-    save: Save changes
+    save: Save
     save_and_activate: Save and activate
+    unsaved_changes:
+      title: Discard unsaved changes?
+      description: Your edits have not been saved. Closing now will discard them.
+      keep_editing: Keep editing
+      discard: Discard changes
     card_not_found: Card not found
     character: Character
     close: Close
@@ -340,6 +345,7 @@ pages:
     drop_here: Drop to upload
     create_card: Create a new Card
     edit_card: Edit Card
+    editor_description: Edit the character's identity, behavior, modules, generation settings, and prompts.
     creation:
       identity: Identity
       name: Name

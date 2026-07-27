@@ -11,8 +11,8 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
+import CardEditorDialog from './components/card-editor/dialog.vue'
 import CardCreate from './components/CardCreate.vue'
-import CardCreationDialog from './components/CardCreationDialog.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
@@ -34,7 +34,7 @@ const editingCardId = ref<string>('')
 const initialTabId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
-const isCardCreationDialogOpen = ref(false)
+const isCardEditorDialogOpen = ref(false)
 
 // Search query
 const searchQuery = ref('')
@@ -144,12 +144,14 @@ function handleEditCard(cardId: string) {
     return
   }
   editingCardId.value = cardId
-  isCardCreationDialogOpen.value = true
+  initialTabId.value = ''
+  isCardEditorDialogOpen.value = true
 }
 
-function handleCardCreationDialog() {
+function handleCardEditorDialog() {
   editingCardId.value = '' // Clear editing state for new card creation
-  isCardCreationDialogOpen.value = true
+  initialTabId.value = ''
+  isCardEditorDialogOpen.value = true
 }
 
 // Card activation
@@ -164,14 +166,6 @@ watch(activeCardId, (cardId, previousCardId) => {
   const activeCard = cards.value.get(cardId)
   if (activeCard)
     toast(t('settings.pages.card.activation_notice', { name: activeCard.name }))
-})
-
-// Clear editing state when creation/edit dialog closes
-watch(isCardCreationDialogOpen, (isOpen) => {
-  if (!isOpen) {
-    editingCardId.value = ''
-    initialTabId.value = ''
-  }
 })
 
 // Clear initial tab when detail dialog closes
@@ -193,18 +187,18 @@ watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
   // Gallery or other viewing tabs go to Detail dialog
   if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
     isCardDialogOpen.value = true
-    isCardCreationDialogOpen.value = false
+    isCardEditorDialogOpen.value = false
   }
   // Artistry or other editing tabs go to Creation/Edit dialog
   else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
     editingCardId.value = cardId
-    isCardCreationDialogOpen.value = true
+    isCardEditorDialogOpen.value = true
     isCardDialogOpen.value = false
   }
   else {
     // Default to detail if tab is unknown
     isCardDialogOpen.value = true
-    isCardCreationDialogOpen.value = false
+    isCardEditorDialogOpen.value = false
   }
 
   // Clear query params to prevent re-triggering and keep URL clean
@@ -305,7 +299,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </InputFileCard>
 
       <!-- Create card -->
-      <CardCreate @click="handleCardCreationDialog" />
+      <CardCreate @click="handleCardEditorDialog" />
 
       <!-- Card Items -->
       <template v-if="cards.size > 0">
@@ -366,8 +360,8 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   />
 
   <!-- Card creation/edit dialog -->
-  <CardCreationDialog
-    v-model="isCardCreationDialogOpen"
+  <CardEditorDialog
+    v-model="isCardEditorDialogOpen"
     :card-id="editingCardId"
     :initial-tab="initialTabId"
   />

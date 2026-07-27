@@ -303,8 +303,13 @@ pages:
     active_badge: Hiện đang hoạt động
     activation_notice: Đã chuyển sang {name}. Cuộc trò chuyện hiện tại giờ sử dụng nhân vật này.
     cancel: Hủy thao tác
-    save: Lưu thay đổi
+    save: Lưu
     save_and_activate: Lưu và kích hoạt
+    unsaved_changes:
+      title: Bỏ các thay đổi chưa lưu?
+      description: Các chỉnh sửa chưa được lưu. Đóng bây giờ sẽ làm mất chúng.
+      keep_editing: Tiếp tục chỉnh sửa
+      discard: Bỏ thay đổi
     card_not_found: Không tìm thấy thẻ
     character: Nhân vật
     close: Đóng
@@ -325,6 +330,7 @@ pages:
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
     edit_card: Chỉnh sửa thẻ
+    editor_description: Chỉnh sửa danh tính, hành vi, mô-đun, cài đặt tạo nội dung và prompt của nhân vật.
     creation:
       identity: Danh tính
       name: Tên

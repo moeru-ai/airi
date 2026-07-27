@@ -303,8 +303,13 @@ pages:
     active_badge: Actualmente Activo
     activation_notice: Se cambió a {name}. La conversación actual ahora usa este personaje.
     cancel: Cancelar acción
-    save: Guardar cambios
+    save: Guardar
     save_and_activate: Guardar y activar
+    unsaved_changes:
+      title: ¿Descartar los cambios sin guardar?
+      description: Tus cambios no se han guardado. Si cierras ahora, se perderán.
+      keep_editing: Seguir editando
+      discard: Descartar cambios
     card_not_found: Tarjeta no encontrada
     character: Personaje
     close: Cerrar
@@ -325,6 +330,7 @@ pages:
     drop_here: Suelta para subir
     create_card: Crear una nueva Tarjeta
     edit_card: Modificar tarjeta
+    editor_description: Edita la identidad, el comportamiento, los módulos, la configuración de generación y los prompts del personaje.
     creation:
       identity: Identidad
       name: Nombre

@@ -3,7 +3,7 @@ import type { Message } from '@xsai/shared-chat'
 
 import type { AiriCard } from '../../types/airiCard'
 
-/** Values that vary between one character-card runtime and another. */
+/** Values that vary between one AIRI Card runtime and another. */
 export interface CharacterCardRuntimeOptions {
   /** Display name substituted for the CCv3 `{{user}}` macro. @default 'User' at provider compilation */
   userName?: string
