@@ -2757,6 +2757,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
   // Function to get localized provider metadata
   function getProviderMetadata(providerId: string) {
+    if (!providerId)
+      throw new Error('No AI provider selected. Please select a provider in Settings.')
+
     const metadata = providerMetadata[providerId]
 
     if (!metadata)
@@ -2827,6 +2830,9 @@ export const useProvidersStore = defineStore('providers', () => {
   | TranscriptionProvider
   | TranscriptionProviderWithExtraOptions,
   >(providerId: string): Promise<R> {
+    if (!providerId)
+      throw new Error('No AI provider selected. Please select a provider in Settings.')
+
     const cached = providerInstanceCache.value[providerId] as R | undefined
     if (cached)
       return cached

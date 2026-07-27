@@ -3,6 +3,7 @@ import type { VoiceType } from '@proj-airi/stage-ui/composables'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
+import { BILINGUAL_LANGUAGES } from '@proj-airi/stage-shared'
 import {
   Alert,
   ErrorContainer,
@@ -14,6 +15,7 @@ import {
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
+import { useBilingualStore } from '@proj-airi/stage-ui/stores/modules/bilingual'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import {
@@ -33,6 +35,15 @@ const { t } = useI18n()
 const providersStore = useProvidersStore()
 const speechStore = useSpeechStore()
 const airiCardStore = useAiriCardStore()
+const bilingualStore = useBilingualStore()
+
+const {
+  enabled: bilingualEnabled,
+  ttsLanguage: bilingualTtsLanguage,
+  subtitleLanguage1: bilingualSubtitleLanguage1,
+  subtitleLanguage2: bilingualSubtitleLanguage2,
+} = storeToRefs(bilingualStore)
+const bilingualAvailableLanguages = BILINGUAL_LANGUAGES
 const { allAudioSpeechProvidersMetadata, configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeSpeechProvider,
@@ -915,6 +926,73 @@ function handleDeleteProvider(providerId: string) {
     </div>
 
     <div flex="~ col gap-6" class="w-full md:w-[60%]">
+      <div w-full rounded-xl>
+        <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
+          <div class="inline-flex items-center gap-4">
+            <div class="i-solar:subtitles-bold-duotone" />
+            <div>
+              Bilingual Subtitles
+            </div>
+          </div>
+        </h2>
+        <div flex="~ col gap-4">
+          <FieldCheckbox
+            v-model="bilingualEnabled"
+            label="Enable Bilingual Subtitles"
+            description="Instructs the AI to respond in spoken language and provide translated subtitles"
+          />
+
+          <template v-if="bilingualEnabled">
+            <div flex="~ col md:row gap-4">
+              <div flex="1 ~ col gap-1">
+                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">TTS Spoken Language</label>
+                <select
+                  v-model="bilingualTtsLanguage"
+                  border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
+                  transition="all duration-250 ease-in-out"
+                  bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
+                  h-10 rounded-lg px-3 text-sm outline-none
+                >
+                  <option v-for="lang in bilingualAvailableLanguages" :key="lang.code" :value="lang.code">
+                    {{ lang.name }} ({{ lang.tag }})
+                  </option>
+                </select>
+              </div>
+
+              <div flex="1 ~ col gap-1">
+                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">Subtitle 1 (Primary)</label>
+                <select
+                  v-model="bilingualSubtitleLanguage1"
+                  border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
+                  transition="all duration-250 ease-in-out"
+                  bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
+                  h-10 rounded-lg px-3 text-sm outline-none
+                >
+                  <option v-for="lang in bilingualAvailableLanguages" :key="lang.code" :value="lang.code">
+                    {{ lang.name }} ({{ lang.tag }})
+                  </option>
+                </select>
+              </div>
+
+              <div flex="1 ~ col gap-1">
+                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">Subtitle 2 (Translation)</label>
+                <select
+                  v-model="bilingualSubtitleLanguage2"
+                  border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
+                  transition="all duration-250 ease-in-out"
+                  bg="neutral-100 dark:neutral-800 focus:neutral-50 dark:focus:neutral-900"
+                  h-10 rounded-lg px-3 text-sm outline-none
+                >
+                  <option v-for="lang in bilingualAvailableLanguages" :key="lang.code" :value="lang.code">
+                    {{ lang.name }} ({{ lang.tag }})
+                  </option>
+                </select>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <div w-full rounded-xl>
         <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
           <div class="inline-flex items-center gap-4">

@@ -26,6 +26,7 @@ import { SERVER_URL } from '../../libs/server'
 import { capturePosthogEvent } from '../analytics/posthog'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useBilingualStore } from '../modules/bilingual'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
@@ -50,6 +51,7 @@ const OUTBOX_MAX_ATTEMPTS = 5
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { systemPromptInstruction } = storeToRefs(useBilingualStore())
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -164,7 +166,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function generateInitialMessageFromPrompt(prompt: string) {
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
+    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + systemPromptInstruction.value + prompt
 
     return {
       role: 'system',
@@ -1424,7 +1426,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // Keep the active conversation aligned with edits to the active card. The
   // active session id is included because card switching resolves the target
   // session asynchronously after the card prompt itself has already changed.
-  watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
+  watch([systemPrompt, systemPromptInstruction, activeSessionId], refreshActiveSessionSystemMessage)
 
   // Auth toggles drive cloud WS lifecycle independently of activeCardId so
   // a card swap inside a single session does not bounce the socket. The

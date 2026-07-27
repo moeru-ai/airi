@@ -1,4 +1,5 @@
 export * from './artistry'
+export * from './bilingual'
 export * from './env-vars'
 export * from './environment'
 export * from './error-message'
