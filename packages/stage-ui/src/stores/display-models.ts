@@ -61,6 +61,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   let generateVrmPreview: (file: File) => Promise<string | undefined>
   let generateSpinePreview: (file: File) => Promise<string | undefined>
   let generateMMDPreview: (file: File) => Promise<string | undefined>
+  let normalizeLive2DArchive: ((file: File) => Promise<File>) | undefined
 
   const displayModelsFromIndexedDBLoading = ref(false)
 
@@ -106,6 +107,29 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return displayModelsPresets.find(model => model.id === id)
   }
 
+  // NOTICE:
+  // Normalization must never block an import. A model whose paths are already
+  // ASCII — every bundled and most Western-authored model — is unaffected by it,
+  // so if the module fails to load or the archive cannot be repacked, importing
+  // the original file leaves those users exactly where they were.
+  // Root cause context: see normalize-live2d-zip.ts.
+  // Removal condition: pixi-live2d-display resolves archive paths in a single
+  // encoding, at which point normalization is no longer needed at all.
+  async function normalizeLive2DModel(file: File): Promise<File> {
+    try {
+      if (!normalizeLive2DArchive) {
+        const { normalizeLive2DZip } = await import('@proj-airi/stage-ui-live2d/utils/normalize-live2d-zip')
+        normalizeLive2DArchive = normalizeLive2DZip
+      }
+
+      return await normalizeLive2DArchive(file)
+    }
+    catch (err) {
+      console.error('[display-models] Live2D archive normalization failed; importing the original file:', err)
+      return file
+    }
+  }
+
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
   const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
   const loadSpineModelPreview = (file: File) => generateSpinePreview(file)
@@ -113,10 +137,17 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
-    const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file, name: file.name, importedAt: Date.now() }
+
+    // Normalize before anything reads the archive, so the stored file and the
+    // preview frame are generated from the same bytes the stage will later load.
+    const importedFile = format === DisplayModelFormat.Live2dZip
+      ? await normalizeLive2DModel(file)
+      : file
+
+    const newDisplayModel: DisplayModelFile = { id: `display-model-${nanoid()}`, format, type: 'file', file: importedFile, name: importedFile.name, importedAt: Date.now() }
 
     if (format === DisplayModelFormat.Live2dZip) {
-      const previewImage = await loadLive2DModelPreview(file)
+      const previewImage = await loadLive2DModelPreview(importedFile)
       newDisplayModel.previewImage = previewImage
     }
     else if (format === DisplayModelFormat.VRM) {

@@ -30,6 +30,7 @@
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
+    "./utils/normalize-live2d-zip": "./src/utils/normalize-live2d-zip.ts",
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {
