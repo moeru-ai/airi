@@ -110,15 +110,18 @@ const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, bas
 /**
  * Resolves the safety-net timeout (in minutes) for headless generation waits.
  *
- * Callback-based providers (all currently registered ones) enforce their own generation
- * timeout and report failures through `setJobCallback`; ComfyUI derives that timeout from
- * the user-configured `comfyuiGenerationTimeoutMinutes`. The wrapper timer in
+ * ComfyUI derives its provider timeout from the user-configured
+ * `comfyuiGenerationTimeoutMinutes`; other providers keep the default five-minute
+ * safety-net timeout. The wrapper timer in
  * {@link generateHeadless} only guards against a callback that never fires, so it must
  * outlive the provider's own timeout — otherwise headless callers (image_journal,
  * autonomous artistry) reject with a generic 5-minute error while the provider is still
  * legitimately polling.
  */
-function resolveHeadlessWaitTimeoutMinutes(globals: Record<string, any>): number {
+function resolveHeadlessWaitTimeoutMinutes(providerId: string, globals: Record<string, any>): number {
+  if (providerId !== 'comfyui')
+    return 5
+
   const configured = globals?.comfyuiGenerationTimeoutMinutes
   if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0)
     return configured
@@ -205,7 +208,7 @@ export async function generateHeadless(params: {
     // starts its own timeout clock after the upload/queue requests complete, which happens
     // after this timer starts. An identical timeout would race and mask the provider's
     // more specific timeout error with this generic one.
-    const waitTimeoutMinutes = resolveHeadlessWaitTimeoutMinutes(activeGlobals)
+    const waitTimeoutMinutes = resolveHeadlessWaitTimeoutMinutes(requestedProvider, activeGlobals)
     const waitTimeoutMs = waitTimeoutMinutes * 60 * 1000 + 30_000
 
     // Polling/Wait for result
