@@ -108,6 +108,7 @@ export function createWhisperAdapter(workerUrl: string | URL = new URL('../../wo
   let state: WhisperState = 'idle'
   let allocationToken: AllocationToken | null = null
   let restartAttempts = 0
+  let restartTimeoutId: ReturnType<typeof setTimeout> | null = null
   let messageListener: ((event: MessageEvent) => void) | null = null
   let errorListener: ((event: ErrorEvent) => void) | null = null
   const messageHandlers = new Set<(event: WhisperEvent) => void>()
@@ -184,7 +185,14 @@ export function createWhisperAdapter(workerUrl: string | URL = new URL('../../wo
     const delay = RESTART_DELAY_MS * restartAttempts
     console.warn(`[WhisperAdapter] Restarting in ${delay}ms (attempt ${restartAttempts}/${MAX_RESTARTS})`)
 
-    setTimeout(() => {
+    if (restartTimeoutId !== null)
+      clearTimeout(restartTimeoutId)
+
+    restartTimeoutId = setTimeout(() => {
+      restartTimeoutId = null
+      // Skip recreating a worker after an intentional terminate()/singleton replace.
+      if (state === 'terminated')
+        return
       ensureWorker()
     }, delay)
   }
@@ -415,6 +423,10 @@ export function createWhisperAdapter(workerUrl: string | URL = new URL('../../wo
   }
 
   function terminateAdapter(): void {
+    if (restartTimeoutId !== null) {
+      clearTimeout(restartTimeoutId)
+      restartTimeoutId = null
+    }
     operationMutex.cancel()
     rejectPendingWaiters(new InferenceAbortError('Whisper adapter terminated.'))
     destroyWorker()
@@ -463,6 +475,13 @@ export async function getWhisperAdapter(): Promise<WhisperAdapter> {
       || globalAdapter.state === 'terminated'
       || globalAdapter.state === 'error'
     ) {
+      // NOTICE:
+      // Aborted / timed-out / worker-failed transcriptions leave the singleton in
+      // `error` while the Worker and GPU allocation token may still be held.
+      // Replacing without terminate() leaks roughly one Whisper VRAM estimate per
+      // failure and can exhaust browser resources after repeated retries.
+      // https://github.com/moeru-ai/airi/pull/2130
+      globalAdapter?.terminate()
       globalAdapter = createWhisperAdapter()
     }
     return globalAdapter

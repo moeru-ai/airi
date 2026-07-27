@@ -36,11 +36,12 @@ vi.mock('../../../composables/use-inference-status', () => ({
 
 const enqueueMock = vi.fn((_id: string, _p: number, loader: () => Promise<unknown>) => loader())
 const recordDeviceLoss = vi.fn()
+const releaseAllocation = vi.fn()
 
 vi.mock('../coordinator', () => ({
   getGPUCoordinator: () => ({
     recordDeviceLoss,
-    release: vi.fn(),
+    release: releaseAllocation,
     requestAllocation: vi.fn(() => ({ estimatedBytes: 0, modelId: 'whisper' })),
   }),
   getLoadQueue: () => ({
@@ -67,6 +68,7 @@ describe('whisper adapter worker failure handling', () => {
     enqueueMock.mockClear()
     enqueueMock.mockImplementation((_id: string, _p: number, loader: () => Promise<unknown>) => loader())
     recordDeviceLoss.mockClear()
+    releaseAllocation.mockClear()
   })
 
   afterEach(() => {
@@ -122,5 +124,64 @@ describe('whisper adapter worker failure handling', () => {
 
     await expect(transcribing).rejects.toThrow('Whisper worker crashed during transcription')
     expect(adapter.state).toBe('error')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/1342
+  // https://github.com/moeru-ai/airi/pull/2130
+  it('issue #1342 terminates errored singleton adapters before replacing them', async () => {
+    // ROOT CAUSE:
+    //
+    // getWhisperAdapter() replaced `error` / `terminated` singletons with a new
+    // createWhisperAdapter() without calling terminate(). Errored adapters can
+    // still hold a Worker and GPU allocation token after abort/timeout/worker
+    // failure, so repeated retries leaked ~800MB allocations.
+    //
+    // We fixed this by terminating the previous singleton before assigning the
+    // replacement.
+    vi.resetModules()
+    MockWorker.instances.length = 0
+
+    const { getWhisperAdapter } = await import('./whisper')
+    const first = await getWhisperAdapter()
+
+    const loading = first.load()
+    await vi.waitFor(() => expect(enqueueMock).toHaveBeenCalled())
+    const worker = MockWorker.instances.at(-1)!
+    const loadRequest = worker.postMessage.mock.calls.find(([message]) => message.type === 'load-model')?.[0]
+    expect(loadRequest).toBeDefined()
+
+    worker.dispatch('message', {
+      data: {
+        device: 'webgpu',
+        modelId: 'whisper',
+        requestId: loadRequest!.requestId,
+        type: 'model-ready',
+      },
+    })
+    await loading
+    expect(first.state).toBe('ready')
+
+    const transcribing = first.transcribe({ audio: 'data:audio/wav;base64,test', language: 'en' })
+    await vi.waitFor(() => {
+      expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'run-inference' }))
+    })
+
+    // Simulate a transcription timeout / abort path that marks state=error without
+    // going through handleWorkerError's destroyWorker().
+    worker.dispatch('message', {
+      data: {
+        type: 'error',
+        requestId: worker.postMessage.mock.calls.find(([message]) => message.type === 'run-inference')?.[0].requestId,
+        payload: { message: 'transcription failed', code: 'TIMEOUT' },
+      },
+    })
+    await expect(transcribing).rejects.toThrow('transcription failed')
+    expect(first.state).toBe('error')
+
+    const second = await getWhisperAdapter()
+    expect(second).not.toBe(first)
+    expect(first.state).toBe('terminated')
+    expect(worker.terminate).toHaveBeenCalled()
+    expect(releaseAllocation).toHaveBeenCalled()
   })
 })
