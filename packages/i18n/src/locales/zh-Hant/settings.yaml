@@ -1275,6 +1275,16 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: 無法初始化 MiniMax 語音服務商。
+        fields:
+          field:
+            model:
+              description: 選擇用於生成語音的 MiniMax 文字轉語音模型。
+              label: 模型
+              placeholder: 選擇 MiniMax 模型...
+        playground:
+          default-text: 您好！這是 MiniMax 語音合成測試。
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com

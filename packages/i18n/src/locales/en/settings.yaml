@@ -1330,6 +1330,16 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: Failed to initialize the MiniMax speech provider.
+        fields:
+          field:
+            model:
+              description: Select the MiniMax TTS model to use for speech generation.
+              label: Model
+              placeholder: Select a MiniMax model...
+        playground:
+          default-text: Hello! This is a test of MiniMax speech synthesis.
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com

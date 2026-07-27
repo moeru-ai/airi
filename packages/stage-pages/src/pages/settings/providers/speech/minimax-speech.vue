@@ -10,10 +10,12 @@ import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const providerId = 'minimax-speech'
 const defaultModel = 'speech-2.8-hd'
 
+const { t } = useI18n()
 const speechStore = useSpeechStore()
 const providersStore = useProvidersStore()
 const { providers } = storeToRefs(providersStore)
@@ -47,7 +49,7 @@ onMounted(async () => {
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance<SpeechProvider<string>>(providerId)
   if (!provider)
-    throw new Error('Failed to initialize speech provider')
+    throw new Error(t('settings.pages.providers.provider.minimax-speech.errors.provider-initialization-failed'))
 
   return await speechStore.speech(
     provider,
@@ -67,10 +69,10 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     <template #voice-settings>
       <FieldCombobox
         v-model="model"
-        label="Model"
-        description="Select the MiniMax TTS model to use for speech generation"
+        :label="t('settings.pages.providers.provider.minimax-speech.fields.field.model.label')"
+        :description="t('settings.pages.providers.provider.minimax-speech.fields.field.model.description')"
         :options="modelOptions"
-        placeholder="Select a MiniMax model..."
+        :placeholder="t('settings.pages.providers.provider.minimax-speech.fields.field.model.placeholder')"
       />
     </template>
 
@@ -79,7 +81,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
         :available-voices="availableVoices"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
-        default-text="Hello! This is a test of the MiniMax Speech synthesis."
+        :default-text="t('settings.pages.providers.provider.minimax-speech.playground.default-text')"
       />
     </template>
   </SpeechProviderSettings>
