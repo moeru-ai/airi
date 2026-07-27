@@ -52,12 +52,15 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
+import { getWhisperAdapter } from '../libs/inference/adapters/whisper'
+import { MODEL_IDS, MODEL_NAMES } from '../libs/inference/constants'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
 import { capturePosthogEvent, ensurePosthogInitialized, isPosthogAvailableInBuild } from './analytics/posthog'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
+import { createBrowserLocalTranscriptionProvider } from './providers/browser-local-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
 import { buildGoogleGeminiSpeechProvider } from './providers/google-gemini-speech'
@@ -473,25 +476,66 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     }),
-    'browser-local-audio-transcription': buildOpenAICompatibleProvider({
+    'browser-local-audio-transcription': {
       id: 'browser-local-audio-transcription',
-      name: 'Browser (Local)',
-      nameKey: 'settings.pages.providers.provider.browser-local-audio-transcription.title',
-      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-transcription.description',
-      icon: 'i-lobe-icons:huggingface',
-      description: 'https://github.com/moeru-ai/xsai-transformers',
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+      nameKey: 'settings.pages.providers.provider.browser-local-audio-transcription.title',
+      name: 'Browser (Local)',
+      descriptionKey: 'settings.pages.providers.provider.browser-local-audio-transcription.description',
+      description: 'In-browser Whisper transcription via Transformers.js. No API keys.',
+      icon: 'i-lobe-icons:huggingface',
+      requiresCredentials: false,
+      transcriptionFeatures: {
+        supportsGenerate: true,
+        supportsStreamOutput: false,
+        supportsStreamInput: false,
+      },
       isAvailableBy: isBrowserAndMemoryEnough,
-      creator: createOpenAI,
-      validation: [],
+      defaultOptions: () => ({
+        model: MODEL_NAMES.WHISPER,
+        language: 'en',
+      }),
+      createProvider: async (config) => {
+        return createBrowserLocalTranscriptionProvider({
+          language: typeof config.language === 'string' ? config.language : 'en',
+        })
+      },
+      capabilities: {
+        listModels: async () => {
+          return [
+            {
+              id: MODEL_NAMES.WHISPER,
+              name: 'Whisper Large V3 Turbo (ONNX)',
+              provider: 'browser-local-audio-transcription',
+              description: MODEL_IDS.WHISPER,
+              contextLength: 0,
+              deprecated: false,
+            },
+          ]
+        },
+        loadModel: async (_config, hooks) => {
+          const adapter = await getWhisperAdapter()
+          await adapter.load((progress) => {
+            void hooks?.onProgress?.({
+              name: progress.file ?? '',
+              file: progress.file ?? '',
+              progress: progress.percent >= 0 ? progress.percent : 0,
+              status: 'progress',
+              loaded: progress.loaded ?? 0,
+              total: progress.total ?? 0,
+            } as ProgressInfo)
+          })
+        },
+      },
       validators: {
         chatPingCheckAvailable: false,
-        validateProviderConfig: (config) => {
-          if (!config.baseUrl) {
+        validateProviderConfig: async () => {
+          const available = await isBrowserAndMemoryEnough()
+          if (!available) {
             return {
-              errors: [new Error('Base URL is required.')],
-              reason: 'Base URL is required. This is likely a bug, report to developers on https://github.com/moeru-ai/airi/issues.',
+              errors: [new Error('Browser local transcription requires WebGPU or at least 8 GB of device memory, and is only available in the web app.')],
+              reason: 'This device or runtime cannot run in-browser Whisper.',
               valid: false,
             }
           }
@@ -503,7 +547,7 @@ export const useProvidersStore = defineStore('providers', () => {
           }
         },
       },
-    }),
+    },
     'openai-audio-speech': buildOpenAICompatibleProvider({
       id: 'openai-audio-speech',
       name: 'OpenAI',
@@ -2416,15 +2460,15 @@ export const useProvidersStore = defineStore('providers', () => {
     if (!metadata)
       return false
 
-    // Web Speech API doesn't require credentials - use empty config if not present
-    if (providerId === 'browser-web-speech-api') {
+    // Credential-free browser providers use empty/default config if not present
+    if (providerId === 'browser-web-speech-api' || providerId === 'browser-local-audio-transcription') {
       if (!providerCredentials.value[providerId]) {
         providerCredentials.value[providerId] = getDefaultProviderConfig(providerId)
       }
     }
 
     const config = providerCredentials.value[providerId]
-    if (!config && providerId !== 'browser-web-speech-api')
+    if (!config && providerId !== 'browser-web-speech-api' && providerId !== 'browser-local-audio-transcription')
       return false
 
     const configString = JSON.stringify(config || {})
@@ -2454,7 +2498,7 @@ export const useProvidersStore = defineStore('providers', () => {
         providerRuntimeState.value[providerId].isConfigured = validationResult.valid
         providerRuntimeState.value[providerId].validatedCredentialHash = configString
         // Auto-mark Web Speech API as added if valid and available
-        if (validationResult.valid && ['browser-web-speech-api', 'player2'].includes(providerId)) {
+        if (validationResult.valid && ['browser-web-speech-api', 'browser-local-audio-transcription', 'player2'].includes(providerId)) {
           markProviderAdded(providerId)
         }
       }
@@ -2837,7 +2881,9 @@ export const useProvidersStore = defineStore('providers', () => {
 
     // Providers that don't require credentials use empty config
     let config = providerCredentials.value[providerId]
-    const noCredentials = metadata.requiresCredentials === false || providerId === 'browser-web-speech-api'
+    const noCredentials = metadata.requiresCredentials === false
+      || providerId === 'browser-web-speech-api'
+      || providerId === 'browser-local-audio-transcription'
     if (!config && noCredentials) {
       config = getDefaultProviderConfig(providerId) || {}
       providerCredentials.value[providerId] = config

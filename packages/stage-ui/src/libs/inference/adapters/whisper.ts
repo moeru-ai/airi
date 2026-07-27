@@ -103,7 +103,7 @@ interface PendingWaiter {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
+export function createWhisperAdapter(workerUrl: string | URL = new URL('../../workers/worker.ts', import.meta.url)): WhisperAdapter {
   let worker: Worker | null = null
   let state: WhisperState = 'idle'
   let allocationToken: AllocationToken | null = null
@@ -441,4 +441,30 @@ export function createWhisperAdapter(workerUrl: string | URL): WhisperAdapter {
     get manifest() { return lastManifest },
     get deviceLossCount() { return deviceLossCount },
   }
+}
+
+// ---------------------------------------------------------------------------
+// Singleton
+// ---------------------------------------------------------------------------
+
+let globalAdapter: WhisperAdapter | null = null
+const singletonMutex = new Mutex()
+
+/**
+ * Get the global Whisper adapter instance.
+ * Creates and starts the worker on first call.
+ * Automatically re-creates the adapter if it has entered a terminal state
+ * ('terminated' or 'error' after max restarts exhausted).
+ */
+export async function getWhisperAdapter(): Promise<WhisperAdapter> {
+  return singletonMutex.runExclusive(async () => {
+    if (
+      !globalAdapter
+      || globalAdapter.state === 'terminated'
+      || globalAdapter.state === 'error'
+    ) {
+      globalAdapter = createWhisperAdapter()
+    }
+    return globalAdapter
+  })
 }

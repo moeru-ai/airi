@@ -1072,7 +1072,7 @@ pages:
         description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: Browser (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
+        description: In-browser Whisper via Transformers.js (no API key)
       browser-local-audio-speech:
         title: Browser (Local)
         description: https://github.com/moeru-ai/xsai-transformers
