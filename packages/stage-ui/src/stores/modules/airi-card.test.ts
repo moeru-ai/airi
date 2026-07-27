@@ -311,4 +311,29 @@ describe('airi-card store', () => {
     expect(cardStore.cards.has('default')).toBe(true)
     expect(cardStore.activeCardId).toBe('default')
   })
+
+  it('preserves a valid persisted active card during initialization', () => {
+    const cardStore = useAiriCardStore()
+    const cardId = cardStore.addCard({
+      name: 'Persisted active card',
+      version: '1.0.0',
+      description: 'Keep this selection.',
+    }, 'scratch')
+    cardStore.activeCardId = cardId
+
+    cardStore.initialize()
+
+    expect(cardStore.activeCardId).toBe(cardId)
+    expect(cardStore.activeCard?.name).toBe('Persisted active card')
+  })
+
+  it('repairs a dangling persisted active card during initialization', () => {
+    const cardStore = useAiriCardStore()
+    cardStore.activeCardId = 'missing-card'
+
+    cardStore.initialize()
+
+    expect(cardStore.activeCardId).toBe('default')
+    expect(cardStore.activeCard?.name).toBe('ReLU')
+  })
 })

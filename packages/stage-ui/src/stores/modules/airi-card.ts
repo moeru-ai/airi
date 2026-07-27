@@ -296,19 +296,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function initialize() {
-    if (cards.value.has('default')) {
-      applyActiveCardSettings()
-      return
+    if (!cards.value.has('default')) {
+      cards.value.set('default', newAiriCard({
+        name: 'ReLU',
+        version: '1.0.0',
+        description: SystemPromptV2(
+          t('base.prompt.prefix'),
+          t('base.prompt.suffix'),
+        ).content,
+      }))
     }
-    cards.value.set('default', newAiriCard({
-      name: 'ReLU',
-      version: '1.0.0',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
-    }))
-    if (!activeCardId.value)
+
+    // The active id and card map are persisted separately. Older versions
+    // could delete the selected card without repairing its stored id.
+    if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
     applyActiveCardSettings()
