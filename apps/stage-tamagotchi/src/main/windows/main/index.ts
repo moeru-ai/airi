@@ -67,6 +67,7 @@ export async function setupMainWindow(params: {
     setup: setupConfig,
     get: getConfigRaw,
     update: updateConfig,
+    flush: flushConfig,
   } = createConfig('app', 'config.json', appConfigSchema, {
     default: { windows: [] },
     autoHeal: true,
@@ -102,8 +103,20 @@ export async function setupMainWindow(params: {
   }
 
   let allowClose = false
-  onAppBeforeQuit(() => {
+  onAppBeforeQuit(async () => {
     allowClose = true
+
+    // NOTICE:
+    // Capture native bounds because the macOS click-drag bridge can finish
+    // without a final Electron `move` event reaching this process.
+    // The bridge calls `performWindowDragWithEvent:` outside Electron's normal
+    // drag region path; see https://github.com/Wargraphs/electron-click-drag-plugin.
+    // Remove this fallback only when the drag path guarantees a final bounds
+    // notification and config shutdown flushing remains covered separately.
+    if (!window.isDestroyed()) {
+      handleNewBounds(window.getBounds())
+    }
+    await flushConfig()
   })
 
   // NOTICE: in development mode, open devtools by default
@@ -150,6 +163,21 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
+  if (isMacOS) {
+    // NOTICE:
+    // Electron documents `moved`/`resized` as the completed native gesture
+    // events on supported platforms. Persist immediately here because
+    // electron-vite terminates the old main process directly during HMR.
+    // https://www.electronjs.org/docs/latest/api/base-window#event-moved-macos-windows
+    // Remove the immediate flush only when the development supervisor awaits
+    // graceful app shutdown before replacing the main process.
+    const persistFinalBounds = () => {
+      handleNewBounds(window.getBounds())
+      void flushConfig()
+    }
+    window.on('moved', persistFinalBounds)
+    window.on('resized', persistFinalBounds)
+  }
   window.on('close', (event) => {
     if (allowClose) {
       return

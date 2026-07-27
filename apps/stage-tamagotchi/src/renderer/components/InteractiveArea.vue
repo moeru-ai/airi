@@ -65,7 +65,7 @@ const {
   trackChatMessageRetried,
   trackChatMessagesCleared,
 } = useAnalytics()
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -387,6 +387,24 @@ async function handleCleanupMessages() {
           </DropdownMenuContent>
         </DropdownMenuPortal>
       </DropdownMenuRoot>
+
+      <button
+        data-testid="speech-mute-button"
+        :class="[
+          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+          'text-lg transition-colors transition-transform active:scale-95',
+          speechMuted
+            ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
+            : 'bg-neutral-100 text-neutral-500 hover:text-primary-500 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-primary-400',
+        ]"
+        :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+        :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+        :aria-pressed="speechMuted"
+        @click="toggleSpeechMuted"
+      >
+        <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
+        <div v-else class="i-solar:volume-loud-bold-duotone" />
+      </button>
 
       <button
         v-if="showStopSpeakingButton"

@@ -20,6 +20,9 @@ send-mode:
   enter: Nhập
   ctrl-enter: Ctrl + Enter
   double-enter: Nhập hai lần
+speech-output:
+  mute: Tắt tiếng nói
+  unmute: Bật tiếng nói
 operations:
   load-models: Tải mô hình
   load-models-status:
