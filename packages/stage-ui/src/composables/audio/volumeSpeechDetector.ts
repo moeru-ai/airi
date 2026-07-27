@@ -1,16 +1,31 @@
+/**
+ * Optional speech edge callbacks for {@link createVolumeSpeechDetector}.
+ *
+ * Callers typically wire these to the same transcription start/stop handlers
+ * used by Silero VAD so volume fallback stays behavior-compatible.
+ */
 export interface VolumeSpeechDetectorHooks {
+  /** Fired once when sustained loud frames cross into speech. */
   onSpeechStart?: () => void
+  /** Fired once after sustained silence ends an active speech segment. */
   onSpeechEnd?: () => void
 }
 
+/**
+ * One microphone-volume sample for {@link VolumeSpeechDetector.sample}.
+ *
+ * Levels use the analyzer's 0–100 scale. Thresholds are compared directly
+ * against that scale (not Silero's 0–1 speech probability).
+ */
 export interface VolumeSpeechSampleInput {
+  /** Current microphone volume level on a 0–100 scale. */
   level: number
   /**
-   * Volume level (0-100) that must be sustained to enter speech.
+   * Volume level (0–100) that must be sustained to enter speech.
    */
   startThreshold: number
   /**
-   * Volume level (0-100) below which silence starts counting toward speech end.
+   * Volume level (0–100) below which silence starts counting toward speech end.
    *
    * @default Math.max(1, startThreshold * 0.6)
    */
@@ -27,6 +42,11 @@ export interface VolumeSpeechSampleInput {
    * @default 800
    */
   stopDelayMs?: number
+  /**
+   * Sample timestamp in milliseconds.
+   *
+   * @default Date.now()
+   */
   now?: number
 }
 

@@ -5,7 +5,7 @@ import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { startVoiceInputVadDetectionSafely } from '@proj-airi/stage-ui/composables/audio/voice-input-vad-startup'
-import { createVolumeSpeechDetector } from '@proj-airi/stage-ui/composables/audio/volume-speech-detector'
+import { createVolumeSpeechDetector } from '@proj-airi/stage-ui/composables/audio/volumeSpeechDetector'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -40,7 +40,7 @@ const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 const { trackProviderClick } = useAnalytics()
 const { stopStream, startStream } = useSettingsAudioDevice()
 const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { startRecord, stopRecord, onStopRecord, isRecording } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
 const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
@@ -93,10 +93,16 @@ let sttTestStopTimer: ReturnType<typeof setTimeout> | undefined
 let stopAnalyzerUpdate: (() => void) | undefined
 /**
  * When true, volume rising/falling edges drive transcription the same way VAD
- * speech-start/speech-end would. Set after a failed VAD init, or when the user
- * turns off model-based detection.
+ * speech-start/speech-end would. Set after a failed VAD init/start, or when the
+ * user turns off model-based detection.
  */
 const driveTranscriptionFromVolume = ref(false)
+/**
+ * True only after Silero VAD both loaded and successfully started on the mic
+ * stream. `loadedVAD` alone is not enough — start can still fail after init.
+ */
+const vadDetectionActive = ref(false)
+const modelBasedSpeechActive = computed(() => useVADModel.value && vadDetectionActive.value)
 
 const sttTestVoiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
@@ -225,7 +231,7 @@ const volumeSpeechDetector = createVolumeSpeechDetector({
 })
 
 const isSpeech = computed(() => {
-  if (useVADModel.value && loadedVAD.value) {
+  if (modelBasedSpeechActive.value) {
     return isSpeechVAD.value
   }
 
@@ -247,9 +253,10 @@ async function setupAudioMonitoring() {
       return
     }
 
-    // Prefer VAD until init proves the model is unavailable; volume edges stay
-    // armed for the UI meter but only drive STT after fallback / explicit volume mode.
+    // Prefer VAD until init/start proves detection is unavailable; volume edges
+    // stay armed for the UI meter but only drive STT after fallback / explicit volume mode.
     driveTranscriptionFromVolume.value = !useVADModel.value
+    vadDetectionActive.value = false
     volumeSpeechDetector.reset()
 
     const source = audioContext.value.createMediaStreamSource(stream.value)
@@ -257,8 +264,8 @@ async function setupAudioMonitoring() {
     const analyzer = startAnalyzer(audioContext.value)
     stopAnalyzerUpdate?.()
     stopAnalyzerUpdate = onAnalyzerUpdate((volumeLevel) => {
-      // Model-based monitoring owns speech start/end once Silero is loaded.
-      if (useVADModel.value && loadedVAD.value) {
+      // Suppress volume edges only while VAD is actually detecting — not merely loaded.
+      if (modelBasedSpeechActive.value) {
         isSpeechVolume.value = false
         return
       }
@@ -292,6 +299,9 @@ async function setupAudioMonitoring() {
       // ROOT CAUSE fix for Issue #1832:
       // A failed (or unloaded) VAD used to leave monitoring "running" with a live
       // mic meter but no path into handleSpeechStart / transcription.
+      // Also cover start-after-init failures: loadedVAD can be true while detection
+      // never attached, so track vadDetectionActive separately from loaded state.
+      vadDetectionActive.value = vadStarted
       driveTranscriptionFromVolume.value = !vadStarted
       if (vadStarted)
         volumeSpeechDetector.reset()
@@ -301,6 +311,7 @@ async function setupAudioMonitoring() {
     console.error('Error setting up audio monitoring:', error)
     vadModelError.value = errorMessageFromValue(error)
     // Keep mic monitoring useful: volume edges can still start STT.
+    vadDetectionActive.value = false
     driveTranscriptionFromVolume.value = true
   }
 }
@@ -315,7 +326,20 @@ async function stopAudioMonitoring() {
   stopAnalyzerUpdate = undefined
   volumeSpeechDetector.reset()
   driveTranscriptionFromVolume.value = false
+  vadDetectionActive.value = false
   isSpeechVolume.value = false
+
+  // Finalize any in-flight recorder-backed utterance before tearing down the mic
+  // stream. Otherwise useAudioRecorder keeps mediaOutput set and later
+  // startRecord() returns early after a Model Based / device restart.
+  if (isRecording.value) {
+    try {
+      await stopRecord()
+    }
+    catch (error) {
+      console.warn('[Hearing Monitoring] Failed to finalize active recording during stop:', error)
+    }
+  }
 
   await stopStreamingTranscription(true, activeTranscriptionProvider.value)
   if (stream.value) { // Stop media stream
@@ -340,7 +364,7 @@ async function toggleMonitoring() {
 
 // Speaking indicator with enhanced VAD visualization
 const speakingIndicatorClass = computed(() => {
-  if (!useVADModel.value || !loadedVAD.value) {
+  if (!modelBasedSpeechActive.value) {
     // Volume-based: simple green/white
     return isSpeechVolume.value
       ? 'bg-green-500 shadow-lg shadow-green-500/50'
@@ -879,7 +903,7 @@ onUnmounted(() => {
 
               <!-- VAD Probability Meter (when VAD model is active) -->
               <ThresholdMeter
-                v-if="useVADModel && loadedVAD"
+                v-if="modelBasedSpeechActive"
                 :value="isSpeechProb"
                 :threshold="useVADThreshold"
                 label="Probability of Speech"
@@ -889,7 +913,7 @@ onUnmounted(() => {
               />
 
               <!-- Threshold Controls -->
-              <div v-if="useVADModel && loadedVAD" class="space-y-3">
+              <div v-if="modelBasedSpeechActive" class="space-y-3">
                 <FieldRange
                   v-model="useVADThreshold"
                   label="Sensitivity"
@@ -943,7 +967,7 @@ onUnmounted(() => {
                   {{ isSpeech ? 'Speaking Detected' : 'Silence' }}
                 </span>
                 <span class="ml-auto text-xs text-neutral-500">
-                  {{ useVADModel && loadedVAD ? 'Model Based' : 'Volume Based' }}
+                  {{ modelBasedSpeechActive ? 'Model Based' : 'Volume Based' }}
                 </span>
               </div>
 
@@ -968,7 +992,7 @@ onUnmounted(() => {
                     :error="vadModelError"
                   />
 
-                  <div v-else-if="loadedVAD" class="flex items-center gap-2 text-green-600 dark:text-green-400">
+                  <div v-else-if="vadDetectionActive" class="flex items-center gap-2 text-green-600 dark:text-green-400">
                     <div class="text-sm" i-solar:check-circle-bold-duotone />
                     <span class="text-sm">Activated</span>
                     <span class="ml-auto text-xs text-neutral-500">
@@ -993,7 +1017,7 @@ onUnmounted(() => {
 
               <!-- Voice Activity Visualization (when VAD model is active) -->
               <TimeSeriesChart
-                v-if="useVADModel && loadedVAD"
+                v-if="modelBasedSpeechActive"
                 :history="isSpeechHistory"
                 :current-value="isSpeechProb"
                 :threshold="useVADThreshold"

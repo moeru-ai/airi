@@ -53,4 +53,29 @@ describe('voice input VAD startup', () => {
       }),
     )
   })
+
+  // https://github.com/moeru-ai/airi/issues/1832
+  it('issue #1832 returns false when init loads but start against the stream rejects', async () => {
+    const init = vi.fn().mockResolvedValue(undefined)
+    const start = vi.fn().mockRejectedValue(new Error('worklet attach failed'))
+    const log = vi.fn()
+
+    await expect(startVoiceInputVadDetectionSafely({
+      init,
+      loaded: () => true,
+      start,
+      stream: {} as MediaStream,
+      log,
+    })).resolves.toBe(false)
+
+    expect(start).toHaveBeenCalledOnce()
+    expect(log).toHaveBeenCalledWith(
+      'error',
+      'vad-start-failed',
+      'VAD start against microphone stream failed.',
+      expect.objectContaining({
+        error: expect.any(Error),
+      }),
+    )
+  })
 })

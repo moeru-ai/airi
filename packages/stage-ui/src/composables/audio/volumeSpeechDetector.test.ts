@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createVolumeSpeechDetector } from './volume-speech-detector'
+import { createVolumeSpeechDetector } from './volumeSpeechDetector'
 
 describe('createVolumeSpeechDetector', () => {
   // https://github.com/moeru-ai/airi/issues/1832
