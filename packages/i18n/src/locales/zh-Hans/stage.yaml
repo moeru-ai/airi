@@ -20,6 +20,9 @@ send-mode:
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: 双击Enter
+speech-output:
+  mute: 静音语音
+  unmute: 恢复语音
 operations:
   load-models: 加载模型
   load-models-status:

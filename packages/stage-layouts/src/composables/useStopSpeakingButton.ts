@@ -5,20 +5,15 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 /**
- * Connects chat UI stop-speaking controls to the active stage speech output host.
+ * Connects chat speech controls to the active Stage output host.
  *
- * Use when:
- * - Chat input UI needs to stop assistant TTS playback without cancelling text generation.
- *
- * Expects:
- * - A Stage instance is mounted and consumes speech output stop requests.
- *
- * Returns:
- * - Visibility state for the button and click handlers for manual stops.
+ * Manual stops affect current playback without cancelling text generation.
+ * Mute is persisted by the shared store and also blocks future TTS sessions.
  */
 export function useStopSpeakingButton() {
   const { nowSpeaking } = storeToRefs(useSpeakingStore())
   const speechOutputControlStore = useSpeechOutputControlStore()
+  const { speechMuted } = storeToRefs(speechOutputControlStore)
   const { trackTtsStopClicked } = useAnalytics()
 
   const showStopSpeakingButton = computed(() => nowSpeaking.value)
@@ -35,7 +30,9 @@ export function useStopSpeakingButton() {
 
   return {
     showStopSpeakingButton,
+    speechMuted,
     stopSpeakingFromChat,
     stopAllSpeaking,
+    toggleSpeechMuted: speechOutputControlStore.toggleSpeechMuted,
   }
 }
