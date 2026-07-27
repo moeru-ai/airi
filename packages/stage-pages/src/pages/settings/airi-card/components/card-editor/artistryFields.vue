@@ -7,6 +7,8 @@ import { Button, Checkbox, FieldInput, FieldRange, Select } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+defineOptions({ name: 'CardEditorArtistryFields' })
+
 defineProps<{
   artistryProviderOptions: { value: string, label: string }[]
   defaultArtistryProviderPlaceholder: string

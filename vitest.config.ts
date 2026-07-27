@@ -16,6 +16,7 @@ export default defineConfig({
       'packages/scenarios-stage-tamagotchi-electron',
       'packages/server-runtime',
       'packages/server-sdk',
+      'packages/stage-pages',
       'packages/stage-shared',
     ],
   },

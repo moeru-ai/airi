@@ -1,6 +1,6 @@
 import type { Card } from '@proj-airi/ccc'
 
-import type { AiriExtension } from '../types/airiCard'
+import type { AiriExtension } from '../../types/airiCard'
 
 import {
   check,
@@ -68,6 +68,16 @@ const artistryOptionsSchema = pipe(
   check(isRecord),
   objectWithRest({}, unknown()),
 )
+
+/**
+ * Serializes all editor-owned fields into a stable dirty-check snapshot.
+ *
+ * The card and module state share one boundary so edits on tabs that are not
+ * currently visible still prevent accidental dialog closure.
+ */
+export function serializeAiriCardEditorDraft(card: Card, state: Record<string, unknown>): string {
+  return JSON.stringify({ card, state })
+}
 
 /**
  * Validates and normalizes the fields owned by the AIRI Card editor.

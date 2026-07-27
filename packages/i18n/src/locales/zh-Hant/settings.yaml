@@ -303,8 +303,13 @@ pages:
     active_badge: 目前使用中
     activation_notice: 已切換至 {name}，目前對話將使用此角色。
     cancel: 取消操作
-    save: 儲存變更
+    save: 儲存
     save_and_activate: 儲存並啟用
+    unsaved_changes:
+      title: 放棄未儲存的變更？
+      description: 目前修改尚未儲存，現在關閉將遺失這些修改。
+      keep_editing: 繼續編輯
+      discard: 放棄變更
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
@@ -325,6 +330,7 @@ pages:
     drop_here: 放開以上傳檔案
     create_card: 建立新角色卡
     edit_card: 編輯卡片
+    editor_description: 編輯角色的身分、行為、模組、生成設定和提示詞。
     creation:
       identity: 身分
       name: 名字

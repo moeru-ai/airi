@@ -8,7 +8,7 @@ import {
   compileCharacterCardSystemPrompt,
 } from './runtime'
 
-describe('character card runtime compiler', () => {
+describe('aIRI Card runtime compiler', () => {
   it('compiles stable character fields without resolving send-time macros', () => {
     const card = createCard({
       nickname: 'Stargazer',

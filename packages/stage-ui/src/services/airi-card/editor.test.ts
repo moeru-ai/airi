@@ -1,10 +1,10 @@
 import type { Card } from '@proj-airi/ccc'
 
-import type { AiriExtension } from '../types/airiCard'
+import type { AiriExtension } from '../../types/airiCard'
 
 import { describe, expect, it } from 'vitest'
 
-import { applyAiriCardEditorModules, safeParseAiriCardDraft } from './airi-card-editor'
+import { applyAiriCardEditorModules, safeParseAiriCardDraft, serializeAiriCardEditorDraft } from './editor'
 
 describe('airi card editor validation', () => {
   // https://github.com/moeru-ai/airi/issues/2108
@@ -68,6 +68,16 @@ describe('airi card editor validation', () => {
       return
 
     expect(result.output.artistryOptions).toBeUndefined()
+  })
+
+  it('tracks dirty state across card fields and module-only tabs', () => {
+    const card = createCard()
+    const state = createEditorState()
+    const initial = serializeAiriCardEditorDraft(card, state)
+
+    expect(serializeAiriCardEditorDraft({ ...card }, { ...state })).toBe(initial)
+    expect(serializeAiriCardEditorDraft({ ...card, name: 'Changed' }, state)).not.toBe(initial)
+    expect(serializeAiriCardEditorDraft(card, { ...state, speechVoiceId: 'new-voice' })).not.toBe(initial)
   })
 
   it('preserves AIRI extension fields that are not editable in the form', () => {
@@ -178,5 +188,26 @@ function createCard(): Card {
     version: '1.0',
     greetings: [],
     messageExample: [],
+  }
+}
+
+function createEditorState() {
+  return {
+    consciousnessProvider: 'chat',
+    consciousnessModel: 'chat-model',
+    visionProvider: 'vision',
+    visionModel: 'vision-model',
+    speechProvider: 'speech',
+    speechModel: 'speech-model',
+    speechVoiceId: 'voice',
+    displayModelId: 'avatar',
+    artistryProvider: 'image',
+    artistryModel: 'image-model',
+    artistryPromptPrefix: '',
+    artistryWidgetInstruction: '',
+    artistrySpawnMode: 'bg_widget' as const,
+    artistryAutonomousEnabled: false,
+    artistryAutonomousThreshold: 70,
+    artistryConfig: '{}',
   }
 }

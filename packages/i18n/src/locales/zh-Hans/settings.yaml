@@ -303,8 +303,13 @@ pages:
     active_badge: 当前使用中
     activation_notice: 已切换到 {name}，当前会话将使用该角色。
     cancel: 取消操作
-    save: 保存更改
+    save: 保存
     save_and_activate: 保存并激活
+    unsaved_changes:
+      title: 放弃未保存的更改？
+      description: 当前修改尚未保存，现在关闭将丢失这些修改。
+      keep_editing: 继续编辑
+      discard: 放弃更改
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
@@ -325,6 +330,7 @@ pages:
     drop_here: 放开以上传文件
     create_card: 创建新角色卡
     edit_card: 卡片编辑
+    editor_description: 编辑角色的身份、行为、模块、生成设置和提示词。
     creation:
       identity: 身份
       name: 名字
