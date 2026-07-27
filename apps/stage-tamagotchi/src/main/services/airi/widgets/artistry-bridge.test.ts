@@ -24,6 +24,22 @@ function createNeverSettlingCallbackProvider() {
   return provider
 }
 
+async function withCallbackProvider<T>(
+  providerId: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  const originalProvider = artistryProviders.get(providerId)
+  artistryProviders.set(providerId, createNeverSettlingCallbackProvider() as ArtistryProvider)
+
+  try {
+    return await callback()
+  }
+  finally {
+    if (originalProvider)
+      artistryProviders.set(providerId, originalProvider)
+  }
+}
+
 describe('generateHeadless', () => {
   beforeEach(() => {
     // generateHeadless always resolves the persisted artistry config through injeca,
@@ -107,5 +123,30 @@ describe('generateHeadless', () => {
       if (originalProvider)
         artistryProviders.set('comfyui', originalProvider)
     }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2083 (Codex review: scope ComfyUI timeout to ComfyUI headless runs)
+  it('keeps the default safety timeout for non-ComfyUI providers (Issue #2084)', async () => {
+    // ROOT CAUSE:
+    //
+    // The shared globals object includes comfyuiGenerationTimeoutMinutes even when
+    // another provider is active. Using that value unconditionally let a ComfyUI
+    // slider selection extend a stalled cloud provider's headless wait.
+    //
+    // We fixed this by applying the configured timeout only to ComfyUI. Other
+    // providers keep the existing five-minute safety-net timeout.
+    vi.useFakeTimers()
+
+    const pending = withCallbackProvider('nanobanana', () => generateHeadless({
+      prompt: 'a stalled cloud image',
+      provider: 'nanobanana',
+      globals: { comfyuiGenerationTimeoutMinutes: 10 },
+    }))
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 30_000 + 1_000)
+
+    await expect(pending).resolves.toEqual({
+      error: 'Image generation timed out after 5 minutes.',
+    })
   })
 })
