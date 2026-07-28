@@ -106,18 +106,18 @@ function toggleControls() {
   expanded.value = !expanded.value
 }
 
-function openSettingsWindow() {
-  trackControlsIslandAction({ action: 'open_settings' })
+function toggleSettingsWindow() {
+  trackControlsIslandAction({ action: 'toggle_settings' })
   openSettings({ route: '/settings' })
 }
 
-function openProfilePicker(toggle: () => void) {
-  trackControlsIslandAction({ action: 'open_profile_picker' })
+function toggleProfilePicker(toggle: () => void) {
+  trackControlsIslandAction({ action: 'toggle_profile_picker' })
   toggle()
 }
 
-function openChatWindow() {
-  trackControlsIslandAction({ action: 'open_chat' })
+function toggleChatWindow() {
+  trackControlsIslandAction({ action: 'toggle_chat' })
   openChat()
 }
 
@@ -203,7 +203,7 @@ function closeApplication() {
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
                 data-attr="controls-island-open-settings"
-                @click="openSettingsWindow"
+                @click="toggleSettingsWindow"
               >
                 <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
@@ -219,7 +219,7 @@ function closeApplication() {
                     :button-style="adjustStyleClasses.button"
                     :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
                     data-attr="controls-island-open-profile-picker"
-                    @click="openProfilePicker(toggle)"
+                    @click="toggleProfilePicker(toggle)"
                   >
                     <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                   </ControlButton>
@@ -336,7 +336,7 @@ function closeApplication() {
             :button-style="adjustStyleClasses.button"
             :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
             data-attr="controls-island-open-chat"
-            @click="openChatWindow"
+            @click="toggleChatWindow"
           >
             <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
           </ControlButton>

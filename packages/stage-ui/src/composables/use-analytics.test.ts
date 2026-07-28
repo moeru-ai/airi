@@ -998,11 +998,11 @@ describe('useAnalytics conversation product events', () => {
     analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
     const analytics = useAnalytics()
 
-    analytics.trackControlsIslandAction({ action: 'open_chat' })
+    analytics.trackControlsIslandAction({ action: 'toggle_chat' })
     analytics.trackControlsIslandAction({ action: 'refresh_window' })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'controls_island_action', {
-      action: 'open_chat',
+      action: 'toggle_chat',
       app_surface: 'electron',
     })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
