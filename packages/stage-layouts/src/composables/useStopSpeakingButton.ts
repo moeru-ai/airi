@@ -1,3 +1,5 @@
+import type { SpeechMuteAnalyticsSource } from '@proj-airi/stage-ui/composables/use-analytics'
+
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
@@ -14,7 +16,7 @@ export function useStopSpeakingButton() {
   const { nowSpeaking } = storeToRefs(useSpeakingStore())
   const speechOutputControlStore = useSpeechOutputControlStore()
   const { speechMuted } = storeToRefs(speechOutputControlStore)
-  const { trackTtsStopClicked } = useAnalytics()
+  const { trackSpeechMuteToggled, trackTtsStopClicked } = useAnalytics()
 
   const showStopSpeakingButton = computed(() => nowSpeaking.value)
 
@@ -28,11 +30,23 @@ export function useStopSpeakingButton() {
     speechOutputControlStore.requestStopSpeaking('manual-all')
   }
 
+  function toggleSpeechMuted(source: SpeechMuteAnalyticsSource) {
+    const muted = !speechMuted.value
+    const wasSpeaking = nowSpeaking.value
+
+    speechOutputControlStore.setSpeechMuted(muted)
+    trackSpeechMuteToggled({
+      muted,
+      source,
+      was_speaking: wasSpeaking,
+    })
+  }
+
   return {
     showStopSpeakingButton,
     speechMuted,
     stopSpeakingFromChat,
     stopAllSpeaking,
-    toggleSpeechMuted: speechOutputControlStore.toggleSpeechMuted,
+    toggleSpeechMuted,
   }
 }

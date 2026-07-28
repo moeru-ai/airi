@@ -32,7 +32,7 @@ const { t } = useI18n()
           :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
           :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
           :aria-pressed="speechMuted"
-          @click="toggleSpeechMuted"
+          @click="toggleSpeechMuted('window_title_bar')"
         >
           <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
           <div v-else class="i-solar:volume-loud-bold-duotone" />

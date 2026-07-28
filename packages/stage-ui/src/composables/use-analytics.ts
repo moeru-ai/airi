@@ -22,6 +22,11 @@ export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
  */
 export type ConversationAnalyticsSource = 'chat_controls' | 'history' | 'sessions_drawer'
 
+/**
+ * Stable UI entry points for the persistent speech mute control.
+ */
+export type SpeechMuteAnalyticsSource = 'chat_toolbar' | 'mobile_action_rail' | 'window_title_bar'
+
 export type ProviderMode = 'official' | 'custom' | 'unknown'
 export type ChatActivationFailureStage = 'provider_config' | 'model_list' | 'message_send' | 'llm_response' | 'tts'
 export type ProviderConfigStep = 'settings_auto_validate' | 'manual_chat_ping' | 'onboarding_validate'
@@ -649,6 +654,19 @@ export function useAnalytics() {
     if (!canCapture())
       return
     posthog.capture('tts_stop_clicked', {
+      ...properties,
+      app_surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackSpeechMuteToggled(properties: {
+    muted: boolean
+    was_speaking: boolean
+    source: SpeechMuteAnalyticsSource
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('speech_mute_toggled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1305,6 +1323,7 @@ export function useAnalytics() {
     trackProviderConfigCompleted,
     trackOfficialProviderEnabled,
     trackTtsStopClicked,
+    trackSpeechMuteToggled,
     trackChatSessionSelected,
     trackChatMessageDeleted,
     trackChatMessagesCleared,
