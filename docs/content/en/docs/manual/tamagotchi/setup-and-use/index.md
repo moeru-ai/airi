@@ -137,27 +137,27 @@ On macOS, icons may be hidden behind the notch (especially on MacBook built-in d
 
 Right-click on the AIRI icon and you will see ten options:
 
-- "Display" - Summons the main window, generally not used.
-- "Resize" - adjust the window size of the main window and also center the main window. Contains four sub-options:
-- "Recommended (450x600)" - Set to the recommended size of 450x600.
-- "Full Height" - Make the height of the main window fill the height of the desktop.
-- "Half Height" - Make the height of the main window half the height of the desktop.
-- "Full Screen" - makes the main window fill the entire desktop.
+- "Show" - Summons the main window, generally not used.
+- "Adjust sizes" - Adjust the window size of the main window and also center the main window. Contains four sub-options:
+  - "Recommended (450x600)" - Set to the recommended size of 450x600.
+  - "Full Height" - Make the height of the main window fill the height of the desktop.
+  - "Half Height" - Make the height of the main window half the height of the desktop.
+  - "Full Screen" - Make the main window fill the entire desktop.
 - "Align to" - Align the main window to a specific position on the desktop. Contains five sub-options:
-- "Centered" - align to the middle of the desktop.
-- "Top Left" - Align to the upper left corner of the desktop.
-- "Top right" - align to the upper right corner of the desktop.
-- "Lower left" - align to the lower left corner of the desktop.
-- "Bottom Right" - Align to the lower right corner of the desktop.
-- "Settings" - Open the settings interface.
-- "About" - Open the About window, you can view the version number, visit the project homepage, update AIRI and select the update channel.
-- "Open quick actions" - opens a floating input box. Press Enter after entering a short request to AIRI. The window will hide and the processing results will be displayed as a notification; press Esc to cancel.
-- "Open widget" - open the widget window. Widgets provided by maps, weather, art, or extensions will appear here; the window may be empty when the tool or extension is not running.
-- "Turn on subtitles" - turn on subtitles. Only when the TTS service is enabled will the text be displayed when AIRI is speaking, and will be hidden by default when the mouse cursor is hovering.
-- "Subtitle floating window" - includes two sub-options:
-- "Follow window" - This mode is selected by default. At this time, the position of the subtitle window will move with the main window; if unchecked, the position of the subtitles will be independent.
-- "Reset position" - reset the subtitle position.
-- "Exit" - close AIRI with one click.
+  - "Center" - Align to the middle of the desktop.
+  - "Top Left" - Align to the upper-left corner of the desktop.
+  - "Top Right" - Align to the upper-right corner of the desktop.
+  - "Bottom Left" - Align to the lower-left corner of the desktop.
+  - "Bottom Right" - Align to the lower-right corner of the desktop.
+- "Settings..." - Open the settings interface.
+- "About..." - Open the About window, where you can view the version number, visit the project homepage, update AIRI, and select the update channel.
+- "Open Inlay..." - Open a floating input box. Press Enter after entering a short request to AIRI. The window will hide and the processing results will be displayed as a notification; press Esc to cancel.
+- "Open Widgets..." - Open the widget window. Widgets provided by maps, weather, art, or extensions will appear here; the window may be empty when the tool or extension is not running.
+- "Open Caption..." / "Close Caption..." - Open or close captions. When the TTS service is enabled, text is displayed while AIRI is speaking and hidden by default while the mouse cursor is hovering.
+- "Caption Overlay" - Contains two sub-options:
+  - "Follow window" - This mode is selected by default. The caption window then moves with the main window; if unchecked, its position is independent.
+  - "Reset position" - Reset the caption position.
+- "Quit" - Close AIRI.
 
 
 
