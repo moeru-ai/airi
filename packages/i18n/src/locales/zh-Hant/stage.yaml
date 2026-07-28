@@ -1,6 +1,10 @@
 chat:
   actions:
     retry: 重試
+  provider-configuration:
+    title: 尚未正確設定聊天 Provider
+    description: 請先前往設定頁面選擇並驗證一個 Provider，再傳送訊息。
+    action: 開啟 Provider 設定
   message:
     character-name:
       airi: AIRI

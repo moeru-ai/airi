@@ -1,6 +1,10 @@
 chat:
   actions:
     retry: Retry
+  provider-configuration:
+    title: チャット Provider が設定されていません
+    description: メッセージを送信する前に、設定で Provider を選択して検証してください。
+    action: Provider 設定を開く
   message:
     character-name:
       airi: AIRI

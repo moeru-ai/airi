@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
+import type { SettingsWindowManager } from './windows/settings'
 
 import process, { env, platform } from 'node:process'
 
@@ -202,9 +203,28 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
   })
 
+  let settingsWindowManager: SettingsWindowManager | undefined
+
+  // NOTICE:
+  // The Chat renderer needs to open Settings, but directly adding Settings to
+  // Chat's injeca dependencies would create Settings -> Spotlight -> Chat ->
+  // Settings. The manager is fully built before Main exposes either window to
+  // user input, so the callback can safely resolve it at invocation time.
+  // Source/context: `windows/settings/index.ts` and `windows/spotlight/index.ts`.
+  // Remove this indirection once window invokes support shared/namespaced
+  // handlers that do not require each renderer to own the same registration.
+  const openSettingsWindowFromChat: SettingsWindowManager['openWindow'] = (route) => {
+    if (!settingsWindowManager)
+      return Promise.reject(new Error('Settings window manager is not initialized.'))
+    return settingsWindowManager.openWindow(route)
+  }
+
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
-    build: ({ dependsOn }) => setupChatWindowReusableFunc(dependsOn),
+    build: ({ dependsOn }) => setupChatWindowReusableFunc({
+      ...dependsOn,
+      openSettingsWindow: openSettingsWindowFromChat,
+    }),
   })
 
   const spotlightWindow = injeca.provide('windows:spotlight', {
@@ -214,11 +234,13 @@ app.whenReady().then(async () => {
 
   const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, spotlightWindow },
-    build: async ({ dependsOn }) =>
-      setupSettingsWindowReusableFunc({
+    build: async ({ dependsOn }) => {
+      settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
-      }),
+      })
+      return settingsWindowManager
+    },
   })
 
   const mainWindow = injeca.provide('windows:main', {

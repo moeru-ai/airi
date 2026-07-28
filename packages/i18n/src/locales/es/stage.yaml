@@ -1,6 +1,10 @@
 chat:
   actions:
     retry: Reintentar
+  provider-configuration:
+    title: El Provider de chat no está configurado
+    description: Elige y valida un Provider en Ajustes antes de enviar un mensaje.
+    action: Abrir ajustes del Provider
   message:
     character-name:
       airi: AIRI
