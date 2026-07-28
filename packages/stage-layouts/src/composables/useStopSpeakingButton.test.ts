@@ -76,7 +76,7 @@ describe('useStopSpeakingButton', () => {
     })
   })
 
-  it('tracks mute and unmute with the entry surface and active playback state', () => {
+  it('tracks mute and unmute with the active playback state', () => {
     speechMuted.value = false
     nowSpeaking.value = true
     setSpeechMutedMock.mockClear()
@@ -84,24 +84,22 @@ describe('useStopSpeakingButton', () => {
 
     const controls = useStopSpeakingButton()
 
-    controls.toggleSpeechMuted('chat_toolbar')
+    controls.toggleSpeechMuted()
 
     expect(setSpeechMutedMock).toHaveBeenCalledWith(true)
     expect(trackSpeechMuteToggledMock).toHaveBeenCalledWith({
       muted: true,
-      source: 'chat_toolbar',
       was_speaking: true,
     })
 
     speechMuted.value = true
     nowSpeaking.value = false
 
-    controls.toggleSpeechMuted('window_title_bar')
+    controls.toggleSpeechMuted()
 
     expect(setSpeechMutedMock).toHaveBeenLastCalledWith(false)
     expect(trackSpeechMuteToggledMock).toHaveBeenLastCalledWith({
       muted: false,
-      source: 'window_title_bar',
       was_speaking: false,
     })
   })

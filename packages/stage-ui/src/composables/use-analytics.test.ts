@@ -89,13 +89,11 @@ describe('useAnalytics conversation product events', () => {
     analytics.trackSpeechMuteToggled({
       muted: true,
       was_speaking: true,
-      source: 'chat_toolbar',
     })
 
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('speech_mute_toggled', {
       app_surface: 'web',
       muted: true,
-      source: 'chat_toolbar',
       was_speaking: true,
     })
   })
