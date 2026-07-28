@@ -20,6 +20,9 @@ send-mode:
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: Double Enter
+speech-output:
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: Load Models
   load-models-status:

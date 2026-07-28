@@ -180,15 +180,6 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
-                <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-chat') }}
-              </template>
-            </ControlButtonTooltip>
-
-            <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
                 <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
@@ -254,6 +245,15 @@ function resetMainWindowPosition() {
           </ControlButton>
           <template #tooltip>
             {{ expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand') }}
+          </template>
+        </ControlButtonTooltip>
+
+        <ControlButtonTooltip side="left">
+          <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+            <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+          </ControlButton>
+          <template #tooltip>
+            {{ t('tamagotchi.stage.controls-island.open-chat') }}
           </template>
         </ControlButtonTooltip>
 

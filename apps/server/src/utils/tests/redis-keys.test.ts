@@ -5,6 +5,7 @@ import {
   lockRedisKey,
   redisKeyFrom,
   userChatBroadcastRedisKey,
+  userChatBroadcastRedisPattern,
   userFluxRedisKey,
 } from '../redis-keys'
 
@@ -23,6 +24,7 @@ describe('redis key utils', () => {
     expect(configRedisKey('FLUX_PER_REQUEST')).toBe('config:FLUX_PER_REQUEST')
     expect(userFluxRedisKey('user-1')).toBe('user:user-1:flux')
     expect(userChatBroadcastRedisKey('user-1')).toBe('user:user-1:chat:broadcast')
+    expect(userChatBroadcastRedisPattern()).toBe('user:*:chat:broadcast')
     expect(lockRedisKey('user', 'user-1', 'flux')).toBe('lock:user:user-1:flux')
   })
 })

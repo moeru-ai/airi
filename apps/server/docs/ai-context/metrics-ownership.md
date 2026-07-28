@@ -101,7 +101,7 @@
 | 域 | 代表性指标 | Truth | 备注 |
 |---|---|---|---|
 | HTTP | `http_server_request_duration_seconds_*` | Grafana | OTel 标准 |
-| WS | `ws_connections_active` / `ws_messages_*_total` | Grafana | |
+| WS | `ws_users_online` / `ws_connections_active` / `ws_messages_*_total` | Grafana | `ws_users_online` 是 Redis Pub/Sub channel 去重后的集群在线用户数；连接数仍用于排查多标签页和连接泄漏 |
 | LLM | `gen_ai_client_operation_count_total` / `gen_ai_client_first_token_duration_seconds` | Grafana | |
 | Billing | `airi_billing_flux_unbilled_total` | Grafana | **告警必须**：`increase(airi_billing_flux_unbilled_total[5m]) > 0` |
 | Auth | `user_active_sessions` / `user_distinct_active` | Postgres → Grafana 派生 | 集群级 gauge，用 `avg()` 不要 `sum()`。两个一起看：`user_active_sessions` = `COUNT(*)`（session row 数，会膨胀）, `user_distinct_active` = `COUNT(DISTINCT user_id)`（真实活跃用户数）|
@@ -219,9 +219,8 @@ PostHog UI 配 cohort：
 Dashboard 上 follow 这条 panel 链可以从"出事了"一路 drill 到"哪个 trace 是真凶"：
 
 1. **panel-4 `5xx Rate %`**（Row 1）— 数字 / gauge 颜色变红，说明出事
-2. **panel-9 `Top Routes by 5xx`**（Row 2 donut）— "现在哪些 route 在失败"
-3. **panel-44 `5xx Rate by Route`**（Row 5.5 timeseries）— "什么时候开始的、是单点还是普遍"
-4. **panel-91 `5xx Error Logs`**（Row 8 上半）— 实际错误消息，里面有 `trace_id` field 可点 → Tempo 看完整 trace 回放
+2. **panel-94 `Errors by Route`**（HTTP row）— "什么时候开始的、哪些 route / status 在失败"
+3. **panel-91 `Warn / Error Logs`**（Logs row）— 实际 warn/error 消息，里面有 `trace_id` field 可点 → Tempo 看完整 trace 回放
 
 ### Tempo / Loki derived fields 配置（一次性）
 

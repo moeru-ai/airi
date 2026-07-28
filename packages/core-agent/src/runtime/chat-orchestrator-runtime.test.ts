@@ -236,6 +236,34 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.promptProjections).toHaveLength(1)
   })
 
+  // ROOT CAUSE:
+  //
+  // Speech-muted consumers dispatch plugin CALL markers without a TTS
+  // session. If the hook context has no turn id, a locally unhandled call
+  // cannot be correlated and relayed to another Electron renderer.
+  it('preserves the round turn id on special-token hooks', async () => {
+    const harness = createHarness()
+    let specialTurnId = ''
+
+    harness.runtime.hooks.onTokenSpecial(async (_special, context) => {
+      specialTurnId = context.turnId
+    })
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '<|CALL ["plugin.action"]|>' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('trigger special', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(specialTurnId).toBe('user-id')
+    expect(harness.telemetry.messageSendStarted).toEqual([
+      expect.objectContaining({ roundId: specialTurnId }),
+    ])
+  })
+
   it('keeps timestamp prefixes stable for legacy user messages without createdAt', async () => {
     const harness = createHarness()
     const legacyUserMessage: ChatHistoryItem = {

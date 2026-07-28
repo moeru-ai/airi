@@ -196,7 +196,7 @@ span name 目前允许保留业务可读格式，例如：
 | `Counter` | ✅ | `sum(rate(x[5m]))` | 每副本本地累加，`rate()` 自动处理重启 |
 | `Histogram` | ✅ | `histogram_quantile(0.95, sum by (le, ...) (rate(x_bucket[5m])))` | 每副本本地 bucket，`sum by (le)` 合并 |
 | `ObservableGauge`（**per-replica 状态**，如 `ws.connections.active`） | ✅ | `sum(x)` | callback 读本地 registry，所有副本求和 = 集群总量 |
-| `ObservableGauge`（**cluster-wide 状态**，如 `user.active_sessions`） | ⚠️ | `max(x)` 或 `avg(x)` | 所有副本读同一份外部状态（DB），sum 会乘以副本数 |
+| `ObservableGauge`（**cluster-wide 状态**，如 `user.active_sessions` / `ws.users.online`） | ⚠️ | `max(x)` 或 `avg(x)` | 所有副本读同一份外部状态（DB / Redis），sum 会乘以副本数 |
 | `UpDownCounter` | ⚠️ | 看场景 | 必须保证 `+1` 和 `-1` 在**同一副本**触发；否则单副本永久 +N 另一副本永久 -N |
 
 ### `UpDownCounter` 红线
@@ -233,9 +233,11 @@ span name 目前允许保留业务可读格式，例如：
 | 集群总量（per-replica gauge） | `sum(x{...})` |
 | 集群唯一值（cluster-wide gauge） | `max(x{...})` 或 `avg(x{...})` |
 | 按副本拆分调试 | `<agg> by (service_instance_id) (x{...})` |
-| 错误率 | `100 * sum(rate(x_total{...,status_code=~"5.."}[5m])) / clamp_min(sum(rate(x_total{...}[5m])), 1)` |
+| 错误率 | `100 * sum(rate(x_total{...,status_code=~"5.."}[5m])) / sum(rate(x_total{...}[5m]))` |
 
 红线：**任何 cumulative counter 都不能直接 `sum()` 不 wrap rate/increase**。Counter 在副本重启时归零，没有 rate() 包裹 Prometheus 会跳变；用 `increase($__range)` 看「时间窗口内总量」，用 `rate([interval])` 看「当前速率」。
+
+比例的分母也不能用 `clamp_min(rate(...), 1)` 防零：这会在流量低于 1 req/s 时系统性低估错误率。零流量应由 Grafana 的 no-value 展示策略处理，不应修改真实分母。
 
 ### 「按副本拆分」何时加
 

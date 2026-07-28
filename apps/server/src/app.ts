@@ -54,6 +54,7 @@ import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-
 import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
 import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
+import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
 import { createAdminCapabilityAliasRoutes } from './routes/admin/capability-aliases'
@@ -838,6 +839,7 @@ export async function createApp() {
     registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
+    registerWsOnlineUsersGauge(resolved.otel.engagement.wsUsersOnline, resolved.redis, resolved.otel.observability.metricReadErrors)
   }
 
   const { app, injectWebSocket } = await buildApp({
