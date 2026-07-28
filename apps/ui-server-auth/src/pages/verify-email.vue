@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { VerifyEmailBroadcastEvent } from '../modules/verify-email-resume'
+
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useBroadcastChannel } from '@vueuse/core'
 import { computed, onMounted, watch } from 'vue'
@@ -7,6 +9,12 @@ import { useRoute } from 'vue-router'
 
 import { trackEmailVerificationCompleted, trackEmailVerificationFailed } from '../modules/analytics'
 import { API_SERVER_URL_QUERY_PARAM, getServerAuthBootstrapContext } from '../modules/server-auth-context'
+import {
+  broadcastMatchesContinuation,
+  buildVerifyEmailBroadcastEvent,
+  normalizeTrustedAuthorizeContinueUrl,
+  shouldVerifiedSuccessTabNavigate,
+} from '../modules/verify-email-resume'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -42,24 +50,34 @@ const continueURL = computed(() => {
 //
 // Do not poll /get-session: an abandoned pending tab would burn request quota.
 //
-// After verification, resume with a top-level navigation to continueURL.
-// A credentials fetch to /get-session from a cross-site auth UI host cannot
-// see the API session cookie (SameSite); authorize navigation can.
+// Web OIDC: the verified-success tab must NOT navigate to continueURL itself —
+// that tab lacks the original tab's PKCE sessionStorage. It only broadcasts a
+// continuation-keyed event so the matching pending tab can resume.
+//
+// Steam enrollment: continueURL carries enrollToken and Electron owns PKCE on
+// the loopback side, so the email success tab may navigate after trust checks.
+//
 // pending-mount still probes get-session for same-site / already-verified reload.
-type VerifyEmailEvent = 'verified'
-const { post, data, isSupported } = useBroadcastChannel<VerifyEmailEvent, VerifyEmailEvent>({
+const { post, data, isSupported } = useBroadcastChannel<VerifyEmailBroadcastEvent, VerifyEmailBroadcastEvent | string>({
   name: 'airi-auth-verify-email',
 })
 
 function navigateToContinue(): boolean {
-  if (!continueURL.value)
+  const trusted = normalizeTrustedAuthorizeContinueUrl(continueURL.value)
+  if (!trusted)
     return false
-  window.location.href = continueURL.value
+  window.location.href = trusted
   return true
 }
 
 async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'verified-success'): Promise<boolean> {
-  if (source === 'broadcast' || source === 'verified-success')
+  if (source === 'verified-success') {
+    if (!shouldVerifiedSuccessTabNavigate(continueURL.value))
+      return false
+    return navigateToContinue()
+  }
+
+  if (source === 'broadcast')
     return navigateToContinue()
 
   try {
@@ -84,8 +102,9 @@ async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'ver
 onMounted(async () => {
   if (verified.value) {
     trackEmailVerificationCompleted()
-    if (isSupported.value)
-      post('verified')
+    const event = buildVerifyEmailBroadcastEvent(continueURL.value)
+    if (isSupported.value && event)
+      post(event)
     if (continueURL.value)
       await resumeIfSessionReady('verified-success')
     return
@@ -101,7 +120,9 @@ onMounted(async () => {
 })
 
 watch(data, async (event) => {
-  if (event !== 'verified' || verified.value || error.value)
+  if (verified.value || error.value)
+    return
+  if (!broadcastMatchesContinuation(event, continueURL.value))
     return
 
   await resumeIfSessionReady('broadcast')

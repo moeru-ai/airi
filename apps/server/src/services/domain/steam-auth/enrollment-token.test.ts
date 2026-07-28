@@ -87,6 +87,34 @@ describe('enrollment token', () => {
       expect(await consumeEnrollmentToken(db, 'does-not-exist')).toBeNull()
     })
 
+    // https://github.com/moeru-ai/airi/pull/1966#discussion_r3611541086
+    // ROOT CAUSE:
+    //
+    // Token consumption deleted by verification row ID before checking the
+    // reserved Steam identifier prefix. A caller could therefore consume an
+    // unrelated verification flow's row even though this function returned null.
+    //
+    // Before the patch, the foreign row below was deleted.
+    //
+    // We fixed this by including the Steam identifier prefix in the atomic
+    // delete predicate.
+    it('does not delete a foreign verification token (PR #1966)', async () => {
+      const now = new Date()
+      await db.insert(verification).values({
+        id: 'foreign-verification-token',
+        identifier: 'email-verification:user@example.com',
+        value: 'foreign-verification-value',
+        expiresAt: new Date(now.getTime() + 60_000),
+        createdAt: now,
+        updatedAt: now,
+      })
+
+      expect(await consumeEnrollmentToken(db, 'foreign-verification-token')).toBeNull()
+      const rows = await db.select().from(verification).where(eq(verification.id, 'foreign-verification-token'))
+      expect(rows).toHaveLength(1)
+      expect(rows[0]?.identifier).toBe('email-verification:user@example.com')
+    })
+
     it('returns null for an expired token (and deletes it)', async () => {
       const token = await createEnrollmentToken(db, { steamId: '76561198000000024', profile: null })
       // Force expiry by backdating the row.

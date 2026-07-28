@@ -1,6 +1,8 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
+import type { SteamExchangeResult } from './steam-sign-in'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -17,7 +19,7 @@ import {
   electronAuthLogout,
   electronAuthStartLogin,
 } from '../../../shared/eventa'
-import { getWebApiTicket, initSteam } from '../steam/client'
+import { cancelWebApiTicket, getWebApiTicket, initSteam } from '../steam/client'
 import { startLoopbackServer } from './http-server/http/auth'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
@@ -35,6 +37,8 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
 let signingInFlight = false
+/** Serializes Steam ticket exchange + enrollment handoff across entry points. */
+let steamSignInInFlight = false
 
 export interface TokenExchangeResult {
   accessToken: string
@@ -213,35 +217,55 @@ async function startSteamSignIn(
   windowAuthManager: WindowAuthManager,
   options: { openBrowserOnNeedsEnrollment: boolean },
 ): Promise<void> {
-  const ticketResult = await getWebApiTicket()
-  if (!ticketResult.ok) {
-    windowAuthManager.broadcastAuthError(ticketResult.reason)
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3642770345
+  // Ticket exchange must be single-flight: concurrent calls would each mint an
+  // enrollment token and createEnrollmentToken() deletes the prior unused row.
+  if (steamSignInInFlight) {
+    log.warn('Ignoring concurrent Steam sign-in while another exchange is in flight')
     return
   }
 
-  const exchangeResult = await exchangeSteamTicketForTokens({
-    serverUrl: SERVER_URL,
-    ticketHex: ticketResult.ticketHex,
-  })
-
-  if (!exchangeResult.ok) {
-    if (exchangeResult.kind === 'needs_enrollment') {
-      if (options.openBrowserOnNeedsEnrollment) {
-        await startEnrollmentFlow(windowAuthManager, {
-          enrollToken: exchangeResult.enrollToken,
-          authUiUrl: exchangeResult.authUiUrl,
-        })
-      }
-      // Startup path discards the token; the user's click re-fetches a fresh
-      // one so the short TTL covers only the browser → verify → relay window.
+  steamSignInInFlight = true
+  try {
+    const ticketResult = await getWebApiTicket()
+    if (!ticketResult.ok) {
+      windowAuthManager.broadcastAuthError(ticketResult.reason)
       return
     }
-    windowAuthManager.broadcastAuthError(exchangeResult.reason)
-    return
-  }
 
-  windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
-  log.log('Steam sign-in successful')
+    let exchangeResult: SteamExchangeResult
+    try {
+      exchangeResult = await exchangeSteamTicketForTokens({
+        serverUrl: SERVER_URL,
+        ticketHex: ticketResult.ticketHex,
+      })
+    }
+    finally {
+      cancelWebApiTicket(ticketResult.authTicket)
+    }
+
+    if (!exchangeResult.ok) {
+      if (exchangeResult.kind === 'needs_enrollment') {
+        if (options.openBrowserOnNeedsEnrollment) {
+          await startEnrollmentFlow(windowAuthManager, {
+            enrollToken: exchangeResult.enrollToken,
+            authUiUrl: exchangeResult.authUiUrl,
+          })
+        }
+        // Startup path discards the token; the user's click re-fetches a fresh
+        // one so the short TTL covers only the browser → verify → relay window.
+        return
+      }
+      windowAuthManager.broadcastAuthError(exchangeResult.reason)
+      return
+    }
+
+    windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
+    log.log('Steam sign-in successful')
+  }
+  finally {
+    steamSignInInFlight = false
+  }
 }
 
 /**

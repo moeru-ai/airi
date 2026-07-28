@@ -2,7 +2,7 @@ import type { Database } from '../../../libs/db'
 
 import { randomUUID } from 'node:crypto'
 
-import { eq } from 'drizzle-orm'
+import { and, eq, like } from 'drizzle-orm'
 
 import { verification } from '../../../schemas/accounts'
 
@@ -76,14 +76,15 @@ export async function createEnrollmentToken(
  * - The OIDC authorize choke point resolves the authenticated session and is
  *   about to issue a code; it consumes the token and links Steam first.
  *
- * The DELETE-RETURNING makes consumption single-use across concurrent
- * requests; expiry + identifier prefix are validated post-delete so an
- * already-used / expired / foreign token resolves to `null`.
+ * The DELETE-RETURNING matches both the row id and reserved identifier prefix,
+ * keeping consumption single-use across concurrent requests without touching
+ * other verification flows. Expiry is validated post-delete so stale Steam
+ * enrollment rows are cleaned up while resolving to `null`.
  *
  * Returns:
  * - The bound `{ steamId, profile }` when the token was valid and is now
  *   consumed, else `null` (row already gone, expired, or not an enrollment
- *   token). In all non-null cases the row is deleted.
+ *   token). Foreign verification rows are left untouched.
  */
 export async function consumeEnrollmentToken(
   db: Database,
@@ -91,7 +92,10 @@ export async function consumeEnrollmentToken(
 ): Promise<EnrollmentTokenPayload | null> {
   const deleted = await db
     .delete(verification)
-    .where(eq(verification.id, token))
+    .where(and(
+      eq(verification.id, token),
+      like(verification.identifier, `${ENROLLMENT_IDENTIFIER_PREFIX}%`),
+    ))
     .returning({
       identifier: verification.identifier,
       value: verification.value,
@@ -102,8 +106,6 @@ export async function consumeEnrollmentToken(
   if (!row)
     return null
   if (new Date(row.expiresAt).getTime() <= Date.now())
-    return null
-  if (!row.identifier.startsWith(ENROLLMENT_IDENTIFIER_PREFIX))
     return null
 
   const steamId = row.identifier.slice(ENROLLMENT_IDENTIFIER_PREFIX.length)

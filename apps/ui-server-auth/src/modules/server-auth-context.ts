@@ -103,7 +103,18 @@ export function resolveStandaloneServerAuthContext(currentUrl: string, fallbackA
   }
 }
 
-function normalizeTrustedApiServerUrl(value: string | null): string | null {
+/**
+ * Normalizes a trusted AIRI API server URL to its supported origin.
+ *
+ * Before:
+ * - `"https://api.airi.build/api/auth/oauth2/authorize"`
+ * - `"https://attacker.example/api/auth/oauth2/authorize"`
+ *
+ * After:
+ * - `"https://api.airi.build"`
+ * - `null`
+ */
+export function normalizeTrustedApiServerUrl(value: string | null): string | null {
   if (!value)
     return null
 

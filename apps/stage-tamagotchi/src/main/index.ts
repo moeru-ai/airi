@@ -23,6 +23,7 @@ import icon from '../../resources/icon.png?asset'
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { installSingleInstanceGuard } from './app/single-instance'
+import { resolveUserDataPath } from './app/userData'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
@@ -38,6 +39,7 @@ import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
+import { shutdownSteam } from './services/steam/client'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -64,7 +66,11 @@ setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
 
-const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
+const appUserDataPath = resolveUserDataPath({
+  defaultPath: app.getPath('userData'),
+  distribution: import.meta.env.VITE_DISTRIBUTION,
+  overridePath: env.APP_USER_DATA_PATH,
+})
 if (appUserDataPath) {
   app.setPath('userData', appUserDataPath)
 }
@@ -335,6 +341,8 @@ async function handleAppExit() {
   await Promise.all([
     logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
     logIfError('stop injeca', () => injeca.stop()),
+    // https://github.com/moeru-ai/airi/pull/1966#discussion_r3622685118
+    logIfError('shut down Steam SDK', () => shutdownSteam()),
   ])
 
   // Prevent the global log hook from trying to write to the file after close() is called,

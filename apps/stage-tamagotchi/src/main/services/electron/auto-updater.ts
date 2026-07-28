@@ -268,7 +268,69 @@ function isPrereleaseVersion(version: string) {
   return (semver.prerelease(version)?.length ?? 0) > 0
 }
 
+/** Steam depot builds must not follow the GitHub electron-updater feed. */
+export function shouldDisableGitHubUpdater(
+  distribution: string | undefined = import.meta.env.VITE_DISTRIBUTION,
+): boolean {
+  return distribution === 'steam'
+}
+
+function createDisabledAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
+  const hooks = new Set<(state: AutoUpdaterState) => void>()
+  let state: AutoUpdaterState = { status: 'idle' }
+  let storedPreferredLane = options.getStoredUpdateLane?.()
+
+  function broadcast(next: AutoUpdaterState) {
+    state = next
+    for (const hook of hooks) {
+      try {
+        hook(state)
+      }
+      catch {}
+    }
+  }
+
+  return {
+    get state() {
+      return state
+    },
+    async checkForUpdates() {
+      broadcast({ status: 'idle' })
+    },
+    async downloadUpdate() {},
+    async quitAndInstall() {},
+    getPreferredUpdateLane() {
+      return storedPreferredLane
+    },
+    async setPreferredUpdateLane(lane) {
+      if (storedPreferredLane === lane)
+        return
+      storedPreferredLane = lane
+      options.setStoredUpdateLane?.(lane)
+      broadcast({ status: 'idle' })
+    },
+    subscribe(callback) {
+      hooks.add(callback)
+      try {
+        callback(state)
+      }
+      catch {}
+      return () => {
+        hooks.delete(callback)
+      }
+    },
+  }
+}
+
 export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
+  // NOTICE:
+  // Steam depot builds must not consume the GitHub electron-updater feed. A
+  // user who installs that update would replace the Steam-packaged binary and
+  // lose Steam redistributables / silent Steam sign-in.
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3619097247
+  if (shouldDisableGitHubUpdater())
+    return createDisabledAutoUpdater(options)
+
   const semaphore = new Semaphore(1)
   const appVersion = app.getVersion()
   const isPrereleaseBuild = isPrereleaseVersion(appVersion)

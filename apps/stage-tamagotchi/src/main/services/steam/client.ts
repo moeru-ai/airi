@@ -1,3 +1,5 @@
+import type { HAuthTicket } from 'steamworks-ffi-node'
+
 import type { SteamInitResult, SteamTicketResult } from './types'
 
 import process from 'node:process'
@@ -121,7 +123,25 @@ export async function getWebApiTicket(): Promise<SteamTicketResult> {
     }
   }
 
-  return { ok: true, ticketHex: result.ticketHex }
+  return {
+    ok: true,
+    authTicket: result.authTicket,
+    ticketHex: result.ticketHex,
+  }
+}
+
+/**
+ * Invalidates a Web API ticket after the server exchange that consumed it.
+ *
+ * Steam keeps successful ticket handles active until they are cancelled or
+ * the SDK shuts down. Calling this after each exchange limits both the native
+ * resource lifetime and the window in which the ticket remains valid.
+ */
+export function cancelWebApiTicket(authTicket: HAuthTicket): void {
+  if (!steamInitialized || !steam)
+    return
+
+  steam.user.cancelAuthTicket(authTicket)
 }
 
 export function shutdownSteam(): void {

@@ -16,10 +16,9 @@ const STEAM_PROVIDER_ID = 'steam'
  * - The OIDC authorize choke point has consumed a valid enrollment token and
  *   resolved the session user; linking happens atomically with code issuance.
  *
- * Idempotent: if a `steam` account row already exists for this steamId
- * (linked to any user), the insert + profile backfill are skipped. This
- * closes the race where a second enrollment attempt converges on a steamId
- * that a concurrent request already linked.
+ * Idempotent only when the `steam` account row already belongs to the same
+ * AIRI user. A row owned by another user is rejected so enrollment cannot
+ * claim an existing identity.
  *
  * Profile application: nickname/avatar are written ONLY to user fields that
  * are currently empty (the 2026-06-13 "write-if-empty" semantics), so
@@ -30,13 +29,15 @@ export async function linkSteamToUser(
   params: { userId: string, steamId: string, profile?: SteamProfile | null },
 ): Promise<void> {
   const [existing] = await db
-    .select({ id: account.id })
+    .select({ userId: account.userId })
     .from(account)
     .where(and(eq(account.providerId, STEAM_PROVIDER_ID), eq(account.accountId, params.steamId)))
     .limit(1)
 
-  if (existing)
+  if (existing?.userId === params.userId)
     return
+  if (existing)
+    throw new Error('Steam account is already linked to another user')
 
   const now = new Date()
   await db.insert(account).values({

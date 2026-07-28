@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  cancelWebApiTicket,
   getWebApiTicket,
   initSteam,
   resetSteamClientForTests,
@@ -9,6 +10,7 @@ import {
 import { STEAM_APP_ID } from './types'
 
 const steamMock = vi.hoisted(() => {
+  const cancelAuthTicket = vi.fn()
   const getAuthTicketForWebApi = vi.fn()
   const init = vi.fn(() => true)
   const shutdown = vi.fn()
@@ -17,10 +19,11 @@ const steamMock = vi.hoisted(() => {
     init,
     shutdown,
     setSdkPath,
-    user: { getAuthTicketForWebApi },
+    user: { cancelAuthTicket, getAuthTicketForWebApi },
   }))
 
   return {
+    cancelAuthTicket,
     getAuthTicketForWebApi,
     init,
     shutdown,
@@ -116,8 +119,10 @@ describe('getWebApiTicket', () => {
   beforeEach(async () => {
     resetSteamClientForTests()
     steamMock.init.mockReturnValue(true)
+    steamMock.cancelAuthTicket.mockReset()
     steamMock.getAuthTicketForWebApi.mockResolvedValue({
       success: true,
+      authTicket: 73,
       ticketHex: 'deadbeef',
     })
     await initSteam()
@@ -128,13 +133,32 @@ describe('getWebApiTicket', () => {
     vi.clearAllMocks()
   })
 
-  it('returns ticket hex for the configured web api identity', async () => {
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610725557
+  // ROOT CAUSE:
+  //
+  // `getAuthTicketForWebApi()` returned both the ticket bytes and the
+  // `authTicket` handle needed by Steam's `CancelAuthTicket`, but this wrapper
+  // discarded the handle and exposed only `ticketHex`. Callers therefore had
+  // no way to cancel a successful ticket after server authentication.
+  //
+  // Before the patch: `{ ok: true, ticketHex: 'deadbeef' }`.
+  //
+  // We fixed this by preserving the handle until the caller finishes the
+  // `/desktop-sign-in` exchange and explicitly cancels it.
+  it('returns the handle required to cancel a Web API ticket (PR #1966)', async () => {
     const result = await getWebApiTicket()
 
-    expect(result).toEqual({ ok: true, ticketHex: 'deadbeef' })
+    expect(result).toEqual({ ok: true, authTicket: 73, ticketHex: 'deadbeef' })
     expect(steamMock.getAuthTicketForWebApi).toHaveBeenCalledWith({
       genericString: 'airi-desktop',
     })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610725557
+  it('cancels a Web API ticket through the initialized Steam SDK (PR #1966)', () => {
+    cancelWebApiTicket(73)
+
+    expect(steamMock.cancelAuthTicket).toHaveBeenCalledWith(73)
   })
 
   it('maps Steam API failure to ok false', async () => {

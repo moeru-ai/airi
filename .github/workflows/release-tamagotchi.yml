@@ -123,6 +123,14 @@ jobs:
             exit 1
           fi
 
+          # https://github.com/moeru-ai/airi/pull/1966#discussion_r3611541082
+          # Steam packages bake VITE_SERVER_URL to the Railway dev API. Until
+          # branch→API mapping exists, only internal-test may be set live.
+          if [[ "$STEAM_RELEASE_BRANCH" != "internal-test" ]]; then
+            echo "::error::Steam release branch must be \"internal-test\" while packages target the Railway dev API (got: $STEAM_RELEASE_BRANCH)."
+            exit 1
+          fi
+
   build:
     name: Build
     needs: validate-release-inputs

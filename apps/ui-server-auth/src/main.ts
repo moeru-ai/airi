@@ -24,7 +24,7 @@ import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
 
-initAuthAnalytics()
+initAuthAnalytics(window.location.href)
 
 const pinia = createPinia()
 

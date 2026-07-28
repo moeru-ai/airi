@@ -26,6 +26,22 @@ describe('createEnrollContext', () => {
     expect(createEnrollContext('https://accounts.airi.build/ui/enroll?token=abc&continue=not-a-url')).toBeNull()
   })
 
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3523476256
+  // ROOT CAUSE:
+  //
+  // The enrollment parser trusted the origin and path of the caller-controlled
+  // continue URL. AuthStepForms then used that origin as its API server, so the
+  // trusted AIRI page could submit credentials to an attacker-controlled host.
+  //
+  // Before the patch, both crafted URLs below produced an enrollment context.
+  //
+  // We fixed this by accepting only trusted AIRI API origins whose continuation
+  // targets the OIDC authorize endpoint.
+  it('rejects untrusted enrollment continuations (PR #1966)', () => {
+    expect(createEnrollContext('https://accounts.airi.build/ui/enroll?token=abc&continue=https://attacker.example/api/auth/oauth2/authorize')).toBeNull()
+    expect(createEnrollContext('https://accounts.airi.build/ui/enroll?token=abc&continue=https://api.airi.build/api/auth/sign-in/email')).toBeNull()
+  })
+
   it('derives apiServerUrl from the continue origin', () => {
     const ctx = createEnrollContext('https://accounts.airi.build/ui/enroll?token=abc&continue=https://api.airi.build/api/auth/oauth2/authorize?client_id=x')
     expect(ctx).toEqual({

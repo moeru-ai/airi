@@ -1,5 +1,7 @@
 import type { CheckEmailResult } from './email-password'
 
+import { normalizeTrustedApiServerUrl } from './server-auth-context'
+
 export type EmailStep = 'identify' | 'password' | 'create'
 
 /**
@@ -50,18 +52,27 @@ export function createEnrollContext(currentUrl: string): EnrollContext | null {
   if (!enrollToken || !continueUrl)
     return null
 
-  let continueOrigin: string
+  let parsedContinueUrl: URL
   try {
-    continueOrigin = new URL(continueUrl).origin
+    parsedContinueUrl = new URL(continueUrl)
   }
   catch {
+    return null
+  }
+
+  const apiServerUrl = normalizeTrustedApiServerUrl(parsedContinueUrl.origin)
+  if (
+    !apiServerUrl
+    || parsedContinueUrl.origin !== apiServerUrl
+    || parsedContinueUrl.pathname !== '/api/auth/oauth2/authorize'
+  ) {
     return null
   }
 
   return {
     enrollToken,
     continueUrl,
-    apiServerUrl: continueOrigin,
+    apiServerUrl,
   }
 }
 

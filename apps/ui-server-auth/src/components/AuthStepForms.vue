@@ -107,8 +107,17 @@ const description = computed(() => {
       >
         <span>{{ t('server.auth.signIn.action.signIn') }}</span>
       </Button>
-      <div :class="['flex items-center justify-between text-xs text-neutral-500']">
-        <RouterLink to="/forgot-password" :class="['underline']">
+      <div
+        :class="[
+          'flex items-center text-xs text-neutral-500',
+          scope === 'enroll' ? 'justify-end' : 'justify-between',
+        ]"
+      >
+        <RouterLink
+          v-if="scope !== 'enroll'"
+          to="/forgot-password"
+          :class="['underline']"
+        >
           {{ t('server.auth.signIn.action.forgotPassword') }}
         </RouterLink>
         <button type="button" :class="['underline']" @click="flow.backToIdentify">

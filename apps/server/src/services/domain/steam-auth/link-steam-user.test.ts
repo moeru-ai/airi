@@ -77,4 +77,35 @@ describe('linkSteamToUser', () => {
     const accounts = await db.select().from(account).where(and(eq(account.providerId, 'steam'), eq(account.accountId, '76561198000000033')))
     expect(accounts).toHaveLength(1)
   })
+
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3600204294
+  it('rejects a SteamID that belongs to another user for PR #1966', async () => {
+    const ownerUserId = await createUser(db)
+    const otherUserId = await createUser(db)
+    const steamId = '76561198000000034'
+
+    await linkSteamToUser(db, { userId: ownerUserId, steamId, profile: null })
+
+    // ROOT CAUSE:
+    //
+    // The existing-account lookup selected only the row ID and treated every
+    // match as an idempotent retry, even when another AIRI user owned the row.
+    //
+    // Before the fix, this call resolved successfully.
+    //
+    // We fixed this by selecting the owner and accepting only same-user retries.
+    await expect(linkSteamToUser(db, {
+      userId: otherUserId,
+      steamId,
+      profile: null,
+    })).rejects.toThrow('Steam account is already linked to another user')
+
+    const accounts = await db
+      .select({ userId: account.userId })
+      .from(account)
+      .where(and(eq(account.providerId, 'steam'), eq(account.accountId, steamId)))
+
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0]?.userId).toBe(ownerUserId)
+  })
 })

@@ -23,6 +23,7 @@ import {
   POSTHOG_ENABLED,
   POSTHOG_PROJECT_KEY,
 } from '../../../../posthog.config'
+import { buildAuthUiPath } from './auth-ui-base'
 
 /** Login/signup credential kinds shown on the sign-in page. */
 export type AuthMethod = 'email' | 'github' | 'google'
@@ -31,11 +32,23 @@ let initialized = false
 
 /**
  * Initialize PostHog for the auth surface. Call once from `main.ts` before
- * mount; later calls are no-ops. Returns whether capture is active so
- * callers can skip building event payloads in analytics-disabled builds.
+ * mount with the absolute browser URL; later calls are no-ops. Steam
+ * enrollment URLs never initialize analytics because they carry a single-use
+ * account-linking credential. Returns whether capture is active so callers can
+ * skip building event payloads in analytics-disabled builds.
  */
-export function initAuthAnalytics(): boolean {
+export function initAuthAnalytics(currentUrl: string): boolean {
   if (!POSTHOG_ENABLED)
+    return false
+
+  const location = new URL(currentUrl)
+  const carriesSteamEnrollmentCredential
+    = location.pathname === buildAuthUiPath('/enroll')
+      // After the enroll page, the credential is named `enrollToken` and may
+      // be nested inside encoded continue/callback URLs on other auth routes.
+      || location.search.includes('enrollToken')
+      || location.hash.includes('enrollToken')
+  if (carriesSteamEnrollmentCredential)
     return false
 
   if (initialized)

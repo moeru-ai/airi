@@ -69,6 +69,27 @@ describe('initializeElectronAuthCallbackBridge', () => {
     expect(fetchSessionMock).toHaveBeenCalledTimes(1)
   })
 
+  // https://github.com/moeru-ai/airi/pull/1966#pullrequestreview-4770150485
+  // ROOT CAUSE:
+  //
+  // Electron auth callbacks carried an ID token, but the renderer bridge only
+  // persisted the access and refresh tokens. The later sign-out flow therefore
+  // could not select the OIDC end-session path that requires an ID token hint.
+  //
+  // Before the patch, authStore.idToken remained null after this callback.
+  //
+  // We fixed this by persisting the callback ID token alongside the other OIDC
+  // credentials.
+  it('persists the ID token from an Electron auth callback (PR #1966)', async () => {
+    const authStore = useAuthStore()
+    await emit(electronAuthCallback, {
+      accessToken: 'access-token',
+      idToken: 'id-token',
+      expiresIn: 3600,
+    })
+    expect(authStore.idToken).toBe('id-token')
+  })
+
   it('toasts the error message on auth callback error', async () => {
     await emit(electronAuthCallbackError, { error: 'boom' })
     expect(toastErrorMock).toHaveBeenCalledWith('boom')

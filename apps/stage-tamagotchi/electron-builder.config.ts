@@ -44,6 +44,14 @@ else {
   console.warn('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
 }
 
+// NOTICE:
+// Steam loads an unsigned libsteam_api.dylib from beside the .app, so only
+// Steam builds disable hardened-runtime library validation.
+// https://github.com/moeru-ai/airi/pull/1966#discussion_r3642547795
+const macEntitlementsFile = process.env.VITE_DISTRIBUTION === 'steam'
+  ? 'build/entitlements.mac.steam.plist'
+  : 'build/entitlements.mac.plist'
+
 export default {
   appId: 'ai.moeru.airi',
   productName: 'AIRI',
@@ -169,8 +177,8 @@ export default {
     runAfterFinish: true,
   },
   mac: {
-    entitlements: 'build/entitlements.mac.plist',
-    entitlementsInherit: 'build/entitlements.mac.plist',
+    entitlements: macEntitlementsFile,
+    entitlementsInherit: macEntitlementsFile,
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
     publish: {

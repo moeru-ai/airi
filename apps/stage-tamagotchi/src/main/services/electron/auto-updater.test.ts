@@ -291,4 +291,12 @@ describe('setupAutoUpdater', () => {
     await service.quitAndInstall()
     expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith()
   })
+
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3619097247
+  it('disables the github updater feed for steam builds (PR #1966)', async () => {
+    const { shouldDisableGitHubUpdater } = await import('./auto-updater')
+    expect(shouldDisableGitHubUpdater('steam')).toBe(true)
+    expect(shouldDisableGitHubUpdater('direct')).toBe(false)
+    expect(shouldDisableGitHubUpdater(undefined)).toBe(false)
+  })
 })

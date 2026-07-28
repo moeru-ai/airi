@@ -132,25 +132,102 @@ describe('authorize enrollment choke point', () => {
     expect(users[0]?.image).toBe('https://x/a.jpg')
   })
 
-  it('issues a code without linking when the token is invalid (Steam stays unlinked)', async () => {
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3600204293
+  it('rejects an invalid enrollment token for PR #1966', async () => {
     const { app, handler } = await buildRoutes(db, { sessionUser: { id: 'uid_ok', banned: false } })
+
+    // ROOT CAUSE:
+    //
+    // An authenticated request with an invalid, expired, or consumed token
+    // skipped linking but still reached Better Auth after enrollToken was
+    // stripped, which issued an OIDC code for a half-completed enrollment.
+    //
+    // Before the fix, this request returned a 302 authorization redirect.
+    //
+    // We fixed this by failing before Better Auth whenever token consumption
+    // returns no enrollment payload.
     const res = await app.request(authorizeUrl('not-a-real-token'), { headers: { cookie: 'session=tok' } })
-    expect(res.status).toBe(302)
-    expect(handler).toHaveBeenCalledTimes(1)
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({ error: 'STEAM_ENROLLMENT_TOKEN_INVALID' })
+    expect(handler).not.toHaveBeenCalled()
+
     const accounts = await db.select().from(account).where(eq(account.providerId, 'steam'))
     expect(accounts).toHaveLength(0)
   })
 
-  it('issues a code without linking when there is no session (token preserved for retry)', async () => {
-    const { app, handler } = await buildRoutes(db, { sessionUser: null })
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610763521
+  it('preserves enrollToken across a trusted login redirect when there is no session (PR #1966)', async () => {
+    // ROOT CAUSE:
+    //
+    // Without a session the middleware stripped enrollToken before Better Auth
+    // built the login continuation. After login, authorize resumed without the
+    // token, so Steam never linked even though the DB row still existed.
+    //
+    // Before the fix, a no-session authorize that redirected to login dropped
+    // enrollToken from Location.
+    //
+    // We fixed this by re-attaching enrollToken only onto trusted login
+    // redirects, then completing link+code on the authenticated retry.
+    const handler = vi.fn(async (req: Request) => {
+      const url = new URL(req.url)
+      expect(url.searchParams.has('enrollToken')).toBe(false)
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: `/auth/sign-in?${url.searchParams.toString()}`,
+        },
+      })
+    })
+
     const token = await createEnrollmentToken(db, { steamId: '76561198000000052', profile: null })
-    const res = await app.request(authorizeUrl(token), { headers: {} })
-    expect(res.status).toBe(302)
-    expect(handler).toHaveBeenCalledTimes(1)
-    const accounts = await db.select().from(account).where(eq(account.providerId, 'steam'))
-    expect(accounts).toHaveLength(0)
-    // Token must survive a no-session attempt so the user can retry after login.
-    const tokens = await db.select().from(verification).where(eq(verification.id, token))
-    expect(tokens).toHaveLength(1)
+
+    const noSessionDeps: AuthRoutesDeps = {
+      auth: {
+        handler,
+        api: { getSession: vi.fn(async () => null) },
+      } as any,
+      db,
+      env: {
+        API_SERVER_URL: 'http://localhost:3000',
+        AUTH_UI_URL: 'https://accounts.airi.build/ui',
+        ADDITIONAL_TRUSTED_ORIGINS: [],
+      } as any,
+      configKV: createConfigKV(),
+      rateLimitMetrics: null,
+    }
+
+    const noSessionRoutes = await createAuthRoutes(noSessionDeps)
+    const noSessionApp = new Hono().route('/', noSessionRoutes)
+    const loginRedirect = await noSessionApp.request(authorizeUrl(token), { headers: {} })
+
+    expect(loginRedirect.status).toBe(302)
+    const loginLocation = new URL(loginRedirect.headers.get('location')!, 'http://localhost:3000')
+    expect(loginLocation.pathname).toBe('/auth/sign-in')
+    expect(loginLocation.searchParams.get('enrollToken')).toBe(token)
+
+    const accountsBefore = await db.select().from(account).where(eq(account.providerId, 'steam'))
+    expect(accountsBefore).toHaveLength(0)
+    const tokensBefore = await db.select().from(verification).where(eq(verification.id, token))
+    expect(tokensBefore).toHaveLength(1)
+
+    const { app: withSessionApp, handler: withSessionHandler } = await buildRoutes(db, {
+      sessionUser: { id: 'uid_retry', banned: false },
+    })
+    const linked = await withSessionApp.request(authorizeUrl(token), { headers: { cookie: 'session=tok' } })
+
+    expect(linked.status).toBe(302)
+    expect(withSessionHandler).toHaveBeenCalledTimes(1)
+    expect(withSessionHandler.mock.calls[0][0].url).not.toContain('enrollToken')
+
+    const accounts = await db.select().from(account).where(and(
+      eq(account.providerId, 'steam'),
+      eq(account.accountId, '76561198000000052'),
+    ))
+    expect(accounts).toHaveLength(1)
+    expect(accounts[0]?.userId).toBe('uid_retry')
+
+    const tokensAfter = await db.select().from(verification).where(eq(verification.id, token))
+    expect(tokensAfter).toHaveLength(0)
   })
 })

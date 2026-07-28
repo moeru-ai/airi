@@ -18,6 +18,7 @@ import { checkEmailIdentifier } from './email-identifier'
 import { createElectronCallbackRelay } from './oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 import { createSteamDesktopSignInRoute } from './steam/desktop-sign-in'
+import { attachEnrollTokenToTrustedLoginRedirect } from './steam/enroll-token-login-redirect'
 import { createAuthUiRoutes } from './ui-routes'
 
 function usesRailwayEdge(apiServerUrl: string): boolean {
@@ -101,27 +102,42 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       // redirects to login) WITHOUT consuming the token, so a user whose
       // session expired mid-enrollment can still complete linking after they
       // re-authenticate — the token survives until its 10m TTL.
+      //
+      // Better Auth only restores the cleaned authorize query into the login
+      // continuation. Re-attach enrollToken onto trusted login redirects so
+      // the second authorize attempt can still find the enrollment row.
       if (resolved?.user && !isUserBannedNow(resolved.user)) {
         const payload = await consumeEnrollmentToken(deps.db, enrollToken)
-        if (payload) {
-          try {
-            await linkSteamToUser(deps.db, {
-              userId: resolved.user.id,
-              steamId: payload.steamId,
-              profile: payload.profile,
-            })
-          }
-          catch {
-            // Link failed: do not issue a code. The browser sees a 403; the
-            // Electron loopback times out and surfaces a retry toast. The token
-            // is already consumed (single-use) so the user relaunches Steam for a
-            // fresh enrollment handoff.
-            throw createForbiddenError('Steam enrollment failed — please relaunch AIRI', 'STEAM_ENROLLMENT_LINK_FAILED')
-          }
+        if (!payload) {
+          throw createForbiddenError(
+            'Steam enrollment expired or invalid — please relaunch AIRI',
+            'STEAM_ENROLLMENT_TOKEN_INVALID',
+          )
         }
+
+        try {
+          await linkSteamToUser(deps.db, {
+            userId: resolved.user.id,
+            steamId: payload.steamId,
+            profile: payload.profile,
+          })
+        }
+        catch {
+          // Link failed: do not issue a code. The browser sees a 403; the
+          // Electron loopback times out and surfaces a retry toast. The token
+          // is already consumed (single-use) so the user relaunches Steam for a
+          // fresh enrollment handoff.
+          throw createForbiddenError('Steam enrollment failed — please relaunch AIRI', 'STEAM_ENROLLMENT_LINK_FAILED')
+        }
+
+        return handleAuthRequest(cleanedRequest)
       }
 
-      return handleAuthRequest(cleanedRequest)
+      const authResponse = await handleAuthRequest(cleanedRequest)
+      return attachEnrollTokenToTrustedLoginRedirect(authResponse, enrollToken, {
+        apiServerUrl: deps.env.API_SERVER_URL,
+        authUiUrl: deps.env.AUTH_UI_URL,
+      })
     })
     // NOTICE:
     // `/api/auth/*` bypasses sessionMiddleware (and thus the ban gate in

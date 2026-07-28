@@ -29,6 +29,9 @@ export function initializeElectronAuthCallbackBridge() {
       if (tokens.refreshToken) {
         authStore.refreshToken = tokens.refreshToken
       }
+      if (tokens.idToken) {
+        authStore.idToken = tokens.idToken
+      }
 
       authStore.oidcClientId = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
       authStore.tokenExpiry = Date.now() + tokens.expiresIn * 1000
