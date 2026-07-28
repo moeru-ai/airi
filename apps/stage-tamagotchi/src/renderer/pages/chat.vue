@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { defineInvoke } from '@moeru/eventa'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { getSpeechBusContext, speechOutputGetPlaybackState } from '@proj-airi/stage-ui/services/speech/bus'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -8,7 +10,17 @@ import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
 const sessionsDrawerOpen = shallowRef(false)
-const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
+const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
+  resolveSpeakingState: async () => {
+    // A BroadcastChannel round trip is normally immediate. Bound the
+    // analytics-only lookup so a reloading output renderer cannot stall mute.
+    const state = await getOutputPlaybackState(undefined, {
+      signal: AbortSignal.timeout(1000),
+    })
+    return state.speaking
+  },
+})
 const { t } = useI18n()
 </script>
 

@@ -10,7 +10,14 @@ import { computed } from 'vue'
  * Manual stops affect current playback without cancelling text generation.
  * Mute is persisted by the shared store and also blocks future TTS sessions.
  */
-export function useStopSpeakingButton() {
+export function useStopSpeakingButton(options: {
+  /**
+   * Reads speaking state from the renderer that owns playback.
+   *
+   * @default The current renderer's speaking store.
+   */
+  resolveSpeakingState?: () => boolean | Promise<boolean>
+} = {}) {
   const { nowSpeaking } = storeToRefs(useSpeakingStore())
   const speechOutputControlStore = useSpeechOutputControlStore()
   const { speechMuted } = storeToRefs(speechOutputControlStore)
@@ -28,9 +35,19 @@ export function useStopSpeakingButton() {
     speechOutputControlStore.requestStopSpeaking('manual-all')
   }
 
-  function toggleSpeechMuted() {
+  async function toggleSpeechMuted() {
+    let wasSpeaking: boolean
+    try {
+      wasSpeaking = await (options.resolveSpeakingState?.() ?? nowSpeaking.value)
+    }
+    catch {
+      // Muting is the user action; analytics must not make it fail when an
+      // auxiliary renderer cannot reach the output host during a reload.
+      speechOutputControlStore.setSpeechMuted(!speechMuted.value)
+      return
+    }
+
     const muted = !speechMuted.value
-    const wasSpeaking = nowSpeaking.value
 
     speechOutputControlStore.setSpeechMuted(muted)
     trackSpeechMuteToggled({

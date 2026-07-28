@@ -8,6 +8,7 @@ import type { UnElevenLabsOptions } from 'unspeech'
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 
+import { defineInvokeHandler } from '@moeru/eventa'
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
@@ -38,6 +39,7 @@ import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/provide
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
+import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
@@ -91,6 +93,11 @@ const {
   spineRenderScale,
 } = storeToRefs(settingsStore)
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
+const disposePlaybackStateHandler = defineInvokeHandler(
+  getSpeechBusContext(),
+  speechOutputGetPlaybackState,
+  () => ({ speaking: nowSpeaking.value }),
+)
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
@@ -696,7 +703,7 @@ function resolveStreamingSessionModel(): string | null {
   return sessionModel
 }
 
-function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
+function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
   if (speechMuted.value)
     return null
 
@@ -733,7 +740,7 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
       audio: { sample_rate: 24000, bit_rate: 64000 },
     },
     ownerId: activeCardId.value,
-    onImmediateSpecial: playSpecialToken,
+    onImmediateSpecial: special => playSpecialToken(special, { turnId }),
   }
 }
 
@@ -747,7 +754,7 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(): StageTtsSession {
+function openTtsSession(turnId: string): StageTtsSession {
   // A session must only clear the module-level `currentSession` if it IS that session. The previous
   // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
   // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
@@ -760,11 +767,12 @@ function openTtsSession(): StageTtsSession {
   }
   session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
-    streaming: buildStreamingSnapshot,
+    streaming: () => buildStreamingSnapshot(turnId),
     audioContext,
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
+      turnId,
       ownerId: activeCardId.value,
       priority: 'normal',
       behavior: 'queue',
@@ -802,7 +810,7 @@ watch(speechMuted, (muted) => {
     stopSpeechOutput('muted')
 }, { immediate: true })
 
-chatHookCleanups.push(onBeforeMessageComposed(async () => {
+chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
@@ -815,7 +823,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
 
   setupAnalyser()
   await setupLipSync()
-  currentSession = openTtsSession()
+  currentSession = openTtsSession(context.turnId)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -826,11 +834,11 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
   currentSession?.appendText(literal)
 }))
 
-chatHookCleanups.push(onTokenSpecial(async (special) => {
+chatHookCleanups.push(onTokenSpecial(async (special, context) => {
   // Muting speech must not suppress non-audio signals such as emotion, motion,
   // delay, or plugin calls that normally travel through the TTS session.
   if (speechMuted.value) {
-    await playSpecialToken(special)
+    await playSpecialToken(special, { turnId: context.turnId })
     return
   }
 
@@ -996,6 +1004,7 @@ async function captureFrame() {
 }
 
 onUnmounted(() => {
+  disposePlaybackStateHandler()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
