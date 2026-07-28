@@ -21,14 +21,18 @@ Do not submit Bailian API Key to the warehouse, take screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → Alibaba Cloud Model Studio**.
-2. Paste the Bailian API Key into the basic settings; the Base URL uses the interface default value unless you configure a compatible gateway.
+1. Open **Settings → Providers → Speech → Alibaba Cloud Model Studio**.
+2. Enter the Model Studio API key. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Alibaba Cloud's direct API. Your key, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Alibaba Cloud Model Studio**, then select an available model and voice. The provider playground tests credentials; this module selection is what enables speech for normal AIRI replies.
+
 ## Troubleshooting
 
-If the playground cannot complete a request, check the API Key, account limit, and network connection. When the model or sound is not available for selection, make sure that the corresponding model has been opened in the Bailian account.
+If the playground cannot complete a request, check the API Key, account limit, and network connection. When the model or voice is not available for selection, make sure that the corresponding model has been opened in the Bailian account.

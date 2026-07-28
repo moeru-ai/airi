@@ -73,12 +73,12 @@ Please follow the steps below to complete the initial configuration:
 
 1. Open AIRI and enter the initial boot settings.
 2. Select your language.
-3. If you want to use your own AI model, please click "**Configure your own AI service source**". If you want to use the officially provided AI model, please click "**Login**". If you are not sure which provider to use, we recommend starting from [AIRI Official Provider](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), [OpenAI Compatible Provider](../../config/providers/consciousness/openai.md) or locally [Ollama](../../config/providers/consciousness/ollama.md) Select one to configure.
-4. If you use your own AI model (please refer to the sidebar "Configuration → Service Provider → Chat Service Provider" to learn how to configure):
-    1. Select the service source you prepared and click "**Next**";
-    2. Fill in your API Key (change the base URL if necessary), and then click "**Next**";
-    3. Click "**Next**" again;
-    4. Select the model you plan to use and click **Save and Continue**.
+3. Select **Setup with your provider** to use your own provider, or **Sign in** to use AIRI's official provider. If you are unsure which provider to use, start with [AIRI Official Provider](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), [OpenAI Compatible Provider](../../config/providers/consciousness/openai.md), or a local [Ollama](../../config/providers/consciousness/ollama.md) instance.
+4. If you use your own provider:
+    1. Select the provider you prepared and click **Next**.
+    2. Enter your API key, change the Base URL if necessary, and click **Next**.
+    3. Click **Next** again.
+    4. Select the model you plan to use and click **Let's do it!**.
 5. If you use the officially provided AI model: please refer to [AIRI official provider](../../config/providers/consciousness/official.md).
 
 Congratulations, if nothing else, you have completed the preliminary configuration of AIRI!
@@ -109,17 +109,17 @@ Clicking it will open the "Listening Input" panel. First enable microphone input
 
 - "Move ✥" - Located in the lower right corner, long press the left mouse button and drag to change the position of the main window on the desktop.
 
-Click "Expand ⌃". After expansion, there are nine sub-options, from top to bottom and from left to right:
+Click "Expand ⌃". The available controls are:
 
-- "Login" - you can log in to your own AIRI account.
-- "Open Settings" - Open AIRI's settings interface.
-- "Switch character" - switch character cards.
+- "Sign in" - sign in to your AIRI account.
+- "Open settings" - open AIRI's settings interface.
+- "Switch Profile" - switch profiles.
 - "Open Chat" - Open the chat window.
 - "Refresh" - Refresh the main window.
 - "Move to screen center" - moves the window to the center of the screen.
-- "Switch to Dark Mode" - Switch AIRI's interface background to "Light/Dark".
-- "Cancel pinned to top" - the AIRI character model will no longer remain pinned to the top.
-- "Always show"/"hide on hover" - so that the AIRI main window does not affect the mouse cursor's click on the content under the window, thus not affecting your work.
+- "Switch to dark mode"/"Switch to light mode" - switch AIRI's interface theme.
+- "Pin on top"/"Unpin from top" - control whether the AIRI window stays above other windows.
+- "Auto hide"/"Always show" - control whether the AIRI window gets out of the way when you move the pointer over it.
 - "Close" - close AIRI with one click.
 
 ![Expanded AIRI main-window control menu](image-17.png)
@@ -225,9 +225,9 @@ Regarding creating a new character card, it is recommended to configure it in th
 
 1. Fill in the identity section, including name, nickname, description, and creator notes.
 2. Fill in the behavior part as needed, including character personality, scene (or understood as surrounding environment, background, situation) and greetings.
-3. Adjust the module section as needed to configure specific body modules for the character.
+3. Adjust the Modules section as needed to configure the character's capabilities.
 4. Configure the Artistry section as needed to configure the function of generating pictures for the character.
-5. Finally check the settings section, including system prompt words, history prompt instructions and versions.
+5. Review the settings section, including the system prompt, post-history instructions, and card version.
 6. After confirming that the content is correct, click "**Create**" to complete the creation of the character card.
 7. After the creation is completed, click the circle in the lower right corner of the character card, or click the character card and then click Activate to officially activate the character card.
 
@@ -239,7 +239,7 @@ The most important part of the identity is the name and description:
 ::: info Editor’s addition
 - If you choose to refer to the default character card to write your own character's settings, the second half of the content about the ACT tag does not need to be added.
 - Creator notes are only notes for character cards and will not affect the AIRI response results.
-- The behavior part is used to supplement the personality, scenes and greetings; the module part can specify chat, visual, voice and display models for the character; the Artistry part sets the character's image generation preferences; the Settings part contains system prompt words, historical prompt instructions and version information.
+- Behavior defines personality, scenario, and greetings. Modules can specify chat, Vision, Speech, and display-model preferences. Artistry stores image-generation preferences. Settings contains the system prompt, post-history instructions, and card version.
 :::
 
 ::: warning requires manual activation
@@ -247,22 +247,22 @@ After creating a character card, it will not be enabled by default and must be m
 :::
 
 <a id="chapter-4-modules"></a>
-### > Body module
+### > Modules
 
 Here you can configure various functions of AIRI, as follows:
 
-![AIRI body module settings](./assets/manual-modules.avif)
+![AIRI module settings](./assets/manual-modules.avif)
 
 #### > Consciousness
 
 Please refer to [Chat Model](../../config/llm.md) for configuration.
 ![AIRI Consciousness settings](image-3.png)
 
-#### > Speak up
+#### > Speech
 Please refer to [Voice Input and Output](../../config/audio.md) for configuration. If you do not want AIRI to speak, select None.
-::: tip Supplementary instructions for the voicing page
-- First select the service provider and model, and then select the timbre provided by the model; the fields displayed by different service providers will be different.
-- Pitch (pitch) is only effective for service providers and models that support this parameter.
+::: tip Supplementary instructions for the Speech page
+- First select the provider and model, and then select the Voice provided by the model. Different providers display different fields.
+- Pitch only affects providers and models that support this parameter.
 :::
 
 ![AIRI Speech settings](image-4.png)
@@ -323,14 +323,14 @@ Vision Capture is the current desktop debugging/development workflow; leaving th
 
 Here you can configure AIRI's ability to create art.
 
-You can refer to the sidebar "Configuration → Service Provider → Art Creation Service Provider" to learn how to configure and use different AI providers to create works.
+Open **Settings → Providers → Artistry** to configure an image provider, then enable it under **Settings → Modules → Artistry**.
 
 ::: warning Please use a chat model that supports tool calls
-Artistic creation does not directly generate images from the character: AIRI will provide the tool with configured image services to the current **chat model**, and then the model will call the tool to submit the generation task. Therefore, chat models and service providers must support **Tool Calling / Function Calling**.
+Artistic creation does not generate images directly from the character: AIRI makes the configured image tool available to the current **chat model**, which calls the tool to submit the generation task. Therefore, the chat provider and model must support **Tool Calling / Function Calling**.
 
-After selecting the service provider in "Settings → Modules → Consciousness", please select the model that the service provider clearly marks as supporting tool calling. Models that only support ordinary text conversations, or are called by the service provider without transparent transmission tools, may only respond with text, refuse to be generated, or may not submit tasks to the selected image service at all.
+Under **Settings → Modules → Consciousness**, select a model that the provider explicitly marks as supporting tool calling. Models limited to ordinary text conversations may respond with text without submitting a task to the selected image service.
 
-After configuration, let the character perform a simple image request. Confirm that AIRI has initiated a tool call; if the service provider provides task status, history, or console, you can also confirm that the task has been received. AIRI doesn't display the results until the task is completed and a picture is returned. For the exclusive verification methods of each service provider, please refer to the corresponding page in the sidebar "Configuration → Service Provider → Art Creation Service Provider".
+After configuration, ask the character to generate a simple image. Confirm that AIRI initiates a tool call; if the provider offers task status, history, or a console, you can also confirm that it received the task. AIRI displays the result after the task completes and returns an image. See the corresponding page under **Settings → Providers → Artistry** for provider-specific verification.
 :::
 
 #### > Short-term memory
@@ -467,7 +467,7 @@ You can choose categories by purpose:
 - **Speech Recognition (ASR/STT)**: Convert microphone speech into text; then select the model in **Modules → Hearing**.
 - **Art Creation**: Configure an image-generation service; then use it in **Modules → Artistry**.
 
-If you skip the initial configuration guide, configure a chat provider first: enter its API key or account details and any required advanced fields, such as Base URL or region. If **Ping API** appears, use it to verify connectivity. Then go to **Modules → Consciousness**, select the provider and model, and send a message to confirm that AIRI can reply.
+If you skip the initial configuration guide, configure a chat provider first: enter its API key or account details and any required advanced fields, such as Base URL or region. If **provider validation** appears, use it to verify connectivity. Then go to **Modules → Consciousness**, select the provider and model, and send a message to confirm that AIRI can reply.
 
 After switching chat providers, the selected chat model is cleared. Return to **Modules → Consciousness** to select a model for the new provider.
 
@@ -476,10 +476,10 @@ API Keys, AccessKey Secrets, and other service credentials should only be saved 
 :::
 
 ::: tip configuration guide
-- If you are not sure about the service provider's fields, verification methods, or error reporting meanings, read [Common Configuration Instructions](../../config/common.md).
-- To configure the chat model, read [Chat Model](../../config/llm.md); you can learn how to configure different chat providers in "Configuration → Service Provider → Chat Service Provider".
-- To configure voice input and output, read [Voice Input and Output](../../config/audio.md); speech synthesis, speech recognition and art creation service providers are also located in the "Service Provider" menu in the sidebar.
-- Visual understanding uses the same credentials as the chat service provider and must select a chat model that supports image input; see [Visual Understanding](../../config/vision.md) for details.
+- If you are unsure about provider fields, validation methods, or errors, read [Common Configuration Instructions](../../config/common.md).
+- To configure the chat model, read [Chat Model](../../config/llm.md) and choose a provider under **Settings → Providers → Chat**.
+- To configure voice input and output, read [Voice Input and Output](../../config/audio.md). Speech and Transcription providers are under **Settings → Providers** and are enabled from their corresponding module pages.
+- Vision providers store their own credentials, even when their fields match the corresponding Chat provider. See [Visual Understanding](../../config/vision.md) for details.
 :::
 
 ![AIRI service provider settings](image-8.png)
@@ -567,7 +567,7 @@ This page is used to develop, troubleshoot, and verify experimental features; re
 ## > Supplementary features of web version
 
 <a id="chapter-3-main-web"></a>
-### > Web moderator interface
+### > Web main interface
 
 ![AIRI web interface](./assets/manual-main-web.avif)
 
@@ -591,7 +591,7 @@ The chat box is divided into upper and lower parts:
 There are three buttons below the lower part: (Text content is for reference only)
 
 - Conversations (can manage conversations, different conversations are independent of each other)
--Sending method (you can choose how to confirm sending the message)
+- Sending method (choose how messages are submitted)
 - Enable voice input
 
 #### > Other parts
@@ -602,11 +602,11 @@ Includes three options:
 
 - about
 - Character cards
--Account and settings
+- Account and settings
 
 There are three chunks of content included in the third option:
 
--Account information
+- Account information
 - Files, Flux, Settings
 - Sign out
 

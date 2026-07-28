@@ -11,7 +11,7 @@ Cloudflare Workers AI はアカウントレベルの認証情報を使用しま�
 
 ## ステップ 1: 資格情報を準備する
 
-1. [Cloudflare API トークン](https://dash.cloudflare.com/profile/api-tokens) を開いてログインし、必要な API キーまたは認証情報を作成します。
+1. [Cloudflare API トークン](https://dash.cloudflare.com/profile/api-tokens) で Workers AI の実行権限を持つ API トークンを作成します。
 2. トークンをコピーします。
 3. [Cloudflare コンソール](https://dash.cloudflare.com/)でアカウント ID を確認してコピーします。
 

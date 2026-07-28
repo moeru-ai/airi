@@ -3,7 +3,7 @@ title: Xiaomi MiMo (TTS)
 description: Configuring Xiaomi MiMo speech synthesis in AIRI
 ---
 
-MiMo supports three speech synthesis modes: preset timbre, sound design and sound cloning.
+MiMo supports three speech synthesis modes: preset voice, sound design and sound cloning.
 
 ::: info Why choose Xiaomi MiMo?
 If you need to preset Chinese sounds, or want to use text descriptions to design sounds, you can choose MiMo.
@@ -20,13 +20,17 @@ Sound cloning requires audio samples in Base64 data URI format. Only upload soun
 
 ## Step 2: Configure in AIRI
 
-1. Fill in the API Key in **Settings → Providers → Speech Synthesis → Xiaomi MiMo**.
+1. Fill in the API Key in **Settings → Providers → Speech → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the service provider provides another address.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
+
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Xiaomi MiMo**, choose model ID `mimo-v2-omni`, and select a voice. The provider test alone does not enable speech for normal replies.
 
 ## Troubleshooting
 

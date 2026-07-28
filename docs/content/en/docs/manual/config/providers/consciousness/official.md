@@ -24,14 +24,14 @@ If you want to quickly experience AIRI without configuring a third-party API Key
     If you don't receive the email, please check if it is in spam.
     :::
 
-## Step 2: Check available power
+## Step 2: Check available Flux
 
-Each new account has 150 power. Each conversation consumes part of the battery; once the battery is exhausted, the conversation cannot be continued.
+Flux is the balance used by AIRI official services. Any initial grant is configured by the current deployment, so check the balance shown in **Settings → Flux** rather than assuming a fixed amount.
 
-## Step 3: Recharge the battery
+## Step 3: Charge Flux
 
-Currently, recharge is only supported on the AIRI web version. After logging in to the web version, open **Settings → Flux**, select the battery pack and follow the page prompts to complete the payment. The desktop version does not currently support direct recharge.
+Open **Settings → Flux** and choose an available package. On desktop, AIRI opens checkout in the system browser and refreshes the balance when the app regains focus. Builds or deployments with purchasing disabled do not offer checkout.
 
 ## Troubleshooting
 
-If you do not receive the login email, please check your spam folder. If the available battery pack cannot be displayed on the web page or the payment cannot be created, please try again later. If you need to recharge on the desktop, please go to the AIRI web version to complete the operation.
+If you do not receive the sign-in email, check your spam folder. If Flux packages are unavailable or checkout cannot be created, purchasing may be disabled for that deployment or temporarily unavailable.

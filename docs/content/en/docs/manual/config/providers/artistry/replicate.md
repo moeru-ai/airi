@@ -3,7 +3,7 @@ title: Replicate (Artistic Creation)
 description: Configuring Replicate image generation in AIRI
 ---
 
-Replicate lets AIRI generate models using images in the cloud. After completing the configuration, you can select Replicate as the image generation source in **Settings → Artistry**.
+Replicate lets AIRI generate images with cloud-hosted models. Configure it under **Settings → Providers → Artistry**, then enable it under **Settings → Modules → Artistry**.
 
 ::: info Why choose Replicate?
 You can choose the cloud inference service if you don't want to deploy the image model yourself and want to choose from the models available in Replicate.
@@ -28,9 +28,10 @@ Do not submit Tokens to the repository, take screenshots, or send them to others
 
 ## Step 3: Verify configuration
 
-1. Open **Settings → Artistry** and select **Replicate**.
-2. Generate an image using a prompt word that does not contain sensitive information.
-3. Successfully returning the image means that the Token, model ID and account quota are available.
+1. Open **Settings → Modules → Artistry** and select **Replicate**.
+2. Under **Settings → Modules → Consciousness**, select a chat model that supports tool/function calling.
+3. Return to chat and ask AIRI to generate a non-sensitive image.
+4. A returned image confirms that the token, model ID, account quota, and tool call work.
 
 ## Troubleshooting
 

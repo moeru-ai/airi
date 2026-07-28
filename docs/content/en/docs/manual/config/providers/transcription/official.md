@@ -11,7 +11,7 @@ If you already use the official AIRI provider and want to quickly enable real-ti
 
 ## Step 1: Log in to your account
 
-1. Complete the login using an AIRI account; official real-time identification relies on the current login status.
+1. Sign in with an AIRI account; official real-time transcription uses the current session.
 2. There is no need to create or fill in a third-party API Key.
 
 ::: warning account and audio data
@@ -20,8 +20,8 @@ Real-time recognition will send the audio to the official service. Don't use tes
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Voice Recognition → AIRI Official Voice Recognition**.
-2. Select `Auto` or the model provided by the server, and then go to **Settings → Hearing** to enable it.
+1. Open **Settings → Providers → Transcription → AIRI Official Voice Recognition**.
+2. Select `Auto` or the model provided by the server, and then go to **Settings → Modules → Hearing** to enable it.
 
 ## Step 3: Verify configuration
 

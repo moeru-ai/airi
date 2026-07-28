@@ -20,12 +20,12 @@ The Web Speech API is only available in browser environments and is not supporte
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Recognition → Web Speech API** in the web version.
+1. Open **Settings → Providers → Transcription → Web Speech API** in the web version.
 2. Select the recognition language and, if required, the options for continuous recognition and intermediate results.
 
 ## Step 3: Verify configuration
 
-1. Go to **Settings → Hearing** and select Web Speech API and Audio Input Device.
+1. Go to **Settings → Modules → Hearing** and select Web Speech API and Audio Input Device.
 2. Allow the browser to access the microphone and start a short voice input test.
 3. If the transcribed text can be displayed, the configuration is successful.
 

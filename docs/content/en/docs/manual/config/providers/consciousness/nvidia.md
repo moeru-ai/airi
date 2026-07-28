@@ -6,6 +6,10 @@ is_openai_compatible: true
 
 NVIDIA NIM provides a chat API compatible with the OpenAI format. After completing the configuration on this page, AIRI can use the models provided by NVIDIA NIM in Consciousness.
 
+::: warning Desktop only
+This provider is currently available only in the Electron desktop app. It is not exposed in AIRI Web.
+:::
+
 ::: info Why choose NVIDIA NIM?
 If you are already using model services on the NVIDIA NIM platform, you can connect the same set of credentials to AIRI.
 :::
@@ -28,7 +32,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
 
 ## Troubleshooting

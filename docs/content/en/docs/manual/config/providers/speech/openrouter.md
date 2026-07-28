@@ -3,7 +3,7 @@ title: OpenRouter (TTS)
 description: Configuring OpenRouter as a speech synthesis service provider in AIRI
 ---
 
-OpenRouter is an aggregation API service provider. After completing the configuration, select the voice model and timbre provided by OpenRouter in "Voice".
+OpenRouter is an aggregation API service provider. After completing the configuration, select the voice model and voice provided by OpenRouter in "Voice".
 
 ::: info Why choose OpenRouter Voice?
 Choose this provider if you want to manage multiple models and voice capabilities within the same OpenRouter account. When using AIRI in mainland China, you can try 302.AI first; actual availability still depends on your network environment, payment method, and service provider policies.
@@ -21,13 +21,13 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → OpenRouter**.
+1. Open **Settings → Providers → Speech → OpenRouter**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://openrouter.ai/api/v1/`.
 
 ## Step 3: Verify configuration
 
-1. Select the configured service provider, model and tone in "Voice".
+1. Select the configured service provider, model and voice in "Voice".
 2. Enter a test text and click Test.
 3. If the voice can be played normally, the configuration is successful; if an error is displayed, please check the credentials and model based on the error message.
 

@@ -27,11 +27,11 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
 
 ## Troubleshooting
 
-The Ping API checks network connectivity and sends a short chat request. If it fails, please confirm that the API Key is available, the account has a limit, and check whether the network can access the Anthropic API.
+The provider validation checks network connectivity and sends a short chat request. If it fails, please confirm that the API Key is available, the account has a limit, and check whether the network can access the Anthropic API.
 
 If the model selector does not show the expected model, first update the AIRI or manually enter the exact model ID provided by the service provider on the Consciousness page.

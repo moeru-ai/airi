@@ -20,12 +20,12 @@ The available models, quotas and regions of official services are determined by 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → AIRI Official Speech Synthesis**.
+1. Open **Settings → Providers → Speech → AIRI Official Speech Synthesis**.
 2. Wait for AIRI to load the currently available models and sounds from the server.
 
 ## Step 3: Verify configuration
 
-1. Select a model and sound in **Settings → Speech**, then listen to it using a short text.
+1. Select a model and voice in **Settings → Modules → Speech**, then listen to it using a short text.
 2. If it can play normally, it means the configuration is successful. If the server does not provide streaming voice, the streaming option will not appear.
 
 ## Troubleshooting

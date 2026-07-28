@@ -20,13 +20,17 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Recognition → CometAPI Transcription** and fill in the API Key.
+1. Open **Settings → Providers → Transcription → CometAPI Transcription** and fill in the API Key.
 2. Keep the default Base URL: `https://api.cometapi.com/v1/`; modify it only when using a proxy or compatible gateway.
 
 ## Step 3: Verify configuration
 
 1. Select an available transcription model in the provider settings.
 2. Use the playground on the same page, allow microphone access, and record a short sample to confirm that text is returned.
+
+## Enable microphone transcription
+
+Open **Settings → Modules → Hearing**, select **CometAPI Transcription** and an available model, then choose a microphone and run the Hearing test. Testing the provider page alone does not enable microphone transcription.
 
 ## Troubleshooting
 

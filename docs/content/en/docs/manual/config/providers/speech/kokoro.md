@@ -11,8 +11,9 @@ If you want to process speech content locally and the device meets the model run
 
 ## Step one: Prepare local operating environment
 
-1. Open AIRI in an environment that supports WebGPU; when using it for the first time, wait for the model download to complete.
-2. This option does not require a cloud API Key, but will use the local download space, memory and computing resources.
+1. Open AIRI and wait for the model download to complete on first use.
+2. WebGPU accelerates synthesis when available. AIRI can fall back to WASM without WebGPU, but synthesis will generally be slower and use more CPU.
+3. This option does not require a cloud API key, but uses local storage, memory, and compute resources.
 
 ::: warning local resource usage
 Local models take up download space, memory, and computing resources. Do not force enable when device resources are insufficient.
@@ -20,14 +21,14 @@ Local models take up download space, memory, and computing resources. Do not for
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → Kokoro**.
+1. Open **Settings → Providers → Speech → Kokoro**.
 2. Select an available Kokoro model provided by AIRI.
 
 ## Step 3: Verify configuration
 
-1. **Select model and tone**: After the model is prepared, select the tone, and then go to **Settings → Speech** to enable it.
+1. **Select model and voice**: After the model is prepared, select the voice, and then go to **Settings → Modules → Speech** to enable it.
 2. Enter the short text to listen; if it can be played normally, it means the model is ready.
 
 ## Troubleshooting
 
-When the model cannot be loaded, check whether the browser supports WebGPU and whether the device resources are sufficient, and reopen the page and wait for the download to complete.
+If the model cannot load, check available storage and memory, then reopen the page and let the download finish. If WebGPU is unavailable, allow the WASM fallback more time to initialize and synthesize.

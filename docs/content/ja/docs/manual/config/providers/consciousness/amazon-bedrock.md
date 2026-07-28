@@ -3,24 +3,24 @@ title: Amazon Bedrock
 description: AIRI での Amazon Bedrock チャットモデルの設定
 ---
 
-Amazon Bedrock は、AWS 認証情報とリージョンを使用して、承認されたベースモデルにアクセスします。
+Amazon Bedrock は、Bedrock API キーと AWS リージョンを使用して、利用を許可された基盤モデルへアクセスします。
 
 ::: info Amazon Bedrock を選ぶ理由?
 すでに AWS でモデルのアクセス、リージョン、請求を管理している場合、Bedrock はこれと同じアカウント管理アプローチを使用できます。
 :::
 
-## ステップ 1: AWS 認証情報を準備する
+## ステップ 1: Bedrock API キーを準備する
 
-1. [AWS マネジメントコンソール](https://console.aws.amazon.com/bedrock/) を開いてログインし、必要な API キーまたは認証情報を作成します。
+1. [Amazon Bedrock コンソール](https://console.aws.amazon.com/bedrock/)を開き、対象モデルへのアクセスを有効にして、同じアカウントとリージョンで Bedrock API キーを作成します。
 
 ::: warning AWS 認証情報のセキュリティ
-AWS アクセスキーを公開しないでください。最小限の権限を持つ資格情報を使用し、使用しなくなった場合は資格情報を取り消します。
+Bedrock API キーを公開しないでください。AIRI のプロバイダー設定だけに保存し、不要になったら取り消します。
 :::
 
 ## ステップ 2: AIRI で設定する
 
 1. **設定 → プロバイダー → チャット → Amazon Bedrock** を開き、AWS **API キー**を入力し、リージョンを選択します。デフォルトのリージョンは `us-east-1` です。
-2. AWS アカウントが、対応するリージョンのターゲット モデルにアクセスできることを確認します。カスタム Bedrock Endpoint を使用する場合は、カスタム アドレスのみを入力します。
+2. AWS アカウントが、選択したリージョンの対象モデルへアクセスできることを確認します。AIRI のフォームにカスタムエンドポイント欄はありません。
 
 ## ステップ 3: 構成を確認する
 

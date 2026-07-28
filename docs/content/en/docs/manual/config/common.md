@@ -7,10 +7,10 @@ This page explains how AIRI's provider configuration works. For the specific ser
 
 ## Configuration process
 
-1. Open **Settings → Providers** and select the function category: **Chat**, **Speech Synthesis** or **Speech Recognition**.
+1. Open **Settings → Providers** and select **Chat**, **Vision**, **Speech**, **Transcription**, or **Artistry**.
 2. Select the service provider and fill in the credentials required on the page.
 3. If necessary, expand the advanced settings and fill in the Base URL or other parameters provided by the service provider.
-4. Wait for AIRI to complete the verification; after passing the verification, select the service provider and model or sound in the corresponding function module.
+4. Wait for AIRI to complete the verification; after passing the verification, select the service provider and model or voice in the corresponding function module.
 
 ::: warning Credential security
 Credentials and provider settings are saved in the current device's local settings. Never disclose credentials such as API Key, AccessKey Secret, etc. in screenshots, logs, issues, or chat logs.
@@ -23,8 +23,8 @@ Credentials and provider settings are saved in the current device's local settin
 | API Key |Access token issued by the service provider|Paste the complete key directly without adding quotes or spaces.|
 | Base URL |The root address of the service provider API|Modify only when required by the service provider's documentation. When using a custom address, fill in the complete `https://` or `http://` address.|
 |Model|Model ID used for chat, speech, or recognition|Prioritize selecting from AIRI's list; if the list fails to load, fill it in manually according to the service provider's document.|
-|timbre|The voice ID used when TTS reads aloud|Select the model first, then select the sounds supported by the model.|
-|area|Some cloud services are used to determine access nodes|Must be consistent with the project or service area in the service provider console.|
+| Voice |The voice ID used for speech synthesis|Select the model first, then select a voice supported by that model.|
+| Region |The deployment region used by some cloud services|Match the project or resource region in the provider console.|
 
 ## Verification results
 

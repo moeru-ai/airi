@@ -28,7 +28,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
 3. Select MiniMax Global and the model in **Settings → Modules → Consciousness** and send a short message to confirm that AIRI can reply.
 

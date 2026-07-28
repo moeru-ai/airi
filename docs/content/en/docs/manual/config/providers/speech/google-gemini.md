@@ -21,13 +21,17 @@ Do not submit the Gemini API Key to the repository, take screenshots, or send it
 
 ## Step 2: Configure in AIRI
 
-1. Fill in the Gemini API Key in **Settings → Providers → Speech Synthesis → Google Gemini**.
+1. Fill in the Gemini API Key in **Settings → Providers → Speech → Google Gemini**.
 2. Keep the interface default Base URL unless you are using an enterprise gateway or compatible proxy.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
+
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Google Gemini**, then select an available audio model and voice. The playground test alone does not enable the provider for normal replies.
 
 ## Troubleshooting
 

@@ -6,12 +6,12 @@ description: AIRI で Azure AI Foundry チャット モデルを構成する
 Azure AI Foundry には、リソース名、モデルのデプロイ情報、および API キーが必要です。
 
 ::: info Azure AI Foundry を選ぶ理由?
-Azure AI Foundry でモデルのデプロイとアクセス制御が完了している場合は、このサービス プロバイダーを使用してデプロイに直接接続できます。
+Azure AI Foundry でモデルのデプロイとアクセス制御が完了している場合は、このプロバイダーを使用してデプロイに直接接続できます。
 :::
 
 ## ステップ 1: Azure AI Foundry リソースを準備する
 
-1. [Azure AI Foundry](https://ai.azure.com/) を開いてログインし、必要な API キーまたは認証情報を作成します。
+1. [Azure AI Foundry](https://ai.azure.com/) でプロジェクトを作成し、使用するモデルをデプロイします。プロジェクトの API キー、リソース名、デプロイ ID、API バージョンを記録します。
 
 ::: warning API キーのセキュリティ
 Azure API キーをリポジトリに送信したり、スクリーンショットを撮ったり、他の人に送信したりしないでください。

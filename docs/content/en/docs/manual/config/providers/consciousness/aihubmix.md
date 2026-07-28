@@ -23,7 +23,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After successful testing, select the specific model you want to use; then go to **Settings → Modules → Consciousness** to enable it.
 
 ## Troubleshooting

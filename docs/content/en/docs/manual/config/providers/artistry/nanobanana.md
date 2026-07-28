@@ -3,7 +3,7 @@ title: Nano Banana (Artistic Creation)
 description: Configuring Nano Banana image generation in AIRI
 ---
 
-Nano Banana uses the Google AI Studio API Key to generate images. After completing the configuration, you can select the service provider in **Settings → Artistry**.
+Nano Banana uses a Google AI Studio API key to generate images. Configure it under **Settings → Providers → Artistry**, then enable it under **Settings → Modules → Artistry**.
 
 ::: info Why choose Nano Banana?
 If you already have a Google AI Studio API Key and want to use AIRI's built-in Gemini image model and resolution options directly, you can select it.
@@ -27,10 +27,11 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 3: Verify configuration
 
-1. Open **Settings → Artistry** and select **Nano Banana**.
-2. Generate an image using a prompt word that does not contain sensitive information.
-3. Successfully returning the image means that the API Key, model and resolution configuration are available.
+1. Open **Settings → Modules → Artistry** and select **Nano Banana**.
+2. Under **Settings → Modules → Consciousness**, select a chat model that supports tool/function calling.
+3. Return to chat and ask AIRI to generate a non-sensitive image.
+4. A returned image confirms that the API key, model, resolution, and tool call work.
 
 ## Troubleshooting
 
-When authentication fails, check whether the API Key is valid. When a model is unavailable or the request is denied, check your Google AI Studio account, region availability, and current model status. When the build fails, switch to 1K resolution or another available model and try again.
+When authentication fails, check whether the API key is valid. If image generation fails, check your Google AI Studio account, regional availability, and current model status, then try 1K resolution or another available model.

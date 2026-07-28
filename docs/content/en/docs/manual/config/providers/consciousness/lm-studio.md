@@ -23,7 +23,7 @@ If you want to run the model locally and manage the model files yourself, LM Stu
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether AIRI can connect to local services.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the loaded model.
 
 ## Troubleshooting

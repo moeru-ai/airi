@@ -3,7 +3,7 @@ title: アリババクラウドNLS
 description: AIRI での Alibaba Cloud インテリジェント音声インタラクション サービス (ASR) の設定
 ---
 
-Alibaba Cloud NLS は、AIRI にリアルタイム音声テキスト変換 (ASR) 機能を提供します。設定が完了したら、「ヒアリング」でAlibaba Cloud NLSを選択し、マイク入力をテストします。
+Alibaba Cloud NLS は、AIRI にリアルタイム音声テキスト変換 (ASR) 機能を提供します。設定が完了したら、「聴覚」でAlibaba Cloud NLSを選択し、マイク入力をテストします。
 
 ::: info Alibaba Cloud NLS を選ぶ理由?
 すでに Alibaba Cloud アカウントを使用していて、リアルタイム音声認識機能が必要な場合は、Alibaba Cloud NLS を選択できます。
@@ -11,7 +11,7 @@ Alibaba Cloud NLS は、AIRI にリアルタイム音声テキスト変換 (ASR)
 
 ## ステップ 1: 資格情報を準備する
 
-1. [Alibaba Cloud Intelligent Voice Interaction Console](https://nls-portal.console.aliyun.com/overview) を開いてログインし、必要な API キーまたは認証情報を作成します。
+1. [Alibaba Cloud Intelligent Voice Interaction Console](https://nls-portal.console.aliyun.com/overview) で音声認識サービスを有効にし、プロジェクトを作成して **AppKey** を記録します。
 2. **AccessKey Management** で必要な権限を持つ RAM ユーザー AccessKey を作成します。
 3. **AccessKey ID** と **AccessKey Secret** をコピーします。通常、シークレットは完全に 1 回だけ表示されます。
 
@@ -21,14 +21,14 @@ AccessKey ID、AccessKey Secret、または AppKey をリポジトリに送信�
 
 ## ステップ 2: AIRI で設定する
 
-1. **[設定] → [プロバイダー] → [音声認識] → [Alibaba Cloud NLS]** を開きます。
+1. **[設定] → [プロバイダー] → [Transcription] → [Alibaba Cloud NLS]** を開きます。
 2. **AccessKey ID**、**AccessKey Secret**、**AppKey** を入力します。
 3. 中国東部 `cn-shanghai`、中国北部 `cn-beijing`、中国南部 `cn-shenzhen` など、最も近いエリアを選択します。
 
 ## ステップ 3: 構成を確認する
 
 1. 確認ページでは、基本的な資格情報の検証が成功したことを確認するメッセージが表示されます。
-2. 「ヒアリング」で Alibaba Cloud NLS とオーディオ入力デバイスを選択します。
+2. 「聴覚」で Alibaba Cloud NLS とオーディオ入力デバイスを選択します。
 3. [モニタリングの開始] をクリックし、マイクに向かって話すか、オーディオ クリップを再生します。
 4. 文字起こしエリアにテキストがリアルタイムに出力できることを確認します。認識結果が不正確な場合は、感度を調整して再度テストできます。
 

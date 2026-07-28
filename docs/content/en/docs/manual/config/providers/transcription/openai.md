@@ -3,7 +3,7 @@ title: OpenAI compatible API (ASR/STT)
 description: Configuring OpenAI or an OpenAI-compatible API as a speech recognition provider in AIRI
 ---
 
-This page is used to configure OpenAI or a service provider that provides an OpenAI-compatible transcoding interface. After completing the configuration, select the model in Hearing and test the microphone input.
+This page configures an OpenAI-compatible transcription API. After saving it, select the provider and model under **Settings → Modules → Hearing** and test microphone input.
 
 ::: info Why choose OpenAI to be ASR/STT compatible?
 If your speech recognition service provider clearly provides an OpenAI-compatible transcription interface, you can access AIRI as described on this page. Merely having an API address ending with `/v1` or a key starting with `sk-` does not guarantee service compatibility.
@@ -21,9 +21,9 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Recognition → OpenAI Compatible API**.
+1. Open **Settings → Providers → Transcription → OpenAI Compatible API**.
 2. Fill in the API Key and the ASR/STT model ID to be used.
-3. When using OpenAI official services, keep the default Base URL: `https://api.openai.com/v1/`; when using compatible services, fill in the API root address provided by the service provider's documentation.
+3. For official OpenAI, select the separate **OpenAI** provider. The **OpenAI Compatible API** provider has no default Base URL; enter the complete API root documented by the compatible service.
 
 ## Step 3: Verify configuration
 
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If there are no text results, please first confirm that the system has granted AIRI microphone permission. When using a compatible service, please confirm that it clearly supports the OpenAI translation interface and the filled-in model ID.
+If there is no text result, confirm that AIRI has microphone permission. For a compatible service, verify that it implements the OpenAI transcription API and supports the entered model ID.

@@ -20,13 +20,17 @@ Don't expose the API Key. Using cloud transcription will send the audio to be re
 
 ## Step 2: Configure in AIRI
 
-1. Fill in the API Key in **Settings → Providers → Voice Recognition → Xiaomi MiMo**.
+1. Fill in the API Key in **Settings → Providers → Transcription → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the service provider provides another address.
 
 ## Step 3: Verify configuration
 
 1. Select an available transcription model in the provider settings.
 2. Use the playground on the same page, allow microphone access, and record a short sample to confirm that text is returned.
+
+## Enable microphone transcription
+
+Open **Settings → Modules → Hearing**, select **Xiaomi MiMo**, choose model ID `mimo-v2-omni`, then choose a microphone and run the Hearing test. Testing the provider page alone does not enable microphone transcription.
 
 ## Troubleshooting
 

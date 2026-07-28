@@ -12,7 +12,7 @@ If you want to use the Moonshot model in AIRI, or already have a Moonshot API Ke
 
 ## Step 1: Get the API key
 
-1. Open [Moonshot Console](https://platform.moonshot.cn/).
+1. Open the [Moonshot Global Console](https://platform.moonshot.ai/).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 
@@ -24,11 +24,11 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 1. Open **Settings → Provider → Chat → Moonshot**.
 2. Paste the API Key into the basic settings.
-3. Keep the default Base URL: `https://api.moonshot.ai/v1/`.
+3. Keep the global Base URL `https://api.moonshot.ai/v1/`. A key from `platform.moonshot.cn` must instead use the China endpoint documented by that console; credentials and endpoints cannot be mixed between regions.
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
 
 ## Troubleshooting

@@ -21,14 +21,18 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → Deepgram** and paste the API Key into the basic settings.
-2. Keep the default Base URL of the interface; only modify it when deploying a compatible gateway yourself.
+1. Open **Settings → Providers → Speech → Deepgram** and paste the API key.
+2. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Deepgram's direct API. Your API key, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a provider that connects directly.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Deepgram**, then select an available model and voice. The playground test alone does not enable the provider for normal replies.
+
 ## Troubleshooting
 
-If the playground cannot complete a request, check the project API Key, account permissions, and network connection. When the tone list is empty, retest your credentials before selecting a model.
+If the playground cannot complete a request, check the project API Key, account permissions, and network connection. When the voice list is empty, retest your credentials before selecting a model.

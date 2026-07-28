@@ -3,24 +3,24 @@ title: Amazon Bedrock
 description: Configuring the Amazon Bedrock Chat Model in AIRI
 ---
 
-Amazon Bedrock uses AWS credentials and region to access authorized base models.
+Amazon Bedrock uses a Bedrock API key and AWS region to access authorized base models.
 
 ::: info Why choose Amazon Bedrock?
 If you already manage model access, regions, and billing in AWS, Bedrock can use this same account management approach.
 :::
 
-## Step One: Prepare AWS Credentials
+## Step 1: Prepare a Bedrock API key
 
-1. Open and sign in to the [AWS Management Console](https://console.aws.amazon.com/bedrock/), then create access credentials with Bedrock permissions.
+1. Open the [Amazon Bedrock console](https://console.aws.amazon.com/bedrock/), enable access to the required model, and create a Bedrock API key for the same account and region.
 
 ::: warning AWS Credential Security
-Don't expose AWS access keys. Use credentials with minimal privileges and revoke them when no longer in use.
+Do not expose the Bedrock API key. Store it only in AIRI's provider settings and revoke it when no longer needed.
 :::
 
 ## Step 2: Configure in AIRI
 
 1. Open **Settings → Providers → Chat → Amazon Bedrock**, fill in the AWS **API Key**, and select the region; the default region is `us-east-1`.
-2. Confirm that the AWS account has gained access to the target model in the corresponding region. Only fill in the custom address if using a custom Bedrock Endpoint.
+2. Confirm that the AWS account has access to the target model in the selected region. The AIRI form has no custom endpoint field.
 
 ## Step 3: Verify configuration
 

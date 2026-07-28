@@ -21,13 +21,17 @@ Azure keys provide access to your speech resources. Do not submit, screenshot or
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → Microsoft / Azure Speech**.
-2. Fill in the API Key and region information. The Base URL remains the interface default unless you are using a compatible gateway.
+1. Open **Settings → Providers → Speech → Microsoft / Azure Speech**.
+2. Enter the API key and region. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Azure's direct API. Your key, region, text to synthesize, voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
+
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Microsoft / Azure Speech**, then select an available model and voice. The provider playground tests credentials; this module selection enables speech for normal AIRI replies.
 
 ## Troubleshooting
 

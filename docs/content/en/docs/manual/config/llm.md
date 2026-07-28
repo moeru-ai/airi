@@ -15,13 +15,13 @@ The chat model is the “brain” of AIRI. After completing this page, AIRI can 
 
 1. Open **Settings → Providers → Chat** and select the service provider you want to use.
 
-When you are not sure which one to choose, you can first choose from the detailed guides available: [OpenRouter](./providers/consciousness/openrouter.md), [DeepSeek](./providers/consciousness/deepseek.md), [OpenAI Compatible API](./providers/consciousness/openai.md), or the local [Ollama](./providers/consciousness/ollama.md). Other chat service providers can be viewed from the sidebar "Service Provider → Chat Service Provider".
+When you are not sure which one to choose, start with [OpenRouter](./providers/consciousness/openrouter.md), [DeepSeek](./providers/consciousness/deepseek.md), [OpenAI Compatible API](./providers/consciousness/openai.md), or local [Ollama](./providers/consciousness/ollama.md). Other chat providers are listed under **Providers → Chat**.
 
 2. Fill in the API Key. If the service provider provides a dedicated API address, fill in the Base URL in the advanced settings; otherwise, keep the default value.
 
-3. If the provider page shows **Ping API**, click it to test the connection and API key. Some providers do not offer this button; verify those providers after selecting a model in **Modules → Consciousness**.
+3. Save the provider configuration and review any validation steps shown on that provider page. Validation differs by provider and may check only fields, fetch the model list, or send a small request.
 
-4. After the network is open, click **Select Model**; you can also open **Settings → Modules → Consciousness** and select the chat service provider and model you just configured.
+4. Open **Settings → Modules → Consciousness** and select the provider and model you configured.
 
 AIRI will load the model list when supported by the service provider. When the list cannot be loaded, you can manually enter the precise model ID according to the official documentation of the service provider.
 

@@ -6,7 +6,7 @@ description: Configuring Volcano Engine Speech Synthesis in AIRI
 Volcano engine speech synthesis requires filling in the API Key and application information in AIRI.
 
 ::: info Why choose Volcano Engine?
-If you have created a voice application and managed sound resources in the Volcano Engine, you can reuse this set of configurations in AIRI.
+If you have created a voice application and managed voice resources in the Volcano Engine, you can reuse this set of configurations in AIRI.
 :::
 
 ## Step 1: Prepare application credentials
@@ -21,14 +21,18 @@ Do not disclose the credentials corresponding to the API Key or App ID; immediat
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → Volcano Engine**.
-2. Fill in the API Key and App ID; the Base URL uses the interface default value unless you use a compatible gateway.
+1. Open **Settings → Providers → Speech → Volcengine**.
+2. Enter the API key and App ID. The default Base URL is the AIRI/UnSpeech gateway at `https://unspeech.hyp3r.link/v1/`, not Volcengine's direct API. Your credentials, text to synthesize, model/voice selection, and returned audio pass through this gateway. Use it only if you accept that trust boundary; otherwise enter a compatible self-hosted gateway URL or choose a direct provider.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Volcengine**, then select an available model and voice. The provider playground tests credentials; this module selection enables speech for normal AIRI replies.
+
 ## Troubleshooting
 
-When verification fails, check whether the App ID and API Key are from the same application. When there is no sound, make sure the app has enabled speech synthesis and selected a tone.
+When verification fails, check whether the App ID and API Key are from the same application. When there is no sound, make sure the app has enabled speech synthesis and selected a voice.

@@ -20,13 +20,17 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → CometAPI Speech** and fill in the API Key.
+1. Open **Settings → Providers → Speech → CometAPI Speech** and fill in the API Key.
 2. Keep the default Base URL: `https://api.cometapi.com/v1/`; modify it only when using a proxy or compatible gateway.
 
 ## Step 3: Verify configuration
 
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
+
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **CometAPI Speech**, then select an available model and voice. The playground test alone does not enable the provider for normal replies.
 
 ## Troubleshooting
 

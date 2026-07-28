@@ -27,9 +27,9 @@ Only save the API Key in your password manager or AIRI's local settings. Do not 
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
 
 ## Troubleshooting
 
-If Ping API fails, please check the API Key, account limit and network connection first. When the model list is not available, the model ID given in the xAI documentation can be manually filled in on the Consciousness page.
+If provider validation fails, please check the API Key, account limit and network connection first. When the model list is not available, the model ID given in the xAI documentation can be manually filled in on the Consciousness page.

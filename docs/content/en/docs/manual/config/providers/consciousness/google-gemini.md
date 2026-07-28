@@ -27,9 +27,9 @@ After the key is leaked, please immediately revoke and recreate it in the Google
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
 
 ## Troubleshooting
 
-The Ping API checks the network, model list, and chat requests. When a permission or model unavailable error occurs, please first check the API activation status and regional availability of the project corresponding to the API Key. Do not rewrite the model names displayed in Google AI Studio to other formats; in AIRI, select from the model list first.
+The provider validation checks the network, model list, and chat requests. When a permission or model unavailable error occurs, please first check the API activation status and regional availability of the project corresponding to the API Key. Do not rewrite the model names displayed in Google AI Studio to other formats; in AIRI, select from the model list first.

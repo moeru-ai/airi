@@ -6,12 +6,12 @@ description: Configuring the BytePlus chat model in AIRI
 BytePlus uses Ark-compatible chat service configuration in AIRI.
 
 ::: info Why choose BytePlus?
-If you have created an Ark model endpoint in BytePlus, you can use the endpoint and credentials directly in AIRI.
+Use this provider when your BytePlus account has Ark API access.
 :::
 
 ## Step 1: Prepare BytePlus credentials
 
-1. Open and log in to the [BytePlus Console](https://console.byteplus.com/), then create or view the Ark endpoint and its access credentials.
+1. Open the [BytePlus Console](https://console.byteplus.com/) and create an API key with Ark access.
 
 ::: warning API Key Security
 Do not submit API keys or endpoint credentials to the repository, take screenshots, or send them to others.
@@ -19,14 +19,14 @@ Do not submit API keys or endpoint credentials to the repository, take screensho
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Chat → BytePlus**, and fill in the API Key, endpoint or model information according to the BytePlus console.
-2. Do not guess the Endpoint ID; copy the actual ID of the endpoint created in the console.
+1. Open **Settings → Providers → Chat → BytePlus** and enter the API key.
+2. Keep the default Base URL unless BytePlus documents another compatible API root. Models are selected from AIRI's provider list; this form has no Endpoint ID or model input.
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network and credentials are correct.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select model**: After the test is successful, go to **Settings → Modules → Consciousness** to select the service provider and model.
 
 ## Troubleshooting
 
-When verification fails, check whether the API Key, Endpoint ID and model information come from the same BytePlus Ark project. Do not manually guess the Endpoint ID; copy the actual ID from the console.
+When validation fails, check the API key, Base URL, account access, and network connection. If a model is unavailable, select one from the list exposed by the provider.

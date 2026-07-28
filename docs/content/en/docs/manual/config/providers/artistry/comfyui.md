@@ -1,9 +1,9 @@
 ---
-title: ComfyUI (artistic creation)
-description: Connecting native ComfyUI workflows in AIRI
+title: ComfyUI (Artistry)
+description: Connect local ComfyUI workflows to AIRI
 ---
 
-ComfyUI lets AIRI use image generation workflows from your local machine or a trusted LAN. After completing the configuration, you can select ComfyUI in **Settings → Artistry** and let AIRI generate images using the saved workflow.
+ComfyUI lets AIRI use image-generation workflows from your local machine or a trusted LAN. Configure and activate the workflow on the provider page, then enable ComfyUI under **Settings → Modules → Artistry**.
 
 ::: info Why choose ComfyUI?
 If you wish to use your own installed models, nodes and workflows and leave image generation in your local environment, ComfyUI is AIRI's native art service provider.
@@ -24,15 +24,15 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 1. Open **Settings → Providers → Artistry → ComfyUI**.
 2. Fill in the ComfyUI Server URL; this machine uses `http://localhost:8188` by default.
 3. Click **Test Connection** to confirm that AIRI can read the ComfyUI service status.
-4. Upload the API workflow JSON in the Workflow area, fill in the name, and select the input fields you want AIRI to expose.
+4. Upload the API workflow JSON in the Workflow area, enter a name, and select the input fields that AIRI may control.
 5. Save the workflow and make it the active workflow.
 
 ## Step 3: Verify configuration
 
 1. Select the chat model that supports Tool Calling / Function Calling in **Settings → Modules → Consciousness**. AIRI requires the ComfyUI image generation tool to be called by the model.
-2. Open **Settings → Artistry** and select **ComfyUI**.
-3. Select the workflow you just saved and use a prompt word that does not contain sensitive information to initiate generation.
-4. Confirm that the task appears in Queue or History of ComfyUI; when the workflow is completed and the picture is returned, it means that the connection, workflow, chat model and exposeable fields are configured successfully.
+2. Open **Settings → Modules → Artistry** and select **ComfyUI**.
+3. Return to chat and ask AIRI to generate a non-sensitive image.
+4. Confirm that the task appears in ComfyUI's Queue or History. A returned image confirms that the connection, active workflow, exposed fields, and chat-model tool call work.
 
 ## Troubleshooting
 

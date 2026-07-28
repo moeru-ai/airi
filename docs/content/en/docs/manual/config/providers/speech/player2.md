@@ -20,7 +20,7 @@ Do not expose local service ports to untrusted public networks.
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Providers → Speech Synthesis → Player2 Speech**.
+1. Open **Settings → Providers → Speech → Player2 Speech**.
 2. Fill in the Base URL that is consistent with the service address.
 
 ## Step 3: Verify configuration
@@ -28,6 +28,10 @@ Do not expose local service ports to untrusted public networks.
 1. Select a model and any available voice in the provider settings.
 2. Use the playground on the same page to enter a short text and confirm that audio plays.
 
+## Enable for AIRI replies
+
+Open **Settings → Modules → Speech**, select **Player2 Speech**, choose model ID `player2-tts`, and select a voice. The provider test alone does not enable speech for normal replies.
+
 ## Troubleshooting
 
-When the connection fails, check the service's `/health` response and Base URL. When the tone list is empty, confirm that the `/tts/voices` interface of the service is accessible.
+When the connection fails, check the service's `/health` response and Base URL. When the voice list is empty, confirm that the `/tts/voices` interface of the service is accessible.

@@ -7,7 +7,7 @@ is_openai_compatible: true
 OpenRouter is an aggregation API service provider. After completing the configuration on this page, AIRI can use the chat model provided by OpenRouter in Consciousness.
 
 ::: info Why choose OpenRouter?
-If you want to try out multiple models in AIRI with one API Key, OpenRouter is a convenient choice. It centralizes multiple model services into the same socket and bill, so when switching models you usually don't have to separately configure multiple service providers. When using AIRI in mainland China, you can try 302.AI first; actual availability still depends on your network environment, payment method, and service provider policies.
+OpenRouter is convenient when you want to access multiple model vendors with one API key and billing account. You can switch among the models exposed by OpenRouter without configuring each upstream provider separately. Availability still depends on your region, network, payment method, and provider policy.
 :::
 
 ## Step 1: Get the API key
@@ -29,7 +29,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test whether the network is connected and whether the API key is filled in correctly.
+1. **Validate**: Save the configuration and run the validation shown on the provider page. Then select the provider and model under **Settings → Modules → Consciousness** and send a test message.
 2. **Select model**: After the test is successful, click here to select the specific model you want to use (such as **google/gemini-pro-1.5**).
 
 ## Troubleshooting

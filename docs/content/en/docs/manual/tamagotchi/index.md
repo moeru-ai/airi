@@ -5,18 +5,18 @@ description: How to get started with Project AIRI Desktop
 
 ## Start chatting first
 
-After installing and starting AIRI, you can first complete the basic configuration by following the first boot:
+After installing and starting AIRI, complete the onboarding flow:
 
 1. If AIRI asks for a language selection, first select the language you want to use.
-2. Select **Configure your own AI service source**; if you are already using an AIRI account, you can also choose to log in.
-3. Select a chat service source such as OpenRouter, OpenAI Compatible API, DeepSeek, Ollama, Qwen, Gemini, or Claude.
+2. Select **Setup with your provider**, or select **Sign in** to use the official AIRI provider.
+3. Select a Chat provider such as OpenRouter, OpenAI Compatible API, DeepSeek, Ollama, Google Gemini, or Anthropic.
 4. Fill in the API Key, local service address and other necessary information.
-5. Select a chat model, then save and continue.
+5. Select a chat model, then select **Let's do it!**.
 6. After returning to the main character window, click the **Expand** button in the control island in the lower right corner.
 7. Click **Open Chat**, enter the message and send it.
 
 ::: tip Using Ollama locally?
-You need to set the system environment variable `OLLAMA_ORIGINS=*`, then restart Ollama and select it from AIRI.
+Allow only the AIRI origin that you use, for example `OLLAMA_ORIGINS=http://localhost:5173`, then restart Ollama. Do not use a wildcard or expose Ollama to the public internet. If AIRI runs on another trusted LAN device, replace the origin with that device's exact AIRI URL.
 :::
 
 <br />
@@ -31,9 +31,9 @@ The desktop version is also called Stage Tamagotchi and usually consists of thes
 
 - **Main Character Window**: Live2D/VRM stage resident on the desktop.
 - **Control Island**: A small group of buttons in the lower right corner of the main character window.
-- **CHAT WINDOW**: A conversation window opened from the control island.
-- **Settings Window**: Configure service sources, roles, models, body modules, data, connections and system options.
-- **System Tray Menu**: resize, align position, open settings, subtitles, widgets and exit.
+- **Chat Window**: A conversation window opened from the control island.
+- **Settings Window**: Configure providers, profiles, models, modules, data, connections, and system options.
+- **System Tray Menu**: Adjust the window size and position, open settings, manage captions and widgets, or quit AIRI.
 
 If the main character window is hidden, you can bring it back by clicking on the AIRI tray icon or selecting **Show** in the tray menu.
 
@@ -43,12 +43,12 @@ The control island is the most convenient entry point for daily operation of the
 
 - Click **Expand** to show more actions.
 - Click **Open Chat** to open the chat window.
-- Click **Open Settings** to configure service sources, models, airframe modules, roles and system settings.
-- Click **Switch Role** to change the current character card.
+- Click **Open settings** to configure providers, models, modules, profiles, and system settings.
+- Click **Switch Profile** to change the current character card.
 - If needed, you can click **Refresh** to reload the stage.
 - Click the light/dark icon to switch themes.
 - Click the pushpin icon to switch the window to the top.
-- Click on the eye icon to toggle **Hide on Hover** / **Always Show**.
+- Click the eye icon to toggle **Auto hide** / **Always show**.
 - Click the microphone button to turn on hearing controls.
 - Drag the move button to move the main character window.
 
@@ -56,8 +56,8 @@ The control island is the most convenient entry point for daily operation of the
 
 The eye icon is used to toggle how AIRI is displayed: remain clickable, or minimize occlusion and click distractions while you work.
 
-- **Always Show** will keep the character visible and clickable.
-- **Hide on Hover** will fade out the character and interface when the cursor is close, making it easier to click on the application below.
+- **Always show** keeps the character visible and clickable.
+- **Auto hide** fades the character and interface when the cursor is close, making it easier to click the application below.
 
 When hiding on hover is turned on for the first time, AIRI will pop up a short description. If it is inconvenient to click AIRI after it is turned on, move the cursor near the control island and click the eye icon again to switch back.
 
@@ -80,8 +80,8 @@ To move the main character window, drag the move button in the lower right corne
 On Windows, you can drag the edges or corners of a window to resize it. Several common sizes are also provided in the tray menu:
 
 1. Right-click the AIRI tray icon.
-2. Open **Resize**.
-3. Select **Recommended**, **Full Height**, **Half Height** or **Full Screen**.
+2. Open **Adjust sizes**.
+3. Select **Recommended (450x600)**, **Full Height**, **Half Height**, or **Full Screen**.
 
 **Align to** in the same tray menu can move the window to the center or four corners of the screen.
 
