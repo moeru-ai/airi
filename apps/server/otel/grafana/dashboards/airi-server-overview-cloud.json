@@ -319,7 +319,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m])), 1)",
+                      "expr": "100 * sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_response_status_code=~\"5..\"}[5m])) / sum(rate(http_server_request_duration_seconds_count{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\"}[5m]))",
                       "legendFormat": "fail %",
                       "range": true
                     },
@@ -365,6 +365,7 @@
                 },
                 "unit": "percent",
                 "decimals": 2,
+                "noValue": "0",
                 "min": 0,
                 "max": 10
               },
@@ -465,90 +466,6 @@
               },
               "showPercentChange": false,
               "textMode": "auto",
-              "wideLayout": true
-            }
-          },
-          "version": "13.2.0-28666480772"
-        }
-      }
-    },
-    "panel-80": {
-      "kind": "Panel",
-      "spec": {
-        "data": {
-          "kind": "QueryGroup",
-          "spec": {
-            "queries": [
-              {
-                "kind": "PanelQuery",
-                "spec": {
-                  "hidden": false,
-                  "query": {
-                    "datasource": {
-                      "name": "grafanacloud-projairi-prom"
-                    },
-                    "group": "prometheus",
-                    "kind": "DataQuery",
-                    "spec": {
-                      "editorMode": "code",
-                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
-                      "legendFormat": "DAU",
-                      "range": true
-                    },
-                    "version": "v0"
-                  },
-                  "refId": "A"
-                }
-              }
-            ],
-            "queryOptions": {},
-            "transformations": []
-          }
-        },
-        "description": "Daily active users — distinct users with activity in the last 24h. Sourced from `user.last_seen_at` (touched on sign-in and every OIDC token refresh) via the `user.active_rolling` gauge. Cluster-wide gauge aggregated with `max()`.",
-        "id": 80,
-        "links": [],
-        "title": "DAU",
-        "vizConfig": {
-          "group": "stat",
-          "kind": "VizConfig",
-          "spec": {
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "fixed",
-                  "fixedColor": "blue"
-                },
-                "fieldMinMax": false,
-                "thresholds": {
-                  "mode": "absolute",
-                  "steps": [
-                    {
-                      "color": "blue",
-                      "value": 0
-                    }
-                  ]
-                },
-                "unit": "short",
-                "noValue": "0"
-              },
-              "overrides": []
-            },
-            "options": {
-              "colorMode": "none",
-              "graphMode": "area",
-              "justifyMode": "auto",
-              "orientation": "auto",
-              "percentChangeColorMode": "standard",
-              "reduceOptions": {
-                "calcs": [
-                  "lastNotNull"
-                ],
-                "fields": "",
-                "values": false
-              },
-              "showPercentChange": true,
-              "textMode": "value_and_name",
               "wideLayout": true
             }
           },
@@ -743,9 +660,10 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum(ws_connections_active{service_name=~\"$service\", deployment_environment=~\"$env\"})",
-                      "legendFormat": "online",
-                      "range": true
+                      "expr": "max(ws_users_online{service_name=~\"$service\", deployment_environment=~\"$env\"})",
+                      "legendFormat": "users",
+                      "instant": true,
+                      "range": false
                     },
                     "version": "v0"
                   },
@@ -757,10 +675,10 @@
             "transformations": []
           }
         },
-        "description": "Current concurrent WebSocket connections across all replicas (`sum` — each replica holds its own connections). The live-presence counterpart to the rolling DAU/WAU windows.",
+        "description": "Cluster-wide distinct authenticated users with at least one active `/ws/chat` connection. Redis returns each per-user broadcast channel once even when that user has multiple tabs or connections across server replicas; every replica reports the same global value, so the query uses `max()`.",
         "id": 93,
         "links": [],
-        "title": "WS Online",
+        "title": "Online Users",
         "vizConfig": {
           "group": "stat",
           "kind": "VizConfig",
@@ -782,7 +700,7 @@
                   ]
                 },
                 "unit": "short",
-                "noValue": "0"
+                "noValue": "—"
               },
               "overrides": []
             },
@@ -1326,8 +1244,8 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "max (user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
-                      "legendFormat": "__auto",
+                      "expr": "max(user_active_rolling{service_name=~\"$service\", deployment_environment=~\"$env\", window=\"24h\"})",
+                      "legendFormat": "DAU",
                       "range": true
                     },
                     "version": "v0"
@@ -1340,10 +1258,10 @@
             "transformations": []
           }
         },
-        "description": "",
+        "description": "Rolling 24-hour distinct active users over time. This is the trend view of `user.active_rolling`; the duplicate point-in-time DAU stat is intentionally omitted from this dashboard.",
         "id": 99,
         "links": [],
-        "title": "日活",
+        "title": "DAU Trend",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1351,8 +1269,7 @@
             "fieldConfig": {
               "defaults": {
                 "color": {
-                  "mode": "continuous-GrYlRd",
-                  "seriesBy": "last"
+                  "mode": "palette-classic"
                 },
                 "custom": {
                   "axisBorderShow": false,
@@ -1364,19 +1281,16 @@
                   "barWidthFactor": 0.6,
                   "drawStyle": "line",
                   "fillOpacity": 17,
-                  "gradientMode": "scheme",
+                  "gradientMode": "none",
                   "hideFrom": {
                     "legend": false,
                     "tooltip": false,
                     "viz": false
                   },
                   "insertNulls": false,
-                  "lineInterpolation": "linear",
-                  "lineStyle": {
-                    "fill": "solid"
-                  },
-                  "lineWidth": 2,
-                  "pointSize": 3,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
                   "scaleDistribution": {
                     "type": "linear"
                   },
@@ -1397,13 +1311,10 @@
                     {
                       "color": "green",
                       "value": 0
-                    },
-                    {
-                      "color": "red",
-                      "value": 80
                     }
                   ]
-                }
+                },
+                "unit": "short"
               },
               "overrides": []
             },
@@ -1413,8 +1324,11 @@
                 "multiLane": false
               },
               "legend": {
-                "calcs": [],
-                "displayMode": "list",
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
                 "enableFacetedFilter": false,
                 "overflow": "ellipsis",
                 "placement": "bottom",
@@ -1422,8 +1336,8 @@
               },
               "tooltip": {
                 "hideZeros": false,
-                "mode": "single",
-                "sort": "none"
+                "mode": "multi",
+                "sort": "desc"
               }
             }
           },
@@ -1547,27 +1461,63 @@
             "transformations": []
           }
         },
-        "description": "HTTP status-code mix over time, one row per status code, colour = request rate in each time bucket. The 200 row dominates in steady state; a 5xx / 4xx row suddenly lighting up flags an incident at a glance. Non-OPTIONS traffic only.",
+        "description": "Stacked non-OPTIONS request rate by HTTP status code. A new or growing 4xx / 5xx band flags a traffic-quality or service-health change.",
         "id": 40,
         "links": [],
-        "title": "Status Distribution",
+        "title": "HTTP Status Rate",
         "vizConfig": {
-          "group": "heatmap",
+          "group": "timeseries",
           "kind": "VizConfig",
           "spec": {
             "fieldConfig": {
               "defaults": {
+                "color": {
+                  "mode": "palette-classic"
+                },
                 "custom": {
+                  "axisBorderShow": false,
+                  "axisCenteredZero": false,
+                  "axisColorMode": "text",
+                  "axisLabel": "",
+                  "axisPlacement": "auto",
+                  "barAlignment": 0,
+                  "barWidthFactor": 0.6,
+                  "drawStyle": "line",
+                  "fillOpacity": 60,
+                  "gradientMode": "none",
                   "hideFrom": {
                     "legend": false,
                     "tooltip": false,
                     "viz": false
                   },
+                  "insertNulls": false,
+                  "lineInterpolation": "smooth",
+                  "lineWidth": 1,
+                  "pointSize": 5,
                   "scaleDistribution": {
                     "type": "linear"
+                  },
+                  "showPoints": "auto",
+                  "showValues": false,
+                  "spanNulls": false,
+                  "stacking": {
+                    "group": "A",
+                    "mode": "normal"
+                  },
+                  "thresholdsStyle": {
+                    "mode": "off"
                   }
                 },
-                "unit": "short"
+                "thresholds": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    }
+                  ]
+                },
+                "unit": "reqps"
               },
               "overrides": []
             },
@@ -1576,37 +1526,21 @@
                 "clustering": -1,
                 "multiLane": false
               },
-              "calculate": false,
-              "cellGap": 1,
-              "color": {
-                "exponent": 0.5,
-                "fill": "dark-orange",
-                "mode": "scheme",
-                "reverse": false,
-                "scale": "exponential",
-                "scheme": "RdYlBu",
-                "steps": 64
-              },
-              "exemplars": {
-                "color": "rgba(255,0,255,0.7)"
-              },
-              "filterValues": {
-                "le": 1e-9
-              },
               "legend": {
-                "show": false
-              },
-              "rowsFrame": {
-                "layout": "auto"
+                "calcs": [
+                  "lastNotNull",
+                  "max"
+                ],
+                "displayMode": "table",
+                "enableFacetedFilter": false,
+                "overflow": "ellipsis",
+                "placement": "bottom",
+                "showLegend": true
               },
               "tooltip": {
-                "mode": "single",
-                "showColorScale": false,
-                "yHistogram": false
-              },
-              "yAxis": {
-                "axisPlacement": "left",
-                "reverse": false
+                "hideZeros": false,
+                "mode": "multi",
+                "sort": "desc"
               }
             }
           },
@@ -1633,7 +1567,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by (http_route) (\n    rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\", http_response_status_code!=\"404\"}[$__rate_interval])\n)",
+                      "expr": "histogram_quantile(0.95, sum by (le, http_route) (\n  rate(http_server_request_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\", http_request_method!=\"OPTIONS\", http_route!~\"/api/v1/openai/.*\", http_response_status_code!=\"404\"}[$__rate_interval])\n))",
                       "legendFormat": "{{http_route}}",
                       "range": true
                     },
@@ -1647,10 +1581,10 @@
             "transformations": []
           }
         },
-        "description": "",
+        "description": "P95 Hono request duration by matched route. Histogram buckets are merged across replicas while preserving `le`, then interpolated by `histogram_quantile`; values are estimates bounded by the configured bucket widths.",
         "id": 20,
         "links": [],
-        "title": "Request Latency (by Route)",
+        "title": "Request Latency P95 by Route",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1873,9 +1807,10 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__rate_interval]))",
+                      "expr": "sum by (gen_ai_request_model) (increase(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", gen_ai_request_model!=\"\"}[$__range]))",
                       "legendFormat": "{{gen_ai_request_model}}",
-                      "range": true
+                      "instant": true,
+                      "range": false
                     },
                     "version": "v0"
                   },
@@ -1887,10 +1822,10 @@
             "transformations": []
           }
         },
-        "description": "Per-model request rate (chat + tts). Useful for capacity planning and spotting model-routing regressions.",
+        "description": "Per-model request count over the visible dashboard range (chat + tts). The pie shows each model's share without depending on Grafana sampling resolution.",
         "id": 11,
         "links": [],
-        "title": "LLM Request Rate by Model",
+        "title": "LLM Requests by Model (range)",
         "vizConfig": {
           "group": "piechart",
           "kind": "VizConfig",
@@ -1908,7 +1843,7 @@
                     "viz": false
                   }
                 },
-                "unit": "reqps"
+                "unit": "short"
               },
               "overrides": []
             },
@@ -1925,7 +1860,7 @@
               "pieType": "pie",
               "reduceOptions": {
                 "calcs": [
-                  "sum"
+                  "lastNotNull"
                 ],
                 "fields": "",
                 "values": false
@@ -1961,7 +1896,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "sum by () (rate(gen_ai_client_first_token_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval]))",
+                      "expr": "histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_first_token_duration_seconds_bucket{service_name=~\"$service\", deployment_environment=~\"$env\"}[$__rate_interval])))",
                       "legendFormat": "TTFB p95",
                       "range": true
                     },
@@ -2342,7 +2277,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "100 * sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\", http_response_status_code=~\"4..|5..\"}[$__rate_interval])) / clamp_min(sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval])), 1)",
+                      "expr": "100 * sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\", http_response_status_code=~\"4..|5..\"}[$__rate_interval])) / sum by (provider) (rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\", provider!=\"\"}[$__rate_interval]))",
                       "legendFormat": "{{provider}}",
                       "range": true
                     },
@@ -3176,7 +3111,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) / clamp_min(sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])), 1)",
+                      "expr": "100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m])) / sum(rate(gen_ai_client_operation_count_total{service_name=~\"$service\", deployment_environment=~\"$env\"}[5m]))",
                       "legendFormat": "fallback %",
                       "range": true
                     },
@@ -3647,7 +3582,7 @@
                     "kind": "DataQuery",
                     "spec": {
                       "editorMode": "code",
-                      "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} | json | level=~\"warn|error\"",
+                      "expr": "{service_name=~\"$service\", deployment_environment=~\"$env\"} | detected_level=~\"warn|error\"",
                       "legendFormat": "",
                       "range": true
                     },
@@ -3661,10 +3596,10 @@
             "transformations": []
           }
         },
-        "description": "Server-side error logs (level=warn|error) from Loki. Derived fields make `trace_id` and `req` clickable — `trace_id` jumps to Tempo for full request playback.",
+        "description": "Server-side warn and error logs from Loki structured metadata. Derived fields make `trace_id` and `req` clickable — `trace_id` jumps to Tempo for full request playback.",
         "id": 91,
         "links": [],
-        "title": "5xx Error Logs",
+        "title": "Warn / Error Logs",
         "vizConfig": {
           "group": "logs",
           "kind": "VizConfig",
@@ -4015,7 +3950,7 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-80"
+                        "name": "panel-1"
                       },
                       "height": 5,
                       "width": 3,
@@ -4028,7 +3963,7 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-1"
+                        "name": "panel-15"
                       },
                       "height": 5,
                       "width": 3,
@@ -4067,38 +4002,25 @@
                     "spec": {
                       "element": {
                         "kind": "ElementReference",
-                        "name": "panel-82"
-                      },
-                      "height": 3,
-                      "width": 3,
-                      "x": 0,
-                      "y": 5
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
-                        "name": "panel-15"
-                      },
-                      "height": 6,
-                      "width": 3,
-                      "x": 3,
-                      "y": 5
-                    }
-                  },
-                  {
-                    "kind": "GridLayoutItem",
-                    "spec": {
-                      "element": {
-                        "kind": "ElementReference",
                         "name": "panel-81"
                       },
                       "height": 3,
                       "width": 3,
                       "x": 0,
-                      "y": 8
+                      "y": 5
+                    }
+                  },
+                  {
+                    "kind": "GridLayoutItem",
+                    "spec": {
+                      "element": {
+                        "kind": "ElementReference",
+                        "name": "panel-82"
+                      },
+                      "height": 3,
+                      "width": 3,
+                      "x": 3,
+                      "y": 5
                     }
                   },
                   {
@@ -4384,7 +4306,7 @@
     "grafana-cloud"
   ],
   "timeSettings": {
-    "autoRefresh": "",
+    "autoRefresh": "30s",
     "autoRefreshIntervals": [
       "5s",
       "10s",

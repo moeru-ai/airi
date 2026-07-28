@@ -67,6 +67,7 @@ export const METRIC_CHARACTER_CREATED = 'character.created'
 export const METRIC_CHARACTER_DELETED = 'character.deleted'
 export const METRIC_CHARACTER_ENGAGEMENT = 'character.engagement'
 export const METRIC_WS_CONNECTIONS_ACTIVE = 'ws.connections.active'
+export const METRIC_WS_USERS_ONLINE = 'ws.users.online'
 export const METRIC_WS_MESSAGES_SENT = 'ws.messages.sent'
 export const METRIC_WS_MESSAGES_RECEIVED = 'ws.messages.received'
 
