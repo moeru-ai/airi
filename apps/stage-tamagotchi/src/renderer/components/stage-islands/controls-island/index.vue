@@ -160,7 +160,7 @@ function resetMainWindowPosition() {
             :icon-class="adjustStyleClasses.icon"
           />
 
-          <div grid grid-cols-3 gap-2>
+          <div grid grid-cols-4 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
                 v-track-button="{ name: 'controls_island_action', action: 'toggle_settings' }"

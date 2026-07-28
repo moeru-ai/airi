@@ -26,9 +26,11 @@ const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
 const signingIn = ref(false)
+const avatarLoadFailed = ref(false)
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
+const showUserAvatar = computed(() => Boolean(userAvatar.value) && !avatarLoadFailed.value)
 
 function handleClick() {
   if (isAuthenticated.value) {
@@ -65,6 +67,10 @@ watch(needsLogin, (val) => {
 watch(isAuthenticated, (val) => {
   if (val)
     signingIn.value = false
+})
+
+watch(userAvatar, () => {
+  avatarLoadFailed.value = false
 })
 </script>
 
@@ -112,10 +118,11 @@ watch(isAuthenticated, (val) => {
         ]"
       >
         <img
-          v-if="userAvatar"
-          :src="userAvatar"
+          v-if="showUserAvatar"
+          :src="userAvatar ?? undefined"
           :alt="userName ?? ''"
           class="size-full object-cover"
+          @error="avatarLoadFailed = true"
         >
         <div v-else i-solar:user-check-rounded-bold class="size-4 text-primary-500 dark:text-primary-400" />
       </div>
