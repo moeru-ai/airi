@@ -501,7 +501,12 @@ describe('chat orchestrator contract', () => {
     expect(syntheticContextText).toContain('- system:weather: sunny')
   })
 
-  it('emits special tokens for speech timeline handling during chat streaming', async () => {
+  // ROOT CAUSE:
+  //
+  // Muted speech dispatches special tokens without opening a TTS session.
+  // Without a turn id in the hook context, an unhandled plugin CALL cannot be
+  // correlated and relayed to a handler in another Electron renderer.
+  it('emits special tokens with a stable turn id for cross-renderer routing', async () => {
     getContextsSnapshotMock.mockReturnValue({})
     llmStreamMock.mockImplementationOnce(async (_model, _provider, _messages, options) => {
       await options.onStreamEvent({ type: 'text-delta', text: '<|CALL ["plugin.action"]|>' })
@@ -518,7 +523,9 @@ describe('chat orchestrator contract', () => {
 
     expect(specialHook).toHaveBeenCalledWith('<|CALL ["plugin.action"]|>', expect.objectContaining({
       contexts: {},
+      turnId: expect.any(String),
     }))
+    expect(specialHook.mock.calls[0]?.[1].turnId.length).toBeGreaterThan(0)
   })
 
   /**

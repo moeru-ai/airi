@@ -654,6 +654,18 @@ export function useAnalytics() {
     })
   }
 
+  function trackSpeechMuteToggled(properties: {
+    muted: boolean
+    was_speaking: boolean
+  }) {
+    if (!canCapture())
+      return
+    posthog.capture('speech_mute_toggled', {
+      ...properties,
+      app_surface: getConversationAnalyticsSurface(),
+    })
+  }
+
   function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
     if (!canCapture())
       return
@@ -1305,6 +1317,7 @@ export function useAnalytics() {
     trackProviderConfigCompleted,
     trackOfficialProviderEnabled,
     trackTtsStopClicked,
+    trackSpeechMuteToggled,
     trackChatSessionSelected,
     trackChatMessageDeleted,
     trackChatMessagesCleared,
