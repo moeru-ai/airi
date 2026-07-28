@@ -1,0 +1,51 @@
+{
+  "name": "@proj-airi/stage-ui-tachie",
+  "type": "module",
+  "private": true,
+  "description": "Tachie static image scene components and stores for Project AIRI",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/stage-ui-tachie"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./components": "./src/components/index.ts",
+    "./components/scenes": "./src/components/scenes/index.ts",
+    "./components/scenes/Tachie.vue": "./src/components/scenes/tachie.vue",
+    "./components/scenes/tachie": "./src/components/scenes/tachie/index.ts",
+    "./constants/emotions": "./src/constants/emotions.ts",
+    "./stores": "./src/stores/index.ts",
+    "./stores/tachie": "./src/stores/tachie.ts",
+    "./utils/tachie-archive": "./src/utils/tachieArchive.ts",
+    "./utils/tachie-preview": "./src/utils/tachiePreview.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:",
+    "@pixi/app": "catalog:",
+    "@pixi/core": "catalog:",
+    "@pixi/extensions": "catalog:",
+    "@pixi/sprite": "catalog:",
+    "@proj-airi/stage-shared": "workspace:^",
+    "@proj-airi/ui": "workspace:^",
+    "culori": "catalog:",
+    "jszip": "catalog:",
+    "pinia": "catalog:",
+    "pixi-filters": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@types/culori": "catalog:",
+    "vitest": "catalog:vitest",
+    "vue-tsc": "catalog:"
+  }
+}

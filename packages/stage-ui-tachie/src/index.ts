@@ -1,0 +1,6 @@
+export { TachieCanvas, TachieModel } from './components/scenes/tachie'
+export { default as TachieScene } from './components/scenes/tachie.vue'
+export * from './constants/emotions'
+export * from './stores'
+export * from './utils/tachieArchive'
+export * from './utils/tachiePreview'
