@@ -316,8 +316,10 @@ pages:
     activate: Activate
     active: Active
     active_badge: Currently Active
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: Cancel action
     save: Save changes
+    save_and_activate: Save and activate
     card_not_found: Card not found
     character: Character
     close: Close
@@ -1807,6 +1809,22 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing,
       accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  rendering:
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: Enable Secure WebSocket (WSS)
   description: >-

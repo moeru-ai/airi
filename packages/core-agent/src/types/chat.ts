@@ -52,6 +52,8 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & { createdAt?: number, id?: string }
 
 export interface ChatStreamEventContext {
+  /** Stable correlation id shared by every hook emitted for one user turn. */
+  turnId: string
   message: ChatHistoryItem
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>

@@ -14,6 +14,7 @@ import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
+import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
@@ -179,15 +180,6 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
-                <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-              </ControlButton>
-              <template #tooltip>
-                {{ t('tamagotchi.stage.controls-island.open-chat') }}
-              </template>
-            </ControlButtonTooltip>
-
-            <ControlButtonTooltip disable-hoverable-content>
               <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
                 <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
@@ -257,6 +249,15 @@ function resetMainWindowPosition() {
         </ControlButtonTooltip>
 
         <ControlButtonTooltip side="left">
+          <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+            <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+          </ControlButton>
+          <template #tooltip>
+            {{ t('tamagotchi.stage.controls-island.open-chat') }}
+          </template>
+        </ControlButtonTooltip>
+
+        <ControlButtonTooltip side="left">
           <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
             <div class="relative">
               <ControlButton :button-style="adjustStyleClasses.button">
@@ -271,6 +272,11 @@ function resetMainWindowPosition() {
             {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
           </template>
         </ControlButtonTooltip>
+
+        <ControlsIslandStopSpeaking
+          :button-style="adjustStyleClasses.button"
+          :icon-class="adjustStyleClasses.icon"
+        />
 
         <ControlButtonTooltip side="left">
           <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">

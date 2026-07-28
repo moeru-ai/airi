@@ -119,7 +119,7 @@ const isTransparent = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixels.value
 
   return true
@@ -131,7 +131,7 @@ const isTransparentForMouseEvents = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixelsExact.value
 
   return true
@@ -185,6 +185,20 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
       renderer: 'spine',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'tachie') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'tachie',
       phase,
       controlsLocked: hasModel ? phase !== 'mounted' : false,
       previewAvailable: hasModel,

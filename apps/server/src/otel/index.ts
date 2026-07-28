@@ -65,6 +65,7 @@ import {
   METRIC_WS_CONNECTIONS_ACTIVE,
   METRIC_WS_MESSAGES_RECEIVED,
   METRIC_WS_MESSAGES_SENT,
+  METRIC_WS_USERS_ONLINE,
 } from '../utils/observability'
 
 const logger = useLogger('otel')
@@ -166,6 +167,16 @@ export interface EngagementMetrics {
    *   `addCallback`. Multiple callbacks would double-count.
    */
   wsConnectionsActive: ObservableGauge
+  /**
+   * Cluster-wide distinct users with at least one active chat WebSocket.
+   *
+   * The callback reads Redis Pub/Sub channels, where each authenticated user
+   * owns one `user:<id>:chat:broadcast` channel regardless of how many tabs or
+   * server replicas are connected. Every replica therefore reports the same
+   * global value; dashboards MUST aggregate it with `max()`/`avg()`, not
+   * `sum()`.
+   */
+  wsUsersOnline: ObservableGauge
   wsMessagesSent: Counter
   wsMessagesReceived: Counter
 }
@@ -420,6 +431,9 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     wsConnectionsActive: meter.createObservableGauge(METRIC_WS_CONNECTIONS_ACTIVE, {
       description: 'Active WebSocket connections (live registry size, scraped per export interval)',
+    }),
+    wsUsersOnline: meter.createObservableGauge(METRIC_WS_USERS_ONLINE, {
+      description: 'Cluster-wide distinct users with an active chat WebSocket, sourced from unique Redis Pub/Sub channels',
     }),
     wsMessagesSent: meter.createCounter(METRIC_WS_MESSAGES_SENT, {
       description: 'Messages sent via WebSocket',

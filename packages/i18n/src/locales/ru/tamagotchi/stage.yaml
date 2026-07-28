@@ -18,6 +18,8 @@ docs:
   'center-main-window': Переместить в центр экрана
   'open-hearing-controls': Управление слухом
   'drag-to-move-window': Перетащите окно
+  'stop-speaking': Остановить воспроизведение
+  'speaker-idle': Динамик
   'switch-to-light-mode': Переключить на светлую тему
   'switch-to-dark-mode': Переключить на темную тему
   'pin-on-top': Прикрепить на верх

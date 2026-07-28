@@ -467,8 +467,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const sendingCreatedAt = now()
 
     // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
+    // Allocate the three per-round ids in their historical order so callers
+    // with deterministic id factories keep the same durable message ids.
+    const streamContextMessageId = createId()
+    const assistantMessageId = createId()
+    const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
-      message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: createId() },
+      turnId: roundId,
+      message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: streamContextMessageId },
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
@@ -510,7 +516,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const activeProvider = deps.getActiveProvider?.() ?? ''
     // The user message is the durable start of a round, so its ID also serves
     // as the correlation key for every telemetry milestone emitted by it.
-    const roundId = createId()
     const correlation: ChatRoundCorrelation = {
       conversationId: sessionId,
       roundId,

@@ -294,3 +294,101 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
     expect(store.sessionMetas['sess-1']).toBeUndefined()
   })
 })
+
+describe('chat-session-store · active card prompt edits', () => {
+  // ROOT CAUSE:
+  //
+  // Editing the active card updates `systemPrompt`, but the session store only
+  // used that value when creating or resetting a session. The current
+  // conversation therefore kept sending its stale system message until the
+  // user manually started a new session.
+  //
+  // We fix this by replacing only the current character session's system
+  // message when its resolved card prompt changes, while preserving the
+  // message identity and conversation history.
+  // https://github.com/moeru-ai/airi/issues/1995
+  it('updates the current session system message for Issue #1995 without clearing its history', async () => {
+    systemPromptRef.value = 'Original character prompt'
+    const store = useChatSessionStore()
+    await store.initialize()
+
+    const sessionId = store.activeSessionId
+    const originalSystemMessage = store.messages[0]
+    store.appendSessionMessage(sessionId, {
+      role: 'user',
+      content: 'Keep this turn.',
+      id: 'user-message',
+      createdAt: 2,
+    })
+
+    systemPromptRef.value = 'Updated character prompt'
+    await nextTick()
+
+    expect(store.messages).toHaveLength(2)
+    expect(store.messages[0]?.role).toBe('system')
+    expect(store.messages[0]?.id).toBe(originalSystemMessage?.id)
+    expect(store.messages[0]?.createdAt).toBe(originalSystemMessage?.createdAt)
+    expect(store.messages[0]?.content).toContain('Updated character prompt')
+    expect(store.messages[0]?.content).not.toContain('Original character prompt')
+    expect(store.messages[1]?.content).toBe('Keep this turn.')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/1995
+  it('hydrates a persisted Issue #1995 session before refreshing its system message', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'persisted-session',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    getIndexMock.mockResolvedValue({
+      userId: 'local',
+      characters: {
+        default: {
+          activeSessionId: meta.sessionId,
+          sessions: { [meta.sessionId]: meta },
+        },
+      },
+    })
+
+    let resolveStoredSession: ((record: ChatSessionRecord) => void) | undefined
+    getSessionMock.mockImplementation(() => new Promise<ChatSessionRecord | null>((resolve) => {
+      resolveStoredSession = resolve
+    }))
+
+    systemPromptRef.value = 'Updated persisted prompt'
+    const store = useChatSessionStore()
+    const initializePromise = store.initialize()
+    await flushMicrotasks()
+
+    // Updating the active session id must not persist a fresh system message
+    // over history that has not finished loading from IndexedDB.
+    expect(store.sessionMessages[meta.sessionId]).toBeUndefined()
+
+    resolveStoredSession?.({
+      meta,
+      messages: [
+        {
+          role: 'system',
+          content: 'Stale persisted prompt',
+          id: 'system-message',
+          createdAt: 1,
+        },
+        {
+          role: 'user',
+          content: 'Persisted history',
+          id: 'user-message',
+          createdAt: 2,
+        },
+      ],
+    })
+    await initializePromise
+    await nextTick()
+
+    expect(store.messages).toHaveLength(2)
+    expect(store.messages[0]?.id).toBe('system-message')
+    expect(store.messages[0]?.content).toContain('Updated persisted prompt')
+    expect(store.messages[1]?.content).toBe('Persisted history')
+  })
+})

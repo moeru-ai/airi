@@ -57,8 +57,11 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 | `character.deleted` | Counter | 同上 | — |
 | `character.engagement` | Counter | 同上（like/bookmark） | `action`（`like` / `unlike` / `bookmark` / `unbookmark`） |
 | `ws.connections.active` | ObservableGauge | [routes/chat-ws/index.ts](../../src/routes/chat-ws/index.ts) `addCallback` walks `userConnections` Map | — |
+| `ws.users.online` | ObservableGauge | [otel/gauges/ws-online-users.ts](../../src/otel/gauges/ws-online-users.ts) counts unique active `user:*:chat:broadcast` Redis Pub/Sub channels | — |
 | `ws.messages.sent` | Counter | 同上 | — |
 | `ws.messages.received` | Counter | [services/domain/chats.ts](../../src/services/domain/chats.ts) | — |
+
+> `ws.users.online` 是 cluster-wide gauge：同一用户无论打开多少标签页、连接到多少个 Server 副本，Redis 都只返回一个活跃 channel。每个副本读取并上报同一个全局值，因此 Dashboard 必须使用 `max()` / `avg()`，不能使用 `sum()`。
 
 ## Product Analytics
 
@@ -142,7 +145,7 @@ OTel SDK 在导出到 Prometheus 时做两件事：
 
 | Row | viz | 关键 metric |
 |---|---|---|
-| Service Health | stat / gauge / heatmap | `user.total`（`max()`）、`user.active_sessions`（`avg()`）、`ws.connections.active`（`sum()`）、`http.server.request.duration_count`（req/s + 5xx%）、`gen_ai.client.operation.count` |
+| Service Health | stat / gauge / timeseries | `user.total`（`max()`）、`user.active_sessions`（`avg()`）、`ws.users.online`（`max()`）、`ws.connections.active`（`sum()` trend）、`http.server.request.duration_count`（req/s + 5xx%）、`gen_ai.client.operation.count` |
 | User Engagement | stat | `user.active_rolling`（DAU / WAU / MAU，`max()`） |
 | Product Analytics | stat / gauge / bargauge / timeseries | `airi.product.events`（Prom-safe event volume by `feature` / `action` / `status`；distinct users 仍查 Postgres `product_events`） |
 | HTTP | heatmap / bargauge / timeseries | `http.server.request.duration_count`（status mix、top routes、route errors）、`http.server.request.duration_bucket`（P95 by route） |
