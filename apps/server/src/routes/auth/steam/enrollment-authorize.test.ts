@@ -145,6 +145,28 @@ describe('authorize enrollment choke point', () => {
     expect(accounts).toHaveLength(0)
   })
 
+  // https://github.com/moeru-ai/airi/pull/1966
+  it('second authorize with the same consumed enrollToken still issues a code when Steam is already linked', async () => {
+    const { app, handler } = await buildRoutes(db, { sessionUser: { id: 'uid_double', banned: false } })
+    const token = await createEnrollmentToken(db, { steamId: '76561198000000099', profile: null })
+
+    // ROOT CAUSE:
+    //
+    // Email verify success tab + pending enroll tab both hit authorize with the
+    // same single-use enrollToken. After 55573c56e started failing closed on
+    // consume miss, the second request returned STEAM_ENROLLMENT_TOKEN_INVALID
+    // even though the first already linked Steam and issued a working code.
+    //
+    // We fixed this by treating consume miss as an idempotent retry when the
+    // session user already has Steam linked.
+    const first = await app.request(authorizeUrl(token), { headers: { cookie: 'session=tok' } })
+    const second = await app.request(authorizeUrl(token), { headers: { cookie: 'session=tok' } })
+
+    expect(first.status).toBe(302)
+    expect(second.status).toBe(302)
+    expect(handler).toHaveBeenCalledTimes(2)
+  })
+
   // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610763521
   // Location re-attach policy is covered by enroll-token-login-redirect.test.ts.
   // This case keeps the integrate arc: no session → login redirect keeps token

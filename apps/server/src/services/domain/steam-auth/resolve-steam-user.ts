@@ -31,3 +31,26 @@ export async function findLinkedSteamUser(
 
   return existingAccount ? { userId: existingAccount.userId } : null
 }
+
+/**
+ * Whether this AIRI user already has any Steam account linked.
+ *
+ * Used by the authorize enroll choke point so a second hit with an already
+ * consumed enrollToken (email success tab + pending tab) can still issue a
+ * code after the first request linked Steam.
+ */
+export async function userHasLinkedSteam(
+  db: Database,
+  userId: string,
+): Promise<boolean> {
+  const [existingAccount] = await db
+    .select({ userId: account.userId })
+    .from(account)
+    .where(and(
+      eq(account.providerId, STEAM_PROVIDER_ID),
+      eq(account.userId, userId),
+    ))
+    .limit(1)
+
+  return Boolean(existingAccount)
+}

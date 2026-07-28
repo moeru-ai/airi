@@ -13,6 +13,7 @@ import { isUserBannedNow, resolveSessionIgnoringBan } from '../../libs/request-a
 import { rateLimiter } from '../../middlewares/rate-limit'
 import { consumeEnrollmentToken } from '../../services/domain/steam-auth/enrollment-token'
 import { linkSteamToUser } from '../../services/domain/steam-auth/link-steam-user'
+import { userHasLinkedSteam } from '../../services/domain/steam-auth/resolve-steam-user'
 import { createForbiddenError } from '../../utils/error'
 import { checkEmailIdentifier } from './email-identifier'
 import { createElectronCallbackRelay } from './oidc/electron-callback'
@@ -109,6 +110,19 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       if (resolved?.user && !isUserBannedNow(resolved.user)) {
         const payload = await consumeEnrollmentToken(deps.db, enrollToken)
         if (!payload) {
+          // NOTICE:
+          // Email verify opens a success tab that navigates to authorize while
+          // also broadcasting so the pending enroll tab resumes. Both hit
+          // authorize with the same single-use enrollToken: the first consumes
+          // + links; the second would otherwise 403 even though Steam is
+          // already linked and Electron already received a code.
+          //
+          // If this session user already has Steam linked, treat the miss as
+          // an idempotent retry and continue issuing a code. Truly expired /
+          // forged tokens for users who never linked still fail closed.
+          if (await userHasLinkedSteam(deps.db, resolved.user.id))
+            return handleAuthRequest(cleanedRequest)
+
           throw createForbiddenError(
             'Steam enrollment expired or invalid — please relaunch AIRI',
             'STEAM_ENROLLMENT_TOKEN_INVALID',

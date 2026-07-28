@@ -55,7 +55,9 @@ const continueURL = computed(() => {
 // continuation-keyed event so the matching pending tab can resume.
 //
 // Steam enrollment: continueURL carries enrollToken and Electron owns PKCE on
-// the loopback side, so the email success tab may navigate after trust checks.
+// the loopback side, so the email success tab navigates after trust checks.
+// The pending tab must NOT also navigate on broadcast — that would double-hit
+// the single-use enrollToken on authorize.
 //
 // pending-mount still probes get-session for same-site / already-verified reload.
 const { post, data, isSupported } = useBroadcastChannel<VerifyEmailBroadcastEvent, VerifyEmailBroadcastEvent | string>({
@@ -77,8 +79,14 @@ async function resumeIfSessionReady(source: 'pending-mount' | 'broadcast' | 'ver
     return navigateToContinue()
   }
 
-  if (source === 'broadcast')
+  if (source === 'broadcast') {
+    // Steam enroll: the verified-success tab already navigates (Electron owns
+    // PKCE on loopback). Skipping here avoids a second authorize that races
+    // the single-use enrollToken. Plain web OIDC still resumes on the pending tab.
+    if (shouldVerifiedSuccessTabNavigate(continueURL.value))
+      return false
     return navigateToContinue()
+  }
 
   try {
     const response = await fetch(new URL('/api/auth/get-session', apiServerUrl).toString(), {
