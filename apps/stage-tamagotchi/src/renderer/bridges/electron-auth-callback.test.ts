@@ -62,13 +62,6 @@ describe('initializeElectronAuthCallbackBridge', () => {
     initializeElectronAuthCallbackBridge()
   })
 
-  it('applies tokens and fetches the session on auth callback', async () => {
-    const authStore = useAuthStore()
-    await emit(electronAuthCallback, { accessToken: 'a', expiresIn: 3600 })
-    expect(authStore.token).toBe('a')
-    expect(fetchSessionMock).toHaveBeenCalledTimes(1)
-  })
-
   // https://github.com/moeru-ai/airi/pull/1966#pullrequestreview-4770150485
   // ROOT CAUSE:
   //
@@ -80,14 +73,16 @@ describe('initializeElectronAuthCallbackBridge', () => {
   //
   // We fixed this by persisting the callback ID token alongside the other OIDC
   // credentials.
-  it('persists the ID token from an Electron auth callback (PR #1966)', async () => {
+  it('applies tokens including idToken and fetches the session on auth callback (PR #1966)', async () => {
     const authStore = useAuthStore()
     await emit(electronAuthCallback, {
-      accessToken: 'access-token',
+      accessToken: 'a',
       idToken: 'id-token',
       expiresIn: 3600,
     })
+    expect(authStore.token).toBe('a')
     expect(authStore.idToken).toBe('id-token')
+    expect(fetchSessionMock).toHaveBeenCalledTimes(1)
   })
 
   it('toasts the error message on auth callback error', async () => {

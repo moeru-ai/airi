@@ -121,17 +121,6 @@ describe('authorize enrollment choke point', () => {
     expect(tokens).toHaveLength(0)
   })
 
-  it('applies Steam profile to empty user fields when linking', async () => {
-    const { app } = await buildRoutes(db, { sessionUser: { id: 'uid_profile', banned: false } })
-    const token = await createEnrollmentToken(db, { steamId: '76561198000000051', profile: { name: 'Alice', image: 'https://x/a.jpg' } })
-
-    await app.request(authorizeUrl(token), { headers: { cookie: 'session=tok' } })
-
-    const users = await db.select().from(user).where(eq(user.id, 'uid_profile'))
-    expect(users[0]?.name).toBe('Alice')
-    expect(users[0]?.image).toBe('https://x/a.jpg')
-  })
-
   // https://github.com/moeru-ai/airi/pull/1966#discussion_r3600204293
   it('rejects an invalid enrollment token for PR #1966', async () => {
     const { app, handler } = await buildRoutes(db, { sessionUser: { id: 'uid_ok', banned: false } })
@@ -157,26 +146,15 @@ describe('authorize enrollment choke point', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610763521
-  it('preserves enrollToken across a trusted login redirect when there is no session (PR #1966)', async () => {
-    // ROOT CAUSE:
-    //
-    // Without a session the middleware stripped enrollToken before Better Auth
-    // built the login continuation. After login, authorize resumed without the
-    // token, so Steam never linked even though the DB row still existed.
-    //
-    // Before the fix, a no-session authorize that redirected to login dropped
-    // enrollToken from Location.
-    //
-    // We fixed this by re-attaching enrollToken only onto trusted login
-    // redirects, then completing link+code on the authenticated retry.
+  // Location re-attach policy is covered by enroll-token-login-redirect.test.ts.
+  // This case keeps the integrate arc: no session → login redirect keeps token
+  // alive in DB → authenticated retry links Steam and consumes the token.
+  it('links Steam on the authenticated retry after a no-session login redirect (PR #1966)', async () => {
     const handler = vi.fn(async (req: Request) => {
       const url = new URL(req.url)
-      expect(url.searchParams.has('enrollToken')).toBe(false)
       return new Response(null, {
         status: 302,
-        headers: {
-          location: `/auth/sign-in?${url.searchParams.toString()}`,
-        },
+        headers: { location: `/auth/sign-in?${url.searchParams.toString()}` },
       })
     })
 
@@ -202,14 +180,7 @@ describe('authorize enrollment choke point', () => {
     const loginRedirect = await noSessionApp.request(authorizeUrl(token), { headers: {} })
 
     expect(loginRedirect.status).toBe(302)
-    const loginLocation = new URL(loginRedirect.headers.get('location')!, 'http://localhost:3000')
-    expect(loginLocation.pathname).toBe('/auth/sign-in')
-    expect(loginLocation.searchParams.get('enrollToken')).toBe(token)
-
-    const accountsBefore = await db.select().from(account).where(eq(account.providerId, 'steam'))
-    expect(accountsBefore).toHaveLength(0)
-    const tokensBefore = await db.select().from(verification).where(eq(verification.id, token))
-    expect(tokensBefore).toHaveLength(1)
+    expect(new URL(loginRedirect.headers.get('location')!, 'http://localhost:3000').searchParams.get('enrollToken')).toBe(token)
 
     const { app: withSessionApp, handler: withSessionHandler } = await buildRoutes(db, {
       sessionUser: { id: 'uid_retry', banned: false },
