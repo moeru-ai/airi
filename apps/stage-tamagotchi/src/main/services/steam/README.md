@@ -28,7 +28,7 @@ Run the API server and ensure `POST /api/auth/steam/desktop-sign-in` is reachabl
 1. Run `pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> .` before `pnpm dev:tamagotchi`.
 2. Launch from Steam (or dev: Steam running + `steam_appid.txt` in the executable directory).
 3. On startup, main calls `trySteamSignIn` silently (no loading UI).
-4. Success: session syncs like OIDC. Failure: toast via `electronAuthCallbackError`; use **Login** for OIDC.
+4. Linked account: ticket + client PKCE → short-lived code from `/desktop-sign-in` → `/oauth2/token` → session syncs like OIDC. Unlinked: enrollment browser flow. Other failures: toast via `electronAuthCallbackError`; use **Login** for OIDC when Steam init itself failed.
 
 ### 4. Release / Steam depot
 

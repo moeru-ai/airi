@@ -4,23 +4,8 @@ import type { Env } from './env'
 import { createHmac } from 'node:crypto'
 
 import { generateRandomString } from 'better-auth/crypto'
-import { generateCodeChallenge } from 'better-auth/oauth2'
 
 import { OIDC_CLIENT_ID_ELECTRON, OIDC_SCOPES } from './auth'
-
-export interface ElectronOidcTokenBundle {
-  accessToken: string
-  refreshToken?: string
-  idToken?: string
-  expiresIn: number
-}
-
-interface OidcTokenResponseJson {
-  access_token: string
-  refresh_token?: string
-  id_token?: string
-  expires_in: number
-}
 
 /**
  * Signs a better-auth session token for use in the session cookie.
@@ -34,19 +19,32 @@ function signSessionCookieValue(value: string, secret: string): string {
   return encodeURIComponent(`${value}.${signature}`)
 }
 
-/** Issues Electron OIDC tokens via in-process authorization-code + PKCE. */
-export async function mintElectronOidcTokens(params: {
+/**
+ * Issues a short-lived Electron OIDC authorization code via in-process
+ * `/oauth2/authorize`, binding the caller's `code_challenge`.
+ *
+ * The Electron client must complete PKCE at `/oauth2/token` with the matching
+ * `code_verifier`. `redirect_uri` / scopes / `resource` are fixed to the
+ * trusted Electron client registration.
+ *
+ * NOTICE:
+ * better-auth binds the authorization code to a session row. That session must
+ * still exist when `/oauth2/token` runs, so this helper does not delete the
+ * session after issuing the code. Cleanup belongs to a later grant that can
+ * mint codes without a browser session.
+ */
+export async function issueElectronOidcCode(params: {
   auth: AuthInstance
   env: Env
   userId: string
-}): Promise<ElectronOidcTokenBundle> {
+  codeChallenge: string
+}): Promise<string> {
   const ctx = await params.auth.$context
   const session = await ctx.internalAdapter.createSession(params.userId)
   if (!session?.token)
     throw new Error('Failed to create session for Steam sign-in')
 
-  const codeVerifier = generateRandomString(64, 'A-Z', 'a-z')
-  const codeChallenge = await generateCodeChallenge(codeVerifier)
+  // Throwaway CSRF state: the code is returned in JSON, not via browser redirect.
   const state = generateRandomString(32, 'A-Z', 'a-z')
   const redirectUri = `${params.env.API_SERVER_URL}/api/auth/oidc/electron-callback`
   const scopes = OIDC_SCOPES.join(' ')
@@ -61,7 +59,7 @@ export async function mintElectronOidcTokens(params: {
   authorizeUrl.searchParams.set('redirect_uri', redirectUri)
   authorizeUrl.searchParams.set('scope', scopes)
   authorizeUrl.searchParams.set('state', state)
-  authorizeUrl.searchParams.set('code_challenge', codeChallenge)
+  authorizeUrl.searchParams.set('code_challenge', params.codeChallenge)
   authorizeUrl.searchParams.set('code_challenge_method', 'S256')
   authorizeUrl.searchParams.set('resource', params.env.API_SERVER_URL)
 
@@ -84,34 +82,5 @@ export async function mintElectronOidcTokens(params: {
   if (!code)
     throw new Error('OIDC authorize redirect missing authorization code')
 
-  const tokenBody = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: redirectUri,
-    client_id: OIDC_CLIENT_ID_ELECTRON,
-    code_verifier: codeVerifier,
-    resource: params.env.API_SERVER_URL,
-  })
-
-  const tokenResponse = await params.auth.handler(new Request(
-    new URL('/api/auth/oauth2/token', params.env.API_SERVER_URL),
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: tokenBody,
-    },
-  ))
-
-  if (!tokenResponse.ok) {
-    const text = await tokenResponse.text()
-    throw new Error(`OIDC token exchange failed (${tokenResponse.status}): ${text}`)
-  }
-
-  const data = await tokenResponse.json() as OidcTokenResponseJson
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    idToken: data.id_token,
-    expiresIn: data.expires_in,
-  }
+  return code
 }

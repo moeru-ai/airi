@@ -1,6 +1,7 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
+import type { TokenExchangeResult } from './oidc-token-exchange'
 import type { SteamExchangeResult } from './steam-sign-in'
 
 import { useLogg } from '@guiiai/logg'
@@ -21,6 +22,10 @@ import {
 } from '../../../shared/eventa'
 import { cancelWebApiTicket, getWebApiTicket, initSteam } from '../steam/client'
 import { startLoopbackServer } from './http-server/http/auth'
+import {
+  electronOidcRedirectUri,
+  exchangeAuthorizationCode,
+} from './oidc-token-exchange'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
 const log = useLogg('auth-service').useGlobalConfig()
@@ -32,7 +37,6 @@ const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electr
 const OIDC_SCOPES = 'openid profile email offline_access'
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://api.airi.build'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
-const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
 // Active loopback server cleanup handle
 let closeLoopback: (() => void) | null = null
@@ -40,12 +44,7 @@ let signingInFlight = false
 /** Serializes Steam ticket exchange + enrollment handoff across entry points. */
 let steamSignInInFlight = false
 
-export interface TokenExchangeResult {
-  accessToken: string
-  refreshToken?: string
-  idToken?: string
-  expiresIn: number
-}
+export type { TokenExchangeResult }
 
 export interface WindowAuthManager {
   registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
@@ -131,7 +130,7 @@ async function startOidcLoopbackFlow(
     // Use the server-side relay as redirect_uri. The relay page serves HTML
     // that forwards the authorization code to the loopback via JS fetch().
     // The loopback port is encoded in the state parameter as "{port}:{state}".
-    const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
+    const redirectUri = electronOidcRedirectUri(SERVER_URL)
     const stateWithPort = `${loopback.port}:${state}`
 
     // Build authorization URL
@@ -157,7 +156,13 @@ async function startOidcLoopbackFlow(
     // Wait for the callback in the background
     loopback.result
       .then(async ({ code }) => {
-        const tokens = await exchangeCode(code, codeVerifier, redirectUri)
+        const tokens = await exchangeAuthorizationCode({
+          serverUrl: SERVER_URL,
+          clientId: OIDC_CLIENT_ID,
+          code,
+          codeVerifier,
+          redirectUri,
+        })
         windowAuthManager.broadcastAuthCallback(tokens)
         log.log('OIDC token exchange successful')
       })
@@ -324,36 +329,4 @@ export function createAuthService(params: {
     closeLoopback = null
     signingInFlight = false
   })
-}
-
-// --- Internal helpers ---
-
-async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenExchangeResult> {
-  const body = new URLSearchParams({
-    grant_type: 'authorization_code',
-    code,
-    redirect_uri: redirectUri,
-    client_id: OIDC_CLIENT_ID,
-    code_verifier: codeVerifier,
-    resource: SERVER_URL,
-  })
-
-  const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Token exchange failed (${response.status}): ${text}`)
-  }
-
-  const data = await response.json() as Record<string, unknown>
-  return {
-    accessToken: data.access_token as string,
-    refreshToken: data.refresh_token as string | undefined,
-    idToken: data.id_token as string | undefined,
-    expiresIn: data.expires_in as number,
-  }
 }

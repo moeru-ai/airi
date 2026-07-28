@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../utils/error'
 import { createSteamDesktopSignInRoute } from './desktop-sign-in'
 
+/** Fixed-length S256 challenge fixture (43 base64url chars). */
+const CODE_CHALLENGE = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+
 function createMockDb() {
   return {
     select: vi.fn(() => ({
@@ -14,6 +17,15 @@ function createMockDb() {
       })),
     })),
   }
+}
+
+function signInBody(overrides?: Record<string, unknown>) {
+  return JSON.stringify({
+    ticket: 'deadbeef',
+    code_challenge: CODE_CHALLENGE,
+    code_challenge_method: 'S256',
+    ...overrides,
+  })
 }
 
 function buildApp(env: { STEAM_PUBLISHER_KEY: string }, collaborators?: Record<string, unknown>) {
@@ -31,12 +43,7 @@ function buildApp(env: { STEAM_PUBLISHER_KEY: string }, collaborators?: Record<s
       getPlayerSummaries: vi.fn(async () => null),
       findLinkedSteamUser: vi.fn(async () => ({ userId: 'user-steam-1' })),
       createEnrollmentToken: vi.fn(async () => 'enroll-tok'),
-      mintElectronOidcTokens: vi.fn(async () => ({
-        accessToken: 'jwt-access',
-        refreshToken: 'refresh-token',
-        idToken: 'id-token',
-        expiresIn: 3600,
-      })),
+      issueElectronOidcCode: vi.fn(async () => 'auth-code-1'),
       ...collaborators,
     } as never,
   })
@@ -51,17 +58,21 @@ function buildApp(env: { STEAM_PUBLISHER_KEY: string }, collaborators?: Record<s
 }
 
 describe('post /api/auth/steam/desktop-sign-in', () => {
-  it('returns OIDC tokens when the steamId is linked', async () => {
-    const app = buildApp({ STEAM_PUBLISHER_KEY: 'test-key' })
+  it('returns an authorization code when the steamId is linked', async () => {
+    const issueElectronOidcCode = vi.fn(async () => 'auth-code-1')
+    const app = buildApp({ STEAM_PUBLISHER_KEY: 'test-key' }, { issueElectronOidcCode })
     const res = await app.request('/api/auth/steam/desktop-sign-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticket: 'deadbeef' }),
+      body: signInBody(),
     })
     expect(res.status).toBe(200)
     const body = await res.json() as Record<string, unknown>
-    expect(body.accessToken).toBe('jwt-access')
-    expect(body.expiresIn).toBe(3600)
+    expect(body).toEqual({ code: 'auth-code-1' })
+    expect(issueElectronOidcCode).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-steam-1',
+      codeChallenge: CODE_CHALLENGE,
+    }))
   })
 
   it('returns 403 STEAM_NEEDS_ENROLLMENT with token + authUiUrl when unlinked', async () => {
@@ -71,7 +82,7 @@ describe('post /api/auth/steam/desktop-sign-in', () => {
     const res = await app.request('/api/auth/steam/desktop-sign-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticket: 'deadbeef' }),
+      body: signInBody(),
     })
     expect(res.status).toBe(403)
     const body = await res.json() as Record<string, unknown>
@@ -85,7 +96,7 @@ describe('post /api/auth/steam/desktop-sign-in', () => {
     const res = await app.request('/api/auth/steam/desktop-sign-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticket: 'abc123' }),
+      body: signInBody({ ticket: 'abc123' }),
     })
     expect(res.status).toBe(503)
   })
@@ -95,7 +106,17 @@ describe('post /api/auth/steam/desktop-sign-in', () => {
     const res = await app.request('/api/auth/steam/desktop-sign-in', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticket: 'not-hex!' }),
+      body: signInBody({ ticket: 'not-hex!' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when code_challenge is missing', async () => {
+    const app = buildApp({ STEAM_PUBLISHER_KEY: 'test-key' })
+    const res = await app.request('/api/auth/steam/desktop-sign-in', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket: 'deadbeef' }),
     })
     expect(res.status).toBe(400)
   })

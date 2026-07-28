@@ -242,21 +242,27 @@ Capacitor 移动端无法正确处理 state cookie（系统浏览器和 WebView 
 
 ## Steam 桌面静默登录（stage-tamagotchi）
 
-Steam depot 启动时，Electron 主进程通过 `steamworks-ffi-node` 获取 Web API session ticket，再调用服务端换发与 OIDC 相同形态的 access token：
+Steam depot 启动时，Electron 主进程通过 `steamworks-ffi-node` 获取 Web API session ticket。已绑定的 steamId 走 **客户端 PKCE**：服务端只签发短命 authorization code，客户端再调现有 `/oauth2/token` 换与手动 OIDC 相同形态的 token：
 
 ```
 Steam client → initSteam → getWebApiTicket
-  → POST /api/auth/steam/desktop-sign-in { ticket }
+  → 本地生成 code_verifier / code_challenge
+  → POST /api/auth/steam/desktop-sign-in { ticket, code_challenge, code_challenge_method: S256 }
   → authenticateUserTicket + checkAppOwnership
-  → resolveOrCreateSteamUser → mintElectronOidcTokens
+  → findLinkedSteamUser
+      ├─ unlinked → 403 STEAM_NEEDS_ENROLLMENT + enrollToken（浏览器 enroll + loopback OIDC）
+      └─ linked   → issueElectronOidcCode（进程内 authorize，绑定客户端 challenge）→ { code }
+  → POST /api/auth/oauth2/token { code, code_verifier, redirect_uri=…/oidc/electron-callback }
   → electronAuthCallback（renderer）
 ```
+
+`redirect_uri` / `resource` / scopes / Electron `client_id` 由服务端写死为 trusted Electron 注册值；客户端换 token 时使用同一 `redirect_uri`（不必打开浏览器中继页）。
 
 | 变量 | 说明 |
 |------|------|
 | `STEAM_PUBLISHER_KEY` | Steam Web API publisher key（未配置则返回 `STEAM_NOT_CONFIGURED`） |
 
-相关文件：`src/libs/steam-web-api.ts`、`src/libs/steam-oidc-tokens.ts`、`src/routes/auth/steam/desktop-sign-in.ts`、`apps/stage-tamagotchi/src/main/services/steam/`。
+相关文件：`src/libs/steam-web-api.ts`、`src/libs/steam-oidc-tokens.ts`、`src/routes/auth/steam/desktop-sign-in.ts`、`apps/stage-tamagotchi/src/main/services/airi/steam-sign-in.ts`、`apps/stage-tamagotchi/src/main/services/steam/`。
 
 本地验证见 `apps/stage-tamagotchi/src/main/services/steam/README.md`。
 

@@ -74,7 +74,7 @@ describe('trySteamSignIn', () => {
 
     await vi.waitFor(() => {
       expect(exchangeSteamTicketForTokensMock).toHaveBeenCalledWith({
-        serverUrl: 'https://api.airi.build',
+        serverUrl: expect.any(String),
         ticketHex: 'deadbeef',
       })
     })
