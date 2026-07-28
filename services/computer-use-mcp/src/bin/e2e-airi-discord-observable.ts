@@ -554,7 +554,6 @@ async function main() {
         ...env,
         APP_REMOTE_DEBUG: 'true',
         APP_REMOTE_DEBUG_PORT: String(debugPort),
-        APP_REMOTE_DEBUG_NO_OPEN: 'true',
       },
       stdio: 'pipe',
     })
