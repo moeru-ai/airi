@@ -7,7 +7,7 @@ import {
   getWebApiTicket,
   initSteam,
 } from '../steam/client'
-import { trySteamSignIn } from './auth'
+import { startSteamSignInFromUserGesture, trySteamSignIn } from './auth'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
 vi.mock('../steam/client', () => ({
@@ -18,6 +18,14 @@ vi.mock('../steam/client', () => ({
 
 vi.mock('./steam-sign-in', () => ({
   exchangeSteamTicketForTokens: vi.fn(),
+}))
+
+vi.mock('./http-server/http/auth', () => ({
+  startLoopbackServer: vi.fn(async () => ({
+    port: 43123,
+    close: vi.fn(),
+    result: new Promise(() => {}),
+  })),
 }))
 
 // NOTICE:
@@ -128,5 +136,65 @@ describe('trySteamSignIn', () => {
       },
     })
     await first
+  })
+
+  // https://github.com/moeru-ai/airi/pull/1966#discussion_r3642770345
+  it('opens enrollment after silent startup finishes when onboarding clicked during in-flight exchange (PR #1966)', async () => {
+    let finishExchange: ((result: SteamExchangeResult) => void) | undefined
+    exchangeSteamTicketForTokensMock.mockImplementation(async () => {
+      return await new Promise<SteamExchangeResult>((resolve) => {
+        finishExchange = resolve
+      })
+    })
+
+    const windowAuthManager = {
+      registerWindow: vi.fn(),
+      broadcastAuthCallback: vi.fn(),
+      broadcastAuthError: vi.fn(),
+    }
+    const { shell } = await import('electron')
+    const openExternal = vi.mocked(shell.openExternal)
+    openExternal.mockResolvedValue()
+
+    // ROOT CAUSE:
+    //
+    // steamSignInInFlight from silent startup used to return immediately for a
+    // concurrent user gesture (openBrowserOnNeedsEnrollment=true). Onboarding
+    // still closed after IPC, so no enroll tab appeared.
+    //
+    // We fixed this by waiting for the in-flight silent attempt, then running
+    // the user gesture so openExternal can open /enroll.
+    const silent = trySteamSignIn(windowAuthManager)
+    await vi.waitFor(() => {
+      expect(exchangeSteamTicketForTokensMock).toHaveBeenCalledTimes(1)
+    })
+
+    const userClick = startSteamSignInFromUserGesture(windowAuthManager)
+
+    finishExchange?.({
+      ok: false,
+      kind: 'needs_enrollment',
+      reason: 'Steam account is not linked — enrollment required',
+      enrollToken: 'tok-silent',
+      authUiUrl: 'https://accounts.airi.build/ui',
+    })
+    await silent
+
+    // Second exchange (user gesture) still pending until we resolve it.
+    await vi.waitFor(() => {
+      expect(exchangeSteamTicketForTokensMock).toHaveBeenCalledTimes(2)
+    })
+    finishExchange?.({
+      ok: false,
+      kind: 'needs_enrollment',
+      reason: 'Steam account is not linked — enrollment required',
+      enrollToken: 'tok-user',
+      authUiUrl: 'https://accounts.airi.build/ui',
+    })
+    await userClick
+
+    expect(openExternal).toHaveBeenCalledTimes(1)
+    expect(String(openExternal.mock.calls[0]?.[0])).toContain('/enroll')
+    expect(String(openExternal.mock.calls[0]?.[0])).toContain('tok-user')
   })
 })

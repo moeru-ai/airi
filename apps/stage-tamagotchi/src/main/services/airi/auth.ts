@@ -43,6 +43,8 @@ let closeLoopback: (() => void) | null = null
 let signingInFlight = false
 /** Serializes Steam ticket exchange + enrollment handoff across entry points. */
 let steamSignInInFlight = false
+/** Resolves when the current in-flight Steam sign-in finishes (success or fail). */
+let steamSignInInFlightDone: Promise<void> = Promise.resolve()
 
 export type { TokenExchangeResult }
 
@@ -63,6 +65,14 @@ export async function trySteamSignIn(windowAuthManager: WindowAuthManager): Prom
   // click needed); unlinked → no-op, wait for the user to click Sign in, which
   // re-runs startSteamSignIn with openBrowserOnNeedsEnrollment=true.
   await startSteamSignIn(windowAuthManager, { openBrowserOnNeedsEnrollment: false })
+}
+
+/**
+ * User-gesture Steam sign-in (onboarding / island Sign in). Unlinked SteamIDs
+ * open the enrollment browser; linked IDs exchange tokens silently.
+ */
+export async function startSteamSignInFromUserGesture(windowAuthManager: WindowAuthManager): Promise<void> {
+  await startSteamSignIn(windowAuthManager, { openBrowserOnNeedsEnrollment: true })
 }
 
 export function createWindowAuthManagerService(): WindowAuthManager {
@@ -225,11 +235,25 @@ async function startSteamSignIn(
   // https://github.com/moeru-ai/airi/pull/1966#discussion_r3642770345
   // Ticket exchange must be single-flight: concurrent calls would each mint an
   // enrollment token and createEnrollmentToken() deletes the prior unused row.
+  //
+  // NOTICE:
+  // Duplicate *silent* startup attempts may still be dropped. A *user gesture*
+  // (onboarding / island Sign in) must wait for the in-flight attempt, then run
+  // — otherwise onboarding closes after IPC returns with no browser opened.
   if (steamSignInInFlight) {
-    log.warn('Ignoring concurrent Steam sign-in while another exchange is in flight')
-    return
+    if (!options.openBrowserOnNeedsEnrollment) {
+      log.warn('Ignoring concurrent Steam sign-in while another exchange is in flight')
+      return
+    }
+    log.warn('Waiting for in-flight Steam sign-in before opening enrollment')
+    await steamSignInInFlightDone
+    return startSteamSignIn(windowAuthManager, options)
   }
 
+  let releaseInFlight!: () => void
+  steamSignInInFlightDone = new Promise<void>((resolve) => {
+    releaseInFlight = resolve
+  })
   steamSignInInFlight = true
   try {
     const ticketResult = await getWebApiTicket()
@@ -270,6 +294,7 @@ async function startSteamSignIn(
   }
   finally {
     steamSignInInFlight = false
+    releaseInFlight()
   }
 }
 
@@ -310,7 +335,7 @@ export function createAuthService(params: {
     // AIRI account. Plain OIDC only runs when Steam is not available.
     const initResult = await initSteam()
     if (initResult.ok) {
-      await startSteamSignIn(params.windowAuthManager, { openBrowserOnNeedsEnrollment: true })
+      await startSteamSignInFromUserGesture(params.windowAuthManager)
       return
     }
 
