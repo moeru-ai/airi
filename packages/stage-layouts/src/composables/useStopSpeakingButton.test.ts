@@ -6,7 +6,8 @@ import { useStopSpeakingButton } from './useStopSpeakingButton'
 const nowSpeaking = ref(false)
 const speechMuted = ref(false)
 const requestStopSpeakingMock = vi.fn()
-const toggleSpeechMutedMock = vi.fn()
+const setSpeechMutedMock = vi.fn()
+const trackSpeechMuteToggledMock = vi.fn()
 const trackTtsStopClickedMock = vi.fn()
 
 vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
@@ -18,13 +19,14 @@ vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
 vi.mock('@proj-airi/stage-ui/stores/speech-output-control', () => ({
   useSpeechOutputControlStore: () => ({
     requestStopSpeaking: requestStopSpeakingMock,
+    setSpeechMuted: setSpeechMutedMock,
     speechMuted,
-    toggleSpeechMuted: toggleSpeechMutedMock,
   }),
 }))
 
 vi.mock('@proj-airi/stage-ui/composables/use-analytics', () => ({
   useAnalytics: () => ({
+    trackSpeechMuteToggled: trackSpeechMuteToggledMock,
     trackTtsStopClicked: trackTtsStopClickedMock,
   }),
 }))
@@ -74,16 +76,33 @@ describe('useStopSpeakingButton', () => {
     })
   })
 
-  it('exposes persisted mute state and toggles it through the shared output store', () => {
-    speechMuted.value = true
-    toggleSpeechMutedMock.mockClear()
+  it('tracks mute and unmute with the entry surface and active playback state', () => {
+    speechMuted.value = false
+    nowSpeaking.value = true
+    setSpeechMutedMock.mockClear()
+    trackSpeechMuteToggledMock.mockClear()
 
     const controls = useStopSpeakingButton()
 
-    expect(controls.speechMuted.value).toBe(true)
+    controls.toggleSpeechMuted('chat_toolbar')
 
-    controls.toggleSpeechMuted()
+    expect(setSpeechMutedMock).toHaveBeenCalledWith(true)
+    expect(trackSpeechMuteToggledMock).toHaveBeenCalledWith({
+      muted: true,
+      source: 'chat_toolbar',
+      was_speaking: true,
+    })
 
-    expect(toggleSpeechMutedMock).toHaveBeenCalledOnce()
+    speechMuted.value = true
+    nowSpeaking.value = false
+
+    controls.toggleSpeechMuted('window_title_bar')
+
+    expect(setSpeechMutedMock).toHaveBeenLastCalledWith(false)
+    expect(trackSpeechMuteToggledMock).toHaveBeenLastCalledWith({
+      muted: false,
+      source: 'window_title_bar',
+      was_speaking: false,
+    })
   })
 })
