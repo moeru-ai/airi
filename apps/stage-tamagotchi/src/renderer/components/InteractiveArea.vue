@@ -13,8 +13,6 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { BasicTextarea, Button, Callout } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -40,15 +38,11 @@ const chatSyncStore = useChatSyncStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
-const consciousnessStore = useConsciousnessStore()
-const providersStore = useProvidersStore()
 
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
-const { configuredProviders } = storeToRefs(providersStore)
 const { t } = useI18n()
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const { openImagePreview } = journalPreviewStore
@@ -75,13 +69,6 @@ const {
   trackChatMessagesCleared,
 } = useAnalytics()
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
-const activeChatProviderConfigured = computed(() => {
-  return Boolean(
-    activeProvider.value
-    && activeModel.value
-    && configuredProviders.value[activeProvider.value],
-  )
-})
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -104,11 +91,6 @@ async function handleSend() {
     return
   }
 
-  if (!activeChatProviderConfigured.value) {
-    providerSetupPromptVisible.value = true
-    return
-  }
-
   const textToSend = messageInput.value
   const attachmentsToSend = attachments.value.map(att => ({ ...att }))
 
@@ -123,6 +105,7 @@ async function handleSend() {
       toolset: 'artistry',
     })
 
+    providerSetupPromptVisible.value = false
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
   catch (error) {
@@ -230,11 +213,6 @@ function removeAttachment(index: number) {
 
 watch(sendMode, () => {
   lastEnterTime.value = 0
-})
-
-watch(activeChatProviderConfigured, (configured) => {
-  if (configured)
-    providerSetupPromptVisible.value = false
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
