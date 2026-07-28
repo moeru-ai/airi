@@ -6,7 +6,8 @@ import { useStopSpeakingButton } from './useStopSpeakingButton'
 const nowSpeaking = ref(false)
 const speechMuted = ref(false)
 const requestStopSpeakingMock = vi.fn()
-const toggleSpeechMutedMock = vi.fn()
+const setSpeechMutedMock = vi.fn()
+const trackSpeechMuteToggledMock = vi.fn()
 const trackTtsStopClickedMock = vi.fn()
 
 vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
@@ -18,13 +19,14 @@ vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
 vi.mock('@proj-airi/stage-ui/stores/speech-output-control', () => ({
   useSpeechOutputControlStore: () => ({
     requestStopSpeaking: requestStopSpeakingMock,
+    setSpeechMuted: setSpeechMutedMock,
     speechMuted,
-    toggleSpeechMuted: toggleSpeechMutedMock,
   }),
 }))
 
 vi.mock('@proj-airi/stage-ui/composables/use-analytics', () => ({
   useAnalytics: () => ({
+    trackSpeechMuteToggled: trackSpeechMuteToggledMock,
     trackTtsStopClicked: trackTtsStopClickedMock,
   }),
 }))
@@ -74,16 +76,72 @@ describe('useStopSpeakingButton', () => {
     })
   })
 
-  it('exposes persisted mute state and toggles it through the shared output store', () => {
-    speechMuted.value = true
-    toggleSpeechMutedMock.mockClear()
+  it('tracks mute and unmute with the active playback state', async () => {
+    speechMuted.value = false
+    nowSpeaking.value = true
+    setSpeechMutedMock.mockClear()
+    trackSpeechMuteToggledMock.mockClear()
 
     const controls = useStopSpeakingButton()
 
-    expect(controls.speechMuted.value).toBe(true)
+    await controls.toggleSpeechMuted()
 
-    controls.toggleSpeechMuted()
+    expect(setSpeechMutedMock).toHaveBeenCalledWith(true)
+    expect(trackSpeechMuteToggledMock).toHaveBeenCalledWith({
+      muted: true,
+      was_speaking: true,
+    })
 
-    expect(toggleSpeechMutedMock).toHaveBeenCalledOnce()
+    speechMuted.value = true
+    nowSpeaking.value = false
+
+    await controls.toggleSpeechMuted()
+
+    expect(setSpeechMutedMock).toHaveBeenLastCalledWith(false)
+    expect(trackSpeechMuteToggledMock).toHaveBeenLastCalledWith({
+      muted: false,
+      was_speaking: false,
+    })
+  })
+
+  // ROOT CAUSE:
+  //
+  // Electron's auxiliary /chat renderer has its own Pinia instance, so its
+  // local nowSpeaking value stays false while the main Stage renderer speaks.
+  //
+  // The title-bar mute control now resolves state from the output host before
+  // capturing speech_mute_toggled.
+  it('tracks the speaking state resolved from a remote output host', async () => {
+    speechMuted.value = false
+    nowSpeaking.value = false
+    setSpeechMutedMock.mockClear()
+    trackSpeechMuteToggledMock.mockClear()
+
+    const resolveSpeakingState = vi.fn().mockResolvedValue(true)
+    const controls = useStopSpeakingButton({ resolveSpeakingState })
+
+    await controls.toggleSpeechMuted()
+
+    expect(resolveSpeakingState).toHaveBeenCalledTimes(1)
+    expect(setSpeechMutedMock).toHaveBeenCalledWith(true)
+    expect(trackSpeechMuteToggledMock).toHaveBeenCalledWith({
+      muted: true,
+      was_speaking: true,
+    })
+  })
+
+  it('still toggles mute without capturing a false metric when the output host is unavailable', async () => {
+    speechMuted.value = false
+    setSpeechMutedMock.mockClear()
+    trackSpeechMuteToggledMock.mockClear()
+
+    const controls = useStopSpeakingButton({
+      resolveSpeakingState: () => Promise.reject(new Error('output host reloading')),
+    })
+
+    await controls.toggleSpeechMuted()
+
+    expect(setSpeechMutedMock).toHaveBeenCalledWith(true)
+    expect(trackSpeechMuteToggledMock).not.toHaveBeenCalled()
   })
 })
