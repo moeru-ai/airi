@@ -61,7 +61,6 @@ async function handleToggle() {
     <ControlButton
       :button-style="props.buttonStyle"
       :aria-label="enabled ? t('tamagotchi.stage.controls-island.fade-on-hover.disable') : t('tamagotchi.stage.controls-island.fade-on-hover.enable')"
-      data-attr="controls-island-toggle-fade-on-hover"
       :class="{ 'border-primary-300/70 shadow-[0_10px_24px_rgba(0,0,0,0.22)]': enabled }"
       @click="handleToggle"
     >

@@ -1,5 +1,28 @@
 <script setup lang="ts">
-const props = defineProps<{ buttonStyle?: string }>()
+import type { ControlsIslandAction } from '@proj-airi/stage-ui/composables/use-analytics'
+
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+
+interface Props {
+  buttonStyle?: string
+  /** Records this controls-island action immediately before emitting the click. */
+  trackAction?: ControlsIslandAction
+}
+
+const props = defineProps<Props>()
+const emit = defineEmits<{
+  click: [event: MouseEvent]
+}>()
+
+const { trackControlsIslandAction } = useAnalytics()
+
+function handleClick(event: MouseEvent) {
+  if (props.trackAction) {
+    trackControlsIslandAction({ action: props.trackAction })
+  }
+
+  emit('click', event)
+}
 </script>
 
 <template>
@@ -12,6 +35,7 @@ const props = defineProps<{ buttonStyle?: string }>()
       'transition-all hover:transition-none transition-duration-300 transition-ease-out',
       props.buttonStyle,
     ]"
+    @click="handleClick"
   >
     <slot />
   </button>
