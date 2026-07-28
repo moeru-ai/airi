@@ -3,7 +3,7 @@ import type { Application } from '@pixi/app'
 import type { Texture } from '@pixi/core'
 
 import type { TachieEmotion } from '../../../constants/emotions'
-import type { TachieLoadedAssets } from '../../../utils/tachieArchive'
+import type { TachieLoadedAssets } from '../../../utils/tachie-archive'
 
 import { errorMessageFrom } from '@moeru/std'
 import { Texture as PixiTexture, Renderer } from '@pixi/core'
@@ -19,7 +19,7 @@ import { useTachie } from '../../../stores/tachie'
 import {
   loadTachieZip,
   MAX_TACHIE_ARCHIVE_BYTES,
-} from '../../../utils/tachieArchive'
+} from '../../../utils/tachie-archive'
 
 interface MountedTachie {
   assets: TachieLoadedAssets
