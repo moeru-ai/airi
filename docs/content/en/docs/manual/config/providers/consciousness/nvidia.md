@@ -12,7 +12,7 @@ If you are already using model services on the NVIDIA NIM platform, you can conn
 
 ## Step 1: Get the API key
 
-1. Open [NVIDIA NIM Console](https://build.nvidia.com/)。
+1. Open [NVIDIA NIM Console](https://build.nvidia.com/).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 
@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → NVIDIA NIM**.
+1. Open **Settings → Providers → Chat → NVIDIA NIM**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://integrate.api.nvidia.com/v1`.
 

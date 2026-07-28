@@ -17,7 +17,7 @@ If you want to run the model locally and manage the model files yourself, LM Stu
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → LM Studio**.
+1. Open **Settings → Providers → Chat → LM Studio**.
 2. Keep the default Base URL: `http://localhost:1234/v1/`.
 3. If your LM Studio service requires authentication, fill in the API Key; otherwise, leave it blank.
 

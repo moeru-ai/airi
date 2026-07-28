@@ -20,7 +20,7 @@ Local models take up download space, memory, and computing resources. Do not for
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Kokoro**.
+1. Open **Settings → Providers → Speech Synthesis → Kokoro**.
 2. Select an available Kokoro model provided by AIRI.
 
 ## Step 3: Verify configuration

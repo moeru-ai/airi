@@ -1,5 +1,5 @@
 ---
-title: MiniMax Speech（TTS）
+title: MiniMax Speech (TTS)
 description: Configuring MiniMax speech synthesis in AIRI
 ---
 
@@ -21,7 +21,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → MiniMax Speech** and paste the API Key.
+1. Open **Settings → Providers → Speech Synthesis → MiniMax Speech** and paste the API Key.
 2. Keep the default service address `https://api.minimax.io` unless the service provider explicitly provides another address.
 
 ## Step 3: Verify configuration

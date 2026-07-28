@@ -12,7 +12,7 @@ If you want to use the Moonshot model in AIRI, or already have a Moonshot API Ke
 
 ## Step 1: Get the API key
 
-1. Open [Moonshot Console](https://platform.moonshot.cn/)。
+1. Open [Moonshot Console](https://platform.moonshot.cn/).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 

@@ -20,7 +20,7 @@ The Web Speech API is only available in browser environments and is not supporte
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Recognition → Web Speech API** in the web version.
+1. Open **Settings → Providers → Speech Recognition → Web Speech API** in the web version.
 2. Select the recognition language and, if required, the options for continuous recognition and intermediate results.
 
 ## Step 3: Verify configuration

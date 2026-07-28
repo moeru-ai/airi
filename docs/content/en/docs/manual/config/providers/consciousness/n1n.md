@@ -19,13 +19,13 @@ Even though the API Key is optional, don't expose your private service address, 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → n1n**. The default Base URL is `https://api.n1n.ai/v1/`.
+1. Open **Settings → Providers → Chat → n1n**. The default Base URL is `https://api.n1n.ai/v1/`.
 2. Fill in the API Key according to n1n’s current service requirements; if your deployment allows anonymous access, leave it blank according to the deployer’s instructions.
 
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network, service address, and credentials are correct.
-2. **Select model**: After the test is successful, select the model, and then go to **Settings → Consciousness** to enable it.
+2. **Select model**: After the test is successful, select the model, and then go to **Settings → Modules → Consciousness** to enable it.
 
 ## Troubleshooting
 

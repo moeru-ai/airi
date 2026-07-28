@@ -7,7 +7,7 @@ This page explains how AIRI's provider configuration works. For the specific ser
 
 ## Configuration process
 
-1. Open **Settings → Service Provider** and select the function category: **Chat**, **Speech Synthesis** or **Speech Recognition**.
+1. Open **Settings → Providers** and select the function category: **Chat**, **Speech Synthesis** or **Speech Recognition**.
 2. Select the service provider and fill in the credentials required on the page.
 3. If necessary, expand the advanced settings and fill in the Base URL or other parameters provided by the service provider.
 4. Wait for AIRI to complete the verification; after passing the verification, select the service provider and model or sound in the corresponding function module.

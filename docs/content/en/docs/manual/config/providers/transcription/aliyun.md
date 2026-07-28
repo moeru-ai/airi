@@ -21,7 +21,7 @@ Do not submit the AccessKey ID, AccessKey Secret, or AppKey to the repository, s
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Recognition → Alibaba Cloud NLS**.
+1. Open **Settings → Providers → Speech Recognition → Alibaba Cloud NLS**.
 2. Fill in the **AccessKey ID**, **AccessKey Secret** and **AppKey**.
 3. Select the area closest to you, such as East China `cn-shanghai`, North China `cn-beijing` or South China `cn-shenzhen`.
 

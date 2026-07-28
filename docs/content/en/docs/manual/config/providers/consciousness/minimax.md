@@ -12,7 +12,7 @@ If you create an API Key on the MiniMax open platform in mainland China, you sho
 
 ## Step 1: Get the API key
 
-1. Open [MiniMax Console](https://platform.minimaxi.com/)。
+1. Open [MiniMax Console](https://platform.minimaxi.com/).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 
@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → MiniMax**.
+1. Open **Settings → Providers → Chat → MiniMax**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.minimaxi.com/v1/`. The API Key, billing and Base URL of mainland China and overseas platforms cannot be mixed.
 

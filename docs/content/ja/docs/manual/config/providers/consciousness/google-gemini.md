@@ -21,7 +21,7 @@ Google Gemini プロバイダーは、Google Generative Language API の OpenAI 
 
 ## ステップ 2: AIRI で設定する
 
-1. **[設定] → [サービス プロバイダー] → [チャット] → [Google Gemini]** を開きます。
+1. **[設定] → [プロバイダー] → [チャット] → [Google Gemini]** を開きます。
 2. API キーを入力します。
 3. デフォルトのベース URL `https://generativelanguage.googleapis.com/v1beta/openai/` をそのまま使用します。
 

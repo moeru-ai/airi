@@ -19,13 +19,13 @@ Do not submit API keys or endpoint credentials to the repository, take screensho
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → BytePlus**, and fill in the API Key, endpoint or model information according to the BytePlus console.
+1. Open **Settings → Providers → Chat → BytePlus**, and fill in the API Key, endpoint or model information according to the BytePlus console.
 2. Do not guess the Endpoint ID; copy the actual ID of the endpoint created in the console.
 
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network and credentials are correct.
-2. **Select model**: After the test is successful, go to **Settings → Consciousness** to select the service provider and model.
+2. **Select model**: After the test is successful, go to **Settings → Modules → Consciousness** to select the service provider and model.
 
 ## Troubleshooting
 

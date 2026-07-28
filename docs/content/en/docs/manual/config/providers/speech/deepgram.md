@@ -1,5 +1,5 @@
 ---
-title: Deepgram（TTS）
+title: Deepgram (TTS)
 description: Configuring Deepgram speech synthesis in AIRI
 ---
 
@@ -21,7 +21,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Deepgram** and paste the API Key into the basic settings.
+1. Open **Settings → Providers → Speech Synthesis → Deepgram** and paste the API Key into the basic settings.
 2. Keep the default Base URL of the interface; only modify it when deploying a compatible gateway yourself.
 
 ## Step 3: Verify configuration

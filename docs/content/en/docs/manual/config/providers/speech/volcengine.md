@@ -21,7 +21,7 @@ Do not disclose the credentials corresponding to the API Key or App ID; immediat
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Volcano Engine**.
+1. Open **Settings → Providers → Speech Synthesis → Volcano Engine**.
 2. Fill in the API Key and App ID; the Base URL uses the interface default value unless you use a compatible gateway.
 
 ## Step 3: Verify configuration

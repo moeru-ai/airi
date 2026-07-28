@@ -21,7 +21,7 @@ API キーをリポジトリに送信したり、スクリーンショットを�
 
 ## ステップ 2: AIRI で設定する
 
-1. **[設定] → [サービス プロバイダー] → [アート] → [Nano Banana]** を開き、API キーを貼り付けます。
+1. **[設定] → [プロバイダー] → [アート] → [Nano Banana]** を開き、API キーを貼り付けます。
 2. デフォルトのモデル: `gemini-3.1-flash-image-preview`、`gemini-3-pro-image-preview`、または `gemini-2.5-flash-image` を選択します。
 3. デフォルトの解像度を 1K、2K、または 4K から選択します。
 

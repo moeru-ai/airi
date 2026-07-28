@@ -12,7 +12,7 @@ If you already use Mistral models, or want to try their multilingual models in A
 
 ## Step 1: Get the API key
 
-1. Open [Mistral Console](https://console.mistral.ai/)。
+1. Open [Mistral Console](https://console.mistral.ai/).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 
@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Mistral**.
+1. Open **Settings → Providers → Chat → Mistral**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.mistral.ai/v1`.
 

@@ -21,7 +21,7 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Artistry → ComfyUI**.
+1. Open **Settings → Providers → Artistry → ComfyUI**.
 2. Fill in the ComfyUI Server URL; this machine uses `http://localhost:8188` by default.
 3. Click **Test Connection** to confirm that AIRI can read the ComfyUI service status.
 4. Upload the API workflow JSON in the Workflow area, fill in the name, and select the input fields you want AIRI to expose.
@@ -29,7 +29,7 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 
 ## Step 3: Verify configuration
 
-1. Select the chat model that supports Tool Calling / Function Calling in **Settings → Consciousness**. AIRI requires the ComfyUI image generation tool to be called by the model.
+1. Select the chat model that supports Tool Calling / Function Calling in **Settings → Modules → Consciousness**. AIRI requires the ComfyUI image generation tool to be called by the model.
 2. Open **Settings → Artistry** and select **ComfyUI**.
 3. Select the workflow you just saved and use a prompt word that does not contain sensitive information to initiate generation.
 4. Confirm that the task appears in Queue or History of ComfyUI; when the workflow is completed and the picture is returned, it means that the connection, workflow, chat model and exposeable fields are configured successfully.

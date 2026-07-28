@@ -19,12 +19,12 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → AIHubMix** and fill in the **API Key**. The default Base URL is `https://aihubmix.com/v1/`.
+1. Open **Settings → Providers → Chat → AIHubMix** and fill in the **API Key**. The default Base URL is `https://aihubmix.com/v1/`.
 
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
-2. **Select Model**: After successful testing, select the specific model you want to use; then go to **Settings → Consciousness** to enable it.
+2. **Select Model**: After successful testing, select the specific model you want to use; then go to **Settings → Modules → Consciousness** to enable it.
 
 ## Troubleshooting
 

@@ -21,7 +21,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Atlas Cloud**.
+1. Open **Settings → Providers → Chat → Atlas Cloud**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.atlascloud.ai/v1`.
 

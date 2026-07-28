@@ -1,5 +1,5 @@
 ---
-title: Microsoft Azure Speech（TTS）
+title: Microsoft Azure Speech (TTS)
 description: Configure Microsoft Azure Speech synthesis in AIRI
 ---
 
@@ -21,7 +21,7 @@ Azure keys provide access to your speech resources. Do not submit, screenshot or
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Microsoft / Azure Speech**.
+1. Open **Settings → Providers → Speech Synthesis → Microsoft / Azure Speech**.
 2. Fill in the API Key and region information. The Base URL remains the interface default unless you are using a compatible gateway.
 
 ## Step 3: Verify configuration

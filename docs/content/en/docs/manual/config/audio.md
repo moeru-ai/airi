@@ -7,7 +7,7 @@ Speech synthesis (TTS) reads out AIRI's text responses; speech recognition (ASR/
 
 ## Configure speech synthesis (TTS)
 
-1. Open **Settings → Service Provider → Speech Synthesis**, select the service provider and fill in the credentials.
+1. Open **Settings → Providers → Speech Synthesis**, select the service provider and fill in the credentials.
 2. Open **Settings → Speech** and select the configured service provider, model and tone.
 3. Enter a test text on the speaking page and play it. Hearing a sound means the configuration is successful.
 
@@ -15,7 +15,7 @@ If your service provider is compatible with the OpenAI speech interface, refer t
 
 ## Configure speech recognition (ASR/STT)
 
-1. Open **Settings → Service Provider → Voice Recognition**, select the service provider and fill in the credentials.
+1. Open **Settings → Providers → Voice Recognition**, select the service provider and fill in the credentials.
 2. Open **Settings → Hearing** and select the configured service provider and model.
 3. Select the correct microphone, start the test and say a brief sentence.
 4. Confirm that the text appears correctly in the recognition result area.

@@ -1,5 +1,5 @@
 ---
-title: CometAPI（TTS）
+title: CometAPI (TTS)
 description: Configuring CometAPI speech synthesis in AIRI
 ---
 
@@ -20,7 +20,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → CometAPI Speech** and fill in the API Key.
+1. Open **Settings → Providers → Speech Synthesis → CometAPI Speech** and fill in the API Key.
 2. Keep the default Base URL: `https://api.cometapi.com/v1/`; modify it only when using a proxy or compatible gateway.
 
 ## Step 3: Verify configuration

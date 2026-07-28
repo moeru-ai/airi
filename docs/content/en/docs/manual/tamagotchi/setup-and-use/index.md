@@ -176,18 +176,18 @@ You can open the settings interface in the following two ways:
 The setting interface includes the following nine contents:
 
 - "AIRI Character Card" - select and configure the character's personality.
-- "Body Module" - Configure various functions of AIRI, including consciousness, vocalization, hearing, vision, short-term memory, long-term memory, Discord, X / Twitter, network search, Minecraft, Factorio, MCP server, and synchronized rhythm.
+- "Modules" - Configure AIRI features including consciousness, speech, hearing, vision, memory, messaging, gaming, and integrations.
 - "Scene" - configure the scene (background) of AIRI.
 - "Character Model" - select and set the model of the character.
 - "Memory" - the function has not been released yet.
-- "Service Source" - configure the source of LLM, TTS, STT, and Artistry services.
+- "Providers" - configure Chat, Speech, Transcription, and Artistry providers.
 - "Data" - translated as "data", manages various data of AIRI.
 - "Connection" - Configure your WebSocket server address.
 - "System" - includes four sub-options:
 - "General" - set the program theme, language and other content.
 - "Color Scheme" - set the theme color.
 - "Window Shortcut" - Set global shortcut keys for Spotlight.
-- "Developer" - advanced tools for development and troubleshooting; no configuration is required for daily use, see [Developer Guide](/zh-Hans/docs/contributing/desktop-developer-tools) for details.
+- "Developer" - advanced tools for development and troubleshooting; no configuration is required for daily use. See [Developer Guide](/docs/contributing/desktop-developer-tools) for details.
 
 ![AIRI settings overview](./assets/manual-settings-window.avif)
 
@@ -314,7 +314,7 @@ When configuring only the vision service provider and model, there is no need to
 
 To have AIRI analyze your screen or window, go to "System → Developer → Vision Capture": grant screen recording permission, select the window or display you want to capture, and click "Start ticker". If you want to provide the recognition results to the AIRI dialog, then turn on "Publish to character".
 
-Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](/zh-Hans/docs/contributing/desktop-developer-tools#vision-capture).
+Vision Capture is the current desktop debugging/development workflow; leaving the page will stop the capture loop. For complete instructions, see [Desktop Developer Tools](/docs/contributing/desktop-developer-tools#vision-capture).
 :::
 
 
@@ -328,7 +328,7 @@ You can refer to the sidebar "Configuration → Service Provider → Art Creatio
 ::: warning Please use a chat model that supports tool calls
 Artistic creation does not directly generate images from the character: AIRI will provide the tool with configured image services to the current **chat model**, and then the model will call the tool to submit the generation task. Therefore, chat models and service providers must support **Tool Calling / Function Calling**.
 
-After selecting the service provider in "Settings → Consciousness", please select the model that the service provider clearly marks as supporting tool calling. Models that only support ordinary text conversations, or are called by the service provider without transparent transmission tools, may only respond with text, refuse to be generated, or may not submit tasks to the selected image service at all.
+After selecting the service provider in "Settings → Modules → Consciousness", please select the model that the service provider clearly marks as supporting tool calling. Models that only support ordinary text conversations, or are called by the service provider without transparent transmission tools, may only respond with text, refuse to be generated, or may not submit tasks to the selected image service at all.
 
 After configuration, let the character perform a simple image request. Confirm that AIRI has initiated a tool call; if the service provider provides task status, history, or console, you can also confirm that the task has been received. AIRI doesn't display the results until the task is completed and a picture is returned. For the exclusive verification methods of each service provider, please refer to the corresponding page in the sidebar "Configuration → Service Provider → Art Creation Service Provider".
 :::
@@ -355,7 +355,7 @@ Discord Bot Token, Model API Key, and Speech Service Credentials should only be 
 
 #### > X / Twitter
 
-Please read the [X / Twitter Integration Guide](/zh-Hans/docs/integrations/x.md) to create and fill in your X Developer Platform application credentials. Don't expose your API Key, API Secret, or access token.
+Please read the [X / Twitter Integration Guide](/docs/integrations/x.md) to create and enter your X Developer Platform application credentials. Don't expose your API key, API secret, or access token.
 
 #### > Web search
 
@@ -375,7 +375,7 @@ Instructions for running from source for Discord, Minecraft, Satori, and Telegra
 
 #### > Factorio
 
-Please read the [Factor Integration Guide](/zh-Hans/docs/integrations/factorio.md) and fill in the AIRI with the address, port and in-game username of the trusted server. AIRI does not come with ready-to-deploy Factorio server-side integration.
+Please read the [Factorio Integration Guide](/docs/integrations/factorio.md) and enter the trusted server address, port, and in-game username in AIRI. AIRI does not include a ready-to-deploy Factorio server-side integration.
 
 #### >MCP Integration
 
@@ -456,20 +456,20 @@ Position, rotation, camera distance and gaze direction in the built-in stage are
 The function has not been released yet. If you have ideas for implementing this feature, please submit suggestions via issues or PR.
 
 <a id="chapter-4-providers"></a>
-### > Service source
+### > Providers
 
-"Service Origin" is the entry point to AIRI's connection model and voice capabilities. First save the service provider credentials here, and then select the service provider and model on the corresponding function page.
+"Providers" is where AIRI connects to model and voice services. Save the provider credentials here, then select the provider and model on the corresponding module page.
 
 You can choose categories by purpose:
 
 - **CHAT**: Configure LLM for AIRI to reply to messages; this is necessary to start using AIRI.
-- **Speech Synthesis (TTS)**: Let AIRI read the reply; then select the model and timbre in "Aircraft Module → Vocalization".
-- **Speech Recognition (ASR/STT)**: Convert microphone speech into text; then select the model in "Body Module → Hearing".
-- **Art Creation**: Configure the image generation service; then use it in "Body Module → Artistry".
+- **Speech Synthesis (TTS)**: Let AIRI read replies; then select the model and voice in **Modules → Speech**.
+- **Speech Recognition (ASR/STT)**: Convert microphone speech into text; then select the model in **Modules → Hearing**.
+- **Art Creation**: Configure an image-generation service; then use it in **Modules → Artistry**.
 
-If you skip the initial configuration guide, it is recommended to complete the configuration of the chat service provider first: select the service provider and fill in its API Key or login account; if required by the service provider, fill in advanced fields such as Base URL and region; and then use **Ping API** to verify connectivity. After verification, go to "Body Module → Consciousness" to select the service provider and model, and send a message to confirm that AIRI can reply.
+If you skip the initial configuration guide, configure a chat provider first: enter its API key or account details and any required advanced fields, such as Base URL or region. If **Ping API** appears, use it to verify connectivity. Then go to **Modules → Consciousness**, select the provider and model, and send a message to confirm that AIRI can reply.
 
-After switching chat service providers, the originally selected chat model will be cleared; please return to "Body Module → Consciousness" to reselect a model for the new service provider.
+After switching chat providers, the selected chat model is cleared. Return to **Modules → Consciousness** to select a model for the new provider.
 
 ::: warning Credential security
 API Keys, AccessKey Secrets, and other service credentials should only be saved in the current device's settings. Do not commit them to the repository, post them in an Issue, take a screenshot, or send them to others.
@@ -561,7 +561,7 @@ Pressing the set shortcut key will open the quick operation input box. Press Ent
 
 #### > Developer
 
-This page is used for development, troubleshooting, and verification of experimental functions; ordinary users do not need to operate it. Complete tool descriptions have been moved to [Developer Guide → Developer Tools](/zh-Hans/docs/contributing/desktop-developer-tools).
+This page is used to develop, troubleshoot, and verify experimental features; regular users do not need it. Complete tool descriptions are available in [Developer Guide → Developer Tools](/docs/contributing/desktop-developer-tools).
 
 <a id="web-features"></a>
 ## > Supplementary features of web version

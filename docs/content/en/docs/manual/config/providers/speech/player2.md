@@ -1,5 +1,5 @@
 ---
-title: Player2 Speech（TTS）
+title: Player2 Speech (TTS)
 description: Connecting to local Player2 Speech service in AIRI
 ---
 
@@ -20,7 +20,7 @@ Do not expose local service ports to untrusted public networks.
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Player2 Speech**.
+1. Open **Settings → Providers → Speech Synthesis → Player2 Speech**.
 2. Fill in the Base URL that is consistent with the service address.
 
 ## Step 3: Verify configuration

@@ -19,13 +19,13 @@ Don't expose AWS access keys. Use credentials with minimal privileges and revoke
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Amazon Bedrock**, fill in the AWS **API Key**, and select the region; the default region is `us-east-1`.
+1. Open **Settings → Providers → Chat → Amazon Bedrock**, fill in the AWS **API Key**, and select the region; the default region is `us-east-1`.
 2. Confirm that the AWS account has gained access to the target model in the corresponding region. Only fill in the custom address if using a custom Bedrock Endpoint.
 
 ## Step 3: Verify configuration
 
-1. **Ping API**: Click this button to test that the credentials, region, and network are correct.
-2. **Select model**: After the test is successful, select the model for which the account has been authorized, and then go to **Settings → Consciousness** to enable it.
+1. Save the provider settings after entering the API key and region.
+2. Go to **Settings → Modules → Consciousness**, select Amazon Bedrock and an authorized model, then send a message to verify the configuration.
 
 ## Troubleshooting
 

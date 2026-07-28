@@ -19,12 +19,12 @@ Do not submit API keys or endpoint credentials to the repository, take screensho
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → BytePlus Coding Plan**, and click the BytePlus console to fill in the credentials and endpoint information of the plan.
+1. Open **Settings → Providers → Chat → BytePlus Coding Plan**, and click the BytePlus console to fill in the credentials and endpoint information of the plan.
 
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network and credentials are correct.
-2. **Select Model**: After successful testing, select an available model in **Settings → Consciousness**.
+2. **Select Model**: After successful testing, select an available model in **Settings → Modules → Consciousness**.
 
 ## Troubleshooting
 

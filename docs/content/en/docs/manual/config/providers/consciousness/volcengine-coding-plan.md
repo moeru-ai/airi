@@ -19,12 +19,12 @@ Do not submit API keys or endpoint credentials to the repository, take screensho
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Volcengine Coding Plan**, and fill in the API Key, endpoint and model information of the plan according to the Volcengine Coding Plan.
+1. Open **Settings → Providers → Chat → Volcengine Coding Plan**, and fill in the API Key, endpoint and model information of the plan according to the Volcengine Coding Plan.
 
 ## Step 3: Verify configuration
 
 1. **Ping API**: Click this button to test whether the network and credentials are correct.
-2. **Select Model**: After successful testing, select an available model in **Settings → Consciousness**.
+2. **Select Model**: After successful testing, select an available model in **Settings → Modules → Consciousness**.
 
 ## Troubleshooting
 

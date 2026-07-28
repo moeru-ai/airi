@@ -1,5 +1,5 @@
 ---
-title: ElevenLabs（TTS）
+title: ElevenLabs (TTS)
 description: Configuring ElevenLabs speech synthesis in AIRI
 ---
 
@@ -21,7 +21,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → ElevenLabs**.
+1. Open **Settings → Providers → Speech Synthesis → ElevenLabs**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL of the interface; change it only when using your own compatible gateway.
 

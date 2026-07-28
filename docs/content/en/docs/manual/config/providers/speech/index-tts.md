@@ -21,7 +21,7 @@ Do not expose local service ports to untrusted public networks. If you modify th
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Index-TTS by Bilibili**.
+1. Open **Settings → Providers → Speech Synthesis → Index-TTS by Bilibili**.
 2. Fill in the Base URL consistent with the local service.
 
 ## Step 3: Verify configuration

@@ -21,7 +21,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → OpenAI Compatible API**.
+1. Open **Settings → Providers → Speech Synthesis → OpenAI Compatible API**.
 2. Fill in the API Key and the TTS model ID to be used.
 3. When using OpenAI official services, keep the default Base URL: `https://api.openai.com/v1/`; when using compatible services, fill in the API root address provided by the service provider's documentation.
 4. Adjust the speaking speed as needed.

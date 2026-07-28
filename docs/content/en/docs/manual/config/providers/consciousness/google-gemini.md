@@ -21,7 +21,7 @@ After the key is leaked, please immediately revoke and recreate it in the Google
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Google Gemini**.
+1. Open **Settings → Providers → Chat → Google Gemini**.
 2. Fill in the API Key.
 3. Keep the default Base URL: `https://generativelanguage.googleapis.com/v1beta/openai/`.
 

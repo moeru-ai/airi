@@ -95,8 +95,8 @@ On Windows, you can drag the edges or corners of a window to resize it. Several 
 
 After completing your first chat, I recommend taking a look at these pages:
 
-- **Service Source**: Add or edit Chat, Speech, Transcription, Artistry service sources.
-- **Body Module**: Select services for consciousness, vocalization, hearing, vision, memory, Discord, Minecraft, Factorio, MCP and other modules.
+- **Providers**: Add or edit Chat, Speech, Transcription, and Artistry providers.
+- **Modules**: Select services for consciousness, speech, hearing, vision, memory, Discord, Minecraft, Factorio, MCP, and other modules.
 - **Character Model**: Switch between Live2D/VRM models, or import your own.
 - **AIRI Character Card**: Switch the current character, or create a new character card.
 - **System**: Set language, theme, data analysis preferences and desktop-specific options.

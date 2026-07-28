@@ -21,7 +21,7 @@ Do not submit Bailian API Key to the warehouse, take screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Speech Synthesis → Alibaba Cloud Model Studio**.
+1. Open **Settings → Providers → Speech Synthesis → Alibaba Cloud Model Studio**.
 2. Paste the Bailian API Key into the basic settings; the Base URL uses the interface default value unless you configure a compatible gateway.
 
 ## Step 3: Verify configuration

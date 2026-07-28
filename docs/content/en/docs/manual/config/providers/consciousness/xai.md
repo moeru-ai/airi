@@ -21,7 +21,7 @@ Only save the API Key in your password manager or AIRI's local settings. Do not 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → xAI**.
+1. Open **Settings → Providers → Chat → xAI**.
 2. Fill in the API Key.
 3. Keep the default Base URL: `https://api.x.ai/v1/`.
 

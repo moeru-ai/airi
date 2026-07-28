@@ -21,7 +21,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Artistry → Nano Banana** and paste the API Key.
+1. Open **Settings → Providers → Artistry → Nano Banana** and paste the API Key.
 2. Select the default model: `gemini-3.1-flash-image-preview`, `gemini-3-pro-image-preview` or `gemini-2.5-flash-image`.
 3. Select a default resolution: 1K, 2K, or 4K.
 

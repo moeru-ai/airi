@@ -21,7 +21,7 @@ Do not submit Tokens to the repository, take screenshots, or send them to others
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Artistry → Replicate**.
+1. Open **Settings → Providers → Artistry → Replicate**.
 2. Paste the API Token.
 3. Fill in the default model ID. The default value of AIRI is `black-forest-labs/flux-schnell`; please refer to the exact ID displayed on the Replicate model page.
 4. Set the default screen ratio (default `16:9`) and number of inference steps (default 4) as needed.

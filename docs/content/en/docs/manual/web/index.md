@@ -31,7 +31,7 @@ Enter text in the dialog box to talk to AIRI~
 
 ## Eyes, ears and mouth
 
-In addition to text dialogue, AIRI also has many interactive methods. Click [Settings]->[Body Module] in the upper right corner of the page to add more interactive functions to her.
+In addition to text dialogue, AIRI supports many forms of interaction. Open **Settings → Modules** in the upper-right corner to configure more features.
 
 ### Let AIRI speak
 

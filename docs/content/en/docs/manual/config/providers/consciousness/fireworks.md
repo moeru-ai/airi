@@ -12,7 +12,7 @@ If you already manage models or inference services in Fireworks AI, you can dire
 
 ## Step 1: Get the API key
 
-1. Open [Fireworks AI API Keys](https://fireworks.ai/account/api-keys)。
+1. Open [Fireworks AI API Keys](https://fireworks.ai/account/api-keys).
 2. Create a new API Key.
 3. Copy the key and keep it in a safe place.
 
@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Fireworks AI**.
+1. Open **Settings → Providers → Chat → Fireworks AI**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.fireworks.ai/inference/v1`.
 

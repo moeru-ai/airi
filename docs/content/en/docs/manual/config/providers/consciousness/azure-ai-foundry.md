@@ -19,13 +19,13 @@ Do not submit your Azure API Key to the repository, take screenshots, or send it
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Azure AI Foundry** and fill in the **API Key**, resource name and model ID.
+1. Open **Settings → Providers → Chat → Azure AI Foundry** and fill in the **API Key**, resource name and model ID.
 2. If the console requires a specific API version, please fill it in the interface; do not mistake the common model name for the deployment name.
 
 ## Step 3: Verify configuration
 
 1. After you fill in the required fields, AIRI automatically checks that the API Key, resource name, and model ID are present. This check does not test the network connection or credentials.
-2. Go to **Settings → Consciousness**, select the Azure AI Foundry provider and deployment, then send a test message to confirm that the deployment can respond.
+2. Go to **Settings → Modules → Consciousness**, select the Azure AI Foundry provider and deployment, then send a test message to confirm that the deployment can respond.
 
 ## Troubleshooting
 

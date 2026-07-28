@@ -7,9 +7,9 @@ To let AIRI talk to you, you need to configure at least one chat service provide
 
 ## Complete the minimum available configuration first
 
-1. Open AIRI’s **Settings → Service Provider**.
+1. Open AIRI’s **Settings → Providers**.
 2. Select the service provider in the **Chat** category, fill in the credentials and complete verification.
-3. Open **Settings → Consciousness** and select the service provider and model just configured.
+3. Open **Settings → Modules → Consciousness** and select the service provider and model just configured.
 4. Send a message to confirm that AIRI can reply.
 
 After completing the chat configuration, configure the voice as needed:

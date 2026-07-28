@@ -12,7 +12,7 @@ If you value conversational responsiveness and the target model is available in 
 
 ## Step 1: Get the API key
 
-1. Open [Groq Console](https://console.groq.com/)。
+1. Open [Groq Console](https://console.groq.com/).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 
@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Groq**.
+1. Open **Settings → Providers → Chat → Groq**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.groq.com/openai/v1`.
 

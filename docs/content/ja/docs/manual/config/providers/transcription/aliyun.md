@@ -21,7 +21,7 @@ AccessKey ID、AccessKey Secret、または AppKey をリポジトリに送信�
 
 ## ステップ 2: AIRI で設定する
 
-1. **[設定] → [サービス プロバイダー] → [音声認識] → [Alibaba Cloud NLS]** を開きます。
+1. **[設定] → [プロバイダー] → [音声認識] → [Alibaba Cloud NLS]** を開きます。
 2. **AccessKey ID**、**AccessKey Secret**、**AppKey** を入力します。
 3. 中国東部 `cn-shanghai`、中国北部 `cn-beijing`、中国南部 `cn-shenzhen` など、最も近いエリアを選択します。
 

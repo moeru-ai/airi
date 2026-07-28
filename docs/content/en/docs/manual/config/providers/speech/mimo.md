@@ -20,7 +20,7 @@ Sound cloning requires audio samples in Base64 data URI format. Only upload soun
 
 ## Step 2: Configure in AIRI
 
-1. Fill in the API Key in **Settings → Service Provider → Speech Synthesis → Xiaomi MiMo**.
+1. Fill in the API Key in **Settings → Providers → Speech Synthesis → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the service provider provides another address.
 
 ## Step 3: Verify configuration

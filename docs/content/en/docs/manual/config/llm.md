@@ -13,15 +13,15 @@ The chat model is the “brain” of AIRI. After completing this page, AIRI can 
 
 ## Steps
 
-1. Open **Settings → Service Provider → Chat** and select the service provider you want to use.
+1. Open **Settings → Providers → Chat** and select the service provider you want to use.
 
 When you are not sure which one to choose, you can first choose from the detailed guides available: [OpenRouter](./providers/consciousness/openrouter.md), [DeepSeek](./providers/consciousness/deepseek.md), [OpenAI Compatible API](./providers/consciousness/openai.md), or the local [Ollama](./providers/consciousness/ollama.md). Other chat service providers can be viewed from the sidebar "Service Provider → Chat Service Provider".
 
 2. Fill in the API Key. If the service provider provides a dedicated API address, fill in the Base URL in the advanced settings; otherwise, keep the default value.
 
-3. Click **Ping API** to test whether the network is connected and whether the API Key is filled in correctly.
+3. If the provider page shows **Ping API**, click it to test the connection and API key. Some providers do not offer this button; verify those providers after selecting a model in **Modules → Consciousness**.
 
-4. After the network is open, click **Select Model**; you can also open **Settings → Consciousness** and select the chat service provider and model you just configured.
+4. After the network is open, click **Select Model**; you can also open **Settings → Modules → Consciousness** and select the chat service provider and model you just configured.
 
 AIRI will load the model list when supported by the service provider. When the list cannot be loaded, you can manually enter the precise model ID according to the official documentation of the service provider.
 
@@ -37,7 +37,7 @@ First confirm that the service provider allows the model to be listed. Some serv
 
 Check API Key, Base URL, account limit and network connection. For local services, verify that the service is running and that the Base URL is not an address that only other devices are allowed to access.
 
-### AIRI No reply
+### AIRI does not reply
 
 Confirm that both the service provider and the model are selected on the "Consciousness" page. Simply saving the provider credentials will not automatically enable it.
 

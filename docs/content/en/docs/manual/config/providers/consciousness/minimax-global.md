@@ -12,7 +12,7 @@ If you create an API Key on the MiniMax overseas platform or use an overseas Tok
 
 ## Step 1: Obtain API Key
 
-1. Open and log in to [MiniMax Global Platform](https://platform.minimax.io/)。
+1. Open and log in to [MiniMax Global Platform](https://platform.minimax.io/).
 2. Create a pay-as-you-go API Key in **API Keys**; if using Token Plan, please obtain its dedicated Key on the corresponding subscription page.
 3. Copy the key and keep it in a safe place.
 
@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → MiniMax Global**.
+1. Open **Settings → Providers → Chat → MiniMax Global**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.minimax.io/v1/`.
 
@@ -30,7 +30,7 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 1. **Ping API**: Click this button to test whether the network is connected and whether the API Key is filled in correctly.
 2. **Select Model**: After the test is successful, click here to select the specific model you want to use.
-3. Select MiniMax Global and the model in **Settings → Consciousness** and send a short message to confirm that AIRI can reply.
+3. Select MiniMax Global and the model in **Settings → Modules → Consciousness** and send a short message to confirm that AIRI can reply.
 
 ## Troubleshooting
 

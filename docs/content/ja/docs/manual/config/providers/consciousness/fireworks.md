@@ -4,7 +4,7 @@ description: Fireworks AI を AIRI の大規模モデル サービス プロバ�
 is_openai_compatible: true
 ---
 
-Fireworks AI は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は Fireworks AI が提供するモデルをwarewareで使用できるようになります。
+Fireworks AI は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は Fireworks AI が提供するモデルを使用できるようになります。
 
 ::: info Fireworks AI を選ぶ理由
 すでに Fireworks AI でモデルまたは推論サービスを管理している場合は、同じ API 認証情報のセットを直接再利用できます。
@@ -33,4 +33,4 @@ API キーをリポジトリに送信したり、スクリーンショットを�
 
 ## トラブルシューティング
 
-API への ping が失敗した場合は、API キー、アカウント制限、ネットワーク接続を確認してください。モデル リストの読み込みに失敗した場合は、Fireworks AI によって提供される正確なモデル ID を [認識] ページに手動で入力できます。
+API への ping が失敗した場合は、API キー、アカウント制限、ネットワーク接続を確認してください。モデル リストの読み込みに失敗した場合は、Fireworks AI によって提供される正確なモデル ID を [意識] ページに手動で入力できます。

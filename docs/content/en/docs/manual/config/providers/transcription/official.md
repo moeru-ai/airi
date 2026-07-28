@@ -20,7 +20,7 @@ Real-time recognition will send the audio to the official service. Don't use tes
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Voice Recognition → AIRI Official Voice Recognition**.
+1. Open **Settings → Providers → Voice Recognition → AIRI Official Voice Recognition**.
 2. Select `Auto` or the model provided by the server, and then go to **Settings → Hearing** to enable it.
 
 ## Step 3: Verify configuration

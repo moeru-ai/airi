@@ -22,7 +22,7 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Step 2: Configure in AIRI
 
-1. Open **Settings → Service Provider → Chat → Z.ai**.
+1. Open **Settings → Providers → Chat → Z.ai**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.z.ai/api/paas/v4`.
 
