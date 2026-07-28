@@ -29,6 +29,17 @@ export function userChatBroadcastRedisKey(userId: string): string {
   return redisKeyFrom('user', userId, 'chat', 'broadcast')
 }
 
+/**
+ * Matches every per-user chat broadcast channel currently known to Redis.
+ *
+ * `PUBSUB CHANNELS` returns each active channel once even when several server
+ * replicas subscribe for the same user, so the result count is the
+ * cluster-wide distinct online-user count.
+ */
+export function userChatBroadcastRedisPattern(): string {
+  return redisKeyFrom('user', '*', 'chat', 'broadcast')
+}
+
 export function lockRedisKey(domain: string, ...identifiers: RedisKeyPart[]): string {
   return redisKeyFrom('lock', domain, ...identifiers)
 }

@@ -370,7 +370,7 @@ function pieChartPanel(id: number, title: string, description: string, queries: 
             displayLabels: ['percent'],
             legend: { displayMode: 'table', overflow: 'ellipsis', placement: 'bottom', showLegend: true },
             pieType: 'pie',
-            reduceOptions: { calcs: ['sum'], fields: '', values: false },
+            reduceOptions: { calcs: ['lastNotNull'], fields: '', values: false },
             sort: 'desc',
             tooltip: { hideZeros: false, mode: 'single', sort: 'none' },
           },
@@ -381,130 +381,16 @@ function pieChartPanel(id: number, title: string, description: string, queries: 
   }
 }
 
-// Custom Grafana UI panel retained as code so the generated dashboard matches
-// the latest hand-tuned cloud version without checking in cloud metadata.
+// Keep the rolling 24-hour series as a trend panel; the point-in-time DAU stat
+// would duplicate the same metric at the right edge of this chart.
 function dailyActiveUsersTrendPanel() {
-  return {
-    kind: 'Panel',
-    spec: {
-      data: {
-        kind: 'QueryGroup',
-        spec: {
-          queries: [
-            query(
-              `max (user_active_rolling{${SERVICE_FILTER}, window="24h"})`,
-              '__auto',
-            ),
-          ],
-          queryOptions: {},
-          transformations: [],
-        },
-      },
-      description: '',
-      id: 99,
-      links: [],
-      title: '日活',
-      vizConfig: {
-        group: 'timeseries',
-        kind: 'VizConfig',
-        spec: {
-          fieldConfig: {
-            defaults: {
-              color: { mode: 'continuous-GrYlRd', seriesBy: 'last' },
-              custom: {
-                axisBorderShow: false,
-                axisCenteredZero: false,
-                axisColorMode: 'text',
-                axisLabel: '',
-                axisPlacement: 'auto',
-                barAlignment: 0,
-                barWidthFactor: 0.6,
-                drawStyle: 'line',
-                fillOpacity: 17,
-                gradientMode: 'scheme',
-                hideFrom: { legend: false, tooltip: false, viz: false },
-                insertNulls: false,
-                lineInterpolation: 'linear',
-                lineStyle: { fill: 'solid' },
-                lineWidth: 2,
-                pointSize: 3,
-                scaleDistribution: { type: 'linear' },
-                showPoints: 'auto',
-                showValues: false,
-                spanNulls: false,
-                stacking: { group: 'A', mode: 'none' },
-                thresholdsStyle: { mode: 'off' },
-              },
-              thresholds: thresholds([{ color: 'green', value: 0 }, { color: 'red', value: 80 }]),
-            },
-            overrides: [],
-          },
-          options: {
-            annotations: { clustering: -1, multiLane: false },
-            legend: {
-              calcs: [],
-              displayMode: 'list',
-              enableFacetedFilter: false,
-              overflow: 'ellipsis',
-              placement: 'bottom',
-              showLegend: true,
-            },
-            tooltip: { hideZeros: false, mode: 'single', sort: 'none' },
-          },
-        },
-        version: SCHEMA_VERSION,
-      },
-    },
-  }
-}
-
-interface HeatmapPanelOpts {
-  unit?: string
-}
-
-// Status-code-over-time heatmap: each `sum by (label)` series becomes a Y-axis
-// row, colour encodes the rate at each time bucket. `calculate: false` means
-// the series are treated as pre-bucketed rows (one row per status code) rather
-// than re-binned by value. Reads the traffic mix at a glance — a sudden 5xx
-// row lighting up is obvious in a way a stacked line chart hides.
-function heatmapPanel(id: number, title: string, description: string, queries: PanelQuery[], opts: HeatmapPanelOpts = {}) {
-  const { unit = 'short' } = opts
-  return {
-    kind: 'Panel',
-    spec: {
-      data: { kind: 'QueryGroup', spec: { queries, queryOptions: {}, transformations: [] } },
-      description,
-      id,
-      links: [],
-      title,
-      vizConfig: {
-        group: 'heatmap',
-        kind: 'VizConfig',
-        spec: {
-          fieldConfig: {
-            defaults: {
-              custom: { hideFrom: { legend: false, tooltip: false, viz: false }, scaleDistribution: { type: 'linear' } },
-              unit,
-            },
-            overrides: [],
-          },
-          options: {
-            annotations: { clustering: -1, multiLane: false },
-            calculate: false,
-            cellGap: 1,
-            color: { exponent: 0.5, fill: 'dark-orange', mode: 'scheme', reverse: false, scale: 'exponential', scheme: 'RdYlBu', steps: 64 },
-            exemplars: { color: 'rgba(255,0,255,0.7)' },
-            filterValues: { le: 1e-9 },
-            legend: { show: false },
-            rowsFrame: { layout: 'auto' },
-            tooltip: { mode: 'single', showColorScale: false, yHistogram: false },
-            yAxis: { axisPlacement: 'left', reverse: false },
-          },
-        },
-        version: SCHEMA_VERSION,
-      },
-    },
-  }
+  return timeseriesPanel(
+    99,
+    'DAU Trend',
+    'Rolling 24-hour distinct active users over time. This is the trend view of `user.active_rolling`; the duplicate point-in-time DAU stat is intentionally omitted from this dashboard.',
+    [query(`max(user_active_rolling{${SERVICE_FILTER}, window="24h"})`, 'DAU')],
+    { unit: 'short', fillOpacity: 17, legendPlacement: 'bottom', legendCalcs: ['lastNotNull', 'max'] },
+  )
 }
 
 function logsPanel(id: number, title: string, description: string, expr: string) {
@@ -608,10 +494,10 @@ elements['panel-4'] = gaugePanel(
   '5xx Rate %',
   '5xx responses ÷ all responses over the last 5m. Fixed 5m window for an on-call glance ("is the service failing right now"). >1% warns, >5% pages.',
   [query(
-    `100 * sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_response_status_code=~"5.."}[5m])) / clamp_min(sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[5m])), 1)`,
+    `100 * sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_response_status_code=~"5.."}[5m])) / sum(rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[5m]))`,
     'fail %',
   )],
-  { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1 }, { color: 'red', value: 5 }], max: 10, decimals: 2 },
+  { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 1 }, { color: 'red', value: 5 }], max: 10, decimals: 2, noValue: '0' },
 )
 
 elements['panel-5'] = statPanel(
@@ -627,7 +513,6 @@ elements['panel-5'] = statPanel(
 // filtered by last_seen_at; one series per window). Cluster-wide gauge — every
 // replica reports the same value, so aggregate with max(), NOT sum().
 const ROLLING_USERS = [
-  { id: 80, window: '24h', title: 'DAU', label: 'Daily', span: 'last 24h' },
   { id: 81, window: '7d', title: 'WAU', label: 'Weekly', span: 'last 7d' },
   { id: 82, window: '30d', title: 'MAU', label: 'Monthly', span: 'last 30d' },
 ] as const
@@ -643,10 +528,10 @@ for (const { id, window, title, label, span } of ROLLING_USERS) {
 
 elements['panel-93'] = statPanel(
   93,
-  'WS Online',
-  'Current concurrent WebSocket connections across all replicas (`sum` — each replica holds its own connections). The live-presence counterpart to the rolling DAU/WAU windows.',
-  [query(`sum(ws_connections_active{${SERVICE_FILTER}})`, 'online')],
-  { unit: 'short', variant: 'count', color: 'purple', noValue: '0' },
+  'Online Users',
+  'Cluster-wide distinct authenticated users with at least one active `/ws/chat` connection. Redis returns each per-user broadcast channel once even when that user has multiple tabs or connections across server replicas; every replica reports the same global value, so the query uses `max()`.',
+  [query(`max(ws_users_online{${SERVICE_FILTER}})`, 'users', 'A', PROM, { instant: true })],
+  { unit: 'short', variant: 'count', color: 'purple', noValue: '—' },
 )
 
 elements['panel-92'] = timeseriesPanel(
@@ -724,25 +609,25 @@ elements['panel-16'] = barGaugePanel(
   { unit: 'short' },
 )
 
-elements['panel-40'] = heatmapPanel(
+elements['panel-40'] = timeseriesPanel(
   40,
-  'Status Distribution',
-  'HTTP status-code mix over time, one row per status code, colour = request rate in each time bucket. The 200 row dominates in steady state; a 5xx / 4xx row suddenly lighting up flags an incident at a glance. Non-OPTIONS traffic only.',
+  'HTTP Status Rate',
+  'Stacked non-OPTIONS request rate by HTTP status code. A new or growing 4xx / 5xx band flags a traffic-quality or service-health change.',
   [query(
     `sum by (http_response_status_code) (rate(http_server_request_duration_seconds_count{${SERVICE_FILTER}, http_request_method!="OPTIONS"}[$__rate_interval]))`,
     '{{http_response_status_code}}',
   )],
-  { unit: 'short' },
+  { unit: 'reqps', stack: true, fillOpacity: 60, legendPlacement: 'bottom' },
 )
 
 elements['panel-20'] = timeseriesPanel(
   20,
-  'Request Latency (by Route)',
-  '',
+  'Request Latency P95 by Route',
+  'P95 Hono request duration by matched route. Histogram buckets are merged across replicas while preserving `le`, then interpolated by `histogram_quantile`; values are estimates bounded by the configured bucket widths.',
   [query(
-    `sum by (http_route) (
-    rate(http_server_request_duration_seconds_bucket{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!~"/api/v1/openai/.*", http_response_status_code!="404"}[$__rate_interval])
-)`,
+    `histogram_quantile(0.95, sum by (le, http_route) (
+  rate(http_server_request_duration_seconds_bucket{${SERVICE_FILTER}, http_request_method!="OPTIONS", http_route!~"/api/v1/openai/.*", http_response_status_code!="404"}[$__rate_interval])
+))`,
     '{{http_route}}',
   )],
   { unit: 's', legendPlacement: 'bottom' },
@@ -762,13 +647,16 @@ elements['panel-94'] = timeseriesPanel(
 // --- Row 3: LLM Gateway — request mix + latency ----------------------------
 elements['panel-11'] = pieChartPanel(
   11,
-  'LLM Request Rate by Model',
-  'Per-model request rate (chat + tts). Useful for capacity planning and spotting model-routing regressions.',
+  'LLM Requests by Model (range)',
+  'Per-model request count over the visible dashboard range (chat + tts). The pie shows each model\'s share without depending on Grafana sampling resolution.',
   [query(
-    `sum by (gen_ai_request_model) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, gen_ai_request_model!=""}[$__rate_interval]))`,
+    `sum by (gen_ai_request_model) (increase(gen_ai_client_operation_count_total{${SERVICE_FILTER}, gen_ai_request_model!=""}[$__range]))`,
     '{{gen_ai_request_model}}',
+    'A',
+    PROM,
+    { instant: true },
   )],
-  'reqps',
+  'short',
 )
 
 elements['panel-21'] = timeseriesPanel(
@@ -776,7 +664,7 @@ elements['panel-21'] = timeseriesPanel(
   'LLM Latency P95',
   'Two P95 latency signals for the LLM gateway, aggregated across models. TTFB = time to first streamed token (streaming chat UX). End-to-end = full operation duration — the only latency signal for non-streaming chat and TTS, which have no first-token event.',
   [
-    query(`sum by () (rate(gen_ai_client_first_token_duration_seconds_bucket{${SERVICE_FILTER}}[$__rate_interval]))`, 'TTFB p95', 'A'),
+    query(`histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_first_token_duration_seconds_bucket{${SERVICE_FILTER}}[$__rate_interval])))`, 'TTFB p95', 'A'),
     query(`histogram_quantile(0.95, sum by (le) (rate(gen_ai_client_operation_duration_seconds_bucket{${SERVICE_FILTER}}[$__rate_interval])))`, 'end-to-end p95', 'B'),
   ],
   { unit: 's' },
@@ -816,7 +704,7 @@ elements['panel-68'] = timeseriesPanel(
   'Provider Failure %',
   '4xx + 5xx ÷ all requests per provider, our side of the call. Matches each provider 失败率 panel. Pair with Upstream Errors by Status Code (LLM Router Health) to see which codes drive it.',
   [query(
-    `100 * sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!="", http_response_status_code=~"4..|5.."}[$__rate_interval])) / clamp_min(sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!=""}[$__rate_interval])), 1)`,
+    `100 * sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!="", http_response_status_code=~"4..|5.."}[$__rate_interval])) / sum by (provider) (rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}, provider!=""}[$__rate_interval]))`,
     '{{provider}}',
   )],
   { unit: 'percent' },
@@ -904,7 +792,7 @@ elements['panel-62'] = gaugePanel(
   'Fallback Ratio % (5m)',
   'Fallback attempts ÷ total LLM operations over the last 5m. Sustained > 30% means one provider is degraded and the router is silently masking it for users while burning quota on the failing upstream.',
   [query(
-    `100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{${SERVICE_FILTER}}[5m])) / clamp_min(sum(rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}}[5m])), 1)`,
+    `100 * sum(rate(airi_gen_ai_gateway_fallback_count_total{${SERVICE_FILTER}}[5m])) / sum(rate(gen_ai_client_operation_count_total{${SERVICE_FILTER}}[5m]))`,
     'fallback %',
   )],
   { steps: [{ color: 'green', value: 0 }, { color: 'yellow', value: 10 }, { color: 'red', value: 30 }], max: 100, decimals: 1, noValue: '0' },
@@ -958,9 +846,9 @@ elements['panel-32'] = statPanel(
 // --- Row 8: Logs ------------------------------------------------------------
 elements['panel-91'] = logsPanel(
   91,
-  '5xx Error Logs',
-  'Server-side error logs (level=warn|error) from Loki. Derived fields make `trace_id` and `req` clickable — `trace_id` jumps to Tempo for full request playback.',
-  `{${SERVICE_FILTER}} | json | level=~"warn|error"`,
+  'Warn / Error Logs',
+  'Server-side warn and error logs from Loki structured metadata. Derived fields make `trace_id` and `req` clickable — `trace_id` jumps to Tempo for full request playback.',
+  `{${SERVICE_FILTER}} | detected_level=~"warn|error"`,
 )
 
 elements['panel-90'] = logsPanel(
@@ -998,16 +886,15 @@ const rows = [
     item('panel-68', 13, 32, 5, 6),
   ]),
   // Row 2: User Engagement — rolling-window active users and Prom-safe product
-  // analytics. The hand-tuned "日活" trend gives the row a visual engagement
-  // anchor while compact stats keep user/session totals nearby.
+  // analytics. DAU uses one trend panel; compact stats cover the longer
+  // WAU/MAU windows without duplicating the same 24-hour gauge.
   row('User Engagement', [
-    item('panel-80', 0, 0, 3, 5),
-    item('panel-1', 3, 0, 3, 5),
+    item('panel-1', 0, 0, 3, 5),
+    item('panel-15', 3, 0, 3, 5),
     item('panel-99', 6, 0, 12, 11),
     item('panel-98', 18, 0, 6, 11),
-    item('panel-82', 0, 5, 3, 3),
-    item('panel-15', 3, 5, 3, 6),
-    item('panel-81', 0, 8, 3, 3),
+    item('panel-81', 0, 5, 3, 3),
+    item('panel-82', 3, 5, 3, 3),
     item('panel-95', 0, 11, 6, 9),
     item('panel-96', 6, 11, 6, 9),
     item('panel-97', 12, 11, 12, 9),
@@ -1154,7 +1041,7 @@ export const dashboard = {
   preload: false,
   tags: ['airi', 'observability', 'grafana-cloud'],
   timeSettings: {
-    autoRefresh: '',
+    autoRefresh: '30s',
     autoRefreshIntervals: ['5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '2h', '1d'],
     fiscalYearStartMonth: 0,
     from: 'now-6h',
