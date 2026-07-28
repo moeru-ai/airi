@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -29,6 +30,7 @@ import {
 
 const { isDark, toggleDark } = useTheme()
 const { t } = useI18n()
+const { useTrack } = useAnalytics()
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
@@ -38,7 +40,7 @@ const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
-const closeWindow = useElectronEventaInvoke(electronAppQuit)
+const quitApp = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
@@ -90,9 +92,36 @@ watch(alwaysOnTop, (val) => {
   setAlwaysOnTop(val)
 }, { immediate: true })
 
-function toggleAlwaysOnTop() {
-  alwaysOnTop.value = !alwaysOnTop.value
-}
+const toggleAlwaysOnTop = useTrack(
+  () => alwaysOnTop.value ? 'unpin_from_top' : 'pin_on_top',
+  () => {
+    alwaysOnTop.value = !alwaysOnTop.value
+  },
+)
+
+const toggleControls = useTrack(
+  () => expanded.value ? 'collapse_controls' : 'expand_controls',
+  () => {
+    expanded.value = !expanded.value
+  },
+)
+
+const toggleSettingsWindow = useTrack(
+  'toggle_settings',
+  () => openSettings({ route: '/settings' }),
+)
+
+const toggleProfilePicker = useTrack(
+  'toggle_profile_picker',
+  (toggle: () => void) => toggle(),
+)
+
+const toggleChatWindow = useTrack('toggle_chat', openChat)
+
+const switchTheme = useTrack(
+  () => isDark.value ? 'switch_to_light_mode' : 'switch_to_dark_mode',
+  toggleDark,
+)
 
 // Grouped classes for icon / border / padding and combined style class
 const adjustStyleClasses = computed(() => {
@@ -128,16 +157,17 @@ const adjustStyleClasses = computed(() => {
  */
 const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
 
-function refreshWindow() {
-  window.location.reload()
-}
+const refreshWindow = useTrack('refresh_window', () => window.location.reload())
 
 /**
  * Requests the main process to move the AIRI desktop window back to screen center.
  */
-function resetMainWindowPosition() {
-  centerMainWindow().catch(console.error)
-}
+const resetMainWindowPosition = useTrack(
+  'center_main_window',
+  () => centerMainWindow().catch(console.error),
+)
+
+const closeApplication = useTrack('close_app', quitApp)
 </script>
 
 <template>
@@ -158,7 +188,12 @@ function resetMainWindowPosition() {
 
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="openSettings({ route: '/settings' })">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
+                data-attr="controls-island-open-settings"
+                @click="toggleSettingsWindow"
+              >
                 <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
               <template #tooltip>
@@ -169,7 +204,12 @@ function resetMainWindowPosition() {
             <ControlButtonTooltip disable-hoverable-content>
               <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
                 <template #default="{ toggle }">
-                  <ControlButton :button-style="adjustStyleClasses.button" @click="toggle">
+                  <ControlButton
+                    :button-style="adjustStyleClasses.button"
+                    :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
+                    data-attr="controls-island-open-profile-picker"
+                    @click="toggleProfilePicker(toggle)"
+                  >
                     <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                   </ControlButton>
                 </template>
@@ -180,7 +220,12 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="refreshWindow">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                :aria-label="t('tamagotchi.stage.controls-island.refresh')"
+                data-attr="controls-island-refresh-window"
+                @click="refreshWindow"
+              >
                 <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
               <template #tooltip>
@@ -189,7 +234,12 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="resetMainWindowPosition()">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                :aria-label="t('tamagotchi.stage.controls-island.center-main-window')"
+                data-attr="controls-island-center-main-window"
+                @click="resetMainWindowPosition"
+              >
                 <div i-solar:target-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
               </ControlButton>
               <template #tooltip>
@@ -198,7 +248,12 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleDark()">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                :aria-label="isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode')"
+                data-attr="controls-island-toggle-theme"
+                @click="switchTheme"
+              >
                 <Transition name="fade" mode="out-in">
                   <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                   <div v-else i-solar:sun-2-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -210,7 +265,12 @@ function resetMainWindowPosition() {
             </ControlButtonTooltip>
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" @click="toggleAlwaysOnTop()">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                :aria-label="alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
+                data-attr="controls-island-toggle-always-on-top"
+                @click="toggleAlwaysOnTop"
+              >
                 <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
                 <div v-else i-solar:pin-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300 opacity-50" />
               </ControlButton>
@@ -222,7 +282,14 @@ function resetMainWindowPosition() {
             <ControlsIslandFadeOnHover :icon-class="adjustStyleClasses.icon" :button-style="adjustStyleClasses.button" />
 
             <ControlButtonTooltip disable-hoverable-content>
-              <ControlButton :button-style="adjustStyleClasses.button" hover:bg-red-500 hover:text-white @click="closeWindow()">
+              <ControlButton
+                :button-style="adjustStyleClasses.button"
+                :aria-label="t('tamagotchi.stage.controls-island.close')"
+                data-attr="controls-island-close-app"
+                hover:bg-red-500
+                hover:text-white
+                @click="closeApplication"
+              >
                 <div i-solar:close-circle-outline :class="adjustStyleClasses.icon" />
               </ControlButton>
               <template #tooltip>
@@ -236,7 +303,12 @@ function resetMainWindowPosition() {
       <!-- Main Controls -->
       <div flex flex-col gap-1>
         <ControlButtonTooltip side="left">
-          <ControlButton :button-style="adjustStyleClasses.button" @click="expanded = !expanded">
+          <ControlButton
+            :button-style="adjustStyleClasses.button"
+            :aria-label="expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand')"
+            data-attr="controls-island-toggle-drawer"
+            @click="toggleControls"
+          >
             <div
               :class="[adjustStyleClasses.icon, expanded ? 'rotate-180' : 'rotate-0']"
               i-solar:alt-arrow-up-line-duotone scale-110 transition-all duration-300
@@ -249,7 +321,12 @@ function resetMainWindowPosition() {
         </ControlButtonTooltip>
 
         <ControlButtonTooltip side="left">
-          <ControlButton :button-style="adjustStyleClasses.button" @click="openChat">
+          <ControlButton
+            :button-style="adjustStyleClasses.button"
+            :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
+            data-attr="controls-island-open-chat"
+            @click="toggleChatWindow"
+          >
             <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
           </ControlButton>
           <template #tooltip>

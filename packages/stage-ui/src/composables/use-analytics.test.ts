@@ -994,6 +994,64 @@ describe('useAnalytics conversation product events', () => {
     })
   })
 
+  it('emits stable controls-island actions and flushes reload actions immediately', () => {
+    analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
+    const analytics = useAnalytics()
+
+    analytics.trackControlsIslandAction({ action: 'toggle_chat' })
+    analytics.trackControlsIslandAction({ action: 'refresh_window' })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'controls_island_action', {
+      action: 'toggle_chat',
+      app_surface: 'electron',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
+      2,
+      'controls_island_action',
+      {
+        action: 'refresh_window',
+        app_surface: 'electron',
+      },
+      { send_instantly: true, transport: 'sendBeacon' },
+    )
+  })
+
+  it('wraps controls-island handlers without changing their arguments or return values', () => {
+    analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
+    const analytics = useAnalytics()
+    const handler = vi.fn((value: number) => {
+      expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('controls_island_action', {
+        action: 'toggle_chat',
+        app_surface: 'electron',
+      })
+      return value * 2
+    })
+    const trackedHandler = analytics.useTrack('toggle_chat', handler)
+
+    expect(trackedHandler(3)).toBe(6)
+    expect(handler).toHaveBeenCalledWith(3)
+  })
+
+  it('resolves state-dependent controls-island actions before running the handler', () => {
+    analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
+    const analytics = useAnalytics()
+    let pinned = false
+    const trackedHandler = analytics.useTrack(
+      () => pinned ? 'unpin_from_top' : 'pin_on_top',
+      () => {
+        pinned = true
+      },
+    )
+
+    trackedHandler()
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('controls_island_action', {
+      action: 'pin_on_top',
+      app_surface: 'electron',
+    })
+    expect(pinned).toBe(true)
+  })
+
   it('emits desktop differentiator events for spotlight, widgets, updater, MCP, and pairing', () => {
     analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
     const analytics = useAnalytics()
