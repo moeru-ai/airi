@@ -20,6 +20,9 @@ send-mode:
   enter: 엔터
   ctrl-enter: Ctrl + Enter
   double-enter: Double Enter
+speech-output:
+  mute: 음성 음소거
+  unmute: 음소거 해제
 operations:
   load-models: 모델 불러오기
   load-models-status:

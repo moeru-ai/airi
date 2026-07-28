@@ -35,6 +35,12 @@ const { platform } = useAppRuntime()
       </div>
       <div w-full drag-region />
       <div
+        flex items-center gap-1
+        class="[-webkit-app-region:no-drag]"
+      >
+        <slot name="actions" />
+      </div>
+      <div
         bg="hover:neutral-200 hover:dark:neutral-800"
         transition="all duration-200 ease-in-out"
         flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-0.5

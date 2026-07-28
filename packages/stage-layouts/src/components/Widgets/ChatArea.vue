@@ -302,7 +302,7 @@ watch(sendMode, () => {
       </div>
 
       <div
-        absolute bottom-2 right-2 z-10 flex items-center
+        absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
         <button
           v-if="showStopSpeakingButton"

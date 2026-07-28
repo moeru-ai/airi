@@ -4,7 +4,9 @@ import { ref } from 'vue'
 import { useStopSpeakingButton } from './useStopSpeakingButton'
 
 const nowSpeaking = ref(false)
+const speechMuted = ref(false)
 const requestStopSpeakingMock = vi.fn()
+const toggleSpeechMutedMock = vi.fn()
 const trackTtsStopClickedMock = vi.fn()
 
 vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
@@ -16,6 +18,8 @@ vi.mock('@proj-airi/stage-ui/stores/audio', () => ({
 vi.mock('@proj-airi/stage-ui/stores/speech-output-control', () => ({
   useSpeechOutputControlStore: () => ({
     requestStopSpeaking: requestStopSpeakingMock,
+    speechMuted,
+    toggleSpeechMuted: toggleSpeechMutedMock,
   }),
 }))
 
@@ -68,5 +72,18 @@ describe('useStopSpeakingButton', () => {
     expect(trackTtsStopClickedMock).toHaveBeenCalledWith({
       reason: 'manual-all',
     })
+  })
+
+  it('exposes persisted mute state and toggles it through the shared output store', () => {
+    speechMuted.value = true
+    toggleSpeechMutedMock.mockClear()
+
+    const controls = useStopSpeakingButton()
+
+    expect(controls.speechMuted.value).toBe(true)
+
+    controls.toggleSpeechMuted()
+
+    expect(toggleSpeechMutedMock).toHaveBeenCalledOnce()
   })
 })

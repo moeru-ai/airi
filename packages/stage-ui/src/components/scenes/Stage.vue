@@ -93,7 +93,8 @@ const {
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
-const { latestStopRequest } = storeToRefs(useSpeechOutputControlStore())
+const speechOutputControlStore = useSpeechOutputControlStore()
+const { latestStopRequest, speechMuted } = storeToRefs(speechOutputControlStore)
 const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
 const VRM_INTERACTION_COOLDOWN_MS = 450
 
@@ -389,6 +390,9 @@ function trackOfficialAutoTtsForTurn(modelId: string) {
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
+      return null
+
+    if (speechMuted.value)
       return null
 
     if (activeSpeechProvider.value === 'speech-noop')
@@ -693,6 +697,9 @@ function resolveStreamingSessionModel(): string | null {
 }
 
 function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
+  if (speechMuted.value)
+    return null
+
   // Snapshotted once per session, so a mid-session provider/voice swap
   // does not corrupt an in-flight session — the watcher below detects
   // changes and tears down explicitly. Returns `null` when streaming
@@ -790,15 +797,24 @@ watch(latestStopRequest, (request) => {
   stopSpeechOutput(request.reason)
 })
 
+watch(speechMuted, (muted) => {
+  if (muted)
+    stopSpeechOutput('muted')
+}, { immediate: true })
+
 chatHookCleanups.push(onBeforeMessageComposed(async () => {
   officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
-
-  setupAnalyser()
-  await setupLipSync()
   resetAssistantSpeechSurface('new-message')
 
   currentSession?.cancel('new-message')
+  currentSession = null
+
+  if (speechMuted.value)
+    return
+
+  setupAnalyser()
+  await setupLipSync()
   currentSession = openTtsSession()
 }))
 
@@ -811,6 +827,13 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special) => {
+  // Muting speech must not suppress non-audio signals such as emotion, motion,
+  // delay, or plugin calls that normally travel through the TTS session.
+  if (speechMuted.value) {
+    await playSpecialToken(special)
+    return
+  }
+
   currentSession?.appendSpecial(special)
 }))
 
