@@ -227,6 +227,23 @@ onMounted(() => {
               </Transition>
             </button>
           </HearingConfigDialog>
+          <button
+            data-testid="speech-mute-button"
+            :class="[
+              'w-fit flex items-center self-end justify-center rounded-xl border-2 border-solid p-2 backdrop-blur-md',
+              'border-neutral-100/60 text-neutral-500 transition-colors active:scale-95 dark:border-neutral-800/30 dark:text-neutral-400',
+              speechMuted
+                ? 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
+                : 'bg-neutral-50/70 hover:text-primary-500 dark:bg-neutral-800/70 dark:hover:text-primary-400',
+            ]"
+            :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+            :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+            :aria-pressed="speechMuted"
+            @click="toggleSpeechMuted"
+          >
+            <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone size-5" />
+            <div v-else class="i-solar:volume-loud-bold-duotone size-5" />
+          </button>
           <button border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md title="Theme" @click="toggleDark()">
             <Transition name="fade" mode="out-in">
               <div v-if="isDark" i-solar:moon-outline size-5 text="neutral-500 dark:neutral-400" />
@@ -273,23 +290,6 @@ onMounted(() => {
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
-        <button
-          data-testid="speech-mute-button"
-          :class="[
-            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] flex items-center justify-center self-end rounded-md outline-none',
-            'text-lg transition-all duration-200 active:scale-95',
-            speechMuted
-              ? 'bg-primary-100/60 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
-              : 'text-neutral-500 hover:bg-primary-100/60 hover:text-primary-600 dark:text-neutral-400 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
-          ]"
-          :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-          :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-          :aria-pressed="speechMuted"
-          @click="toggleSpeechMuted"
-        >
-          <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone h-5 w-5" />
-          <div v-else class="i-solar:volume-loud-bold-duotone h-5 w-5" />
-        </button>
         <button
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"

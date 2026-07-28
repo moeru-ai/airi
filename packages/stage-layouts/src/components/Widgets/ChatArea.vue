@@ -60,7 +60,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -304,24 +304,6 @@ watch(sendMode, () => {
       <div
         absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
-        <button
-          data-testid="speech-mute-button"
-          :class="[
-            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
-            'text-lg transition-all duration-200 active:scale-95',
-            speechMuted
-              ? 'bg-primary-100/60 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
-              : 'text-neutral-500 hover:bg-primary-100/60 hover:text-primary-600 dark:text-neutral-400 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
-          ]"
-          :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-          :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-          :aria-pressed="speechMuted"
-          @click="toggleSpeechMuted"
-        >
-          <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone h-5 w-5" />
-          <div v-else class="i-solar:volume-loud-bold-duotone h-5 w-5" />
-        </button>
-
         <button
           v-if="showStopSpeakingButton"
           data-testid="stop-speaking-button"

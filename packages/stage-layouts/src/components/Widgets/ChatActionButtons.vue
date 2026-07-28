@@ -5,15 +5,19 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
 
+import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { cleanupMessages } = useChatMaintenanceStore()
 const { messages } = storeToRefs(useChatSessionStore())
 const { trackChatMessagesCleared } = useAnalytics()
 const { isDark, toggleDark } = useTheme()
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
+const { t } = useI18n()
 
 const backgroundDialogOpen = ref(false)
 
@@ -30,6 +34,23 @@ function handleCleanupMessages() {
 <template>
   <BackgroundDialogPicker v-model="backgroundDialogOpen" />
   <div absolute bottom--8 right-0 flex gap-2>
+    <button
+      data-testid="speech-mute-button"
+      :class="[
+        'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
+        'text-lg transition-colors transition-transform active:scale-95',
+        speechMuted
+          ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
+          : 'bg-neutral-100 text-neutral-500 hover:text-primary-500 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-primary-400',
+      ]"
+      :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+      :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+      :aria-pressed="speechMuted"
+      @click="toggleSpeechMuted"
+    >
+      <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
+      <div v-else class="i-solar:volume-loud-bold-duotone" />
+    </button>
     <ViewControls />
     <button
       class="max-h-[10lh] min-h-[1lh]"

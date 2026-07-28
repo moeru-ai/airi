@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
 const sessionsDrawerOpen = shallowRef(false)
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
+const { t } = useI18n()
 </script>
 
 <template>
@@ -14,7 +18,27 @@ const sessionsDrawerOpen = shallowRef(false)
       title="Chat"
       icon="i-solar:chat-line-bold"
       @title-click="sessionsDrawerOpen = true"
-    />
+    >
+      <template #actions>
+        <button
+          data-testid="speech-mute-button"
+          :class="[
+            'h-7 w-7 flex items-center justify-center rounded-md outline-none',
+            'text-base transition-colors transition-transform active:scale-95',
+            speechMuted
+              ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
+              : 'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+          ]"
+          :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+          :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+          :aria-pressed="speechMuted"
+          @click="toggleSpeechMuted"
+        >
+          <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
+          <div v-else class="i-solar:volume-loud-bold-duotone" />
+        </button>
+      </template>
+    </WindowTitleBar>
     <InteractiveArea
       v-model:sessions-drawer-open="sessionsDrawerOpen"
       class="interaction-area block"
