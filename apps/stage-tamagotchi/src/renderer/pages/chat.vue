@@ -21,6 +21,19 @@ const { t } = useI18n()
     >
       <template #actions>
         <button
+          data-testid="conversation-selector-button"
+          :class="[
+            'h-7 w-7 flex items-center justify-center rounded-md outline-none',
+            'text-base text-neutral-400 transition-colors transition-transform active:scale-95',
+            'hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
+          ]"
+          :title="t('stage.chat.sessions.title')"
+          :aria-label="t('stage.chat.sessions.title')"
+          @click="sessionsDrawerOpen = true"
+        >
+          <div class="i-solar:chat-line-bold-duotone" />
+        </button>
+        <button
           data-testid="speech-mute-button"
           :class="[
             'h-7 w-7 flex items-center justify-center rounded-md outline-none',
@@ -40,7 +53,6 @@ const { t } = useI18n()
       </template>
     </WindowTitleBar>
     <InteractiveArea
-      v-model:sessions-drawer-open="sessionsDrawerOpen"
       class="interaction-area block"
       h-full w-full p-4 transition="opacity duration-250"
     />
