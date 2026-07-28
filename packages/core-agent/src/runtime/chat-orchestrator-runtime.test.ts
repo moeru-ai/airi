@@ -873,7 +873,52 @@ describe('createChatOrchestratorRuntime', () => {
     })
     expect(harness.userAppended).toEqual([])
     expect(harness.userTurns).toEqual([])
+    expect(harness.assistantTurns).toEqual([])
     expect(streamOptions).not.toHaveProperty('requestCorrelation')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Companion Mode (hiddenUserMessage) appends its assistant reply to the
+  // session but never persists the synthetic screen-observation userMessage.
+  // The orchestrator still forwarded that same sessionMessagesForSend (which
+  // includes the synthetic userMessage) to onAssistantTurnReady, so
+  // downstream consumers such as the Artistry autonomous assistant-target
+  // task received the hidden visual summary in their history and could leak
+  // it into a separate art-generation workflow.
+  //
+  // Hidden sends now skip onAssistantTurnReady, mirroring the existing
+  // onUserTurnReady skip, so no hidden visual context reaches assistant-turn
+  // hooks while visible turns keep firing them.
+  it('skips assistant-turn hooks for hidden companion turns to keep visual context out of history', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'screen reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('hidden screen observation', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      hiddenUserMessage: true,
+    })
+
+    // The hidden screen observation must not reach assistant-turn consumers
+    // that would forward it to a separate art-generation workflow.
+    expect(harness.assistantTurns).toEqual([])
+    expect(harness.userTurns).toEqual([])
+
+    // Visible turns still fire the assistant-turn hook.
+    await harness.runtime.ingest('visible message', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.assistantTurns).toHaveLength(1)
+    expect(harness.assistantTurns[0]).toMatchObject({ messageText: 'assistant reply' })
+    const visibleHistory = (harness.assistantTurns[0] as { sessionMessages: ChatHistoryItem[] }).sessionMessages
+    expect(visibleHistory.some(message => message.role === 'user' && String(message.content).includes('visible message'))).toBe(true)
+    expect(visibleHistory.some(message => message.role === 'user' && String(message.content).includes('hidden screen observation'))).toBe(false)
   })
 
   // ROOT CAUSE:

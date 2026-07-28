@@ -902,10 +902,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
-      deps.onAssistantTurnReady?.({
-        messageText: fullText,
-        sessionMessages: sessionMessagesForSend,
-      })
+      // Hidden Companion Mode turns carry a synthetic screen-observation
+      // userMessage inside sessionMessagesForSend that is intentionally never
+      // persisted. Skip assistant-turn hooks for those turns so downstream
+      // consumers (e.g. the Artistry autonomous assistant-target task) do not
+      // receive the hidden visual summary in their forwarded history. Mirrors
+      // the onUserTurnReady skip above.
+      if (!hiddenUserMessage) {
+        deps.onAssistantTurnReady?.({
+          messageText: fullText,
+          sessionMessages: sessionMessagesForSend,
+        })
+      }
 
       resetForegroundStream(sessionId)
       const durationMs = Math.round(monotonicNow() - roundStartedAt)
