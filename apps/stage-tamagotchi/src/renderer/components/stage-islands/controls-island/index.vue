@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import type { ControlsIslandAction } from '@proj-airi/stage-ui/composables/use-analytics'
+
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useTrackButton } from '@proj-airi/stage-ui/composables/useTrackButton'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -41,6 +45,10 @@ const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const quitApp = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
+const { trackControlsIslandAction } = useAnalytics()
+const vTrackButton = useTrackButton<ControlsIslandAction>(
+  action => trackControlsIslandAction({ action }),
+)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
@@ -163,9 +171,9 @@ function resetMainWindowPosition() {
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
+                v-track-button="'toggle_settings'"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
-                track-action="toggle_settings"
                 @click="openSettings({ route: '/settings' })"
               >
                 <div i-solar:settings-minimalistic-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -179,9 +187,9 @@ function resetMainWindowPosition() {
               <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
                 <template #default="{ toggle }">
                   <ControlButton
+                    v-track-button="'toggle_profile_picker'"
                     :button-style="adjustStyleClasses.button"
                     :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
-                    track-action="toggle_profile_picker"
                     @click="toggle"
                   >
                     <div i-solar:emoji-funny-square-broken :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -195,9 +203,9 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
+                v-track-button="'refresh_window'"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.refresh')"
-                track-action="refresh_window"
                 @click="refreshWindow"
               >
                 <div i-solar:refresh-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -209,9 +217,9 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
+                v-track-button="'center_main_window'"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.center-main-window')"
-                track-action="center_main_window"
                 @click="resetMainWindowPosition"
               >
                 <div i-solar:target-linear :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -223,9 +231,9 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
+                v-track-button="isDark ? 'switch_to_light_mode' : 'switch_to_dark_mode'"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode')"
-                :track-action="isDark ? 'switch_to_light_mode' : 'switch_to_dark_mode'"
                 @click="() => toggleDark()"
               >
                 <Transition name="fade" mode="out-in">
@@ -240,9 +248,9 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
+                v-track-button="alwaysOnTop ? 'unpin_from_top' : 'pin_on_top'"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
-                :track-action="alwaysOnTop ? 'unpin_from_top' : 'pin_on_top'"
                 @click="toggleAlwaysOnTop"
               >
                 <div v-if="alwaysOnTop" i-solar:pin-bold :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
@@ -257,9 +265,9 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
+                v-track-button="'close_app'"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.close')"
-                track-action="close_app"
                 hover:bg-red-500
                 hover:text-white
                 @click="() => quitApp()"
@@ -278,9 +286,9 @@ function resetMainWindowPosition() {
       <div flex flex-col gap-1>
         <ControlButtonTooltip side="left">
           <ControlButton
+            v-track-button="expanded ? 'collapse_controls' : 'expand_controls'"
             :button-style="adjustStyleClasses.button"
             :aria-label="expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand')"
-            :track-action="expanded ? 'collapse_controls' : 'expand_controls'"
             @click="toggleControls"
           >
             <div
@@ -296,9 +304,9 @@ function resetMainWindowPosition() {
 
         <ControlButtonTooltip side="left">
           <ControlButton
+            v-track-button="'toggle_chat'"
             :button-style="adjustStyleClasses.button"
             :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
-            track-action="toggle_chat"
             @click="() => openChat()"
           >
             <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />

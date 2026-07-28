@@ -56,8 +56,6 @@ export type ControlsIslandAction
     | 'disable_fade_on_hover'
     | 'close_app'
 
-type ControlsIslandActionResolver<TArgs extends unknown[]> = ControlsIslandAction | ((...args: TArgs) => ControlsIslandAction)
-
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
  * The web/PKCE stages fire from `pages/auth/callback.vue`; the electron
@@ -1240,24 +1238,6 @@ export function useAnalytics() {
     posthog.capture('controls_island_action', eventProperties)
   }
 
-  /**
-   * Wraps a controls-island handler with its analytics intent.
-   *
-   * A resolver reads reactive state immediately before the handler runs, so
-   * state-dependent actions describe the transition the user requested.
-   * The wrapped handler keeps its original arguments and return type.
-   */
-  function useTrack<TArgs extends unknown[], TResult>(
-    action: ControlsIslandActionResolver<TArgs>,
-    handler: (...args: TArgs) => TResult,
-  ): (...args: TArgs) => TResult {
-    return (...args) => {
-      const resolvedAction = typeof action === 'function' ? action(...args) : action
-      trackControlsIslandAction({ action: resolvedAction })
-      return handler(...args)
-    }
-  }
-
   function trackSpotlightUsed() {
     if (!canCapture())
       return
@@ -1436,7 +1416,6 @@ export function useAnalytics() {
 
     trackDataAction,
     trackControlsIslandAction,
-    useTrack,
     trackSpotlightUsed,
     trackWidgetOpened,
     trackUpdateCheckClicked,

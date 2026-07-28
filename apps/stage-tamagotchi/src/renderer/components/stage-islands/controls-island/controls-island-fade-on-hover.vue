@@ -22,21 +22,30 @@ const props = withDefaults(defineProps<Props>(), {
 const uiStore = useControlsIslandStore()
 const enabled = computed(() => uiStore.fadeOnHoverEnabled)
 const { t } = useI18n()
-const { useTrack } = useAnalytics()
+const { trackControlsIslandAction } = useAnalytics()
 
 const requestNotice = useElectronEventaInvoke(noticeWindowEventa.openWindow)
 const NOTICE_WINDOW_ID = 'fade-on-hover'
-const enableFadeOnHover = useTrack('enable_fade_on_hover', () => uiStore.enableFadeOnHover())
-const disableFadeOnHover = useTrack('disable_fade_on_hover', () => uiStore.disableFadeOnHover())
+
+function setFadeOnHoverEnabled(value: boolean) {
+  if (value)
+    uiStore.enableFadeOnHover()
+  else
+    uiStore.disableFadeOnHover()
+
+  trackControlsIslandAction({
+    action: value ? 'enable_fade_on_hover' : 'disable_fade_on_hover',
+  })
+}
 
 async function handleToggle() {
   if (enabled.value) {
-    disableFadeOnHover()
+    setFadeOnHoverEnabled(false)
     return
   }
 
   if (uiStore.dontShowItAgainNoticeFadeOnHover) {
-    enableFadeOnHover()
+    setFadeOnHoverEnabled(true)
     return
   }
 
@@ -47,7 +56,7 @@ async function handleToggle() {
       type: 'fade-on-hover',
     })
     if (acknowledged) {
-      enableFadeOnHover()
+      setFadeOnHoverEnabled(true)
     }
   }
   catch (error) {
