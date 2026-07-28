@@ -1,6 +1,6 @@
 ---
 title: Google Gemini（TTS）
-description: AIRI での Google Gemini 音声音声合成の設定
+description: AIRI での Google Gemini 音声合成の設定
 ---
 
 Google Gemini Audio 音声合成は、Gemini 認証情報とオーディオ出力をサポートするモデルを使用します。

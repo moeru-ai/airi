@@ -4,7 +4,7 @@ description: AIRI での大規模モデル サービス プロバイダーとし
 is_openai_compatible: true
 ---
 
-Mistralは、OpenAI形式と互換性のあるチャットAPIを提供します。このページでの設定を完了すると、AIRI は Mistral が提供するモデルをwarewareで使用できるようになります。
+Mistral は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は Mistral が提供するモデルを使用できるようになります。
 
 ::: info ミストラルを選ぶ理由
 すでに Mistral モデルを使用している場合、または AIRI で多言語モデルを試したい場合は、このプロバイダーを選択できます。

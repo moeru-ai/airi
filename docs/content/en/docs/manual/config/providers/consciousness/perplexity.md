@@ -12,7 +12,7 @@ You can choose this provider if you already have a Perplexity API account and wa
 
 ## Step 1: Get the API key
 
-1. Open [Perplexity API Settings](https://www.perplexity.ai/settings/api)。
+1. Open [Perplexity API Settings](https://www.perplexity.ai/settings/api).
 2. Create a new API Key on the API Keys page.
 3. Copy the key and keep it in a safe place.
 

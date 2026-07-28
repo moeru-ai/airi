@@ -12,7 +12,7 @@ If you have deployed or used the model in Together AI, you can directly reuse th
 
 ## Step 1: Get the API key
 
-1. Open [Together AI API Keys](https://api.together.ai/settings/api-keys)。
+1. Open [Together AI API Keys](https://api.together.ai/settings/api-keys).
 2. Create a new API Key.
 3. Copy the key and keep it in a safe place.
 

@@ -8,7 +8,7 @@ This template provides a minimal usable Character Card V3 structure that can be 
 ::: tip editing tip
 - You can fill in `name`, `description`, `personality`, `scenario` and `first_mes` first.
 - Optional fields that are not used temporarily can be left blank.
-- Before importing or sharing, please confirm that the final content is still legal JSON.
+- Before importing or sharing, please confirm that the final content is still valid JSON.
 :::
 
 ## Template

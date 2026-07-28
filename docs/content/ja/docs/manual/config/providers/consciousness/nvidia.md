@@ -4,7 +4,7 @@ description: AIRI での大規模モデル サービス プロバイダーとし
 is_openai_compatible: true
 ---
 
-NVIDIA NIM は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は、NVIDIA NIM が提供するモデルをwarewareで使用できるようになります。
+NVIDIA NIM は、OpenAI 形式と互換性のあるチャット API を提供します。このページでの設定を完了すると、AIRI は NVIDIA NIM が提供するモデルを使用できるようになります。
 
 ::: info NVIDIA NIM を選ぶ理由?
 NVIDIA NIM プラットフォームでモデル サービスをすでに使用している場合は、同じ認証情報のセットを AIRI に接続できます。

@@ -1,6 +1,6 @@
 ---
 title: ElevenLabs（TTS）
-description: AIRI での Celebrities 音声合成の設定
+description: AIRI での ElevenLabs 音声合成の設定
 ---
 
 イレブンラボは AIRI の応答を音声に合成します。
