@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -21,6 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
 const uiStore = useControlsIslandStore()
 const enabled = computed(() => uiStore.fadeOnHoverEnabled)
 const { t } = useI18n()
+const { trackControlsIslandAction } = useAnalytics()
 
 const requestNotice = useElectronEventaInvoke(noticeWindowEventa.openWindow)
 const NOTICE_WINDOW_ID = 'fade-on-hover'
@@ -28,11 +30,13 @@ const NOTICE_WINDOW_ID = 'fade-on-hover'
 async function handleToggle() {
   if (enabled.value) {
     uiStore.disableFadeOnHover()
+    trackControlsIslandAction({ action: 'disable_fade_on_hover' })
     return
   }
 
   if (uiStore.dontShowItAgainNoticeFadeOnHover) {
     uiStore.enableFadeOnHover()
+    trackControlsIslandAction({ action: 'enable_fade_on_hover' })
     return
   }
 
@@ -42,8 +46,10 @@ async function handleToggle() {
       route: '/notice/fade-on-hover',
       type: 'fade-on-hover',
     })
-    if (acknowledged)
+    if (acknowledged) {
       uiStore.enableFadeOnHover()
+      trackControlsIslandAction({ action: 'enable_fade_on_hover' })
+    }
   }
   catch (error) {
     console.error('Failed to open fade-on-hover notice:', error)
@@ -55,6 +61,8 @@ async function handleToggle() {
   <ControlButtonTooltip>
     <ControlButton
       :button-style="props.buttonStyle"
+      :aria-label="enabled ? t('tamagotchi.stage.controls-island.fade-on-hover.disable') : t('tamagotchi.stage.controls-island.fade-on-hover.enable')"
+      data-attr="controls-island-toggle-fade-on-hover"
       :class="{ 'border-primary-300/70 shadow-[0_10px_24px_rgba(0,0,0,0.22)]': enabled }"
       @click="handleToggle"
     >

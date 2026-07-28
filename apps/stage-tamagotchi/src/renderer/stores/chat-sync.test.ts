@@ -12,6 +12,10 @@ const mockResolveLlmTools = vi.hoisted(() => vi.fn<(options?: { customTools?: ((
 const mockWidgetsTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
 const mockWeatherTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
 const mockImageJournalTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
+const providerMocks = vi.hoisted(() => ({
+  configuredProviders: { 'provider-id': true } as Record<string, boolean>,
+  getProviderInstance: vi.fn(async () => ({ id: 'provider' })),
+}))
 
 interface MockBroadcastMessageEvent<T> {
   data: T
@@ -153,7 +157,8 @@ vi.mock('@proj-airi/stage-ui/stores/chat/maintenance', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/providers', () => ({
   useProvidersStore: () => ({
-    getProviderInstance: vi.fn(async () => ({ id: 'provider' })),
+    configuredProviders: providerMocks.configuredProviders,
+    getProviderInstance: providerMocks.getProviderInstance,
   }),
 }))
 
@@ -186,7 +191,7 @@ vi.mock('./tools/builtin/image-journal', () => ({
 }))
 
 describe('useChatSyncStore', async () => {
-  const { useChatSyncStore } = await import('./chat-sync')
+  const { CHAT_PROVIDER_CONFIGURATION_ERROR, useChatSyncStore } = await import('./chat-sync')
 
   function initializeAuthorityAndFollower() {
     const authorityStore = useChatSyncStore()
@@ -238,6 +243,9 @@ describe('useChatSyncStore', async () => {
     mockWeatherTools.mockResolvedValue([])
     mockImageJournalTools.mockReset()
     mockImageJournalTools.mockResolvedValue([])
+    providerMocks.configuredProviders['provider-id'] = true
+    providerMocks.getProviderInstance.mockReset()
+    providerMocks.getProviderInstance.mockResolvedValue({ id: 'provider' })
 
     mockState = {
       activeSessionId,
@@ -362,6 +370,23 @@ describe('useChatSyncStore', async () => {
     expect(persistedMessages[1]?.content).toContain('This model is not available in your region')
 
     peer.close()
+    store.dispose()
+  })
+
+  it('returns a configuration error without persisting a raw provider resolution failure', async () => {
+    providerMocks.getProviderInstance.mockRejectedValueOnce(new Error('Provider credentials for provider-id not found'))
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await expect(store.requestIngest({
+      text: 'hello',
+      sessionId: 'session-1',
+    })).rejects.toThrow(CHAT_PROVIDER_CONFIGURATION_ERROR)
+
+    expect(providerMocks.getProviderInstance).toHaveBeenCalledTimes(1)
+    expect(mockState.ingest).not.toHaveBeenCalled()
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+
     store.dispose()
   })
 

@@ -39,6 +39,22 @@ export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'c
 export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
+/** Stable, low-cardinality actions emitted by the Electron controls island. */
+export type ControlsIslandAction
+  = | 'expand_controls'
+    | 'collapse_controls'
+    | 'open_settings'
+    | 'open_profile_picker'
+    | 'open_chat'
+    | 'refresh_window'
+    | 'center_main_window'
+    | 'switch_to_light_mode'
+    | 'switch_to_dark_mode'
+    | 'pin_on_top'
+    | 'unpin_from_top'
+    | 'enable_fade_on_hover'
+    | 'disable_fade_on_hover'
+    | 'close_app'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
@@ -1203,6 +1219,25 @@ export function useAnalytics() {
   // server management. Input text never leaves the device — events carry
   // counts and low-cardinality ids only.
 
+  function trackControlsIslandAction(properties: { action: ControlsIslandAction }) {
+    if (!canCapture())
+      return
+
+    const eventProperties = {
+      ...properties,
+      app_surface: getConversationAnalyticsSurface(),
+    }
+
+    // Reloading or quitting can tear down PostHog's normal request queue before
+    // it flushes, so these two actions use the unload-safe transport.
+    if (properties.action === 'refresh_window' || properties.action === 'close_app') {
+      posthog.capture('controls_island_action', eventProperties, { send_instantly: true, transport: 'sendBeacon' })
+      return
+    }
+
+    posthog.capture('controls_island_action', eventProperties)
+  }
+
   function trackSpotlightUsed() {
     if (!canCapture())
       return
@@ -1380,6 +1415,7 @@ export function useAnalytics() {
     trackDeviceChannelConnected,
 
     trackDataAction,
+    trackControlsIslandAction,
     trackSpotlightUsed,
     trackWidgetOpened,
     trackUpdateCheckClicked,

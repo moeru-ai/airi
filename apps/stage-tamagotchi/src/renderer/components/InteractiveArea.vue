@@ -3,6 +3,7 @@ import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/component
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -12,7 +13,9 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { BasicTextarea } from '@proj-airi/ui'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { BasicTextarea, Button, Callout } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
@@ -22,7 +25,8 @@ import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
-import { useChatSyncStore } from '../stores/chat-sync'
+import { electronOpenSettings } from '../../shared/eventa'
+import { isChatProviderConfigurationError, useChatSyncStore } from '../stores/chat-sync'
 
 const router = useRouter()
 const messageInput = ref('')
@@ -36,14 +40,20 @@ const chatSyncStore = useChatSyncStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
+const consciousnessStore = useConsciousnessStore()
+const providersStore = useProvidersStore()
 
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
+const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+const { configuredProviders } = storeToRefs(providersStore)
 const { t } = useI18n()
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const { openImagePreview } = journalPreviewStore
 const isComposing = ref(false)
+const providerSetupPromptVisible = ref(false)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
@@ -65,6 +75,13 @@ const {
   trackChatMessagesCleared,
 } = useAnalytics()
 const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const activeChatProviderConfigured = computed(() => {
+  return Boolean(
+    activeProvider.value
+    && activeModel.value
+    && configuredProviders.value[activeProvider.value],
+  )
+})
 
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
@@ -84,6 +101,11 @@ async function handleSend() {
   }
 
   if (!messageInput.value.trim() && !attachments.value.length) {
+    return
+  }
+
+  if (!activeChatProviderConfigured.value) {
+    providerSetupPromptVisible.value = true
     return
   }
 
@@ -107,6 +129,10 @@ async function handleSend() {
     // restore on failure
     messageInput.value = textToSend
     attachments.value = attachmentsToSend
+    if (isChatProviderConfigurationError(error)) {
+      providerSetupPromptVisible.value = true
+      return
+    }
     chatSession.setSessionMessages(chatSession.activeSessionId, [
       ...messages.value,
       {
@@ -126,6 +152,10 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 function handleManualAttach() {
   fileInput.value?.click()
+}
+
+function openProviderSettings() {
+  openSettings({ route: '/settings/providers' })
 }
 
 function handleFileSelect(event: Event) {
@@ -200,6 +230,11 @@ function removeAttachment(index: number) {
 
 watch(sendMode, () => {
   lastEnterTime.value = 0
+})
+
+watch(activeChatProviderConfigured, (configured) => {
+  if (configured)
+    providerSetupPromptVisible.value = false
 })
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
@@ -277,6 +312,26 @@ async function handleCleanupMessages() {
         @tool-call-rerun="handleToolCallRerun"
       />
     </div>
+
+    <Callout
+      v-if="providerSetupPromptVisible"
+      class="mx-2 mb-1"
+      theme="orange"
+      :label="t('stage.chat.provider-configuration.title')"
+    >
+      <div :class="['flex flex-wrap items-center justify-between gap-2']">
+        <span class="min-w-48 flex-1 text-sm">
+          {{ t('stage.chat.provider-configuration.description') }}
+        </span>
+        <Button
+          size="sm"
+          variant="secondary"
+          icon="i-solar:settings-minimalistic-outline"
+          :label="t('stage.chat.provider-configuration.action')"
+          @click="openProviderSettings"
+        />
+      </div>
+    </Callout>
 
     <!-- Journal Preview Chips -->
     <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
