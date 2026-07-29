@@ -462,6 +462,28 @@ describe('stepfunAdapter', () => {
       },
     )).rejects.toMatchObject({ status: 401 })
   })
+
+  it('preserves an unspeech request abort for router timeout classification', async () => {
+    const adapter = getAdapter('stepfun')
+    const abortController = new AbortController()
+    const abortError = new Error('attempt-timeout')
+    abortController.abort(abortError)
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      throw init?.signal?.reason ?? new Error('aborted')
+    }) as unknown as typeof fetch
+
+    await expect(adapter.send(
+      { text: 'hi', voice: 'cixingnansheng' },
+      {
+        keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
+        abortSignal: abortController.signal,
+      },
+    )).rejects.toBe(abortError)
+  })
 })
 
 describe('volcengineAdapter.send', () => {
