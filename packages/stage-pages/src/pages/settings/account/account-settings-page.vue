@@ -467,13 +467,8 @@ async function handleConfirmDelete(event: Event) {
             <div :class="['flex items-center gap-4 py-2']">
               <Avatar
                 :src="userAvatar"
-                :alt="userName"
                 :class="['size-16 sm:size-20 rounded-full flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']"
-              >
-                <template #fallback>
-                  <div :class="['i-solar:user-circle-bold-duotone', 'size-10 text-neutral-400']" />
-                </template>
-              </Avatar>
+              />
               <div :class="['flex flex-col gap-0.5 min-w-0']">
                 <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">
                   {{ t('settings.pages.account.signedInAs') }}

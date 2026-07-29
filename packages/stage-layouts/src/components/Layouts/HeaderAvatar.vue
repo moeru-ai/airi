@@ -61,13 +61,11 @@ onClickOutside(dropdownRef, () => {
       >
         <Avatar
           :src="userAvatar"
-          :alt="userName ?? ''"
-          class="h-7 w-7 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
-        >
-          <template #fallback>
-            <div class="i-solar:user-bold-duotone text-lg" />
-          </template>
-        </Avatar>
+          :class="[
+            'h-7 w-7 rounded-full',
+            'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400',
+          ]"
+        />
 
         <span v-if="userName" class="max-w-[100px] truncate text-sm text-neutral-700 font-medium hidden sm:block dark:text-neutral-200">
           {{ userName }}

@@ -96,11 +96,11 @@ renders the fallback when the URL is missing, loading, or fails.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `src` | `string \| null \| undefined` | `null` | Avatar image URL |
-| `alt` | `string?` | `''` | Accessible image/fallback description |
+| `alt` | `string \| null \| undefined` | `null` | Accessible image/fallback description; omit for decorative avatars |
 | `referrerPolicy` | `ImgHTMLAttributes['referrerpolicy']?` | — | Image referrer policy |
 | `crossOrigin` | `ImgHTMLAttributes['crossorigin']?` | — | Image cross-origin mode |
 
-**Slots**: `fallback`
+**Slots**: `fallback` (optional override for the built-in user icon)
 
 ### Button
 

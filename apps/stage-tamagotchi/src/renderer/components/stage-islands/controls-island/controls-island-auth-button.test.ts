@@ -63,7 +63,9 @@ describe('controlsIslandAuthButton', () => {
     authState.user.value.image = undefined
     const host = mountComponent()
 
-    expect(host.querySelector('[data-avatar-fallback]')).toBeTruthy()
+    const fallback = host.querySelector('[data-avatar-fallback]')
+    expect(fallback).toBeTruthy()
+    expect(fallback?.firstElementChild?.classList.contains('i-solar:user-circle-bold-duotone')).toBe(true)
   })
 
   it('tries the next avatar URL after the authenticated user changes', async () => {
@@ -76,5 +78,6 @@ describe('controlsIslandAuthButton', () => {
     const nextImage = host.querySelector('[data-avatar-image]')
     expect(nextImage).not.toBe(previousImage)
     expect(nextImage?.getAttribute('src')).toBe('https://example.com/new-avatar.png')
+    expect(nextImage?.getAttribute('alt')).toBe('')
   })
 })

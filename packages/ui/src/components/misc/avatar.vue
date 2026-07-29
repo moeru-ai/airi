@@ -4,10 +4,19 @@ import type { ImgHTMLAttributes } from 'vue'
 import { AvatarFallback, AvatarImage, AvatarRoot } from 'reka-ui'
 
 interface AvatarProps {
-  /** Image URL. Missing or failed images render the fallback slot. */
+  /**
+   * Image URL. Missing or failed images render the fallback.
+   *
+   * @default null
+   */
   src?: string | null
-  /** Accessible description for both the image and fallback. */
-  alt?: string
+  /**
+   * Accessible description for both the image and fallback. Omit it when the
+   * surrounding content already identifies the user and the avatar is decorative.
+   *
+   * @default null
+   */
+  alt?: string | null
   /** Referrer policy forwarded to the underlying image request. */
   referrerPolicy?: ImgHTMLAttributes['referrerpolicy']
   /** Cross-origin mode forwarded to the underlying image request. */
@@ -16,7 +25,7 @@ interface AvatarProps {
 
 const props = withDefaults(defineProps<AvatarProps>(), {
   src: null,
-  alt: '',
+  alt: null,
 })
 </script>
 
@@ -29,7 +38,7 @@ const props = withDefaults(defineProps<AvatarProps>(), {
       v-if="props.src"
       data-avatar-image
       :src="props.src"
-      :alt="props.alt"
+      :alt="props.alt ?? ''"
       :referrer-policy="props.referrerPolicy"
       :cross-origin="props.crossOrigin"
       :class="['size-full object-cover']"

@@ -107,17 +107,12 @@ watch(isAuthenticated, (val) => {
     >
       <Avatar
         :src="userAvatar"
-        :alt="userName ?? ''"
         :class="[
           'size-8 shrink-0 overflow-hidden rounded-full',
           'bg-primary-100 dark:bg-primary-900/40',
           'flex items-center justify-center',
         ]"
-      >
-        <template #fallback>
-          <div i-solar:user-check-rounded-bold class="size-4 text-primary-500 dark:text-primary-400" />
-        </template>
-      </Avatar>
+      />
       <div class="min-w-0 flex flex-1 flex-col items-start gap-0.5">
         <span
           :class="[

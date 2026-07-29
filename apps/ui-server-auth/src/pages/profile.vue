@@ -335,11 +335,7 @@ function formatLinkedSince(iso: string): string {
           :class="[
             'h-24 w-24 overflow-hidden rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800',
           ]"
-        >
-          <template #fallback>
-            <div :class="['i-solar:user-circle-bold-duotone', 'size-12 text-neutral-400']" />
-          </template>
-        </Avatar>
+        />
         <div
           v-if="usingGravatarFallback"
           :class="['flex flex-col items-center gap-1 text-center text-xs text-neutral-500']"
