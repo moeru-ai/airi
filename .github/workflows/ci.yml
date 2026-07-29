@@ -106,8 +106,8 @@ jobs:
         if: matrix.app_name == 'stage-tamagotchi-godot'
         working-directory: ./engines/stage-tamagotchi-godot
         run: |
-          mkdir -p build/linux
-          godot --headless --export-release "Linux x64" build/linux/godot-stage
+          mkdir -p out/linux
+          godot --headless --export-release "Linux x64" out/linux/godot-stage
 
   unit-test:
     name: Unit Test

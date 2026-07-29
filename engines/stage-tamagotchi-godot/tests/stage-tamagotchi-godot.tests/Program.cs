@@ -6,7 +6,7 @@ using System.IO;
 ///
 /// Call stack:
 ///
-/// dotnet run --project tests/StageTamagotchiGodot.Tests
+/// dotnet run --project tests/stage-tamagotchi-godot.tests
 ///   -> <see cref="Main"/>
 ///     -> <see cref="CameraGroundConstraint"/>
 ///       -> <see cref="StageViewStateRules"/>
@@ -28,7 +28,7 @@ internal static class Program
             CameraGroundConstraint.NormalizePreservesCameraYAboveStageGround();
             StageEnvironmentAssets.ResolvesThreeStageSkyHdriFromGodotProjectDirectory();
             StageEnvironmentAssets.ReturnsEmptyPathWhenThreeStageSkyHdriIsUnavailable();
-            Console.WriteLine("StageTamagotchiGodot.Tests passed.");
+            Console.WriteLine("stage-tamagotchi-godot.tests passed.");
             return 0;
         }
         catch (Exception error)

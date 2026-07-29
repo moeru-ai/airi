@@ -54,8 +54,11 @@ Godot-native desktop stage runtime project for `stage-tamagotchi`.
 
 - `pnpm -F @proj-airi/stage-tamagotchi-godot build`
 - `pnpm -F @proj-airi/stage-tamagotchi-godot typecheck`
+- `pnpm -F @proj-airi/stage-tamagotchi-godot test`
 
-Both commands currently run `dotnet build` against the Godot-generated C# project file.
+The engine uses the .NET 10 SDK, a shared `Directory.Build.props` contract, and the
+`stage-tamagotchi-godot.slnx` solution. The build and typecheck commands compile both the
+Godot runtime and the engine-local verification host; `test` executes that verification host.
 
 ## Development Runtime
 
@@ -279,16 +282,16 @@ that Tamagotchi materialized and sent over the sidecar WebSocket.
 Export presets produce the sidecar runtime that Electron packages for release:
 
 ```bash
-godot --headless --export-release "Windows Desktop" build/win/godot-stage.exe
-godot --headless --export-release "Linux" build/linux/godot-stage
-godot --headless --export-release "macOS" build/mac/godot-stage.app
+godot --headless --export-release "Windows Desktop" out/win/godot-stage.exe
+godot --headless --export-release "Linux" out/linux/godot-stage
+godot --headless --export-release "macOS" out/mac/godot-stage.app
 ```
 
 The output directories intentionally match electron-builder's `${os}` names:
 
-- Windows: `build/win`
-- Linux: `build/linux`
-- macOS: `build/mac`
+- Windows: `out/win`
+- Linux: `out/linux`
+- macOS: `out/mac`
 
 `apps/stage-tamagotchi/electron-builder.config.ts` copies the matching directory
 into `resources/godot-stage` via `extraResources`. To inspect an unpacked

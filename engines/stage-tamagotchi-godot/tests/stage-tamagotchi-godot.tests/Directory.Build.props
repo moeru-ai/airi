@@ -1,4 +1,6 @@
 <Project>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\Directory.Build.props" />
+
   <PropertyGroup>
     <ArtifactsRoot>$(MSBuildThisFileDirectory)..\..\.godot\mono\temp\tests\</ArtifactsRoot>
     <ArtifactsRoot>$([System.IO.Path]::GetFullPath('$(ArtifactsRoot)'))</ArtifactsRoot>
