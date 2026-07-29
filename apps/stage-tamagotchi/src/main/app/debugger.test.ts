@@ -40,9 +40,10 @@ describe('announceDebuggerEndpoint', () => {
   afterEach(() => {
     delete process.env.APP_REMOTE_DEBUG
     delete process.env.APP_REMOTE_DEBUG_PORT
+    delete process.env.APP_REMOTE_DEBUG_NO_OPEN
   })
 
-  it('does not open the remote inspector in the system browser', () => {
+  function emitDebuggerTarget() {
     const response = new EventEmitter()
     const request = new EventEmitter()
 
@@ -57,14 +58,28 @@ describe('announceDebuggerEndpoint', () => {
       webSocketDebuggerUrl: 'ws://localhost:9250/devtools/page/renderer',
     }]))
     response.emit('end')
+  }
+
+  it('opens the remote inspector unless the developer opts out', () => {
+    emitDebuggerTarget()
+
+    expect(electronMocks.openExternal).toHaveBeenCalledWith(
+      'http://localhost:9250/devtools/inspector.html?ws=localhost:9250/devtools/page/renderer',
+    )
+  })
+
+  it('does not open the remote inspector when APP_REMOTE_DEBUG_NO_OPEN is enabled', () => {
+    process.env.APP_REMOTE_DEBUG_NO_OPEN = 'true'
+
+    emitDebuggerTarget()
 
     // ROOT CAUSE:
     //
-    // Enabling the CDP endpoint also called shell.openExternal, so every
-    // development launch forced the inspector into the system browser.
+    // The existing opt-out flag was only set by automation; the application
+    // never read it, so every development launch still opened the browser.
     //
-    // Remote inspection should remain available through the logged URL
-    // without taking focus away from the Electron app.
+    // Reading the flag keeps CDP available and logged while leaving the
+    // developer's browser alone.
     expect(electronMocks.openExternal).not.toHaveBeenCalled()
   })
 })

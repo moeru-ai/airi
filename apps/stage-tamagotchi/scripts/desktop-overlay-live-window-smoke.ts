@@ -398,6 +398,7 @@ function startStage(debugPort: number, heartbeatLines: string[]): ChildProcessWi
       ...env,
       APP_REMOTE_DEBUG: 'true',
       APP_REMOTE_DEBUG_PORT: String(debugPort),
+      APP_REMOTE_DEBUG_NO_OPEN: 'true',
       APP_USER_DATA_PATH: userDataDir,
       AIRI_DESKTOP_OVERLAY: '1',
       AIRI_DESKTOP_OVERLAY_POLL_HEARTBEAT: '1',

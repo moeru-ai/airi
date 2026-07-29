@@ -2,7 +2,7 @@ import http from 'node:http'
 
 import { env } from 'node:process'
 
-import { app } from 'electron'
+import { app, shell } from 'electron'
 
 /** Enables Electron's CDP endpoint before the app ready event. */
 export function setupDebugger() {
@@ -18,10 +18,10 @@ export function setupDebugger() {
 }
 
 /**
- * Logs an inspector URL for the first available Electron renderer target.
+ * Announces an inspector URL for the first available Electron renderer target.
  *
- * The URL stays opt-in: developers and automation can connect to CDP without
- * every development launch taking focus by opening the system browser.
+ * Developers may keep CDP enabled without opening the system browser by
+ * setting `APP_REMOTE_DEBUG_NO_OPEN=true`.
  */
 export function announceDebuggerEndpoint() {
   if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
@@ -45,7 +45,11 @@ export function announceDebuggerEndpoint() {
           }
 
           wsUrl = wsUrl.substring(5)
-          console.info(`Inspect remotely: ${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`)
+          const inspectorUrl = `${remoteDebugEndpoint}/devtools/inspector.html?ws=${wsUrl}`
+          console.info(`Inspect remotely: ${inspectorUrl}`)
+
+          if (!/^true$/i.test(env.APP_REMOTE_DEBUG_NO_OPEN || ''))
+            void shell.openExternal(inspectorUrl)
         }
         catch (err) {
           console.error('[Remote Debugging] Failed to parse metadata from /json:', err)
