@@ -1,6 +1,9 @@
 import type { Database } from '../db'
 import type { Env } from '../env'
 
+import { generateKeyPairSync } from 'node:crypto'
+
+import { decodeJwt, decodeProtectedHeader, importSPKI, jwtVerify } from 'jose'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createAuth, ensureDynamicFirstPartyRedirectUri, seedTrustedClients } from '../auth'
@@ -33,6 +36,10 @@ function createMockDb(existingRowsByCall: unknown[][] = []) {
 }
 
 describe('createAuth', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+  const applePrivateKey = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
+  const applePublicKey = publicKey.export({ type: 'spki', format: 'pem' }).toString()
+
   it('allows signed-in users to link OAuth accounts that use a different email', () => {
     const auth = createAuth({} as unknown as Database, {
       API_SERVER_URL: 'http://localhost:3000',
@@ -40,6 +47,10 @@ describe('createAuth', () => {
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as Env)
@@ -54,12 +65,93 @@ describe('createAuth', () => {
       AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
       BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
       ADDITIONAL_TRUSTED_ORIGINS: [],
     } as unknown as Env)
 
     expect(auth.options.socialProviders?.google?.prompt).toBe('select_account')
     expect(auth.options.socialProviders?.github?.prompt).toBe('select_account')
+  })
+
+  it('does not register Apple when its optional credentials are absent', () => {
+    const auth = createAuth({} as unknown as Database, {
+      API_SERVER_URL: 'http://localhost:3000',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: '',
+      AUTH_APPLE_TEAM_ID: '',
+      AUTH_APPLE_KEY_ID: '',
+      AUTH_APPLE_PRIVATE_KEY_PEM: '',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as Env)
+
+    expect(auth.options.socialProviders?.apple).toBeUndefined()
+  })
+
+  it('configures Apple with a verifiable ES256 client secret and trusted callback origin', async () => {
+    const auth = createAuth({} as unknown as Database, {
+      API_SERVER_URL: 'http://localhost:3000',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as Env)
+
+    const appleProvider = auth.options.socialProviders?.apple
+    expect(typeof appleProvider).toBe('function')
+    if (typeof appleProvider !== 'function')
+      throw new TypeError('Expected Apple provider to use async configuration')
+
+    const config = await appleProvider()
+    const header = decodeProtectedHeader(config.clientSecret)
+    const claims = decodeJwt(config.clientSecret)
+    const verificationKey = await importSPKI(applePublicKey, 'ES256')
+
+    await expect(jwtVerify(config.clientSecret, verificationKey, {
+      algorithms: ['ES256'],
+      issuer: 'apple-team-id',
+      subject: 'apple-service-id',
+      audience: 'https://appleid.apple.com',
+    })).resolves.toBeDefined()
+    expect(config.clientId).toBe('apple-service-id')
+    expect(header).toMatchObject({ alg: 'ES256', kid: 'apple-key-id' })
+    expect(claims.exp! - claims.iat!).toBe(180 * 24 * 60 * 60)
+
+    const context = await auth.$context
+    const resolvedProvider = context.socialProviders.find(provider => provider.id === 'apple')
+    if (!resolvedProvider)
+      throw new TypeError('Expected Better Auth to resolve the Apple provider')
+
+    const authorizationURL = await resolvedProvider.createAuthorizationURL({
+      state: 'apple-oauth-state',
+      codeVerifier: 'unused-by-apple',
+      redirectURI: 'https://api.airi.build/api/auth/callback/apple',
+    })
+    expect(authorizationURL.origin).toBe('https://appleid.apple.com')
+    expect(authorizationURL.pathname).toBe('/auth/authorize')
+    expect(authorizationURL.searchParams.get('client_id')).toBe('apple-service-id')
+    expect(authorizationURL.searchParams.get('redirect_uri')).toBe('https://api.airi.build/api/auth/callback/apple')
+    expect(authorizationURL.searchParams.get('scope')).toBe('email name')
+    expect(authorizationURL.searchParams.get('response_mode')).toBe('form_post')
+
+    const trustedOrigins = auth.options.trustedOrigins
+    expect(typeof trustedOrigins).toBe('function')
+    if (typeof trustedOrigins !== 'function')
+      throw new TypeError('Expected request-aware trusted origins')
+    expect(await trustedOrigins(new Request('http://localhost:3000/api/auth/sign-in/social'))).toContain('https://appleid.apple.com')
   })
 })
 

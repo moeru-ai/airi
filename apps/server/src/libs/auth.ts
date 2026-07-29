@@ -15,6 +15,7 @@ import { createAuthMiddleware } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
 import { admin, bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
+import { importPKCS8, SignJWT } from 'jose'
 
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
@@ -64,6 +65,11 @@ export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'
 export const OIDC_CLIENT_ID_ELECTRON = 'airi-stage-electron'
 export const OIDC_CLIENT_ID_POCKET = 'airi-stage-pocket'
 
+/** Apple uses the same HTTPS origin as its OIDC issuer and OAuth audience. */
+const APPLE_ISSUER = 'https://appleid.apple.com'
+/** Apple caps client-secret JWT validity at six months; 180 days stays within that limit. */
+const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60
+
 const DEFAULT_WEB_REDIRECT_URIS = [
   'https://airi.moeru.ai/auth/callback',
   'http://localhost:5173/auth/callback',
@@ -91,6 +97,45 @@ function buildWebRedirectUris(env: Env): string[] {
   }
 
   return [...uris]
+}
+
+/**
+ * Builds the Apple provider credentials consumed by Better Auth.
+ *
+ * Apple uses a signed ES256 JWT as the OAuth client secret. Better Auth
+ * resolves async social-provider configuration once while creating its auth
+ * context, so this uses Apple's supported 180-day lifetime instead of the
+ * Go server's per-callback five-minute token.
+ */
+async function createAppleProviderConfig(
+  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
+) {
+  const key = await importPKCS8(env.AUTH_APPLE_PRIVATE_KEY_PEM, 'ES256')
+  const issuedAt = Math.floor(Date.now() / 1000)
+  const clientSecret = await new SignJWT({})
+    .setProtectedHeader({ alg: 'ES256', kid: env.AUTH_APPLE_KEY_ID })
+    .setIssuer(env.AUTH_APPLE_TEAM_ID)
+    .setSubject(env.AUTH_APPLE_CLIENT_ID)
+    .setAudience(APPLE_ISSUER)
+    .setIssuedAt(issuedAt)
+    .setExpirationTime(issuedAt + APPLE_CLIENT_SECRET_TTL_SECONDS)
+    .sign(key)
+
+  return {
+    clientId: env.AUTH_APPLE_CLIENT_ID,
+    clientSecret,
+  }
+}
+
+function isAppleProviderConfigured(
+  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
+): boolean {
+  return Boolean(
+    env.AUTH_APPLE_CLIENT_ID
+    && env.AUTH_APPLE_TEAM_ID
+    && env.AUTH_APPLE_KEY_ID
+    && env.AUTH_APPLE_PRIVATE_KEY_PEM,
+  )
 }
 
 function buildTrustedWebRedirectUri(redirectUri: string, additionalTrustedOrigins: readonly string[]): string | null {
@@ -563,7 +608,10 @@ export function createAuth(
     },
 
     baseURL: env.API_SERVER_URL,
-    trustedOrigins: request => getAuthTrustedOrigins(env, request),
+    // Apple sends its authorization result to /api/auth/callback/apple with
+    // response_mode=form_post. Better Auth validates that provider Origin
+    // against this list before consuming the callback.
+    trustedOrigins: request => [...getAuthTrustedOrigins(env, request), APPLE_ISSUER],
 
     advanced: {},
 
@@ -631,6 +679,9 @@ export function createAuth(
         // lookup.
         mapProfileToUser: () => ({ emailVerified: true }),
       },
+      ...(isAppleProviderConfigured(env)
+        ? { apple: async () => createAppleProviderConfig(env) }
+        : {}),
     },
 
     hooks: {
