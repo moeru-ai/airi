@@ -1,6 +1,6 @@
 ---
 title: MiniMax (Mainland China)
-description: Configure the Chinese mainland version of MiniMax in AIRI as a large model service provider
+description: Configure the Chinese mainland version of MiniMax in AIRI as a chat provider
 is_openai_compatible: true
 ---
 
@@ -17,7 +17,7 @@ If you create an API Key on the MiniMax open platform in mainland China, you sho
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the MiniMax console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the MiniMax console.
 :::
 
 ## Configure in AIRI
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by MiniMax can be manually entered on the Consciousness page.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, the exact model ID provided by MiniMax can be manually entered on the Consciousness page.

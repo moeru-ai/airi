@@ -12,8 +12,10 @@ This section is for contributors who want to change source code, documentation, 
 ## Prerequisites
 
 - [Git](https://git-scm.com/downloads)
-- The Node.js version pinned in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0)
+- [mise](https://mise.jdx.dev/installing-mise.html), or another version manager that reads `.tool-versions`
 - [Corepack](https://github.com/nodejs/corepack), which is included with recent Node.js releases
+
+The repository pins Node.js in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0). Install that pinned version after cloning instead of relying on the version supplied by a system package manager.
 
 <details>
 <summary>Windows setup</summary>
@@ -26,16 +28,10 @@ This section is for contributors who want to change source code, documentation, 
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install Git and Node.js with Scoop.
+3. Install Git and mise with Scoop.
 
    ```powershell
-   scoop install git nodejs
-   ```
-
-4. Enable the repository-specified pnpm version through Corepack:
-
-   ```powershell
-   corepack enable
+   scoop install git mise
    ```
 
 </details>
@@ -44,16 +40,10 @@ This section is for contributors who want to change source code, documentation, 
 <summary>macOS setup</summary>
 
 1. Open Terminal, iTerm2, Ghostty, Kitty, or another terminal.
-2. Install Git and Node.js with Homebrew.
+2. Install Git and mise with Homebrew.
 
    ```shell
-   brew install git node
-   ```
-
-3. Enable the repository-specified pnpm version through Corepack:
-
-   ```shell
-   corepack enable
+   brew install git mise
    ```
 
 </details>
@@ -62,13 +52,8 @@ This section is for contributors who want to change source code, documentation, 
 <summary>Linux setup</summary>
 
 1. Open a terminal.
-2. Install the current LTS release from the [Node.js download page](https://nodejs.org/en/download/).
-3. Follow the [Git installation instructions for Linux](https://git-scm.com/downloads/linux).
-4. Enable the repository-specified pnpm version through Corepack:
-
-   ```shell
-   corepack enable
-   ```
+2. Follow the [Git installation instructions for Linux](https://git-scm.com/downloads/linux).
+3. Install mise using the [package or installation method for your distribution](https://mise.jdx.dev/installing-mise.html).
 
 </details>
 
@@ -112,17 +97,22 @@ git switch -c <your-branch-name>
 
 ## Install dependencies
 
+From the repository root, install the Node.js version recorded in `.tool-versions`, verify it, enable Corepack, and install dependencies:
+
 ```shell
-corepack enable
-pnpm install
+mise install
+mise exec -- node --version
+mise exec -- corepack enable
+mise exec -- pnpm install
 ```
+
+The reported Node.js version must match `.tool-versions`. The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html); otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- pnpm typecheck`.
 
 ::: tip
 You can optionally install [@antfu/ni](https://github.com/antfu-collective/ni) to simplify package-manager commands:
 
 ```shell
-corepack enable
-npm i -g @antfu/ni
+mise exec -- npm install --global @antfu/ni
 ```
 
 After installation:

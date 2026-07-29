@@ -95,7 +95,7 @@ On Windows, you can drag the edges or corners of a window to resize it. Several 
 
 After your first chat, review these pages:
 
-- **Providers**: Add or edit Chat, Speech, Transcription, and Artistry providers.
+- **Providers**: Add or edit Chat, Vision, Speech, Transcription, and Artistry providers.
 - **Modules**: Select services for consciousness, speech, hearing, vision, memory, Discord, Minecraft, Factorio, MCP, and other modules.
 - **Models**: Switch between supported 2D/3D models, or import your own.
 - **AIRI Card**: Switch the current character, or create a new character card.

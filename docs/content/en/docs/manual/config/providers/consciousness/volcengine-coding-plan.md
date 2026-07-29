@@ -14,7 +14,7 @@ If your account uses the Volcengine Coding Plan, select this card for the corres
 1. Log in to the [Volcengine Ark Coding Plan console](https://console.volcengine.com/ark/region%3Acn-beijing/subscription/coding-plan) and obtain the Coding Plan API key.
 
 ::: warning API Key Security
-Do not submit API keys or endpoint credentials to the repository, take screenshots, or send them to others.
+Do not commit API keys or endpoint credentials, include them in screenshots, or share them with anyone.
 :::
 
 ## Configure in AIRI

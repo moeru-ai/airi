@@ -6,7 +6,7 @@ description: Configuring the Cerebras chat model in AIRI
 Cerebras provides a chat model in AIRI through its compatible API.
 
 ::: info Why Cerebras?
-You can select this if you are already using the Cerebras API and want to call the account-available model in AIRI.
+Choose Cerebras if you already use its API and want to access the models available to your account from AIRI.
 :::
 
 ## Obtain API Key
@@ -14,7 +14,7 @@ You can select this if you are already using the Cerebras API and want to call t
 Log in to [Cerebras Cloud](https://cloud.cerebras.ai/), then create an API key.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

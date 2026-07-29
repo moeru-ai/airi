@@ -14,7 +14,7 @@ You can select this if you want to use chat and audio capabilities under the sam
 1. Log in to [Xiaomi MiMo Platform](https://platform.xiaomimimo.com/), then create an API key.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

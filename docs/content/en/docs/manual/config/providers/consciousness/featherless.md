@@ -1,5 +1,5 @@
 ---
-title: Featherless.ai
+title: Featherless AI
 description: Configuring the Featherless.ai chat model in AIRI
 ---
 
@@ -14,12 +14,12 @@ If you have opened model access on Featherless.ai, you can directly use its API 
 1. Log in to [Featherless.ai](https://featherless.ai/), then create an API key in the account console.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Chat → Featherless.ai** and fill in the **API Key**. The default Base URL is `https://api.featherless.ai/v1/`.
+1. Open **Settings → Providers → Chat → Featherless AI** and fill in the **API Key**. The default Base URL is `https://api.featherless.ai/v1/`.
 
 ## Verify configuration
 

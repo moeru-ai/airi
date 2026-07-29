@@ -16,7 +16,7 @@ If you already use Alibaba Cloud Model Studio and want to choose among CosyVoice
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit Bailian API Key to the repository, take screenshots, or send it to others.
+Do not commit the Bailian API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI
@@ -35,4 +35,4 @@ Open **Settings → Modules → Speech**, select **Alibaba Cloud Model Studio**,
 
 ## Troubleshooting
 
-If the playground cannot complete a request, check the API Key, account limit, and network connection. When the model or voice is not available for selection, make sure that the corresponding model has been opened in the Bailian account.
+If the playground cannot complete a request, check the API key, Model Studio billing and quota status, rate limits, and network connection. If a model or voice is unavailable, confirm that the corresponding model service is enabled for the Bailian account.

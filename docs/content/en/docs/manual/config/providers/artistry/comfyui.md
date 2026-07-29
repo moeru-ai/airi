@@ -6,7 +6,7 @@ description: Connect local ComfyUI workflows to AIRI
 ComfyUI lets AIRI use image-generation workflows from your local machine or a trusted LAN. Configure and activate the workflow on the provider page, then enable ComfyUI under **Settings → Modules → Artistry**.
 
 ::: info Why choose ComfyUI?
-If you wish to use your own installed models, nodes and workflows and leave image generation in your local environment, ComfyUI is AIRI's native art service provider.
+Choose ComfyUI to use your own installed models, nodes, and workflows while keeping image generation in your local environment.
 :::
 
 ## Prepare ComfyUI services and workflows
@@ -29,11 +29,14 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 
 ## Verify configuration
 
-1. Select the chat model that supports Tool Calling / Function Calling in **Settings → Modules → Consciousness**. AIRI requires the ComfyUI image generation tool to be called by the model.
+1. In **Settings → Modules → Consciousness**, select a chat model that supports tool calling. AIRI needs the model to invoke the Artistry tool before ComfyUI receives a generation task.
 2. Open **Settings → Modules → Artistry** and select **ComfyUI**.
 3. Return to chat and ask AIRI to generate a non-sensitive image.
 4. Confirm that the task appears in ComfyUI's Queue or History. A returned image confirms that the connection, active workflow, exposed fields, and chat-model tool call work.
 
 ## Troubleshooting
 
-When test connection fails, check if ComfyUI is running, Server URL, port and network access. When the browser reports a cross-domain error, restart the service according to the CORS startup parameters displayed on the ComfyUI settings page. When the workflow cannot be executed, confirm that the imported API format JSON is used, and the nodes and models used have been installed in ComfyUI. If there are no new tasks in the ComfyUI Queue, check whether the current chat service provider and model support and enable Tool Calling / Function Calling; models that only support text dialogue cannot trigger the generation tool.
+- **Test Connection fails:** Confirm that ComfyUI is running and that the **Server URL**, port, and network route are correct.
+- **The browser reports a cross-origin error:** Restart ComfyUI with the CORS options shown on AIRI's ComfyUI provider page.
+- **The workflow fails in ComfyUI:** Import the API-format workflow JSON, then confirm that every referenced custom node and model is installed.
+- **No task appears in Queue or History:** Confirm that the selected chat model supports tool calling and that **Settings → Modules → Artistry** is set to **ComfyUI**. Text-only models that cannot call tools cannot start an Artistry task.

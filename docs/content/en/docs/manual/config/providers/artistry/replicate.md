@@ -1,5 +1,5 @@
 ---
-title: Replicate (Artistic Creation)
+title: Replicate (Artistry)
 description: Configuring Replicate image generation in AIRI
 ---
 

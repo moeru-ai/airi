@@ -15,7 +15,7 @@ If your model service has been deployed in a Cloudflare account, you can use Wor
 2. Copy the Token.
 3. In the [Cloudflare Console](https://dash.cloudflare.com/), find and copy the Account ID.
 
-::: warning safety reminder
+::: warning Safety reminder
 API Token is bound to account permissions. Please follow the principle of least privilege and grant only the Workers AI permissions required by AIRI; do not publish Token or Account ID with public logs.
 :::
 

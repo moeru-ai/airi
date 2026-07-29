@@ -1,5 +1,5 @@
 ---
-title: Kokoro (local TTS)
+title: Kokoro TTS (Local)
 description: Configuring native Kokoro speech synthesis in AIRI
 ---
 
@@ -15,19 +15,19 @@ If you want to process speech content locally and the device meets the model run
 2. WebGPU accelerates synthesis when available. AIRI can fall back to WASM without WebGPU, but synthesis will generally be slower and use more CPU.
 3. This option does not require a cloud API key, but uses local storage, memory, and compute resources.
 
-::: warning local resource usage
+::: warning Local resource usage
 Local models take up download space, memory, and computing resources. Do not force enable when device resources are insufficient.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Speech → Kokoro**.
+1. Open **Settings → Providers → Speech → Kokoro TTS (Local)**.
 2. Select an available Kokoro model provided by AIRI.
 
 ## Verify configuration
 
 1. **Select model and voice**: After the model is prepared, select the voice, and then go to **Settings → Modules → Speech** to enable it.
-2. Enter the short text to listen; if it can be played normally, it means the model is ready.
+2. Enter a short test sentence and confirm that AIRI plays the generated audio.
 
 ## Troubleshooting
 

@@ -15,7 +15,7 @@ If you already use CometAPI to manage models and credentials, you can reuse the 
 2. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

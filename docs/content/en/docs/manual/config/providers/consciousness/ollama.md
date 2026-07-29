@@ -3,7 +3,7 @@ title: Ollama (local model)
 description: Configuring the chat model for AIRI using a local Ollama service
 ---
 
-Ollama is an open source local large model running framework. It can run models on its own device and provide a local API, which does not require an API Key by default.
+Ollama is an open-source runtime for running language models locally. It provides a local API and does not require an API key by default.
 
 ::: info Why choose Ollama?
 If you want to run models natively, reduce dependence on cloud APIs, or place more emphasis on local processing of conversation data, Ollama is the right choice.

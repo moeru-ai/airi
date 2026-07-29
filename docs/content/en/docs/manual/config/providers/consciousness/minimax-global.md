@@ -1,6 +1,6 @@
 ---
 title: MiniMax Global
-description: Configure the overseas version of MiniMax in AIRI as a large model service provider
+description: Configure the overseas version of MiniMax in AIRI as a chat provider
 is_openai_compatible: true
 ---
 
@@ -17,7 +17,7 @@ If you create an API Key on the MiniMax overseas platform or use an overseas Tok
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key on the MiniMax Global platform.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key on the MiniMax Global platform.
 :::
 
 ## Configure in AIRI
@@ -34,4 +34,4 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Troubleshooting
 
-When pinging the API fails, confirm that the API Key comes from an overseas platform, the Base URL is `https://api.minimax.io/v1/`, and check the account limit and network connection. When 401 occurs, the common reason is that the keys or addresses of mainland China and overseas platforms are mixed. When the model list fails to load, the exact model ID provided by MiniMax Global can be manually entered on the Consciousness page.
+If pinging the API fails, confirm that the API key comes from the global platform, the Base URL is `https://api.minimax.io/v1/`, the account has available credit or quota, no rate limit is active, and the network can reach the service. A `401` response commonly means that a mainland-China key was paired with the global endpoint, or vice versa. If the model list fails to load, enter the exact model ID from MiniMax Global on the **Consciousness** page.

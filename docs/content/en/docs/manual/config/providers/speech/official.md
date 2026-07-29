@@ -1,5 +1,5 @@
 ---
-title: AIRI official speech synthesis (TTS)
+title: Official Speech Provider (TTS)
 description: Use officially provided speech synthesis in AIRI
 ---
 
@@ -14,20 +14,20 @@ If you already use an official AIRI provider and want to reduce third-party cred
 1. Use an AIRI account to complete the login; the official voice service depends on the current login status.
 2. There is no need to create or fill in a third-party API Key.
 
-::: warning account and limit
-The available models, quotas and regions of official services are determined by the server. Please do not share account login status or browser session information.
+::: warning Account and service availability
+Available models, quotas, and regions are determined by the official service. Do not share account sessions or browser session data.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Speech → AIRI Official Speech Synthesis**.
-2. Wait for AIRI to load the currently available models and voices from the server.
+1. Open **Settings → Providers → Speech → Official Speech Provider**.
+2. If prompted, sign in. Confirm that the page shows your Flux balance and a valid connection status.
 
 ## Verify configuration
 
-1. Select a model and voice in **Settings → Modules → Speech**, then listen to it using a short text.
-2. If it can play normally, it means the configuration is successful. If the server does not provide streaming voice, the streaming option will not appear.
+1. Open **Settings → Modules → Speech**, select **Official Speech Provider**, and choose an available model and voice.
+2. Enter a short test sentence and confirm that AIRI plays the generated audio. If the service does not offer a streaming voice, no streaming option appears.
 
 ## Troubleshooting
 
-When the model list cannot be loaded, make sure the account is logged in, the network is normal, and there is available credit. If you cannot recharge on the desktop, please go to **Settings → Flux** of the AIRI web version to complete the recharge.
+If the provider is unavailable, confirm that you are signed in, AIRI can reach the official service, and your account has enough Flux. Open **Settings → Flux** to view available packages. AIRI Desktop opens checkout in the system browser; builds or deployments with purchasing disabled do not show a purchase option.

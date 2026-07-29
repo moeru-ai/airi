@@ -17,7 +17,7 @@ If you want to use Z.ai models in AIRI, or already have a Z.ai API key, you can 
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the Z.ai console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Z.ai console.
 :::
 
 ## Configure in AIRI
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list cannot be loaded, you can manually enter the exact model ID provided by Z.ai on the **Consciousness** page.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list cannot be loaded, you can manually enter the exact model ID provided by Z.ai on the **Consciousness** page.

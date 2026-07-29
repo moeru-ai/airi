@@ -14,7 +14,7 @@ Use this provider when your BytePlus account has Ark API access.
 1. Log in to the [BytePlus ModelArk console](https://console.byteplus.com/ark/region%3Aark%2Bap-southeast-1/apikey) and create an API key.
 
 ::: warning API Key Security
-Do not submit API keys or endpoint credentials to the repository, take screenshots, or send them to others.
+Do not commit API keys or endpoint credentials, include them in screenshots, or share them with anyone.
 :::
 
 ## Configure in AIRI

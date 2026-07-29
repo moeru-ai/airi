@@ -1,6 +1,6 @@
 ---
 title: Fireworks AI
-description: Configuring Fireworks AI as a large model service provider in AIRI
+description: Configure Fireworks AI as a chat provider in AIRI
 is_openai_compatible: true
 ---
 
@@ -17,7 +17,7 @@ If you already manage models or inference services in Fireworks AI, you can dire
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the Fireworks AI console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Fireworks AI console.
 :::
 
 ## Configure in AIRI
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Fireworks AI on the Consciousness page.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Fireworks AI on the Consciousness page.

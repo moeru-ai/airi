@@ -16,7 +16,7 @@ If your team already manages voice resources and region configurations in Azure,
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Azure keys provide access to your speech resources. Do not submit, screenshot or share it.
+Azure keys provide access to your Speech resource. Do not commit a key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

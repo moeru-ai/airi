@@ -1,6 +1,6 @@
 ---
 title: Configure web search
-description: Use Tavily to let AIRI search for the latest in conversations
+description: Use Tavily to let AIRI find current information during conversations
 ---
 
 Web Search lets AIRI query the internet for current or unfamiliar information. It uses your Tavily API Key. When the tool is enabled and the selected chat model supports tool calls, AIRI can search during a conversation and cite the returned sources.

@@ -16,7 +16,7 @@ Choose this provider to use voices from your ElevenLabs account and select them 
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others. If you suspect a leak, please immediately revoke and recreate it in the ElevenLabs console.
+Do not commit the API key, include it in screenshots, or share it with anyone. If you suspect a leak, please immediately revoke and recreate it in the ElevenLabs console.
 :::
 
 ## Configure in AIRI
@@ -36,4 +36,4 @@ Open **Settings → Modules → Speech**, select **ElevenLabs**, then select an 
 
 ## Troubleshooting
 
-If the playground cannot complete a request, check the API Key, account limit, and network connection. When the model can be listed but there is no sound, make sure that a valid model and voice are selected under **Settings → Modules → Speech**.
+If the playground cannot complete a request, check the API key, subscription character quota, rate limits, and network connection. If models load but no audio plays, confirm that a valid model and voice are selected under **Settings → Modules → Speech**.

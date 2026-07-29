@@ -1,6 +1,6 @@
 ---
 title: OpenPaths
-description: Configuring OpenPaths as a large model service provider in AIRI
+description: Configure OpenPaths as a chat provider in AIRI
 is_openai_compatible: true
 ---
 
@@ -16,7 +16,7 @@ If you already have an OpenPaths API Key, or want to use the model it provides, 
 2. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the OpenPaths console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the OpenPaths console.
 :::
 
 ## Configure in AIRI
@@ -32,4 +32,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by OpenPaths can be manually entered on the Consciousness page.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, the exact model ID provided by OpenPaths can be manually entered on the Consciousness page.

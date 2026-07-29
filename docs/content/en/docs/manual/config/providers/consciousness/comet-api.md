@@ -14,7 +14,7 @@ You can select this if you wish to configure chat, speech synthesis and speech r
 1. Log in to [CometAPI Console](https://www.cometapi.com/console/token), then create an API key.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI
@@ -28,4 +28,4 @@ Do not submit the API Key to the repository, take screenshots, or send it to oth
 
 ## Troubleshooting
 
-When provider validation fails, check the API Key, account limit and network connection. When the model list fails to load, confirm that the Base URL remains at the default value, or enter the exact model ID provided by CometAPI on the Consciousness page.
+When provider validation fails, check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, confirm that the Base URL remains at the default value, or enter the exact model ID provided by CometAPI on the Consciousness page.

@@ -34,4 +34,4 @@ Open **Settings → Modules → Hearing**, select **Xiaomi MiMo**, choose model 
 
 ## Troubleshooting
 
-When request fails, check API Key, model selection, and network connection. When there are no text results, confirm that AIRI has obtained the system microphone permission.
+If a request fails, check the API key, model selection, and network connection. If no text is returned, confirm that AIRI has microphone permission.

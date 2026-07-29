@@ -15,7 +15,7 @@ You can select this if you are already running Index-TTS locally and want the so
 2. AIRI connects to `http://localhost:11996/tts/` by default; if you use other hosts or ports, please record the complete address.
 3. Confirm that the service can return model and voice information.
 
-::: warning local service security
+::: warning Local service security
 Do not expose local service ports to untrusted public networks. If you modify the listening address, please confirm that you are responsible for access control.
 :::
 

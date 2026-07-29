@@ -16,7 +16,7 @@ Choose this provider if you want to manage multiple models and voice capabilitie
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the OpenRouter console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the OpenRouter console.
 :::
 
 ## Configure in AIRI

@@ -14,7 +14,7 @@ You can select this if you wish to use the models provided in your AIHubMix acco
 Log in to [AIHubMix](https://aihubmix.com/), then create an API key in the console.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

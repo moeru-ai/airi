@@ -16,7 +16,7 @@ If you have configured Google Gemini in AIRI and want to use the audio output ca
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the Gemini API Key to the repository, take screenshots, or send it to others.
+Do not commit the Gemini API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

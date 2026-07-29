@@ -14,7 +14,7 @@ If you have managed model access in ModelScope, use this card to directly fill i
 1. Log in to [ModelScope](https://modelscope.cn/), then create an API key in the account console.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others.
+Do not commit the API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

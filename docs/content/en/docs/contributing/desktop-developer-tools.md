@@ -111,11 +111,11 @@ For routine updates, prefer the **About** window. Do not override the update sou
 
 ### Screen Capture
 
-Screen Capture can capture an application window, an entire display, or another device exposed by the operating system, and create a video or audio stream. It is primarily a test page for screen-sharing and capture behavior.
+Screen Capture can capture an application window or an entire display and create a video or audio stream. It is primarily a test page for screen-sharing and capture behavior.
 
-The operating system may request screen-recording permission on first use. On macOS, if AIRI is not listed, enable or add it under **System Settings → Privacy & Security → Screen & System Audio Recording**, restart AIRI, and try again. Available devices and permission prompts on Windows and Linux depend on the operating system, desktop environment, and Electron version.
+The operating system may request screen-recording permission on first use. On macOS, if AIRI is not listed, enable or add it under **System Settings → Privacy & Security → Screen & System Audio Recording**, restart AIRI, and try again. Permission prompts on Windows and Linux depend on the operating system, desktop environment, and Electron version.
 
-In the tool, `applications` selects an application window, `displays` selects an entire screen, and `devices` lists other capture sources reported by the system. Use `refetch` after connecting or disconnecting a display, opening a window, or changing permissions. After stopping, confirm that the preview has closed so the stream no longer uses system resources or permissions.
+In the tool, **Applications** lists application windows and **Displays** lists entire screens. The current implementation does not supply external sources to the **Devices** tab, so that tab remains empty. Use **Refetch** after connecting or disconnecting a display, opening a window, or changing permissions. After stopping, confirm that the preview has closed so the stream no longer uses system resources or permissions.
 
 ### Vision Capture
 

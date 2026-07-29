@@ -29,4 +29,4 @@ Do not expose the Bedrock API key. Store it only in AIRI's provider settings and
 
 ## Troubleshooting
 
-When verification fails, check that the AWS credentials, selected region, and model access belong to the same account. When the model cannot be selected, first apply for and activate the corresponding model for the area in the Bedrock console.
+If verification fails, check that the Bedrock API key, selected AWS region, and model access belong to the same account. If a model cannot be selected, confirm in the Bedrock console that the account has access to that model in the selected region.

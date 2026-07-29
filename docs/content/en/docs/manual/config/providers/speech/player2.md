@@ -1,11 +1,11 @@
 ---
-title: Player2 Speech (TTS)
+title: Player2 (TTS)
 description: Connecting to local Player2 Speech service in AIRI
 ---
 
 Player2 Speech is a speech synthesis option connected via a local service.
 
-::: info Why choose Player2 Speech?
+::: info Why choose Player2?
 If you already run Player2 Speech locally or on a trusted LAN, you can connect AIRI to the service and use its available voices.
 :::
 
@@ -14,13 +14,13 @@ If you already run Player2 Speech locally or on a trusted LAN, you can connect A
 1. Start the Player2 Speech service and confirm that the health check is available.
 2. AIRI connects to `http://localhost:4315/v1/` by default; if the service runs at another address, please record the complete Base URL.
 
-::: warning local service security
+::: warning Local service security
 Do not expose local service ports to untrusted public networks.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Speech → Player2 Speech**.
+1. Open **Settings → Providers → Speech → Player2**.
 2. Fill in the Base URL that is consistent with the service address.
 
 ## Verify configuration
@@ -30,7 +30,7 @@ Do not expose local service ports to untrusted public networks.
 
 ## Enable for AIRI replies
 
-Open **Settings → Modules → Speech**, select **Player2 Speech**, then choose an available model and voice. The provider test alone does not enable speech for normal replies.
+Open **Settings → Modules → Speech**, select **Player2**, then choose an available model and voice. The provider test alone does not enable speech for normal replies.
 
 ## Troubleshooting
 

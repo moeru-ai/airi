@@ -32,7 +32,7 @@ This manual corresponds to AIRI 0.11.3.
 <a id="chapter-1-installation"></a>
 ## Chapter 1: Installation
 
-Go to the [latest Project AIRI release](https://github.com/moeru-ai/airi/releases/latest), expand **Assets**, and download the file for your device. Open the package and follow the installation prompts. Replace `<version>` and `<build-number>` below with the values used by the current release.
+Go to the [latest Project AIRI release](https://github.com/moeru-ai/airi/releases/latest), expand **Assets**, and download the file for your device. Open the package and follow the installation prompts. Replace `<version>` below with the value used by the current release.
 
 | Platform | Device | File to download |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Go to the [latest Project AIRI release](https://github.com/moeru-ai/airi/release
 | Linux | ARM64 Debian systems such as Ubuntu | `AIRI-<version>-linux-arm64.deb` |
 | Linux | ARM64 RPM systems such as Fedora, openSUSE | `AIRI-<version>-linux-aarch64.rpm` |
 | Android | Android devices, including supported HarmonyOS devices | `AIRI-<version>-android.apk` |
-| iOS/iPadOS | iPhone, iPad | `AIRI-<version>_(<build-number>)-ios.ipa` |
+| iOS/iPadOS | iPhone, iPad | The `.ipa` asset for iOS/iPadOS |
 
 ::: info About Windows installation
 The installer can install AIRI for the current user or for everyone. A current-user installation does not require administrator rights. Installing for everyone requires administrator rights and makes AIRI available to every user on the computer.
@@ -453,10 +453,11 @@ The function has not been released yet. If you have ideas for implementing this 
 
 You can choose categories by purpose:
 
-- **CHAT**: Configure LLM for AIRI to reply to messages; this is necessary to start using AIRI.
-- **Speech Synthesis (TTS)**: Let AIRI read replies; then select the model and voice in **Modules → Speech**.
-- **Speech Recognition (ASR/STT)**: Convert microphone speech into text; then select the model in **Modules → Hearing**.
-- **Art Creation**: Configure an image-generation service; then use it in **Modules → Artistry**.
+- **Chat**: Configure a chat model so AIRI can reply to messages. At least one working Chat provider is required.
+- **Vision**: Configure a vision model for image understanding; then select it under **Modules → Vision**.
+- **Speech**: Configure text-to-speech; then select the provider, model, and voice under **Modules → Speech**.
+- **Transcription**: Configure speech-to-text; then select the provider and model under **Modules → Hearing**.
+- **Artistry**: Configure an image-generation service; then select it under **Modules → Artistry**.
 
 If you skip onboarding, configure a chat provider first: enter its API key or account details and any required advanced fields, such as Base URL or region. Wait for automatic validation and use **Ping API** when it is available. Then open **Modules → Consciousness**, select the provider and model, and send a message.
 
@@ -466,7 +467,7 @@ After switching chat providers, the selected chat model is cleared. Return to **
 API Keys, AccessKey Secrets, and other service credentials should only be saved in the current device's settings. Do not commit them to the repository, post them in an Issue, take a screenshot, or send them to others.
 :::
 
-::: tip configuration guide
+::: tip Configuration guide
 - If you are unsure about provider fields, validation methods, or errors, read [Common Configuration Instructions](../../config/common.md).
 - To configure the chat model, read [Chat Model](../../config/llm.md) and choose a provider under **Settings → Providers → Chat**.
 - To configure voice input and output, read [Voice Input and Output](../../config/audio.md). Speech and Transcription providers are under **Settings → Providers** and are enabled from their corresponding module pages.
@@ -475,7 +476,7 @@ API Keys, AccessKey Secrets, and other service credentials should only be saved 
 
 ![AIRI service provider settings](./assets/manual-providers.avif)
 
-::: tip technical advice
+::: tip Technical advice
 The provider list depends on the installed AIRI version. If an unlisted provider implements an OpenAI-compatible interface, use the corresponding **OpenAI Compatible API** entry and enter the exact Base URL and model ID from that provider's documentation.
 :::
 
@@ -572,62 +573,50 @@ The upper area displays chat history. The lower area contains the message input 
 
 ##### Upper area
 
-Includes three options:
+The upper area provides access to **About**, **Characters**, and the account menu. When signed in, the account menu shows the current name and Flux balance, followed by **Profile**, **Flux**, **Settings**, and **Sign out**.
 
-- about
-- Character cards
-- Account and settings
+###### Profile
 
-There are three chunks of content included in the third option:
-
-- Account information
-- Files, Flux, Settings
-- Sign out
-
-###### Archives
-
-If you are logged in to AIRI, you can manage your account information here.
-
-You can view and modify the display name, manage passwords and associated login methods (such as GitHub, Google), and log out or delete accounts in dangerous operation areas. The avatar is currently displayed by the account information. Uploading new avatars here is not supported at the moment.
+**Profile** opens account management. Depending on how the account was created, you can update the display name, manage the password and connected sign-in methods, or delete the account from the danger zone. The current avatar is displayed as account information, but this page does not provide avatar upload.
 
 ###### Flux
 
-Flux is the balance unit used by AIRI official services. After logging in, you can view the current balance, usage statistics and transaction records; in regions or versions open for purchase, you can also select a package and enter settlement here. When using official chat, visual or voice services, related requests may consume Flux; the third-party service provider's fees are still billed separately by the service provider.
+Flux is the balance used by AIRI's official services. After signing in, open **Flux** to view the balance, usage statistics, and transaction history. When purchasing is enabled for the current deployment, you can choose an available package; AIRI Desktop completes checkout in the system browser. Requests to official chat, vision, or speech services may consume Flux. Third-party providers bill usage separately.
 
 ###### Settings
 
-Same as desktop settings, see [Chapter 4](#chapter-4-settings) for details
+**Settings** opens the same configuration areas described in [Chapter 4](#chapter-4-settings), although desktop-only controls are not available on the web.
 
 ##### Lower area
 
-Includes four options: (Text content is for reference only)
+The lower-right controls provide four actions:
 
-- Location and size
-- Delete chat history
-- Switch between light and dark
-- background
+- adjust character position and size;
+- clear the current conversation;
+- switch between light and dark themes;
+- change the background.
 
 ###### Position and size
 
-After clicking, you will see the three new options x, y, scale and the vertical bar on the left side of the web interface.
+Open the position-and-size control to adjust the character's X position, Y position, and scale. The vertical control on the left side of the stage provides another way to adjust the view.
 
 ![Adjusting the main window position and size](./assets/web-position-size.avif)
 
-###### Delete chat history
+###### Clear the current conversation
 
-Click to clear all chat history with one click
+Select the trash button to clear messages and context from the active conversation. Other saved conversations are not deleted.
 
 ::: warning Proceed with caution
-Clicking to delete cannot be restored, please operate with caution!
+Cleared messages cannot be restored.
 :::
 
 ###### Switch between light and dark
 
-You can switch the interface to "light" or "dark"
+Select the sun or moon button to switch between the light and dark themes.
 
 ###### Background
 
-You can change the background of the main interface
+Select the background button to choose a different stage background.
 
 <a id="features-issues"></a>
 ## Troubleshooting and shortcuts

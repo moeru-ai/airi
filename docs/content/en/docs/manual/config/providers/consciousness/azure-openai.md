@@ -3,7 +3,7 @@ title: Azure OpenAI
 description: Configure Azure OpenAI chat model in AIRI
 ---
 
-Azure OpenAI access models through your Azure resource endpoints and deployments.
+Azure OpenAI lets AIRI access models through your Azure resource endpoint and deployments.
 
 ::: info Why choose Azure OpenAI?
 If your team already deploys models and manages permissions in Azure OpenAI, this is a straightforward way to onboard.
@@ -14,7 +14,7 @@ If your team already deploys models and manages permissions in Azure OpenAI, thi
 1. Log in to the [Azure Portal](https://portal.azure.com/), then create or open an Azure OpenAI resource and obtain the endpoint and API key.
 
 ::: warning API Key Security
-Do not submit your Azure API Key to the repository, take screenshots, or send it to others.
+Do not commit the Azure API key, include it in screenshots, or share it with anyone.
 :::
 
 ## Configure in AIRI

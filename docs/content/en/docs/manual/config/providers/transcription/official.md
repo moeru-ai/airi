@@ -1,5 +1,5 @@
 ---
-title: AIRI official speech recognition (ASR/STT)
+title: Official Transcription Provider (ASR/STT)
 description: Use official real-time speech recognition in AIRI
 ---
 
@@ -14,13 +14,13 @@ If you already use the official AIRI provider and want to quickly enable real-ti
 1. Sign in with an AIRI account; official real-time transcription uses the current session.
 2. There is no need to create or fill in a third-party API Key.
 
-::: warning account and audio data
+::: warning Account and audio data
 Real-time recognition will send the audio to the official service. Don't use test audio that contains sensitive information, and don't share account session information.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Transcription → AIRI Official Voice Recognition**.
+1. Open **Settings → Providers → Transcription → Official Transcription Provider**.
 2. Select `Auto` or the model provided by the server, and then go to **Settings → Modules → Hearing** to enable it.
 
 ## Verify configuration

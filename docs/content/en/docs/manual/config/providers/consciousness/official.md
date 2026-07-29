@@ -1,6 +1,6 @@
 ---
 title: AIRI official provider
-description: Use AIRI official as chat provider
+description: Use AIRI's official chat provider
 ---
 
 If you want to get started with AIRI quickly and want to simplify configuration, you can use the official provider to enable chat.

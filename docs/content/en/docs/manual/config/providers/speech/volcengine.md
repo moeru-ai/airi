@@ -16,7 +16,7 @@ If you have created a voice application and managed voice resources in Volcengin
 3. Confirm that both pieces of information come from the same account and application configuration.
 
 ::: warning API Key Security
-Do not submit the API Key or App ID to the repository, include screenshots, or send it to others. Once either the key or ID is compromised, immediately revoke it and create a new key in the Volcengine console.
+Do not commit the API key or App ID, include either one in screenshots, or share them with anyone. Once either the key or ID is compromised, immediately revoke it and create a new key in the Volcengine console.
 :::
 
 ## Configure in AIRI

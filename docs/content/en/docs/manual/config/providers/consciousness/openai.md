@@ -17,7 +17,7 @@ If you already have an OpenAI API Key, or the service provider explicitly provid
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the provider console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the provider console.
 :::
 
 ## Configure in AIRI
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When using a compatible service, please confirm that it explicitly supports the OpenAI Chat Completions API and check that the Base URL is the root address specified in the service provider's documentation.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When using a compatible service, please confirm that it explicitly supports the OpenAI Chat Completions API and check that the Base URL is the root address specified in the service provider's documentation.

@@ -1,5 +1,5 @@
 ---
-title: Nano Banana (Artistic Creation)
+title: Nano Banana (Artistry)
 description: Configuring Nano Banana image generation in AIRI
 ---
 
@@ -16,7 +16,7 @@ If you already have a Google AI Studio API Key and want to use AIRI's built-in G
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, take screenshots, or send it to others. Once a key is compromised, immediately revoke and create a new key in Google AI Studio.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke and create a new key in Google AI Studio.
 :::
 
 ## Configure in AIRI

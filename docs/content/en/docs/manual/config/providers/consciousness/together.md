@@ -1,6 +1,6 @@
 ---
-title: Together AI
-description: Configuring Together AI as a large model service provider in AIRI
+title: Together.ai
+description: Configure Together.ai as a chat provider in AIRI
 is_openai_compatible: true
 ---
 
@@ -17,12 +17,12 @@ If you have deployed or used the model in Together AI, you can directly reuse th
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the Together AI console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Together AI console.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Chat → Together AI**.
+1. Open **Settings → Providers → Chat → Together.ai**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.together.xyz/v1/`.
 
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, the exact model ID provided by Together AI can be manually entered on the Consciousness page.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, the exact model ID provided by Together AI can be manually entered on the Consciousness page.

@@ -1,6 +1,6 @@
 ---
-title: Novita AI
-description: Configuring Novita AI as a large model service provider in AIRI
+title: Novita
+description: Configure Novita as a chat provider in AIRI
 is_openai_compatible: true
 ---
 
@@ -17,12 +17,12 @@ If you have managed model services in Novita AI, you can directly reuse the serv
 3. Copy the key and keep it in a safe place.
 
 ::: warning API Key Security
-Do not submit the API Key to the repository, include screenshots, or send it to others. Once a key is compromised, immediately revoke it and create a new key in the Novita AI console.
+Do not commit the API key, include it in screenshots, or share it with anyone. Once a key is compromised, immediately revoke it and create a new key in the Novita AI console.
 :::
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Chat → Novita AI**.
+1. Open **Settings → Providers → Chat → Novita**.
 2. Paste the API Key into the basic settings.
 3. Keep the default Base URL: `https://api.novita.ai/openai/`.
 
@@ -33,4 +33,4 @@ Do not submit the API Key to the repository, include screenshots, or send it to 
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API Key, account limit, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Novita AI on the Consciousness page.
+If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Novita AI on the Consciousness page.
