@@ -47,8 +47,14 @@ export interface TtsAdapterContext {
    * the ordinary pay-as-you-go API.
    */
   baseURL: string
-  /** unspeech REST base URL (no trailing slash) — adapters POST to `<this>/v1/audio/speech`. */
-  unspeechBaseURL: string
+  /**
+   * unspeech REST base URL (no trailing slash).
+   *
+   * Present only when {@link TtsAdapter.requiresUnspeech} permits the router to
+   * resolve that dependency. Direct transports such as Step Plan do not need
+   * or receive it.
+   */
+  unspeechBaseURL?: string
   /** Free-form adapter-specific params from `tts.upstreams[i].adapterParams` (e.g. Volcengine `appid` / `cluster`). */
   adapterParams: Record<string, unknown>
   /** Fetch implementation. Tests inject a `vi.fn()`; production passes `globalThis.fetch`. */
@@ -130,6 +136,11 @@ export interface TtsVoiceCatalogContext {
 export interface TtsAdapter {
   /** Stable id used by the registry and config (`tts.upstreams[i].adapter`). */
   id: TtsAdapterId
+  /**
+   * Declares whether this configured upstream needs the shared unspeech
+   * deployment. Omit when every request uses unspeech.
+   */
+  requiresUnspeech?: (ctx: Pick<TtsAdapterContext, 'adapterParams' | 'baseURL'>) => boolean
   /** Dispatches one TTS request and resolves with the audio payload. */
   send: (input: TtsInput, ctx: TtsAdapterContext) => Promise<TtsResult>
   /**

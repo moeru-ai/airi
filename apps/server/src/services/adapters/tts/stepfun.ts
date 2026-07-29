@@ -23,8 +23,8 @@ const STEPFUN_STEP_PLAN_SPEECH_URL = 'https://api.stepfun.com/step_plan/v1/audio
  * - Routing subscription speech synthesis to the dedicated Step Plan endpoint.
  *
  * Expects:
- * - `ctx.unspeechBaseURL` points at an unspeech deployment that includes the
- *   StepFun backend.
+ * - For pay-as-you-go requests, `ctx.unspeechBaseURL` points at an unspeech
+ *   deployment that includes the StepFun backend.
  * - `ctx.keyPlaintext` is the StepFun API key.
  * - `ctx.adapterParams.model` optionally selects `stepaudio-2.5-tts`,
  *   `step-tts-2`, or `step-tts-mini`.
@@ -34,6 +34,7 @@ const STEPFUN_STEP_PLAN_SPEECH_URL = 'https://api.stepfun.com/step_plan/v1/audio
  */
 export const stepfunAdapter: TtsAdapter = {
   id: 'stepfun',
+  requiresUnspeech: ctx => !usesStepPlan(ctx),
 
   async send(input: TtsInput, ctx: TtsAdapterContext): Promise<TtsResult> {
     const model = typeof ctx.adapterParams.model === 'string' && ctx.adapterParams.model
@@ -81,7 +82,7 @@ export const stepfunAdapter: TtsAdapter = {
   },
 }
 
-function usesStepPlan(ctx: TtsAdapterContext): boolean {
+function usesStepPlan(ctx: Pick<TtsAdapterContext, 'adapterParams' | 'baseURL'>): boolean {
   if (ctx.adapterParams.apiMode === 'step-plan')
     return true
   if (ctx.adapterParams.apiMode === 'pay-as-you-go')

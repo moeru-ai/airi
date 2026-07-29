@@ -77,7 +77,7 @@ function makeLedger(overrides: Partial<ConcurrencyLedger> = {}): ConcurrencyLedg
 function makeConfigKV(config: RouterConfig | null): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? config : null)),
-    // routeTts reads UNSPEECH_UPSTREAM once per request via getOrThrow.
+    // routeTts resolves UNSPEECH_UPSTREAM lazily when the chosen adapter needs it.
     // LLM-side tests never invoke routeTts so the value is irrelevant; TTS
     // tests need a populated restBaseURL.
     getOrThrow: vi.fn(async (key: string) => {
@@ -1166,6 +1166,36 @@ describe('createLlmRouterService', () => {
       ])
     })
 
+    it('serves a Plan-only request without UNSPEECH_UPSTREAM config', async () => {
+      const { config, crypto } = makeTieredStepfunConfig()
+      const configKV = makeConfigKV(config)
+      const getOrThrow = vi.fn(async () => {
+        throw new Error('UNSPEECH_UPSTREAM not configured')
+      })
+      Object.assign(configKV, { getOrThrow })
+      const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x01]), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      })) as unknown as typeof fetch
+      const router = createLlmRouterService({
+        configKV,
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      const response = await router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })
+
+      expect(response.status).toBe(200)
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      expect(getOrThrow).not.toHaveBeenCalled()
+    })
+
     it('does not cross the paid boundary when the Plan tier is rate-limited', async () => {
       const calledURLs: string[] = []
       const fetchImpl = vi.fn(async (input: string | URL | Request) => {
@@ -1209,7 +1239,7 @@ describe('createLlmRouterService', () => {
 
   describe('routeTtspool capacity-aware routing', () => {
     // One app_id == one upstream (Volcengine `adapterParams.appid`), each capped
-    // at `maxConcurrency`. The router spreads load least-loaded-first across pools
+    // at `maxConcurrency`. The router spreads load least-inflight-first across pools
     // and circuit-breaks a pool on 429 (app_id concurrency exceeded upstream-side).
     function makePoolConfig(
       upstreams: Array<{ baseURL: string, appid: string, maxConcurrency?: number }>,
@@ -1242,7 +1272,7 @@ describe('createLlmRouterService', () => {
       return { config, crypto }
     }
 
-    // Stateful in-memory ledger so least-loaded ordering and capacity gating are
+    // Stateful in-memory ledger so least-inflight ordering and capacity gating are
     // observable. `seed` pre-loads inflight counts to drive deterministic ranking.
     function makeStatefulLedger(seed: Record<string, number> = {}, saturatedSeed: string[] = []) {
       const inflight = new Map<string, number>(Object.entries(seed))
@@ -1282,7 +1312,7 @@ describe('createLlmRouterService', () => {
       })
     }
 
-    it('routes to the least-loadedpool (covers AE1 — load spread, not first-fill)', async () => {
+    it('routes to the least-inflight pool (covers AE1 — load spread, not first-fill)', async () => {
       // @example two app_ids cap 10, seeded 8 vs 2 in-flight -> the new request
       // goes to the freer pool (app-2), not the config-first pool (app-1).
       const { config, crypto } = makePoolConfig([
@@ -1300,7 +1330,23 @@ describe('createLlmRouterService', () => {
       expect(tryAcquire.mock.calls[0][0]).toBe('app-2')
     })
 
-    it('keeps least-loaded selection inside the active tier before considering pay-as-you-go', async () => {
+    it('ranks least-inflight accounts by current usage when concurrency caps differ', async () => {
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 100 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
+      ])
+      const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 50, 'app-2': 0 })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(response.status).toBe(200)
+      expect(tryAcquire).toHaveBeenCalledTimes(1)
+      expect(tryAcquire).toHaveBeenCalledWith('app-2', 10)
+    })
+
+    it('keeps least-inflight selection inside the active tier before considering pay-as-you-go', async () => {
       const { config, crypto } = makePoolConfig([
         { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
         { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },

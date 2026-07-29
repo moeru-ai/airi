@@ -529,7 +529,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     abortSignal: AbortSignal | undefined,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
-    unspeechBaseURL: string,
+    resolveUnspeechBaseURL: () => Promise<string>,
     onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', errorMessage?: string }) => void,
   ): Promise<
     | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
@@ -538,6 +538,12 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const providerTag = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, modelName, options.gatewayMetrics, providerTag)
     const adapter = getAdapter(providerId)
+    const unspeechBaseURL = adapter.requiresUnspeech?.({
+      baseURL: upstream.baseURL,
+      adapterParams: upstream.adapterParams ?? {},
+    }) === false
+      ? undefined
+      : await resolveUnspeechBaseURL()
     const failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let attemptIndex = 0
 
@@ -647,7 +653,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
   /**
    * Capacity-aware layer over {@link dispatchOneTtsUpstream}: spreads one TTS
-   * request across the model's pool (one app_id per upstream) by least-loaded
+   * request across the model's pool (one app_id per upstream) by least-inflight
    * ordering, gating each dispatch on an atomic concurrency-slot acquire.
    *
    * Returns:
@@ -678,7 +684,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       })
     }
 
-    // Best-effort pre-read: order pools least-loaded-first (spreads load) and
+    // Best-effort pre-read: order pools least-inflight-first (spreads load) and
     // drop pools already full or in a saturation cool-down. tryAcquire below is
     // the authoritative gate against the cross-replica race — ordering only
     // decides *preference*, not correctness.
@@ -692,20 +698,19 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           index,
           poolId,
           maxConcurrency,
-          remaining: maxConcurrency == null ? Number.POSITIVE_INFINITY : 0,
+          inflight: Number.POSITIVE_INFINITY,
           eligible: false,
         }
       }
       if (maxConcurrency == null)
-        return { upstream, index, poolId, maxConcurrency, remaining: Number.POSITIVE_INFINITY, eligible: true }
+        return { upstream, index, poolId, maxConcurrency, inflight: 0, eligible: true }
 
       const inflight = await ledger.currentInflight(poolId)
-      const remaining = maxConcurrency - inflight
-      return { upstream, index, poolId, maxConcurrency, remaining, eligible: remaining > 0 }
+      return { upstream, index, poolId, maxConcurrency, inflight, eligible: inflight < maxConcurrency }
     }))
     const ranked = candidates
       .filter(c => c.eligible)
-      .sort((a, b) => b.remaining - a.remaining)
+      .sort((a, b) => a.inflight - b.inflight)
 
     let dispatchedAny = false
     let attemptedPools = 0
@@ -793,10 +798,14 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = ttsModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    // Adapters POST to unspeech `/v1/audio/speech`; resolve the base URL once
-    // per request rather than per upstream attempt so a single configKV miss
-    // surfaces as a clean 503 before any key rotation happens.
-    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+    // Resolve unspeech only if the selected adapter transport needs it. Step
+    // Plan calls its dedicated provider endpoint directly, so a Plan-only
+    // deployment remains valid without UNSPEECH_UPSTREAM.
+    let unspeechBaseURL: string | undefined
+    async function resolveUnspeechBaseURL(): Promise<string> {
+      unspeechBaseURL ??= (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+      return unspeechBaseURL
+    }
 
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
@@ -828,7 +837,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         req.abortSignal,
         perAttemptTimeoutMs,
         fallbackHttpCodes,
-        unspeechBaseURL,
+        resolveUnspeechBaseURL,
         (failure) => { allFailures.push({ provider: providerTag, ...failure }) },
       )
 
