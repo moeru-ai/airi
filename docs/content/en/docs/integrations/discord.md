@@ -9,7 +9,7 @@ The Discord bot connects to text and voice channels in a Discord server and uses
 
 - Install dependencies from the repository root with **pnpm i**.
 - Create an application and bot in the [Discord Developer Portal](https://discord.com/developers/home).
-- Enable **Server Members Intent** and **Message Content Intent** in the bot settings.
+- Enable **Message Content Intent** in the bot settings.
 - Prepare credentials for a chat model and speech service.
 
 ::: warning Credential security

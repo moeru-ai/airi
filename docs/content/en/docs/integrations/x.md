@@ -1,32 +1,24 @@
 ---
-title: X / Twitter
-description: Enable AIRI's X / Twitter integration with X Developer Platform credentials
+title: X / Twitter (unavailable)
+description: Current implementation status of AIRI's X / Twitter integration
 ---
 
-The X / Twitter integration uses four credentials from an X Developer Platform application so AIRI's service channel can request X / Twitter features. Your X developer account issues these credentials. Available read, publish, and other capabilities depend on the application's permissions and X plan limits.
+The X / Twitter integration is not functional in AIRI 0.11.3. Although **Settings → Modules → X / Twitter** displays credential fields and can show **configured**, the app cannot currently deliver that configuration to the separate X service.
 
-## Prerequisites
+::: warning Do not enter X credentials
 
-- An X developer account with access to the [X Developer Portal](https://developer.x.com/en/portal/dashboard).
-- An X application with an API Key, API Secret, Access Token, and Access Token Secret.
-- Application permissions for the operations you intend to use.
-
-::: warning Credential security
-The API Key, API Secret, Access Token, and Access Token Secret grant access to your application. Enter them only in AIRI's local settings. Do not commit them, include them in screenshots or issues, or send them to anyone. If you suspect exposure, regenerate the affected credentials immediately in the X Developer Portal.
+Do not enter an API Key, API Secret, Access Token, or Access Token Secret in the current version. The **configured** state means only that all four fields contain values; it does not confirm a working service connection.
 :::
 
-## Configure in AIRI
+## Current limitation
 
-1. Open **Settings → Modules → X / Twitter**.
-2. Enable **X / Twitter Integration**.
-3. Enter the API Key, API Secret, Access Token, and Access Token Secret.
-4. Click **Save**. The page shows **configured** when all four fields have values.
+The AIRI module publishes configuration under the module name `twitter`, while the external service listens for `x`. The external service also runs as a separate process and is not started by AIRI. Until the module identifiers and service lifecycle are wired together, saving the form cannot enable X features.
 
-**Configured** means AIRI saved the credentials; it does not guarantee that every request will succeed. X determines the actual result from the application's permissions, account status, access plan, and rate limits.
+There is no supported end-user workaround. Contributors investigating the implementation can compare:
 
-## Troubleshooting
+- `packages/stage-ui/src/stores/modules/twitter.ts`
+- `services/twitter-services/src/adapters/airi-adapter.ts`
 
-- Copy the four credentials again and check for extra spaces or swapped key and secret values.
-- In the X Developer Portal, verify that the application permissions cover the requested operation.
-- Check that the application, project, and developer account are active and that the current plan allows the API request.
-- If a request is rejected or rate-limited, inspect the error returned by X and wait for the limit window to end. Do not try to bypass rate limits with repeated requests.
+## Credential security
+
+If you previously entered credentials, remove them from AIRI and rotate them in the [X Developer Portal](https://developer.x.com/en/portal/dashboard) if they may have been exposed. Never commit, screenshot, or share X credentials.

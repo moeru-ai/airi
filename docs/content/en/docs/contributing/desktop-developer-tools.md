@@ -49,7 +49,7 @@ Lag Visualizer shows interface performance and frame timing. Use it when window 
 
 ### Stage and page transition animations
 
-**Enable stage transition animations** controls the overall animation used when switching stages. Turning it off can remove animation as a variable during testing. **Use page-specific transition animations** controls each page's own transition and is unavailable when the overall stage transition is disabled.
+**Disable Stage Transitions** removes the overall animation used when switching stages. Turn it on to remove stage transitions as a variable during testing. **Use Page Specific Transitions** controls each page's own transition and is unavailable while **Disable Stage Transitions** is on.
 
 When investigating flickering, pages that do not unload, or slow transitions, test each state separately. Restore your normal settings after testing.
 
@@ -123,11 +123,12 @@ Vision Capture captures screen frames and shows the payload sent through the vis
 
 To test screen vision:
 
-1. Select a vision provider and an image-capable model under **Settings → Providers → Vision**.
-2. Open **Settings → System → Developer → Vision Capture** and grant the operating system's screen-recording permission.
-3. Choose a window or display, then select **Start ticker** to begin capturing and analyzing frames.
-4. Enable **Publish to character** only when you want recognition results added to AIRI's conversation context.
-5. Select **Stop ticker** when finished. Leaving the page also stops the capture loop.
+1. Configure a vision provider's credentials under **Settings → Providers → Vision**.
+2. Open **Settings → Modules → Vision**, then select the configured provider and an image-capable model.
+3. Open **Settings → System → Developer → Vision Capture** and grant the operating system's screen-recording permission.
+4. Choose a window or display, then select **Start ticker** to begin capturing and analyzing frames.
+5. Enable **Publish to character** only when you want recognition results added to AIRI's conversation context.
+6. Select **Stop ticker** when finished. Leaving the page also stops the capture loop.
 
 If the page remains on a permission prompt, grant permission in the operating system, fully quit AIRI, restart it, and reopen the tool. Never publish captures that show a personal desktop, notifications, or content from other applications.
 

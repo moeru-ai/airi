@@ -253,7 +253,7 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Satori Bot', link: withBase('/en/docs/integrations/satori') },
                   { text: 'Telegram Bot', link: withBase('/en/docs/integrations/telegram') },
                   { text: 'Discord Bot', link: withBase('/en/docs/integrations/discord') },
-                  { text: 'X / Twitter', link: withBase('/en/docs/integrations/x') },
+                  { text: 'X / Twitter (Unavailable)', link: withBase('/en/docs/integrations/x') },
                 ],
               },
             ],

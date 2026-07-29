@@ -346,7 +346,7 @@ Discord Bot Token, Model API Key, and Speech Service Credentials should only be 
 
 #### X / Twitter
 
-Open **Settings → Modules → X / Twitter**, then follow the [X / Twitter Integration Guide](/en/docs/integrations/x) to create and enter your X Developer Platform application credentials. Do not expose your API key, API secret, or access token.
+The X / Twitter settings form is present, but the integration is not functional in AIRI 0.11.3. Do not enter credentials. See the [X / Twitter Integration Guide](/en/docs/integrations/x) for the current implementation limitation.
 
 #### Web search
 
