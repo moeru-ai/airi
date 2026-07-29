@@ -749,7 +749,8 @@ pages:
       access-token-secret: 액세스 토큰 시크릿
       access-token-secret-description: X / 트위터의 액세스 토큰 시크릿
       access-token-secret-placeholder: X / 트위터의 액세스 토큰 시크릿을 입력해주세요
-      configured: X / 트위터 구성 완료!
+      service-online: X / Twitter 서비스가 온라인 상태입니다. 저장하면 자격 증명이 전송됩니다.
+      service-offline: X / Twitter 서비스를 사용할 수 없습니다. 자격 증명을 저장하기 전에 서비스를 시작하세요.
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

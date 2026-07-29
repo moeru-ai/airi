@@ -749,7 +749,8 @@ pages:
       access-token-secret: アクセストークンシークレット
       access-token-secret-description: あなたのX / Twitterアクセストークンシークレット
       access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
-      configured: X / Twitterは適切に設定されています！
+      service-online: X / Twitterサービスはオンラインです。保存すると認証情報が送信されます。
+      service-offline: X / Twitterサービスを利用できません。認証情報を保存する前に起動してください。
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

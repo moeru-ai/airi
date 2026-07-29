@@ -95,11 +95,11 @@ function decodeEvents(sent: string[]) {
   return sent.map(message => parse<WebSocketEvent>(message))
 }
 
-function createExtensionModuleAnnounceEvent(): WebSocketEvent {
+function createExtensionModuleAnnounceEvent(name = 'memory'): WebSocketEvent {
   return {
     type: 'extension:module:announce',
     data: {
-      name: 'memory',
+      name,
       possibleEvents: [],
       identity: {
         id: 'memory-module-1',
@@ -231,5 +231,67 @@ describe('setupApp websocket liveness', () => {
     runtime.dispose()
 
     expect(peer.peer.close).toHaveBeenCalledOnce()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2154
+  // ROOT CAUSE:
+  //
+  // The X settings UI sent `ui:configure` with a module name that did not
+  // match the announced service, and the service subscribed to `ui:configure`
+  // instead of the server-routed `module:configure` event.
+  //
+  // The runtime forwards UI configuration to the announced X module as
+  // `module:configure`, so the service can validate and apply its credentials.
+  it('routes Issue #2154 X configuration to the announced module', () => {
+    const runtime = setupApp()
+    const handler = wsHandler()
+    const stage = createPeer('stage')
+    const xService = createPeer('x-service')
+
+    handler.open?.(stage.peer)
+    handler.open?.(xService.peer)
+    sendEvent(handler, xService.peer, createExtensionModuleAnnounceEvent('x'))
+    xService.sent.length = 0
+
+    sendEvent(handler, stage.peer, {
+      type: 'ui:configure',
+      data: {
+        moduleName: 'x',
+        config: {
+          apiKey: 'api-key',
+          apiSecret: 'api-secret',
+          accessToken: 'access-token',
+          accessTokenSecret: 'access-token-secret',
+        },
+      },
+      metadata: {
+        source: {
+          kind: 'plugin',
+          id: 'stage',
+          plugin: {
+            id: 'stage-web',
+          },
+        },
+        event: {
+          id: 'x-configure-1',
+        },
+      },
+    })
+
+    expect(decodeEvents(xService.sent)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'module:configure',
+        data: {
+          config: {
+            apiKey: 'api-key',
+            apiSecret: 'api-secret',
+            accessToken: 'access-token',
+            accessTokenSecret: 'access-token-secret',
+          },
+        },
+      }),
+    ]))
+
+    runtime.dispose()
   })
 })

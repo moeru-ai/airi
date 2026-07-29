@@ -749,7 +749,8 @@ pages:
       access-token-secret: Secret du jeton d'accès
       access-token-secret-description: Votre secret de jeton d'accès X / Twitter
       access-token-secret-placeholder: Entrez votre secret de jeton d'accès X / Twitter
-      configured: X / Twitter est correctement configuré !
+      service-online: Le service X / Twitter est en ligne. Les identifiants seront envoyés lors de l’enregistrement.
+      service-offline: Le service X / Twitter n’est pas disponible. Démarrez-le avant d’enregistrer les identifiants.
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

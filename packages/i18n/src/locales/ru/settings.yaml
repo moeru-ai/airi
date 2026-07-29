@@ -749,7 +749,8 @@ pages:
       access-token-secret: Секрет токена доступа
       access-token-secret-description: Ваш секрет токена доступа X / Twitter
       access-token-secret-placeholder: Введите ваш секрет токена доступа X / Twitter
-      configured: X / Twitter настроен правильно!
+      service-online: Сервис X / Twitter работает. Учётные данные будут отправлены после сохранения.
+      service-offline: Сервис X / Twitter недоступен. Запустите его перед сохранением учётных данных.
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

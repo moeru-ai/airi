@@ -749,7 +749,8 @@ pages:
       access-token-secret: 访问令牌密文
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
-      configured: X / Twitter已正确配置！
+      service-online: X / Twitter 服务已上线。保存时会发送凭据。
+      service-offline: X / Twitter 服务不可用。请先启动服务，再保存凭据。
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息

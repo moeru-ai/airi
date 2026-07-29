@@ -749,7 +749,8 @@ pages:
       access-token-secret: Secreto de token de acceso
       access-token-secret-description: Su secreto de token de acceso de X / Twitter
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
-      configured: '¡X / Twitter está configurado correctamente!'
+      service-online: El servicio de X / Twitter está en línea. Las credenciales se enviarán al guardar.
+      service-offline: El servicio de X / Twitter no está disponible. Inícialo antes de guardar las credenciales.
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

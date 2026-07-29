@@ -749,7 +749,8 @@ pages:
       access-token-secret: Bí mật mã truy cập
       access-token-secret-description: Bí mật mã truy cập X / Twitter của bạn
       access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
-      configured: Đã cấu hình X / Twitter thành công!
+      service-online: Dịch vụ X / Twitter đang trực tuyến. Thông tin xác thực sẽ được gửi khi lưu.
+      service-offline: Dịch vụ X / Twitter không khả dụng. Hãy khởi động dịch vụ trước khi lưu thông tin xác thực.
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

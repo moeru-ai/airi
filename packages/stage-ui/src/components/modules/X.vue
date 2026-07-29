@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useTwitterStore } from '../../stores/modules/twitter'
@@ -9,13 +10,26 @@ const { t } = useI18n()
 const twitterStore = useTwitterStore()
 const { enabled, apiKey, apiSecret, accessToken, accessTokenSecret, configured } = storeToRefs(twitterStore)
 
+const statusTheme = computed(() => configured.value ? 'lime' : 'orange')
+const statusLabel = computed(() => {
+  return configured.value
+    ? t('settings.pages.modules.x.service-online')
+    : t('settings.pages.modules.x.service-offline')
+})
+
 function saveSettings() {
   twitterStore.saveSettings()
 }
+
+onMounted(() => {
+  twitterStore.initialize()
+})
 </script>
 
 <template>
-  <div flex="~ col gap-6">
+  <div :class="['flex flex-col gap-6']">
+    <Callout :theme="statusTheme" :label="statusLabel" />
+
     <FieldCheckbox
       v-model="enabled"
       :label="t('settings.pages.modules.x.enable')"
@@ -60,10 +74,6 @@ function saveSettings() {
         variant="primary"
         @click="saveSettings"
       />
-    </div>
-
-    <div v-if="configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
-      {{ t('settings.pages.modules.x.configured') }}
     </div>
   </div>
 </template>

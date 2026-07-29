@@ -749,7 +749,8 @@ pages:
       access-token-secret: 存取權杖密文
       access-token-secret-description: 您的 X / Twitter 存取權杖密文
       access-token-secret-placeholder: 輸入您的 X / Twitter 存取權杖密文
-      configured: X / Twitter 已正確設定！
+      service-online: X / Twitter 服務已上線。儲存時會傳送憑證。
+      service-offline: X / Twitter 服務無法使用。請先啟動服務，再儲存憑證。
     web-search:
       title: 網路搜尋
       description: 讓 AIRI 連網搜尋最新資訊

@@ -46,6 +46,7 @@ export function useModulesList() {
   const beatSyncState = ref<BeatSyncDetectorState>()
 
   minecraftStore.initialize()
+  twitterStore.initialize()
 
   const modulesList = computed<Module[]>(() => [
     {

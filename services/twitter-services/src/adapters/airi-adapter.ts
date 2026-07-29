@@ -54,7 +54,7 @@ export class AiriAdapter {
         'module:authenticate',
         'module:authenticated',
         'module:announce',
-        'ui:configure',
+        'module:configure',
         'input:text',
       ],
     })
@@ -71,8 +71,8 @@ export class AiriAdapter {
 
   private setupEventHandlers(): void {
     // Handle configuration from UI
-    this.client.onEvent('ui:configure', async (event) => {
-      if (event.data && event.data.moduleName === 'x' && event.data.config && isXConfig(event.data.config)) {
+    this.client.onEvent('module:configure', async (event) => {
+      if (event.data.config && isXConfig(event.data.config)) {
         logger.main.log('Received configuration from UI for X module')
         logger.main.log('Twitter configuration received:', event.data.config)
 
@@ -106,8 +106,7 @@ export class AiriAdapter {
           }
         }
       }
-      else if (event.data && event.data.moduleName === 'x') {
-        // Log error if config is not valid
+      else {
         logger.main.error('Invalid configuration received for X module')
       }
     })
