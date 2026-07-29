@@ -1196,6 +1196,87 @@ describe('createLlmRouterService', () => {
       expect(getOrThrow).not.toHaveBeenCalled()
     })
 
+    it('lists official voices for a Plan-only model without UNSPEECH_UPSTREAM config', async () => {
+      const { config, crypto } = makeTieredStepfunConfig()
+      const configKV = makeConfigKV(config)
+      const getOrThrow = vi.fn(async () => {
+        throw new Error('UNSPEECH_UPSTREAM not configured')
+      })
+      Object.assign(configKV, { getOrThrow })
+      const fetchImpl = vi.fn() as unknown as typeof fetch
+      const router = createLlmRouterService({
+        configKV,
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      const voices = await router.listTtsVoices('stepfun/stepaudio-2.5-tts')
+
+      expect(voices).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          id: 'cixingnansheng',
+          name: '磁性男声',
+          compatible_models: expect.arrayContaining(['stepaudio-2.5-tts']),
+        }),
+      ]))
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect(getOrThrow).not.toHaveBeenCalled()
+    })
+
+    it('keeps a Step Plan attempt timeout distinct from HTTP 500 at the paid boundary', async () => {
+      const { config, crypto } = makeTieredStepfunConfig()
+      config.defaults!.perAttemptTimeoutMs = 10
+      const model = config.tts.models['stepfun/stepaudio-2.5-tts']
+      model.routing!.tiers[0].nextTierOn = {
+        httpCodes: [500],
+        onTimeout: false,
+      }
+      const calledURLs: string[] = []
+      const fetchImpl = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input)
+        calledURLs.push(url)
+        if (!url.includes('/step_plan/')) {
+          return Promise.resolve(new Response(new Uint8Array([0x01]), {
+            status: 200,
+            headers: { 'content-type': 'audio/mpeg' },
+          }))
+        }
+
+        return new Promise<Response>((_, reject) => {
+          const rejectAbort = () => reject(init?.signal?.reason ?? new Error('aborted'))
+          if (init?.signal?.aborted)
+            rejectAbort()
+          else
+            init?.signal?.addEventListener('abort', rejectAbort, { once: true })
+        })
+      }) as unknown as typeof fetch
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      await expect(router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })).rejects.toMatchObject({
+        statusCode: 504,
+        details: expect.objectContaining({ lastStatusCode: 'timeout' }),
+      })
+
+      expect(calledURLs).toEqual([
+        'https://api.stepfun.com/step_plan/v1/audio/speech',
+        'https://api.stepfun.com/step_plan/v1/audio/speech',
+      ])
+      expect(calledURLs).not.toContain('http://unspeech.local:5933/v1/audio/speech')
+    })
+
     it('does not cross the paid boundary when the Plan tier is rate-limited', async () => {
       const calledURLs: string[] = []
       const fetchImpl = vi.fn(async (input: string | URL | Request) => {

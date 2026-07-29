@@ -298,19 +298,12 @@ describe('azureAdapter.send', () => {
 })
 
 describe('stepfunAdapter', () => {
-  it('lists StepFun voices through unspeech provider=stepfun', async () => {
+  it('lists StepFun official voices without an unspeech request', async () => {
     const adapter = getAdapter('stepfun')
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      voices: [{
-        id: 'cixingnansheng',
-        name: '磁性男声',
-        compatible_models: ['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini'],
-      }],
-    }), { status: 200 })) as unknown as typeof fetch
+    const fetchImpl = vi.fn() as unknown as typeof fetch
 
     const voices = await adapter.getVoiceCatalog({
       adapterParams: {},
-      unspeechBaseURL: 'http://unspeech.local',
       fetchImpl,
     })
 
@@ -323,8 +316,7 @@ describe('stepfunAdapter', () => {
         }),
       ]),
     )
-    const [calledUrl] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=stepfun')
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
   it('posts OpenAI-compatible speech JSON to unspeech with model=stepfun/<model>', async () => {

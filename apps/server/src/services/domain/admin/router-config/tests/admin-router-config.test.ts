@@ -582,6 +582,70 @@ describe('createAdminRouterConfigService', () => {
     expect(Object.keys(written.tts.models)).toEqual(['microsoft/v1'])
   })
 
+  it('rejects legacy merge updates that would replace a tiered TTS model', async () => {
+    const modelName = 'stepfun/stepaudio-2.5-tts'
+    const existingConfig = {
+      llm: { models: {} },
+      tts: {
+        models: {
+          [modelName]: {
+            provider: 'stepfun' as const,
+            upstreams: [
+              {
+                id: 'plan',
+                baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+                keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
+                adapterParams: { apiMode: 'step-plan', model: 'stepaudio-2.5-tts' },
+              },
+              {
+                id: 'paygo',
+                baseURL: 'https://api.stepfun.com/v1/audio/speech',
+                keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
+                adapterParams: { apiMode: 'pay-as-you-go', model: 'stepaudio-2.5-tts' },
+              },
+            ],
+            routing: {
+              tiers: [
+                {
+                  id: 'plan',
+                  upstreamIds: ['plan'],
+                  strategy: 'ordered' as const,
+                  retryOn: { httpCodes: [402], onTimeout: false },
+                  nextTierOn: { httpCodes: [402], onTimeout: false },
+                },
+                {
+                  id: 'paygo',
+                  upstreamIds: ['paygo'],
+                  strategy: 'ordered' as const,
+                  retryOn: { httpCodes: [429, 500], onTimeout: true },
+                },
+              ],
+            },
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    }
+    kv.store.set('LLM_ROUTER_CONFIG', existingConfig)
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+
+    await expect(service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [{
+        kind: 'stepfun',
+        modelName,
+        upstreamModel: 'stepaudio-2.5-tts',
+        plaintextKey: 'rotated-key',
+      }],
+    })).rejects.toThrow(/cannot update tiered tts model/i)
+
+    expect(kv.store.get('LLM_ROUTER_CONFIG')).toBe(existingConfig)
+    expect(captured).toEqual([])
+  })
+
   it('current returns editable slices from configKV without exposing raw ciphertext', async () => {
     kv.store.set('LLM_ROUTER_CONFIG', {
       llm: {

@@ -95,9 +95,9 @@ export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcen
  * verbatim. Providers with static, credential-less catalogs (DashScope
  * cosyvoice, Volcengine) ignore both fields.
  *
- * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the
- * router. Passing it through the context keeps adapters free of configKV
- * coupling — they receive a fully-resolved URL string.
+ * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the router
+ * only for catalogs that declare the dependency. Static provider catalogs do
+ * not receive it.
  */
 export interface TtsVoiceCatalogContext {
   /** Decrypted upstream credential (live providers only). */
@@ -106,8 +106,8 @@ export interface TtsVoiceCatalogContext {
   region?: string
   /** Free-form adapter-specific params (mirrors `tts.upstreams[i].adapterParams`). */
   adapterParams: Record<string, unknown>
-  /** unspeech REST base URL, no trailing slash. */
-  unspeechBaseURL: string
+  /** unspeech REST base URL, no trailing slash; absent for static catalogs. */
+  unspeechBaseURL?: string
   /** Fetch implementation. Tests inject `vi.fn()`; production passes `globalThis.fetch`. */
   fetchImpl: typeof fetch
   /** Caller-side abort signal — propagated to the upstream fetch. */
@@ -141,6 +141,12 @@ export interface TtsAdapter {
    * deployment. Omit when every request uses unspeech.
    */
   requiresUnspeech?: (ctx: Pick<TtsAdapterContext, 'adapterParams' | 'baseURL'>) => boolean
+  /**
+   * Declares whether voice lookup needs the shared unspeech deployment.
+   *
+   * @default true
+   */
+  requiresUnspeechForVoiceCatalog?: boolean
   /** Dispatches one TTS request and resolves with the audio payload. */
   send: (input: TtsInput, ctx: TtsAdapterContext) => Promise<TtsResult>
   /**

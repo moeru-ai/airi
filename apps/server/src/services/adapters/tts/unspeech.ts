@@ -103,11 +103,17 @@ interface ListVoicesOptions {
  */
 export async function listVoicesViaUnSpeech(options: ListVoicesOptions): Promise<Voice[]> {
   const { ctx, providerLabel, query } = options
+  const unspeechBaseURL = ctx.unspeechBaseURL
+  if (unspeechBaseURL == null) {
+    throw createInternalError(
+      `${providerLabel} voices require UNSPEECH_UPSTREAM but the router did not resolve it`,
+    )
+  }
 
   try {
     return await listVoices({
       apiKey: ctx.keyPlaintext?.toString('utf8'),
-      baseURL: ctx.unspeechBaseURL.replace(/\/+$/, ''),
+      baseURL: unspeechBaseURL.replace(/\/+$/, ''),
       fetch: ctx.fetchImpl,
       query,
       abortSignal: ctx.abortSignal,

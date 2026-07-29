@@ -1014,7 +1014,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       return existingLoad
 
     const load = (async () => {
-      const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+      const unspeechBaseURL = adapter.requiresUnspeechForVoiceCatalog === false
+        ? undefined
+        : (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
       // Live providers (Azure) need the decrypted Azure subscription key + region;
       // static-catalog providers (alibaba, volcengine) ignore both. The router
