@@ -161,11 +161,13 @@ describe('configKVService', () => {
                 id: 'plan',
                 baseURL: 'https://api.stepfun.com/step_plan/v1',
                 keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
+                headerTemplate: 'Bearer {KEY}',
               },
               {
                 id: 'paygo',
                 baseURL: 'https://api.stepfun.com/v1',
                 keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
+                headerTemplate: 'Bearer {KEY}',
               },
             ],
             routing: {
@@ -182,6 +184,10 @@ describe('configKVService', () => {
                   retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
                 },
               ],
+            },
+            fallbackTriggers: {
+              httpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+              onTimeout: true,
             },
           },
         },
