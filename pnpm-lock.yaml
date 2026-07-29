@@ -240,6 +240,12 @@ catalogs:
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
+    '@moeru/three-mmd':
+      specifier: 0.1.0-beta.6
+      version: 0.1.0-beta.6
+    '@moeru/three-mmd-physics-ammo':
+      specifier: 0.1.0-beta.6
+      version: 0.1.0-beta.6
     '@napi-rs/image':
       specifier: ^1.12.0
       version: 1.12.0
@@ -582,9 +588,6 @@ catalogs:
     alien-signals:
       specifier: ^3.1.2
       version: 3.1.2
-    ammojs-typed:
-      specifier: ^1.0.6
-      version: 1.0.6
     animejs:
       specifier: ^4.3.6
       version: 4.3.6
@@ -4555,6 +4558,12 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@moeru/three-mmd':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0)
+      '@moeru/three-mmd-physics-ammo':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.6(@moeru/three-mmd@0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0))(@types/three@0.184.0)(three@0.184.0)
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -4567,9 +4576,6 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
-      ammojs-typed:
-        specifier: 'catalog:'
-        version: 1.0.6
       culori:
         specifier: 'catalog:'
         version: 4.0.2
@@ -4604,6 +4610,9 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.184.0
+      '@vitest/browser-playwright':
+        specifier: catalog:vitest
+        version: 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       vitest:
         specifier: catalog:vitest
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
@@ -7996,6 +8005,19 @@ packages:
 
   '@moeru/std@0.1.0-beta.19':
     resolution: {integrity: sha512-+VYlWHgGkU/KrYvB9Ei4v4uTW8t5noGVp8Jb9X6xAhifNtD/h05w35efA2Zy/txqklzBYbFMvd37zOBiss88jg==}
+
+  '@moeru/three-mmd-physics-ammo@0.1.0-beta.6':
+    resolution: {integrity: sha512-kH2Ql0VkdRp4FqLIBw23Qmw+OCuDE1vcHAh47JBUA4nOTc8cVPQM8s37qVcjKTT8EoujNBVnS9BBk4+d7Xl0Jg==}
+    peerDependencies:
+      '@moeru/three-mmd': ^0.1.0-beta.6
+      '@types/three': ^0.184.0
+      three: ^0.184.0
+
+  '@moeru/three-mmd@0.1.0-beta.6':
+    resolution: {integrity: sha512-gkGfZoV9ma3APac1gyPV6MLZjhO9kuhvYOsz2y/xITtuDCchrWvSyo1K2yzqi44RRJBy7U/xtpFIaweX5qFLcg==}
+    peerDependencies:
+      '@types/three': '>=0.184.0'
+      three: '>=0.184.0'
 
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
@@ -22391,6 +22413,18 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.19': {}
 
+  '@moeru/three-mmd-physics-ammo@0.1.0-beta.6(@moeru/three-mmd@0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0))(@types/three@0.184.0)(three@0.184.0)':
+    dependencies:
+      '@moeru/three-mmd': 0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0)
+      '@types/three': 0.184.0
+      ammojs-typed: 1.0.6
+      three: 0.184.0
+
+  '@moeru/three-mmd@0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0)':
+    dependencies:
+      '@types/three': 0.184.0
+      three: 0.184.0
+
   '@mrleebo/prisma-ast@0.13.1':
     dependencies:
       chevrotain: 10.5.0
@@ -25801,7 +25835,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/browser@4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
@@ -25836,7 +25869,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/coverage-v8@4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)':
     dependencies:

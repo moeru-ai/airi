@@ -10,6 +10,7 @@ packages:
   - engines/**
   - apps/**
   - '!**/dist/**'
+
 overrides:
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -20,7 +21,6 @@ overrides:
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
-
 patchedDependencies:
   '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -30,7 +30,6 @@ patchedDependencies:
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
   uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
-
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@antfu/eslint-config': ^8.2.0
@@ -110,6 +109,8 @@ catalog:
   '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.0-beta.8
   '@moeru/std': 0.1.0-beta.17
+  '@moeru/three-mmd': 0.1.0-beta.6
+  '@moeru/three-mmd-physics-ammo': 0.1.0-beta.6
   '@napi-rs/image': ^1.12.0
   '@nekopaw/tempora': 0.4.0-alpha.1
   '@opentelemetry/api': ^1.9.1
@@ -224,7 +225,6 @@ catalog:
   '@xsai/tool': 0.5.0-beta.2
   '@xsai/utils-chat': 0.5.0-beta.2
   alien-signals: ^3.1.2
-  ammojs-typed: ^1.0.6
   animejs: ^4.3.6
   async-mutex: 0.5.0
   awilix: ^13.0.3
