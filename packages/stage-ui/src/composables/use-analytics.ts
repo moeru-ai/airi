@@ -1,3 +1,4 @@
+import type { ControlsIslandAction } from '../stores/analytics/button-events'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
 import posthog from 'posthog-js'
@@ -7,6 +8,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useSharedAnalyticsStore } from '../stores/analytics'
+import { captureTrackButtonEvent } from '../stores/analytics/button-events'
 import { ensurePosthogInitialized, isPosthogAvailableInBuild } from '../stores/analytics/posthog'
 import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
@@ -39,6 +41,8 @@ export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'c
 export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
+/** Stable, low-cardinality actions emitted by the Electron controls island. */
+export type { ControlsIslandAction } from '../stores/analytics/button-events'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
@@ -1203,6 +1207,10 @@ export function useAnalytics() {
   // server management. Input text never leaves the device — events carry
   // counts and low-cardinality ids only.
 
+  function trackControlsIslandAction(properties: { action: ControlsIslandAction }) {
+    captureTrackButtonEvent({ name: 'controls_island_action', ...properties })
+  }
+
   function trackSpotlightUsed() {
     if (!canCapture())
       return
@@ -1216,9 +1224,7 @@ export function useAnalytics() {
   }
 
   function trackUpdateCheckClicked(properties: { channel: string }) {
-    if (!canCapture())
-      return
-    posthog.capture('update_check_clicked', properties)
+    captureTrackButtonEvent({ name: 'update_check_clicked', ...properties })
   }
 
   function trackUpdateDownloaded(properties: { channel: string, version?: string }) {
@@ -1229,21 +1235,15 @@ export function useAnalytics() {
 
   /** User confirmed restart-and-install; the app quits right after. */
   function trackUpdateInstallClicked(properties: { channel: string, version?: string }) {
-    if (!canCapture())
-      return
-    posthog.capture('update_install_clicked', properties, { send_instantly: true, transport: 'sendBeacon' })
+    captureTrackButtonEvent({ name: 'update_install_clicked', ...properties })
   }
 
   function trackMcpServerAdded() {
-    if (!canCapture())
-      return
-    posthog.capture('mcp_server_added')
+    captureTrackButtonEvent({ name: 'mcp_server_added' })
   }
 
   function trackMcpServerRemoved() {
-    if (!canCapture())
-      return
-    posthog.capture('mcp_server_removed')
+    captureTrackButtonEvent({ name: 'mcp_server_removed' })
   }
 
   function trackMcpConnectionTestRun(properties: { success: boolean }) {
@@ -1380,6 +1380,7 @@ export function useAnalytics() {
     trackDeviceChannelConnected,
 
     trackDataAction,
+    trackControlsIslandAction,
     trackSpotlightUsed,
     trackWidgetOpened,
     trackUpdateCheckClicked,

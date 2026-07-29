@@ -994,6 +994,28 @@ describe('useAnalytics conversation product events', () => {
     })
   })
 
+  it('emits stable controls-island actions and flushes reload actions immediately', () => {
+    analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
+    const analytics = useAnalytics()
+
+    analytics.trackControlsIslandAction({ action: 'toggle_chat' })
+    analytics.trackControlsIslandAction({ action: 'refresh_window' })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'controls_island_action', {
+      action: 'toggle_chat',
+      app_surface: 'electron',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
+      2,
+      'controls_island_action',
+      {
+        action: 'refresh_window',
+        app_surface: 'electron',
+      },
+      { send_instantly: true, transport: 'sendBeacon' },
+    )
+  })
+
   it('emits desktop differentiator events for spotlight, widgets, updater, MCP, and pairing', () => {
     analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
     const analytics = useAnalytics()
