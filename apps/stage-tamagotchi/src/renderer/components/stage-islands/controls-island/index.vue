@@ -1,10 +1,6 @@
 <script setup lang="ts">
-import type { ControlsIslandAction } from '@proj-airi/stage-ui/composables/use-analytics'
-
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { useTrackButton } from '@proj-airi/stage-ui/composables/useTrackButton'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -45,10 +41,6 @@ const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const quitApp = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
-const { trackControlsIslandAction } = useAnalytics()
-const vTrackButton = useTrackButton<ControlsIslandAction>(
-  action => trackControlsIslandAction({ action }),
-)
 
 const expanded = ref(false)
 const islandRef = ref<HTMLElement>()
@@ -171,7 +163,7 @@ function resetMainWindowPosition() {
           <div grid grid-cols-3 gap-2>
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
-                v-track-button="'toggle_settings'"
+                v-track-button="{ name: 'controls_island_action', action: 'toggle_settings' }"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.open-settings')"
                 @click="openSettings({ route: '/settings' })"
@@ -187,7 +179,7 @@ function resetMainWindowPosition() {
               <ControlsIslandProfilePicker placement="up" :open="blockingOverlays.has('profile-picker')" @update:open="setOverlay('profile-picker', $event)">
                 <template #default="{ toggle }">
                   <ControlButton
-                    v-track-button="'toggle_profile_picker'"
+                    v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
                     :button-style="adjustStyleClasses.button"
                     :aria-label="t('tamagotchi.stage.controls-island.switch-profile')"
                     @click="toggle"
@@ -203,7 +195,7 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
-                v-track-button="'refresh_window'"
+                v-track-button="{ name: 'controls_island_action', action: 'refresh_window' }"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.refresh')"
                 @click="refreshWindow"
@@ -217,7 +209,7 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
-                v-track-button="'center_main_window'"
+                v-track-button="{ name: 'controls_island_action', action: 'center_main_window' }"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.center-main-window')"
                 @click="resetMainWindowPosition"
@@ -231,7 +223,10 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
-                v-track-button="isDark ? 'switch_to_light_mode' : 'switch_to_dark_mode'"
+                v-track-button="{
+                  name: 'controls_island_action',
+                  action: isDark ? 'switch_to_light_mode' : 'switch_to_dark_mode',
+                }"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode')"
                 @click="() => toggleDark()"
@@ -248,7 +243,10 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
-                v-track-button="alwaysOnTop ? 'unpin_from_top' : 'pin_on_top'"
+                v-track-button="{
+                  name: 'controls_island_action',
+                  action: alwaysOnTop ? 'unpin_from_top' : 'pin_on_top',
+                }"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="alwaysOnTop ? t('tamagotchi.stage.controls-island.unpin-from-top') : t('tamagotchi.stage.controls-island.pin-on-top')"
                 @click="toggleAlwaysOnTop"
@@ -265,7 +263,7 @@ function resetMainWindowPosition() {
 
             <ControlButtonTooltip disable-hoverable-content>
               <ControlButton
-                v-track-button="'close_app'"
+                v-track-button="{ name: 'controls_island_action', action: 'close_app' }"
                 :button-style="adjustStyleClasses.button"
                 :aria-label="t('tamagotchi.stage.controls-island.close')"
                 hover:bg-red-500
@@ -286,7 +284,10 @@ function resetMainWindowPosition() {
       <div flex flex-col gap-1>
         <ControlButtonTooltip side="left">
           <ControlButton
-            v-track-button="expanded ? 'collapse_controls' : 'expand_controls'"
+            v-track-button="{
+              name: 'controls_island_action',
+              action: expanded ? 'collapse_controls' : 'expand_controls',
+            }"
             :button-style="adjustStyleClasses.button"
             :aria-label="expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand')"
             @click="toggleControls"
@@ -304,7 +305,7 @@ function resetMainWindowPosition() {
 
         <ControlButtonTooltip side="left">
           <ControlButton
-            v-track-button="'toggle_chat'"
+            v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
             :button-style="adjustStyleClasses.button"
             :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
             @click="() => openChat()"

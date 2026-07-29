@@ -26,6 +26,7 @@
     "./composables": "./src/composables/index.ts",
     "./constants/*": "./src/constants/*.ts",
     "./constants": "./src/constants/index.ts",
+    "./directives/*": "./src/directives/*.ts",
     "./libs/inference/adapters/*": "./src/libs/inference/adapters/*.ts",
     "./libs/inference": "./src/libs/inference/index.ts",
     "./libs/*": "./src/libs/*.ts",

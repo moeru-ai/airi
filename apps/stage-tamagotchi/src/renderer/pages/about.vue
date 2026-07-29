@@ -33,7 +33,6 @@ const {
 } = useElectronAutoUpdater()
 
 const {
-  trackUpdateCheckClicked,
   trackUpdateDownloaded,
   trackUpdateInstallClicked,
   trackSettingsChanged,
@@ -125,11 +124,6 @@ const isDowngradeUpdate = computed(() => {
 
 const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
 const setUpdaterPreferences = useElectronEventaInvoke(electronSetUpdaterPreferences)
-
-function handleCheckForUpdates() {
-  trackUpdateCheckClicked({ channel: selectedUpdateChannel.value })
-  return checkForUpdates()
-}
 
 function handleQuitAndInstall() {
   trackUpdateInstallClicked({ channel: selectedUpdateChannel.value, version: updateState.value.info?.version })
@@ -384,6 +378,7 @@ onMounted(() => {
 
                 <div :class="['flex flex-wrap gap-2']">
                   <Button
+                    v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
                     :variant="isError ? 'caution' : 'secondary'"
                     :loading="isBusy"
                     :disabled="isDisabled"
@@ -397,7 +392,7 @@ onMounted(() => {
                           : isError
                             ? t('tamagotchi.stage.about.update.actions.retry-check')
                             : t('tamagotchi.stage.about.update.actions.check-for-updates')"
-                    @click="handleCheckForUpdates()"
+                    @click="checkForUpdates()"
                   />
                 </div>
               </div>

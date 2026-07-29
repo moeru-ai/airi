@@ -7,6 +7,7 @@ import NProgress from 'nprogress'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
+import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/trackButton'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -55,6 +56,7 @@ createApp(App)
   .use(PiniaColada)
   .use(i18n)
   .use(Tres)
+  .use(trackButtonPlugin)
   .mount('#app')
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {
