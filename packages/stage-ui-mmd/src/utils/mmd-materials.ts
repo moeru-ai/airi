@@ -10,10 +10,6 @@ interface OriginalSurfaceState {
 
 const originalSurfaceStates = new WeakMap<MMDToonMaterial, OriginalSurfaceState>()
 
-function isMMDMaterial(material: Material): material is MMDToonMaterial {
-  return 'isMMDMaterial' in material && material.isMMDMaterial === true
-}
-
 function forEachMMDMaterial(root: Object3D, visit: (material: MMDToonMaterial) => void): void {
   root.traverse((object) => {
     if (!(object instanceof Mesh))
@@ -21,7 +17,7 @@ function forEachMMDMaterial(root: Object3D, visit: (material: MMDToonMaterial) =
 
     const materials = Array.isArray(object.material) ? object.material : [object.material]
     for (const material of materials) {
-      if (isMMDMaterial(material))
+      if ('isMMDMaterial' in material && material.isMMDMaterial === true)
         visit(material)
     }
   })

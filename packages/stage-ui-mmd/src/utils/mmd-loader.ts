@@ -26,7 +26,7 @@ export interface LoadMMDOptions {
    * MMDLoader resolves the mesh as soon as it is parsed; textures continue
    * loading through the LoadingManager. The live scene renders continuously so
    * textures appear within a frame or two, but a one-shot offscreen render
-   * (the preview) would capture an untextured/transparent frame. Enable this
+   * (the preview) would capture an un-textured/transparent frame. Enable this
    * for previews. Defaults to `false`.
    */
   waitForTextures?: boolean

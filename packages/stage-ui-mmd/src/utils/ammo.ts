@@ -1,6 +1,6 @@
 import type { PhysicsFactory } from '@moeru/three-mmd'
 
-let physicsReady: Promise<PhysicsFactory> | undefined
+let physics: Promise<PhysicsFactory> | undefined
 
 /**
  * Lazily initializes three-mmd's Ammo adapter.
@@ -9,11 +9,11 @@ let physicsReady: Promise<PhysicsFactory> | undefined
  * leaving preview generation physics-free.
  */
 export function ensureAmmo(): Promise<PhysicsFactory> {
-  physicsReady ??= import('@moeru/three-mmd-physics-ammo')
+  physics ??= import('@moeru/three-mmd-physics-ammo')
     .then(async ({ initAmmo, MMDAmmoPhysics }) => {
       await initAmmo()
       return MMDAmmoPhysics
     })
 
-  return physicsReady
+  return physics
 }
