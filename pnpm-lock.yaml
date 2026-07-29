@@ -588,9 +588,6 @@ catalogs:
     alien-signals:
       specifier: ^3.1.2
       version: 3.1.2
-    ammojs-typed:
-      specifier: ^1.0.6
-      version: 1.0.6
     animejs:
       specifier: ^4.3.6
       version: 4.3.6
@@ -4579,9 +4576,6 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
-      ammojs-typed:
-        specifier: 'catalog:'
-        version: 1.0.6
       culori:
         specifier: 'catalog:'
         version: 4.0.2
@@ -4616,6 +4610,9 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.184.0
+      '@vitest/browser-playwright':
+        specifier: catalog:vitest
+        version: 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
       vitest:
         specifier: catalog:vitest
         version: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
@@ -25783,7 +25780,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/browser@4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)':
     dependencies:
@@ -25818,7 +25814,6 @@ snapshots:
       - msw
       - utf-8-validate
       - vite
-    optional: true
 
   '@vitest/coverage-v8@4.1.4(@vitest/browser@4.1.4)(vitest@4.1.4)':
     dependencies:

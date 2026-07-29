@@ -50,12 +50,11 @@ export interface GazeController {
  * VRM exposes a first-class `lookAt`; MMD does not, so we rotate the eye bones
  * and add a damped fraction of the same aim to the head bone for a natural
  * follow. Rotations are applied relative to each bone's rest pose and must run
- * after `MMDAnimationHelper.update()` so they layer on top of the active
- * motion.
+ * after the MMD runtime update so they layer on top of the active motion.
  *
  * We rotate the actual `左目`/`右目` eye bones (which the eyeballs are skinned
  * to) rather than the `両目` control bone. `両目` drives the eyes through the
- * append/grant solver, which runs *inside* `helper.update()`; rotating it
+ * append/grant solver, which runs *inside* the runtime update; rotating it
  * afterward would be too late and the eyes would not move. `両目` is used only
  * as a fallback when a model lacks separate eye bones.
  *

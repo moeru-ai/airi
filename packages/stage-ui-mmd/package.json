@@ -39,7 +39,6 @@
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "catalog:",
     "@xsai/tool": "catalog:",
-    "ammojs-typed": "catalog:",
     "culori": "catalog:",
     "es-toolkit": "catalog:",
     "jszip": "catalog:",
@@ -53,6 +52,7 @@
   "devDependencies": {
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
     "vitest": "catalog:vitest",
     "vue-tsc": "catalog:"
   }

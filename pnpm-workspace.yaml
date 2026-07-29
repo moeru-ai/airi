@@ -225,7 +225,6 @@ catalog:
   '@xsai/tool': 0.5.0-beta.2
   '@xsai/utils-chat': 0.5.0-beta.2
   alien-signals: ^3.1.2
-  ammojs-typed: ^1.0.6
   animejs: ^4.3.6
   async-mutex: 0.5.0
   awilix: ^13.0.3
