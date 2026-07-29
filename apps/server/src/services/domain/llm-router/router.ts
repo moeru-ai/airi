@@ -95,16 +95,20 @@ function deriveProviderTag(baseURL: string): string {
 /**
  * Identity of the pool (concurrency pool) one TTS upstream belongs to. One
  * upstream == one app_id, so the Volcengine `adapterParams.appid` is the pool
- * key when present. Other providers use the stable upstream id, then baseURL
- * for legacy configs without ids. Two upstreams sharing an app_id correctly
- * share one concurrency budget, though typical config gives each app_id its
- * own upstream.
+ * key when present. Other providers use a model-scoped upstream id, then a
+ * model-scoped baseURL for configs without ids. This prevents model-local ids
+ * such as `plan` from sharing Redis counters across unrelated models. Two
+ * upstreams sharing an app_id correctly share one global concurrency budget.
  */
-function ttsPoolId(upstream: TtsUpstream): string {
+function ttsPoolId(upstream: TtsUpstream, modelName: string): string {
   const appid = upstream.adapterParams?.appid
   if (typeof appid === 'string' && appid.length > 0)
     return appid
-  return upstream.id ?? upstream.baseURL
+  return `model:${JSON.stringify([
+    modelName,
+    upstream.id == null ? 'baseURL' : 'id',
+    upstream.id ?? upstream.baseURL,
+  ])}`
 }
 
 function failuresMatch(
@@ -652,9 +656,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   }
 
   /**
-   * Capacity-aware layer over {@link dispatchOneTtsUpstream}: spreads one TTS
-   * request across the model's pool (one app_id per upstream) by least-inflight
-   * ordering, gating each dispatch on an atomic concurrency-slot acquire.
+   * Capacity-aware layer over {@link dispatchOneTtsUpstream}: gates each capped
+   * dispatch on an atomic concurrency-slot acquire. It can preserve configured
+   * order or rank equivalent accounts by current in-flight usage.
    *
    * Returns:
    * - an `ok` result with the 2xx `Response`,
@@ -672,6 +676,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
     >,
     retryOn?: RouteFailureTriggers,
+    strategy: 'least-inflight' | 'ordered' = 'least-inflight',
   ): Promise<
     | { kind: 'ok', response: Response }
     | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
@@ -684,12 +689,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       })
     }
 
-    // Best-effort pre-read: order pools least-inflight-first (spreads load) and
-    // drop pools already full or in a saturation cool-down. tryAcquire below is
-    // the authoritative gate against the cross-replica race — ordering only
-    // decides *preference*, not correctness.
+    // Best-effort pre-read drops pools already full or in a saturation
+    // cool-down. tryAcquire below remains the authoritative gate against the
+    // cross-replica race.
     const candidates = await Promise.all(upstreams.map(async (upstream, index) => {
-      const poolId = ttsPoolId(upstream)
+      const poolId = ttsPoolId(upstream, modelName)
       const maxConcurrency = typeof upstream.maxConcurrency === 'number' ? upstream.maxConcurrency : null
       const saturated = await ledger.isSaturated(poolId)
       if (saturated) {
@@ -708,9 +712,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       const inflight = await ledger.currentInflight(poolId)
       return { upstream, index, poolId, maxConcurrency, inflight, eligible: inflight < maxConcurrency }
     }))
-    const ranked = candidates
-      .filter(c => c.eligible)
-      .sort((a, b) => a.inflight - b.inflight)
+    const eligible = candidates.filter(c => c.eligible)
+    const ranked = strategy === 'least-inflight'
+      ? eligible.sort((a, b) => a.inflight - b.inflight)
+      : eligible
 
     let dispatchedAny = false
     let attemptedPools = 0
@@ -870,7 +875,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         return { upstream: ttsModel.upstreams[index], index }
       })
 
-      if (tier.strategy === 'least-inflight') {
+      const capacityManaged = indexedUpstreams.some(({ upstream }) => upstream.maxConcurrency != null)
+      if (tier.strategy === 'least-inflight' || capacityManaged) {
         const indexByUpstream = new Map(indexedUpstreams.map(({ upstream, index }) => [upstream, index]))
         return routeTtsAcrossPools(
           indexedUpstreams.map(({ upstream }) => upstream),
@@ -882,6 +888,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             return attemptUpstream(upstream, index)
           },
           tier.retryOn,
+          tier.strategy,
         )
       }
 
