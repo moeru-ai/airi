@@ -1,4 +1,4 @@
-import type { ControlsIslandAction } from '../stores/analytics/buttonEvents'
+import type { ControlsIslandAction } from '../stores/analytics/button-events'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
 import posthog from 'posthog-js'
@@ -8,7 +8,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useSharedAnalyticsStore } from '../stores/analytics'
-import { captureTrackButtonEvent } from '../stores/analytics/buttonEvents'
+import { captureTrackButtonEvent } from '../stores/analytics/button-events'
 import { ensurePosthogInitialized, isPosthogAvailableInBuild } from '../stores/analytics/posthog'
 import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
@@ -42,7 +42,7 @@ export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
-export type { ControlsIslandAction } from '../stores/analytics/buttonEvents'
+export type { ControlsIslandAction } from '../stores/analytics/button-events'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.

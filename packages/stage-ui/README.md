@@ -7,7 +7,7 @@ Shared core for stage
 Register the shared plugin once in each Vue application:
 
 ```ts
-import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/trackButton'
+import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 
 createApp(App)
   .use(trackButtonPlugin)

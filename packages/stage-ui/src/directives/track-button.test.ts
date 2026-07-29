@@ -2,12 +2,12 @@
 
 import type { ObjectDirective } from 'vue'
 
-import type { TrackButtonEvent } from './trackButton'
+import type { TrackButtonEvent } from './track-button'
 
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick, ref, withDirectives } from 'vue'
 
-import { createTrackButtonDirective, trackButtonPlugin } from './trackButton'
+import { createTrackButtonDirective, trackButtonPlugin } from './track-button'
 
 describe('trackButtonPlugin', () => {
   it('registers the directive at app level', () => {

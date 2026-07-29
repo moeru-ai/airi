@@ -5,7 +5,7 @@ import Tres from '@tresjs/core'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
-import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/trackButton'
+import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
