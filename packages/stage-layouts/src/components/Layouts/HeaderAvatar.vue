@@ -5,10 +5,12 @@ import { Avatar } from '@proj-airi/ui'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { t } = useI18n()
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
@@ -56,6 +58,7 @@ onClickOutside(dropdownRef, () => {
         class="flex items-center gap-2 border-2 border-neutral-100/60 rounded-full bg-neutral-50/70 p-1 pl-1 pr-3 backdrop-blur-md transition dark:border-neutral-800/30 dark:bg-neutral-800/70 hover:bg-neutral-100 dark:hover:bg-neutral-800"
         :class="{ 'ring-2 ring-primary-500/20': showDropdown }"
         aria-haspopup="true"
+        :aria-label="userName || t('settings.pages.account.title')"
         :aria-expanded="showDropdown ? 'true' : 'false'"
         @click="showDropdown = !showDropdown"
       >
