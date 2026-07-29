@@ -95,6 +95,24 @@ describe('createAuth', () => {
     expect(auth.options.socialProviders?.apple).toBeUndefined()
   })
 
+  it('does not register Apple when its optional credentials are incomplete', () => {
+    const auth = createAuth({} as unknown as Database, {
+      API_SERVER_URL: 'http://localhost:3000',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_TEAM_ID: 'apple-team-id',
+      AUTH_APPLE_KEY_ID: 'apple-key-id',
+      AUTH_APPLE_PRIVATE_KEY_PEM: '',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as Env)
+
+    expect(auth.options.socialProviders?.apple).toBeUndefined()
+  })
+
   it('configures Apple with a verifiable ES256 client secret and trusted callback origin', async () => {
     const auth = createAuth({} as unknown as Database, {
       API_SERVER_URL: 'http://localhost:3000',

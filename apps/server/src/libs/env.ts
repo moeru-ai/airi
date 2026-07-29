@@ -209,15 +209,7 @@ const EnvSchema = pipe(object({
   // Empty (default) = no one is admin — production safe by default.
   // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
   ADMIN_EMAILS: optional(string(), ''),
-}), check((env) => {
-  const appleCredentials = [
-    env.AUTH_APPLE_CLIENT_ID,
-    env.AUTH_APPLE_TEAM_ID,
-    env.AUTH_APPLE_KEY_ID,
-    env.AUTH_APPLE_PRIVATE_KEY_PEM,
-  ]
-  return appleCredentials.every(Boolean) || appleCredentials.every(value => !value)
-}, 'AUTH_APPLE_CLIENT_ID, AUTH_APPLE_TEAM_ID, AUTH_APPLE_KEY_ID, and AUTH_APPLE_PRIVATE_KEY_PEM must be configured together'))
+}))
 
 export type Env = InferOutput<typeof EnvSchema>
 

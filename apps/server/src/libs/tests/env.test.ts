@@ -66,6 +66,18 @@ describe('parseEnv', () => {
     expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')
   })
 
+  it('leaves incomplete Apple credentials for provider setup to disable', () => {
+    const input = baseEnv()
+    delete input.AUTH_APPLE_PRIVATE_KEY_PEM
+
+    const env = parseEnv(input)
+
+    expect(env.AUTH_APPLE_CLIENT_ID).toBe('apple-service-id')
+    expect(env.AUTH_APPLE_TEAM_ID).toBe('apple-team-id')
+    expect(env.AUTH_APPLE_KEY_ID).toBe('apple-key-id')
+    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')
+  })
+
   it('parses ADDITIONAL_TRUSTED_ORIGINS into a normalized origin list', () => {
     const env = parseEnv({
       ...baseEnv(),

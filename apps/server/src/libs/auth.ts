@@ -65,11 +65,6 @@ export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'
 export const OIDC_CLIENT_ID_ELECTRON = 'airi-stage-electron'
 export const OIDC_CLIENT_ID_POCKET = 'airi-stage-pocket'
 
-/** Apple uses the same HTTPS origin as its OIDC issuer and OAuth audience. */
-const APPLE_ISSUER = 'https://appleid.apple.com'
-/** Apple caps client-secret JWT validity at six months; 180 days stays within that limit. */
-const APPLE_CLIENT_SECRET_TTL_SECONDS = 180 * 24 * 60 * 60
-
 const DEFAULT_WEB_REDIRECT_URIS = [
   'https://airi.moeru.ai/auth/callback',
   'http://localhost:5173/auth/callback',
@@ -100,42 +95,44 @@ function buildWebRedirectUris(env: Env): string[] {
 }
 
 /**
- * Builds the Apple provider credentials consumed by Better Auth.
+ * Builds the optional Apple social-provider entry consumed by Better Auth.
  *
  * Apple uses a signed ES256 JWT as the OAuth client secret. Better Auth
  * resolves async social-provider configuration once while creating its auth
  * context, so this uses Apple's supported 180-day lifetime instead of the
- * Go server's per-callback five-minute token.
+ * Go server's per-callback five-minute token. Incomplete credentials leave the
+ * provider disabled, matching the empty optional configuration.
  */
-async function createAppleProviderConfig(
+function createAppleProviderConfig(
   env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
 ) {
-  const key = await importPKCS8(env.AUTH_APPLE_PRIVATE_KEY_PEM, 'ES256')
-  const issuedAt = Math.floor(Date.now() / 1000)
-  const clientSecret = await new SignJWT({})
-    .setProtectedHeader({ alg: 'ES256', kid: env.AUTH_APPLE_KEY_ID })
-    .setIssuer(env.AUTH_APPLE_TEAM_ID)
-    .setSubject(env.AUTH_APPLE_CLIENT_ID)
-    .setAudience(APPLE_ISSUER)
-    .setIssuedAt(issuedAt)
-    .setExpirationTime(issuedAt + APPLE_CLIENT_SECRET_TTL_SECONDS)
-    .sign(key)
+  if (!env.AUTH_APPLE_CLIENT_ID
+    || !env.AUTH_APPLE_TEAM_ID
+    || !env.AUTH_APPLE_KEY_ID
+    || !env.AUTH_APPLE_PRIVATE_KEY_PEM) {
+    return {}
+  }
 
   return {
-    clientId: env.AUTH_APPLE_CLIENT_ID,
-    clientSecret,
-  }
-}
+    apple: async () => {
+      const key = await importPKCS8(env.AUTH_APPLE_PRIVATE_KEY_PEM, 'ES256')
+      const issuedAt = Math.floor(Date.now() / 1000)
+      const clientSecret = await new SignJWT({})
+        .setProtectedHeader({ alg: 'ES256', kid: env.AUTH_APPLE_KEY_ID })
+        .setIssuer(env.AUTH_APPLE_TEAM_ID)
+        .setSubject(env.AUTH_APPLE_CLIENT_ID)
+        .setAudience('https://appleid.apple.com')
+        .setIssuedAt(issuedAt)
+        // Apple caps client-secret JWT validity at six months.
+        .setExpirationTime(issuedAt + 180 * 24 * 60 * 60)
+        .sign(key)
 
-function isAppleProviderConfigured(
-  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
-): boolean {
-  return Boolean(
-    env.AUTH_APPLE_CLIENT_ID
-    && env.AUTH_APPLE_TEAM_ID
-    && env.AUTH_APPLE_KEY_ID
-    && env.AUTH_APPLE_PRIVATE_KEY_PEM,
-  )
+      return {
+        clientId: env.AUTH_APPLE_CLIENT_ID,
+        clientSecret,
+      }
+    },
+  }
 }
 
 function buildTrustedWebRedirectUri(redirectUri: string, additionalTrustedOrigins: readonly string[]): string | null {
@@ -611,7 +608,7 @@ export function createAuth(
     // Apple sends its authorization result to /api/auth/callback/apple with
     // response_mode=form_post. Better Auth validates that provider Origin
     // against this list before consuming the callback.
-    trustedOrigins: request => [...getAuthTrustedOrigins(env, request), APPLE_ISSUER],
+    trustedOrigins: request => [...getAuthTrustedOrigins(env, request), 'https://appleid.apple.com'],
 
     advanced: {},
 
@@ -679,9 +676,7 @@ export function createAuth(
         // lookup.
         mapProfileToUser: () => ({ emailVerified: true }),
       },
-      ...(isAppleProviderConfigured(env)
-        ? { apple: async () => createAppleProviderConfig(env) }
-        : {}),
+      ...createAppleProviderConfig(env),
     },
 
     hooks: {
