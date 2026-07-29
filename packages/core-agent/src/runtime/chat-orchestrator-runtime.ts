@@ -726,7 +726,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
         tools: options.tools,
         waitForTools: true,
-        captureToolErrors: true,
         onUsage: (usage) => {
           generationUsage = usage
           deps.onLlmGeneration?.({

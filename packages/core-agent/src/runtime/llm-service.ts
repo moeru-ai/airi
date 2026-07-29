@@ -1,12 +1,12 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool, Usage } from '@xsai/shared-chat'
+import type { Event, Message, Usage } from '@xsai/shared-chat'
 
 import type { StreamFromOptions, StreamOptions } from '../types/llm'
 
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
-import { errorMessageFromValue } from '../utils/error-message'
+import { createToolErrorCapture } from './tool-error-capture'
 
 /**
  * Normalize chat messages so they match the wire format the active provider
@@ -103,16 +103,6 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
-function isAbortError(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && (error as { name?: unknown }).name === 'AbortError'
-}
-
-function createCapturedToolErrorResult(toolName: string, error: unknown): string {
-  return `Tool call error for "${toolName}": ${errorMessageFromValue(error)}`
-}
-
 function normalizeUsage(usage: Usage | undefined) {
   if (usage?.inputTokens == null || usage.outputTokens == null || usage.totalTokens == null) {
     return { source: 'unavailable' as const }
@@ -123,55 +113,6 @@ function normalizeUsage(usage: Usage | undefined) {
     outputTokens: usage.outputTokens,
     totalTokens: usage.totalTokens,
     source: 'reported' as const,
-  }
-}
-
-function withCapturedToolErrors(
-  tools: Tool[],
-  capturedToolErrorByCallId: Map<string, string>,
-): Tool[] {
-  return tools.map(tool => ({
-    ...tool,
-    execute: async (input, executeOptions) => {
-      try {
-        return await tool.execute(input, executeOptions)
-      }
-      catch (error) {
-        if (isAbortError(error))
-          throw error
-
-        const result = createCapturedToolErrorResult(tool.function.name, error)
-        capturedToolErrorByCallId.set(executeOptions.toolCallId, result)
-        return result
-      }
-    },
-  }))
-}
-
-function resolveCapturedToolErrorEvent(
-  event: unknown,
-  capturedToolErrorByCallId: Map<string, string>,
-) {
-  if (
-    typeof event !== 'object'
-    || event === null
-    || (event as { type?: unknown }).type !== 'tool-result'
-    || typeof (event as { toolCallId?: unknown }).toolCallId !== 'string'
-  ) {
-    return event
-  }
-
-  const toolCallId = (event as { toolCallId: string }).toolCallId
-  const result = capturedToolErrorByCallId.get(toolCallId)
-  if (result == null)
-    return event
-
-  capturedToolErrorByCallId.delete(toolCallId)
-  return {
-    ...event,
-    type: 'tool-error',
-    isError: true,
-    result,
   }
 }
 
@@ -193,10 +134,8 @@ export async function streamFrom({
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
-  const capturedToolErrorByCallId = new Map<string, string>()
-  const streamTools = options?.captureToolErrors && tools != null
-    ? withCapturedToolErrors(tools, capturedToolErrorByCallId)
-    : tools
+  const toolErrorCapture = createToolErrorCapture(tools ?? [])
+  const streamTools = tools != null ? toolErrorCapture.tools : undefined
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -214,13 +153,13 @@ export async function streamFrom({
       reject(error)
     }
 
-    const onEvent = async (event: unknown) => {
+    const onEvent = async (event: Event) => {
       try {
-        const streamEvent = resolveCapturedToolErrorEvent(event, capturedToolErrorByCallId)
-        await options?.onStreamEvent?.(streamEvent as any)
-        if (event && (event as any).type === 'error') {
-          rejectOnce((event as any).error ?? new Error('Stream error'))
-        }
+        const streamEvent = toolErrorCapture.toStreamEvent(event)
+        if (streamEvent != null)
+          await options?.onStreamEvent?.(streamEvent)
+        if (event.type === 'error')
+          rejectOnce(event.cause ?? new Error(event.message))
       }
       catch (error) {
         rejectOnce(error)
@@ -235,13 +174,9 @@ export async function streamFrom({
         headers: options?.headers,
         streamOptions: { includeUsage: true },
         stopWhen: stepCountAtLeast(10),
-        // NOTICE:
-        // Do not pass xsAI's `captureToolErrors` option here. In the installed
-        // @xsai/stream-text version, stream options are spread into the provider
-        // chat body, so unknown runtime-only fields can be rejected upstream.
-        // AIRI captures tool failures by wrapping local tool executors instead.
         tools: streamTools,
         toolChoice: options?.toolChoice,
+        preToolCall: streamTools != null ? toolErrorCapture.preToolCall : undefined,
         onEvent,
       })
 
@@ -263,6 +198,13 @@ export async function streamFrom({
         // Ignore any late provider error event emitted after xsAI has already
         // resolved the authoritative full-step lifecycle.
         stepsSettled = true
+        try {
+          await options?.onStreamEvent?.({ type: 'finish' } as const)
+        }
+        catch (error) {
+          rejectOnce(error)
+          return
+        }
         let usage: Usage | undefined
         try {
           usage = await streamResult.totalUsage

@@ -1,7 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { isContentArrayRelatedError, sanitizeMessages, streamFrom } from './llm-service'
 
@@ -40,6 +40,9 @@ function createMockStreamResult(
 }
 
 describe('streamFrom tool error capture', () => {
+  beforeEach(() => {
+    streamTextMock.mockReset()
+  })
   it('requests final streaming usage and emits the reported token totals once', async () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
@@ -140,11 +143,7 @@ describe('streamFrom tool error capture', () => {
     })).resolves.toBeUndefined()
   })
 
-  /**
-   * @example
-   * await streamFrom({ model, chatProvider, messages, options: { captureToolErrors: true } })
-   */
-  it('keeps captureToolErrors internal while forwarding failed tool calls as tool-error events', async () => {
+  it('always captures tool execute failures and maps them to tool-error events', async () => {
     let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const failingTool = {
@@ -160,8 +159,8 @@ describe('streamFrom tool error capture', () => {
     } satisfies Tool
 
     streamTextMock.mockImplementationOnce((options: {
-      captureToolErrors?: boolean
       onEvent: (event: unknown) => Promise<void>
+      preToolCall?: unknown
       tools?: Tool[]
     }) => {
       const steps = new Promise<unknown[]>((resolve) => {
@@ -175,13 +174,13 @@ describe('streamFrom tool error capture', () => {
         })
 
         await options.onEvent({
-          type: 'tool-result',
+          type: 'tool-result.done',
           args: {},
           result,
           toolCallId: 'call-1',
           toolName: 'play_chess',
         })
-        await options.onEvent({ type: 'finish', finishReason: 'stop' })
+        await options.onEvent({ type: 'text.delta', delta: 'ok' })
         resolveSteps?.([])
       })
 
@@ -193,7 +192,6 @@ describe('streamFrom tool error capture', () => {
       chatProvider: provider,
       messages: [{ role: 'user', content: 'play chess' }] as Message[],
       options: {
-        captureToolErrors: true,
         tools: [failingTool],
         onStreamEvent: (event) => {
           events.push(event)
@@ -202,7 +200,7 @@ describe('streamFrom tool error capture', () => {
     })
 
     const streamOptions = streamTextMock.mock.calls[0]?.[0]
-    expect(streamOptions.captureToolErrors).toBeUndefined()
+    expect(streamOptions.preToolCall).toEqual(expect.any(Function))
     expect(streamOptions.tools?.[0]).not.toBe(failingTool)
     expect(failingTool.execute).toHaveBeenCalledTimes(1)
     expect(events).toContainEqual(expect.objectContaining({
@@ -212,6 +210,8 @@ describe('streamFrom tool error capture', () => {
       toolName: 'play_chess',
       result: expect.stringContaining('Focus mode does not accept game-state mutation inputs.'),
     }))
+    expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
+    expect(events).toContainEqual({ type: 'finish' })
   })
 })
 
