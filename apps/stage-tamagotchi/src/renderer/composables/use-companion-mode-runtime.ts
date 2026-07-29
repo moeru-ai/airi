@@ -231,6 +231,10 @@ export function useCompanionModeRuntime() {
     companionModeStore.markRuntimeUnavailable()
   }
 
+  function isChatBusy() {
+    return sending.value || pendingQueuedSendCount.value > 0
+  }
+
   async function ensureSourceSelected(abortSignal: AbortSignal) {
     throwIfCompanionRunAborted(abortSignal)
 
@@ -398,7 +402,7 @@ export function useCompanionModeRuntime() {
       return
     }
 
-    if (sending.value || pendingQueuedSendCount.value > 0) {
+    if (isChatBusy()) {
       companionModeStore.recordSkip()
       scheduleNextTick()
       return
@@ -456,6 +460,11 @@ export function useCompanionModeRuntime() {
 
       if (!visualSummary.trim())
         throw new Error('Vision model returned an empty Companion Mode summary')
+
+      if (isChatBusy()) {
+        companionModeStore.recordSkip()
+        return
+      }
 
       await chatSyncStore.requestIngest({
         text: buildCompanionModeObservationPrompt({

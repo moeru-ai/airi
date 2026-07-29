@@ -106,7 +106,7 @@
     "apps/**"
   ],
   "simple-git-hooks": {
-    "pre-commit": "pnpm nano-staged"
+    "pre-commit": "if pnpm.CMD --version >/dev/null 2>&1; then pnpm.CMD exec nano-staged; else pnpm exec nano-staged; fi"
   },
   "nano-staged": {
     "*": "moeru-lint --fix"

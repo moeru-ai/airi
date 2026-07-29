@@ -27,6 +27,8 @@ let screenCapture: ReturnType<typeof createScreenCapture>
 let mountedApp: App<Element> | null = null
 let runtimeVideoRef: Ref<HTMLVideoElement | null> | null = null
 let capturedSourcesOptions: MaybeRefOrGetter<SourcesOptions> | null = null
+let chatSending: Ref<boolean>
+let chatPendingQueuedSendCount: Ref<number>
 
 const requestIngest = vi.fn()
 const runVisionInference = vi.fn()
@@ -84,8 +86,8 @@ vi.mock('@proj-airi/stage-ui/composables/vision/use-vision-inference', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatOrchestratorStore: () => ({
-    sending: ref(false),
-    pendingQueuedSendCount: ref(0),
+    sending: chatSending,
+    pendingQueuedSendCount: chatPendingQueuedSendCount,
   }),
 }))
 
@@ -175,6 +177,8 @@ describe('useCompanionModeRuntime', async () => {
     screenCapture = createScreenCapture()
     runtimeVideoRef = null
     capturedSourcesOptions = null
+    chatSending = ref(false)
+    chatPendingQueuedSendCount = ref(0)
     requestIngest.mockReset().mockResolvedValue(undefined)
     runVisionInference.mockReset().mockResolvedValue('The user is viewing a code editor.')
   })
@@ -342,6 +346,22 @@ describe('useCompanionModeRuntime', async () => {
 
     expect(requestIngest).not.toHaveBeenCalled()
     expect(companionStore.recordCapture).not.toHaveBeenCalled()
+  })
+
+  it('skips hidden ingest if chat becomes busy while vision inference is pending', async () => {
+    const vision = deferred<string>()
+    runVisionInference.mockReturnValue(vision.promise)
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(runVisionInference).toHaveBeenCalledTimes(1))
+
+    chatSending.value = true
+    vision.resolve('Late visual context after the user started chatting')
+    await vi.waitFor(() => expect(companionStore.setRuntimeCapturing).toHaveBeenLastCalledWith(false))
+
+    expect(requestIngest).not.toHaveBeenCalled()
+    expect(companionStore.recordCapture).not.toHaveBeenCalled()
+    expect(companionStore.recordSkip).toHaveBeenCalledTimes(1)
   })
 
   // ROOT CAUSE:
