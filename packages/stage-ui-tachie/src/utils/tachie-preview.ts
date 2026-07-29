@@ -1,5 +1,5 @@
 import { DEFAULT_TACHIE_EMOTION } from '../constants/emotions'
-import { loadTachieZip } from './tachieArchive'
+import { loadTachieZip } from './tachie-archive'
 
 /**
  * Creates a compact, aspect-preserving preview from the required neutral image.

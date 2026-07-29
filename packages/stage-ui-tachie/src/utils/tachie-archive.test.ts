@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveTachieArchiveLayout } from './tachieArchive'
+import { resolveTachieArchiveLayout } from './tachie-archive'
 
 describe('resolveTachieArchiveLayout', () => {
   it('maps root images case-insensitively while ignoring metadata', () => {

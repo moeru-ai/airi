@@ -15,6 +15,7 @@ import { createAuthMiddleware } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
 import { admin, bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
+import { importPKCS8, SignJWT } from 'jose'
 
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
@@ -91,6 +92,47 @@ function buildWebRedirectUris(env: Env): string[] {
   }
 
   return [...uris]
+}
+
+/**
+ * Builds the optional Apple social-provider entry consumed by Better Auth.
+ *
+ * Apple uses a signed ES256 JWT as the OAuth client secret. Better Auth
+ * resolves async social-provider configuration once while creating its auth
+ * context, so this uses Apple's supported 180-day lifetime instead of the
+ * Go server's per-callback five-minute token. Incomplete credentials leave the
+ * provider disabled, matching the empty optional configuration.
+ */
+function createAppleProviderConfig(
+  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
+) {
+  if (!env.AUTH_APPLE_CLIENT_ID
+    || !env.AUTH_APPLE_TEAM_ID
+    || !env.AUTH_APPLE_KEY_ID
+    || !env.AUTH_APPLE_PRIVATE_KEY_PEM) {
+    return {}
+  }
+
+  return {
+    apple: async () => {
+      const key = await importPKCS8(env.AUTH_APPLE_PRIVATE_KEY_PEM, 'ES256')
+      const issuedAt = Math.floor(Date.now() / 1000)
+      const clientSecret = await new SignJWT({})
+        .setProtectedHeader({ alg: 'ES256', kid: env.AUTH_APPLE_KEY_ID })
+        .setIssuer(env.AUTH_APPLE_TEAM_ID)
+        .setSubject(env.AUTH_APPLE_CLIENT_ID)
+        .setAudience('https://appleid.apple.com')
+        .setIssuedAt(issuedAt)
+        // Apple caps client-secret JWT validity at six months.
+        .setExpirationTime(issuedAt + 180 * 24 * 60 * 60)
+        .sign(key)
+
+      return {
+        clientId: env.AUTH_APPLE_CLIENT_ID,
+        clientSecret,
+      }
+    },
+  }
 }
 
 function buildTrustedWebRedirectUri(redirectUri: string, additionalTrustedOrigins: readonly string[]): string | null {
@@ -631,6 +673,7 @@ export function createAuth(
         // lookup.
         mapProfileToUser: () => ({ emailVerified: true }),
       },
+      ...createAppleProviderConfig(env),
     },
 
     hooks: {

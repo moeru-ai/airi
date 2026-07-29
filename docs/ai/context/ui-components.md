@@ -88,6 +88,20 @@ Line-clamped content container that expands and collapses when the overflowing c
 
 ## Misc
 
+### Avatar
+
+Shared user-avatar primitive built on Reka UI. It retries when `src` changes and
+renders the fallback when the URL is missing, loading, or fails.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `src` | `string \| null \| undefined` | `null` | Avatar image URL |
+| `alt` | `string \| null \| undefined` | `null` | Accessible image/fallback description; omit for decorative avatars |
+| `referrerPolicy` | `ImgHTMLAttributes['referrerpolicy']?` | — | Image referrer policy |
+| `crossOrigin` | `ImgHTMLAttributes['crossorigin']?` | — | Image cross-origin mode |
+
+**Slots**: `fallback` (optional override for the built-in user icon)
+
 ### Button
 
 Versatile button with variants, sizes, and states.

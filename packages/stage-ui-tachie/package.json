@@ -23,8 +23,8 @@
     "./constants/emotions": "./src/constants/emotions.ts",
     "./stores": "./src/stores/index.ts",
     "./stores/tachie": "./src/stores/tachie.ts",
-    "./utils/tachie-archive": "./src/utils/tachieArchive.ts",
-    "./utils/tachie-preview": "./src/utils/tachiePreview.ts"
+    "./utils/tachie-archive": "./src/utils/tachie-archive.ts",
+    "./utils/tachie-preview": "./src/utils/tachie-preview.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"

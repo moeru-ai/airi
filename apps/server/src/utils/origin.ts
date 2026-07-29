@@ -161,6 +161,7 @@ export function getAuthTrustedOrigins(
   for (const origin of TRUSTED_AUTH_CALLBACK_ORIGINS) {
     origins.add(origin)
   }
+  origins.add('https://appleid.apple.com')
 
   for (const origin of env.ADDITIONAL_TRUSTED_ORIGINS) {
     origins.add(origin)
