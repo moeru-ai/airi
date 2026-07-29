@@ -24,4 +24,5 @@ menu:
       reset_position: 重置位置
       devtools: 开发者工具
       troubleshoot_beatsync: 排查「同步音律」问题...
+      reload: 重新加载主界面
       quit: 退出

@@ -24,4 +24,5 @@ menu:
       reset_position: 위치 초기화
       devtools: 개발자 도구
       troubleshoot_beatsync: BeatSync 문제 해결...
+      reload: 메인 화면 새로고침
       quit: 종료

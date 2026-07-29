@@ -24,4 +24,5 @@ menu:
       reset_position: 重置位置
       devtools: 開發者工具
       troubleshoot_beatsync: 疑難排解 BeatSync……
+      reload: 重新載入主介面
       quit: 離開
