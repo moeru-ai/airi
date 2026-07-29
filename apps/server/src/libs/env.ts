@@ -119,6 +119,18 @@ const EnvSchema = object({
   AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
+  AUTH_APPLE_CLIENT_ID: optional(string(), ''),
+  AUTH_APPLE_TEAM_ID: optional(string(), ''),
+  AUTH_APPLE_KEY_ID: optional(string(), ''),
+  AUTH_APPLE_PRIVATE_KEY_PEM: optional(
+    pipe(
+      string(),
+      // Deployment dashboards commonly store multiline secrets with escaped
+      // newlines. jose's PKCS8 importer requires the original PEM layout.
+      transform(raw => raw.replaceAll(String.raw`\n`, '\n')),
+    ),
+    '',
+  ),
 
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below

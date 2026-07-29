@@ -69,6 +69,9 @@ Server 通过 `better-auth` 同时充当**用户认证后端**和 **OIDC Provide
 # 社交 Provider
 AUTH_GOOGLE_CLIENT_ID, AUTH_GOOGLE_CLIENT_SECRET
 AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_CLIENT_SECRET
+# Apple optional；启用时四项必须一起配置
+AUTH_APPLE_CLIENT_ID, AUTH_APPLE_TEAM_ID
+AUTH_APPLE_KEY_ID, AUTH_APPLE_PRIVATE_KEY_PEM
 
 # OIDC Trusted Clients（均 optional，不配则不注册）
 # Web and Pocket are public clients (no secret, PKCE only)
