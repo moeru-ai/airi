@@ -5,7 +5,7 @@ import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccoun
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Avatar, Button, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
@@ -48,14 +48,6 @@ const gravatarProfileUrl = computed(() => {
   if (!usingGravatarFallback.value || !userEmail.value)
     return null
   return `https://gravatar.com/${encodeURIComponent(userEmail.value.trim().toLowerCase())}`
-})
-
-// Track avatar load failure so we can fall back to the placeholder icon
-// instead of rendering an alt-text overflow inside the circle. Resets when
-// the URL changes so a fixed URL re-attempts loading.
-const avatarLoadError = ref(false)
-watch(userAvatar, () => {
-  avatarLoadError.value = false
 })
 
 // Locale-aware thousand separator. Bare 5–6 digit numbers are noisy to scan
@@ -473,16 +465,15 @@ async function handleConfirmDelete(event: Event) {
                about the same account, not a separate concern. -->
           <section :class="['flex flex-col gap-3 pb-6 border-b border-neutral-200/70 dark:border-neutral-800/60']">
             <div :class="['flex items-center gap-4 py-2']">
-              <div :class="['size-16 sm:size-20 rounded-full overflow-hidden flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']">
-                <img
-                  v-if="userAvatar && !avatarLoadError"
-                  :src="userAvatar"
-                  :alt="userName"
-                  :class="['size-full object-cover']"
-                  @error="avatarLoadError = true"
-                >
-                <div v-else :class="['i-solar:user-circle-bold-duotone', 'size-10 text-neutral-400']" />
-              </div>
+              <Avatar
+                :src="userAvatar"
+                :alt="userName"
+                :class="['size-16 sm:size-20 rounded-full flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']"
+              >
+                <template #fallback>
+                  <div :class="['i-solar:user-circle-bold-duotone', 'size-10 text-neutral-400']" />
+                </template>
+              </Avatar>
               <div :class="['flex flex-col gap-0.5 min-w-0']">
                 <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">
                   {{ t('settings.pages.account.signedInAs') }}

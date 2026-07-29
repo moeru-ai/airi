@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -26,11 +27,9 @@ const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 
 const signingIn = ref(false)
-const avatarLoadFailed = ref(false)
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
-const showUserAvatar = computed(() => Boolean(userAvatar.value) && !avatarLoadFailed.value)
 
 function handleClick() {
   if (isAuthenticated.value) {
@@ -67,10 +66,6 @@ watch(needsLogin, (val) => {
 watch(isAuthenticated, (val) => {
   if (val)
     signingIn.value = false
-})
-
-watch(userAvatar, () => {
-  avatarLoadFailed.value = false
 })
 </script>
 
@@ -110,22 +105,19 @@ watch(userAvatar, () => {
       ]"
       @click="handleClick"
     >
-      <div
+      <Avatar
+        :src="userAvatar"
+        :alt="userName ?? ''"
         :class="[
           'size-8 shrink-0 overflow-hidden rounded-full',
           'bg-primary-100 dark:bg-primary-900/40',
           'flex items-center justify-center',
         ]"
       >
-        <img
-          v-if="showUserAvatar"
-          :src="userAvatar ?? undefined"
-          :alt="userName ?? ''"
-          class="size-full object-cover"
-          @error="avatarLoadFailed = true"
-        >
-        <div v-else i-solar:user-check-rounded-bold class="size-4 text-primary-500 dark:text-primary-400" />
-      </div>
+        <template #fallback>
+          <div i-solar:user-check-rounded-bold class="size-4 text-primary-500 dark:text-primary-400" />
+        </template>
+      </Avatar>
       <div class="min-w-0 flex flex-1 flex-col items-start gap-0.5">
         <span
           :class="[

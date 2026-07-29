@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { Avatar } from '@proj-airi/ui'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const authStore = useAuthStore()
@@ -13,16 +14,6 @@ const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 const showDropdown = ref(false)
 const dropdownRef = ref(null)
-
-// Fall back to the user-icon placeholder when the avatar URL fails to load
-// (broken/expired host, network error, hot-linked image taken down). Without
-// this the header pill renders the browser's default broken-image glyph,
-// which looks worse than the explicit placeholder we already ship.
-// Reset on URL change so a fixed URL re-attempts loading.
-const avatarLoadError = ref(false)
-watch(userAvatar, () => {
-  avatarLoadError.value = false
-})
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
 
@@ -68,19 +59,15 @@ onClickOutside(dropdownRef, () => {
         :aria-expanded="showDropdown ? 'true' : 'false'"
         @click="showDropdown = !showDropdown"
       >
-        <img
-          v-if="userAvatar && !avatarLoadError"
+        <Avatar
           :src="userAvatar"
-          :alt="userName"
-          class="h-7 w-7 rounded-full object-cover"
-          @error="avatarLoadError = true"
+          :alt="userName ?? ''"
+          class="h-7 w-7 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
         >
-        <div
-          v-else
-          class="h-7 w-7 flex items-center justify-center rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
-        >
-          <div class="i-solar:user-bold-duotone text-lg" />
-        </div>
+          <template #fallback>
+            <div class="i-solar:user-bold-duotone text-lg" />
+          </template>
+        </Avatar>
 
         <span v-if="userName" class="max-w-[100px] truncate text-sm text-neutral-700 font-medium hidden sm:block dark:text-neutral-200">
           {{ userName }}

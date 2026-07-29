@@ -4,7 +4,7 @@ import type { ProfileUser } from '../modules/profile'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Avatar, Button, FieldInput } from '@proj-airi/ui'
 import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -328,19 +328,18 @@ function formatLinkedSince(iso: string): string {
       <section
         :class="['max-w-sm w-full flex flex-col items-center gap-2 mb-6']"
       >
-        <div
+        <Avatar
+          :src="avatarUrl"
+          :alt="t('server.auth.profile.avatar.altText')"
+          referrer-policy="no-referrer"
           :class="[
             'h-24 w-24 overflow-hidden rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800',
           ]"
         >
-          <img
-            v-if="avatarUrl"
-            :src="avatarUrl"
-            :alt="t('server.auth.profile.avatar.altText')"
-            :class="['h-full w-full object-cover']"
-            referrerpolicy="no-referrer"
-          >
-        </div>
+          <template #fallback>
+            <div :class="['i-solar:user-circle-bold-duotone', 'size-12 text-neutral-400']" />
+          </template>
+        </Avatar>
         <div
           v-if="usingGravatarFallback"
           :class="['flex flex-col items-center gap-1 text-center text-xs text-neutral-500']"

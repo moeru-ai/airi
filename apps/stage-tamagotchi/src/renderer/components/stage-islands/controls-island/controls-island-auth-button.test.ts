@@ -7,7 +7,7 @@ import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 
 const authState = {
   isAuthenticated: ref(true),
-  user: ref({
+  user: ref<{ name: string, image?: string }>({
     name: 'Rainbow Bird',
     image: 'https://example.com/broken-avatar.png',
   }),
@@ -59,25 +59,22 @@ describe('controlsIslandAuthButton', () => {
     return host
   }
 
-  it('falls back to the account placeholder when the avatar fails to load', async () => {
+  it('renders the shared account fallback when no avatar is available', () => {
+    authState.user.value.image = undefined
     const host = mountComponent()
-    const image = host.querySelector('img')
 
-    expect(image).toBeTruthy()
-    image!.dispatchEvent(new Event('error'))
-    await nextTick()
-
-    expect(host.querySelector('img')).toBeNull()
+    expect(host.querySelector('[data-avatar-fallback]')).toBeTruthy()
   })
 
   it('tries the next avatar URL after the authenticated user changes', async () => {
     const host = mountComponent()
-    host.querySelector('img')!.dispatchEvent(new Event('error'))
-    await nextTick()
+    const previousImage = host.querySelector('[data-avatar-image]')
 
     authState.user.value.image = 'https://example.com/new-avatar.png'
     await nextTick()
 
-    expect(host.querySelector('img')?.getAttribute('src')).toBe('https://example.com/new-avatar.png')
+    const nextImage = host.querySelector('[data-avatar-image]')
+    expect(nextImage).not.toBe(previousImage)
+    expect(nextImage?.getAttribute('src')).toBe('https://example.com/new-avatar.png')
   })
 })
