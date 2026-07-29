@@ -520,7 +520,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       slices: [],
       tool_results: [],
       createdAt: now(),
-      id: createId(),
+      id: assistantMessageId,
       isHiddenUserMessageResponse: hiddenUserMessage || undefined,
     }
     patchForegroundStream(sessionId, buildingMessage)
