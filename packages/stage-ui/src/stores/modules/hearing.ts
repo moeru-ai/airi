@@ -327,8 +327,34 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
   const verboseJsonNotSupported = ref(false)
 
-  watch(activeTranscriptionProvider, () => {
+  const activeFunASRConfiguredModel = computed(() => {
+    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription')
+      return ''
+
+    const model = providersStore.getProviderConfig('funasr-audio-transcription')?.model
+    return typeof model === 'string' ? model : 'sensevoice'
+  })
+
+  watch(activeTranscriptionProvider, async (providerId) => {
     verboseJsonNotSupported.value = false
+    if (providerId === 'funasr-audio-transcription') {
+      activeTranscriptionModel.value = activeFunASRConfiguredModel.value || 'sensevoice'
+      await loadModelsForProvider(providerId)
+    }
+  }, { immediate: true })
+
+  watch(activeFunASRConfiguredModel, (model) => {
+    if (activeTranscriptionProvider.value === 'funasr-audio-transcription' && activeTranscriptionModel.value !== model)
+      activeTranscriptionModel.value = model
+  })
+
+  watch(activeTranscriptionModel, (model) => {
+    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription')
+      return
+
+    const config = providersStore.getProviderConfig('funasr-audio-transcription')
+    if (config && config.model !== model)
+      config.model = model
   })
 
   // Computed properties
@@ -377,7 +403,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     // For OpenAI Compatible providers, check provider config as fallback
     let hasProviderModel = false
-    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription'
+      || activeTranscriptionProvider.value === 'funasr-audio-transcription') {
       const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
       hasProviderModel = !!providerConfig?.model
     }

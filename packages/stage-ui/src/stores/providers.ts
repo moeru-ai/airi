@@ -60,6 +60,7 @@ import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { buildFunASRProvider } from './providers/funasr'
 import { buildGoogleGeminiSpeechProvider } from './providers/google-gemini-speech'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
@@ -816,6 +817,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     }),
+    'funasr-audio-transcription': buildFunASRProvider(),
     'openai-compatible-audio-transcription': buildOpenAICompatibleProvider({
       id: 'openai-compatible-audio-transcription',
       name: 'OpenAI Compatible',

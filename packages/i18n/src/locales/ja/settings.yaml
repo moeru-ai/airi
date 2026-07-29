@@ -1300,6 +1300,9 @@ pages:
       azure-openai:
         description: Azure OpenAI API
         title: Azure OpenAI
+      funasr:
+        description: FunASR、SenseVoice、Fun-ASR-Nano によるローカル音声認識。
+        title: FunASR
       openai-compatible:
         description: OpenAI互換
         title: OpenAI互換
