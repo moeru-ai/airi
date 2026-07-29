@@ -62,6 +62,7 @@
     "@unocss/preset-mini": "catalog:",
     "@unocss/preset-web-fonts": "catalog:",
     "@vishot/cli": "catalog:",
+    "@vitest/browser": "catalog:vitest",
     "@vitest/browser-playwright": "catalog:vitest",
     "@vitest/coverage-v8": "catalog:vitest",
     "bumpp": "catalog:",
