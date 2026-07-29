@@ -74,7 +74,7 @@ function optionalNumberFromString(defaultValue: number, envKey: string, minimum:
   )
 }
 
-const EnvSchema = pipe(object({
+const EnvSchema = object({
   HOST: optional(string(), '0.0.0.0'),
   PORT: optionalIntegerFromString(3000, 'PORT', 1),
 
@@ -209,7 +209,7 @@ const EnvSchema = pipe(object({
   // Empty (default) = no one is admin — production safe by default.
   // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
   ADMIN_EMAILS: optional(string(), ''),
-}))
+})
 
 export type Env = InferOutput<typeof EnvSchema>
 

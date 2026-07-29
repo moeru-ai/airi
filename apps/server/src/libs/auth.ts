@@ -605,10 +605,7 @@ export function createAuth(
     },
 
     baseURL: env.API_SERVER_URL,
-    // Apple sends its authorization result to /api/auth/callback/apple with
-    // response_mode=form_post. Better Auth validates that provider Origin
-    // against this list before consuming the callback.
-    trustedOrigins: request => [...getAuthTrustedOrigins(env, request), 'https://appleid.apple.com'],
+    trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
     advanced: {},
 

@@ -23,10 +23,15 @@ const TRUSTED_EXACT_ORIGINS = [
 // Better Auth accepts non-http(s) origins by prefix (`url.startsWith(pattern)`),
 // so native deep-link schemes must not be copied from TRUSTED_EXACT_ORIGINS
 // into auth callback validation. Browser auth callbacks only need web origins.
-const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
-  const protocol = new URL(origin).protocol
-  return protocol === 'http:' || protocol === 'https:'
-})
+const TRUSTED_AUTH_CALLBACK_ORIGINS = [
+  ...TRUSTED_EXACT_ORIGINS.filter((origin) => {
+    const protocol = new URL(origin).protocol
+    return protocol === 'http:' || protocol === 'https:'
+  }),
+  // Apple returns OAuth callbacks with response_mode=form_post, so Better Auth
+  // validates the provider Origin against this auth-only list.
+  'https://appleid.apple.com',
+]
 
 // NOTICE:
 // Private LAN / CGNAT-style dev hosts (e.g. https://10.x:5273 from cap-vite) are NOT matched
@@ -146,7 +151,7 @@ const ALWAYS_TRUSTED_AUTH_ORIGINS = [
  * - Optional `request` so the caller's Origin/Referer can be merged when known.
  *
  * Returns:
- * - De-duplicated origins in insertion order (API URL, env extras, localhost wildcards, then request-derived).
+ * - De-duplicated origins in insertion order (API URL, auth callbacks, env extras, localhost wildcards, then request-derived).
  */
 export function getAuthTrustedOrigins(
   env: Pick<Env, 'API_SERVER_URL' | 'ADDITIONAL_TRUSTED_ORIGINS'>,
