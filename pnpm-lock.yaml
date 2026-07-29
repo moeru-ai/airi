@@ -241,11 +241,11 @@ catalogs:
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
     '@moeru/three-mmd':
-      specifier: 0.1.0-beta.5
-      version: 0.1.0-beta.5
+      specifier: 0.1.0-beta.6
+      version: 0.1.0-beta.6
     '@moeru/three-mmd-physics-ammo':
-      specifier: 0.1.0-beta.5
-      version: 0.1.0-beta.5
+      specifier: 0.1.0-beta.6
+      version: 0.1.0-beta.6
     '@napi-rs/image':
       specifier: ^1.12.0
       version: 1.12.0
@@ -4563,10 +4563,10 @@ importers:
         version: 0.1.0-beta.17
       '@moeru/three-mmd':
         specifier: 'catalog:'
-        version: 0.1.0-beta.5(@types/three@0.184.0)(three@0.184.0)
+        version: 0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0)
       '@moeru/three-mmd-physics-ammo':
         specifier: 'catalog:'
-        version: 0.1.0-beta.5(@moeru/three-mmd@0.1.0-beta.5(@types/three@0.184.0)(three@0.184.0))(@types/three@0.184.0)(three@0.184.0)
+        version: 0.1.0-beta.6(@moeru/three-mmd@0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0))(@types/three@0.184.0)(three@0.184.0)
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -8009,15 +8009,15 @@ packages:
   '@moeru/std@0.1.0-beta.19':
     resolution: {integrity: sha512-+VYlWHgGkU/KrYvB9Ei4v4uTW8t5noGVp8Jb9X6xAhifNtD/h05w35efA2Zy/txqklzBYbFMvd37zOBiss88jg==}
 
-  '@moeru/three-mmd-physics-ammo@0.1.0-beta.5':
-    resolution: {integrity: sha512-EFRe3iqx3osUGwAQxDIurLsHXUJWlyPK7KxzBzQ8J8IJtQWHzrvOE1yMMYfkIHA59uPFBJ1ByAkDNnylbteEMg==}
+  '@moeru/three-mmd-physics-ammo@0.1.0-beta.6':
+    resolution: {integrity: sha512-kH2Ql0VkdRp4FqLIBw23Qmw+OCuDE1vcHAh47JBUA4nOTc8cVPQM8s37qVcjKTT8EoujNBVnS9BBk4+d7Xl0Jg==}
     peerDependencies:
-      '@moeru/three-mmd': ^0.1.0-beta.5
+      '@moeru/three-mmd': ^0.1.0-beta.6
       '@types/three': ^0.184.0
       three: ^0.184.0
 
-  '@moeru/three-mmd@0.1.0-beta.5':
-    resolution: {integrity: sha512-3XgehpAoShJ6KDpjWK1CLoqE0i7Kg/RvDZgjFMOf2SZr7Cyo/z8Vy67ft+KIIugIPJAKQy0v2dtl5gHWDAyEAw==}
+  '@moeru/three-mmd@0.1.0-beta.6':
+    resolution: {integrity: sha512-gkGfZoV9ma3APac1gyPV6MLZjhO9kuhvYOsz2y/xITtuDCchrWvSyo1K2yzqi44RRJBy7U/xtpFIaweX5qFLcg==}
     peerDependencies:
       '@types/three': '>=0.184.0'
       three: '>=0.184.0'
@@ -22391,14 +22391,14 @@ snapshots:
 
   '@moeru/std@0.1.0-beta.19': {}
 
-  '@moeru/three-mmd-physics-ammo@0.1.0-beta.5(@moeru/three-mmd@0.1.0-beta.5(@types/three@0.184.0)(three@0.184.0))(@types/three@0.184.0)(three@0.184.0)':
+  '@moeru/three-mmd-physics-ammo@0.1.0-beta.6(@moeru/three-mmd@0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0))(@types/three@0.184.0)(three@0.184.0)':
     dependencies:
-      '@moeru/three-mmd': 0.1.0-beta.5(@types/three@0.184.0)(three@0.184.0)
+      '@moeru/three-mmd': 0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0)
       '@types/three': 0.184.0
       ammojs-typed: 1.0.6
       three: 0.184.0
 
-  '@moeru/three-mmd@0.1.0-beta.5(@types/three@0.184.0)(three@0.184.0)':
+  '@moeru/three-mmd@0.1.0-beta.6(@types/three@0.184.0)(three@0.184.0)':
     dependencies:
       '@types/three': 0.184.0
       three: 0.184.0
@@ -25832,9 +25832,9 @@ snapshots:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.4(@opentelemetry/api@1.9.1)(@types/node@24.12.2)(@vitest/browser-playwright@4.1.4)(@vitest/coverage-v8@4.1.4)(jsdom@29.1.1(@noble/hashes@2.0.1)(canvas@3.2.3))(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
     optionalDependencies:
-      '@vitest/browser': 4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
+      '@vitest/browser': 4.1.4(bufferutil@4.1.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
 
   '@vitest/eslint-plugin@1.6.15(@typescript-eslint/eslint-plugin@8.58.1(@typescript-eslint/parser@8.58.1(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3))(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3))(eslint@10.2.1(jiti@2.6.1))(typescript@5.9.3)(vitest@4.1.4)':
     dependencies:
