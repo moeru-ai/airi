@@ -12,7 +12,7 @@ This section is for contributors who want to change source code, documentation, 
 ## Prerequisites
 
 - [Git](https://git-scm.com/downloads)
-- The current [Node.js LTS release](https://nodejs.org/en/download/)
+- The Node.js version pinned in [`.tool-versions`](https://github.com/moeru-ai/airi/blob/main/.tool-versions) (currently 24.13.0)
 - [Corepack](https://github.com/nodejs/corepack), which is included with recent Node.js releases
 
 <details>

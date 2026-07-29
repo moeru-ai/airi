@@ -267,7 +267,7 @@ Open **Settings → Modules → Hearing** to select the transcription provider, 
 Speech-to-text (STT), also called automatic speech recognition (ASR), converts spoken audio into text.
 :::
 
-:::info when used on macOS
+::: info When used on macOS
 The first time you use voice input on macOS, allow AIRI to access the microphone when prompted.
 ![macOS permission prompt](image-7.png)
 :::
@@ -280,7 +280,7 @@ In addition, you can:
 - Turn off this function to adjust the transcription results.
 - Adjust the send delay through Auto-send delay.
 
-:::info automatically sent
+::: info Automatic sending
 When auto-send is enabled, the recognized text will be sent to the chat session after a set delay; when it is turned off, you can check or modify the text before sending it manually.
 :::
 

@@ -12,7 +12,7 @@ After installing and starting AIRI, complete the onboarding flow:
 3. Select a Chat provider such as OpenRouter, OpenAI Compatible API, DeepSeek, Ollama, Google Gemini, or Anthropic.
 4. Fill in the API Key, local service address and other necessary information.
 5. Select a chat model, then select **Save and Continue**.
-6. After returning to the main character window, click the **Expand** button in the control island in the lower right corner.
+6. After returning to the main character window, click **Expand** in the Controls Island in the lower-right corner.
 7. Click **Open Chat**, enter the message and send it.
 
 ::: tip Using Ollama locally?
@@ -30,16 +30,16 @@ Allow only the AIRI origin that you use, for example `OLLAMA_ORIGINS=http://loca
 The desktop version is also called Stage Tamagotchi and usually consists of these interfaces:
 
 - **Main Character Window**: Live2D/VRM stage resident on the desktop.
-- **Control Island**: A small group of buttons in the lower right corner of the main character window.
-- **Chat Window**: A conversation window opened from the control island.
+- **Controls Island**: A small group of buttons in the lower-right corner of the main character window.
+- **Chat Window**: A conversation window opened from the Controls Island.
 - **Settings Window**: Configure providers, profiles, models, modules, data, connections, and system options.
 - **System Tray Menu**: Adjust the window size and position, open settings, manage captions and widgets, or quit AIRI.
 
 If the main character window is hidden, you can bring it back by clicking on the AIRI tray icon or selecting **Show** in the tray menu.
 
-## Control Island
+## Controls Island
 
-The control island is the main entry point for everyday use of the desktop app.
+The Controls Island is the main entry point for everyday use of the desktop app.
 
 - Click **Expand** to show more actions.
 - Click **Open Chat** to open the chat window.
@@ -59,7 +59,7 @@ The eye icon is used to toggle how AIRI is displayed: remain clickable, or minim
 - **Always show** keeps the character visible and clickable.
 - **Auto hide** fades the character and interface when the cursor is close, making it easier to click the application below.
 
-When you first enable hide on hover, AIRI displays a short explanation. If it becomes difficult to click AIRI, move the cursor near the control island and click the eye icon again to switch it off.
+When you first enable hide on hover, AIRI displays a short explanation. If it becomes difficult to click AIRI, move the cursor near the Controls Island and click the eye icon again to switch it off.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
@@ -69,7 +69,7 @@ When you first enable hide on hover, AIRI displays a short explanation. If it be
 
 ## Move and resize
 
-To move the main character window, drag the move button in the lower right corner of the control island.
+To move the main character window, drag the move button in the lower-right corner of the Controls Island.
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
