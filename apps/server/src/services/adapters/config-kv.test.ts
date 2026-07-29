@@ -151,6 +151,168 @@ describe('configKVService', () => {
     })
   })
 
+  it('llm router config should preserve explicit LLM and TTS provider tiers', async () => {
+    await service.set('LLM_ROUTER_CONFIG', {
+      llm: {
+        models: {
+          'step-3.5-flash': {
+            upstreams: [
+              {
+                id: 'plan',
+                baseURL: 'https://api.stepfun.com/step_plan/v1',
+                keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
+              },
+              {
+                id: 'paygo',
+                baseURL: 'https://api.stepfun.com/v1',
+                keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
+              },
+            ],
+            routing: {
+              tiers: [
+                {
+                  id: 'plan',
+                  upstreamIds: ['plan'],
+                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+                  nextTierOn: { httpCodes: [402], onTimeout: false },
+                },
+                {
+                  id: 'paygo',
+                  upstreamIds: ['paygo'],
+                  retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+                },
+              ],
+            },
+          },
+        },
+      },
+      tts: {
+        models: {
+          'stepfun/stepaudio-2.5-tts': {
+            provider: 'stepfun',
+            upstreams: [
+              {
+                id: 'plan',
+                baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+                keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
+                adapterParams: { apiMode: 'step-plan' },
+                maxConcurrency: 1,
+              },
+              {
+                id: 'paygo',
+                baseURL: 'https://api.stepfun.com/v1/audio/speech',
+                keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
+                adapterParams: { apiMode: 'pay-as-you-go' },
+              },
+            ],
+            routing: {
+              tiers: [
+                {
+                  id: 'plan',
+                  upstreamIds: ['plan'],
+                  strategy: 'least-inflight',
+                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+                  nextTierOn: { httpCodes: [402], onTimeout: false },
+                },
+                {
+                  id: 'paygo',
+                  upstreamIds: ['paygo'],
+                  strategy: 'ordered',
+                  retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+                },
+              ],
+            },
+            fallbackTriggers: {
+              httpCodes: [401, 402, 429, 500, 502, 503, 504],
+              onTimeout: true,
+            },
+          },
+        },
+      },
+      defaults: {
+        perAttemptTimeoutMs: 30000,
+        fullChainTimeoutMs: 60000,
+        fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
+      },
+    })
+
+    const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+    const model = value.tts.models['stepfun/stepaudio-2.5-tts']
+
+    expect(value.llm.models['step-3.5-flash'].routing?.tiers.map(tier => tier.id)).toEqual(['plan', 'paygo'])
+    expect(model.routing?.tiers.map(tier => tier.id)).toEqual(['plan', 'paygo'])
+    expect(model.routing?.tiers[0].nextTierOn).toEqual({
+      httpCodes: [402],
+      onTimeout: false,
+    })
+  })
+
+  it('rejects a TTS provider tier that references an unknown upstream', async () => {
+    redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), JSON.stringify({
+      llm: { models: {} },
+      tts: {
+        models: {
+          tts: {
+            provider: 'stepfun',
+            upstreams: [{
+              id: 'plan',
+              baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+              keys: [{ id: 'plan-key', ciphertext: 'ciphertext' }],
+            }],
+            routing: {
+              tiers: [{
+                id: 'plan',
+                upstreamIds: ['missing'],
+                strategy: 'ordered',
+                retryOn: { httpCodes: [402], onTimeout: false },
+              }],
+            },
+          },
+        },
+      },
+    }))
+
+    await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
+  it('rejects least-inflight routing without an explicit concurrency cap', async () => {
+    redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), JSON.stringify({
+      llm: { models: {} },
+      tts: {
+        models: {
+          tts: {
+            provider: 'stepfun',
+            upstreams: [{
+              id: 'plan',
+              baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+              keys: [{ id: 'plan-key', ciphertext: 'ciphertext' }],
+            }],
+            routing: {
+              tiers: [{
+                id: 'plan',
+                upstreamIds: ['plan'],
+                strategy: 'least-inflight',
+                retryOn: { httpCodes: [402], onTimeout: false },
+              }],
+            },
+          },
+        },
+      },
+    }))
+
+    await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
   it('set should store string values as JSON strings', async () => {
     await service.set('STRIPE_FLUX_PRODUCT_ID', 'prod_abc123')
 

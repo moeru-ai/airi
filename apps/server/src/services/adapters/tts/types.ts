@@ -42,13 +42,9 @@ export interface TtsAdapterContext {
   /**
    * Per-upstream baseURL from `LLM_ROUTER_CONFIG.tts.upstreams[i].baseURL`.
    *
-   * Historically the upstream provider URL (e.g.
-   * `https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1`). After
-   * the Phase-B unspeech migration, adapters no longer call upstreams
-   * directly — every `send()` forwards through unspeech REST — so this field
-   * is informational only and adapters MAY ignore it. Kept on the context so
-   * existing operator configs continue to validate (the schema requires a
-   * non-empty string).
+   * Most adapters forward through unspeech and use this as provider metadata.
+   * StepFun also uses it to distinguish the dedicated Step Plan endpoint from
+   * the ordinary pay-as-you-go API.
    */
   baseURL: string
   /** unspeech REST base URL (no trailing slash) — adapters POST to `<this>/v1/audio/speech`. */

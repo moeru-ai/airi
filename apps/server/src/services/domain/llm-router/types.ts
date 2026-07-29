@@ -14,8 +14,13 @@ import type {
   llmModelSchema,
   llmRouterConfigSchema,
   llmRouterDefaultsSchema,
+  llmRoutingSchema,
+  llmRoutingTierSchema,
   llmUpstreamSchema,
+  routeFailureTriggersSchema,
   ttsModelSchema,
+  ttsRoutingSchema,
+  ttsRoutingTierSchema,
   ttsUpstreamSchema,
 } from '../../adapters/config-kv'
 
@@ -31,24 +36,44 @@ export type RouterConfig = InferOutput<typeof llmRouterConfigSchema>
 export type RouterDefaults = InferOutput<typeof llmRouterDefaultsSchema>
 
 /**
- * LLM upstream — one provider endpoint with its ordered key list.
+ * LLM upstream — one provider account endpoint with its ordered key list.
  */
 export type LlmUpstream = InferOutput<typeof llmUpstreamSchema>
 
 /**
- * LLM model entry — ordered list of upstreams to try in fallback order.
+ * LLM model entry — upstream accounts plus an optional provider tier route.
  */
 export type LlmModel = InferOutput<typeof llmModelSchema>
 
 /**
- * TTS upstream — one provider endpoint with adapter params + key list.
+ * Provider-aware LLM route split into ordered billing tiers.
+ */
+export type LlmRouting = InferOutput<typeof llmRoutingSchema>
+
+/**
+ * One ordered equivalence tier of LLM upstream accounts.
+ */
+export type LlmRoutingTier = InferOutput<typeof llmRoutingTierSchema>
+
+/**
+ * TTS upstream — one provider account endpoint with adapter params + key list.
  */
 export type TtsUpstream = InferOutput<typeof ttsUpstreamSchema>
 
 /**
- * TTS model entry — provider tag + ordered upstreams.
+ * TTS model entry — provider tag, upstream accounts, and optional tier route.
  */
 export type TtsModel = InferOutput<typeof ttsModelSchema>
+
+/**
+ * Provider-aware TTS route split into ordered billing or capacity tiers.
+ */
+export type TtsRouting = InferOutput<typeof ttsRoutingSchema>
+
+/**
+ * One equivalence tier of TTS upstream accounts.
+ */
+export type TtsRoutingTier = InferOutput<typeof ttsRoutingTierSchema>
 
 /**
  * ASR model entry — provider tag + ordered upstreams for realtime transcription.
@@ -65,6 +90,11 @@ export type AsrUpstream = InferOutput<typeof asrUpstreamSchema>
  * cause the router to move on to the next key/upstream.
  */
 export type FallbackTriggers = InferOutput<typeof fallbackTriggersSchema>
+
+/**
+ * Failure allow-list that authorizes a routing transition.
+ */
+export type RouteFailureTriggers = InferOutput<typeof routeFailureTriggersSchema>
 
 /**
  * One entry in `upstream.keys`: stable id + at-rest envelope ciphertext.

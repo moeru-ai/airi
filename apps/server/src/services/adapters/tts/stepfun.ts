@@ -2,21 +2,25 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isPlainObject } from 'es-toolkit'
 
+import { createInternalError } from '../../../utils/error'
 import { audioMimeFromFormat } from './audio-format'
 import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
 
 const STEPFUN_DEFAULT_MODEL = 'stepaudio-2.5-tts'
 const STEPFUN_DEFAULT_FORMAT = 'mp3'
 const STEPFUN_DEFAULT_VOICE = 'cixingnansheng'
+const STEPFUN_STEP_PLAN_SPEECH_URL = 'https://api.stepfun.com/step_plan/v1/audio/speech'
 
 /**
  * StepFun TTS adapter.
  *
  * Use when:
- * - Routing hosted speech synthesis to StepFun through unspeech's
+ * - Routing pay-as-you-go speech synthesis to StepFun through unspeech's
  *   OpenAI-compatible `stepfun/*` backend.
+ * - Routing subscription speech synthesis to the dedicated Step Plan endpoint.
  *
  * Expects:
  * - `ctx.unspeechBaseURL` points at an unspeech deployment that includes the
@@ -41,6 +45,19 @@ export const stepfunAdapter: TtsAdapter = {
     const responseFormat = input.responseFormat ?? (typeof ctx.adapterParams.responseFormat === 'string' && ctx.adapterParams.responseFormat
       ? ctx.adapterParams.responseFormat
       : STEPFUN_DEFAULT_FORMAT)
+    const extraBody = buildExtraBody(input, ctx)
+
+    if (usesStepPlan(ctx)) {
+      // NOTICE:
+      // StepFun exposes Plan usage through a distinct endpoint while unspeech
+      // 0.1.x always targets the ordinary API. Sending Plan credentials through
+      // unspeech would therefore bypass the subscription route and consume
+      // pay-as-you-go balance.
+      // Source/context: `https://platform.stepfun.com/docs/zh/api-reference/audio/create-audio`.
+      // Removal condition: the deployed unspeech backend supports an explicit,
+      // trusted Step Plan transport mode.
+      return sendSpeechToStepfun(input, ctx, model, voice, responseFormat, extraBody)
+    }
 
     return sendSpeechViaUnSpeech({
       ctx,
@@ -49,7 +66,7 @@ export const stepfunAdapter: TtsAdapter = {
       voice,
       speed: input.speed,
       responseFormat,
-      extraBody: buildExtraBody(input, ctx),
+      extraBody,
       fallbackContentType: audioMimeFromFormat(responseFormat),
       providerLabel: 'stepfun',
     })
@@ -62,6 +79,59 @@ export const stepfunAdapter: TtsAdapter = {
       providerLabel: 'stepfun',
     })
   },
+}
+
+function usesStepPlan(ctx: TtsAdapterContext): boolean {
+  if (ctx.adapterParams.apiMode === 'step-plan')
+    return true
+  if (ctx.adapterParams.apiMode === 'pay-as-you-go')
+    return false
+
+  return ctx.baseURL === STEPFUN_STEP_PLAN_SPEECH_URL
+}
+
+async function sendSpeechToStepfun(
+  input: TtsInput,
+  ctx: TtsAdapterContext,
+  model: string,
+  voice: string,
+  responseFormat: string,
+  extraBody: Record<string, unknown>,
+): Promise<TtsResult> {
+  let response: Response
+  try {
+    response = await ctx.fetchImpl(STEPFUN_STEP_PLAN_SPEECH_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        input: input.text,
+        voice,
+        response_format: responseFormat,
+        speed: input.speed,
+        ...extraBody,
+      }),
+      signal: ctx.abortSignal,
+    })
+  }
+  catch (error) {
+    throw createInternalError(`stepfun tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+  }
+
+  if (!response.ok) {
+    const responseBody = await response.text()
+    const error = new Error(`stepfun tts upstream ${response.status}: ${responseBody.slice(0, 256)}`) as Error & { status: number }
+    error.status = response.status
+    throw error
+  }
+
+  return {
+    contentType: response.headers.get('content-type') ?? audioMimeFromFormat(responseFormat),
+    body: await response.arrayBuffer(),
+  }
 }
 
 function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string, unknown> {

@@ -379,6 +379,54 @@ describe('stepfunAdapter', () => {
     expect(result.body).toBeInstanceOf(ArrayBuffer)
   })
 
+  it('posts Step Plan speech directly to the subscription endpoint', async () => {
+    const adapter = getAdapter('stepfun')
+    const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    })) as unknown as typeof fetch
+
+    const result = await adapter.send(
+      {
+        text: '你好',
+        voice: 'cixingnansheng',
+        responseFormat: 'mp3',
+        speed: 1.1,
+        extraOptions: {
+          instruction: '温柔、克制',
+        },
+      },
+      {
+        keyPlaintext: Buffer.from('step-plan-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+        unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: {
+          apiMode: 'step-plan',
+          model: 'stepaudio-2.5-tts',
+        },
+        fetchImpl,
+      },
+    )
+
+    const [calledURL, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
+    expect(calledURL).toBe('https://api.stepfun.com/step_plan/v1/audio/speech')
+    expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({
+      'Authorization': 'Bearer step-plan-key',
+      'Content-Type': 'application/json',
+    })
+    expect(JSON.parse(init.body as string)).toEqual({
+      model: 'stepaudio-2.5-tts',
+      input: '你好',
+      voice: 'cixingnansheng',
+      response_format: 'mp3',
+      speed: 1.1,
+      instruction: '温柔、克制',
+    })
+    expect(result.contentType).toBe('audio/mpeg')
+    expect(result.body).toBeInstanceOf(ArrayBuffer)
+  })
+
   it('passes voice_label through to unspeech for provider-level validation', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1]), {
