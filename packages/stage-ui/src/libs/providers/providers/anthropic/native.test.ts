@@ -150,17 +150,23 @@ describe('request translation', () => {
   it('disables thinking for tool requests only on adaptive-default models', async () => {
     const tools = [{ type: 'function', function: { name: 't', parameters: {} } }]
 
-    // Sonnet 5 family: adaptive thinking is ON when the field is omitted, and
-    // the OpenAI-shaped history cannot echo signed thinking blocks back — so
-    // tool loops need an explicit off switch.
+    // Sonnet 5 and Opus 5 think when the field is omitted, and the
+    // OpenAI-shaped history cannot echo signed thinking blocks back — so tool
+    // loops need an explicit off switch.
     expect((await capture({ model: 'claude-sonnet-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toEqual({ type: 'disabled' })
     expect((await capture({ model: 'anthropic/claude-sonnet-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toEqual({ type: 'disabled' })
+    expect((await capture({ model: 'claude-opus-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toEqual({ type: 'disabled' })
+    expect((await capture({ model: 'anthropic/claude-opus-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toEqual({ type: 'disabled' })
 
     // Everything else: omitting the field already means off, and older models
-    // may reject the field outright — never send it.
+    // may reject the field outright — never send it. Opus 4.x in particular is
+    // thinking-off by default, so it must not be caught by the Opus 5 match.
     expect((await capture({ model: 'claude-sonnet-4-5-20250929', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toBeUndefined()
     expect((await capture({ model: 'claude-opus-4-8', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toBeUndefined()
+    expect((await capture({ model: 'claude-opus-4-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toBeUndefined()
+    // Fable and Mythos think by default but reject `disabled` outright.
     expect((await capture({ model: 'claude-fable-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toBeUndefined()
+    expect((await capture({ model: 'claude-mythos-5', messages: [{ role: 'user', content: 'hi' }], tools })).sent.thinking).toBeUndefined()
 
     // No tools -> never sent, regardless of model.
     expect((await capture({ model: 'claude-sonnet-5', messages: [{ role: 'user', content: 'hi' }] })).sent.thinking).toBeUndefined()

@@ -133,12 +133,22 @@ interface AnthropicSSEEvent {
 }
 
 /**
- * Models where adaptive thinking is ON when the `thinking` field is omitted
- * (the Claude Sonnet 5 family). Matched non-anchored so gateway-prefixed ids
+ * Models that think by default when the `thinking` field is omitted AND accept
+ * `thinking: {type: 'disabled'}`. Matched non-anchored so gateway-prefixed ids
  * like `anthropic/claude-sonnet-5` are recognized too.
+ *
+ * Fable and Mythos also think by default but reject `disabled` outright, so
+ * they are deliberately absent — see the NOTICE at the `thinking` call site.
+ *
+ * NOTICE:
+ * Claude Opus 5 only accepts `disabled` at effort `high` or below; combining it
+ * with `xhigh` or `max` returns 400. This adapter never sends `effort`, so the
+ * account default applies and the field is safe to send today. Revisit this if
+ * `effort` is ever added to the translated request.
+ * https://platform.claude.com/docs/en/build-with-claude/thinking
  */
 function isAdaptiveThinkingDefaultModel(model: string): boolean {
-  return /claude-sonnet-5/.test(model)
+  return /claude-(?:sonnet|opus)-5/.test(model)
 }
 
 function mapStopReason(stopReason: string | null | undefined): string {
