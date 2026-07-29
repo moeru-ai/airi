@@ -23,6 +23,8 @@ const COMPANION_MODE_CAPTURE_MAX_WIDTH = 768
 const COMPANION_MODE_CAPTURE_MAX_HEIGHT = 432
 const COMPANION_MODE_CAPTURE_JPEG_QUALITY = 0.72
 const COMPANION_MODE_VIDEO_READY_TIMEOUT_MS = 10_000
+const COMPANION_MODE_CAPTURE_ACQUIRE_TIMEOUT_MS = 10_000
+const COMPANION_MODE_VIDEO_PLAY_TIMEOUT_MS = 10_000
 
 function companionRunAbortReason(signal: AbortSignal) {
   return signal.reason ?? new DOMException('Companion Mode observation aborted', 'AbortError')
@@ -31,6 +33,64 @@ function companionRunAbortReason(signal: AbortSignal) {
 function throwIfCompanionRunAborted(signal: AbortSignal) {
   if (signal.aborted)
     throw companionRunAbortReason(signal)
+}
+
+// Electron's getDisplayMedia/getUserMedia and HTMLVideoElement.play() can stall
+// indefinitely for a minimized or otherwise unavailable window without ever
+// resolving or rejecting. A deadline linked to the run's AbortSignal turns that
+// stall into a rejection so it flows into the unavailable-source notice instead
+// of leaving the runtime stuck "capturing". The returned signal is also passed
+// to startStream so its existing late-stream handling can stop a stream that
+// resolves after we have already given up.
+function createCaptureDeadlineSignal(abortSignal: AbortSignal, timeoutMs: number, timeoutMessage: string): { signal: AbortSignal, dispose: () => void } {
+  const controller = new AbortController()
+  const onAbort = () => controller.abort(companionRunAbortReason(abortSignal))
+  if (abortSignal.aborted)
+    controller.abort(companionRunAbortReason(abortSignal))
+  else
+    abortSignal.addEventListener('abort', onAbort, { once: true })
+
+  const timer = setTimeout(() => controller.abort(new Error(timeoutMessage)), timeoutMs)
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      clearTimeout(timer)
+      abortSignal.removeEventListener('abort', onAbort)
+    },
+  }
+}
+
+function raceCaptureStep<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted)
+    return Promise.reject(companionRunAbortReason(signal))
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false
+    const onAbort = () => {
+      if (settled)
+        return
+      settled = true
+      reject(companionRunAbortReason(signal))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+
+    promise.then(
+      (value) => {
+        if (settled)
+          return
+        settled = true
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (error) => {
+        if (settled)
+          return
+        settled = true
+        signal.removeEventListener('abort', onAbort)
+        reject(error)
+      },
+    )
+  })
 }
 
 function buildSourceUnavailablePrompt(sourceKind: 'screen' | 'window', sourceName?: string) {
@@ -89,9 +149,21 @@ export function useCompanionModeRuntime() {
     companionModeStore.setRuntimeNextTickAt(null)
   }
 
+  function isCompanionModeTickSourceReady() {
+    // Screens fall back to the current display, so Companion Mode can observe
+    // them even before an explicit source is chosen. A window has no automatic
+    // fallback, so a tick must not run until the user has selected one;
+    // otherwise it resolves no source and disables Companion Mode before they
+    // can pick a window.
+    if (sourceKind.value !== 'window')
+      return true
+
+    return isCompanionModeSourceAllowedForKind(sourceId.value, sourceKind.value)
+  }
+
   function scheduleNextTick(delayMs = normalizeCompanionModeIntervalMs(intervalMs.value)) {
     clearTickTimer()
-    if (disposed || !enabled.value) {
+    if (disposed || !enabled.value || !isCompanionModeTickSourceReady()) {
       companionModeStore.setRuntimeNextTickAt(null)
       return
     }
@@ -212,13 +284,15 @@ export function useCompanionModeRuntime() {
     if (video.srcObject && !hasLiveVideoTrack(video.srcObject))
       stopVideoPreview()
 
-    const stream = await screenCapture.startStream(abortSignal)
+    const acquireDeadline = createCaptureDeadlineSignal(abortSignal, COMPANION_MODE_CAPTURE_ACQUIRE_TIMEOUT_MS, 'Timed out acquiring Companion Mode capture stream')
+    const stream = await raceCaptureStep(screenCapture.startStream(acquireDeadline.signal), acquireDeadline.signal).finally(() => acquireDeadline.dispose())
     throwIfCompanionRunAborted(abortSignal)
 
     if (video.srcObject !== stream)
       video.srcObject = stream
 
-    await video.play()
+    const playDeadline = createCaptureDeadlineSignal(abortSignal, COMPANION_MODE_VIDEO_PLAY_TIMEOUT_MS, 'Timed out starting Companion Mode capture video playback')
+    await raceCaptureStep(video.play(), playDeadline.signal).finally(() => playDeadline.dispose())
     throwIfCompanionRunAborted(abortSignal)
 
     if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0)

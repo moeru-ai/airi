@@ -421,6 +421,114 @@ describe('useCompanionModeRuntime', async () => {
     expect(companionStore.sourceId.value).toBe('window:2:0')
   })
 
+  // A minimized or otherwise unavailable window can stall the native capture
+  // acquisition (Electron getDisplayMedia/getUserMedia) so it neither resolves
+  // nor rejects. Without a deadline that hang leaves the tick "capturing" and
+  // never reaches the unavailable-source notice. The acquisition deadline must
+  // reject so the notice is sent and Companion Mode is disabled.
+  it('sends the unavailable notice when the selected window stream stalls past the acquisition deadline', async () => {
+    vi.useFakeTimers()
+    companionStore.sourceKind.value = 'window'
+    companionStore.sourceId.value = 'window:2:0'
+    screenCapture.activeSourceId.value = 'window:2:0'
+    screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
+    screenCapture.startStream.mockReturnValue(new Promise<MediaStream>(() => {}))
+
+    await mountRuntime()
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(screenCapture.startStream).toHaveBeenCalledTimes(1)
+    expect(runVisionInference).not.toHaveBeenCalled()
+    expect(companionStore.recordError).toHaveBeenCalledWith('Timed out acquiring Companion Mode capture stream')
+    expect(companionStore.recordSkip).toHaveBeenCalledWith(
+      expect.any(Number),
+      'Stopped Companion Mode because the selected observation source is unavailable.',
+    )
+    expect(companionStore.enabled.value).toBe(false)
+    expect(requestIngest).toHaveBeenCalledTimes(1)
+    expect(requestIngest).toHaveBeenCalledWith(expect.objectContaining({
+      hidden: true,
+      text: expect.stringContaining('"Window 2" cannot be observed'),
+    }))
+  })
+
+  // HTMLVideoElement.play() can also stall forever on a frame-less minimized
+  // window. The playback deadline must reject so the unavailable-source notice
+  // is delivered instead of the chat staying "loading".
+  it('sends the unavailable notice when capture video playback stalls past the playback deadline', async () => {
+    vi.useFakeTimers()
+    companionStore.sourceKind.value = 'window'
+    companionStore.sourceId.value = 'window:2:0'
+    screenCapture.activeSourceId.value = 'window:2:0'
+    screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
+    screenCapture.startStream.mockResolvedValue({} as MediaStream)
+
+    const video = await mountRuntime()
+    Object.defineProperty(video, 'play', {
+      configurable: true,
+      value: vi.fn().mockReturnValue(new Promise<void>(() => {})),
+    })
+
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(10_000)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(runVisionInference).not.toHaveBeenCalled()
+    expect(companionStore.recordError).toHaveBeenCalledWith('Timed out starting Companion Mode capture video playback')
+    expect(companionStore.recordSkip).toHaveBeenCalledWith(
+      expect.any(Number),
+      'Stopped Companion Mode because the selected observation source is unavailable.',
+    )
+    expect(companionStore.enabled.value).toBe(false)
+    expect(requestIngest).toHaveBeenCalledTimes(1)
+    expect(requestIngest).toHaveBeenCalledWith(expect.objectContaining({
+      hidden: true,
+      text: expect.stringContaining('"Window 2" cannot be observed'),
+    }))
+  })
+
+  // ROOT CAUSE:
+  //
+  // Switching the target from screen to window while Companion Mode was
+  // enabled cleared the screen source and immediately scheduled a 0ms tick.
+  // That tick resolved no window, ran handleUnavailableSource(), disabled
+  // Companion Mode, and sent the unavailable-source notice before the user
+  // could pick a window. A window has no automatic fallback, so ticks must
+  // not run until one is selected.
+  it('does not tick or disable Companion Mode when switching to window before a window is selected', async () => {
+    vi.useFakeTimers()
+    await mountRuntime()
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.waitFor(() => expect(companionStore.recordCapture).toHaveBeenCalledTimes(1))
+
+    // Companion Mode is running with a screen source. Switching the target to
+    // window clears the screen source, but no window has been chosen yet.
+    companionStore.sourceKind.value = 'window'
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(60_000)
+
+    expect(companionStore.sourceId.value).toBe('')
+    expect(companionStore.enabled.value).toBe(true)
+    expect(companionStore.recordSkip).not.toHaveBeenCalled()
+    expect(companionStore.recordError).toHaveBeenCalledTimes(1)
+    expect(companionStore.recordError).toHaveBeenCalledWith(null)
+    expect(screenCapture.startStream).toHaveBeenCalledTimes(1)
+    expect(requestIngest).toHaveBeenCalledTimes(1)
+
+    // Selecting a window resumes ticking from the waiting state.
+    companionStore.sourceId.value = 'window:2:0'
+    screenCapture.activeSource.value = { id: 'window:2:0', name: 'Window 2' }
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.waitFor(() => expect(companionStore.recordCapture).toHaveBeenCalledTimes(2))
+
+    expect(screenCapture.startStream).toHaveBeenCalledTimes(2)
+    expect(requestIngest).toHaveBeenCalledTimes(2)
+    expect(companionStore.enabled.value).toBe(true)
+  })
+
   it('stops rather than replacing an explicitly selected screen that no longer exists', async () => {
     companionStore.sourceId.value = 'screen:2:0'
     screenCapture.activeSourceId.value = 'screen:1:0'
