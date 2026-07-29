@@ -33,6 +33,8 @@
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@moeru/three-mmd": "catalog:",
+    "@moeru/three-mmd-physics-ammo": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "catalog:",
