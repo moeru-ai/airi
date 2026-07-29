@@ -6,6 +6,7 @@ import type { MMDLoadedAssets, MMDModelFormat } from './mmd-zip-loader'
 import { createMMDLoaderContext, loadMMD } from '../composables/mmd/loader'
 import { prepareMMDMaterials } from './mmd-materials'
 import { loadMMDZip } from './mmd-zip-loader'
+import { OPFSCache } from './opfs-loader'
 
 export interface ResolvedMMDModel {
   /** MMD runtime that owns IK, grant, morph, and optional physics state. */
@@ -20,6 +21,13 @@ export interface ResolvedMMDModel {
 }
 
 export interface LoadMMDOptions {
+  /**
+   * Stable cache key for a packaged ZIP source. The display-model id is the
+   * intended value; when provided, OPFS is checked before fetching `src`.
+   * Bare PMX/PMD URLs are loaded from their original URL so relative texture
+   * paths keep their server-relative base.
+   */
+  cacheKey?: string
   /**
    * Wait for the model's textures to finish loading before resolving.
    *
@@ -77,11 +85,17 @@ function formatFromUrl(url: string): MMDModelFormat {
  * does not dispose the mesh's GPU resources — the scene owns that lifecycle.
  */
 export async function loadMMDModelFromSource(src: string, options: LoadMMDOptions = {}): Promise<ResolvedMMDModel> {
-  const response = await fetch(src)
-  if (!response.ok)
-    throw new Error(`Failed to fetch MMD model: ${response.status} ${response.statusText}`)
-
-  const buffer = await response.arrayBuffer()
+  const cachedSource = options.cacheKey ? await OPFSCache.get(options.cacheKey, src) : null
+  let buffer: ArrayBuffer
+  if (cachedSource) {
+    buffer = await cachedSource.arrayBuffer()
+  }
+  else {
+    const response = await fetch(src)
+    if (!response.ok)
+      throw new Error(`Failed to fetch MMD model: ${response.status} ${response.statusText}`)
+    buffer = await response.arrayBuffer()
+  }
 
   if (isZip(buffer)) {
     const assets = await loadMMDZip(buffer)
@@ -92,6 +106,8 @@ export async function loadMMDModelFromSource(src: string, options: LoadMMDOption
       prepareMMDMaterials(mmd.mesh)
       if (options.waitForTextures)
         await waitForManagerIdle(manager)
+      if (options.cacheKey && !cachedSource)
+        await OPFSCache.save(options.cacheKey, new Blob([buffer]), src)
       return {
         mmd,
         mesh: mmd.mesh,
