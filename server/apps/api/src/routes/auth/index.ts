@@ -15,6 +15,7 @@ import { createForbiddenError } from '../../utils/error'
 import { checkEmailIdentifier } from './email-identifier'
 import { createElectronCallbackRelay } from './oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from './oidc/token-auth'
+import { createSteamDesktopSignInRoute } from './steam/desktop-sign-in'
 import { createAuthUiRoutes } from './ui-routes'
 
 export interface AuthRoutesDeps {
@@ -80,6 +81,12 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       await next()
     })
     .route('/api/auth', createOIDCTokenAuthRoute(deps))
+    /**
+     * Steam Web API ticket sign-in: verifies a session ticket from the
+     * desktop app, resolves or creates the AIRI user for that SteamID, and
+     * bridges into a real OIDC authorization code.
+     */
+    .route('/api/auth/steam', createSteamDesktopSignInRoute(deps))
     /**
      * Electron OIDC callback relay: serves an HTML page that forwards the
      * authorization code to the Electron loopback server via JS fetch().

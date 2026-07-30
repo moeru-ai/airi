@@ -20,6 +20,60 @@ const STEAM_CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\
 // schemas would validate at runtime (better-call uses Standard Schema) but
 // silently drop those OpenAPI fields. Keep these schemas in Zod until
 // better-auth's OpenAPI generation supports non-Zod schemas.
+/**
+ * The slice of better-auth's `internalAdapter` that {@link resolveOrCreateSteamUser}
+ * needs.
+ *
+ * NOTICE:
+ * The full `internalAdapter` type lives on `AuthContext` from `@better-auth/core`,
+ * a transitive dependency (via `better-auth`) that isn't in this package's
+ * `package.json`. Mirrors the narrow-local-interface pattern already used for
+ * `ctx.context.adapter` in `./oidc-jwt-bearer.ts` rather than adding a direct
+ * dependency on an internal-shaped type.
+ * Removal condition: `@better-auth/core` becomes a direct dependency for an
+ * unrelated reason, at which point this can import `InternalAdapter` from it.
+ */
+interface SteamAccountAdapter {
+  findAccountByProviderId: (accountId: string, providerId: string) => Promise<{ userId: string } | null>
+  createOAuthUser: (
+    user: { email: string, emailVerified: boolean, name: string },
+    account: { providerId: string, accountId: string },
+  ) => Promise<{ user: { id: string } }>
+}
+
+/**
+ * Resolves the AIRI user for a verified SteamID, creating one if this is the
+ * SteamID's first sign-in.
+ *
+ * Use when:
+ * - A caller has already verified Steam identity (OpenID callback here, or a
+ *   Steam Web API ticket on the desktop sign-in route) and needs the same
+ *   find-or-create-user policy either way, so the two paths can never diverge
+ *   on how a SteamID becomes an AIRI account.
+ *
+ * Identity model:
+ * - Mirrors the placeholder-email creation in {@link steam}'s doc comment:
+ *   new sign-ups get `<steamid64>@steam.placeholder.local` with `emailVerified: true`.
+ */
+export async function resolveOrCreateSteamUser(
+  internalAdapter: SteamAccountAdapter,
+  steamId: string,
+): Promise<{ userId: string }> {
+  const existingAccount = await internalAdapter.findAccountByProviderId(steamId, 'steam')
+  if (existingAccount)
+    return { userId: existingAccount.userId }
+
+  const { user } = await internalAdapter.createOAuthUser(
+    {
+      email: `${steamId}@steam.placeholder.local`,
+      emailVerified: true,
+      name: `Steam User ${steamId}`,
+    },
+    { providerId: 'steam', accountId: steamId },
+  )
+  return { userId: user.id }
+}
+
 const SignInBodySchema = z.object({
   callbackURL: z.string().meta({ description: 'The URL to redirect to after sign in' }),
   errorCallbackURL: z.string().meta({ description: 'The URL to redirect to if an error occurs' }).optional(),
@@ -199,21 +253,7 @@ export function steam() {
       throw ctx.redirect(callbackURL)
     }
 
-    let userId: string
-    if (existingAccount) {
-      userId = existingAccount.userId
-    }
-    else {
-      const { user } = await ctx.context.internalAdapter.createOAuthUser(
-        {
-          email: `${steamId}@steam.placeholder.local`,
-          emailVerified: true,
-          name: `Steam User ${steamId}`,
-        },
-        { providerId: 'steam', accountId: steamId },
-      )
-      userId = user.id
-    }
+    const { userId } = await resolveOrCreateSteamUser(ctx.context.internalAdapter, steamId)
 
     const user = await ctx.context.internalAdapter.findUserById(userId)
     if (!user)

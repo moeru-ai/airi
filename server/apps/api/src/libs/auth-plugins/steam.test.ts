@@ -3,7 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../mock-db'
-import { steam } from './steam'
+import { resolveOrCreateSteamUser, steam } from './steam'
 
 import * as schema from '../../schemas'
 
@@ -245,5 +245,21 @@ describe('steam auth plugin', () => {
 
     const stillClaimingUser = await context.internalAdapter.findAccountByProviderId(claimedSteamId, 'steam')
     expect(stillClaimingUser?.userId).toBe(claimingUserId)
+  })
+})
+
+describe('resolveOrCreateSteamUser', () => {
+  it('creates a placeholder-email user on first call and reuses it on the next', async () => {
+    const auth = await createTestAuth()
+    const context = await auth.$context
+    const steamId = '76561198055555555'
+
+    const first = await resolveOrCreateSteamUser(context.internalAdapter, steamId)
+    const user = await context.internalAdapter.findUserById(first.userId)
+    expect(user?.email).toBe(`${steamId}@steam.placeholder.local`)
+    expect(user?.emailVerified).toBe(true)
+
+    const second = await resolveOrCreateSteamUser(context.internalAdapter, steamId)
+    expect(second.userId).toBe(first.userId)
   })
 })
