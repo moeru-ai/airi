@@ -53,6 +53,23 @@ describe('loadMMDZip', () => {
       loaded.dispose()
     }
   })
+
+  // https://github.com/moeru-ai/airi/pull/2183#discussion_r3684279729
+  it('preserves model order when async extraction finishes out of order', async () => {
+    const archive = zipSync({
+      'first.pmx': new Uint8Array(1024 * 1024),
+      'second.pmx': new Uint8Array([1]),
+    })
+    const loaded = await loadMMDZip(new Blob([archive]))
+
+    try {
+      expect(loaded.variant.modelPath).toBe('first.pmx')
+      expect(loaded.variants.map(variant => variant.modelPath)).toEqual(['first.pmx', 'second.pmx'])
+    }
+    finally {
+      loaded.dispose()
+    }
+  })
 })
 
 describe('validateMMDZip', () => {
