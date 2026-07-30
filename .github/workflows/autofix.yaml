@@ -17,7 +17,7 @@ jobs:
       - uses: pnpm/action-setup@v5
       - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install
