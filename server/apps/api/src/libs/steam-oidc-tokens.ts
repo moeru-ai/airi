@@ -5,7 +5,9 @@ import { createHmac } from 'node:crypto'
 
 import { generateRandomString } from 'better-auth/crypto'
 
+import { createForbiddenError } from '../utils/error'
 import { OIDC_CLIENT_ID_ELECTRON, OIDC_SCOPES } from './auth'
+import { isUserBannedNow } from './request-auth'
 
 /**
  * Signs a better-auth session token for use in the session cookie.
@@ -32,6 +34,13 @@ function signSessionCookieValue(value: string, secret: string): string {
  * still exist when `/oauth2/token` runs, so this helper does not delete the
  * session after issuing the code. Cleanup belongs to a later grant that can
  * mint codes without a browser session.
+ *
+ * Ban check:
+ * Callers (e.g. Steam desktop ticket sign-in) mint sessions via
+ * `internalAdapter.createSession` outside a better-auth HTTP endpoint. The
+ * admin plugin's `session.create.before` hook no-ops when `ctx` is missing
+ * (`if (!ctx) return`), so we reject banned users here before creating the
+ * session — matching normal OAuth/OpenID login endpoints that do have `ctx`.
  */
 export async function issueElectronOidcCode(params: {
   auth: AuthInstance
@@ -40,6 +49,19 @@ export async function issueElectronOidcCode(params: {
   codeChallenge: string
 }): Promise<string> {
   const ctx = await params.auth.$context
+  // NOTICE:
+  // internalAdapter.findUserById is typed as better-auth's base User and omits
+  // the admin-plugin fields (banned/banExpires), but the query selects the full
+  // row so the runtime value carries them.
+  // Removal condition: better-auth's adapter return type includes plugin fields.
+  // Source/context: same pattern as `resolveRequestAuth` in request-auth.ts.
+  const userForBanCheck = await ctx.internalAdapter.findUserById(params.userId) as {
+    banned?: boolean | null
+    banExpires?: Date | string | null
+  } | null
+  if (userForBanCheck && isUserBannedNow(userForBanCheck))
+    throw createForbiddenError('This account has been banned')
+
   const session = await ctx.internalAdapter.createSession(params.userId)
   if (!session?.token)
     throw new Error('Failed to create session for Steam sign-in')

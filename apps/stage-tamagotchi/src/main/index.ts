@@ -28,7 +28,7 @@ import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppReady, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
-import { createWindowAuthManagerService } from './services/airi/auth'
+import { createWindowAuthManagerService, trySteamSignIn } from './services/airi/auth'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -38,6 +38,7 @@ import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
+import { shutdownSteam } from './services/steam/client'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -276,6 +277,13 @@ app.whenReady().then(async () => {
     },
   })
 
+  injeca.invoke({
+    dependsOn: { mainWindow, windowAuthManager },
+    callback: async (deps) => {
+      void trySteamSignIn(deps.windowAuthManager)
+    },
+  })
+
   injeca.start().catch(err => console.error(err))
 
   // Lifecycle
@@ -335,6 +343,8 @@ async function handleAppExit() {
   await Promise.all([
     logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
     logIfError('stop injeca', () => injeca.stop()),
+    // https://github.com/moeru-ai/airi/pull/1966#discussion_r3622685118
+    logIfError('shut down Steam SDK', () => shutdownSteam()),
   ])
 
   // Prevent the global log hook from trying to write to the file after close() is called,

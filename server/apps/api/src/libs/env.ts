@@ -228,9 +228,9 @@ const EnvSchema = object({
   ADMIN_EMAILS: optional(string(), ''),
 
   // Steam Web API publisher key (partner.steamgames.com dashboard). Required
-  // by the desktop ticket sign-in endpoint to call AuthenticateUserTicket /
-  // CheckAppOwnership. Empty (default) makes that endpoint respond 503
-  // STEAM_NOT_CONFIGURED instead of failing at boot.
+  // by the desktop ticket sign-in endpoint to call AuthenticateUserTicket.
+  // Empty (default) makes that endpoint respond 503 STEAM_NOT_CONFIGURED
+  // instead of failing at boot.
   STEAM_PUBLISHER_KEY: optional(string(), ''),
 })
 
