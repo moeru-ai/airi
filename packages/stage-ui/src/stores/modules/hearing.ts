@@ -342,7 +342,20 @@ export const useHearingStore = defineStore('hearing-store', () => {
       await loadModelsForProvider(providerId)
     }
     else if (previousProviderId === 'funasr-audio-transcription') {
-      activeTranscriptionModel.value = ''
+      await loadModelsForProvider(providerId)
+      if (activeTranscriptionProvider.value !== providerId)
+        return
+
+      const providerConfig = providersStore.getProviderConfig(providerId)
+      const configuredModel = typeof providerConfig?.model === 'string' ? providerConfig.model.trim() : ''
+      const defaultOptions = providersStore.findProviderMetadata(providerId)?.defaultOptions?.()
+      const defaultModel = typeof defaultOptions?.model === 'string' ? defaultOptions.model.trim() : ''
+      const listedModel = providersStore.getModelsForProvider(providerId)[0]?.id ?? ''
+      const model = configuredModel || defaultModel || listedModel
+
+      activeTranscriptionModel.value = model
+      if (providerConfig && model && !configuredModel)
+        providerConfig.model = model
     }
   }, { immediate: true })
 

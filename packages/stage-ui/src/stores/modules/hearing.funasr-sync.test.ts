@@ -114,6 +114,31 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3679181238
+  // ROOT CAUSE:
+  //
+  // Leaving FunASR cleared the shared Hearing model even when the destination provider exposed a
+  // default model, so OpenAI requests used an empty model until the user reselected one manually.
+  //
+  // Before the patch, the provider transition always assigned an empty string.
+  // We fixed this by resolving and persisting the destination provider's model during the transition.
+  it('selects the OpenAI displayed default after leaving FunASR (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+      expect(providersStore.getProviderConfig('openai-audio-transcription')?.model).toBe('whisper-1')
+    })
+  })
+
   it('preserves a persisted model when Hearing starts with another provider', () => {
     persistedSettings.set('settings/hearing/active-provider', 'openai-compatible-audio-transcription')
     persistedSettings.set('settings/hearing/active-model', 'whisper-1')

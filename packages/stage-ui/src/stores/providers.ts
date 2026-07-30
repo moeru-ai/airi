@@ -747,6 +747,10 @@ export const useProvidersStore = defineStore('providers', () => {
       category: 'transcription',
       tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
       defaultBaseUrl: 'https://api.openai.com/v1/',
+      defaultOptions: () => ({
+        baseUrl: 'https://api.openai.com/v1/',
+        model: 'whisper-1',
+      }),
       creator: createOpenAI,
       validation: [ProviderValidationCheck.Health],
       capabilities: {
