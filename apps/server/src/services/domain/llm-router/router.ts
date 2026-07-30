@@ -8,7 +8,7 @@ import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
-import type { LlmRouteContext, LlmRouteRequest, LlmUpstream, TtsUpstream } from './types'
+import type { LlmRouteContext, LlmRouteRequest, LlmRoutingGroup, LlmUpstream, RouteFailureTriggers, TtsRoutingGroup, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
 
@@ -95,13 +95,34 @@ function deriveProviderTag(baseURL: string): string {
 /**
  * Identity of the pool (concurrency pool) one TTS upstream belongs to. One
  * upstream == one app_id, so the Volcengine `adapterParams.appid` is the pool
- * key when present; the baseURL is a stable fallback for providers without an
- * app_id concept. Two upstreams sharing an app_id would (correctly) share one
- * concurrency budget, though thetypical config gives each app_id its own upstream.
+ * key when present. Other providers use a model-scoped upstream id, then a
+ * model-scoped baseURL for configs without ids. This prevents model-local ids
+ * such as `plan` from sharing Redis counters across unrelated models. Two
+ * upstreams sharing an app_id correctly share one global concurrency budget.
  */
-function ttsPoolId(upstream: TtsUpstream): string {
+function ttsPoolId(upstream: TtsUpstream, modelName: string): string {
   const appid = upstream.adapterParams?.appid
-  return typeof appid === 'string' && appid.length > 0 ? appid : upstream.baseURL
+  if (typeof appid === 'string' && appid.length > 0)
+    return appid
+  return `model:${JSON.stringify([
+    modelName,
+    upstream.id == null ? 'baseURL' : 'id',
+    upstream.id ?? upstream.baseURL,
+  ])}`
+}
+
+function failuresMatch(
+  statuses: ReadonlyArray<number | 'timeout'>,
+  triggers: RouteFailureTriggers | undefined,
+): boolean {
+  if (statuses.length === 0 || triggers == null)
+    return false
+
+  return statuses.every((status) => {
+    if (status === 'timeout')
+      return triggers.onTimeout
+    return triggers.httpCodes.includes(status)
+  })
 }
 
 export interface CreateLlmRouterServiceOptions {
@@ -311,10 +332,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           status_code: status,
         })
         if (!fallbackHttpCodes.includes(status)) {
-          // Status not in the fallback whitelist — surface as the last
-          // status and stop walking this upstream. We still let the outer
-          // loop try the next upstream (KTD-13: cross-upstream fallback
-          // happens in the same request, regardless of per-status policy).
+          // Status not in the key-level fallback whitelist — surface as the
+          // last status and stop walking this upstream. A configured provider
+          // group decides separately whether another account may be attempted;
+          // models without groups preserve the historical KTD-13 behavior.
           attemptIndex += 1
           break
         }
@@ -367,14 +388,14 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       throw new Error(`Expected llm model slice for ${req.modelName}, got ${slice.kind}`)
     }
 
+    const llmModel = slice.model
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
-    const fallbackHttpCodes = slice.model.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
+    const fallbackHttpCodes = llmModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', bodySnippet?: string, errorMessage?: string }> = []
     let triedUpstreams = 0
 
-    for (let i = 0; i < slice.model.upstreams.length; i += 1) {
-      const upstream = slice.model.upstreams[i]
+    async function attemptUpstream(upstream: LlmUpstream, index: number) {
       const provider = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
       // Surface the current upstream so the caller can label success metrics
@@ -387,7 +408,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
 
       const result = await dispatchOneUpstream(
         upstream,
-        i,
+        index,
         req,
         perAttemptTimeoutMs,
         fallbackHttpCodes,
@@ -397,14 +418,70 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       if (result.kind === 'ok') {
         if (ctx)
           ctx.upstreamModel = result.upstreamModel
-        return result.response
+        return { kind: 'ok' as const, response: result.response }
       }
 
-      // This upstream exhausted; record and continue.
       options.gatewayMetrics?.keyExhaustedCount.add(1, { provider })
+      return {
+        kind: 'exhausted' as const,
+        statuses: result.failures.map(failure => failure.status),
+      }
     }
 
-    // FULL exhaustion: every upstream's every key failed.
+    async function routeGroup(group: LlmRoutingGroup): Promise<
+      | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
+    > {
+      const statuses: Array<number | 'timeout'> = []
+      for (let groupCandidateIndex = 0; groupCandidateIndex < group.upstreamIds.length; groupCandidateIndex += 1) {
+        const upstreamId = group.upstreamIds[groupCandidateIndex]
+        const index = llmModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
+        if (index === -1) {
+          throw new Error(
+            `LLM routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
+          )
+        }
+
+        const result = await attemptUpstream(llmModel.upstreams[index], index)
+        if (result.kind === 'ok')
+          return result
+        statuses.push(...result.statuses)
+        const hasNextCandidate = groupCandidateIndex < group.upstreamIds.length - 1
+        if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
+          return { kind: 'exhausted', statuses, transitionBlocked: true }
+      }
+
+      return { kind: 'exhausted', statuses, transitionBlocked: false }
+    }
+
+    if (llmModel.routing != null) {
+      for (let groupIndex = 0; groupIndex < llmModel.routing.groups.length; groupIndex += 1) {
+        const group = llmModel.routing.groups[groupIndex]
+        const result = await routeGroup(group)
+        if (result.kind === 'ok')
+          return result.response
+
+        const hasNextGroup = groupIndex < llmModel.routing.groups.length - 1
+        if (
+          result.transitionBlocked
+          || !hasNextGroup
+          || !failuresMatch(result.statuses, group.continueOn)
+        ) {
+          break
+        }
+      }
+    }
+    else {
+      for (let index = 0; index < llmModel.upstreams.length; index += 1) {
+        const result = await attemptUpstream(llmModel.upstreams[index], index)
+        if (result.kind === 'ok')
+          return result.response
+      }
+    }
+
+    // Terminal exhaustion: every transition allowed by the active provider
+    // route has failed. A policy boundary may intentionally leave later
+    // upstreams untouched.
     const lastFailure = allFailures.at(-1)
     if (lastFailure == null) {
       // Should not happen: schema guarantees ≥1 upstream and ≥1 key. Treat
@@ -412,9 +489,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       throw new Error(`Router exhausted with no recorded failures for model ${req.modelName}`)
     }
 
-    // Same-status exhaustion: every recorded failure shares the same
-    // status (or 'timeout'). Strong signal of an account-level / shared-
-    // backend cap that ordinary fallback cannot recover from.
+    // Same-status exhaustion: every recorded failure shares one status (or
+    // timeout). This is a strong signal of a shared upstream constraint that
+    // ordinary candidate fallback cannot recover from.
     const distinctStatuses = new Set(allFailures.map(f => f.status))
     if (distinctStatuses.size === 1) {
       const status = allFailures[0].status
@@ -553,8 +630,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
             status_code: rawStatus,
           })
           if (!fallbackHttpCodes.includes(rawStatus)) {
-            // Same policy as chat: non-fallback status stops this upstream
-            // but the outer loop still tries the next upstream.
+            // Same key-level policy as chat: stop rotating credentials in this
+            // candidate. The enclosing group separately decides whether another
+            // candidate may be tried.
             attemptIndex += 1
             break
           }
@@ -572,14 +650,14 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
   }
 
   /**
-   * Capacity-aware layer over {@link dispatchOneTtsUpstream}: spreads one TTS
-   * request across the model's pool (one app_id per upstream) by least-loaded
-   * ordering, gating each dispatch on an atomic concurrency-slot acquire.
+   * Capacity-aware layer over {@link dispatchOneTtsUpstream}: gates each capped
+   * dispatch on an atomic concurrency-slot acquire. It can preserve configured
+   * order or rank equivalent accounts by current in-flight usage.
    *
    * Returns:
-   * - the 2xx `Response` on success,
-   * - `null` when every dispatched upstream exhausted (caller maps the recorded
-   *   failures to an upstream error via the shared exhaustion path),
+   * - an `ok` result with the 2xx `Response`,
+   * - an `exhausted` result with every attempted status and whether a retry
+   *   policy blocked the remaining peers,
    * - throws 503 `TTS_POOL_SATURATED` when every pool was at capacity or in a
    *   429 cool-down so nothing was dispatched - fail-fast with context, never a
    *   silent stall (origin R3).
@@ -589,9 +667,14 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     modelName: string,
     attemptUpstream: (upstream: TtsUpstream, index: number) => Promise<
       | { kind: 'ok', response: Response }
-      | { kind: 'exhausted', sawTooManyRequests: boolean }
+      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
     >,
-  ): Promise<Response | null> {
+    retryOn?: RouteFailureTriggers,
+    strategy: 'least-inflight' | 'ordered' = 'least-inflight',
+  ): Promise<
+    | { kind: 'ok', response: Response }
+    | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
+  > {
     async function markSaturated(upstream: TtsUpstream, poolId: string): Promise<void> {
       await ledger.markSaturated(poolId, ttsPoolSaturationTtlSeconds)
       options.gatewayMetrics?.poolSaturationMarked.add(1, {
@@ -600,12 +683,11 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       })
     }
 
-    // Best-effort pre-read: order pools least-loaded-first (spreads load) and
-    // drop pools already full or in a saturation cool-down. tryAcquire below is
-    // the authoritative gate against the cross-replica race — ordering only
-    // decides *preference*, not correctness.
-    const ranked = (await Promise.all(upstreams.map(async (upstream, index) => {
-      const poolId = ttsPoolId(upstream)
+    // Best-effort pre-read drops pools already full or in a saturation
+    // cool-down. tryAcquire below remains the authoritative gate against the
+    // cross-replica race.
+    const candidates = await Promise.all(upstreams.map(async (upstream, index) => {
+      const poolId = ttsPoolId(upstream, modelName)
       const maxConcurrency = typeof upstream.maxConcurrency === 'number' ? upstream.maxConcurrency : null
       const saturated = await ledger.isSaturated(poolId)
       if (saturated) {
@@ -614,30 +696,39 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           index,
           poolId,
           maxConcurrency,
-          remaining: maxConcurrency == null ? Number.POSITIVE_INFINITY : 0,
+          inflight: Number.POSITIVE_INFINITY,
           eligible: false,
         }
       }
       if (maxConcurrency == null)
-        return { upstream, index, poolId, maxConcurrency, remaining: Number.POSITIVE_INFINITY, eligible: true }
+        return { upstream, index, poolId, maxConcurrency, inflight: 0, eligible: true }
 
       const inflight = await ledger.currentInflight(poolId)
-      const remaining = maxConcurrency - inflight
-      return { upstream, index, poolId, maxConcurrency, remaining, eligible: remaining > 0 }
-    })))
-      .filter(c => c.eligible)
-      .sort((a, b) => b.remaining - a.remaining)
+      return { upstream, index, poolId, maxConcurrency, inflight, eligible: inflight < maxConcurrency }
+    }))
+    const eligible = candidates.filter(c => c.eligible)
+    const ranked = strategy === 'least-inflight'
+      ? eligible.sort((a, b) => a.inflight - b.inflight)
+      : eligible
 
     let dispatchedAny = false
-    for (const { upstream, index, poolId, maxConcurrency } of ranked) {
+    let attemptedPools = 0
+    const statuses: Array<number | 'timeout'> = []
+    for (let rankedIndex = 0; rankedIndex < ranked.length; rankedIndex += 1) {
+      const { upstream, index, poolId, maxConcurrency } = ranked[rankedIndex]
+      const hasNextCandidate = rankedIndex < ranked.length - 1
       if (maxConcurrency == null) {
         // Unlimited pool — dispatch without occupying a slot.
         dispatchedAny = true
+        attemptedPools += 1
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
-          return result.response
+          return result
+        statuses.push(...result.statuses)
         if (result.sawTooManyRequests)
           await markSaturated(upstream, poolId)
+        if (hasNextCandidate && retryOn != null && !failuresMatch(result.statuses, retryOn))
+          return { kind: 'exhausted', statuses, transitionBlocked: true }
         continue
       }
 
@@ -652,12 +743,16 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
 
       dispatchedAny = true
+      attemptedPools += 1
       try {
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
-          return result.response
+          return result
+        statuses.push(...result.statuses)
         if (result.sawTooManyRequests)
           await markSaturated(upstream, poolId)
+        if (hasNextCandidate && retryOn != null && !failuresMatch(result.statuses, retryOn))
+          return { kind: 'exhausted', statuses, transitionBlocked: true }
       }
       finally {
         await ledger.release(poolId)
@@ -672,7 +767,15 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       )
     }
 
-    return null
+    // Advancing past a group requires evidence from every candidate. A pool
+    // skipped because it was full, circuit-broken, or lost the acquire race has
+    // not produced a failure status, so it must block the transition even when
+    // every dispatched pool returned an allowed status.
+    return {
+      kind: 'exhausted',
+      statuses,
+      transitionBlocked: attemptedPools !== upstreams.length,
+    }
   }
 
   async function routeTts(req: { modelName: string, input: TtsInput, abortSignal?: AbortSignal }, ctx?: LlmRouteContext): Promise<Response> {
@@ -694,9 +797,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = ttsModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    // Adapters POST to unspeech `/v1/audio/speech`; resolve the base URL once
-    // per request rather than per upstream attempt so a single configKV miss
-    // surfaces as a clean 503 before any key rotation happens.
     const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
@@ -712,7 +812,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     // so the caller can circuit-break thatpool.
     async function attemptUpstream(upstream: TtsUpstream, index: number): Promise<
       | { kind: 'ok', response: Response }
-      | { kind: 'exhausted', sawTooManyRequests: boolean }
+      | { kind: 'exhausted', sawTooManyRequests: boolean, statuses: Array<number | 'timeout'> }
     > {
       const providerTag = deriveProviderTag(upstream.baseURL)
       triedUpstreams += 1
@@ -741,25 +841,93 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
 
       options.gatewayMetrics?.keyExhaustedCount.add(1, { provider: providerTag })
-      return { kind: 'exhausted', sawTooManyRequests: result.failures.some(f => f.status === 429) }
+      return {
+        kind: 'exhausted',
+        sawTooManyRequests: result.failures.some(f => f.status === 429),
+        statuses: result.failures.map(failure => failure.status),
+      }
     }
 
-    // A model "uses the pool" when any upstream declares a concurrency cap. Models
-    // without one keep the original fixed-order fallback and make zero Redis
-    // calls — no behavior change for existing single-app configs.
-    const poolingEnabled = ttsModel.upstreams.some(u => typeof u.maxConcurrency === 'number')
+    async function routeGroup(group: TtsRoutingGroup): Promise<
+      | { kind: 'ok', response: Response }
+      | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
+    > {
+      const indexedUpstreams = group.upstreamIds.map((upstreamId) => {
+        const index = ttsModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
+        if (index === -1) {
+          throw new Error(
+            `TTS routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
+          )
+        }
+        return { upstream: ttsModel.upstreams[index], index }
+      })
 
-    if (!poolingEnabled) {
-      for (let i = 0; i < ttsModel.upstreams.length; i += 1) {
-        const result = await attemptUpstream(ttsModel.upstreams[i], i)
+      const capacityManaged = indexedUpstreams.some(({ upstream }) => upstream.maxConcurrency != null)
+      if (group.strategy === 'least-inflight' || capacityManaged) {
+        const indexByUpstream = new Map(indexedUpstreams.map(({ upstream, index }) => [upstream, index]))
+        return routeTtsAcrossPools(
+          indexedUpstreams.map(({ upstream }) => upstream),
+          req.modelName,
+          (upstream) => {
+            const index = indexByUpstream.get(upstream)
+            if (index == null)
+              throw new Error(`TTS routing lost upstream index for model ${req.modelName}`)
+            return attemptUpstream(upstream, index)
+          },
+          group.retryOn,
+          group.strategy,
+        )
+      }
+
+      const statuses: Array<number | 'timeout'> = []
+      for (let groupCandidateIndex = 0; groupCandidateIndex < indexedUpstreams.length; groupCandidateIndex += 1) {
+        const { upstream, index } = indexedUpstreams[groupCandidateIndex]
+        const result = await attemptUpstream(upstream, index)
+        if (result.kind === 'ok')
+          return result
+        statuses.push(...result.statuses)
+        const hasNextCandidate = groupCandidateIndex < indexedUpstreams.length - 1
+        if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
+          return { kind: 'exhausted', statuses, transitionBlocked: true }
+      }
+
+      return { kind: 'exhausted', statuses, transitionBlocked: false }
+    }
+
+    if (ttsModel.routing != null) {
+      for (let groupIndex = 0; groupIndex < ttsModel.routing.groups.length; groupIndex += 1) {
+        const group = ttsModel.routing.groups[groupIndex]
+        const result = await routeGroup(group)
         if (result.kind === 'ok')
           return result.response
+
+        const hasNextGroup = groupIndex < ttsModel.routing.groups.length - 1
+        if (
+          result.transitionBlocked
+          || !hasNextGroup
+          || !failuresMatch(result.statuses, group.continueOn)
+        ) {
+          break
+        }
       }
     }
     else {
-      const served = await routeTtsAcrossPools(ttsModel.upstreams, req.modelName, attemptUpstream)
-      if (served != null)
-        return served
+      // Models without an explicit provider route preserve the established
+      // behavior: fixed order unless any upstream declares a concurrency cap.
+      const poolingEnabled = ttsModel.upstreams.some(u => typeof u.maxConcurrency === 'number')
+
+      if (!poolingEnabled) {
+        for (let i = 0; i < ttsModel.upstreams.length; i += 1) {
+          const result = await attemptUpstream(ttsModel.upstreams[i], i)
+          if (result.kind === 'ok')
+            return result.response
+        }
+      }
+      else {
+        const result = await routeTtsAcrossPools(ttsModel.upstreams, req.modelName, attemptUpstream)
+        if (result.kind === 'ok')
+          return result.response
+      }
     }
 
     const lastFailure = allFailures.at(-1)

@@ -391,7 +391,7 @@ export function buildStepfunSlice(input: StepfunSliceInput, envelope: EnvelopeCr
     model: {
       provider: 'stepfun',
       upstreams: [{
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         keys: [{ id: keyEntryId, ciphertext }],
         adapterParams: {
           model: input.upstreamModel ?? 'stepaudio-2.5-tts',
@@ -604,7 +604,7 @@ function buildStepfunSlicePreservingKey(input: StepfunSliceInput, envelope: Enve
     model: {
       provider: 'stepfun',
       upstreams: [{
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         keys: [key],
         adapterParams: {
           model: input.upstreamModel ?? 'stepaudio-2.5-tts',
@@ -715,6 +715,11 @@ export function buildSlice(
  * - The next config tree, ready to feed `configKV.set('LLM_ROUTER_CONFIG', ...)`.
  *   `defaults` is preserved verbatim when merging — the admin endpoint does
  *   not currently re-tune timeouts via this path.
+ *
+ * Throws:
+ * - When merge mode targets a grouped LLM/TTS model. The legacy slice contract
+ *   cannot identify one upstream or represent routing groups, so replacing that
+ *   model would silently erase its routing policy.
  */
 export function buildNextRouterConfig(
   mode: 'merge' | 'reset',
@@ -729,12 +734,25 @@ export function buildNextRouterConfig(
     = mode === 'merge' && existing?.asr?.models ? { ...existing.asr.models } : {}
 
   for (const slice of slices) {
-    if (slice.surface === 'llm')
+    if (slice.surface === 'llm') {
+      if (mode === 'merge' && llmModels[slice.modelName]?.routing != null) {
+        throw new Error(
+          `Legacy admin config cannot update grouped llm model ${slice.modelName}; use a group-aware router config update`,
+        )
+      }
       llmModels[slice.modelName] = slice.model
-    else if (slice.surface === 'tts')
+    }
+    else if (slice.surface === 'tts') {
+      if (mode === 'merge' && ttsModels[slice.modelName]?.routing != null) {
+        throw new Error(
+          `Legacy admin config cannot update grouped tts model ${slice.modelName}; use a group-aware router config update`,
+        )
+      }
       ttsModels[slice.modelName] = slice.model
-    else
+    }
+    else {
       asrModels[slice.modelName] = slice.model
+    }
   }
 
   // Defaults live alongside the models but aren't editable through this

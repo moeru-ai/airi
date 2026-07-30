@@ -46,9 +46,10 @@ export function lockRedisKey(domain: string, ...identifiers: RedisKeyPart[]): st
 
 /**
  * In-flight request counter for one TTSpool (per app_id concurrency pool).
- * `poolId` is the upstream's `adapterParams.appid` (or baseURL fallback). The
- * counter is INCR'd on slot acquire and DECR'd on release; a short TTL bounds
- * leakage if a replica crashes between acquire and release.
+ * `poolId` is the upstream's global `adapterParams.appid` or a model-scoped
+ * upstream identity for providers without app ids. The counter is INCR'd on
+ * slot acquire and DECR'd on release; a short TTL bounds leakage if a replica
+ * crashes between acquire and release.
  */
 export function ttsPoolInflightRedisKey(poolId: string): string {
   return redisKeyFrom('tts', 'pool', 'inflight', poolId)

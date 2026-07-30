@@ -15,8 +15,8 @@ const STEPFUN_DEFAULT_VOICE = 'cixingnansheng'
  * StepFun TTS adapter.
  *
  * Use when:
- * - Routing hosted speech synthesis to StepFun through unspeech's
- *   OpenAI-compatible `stepfun/*` backend.
+ * - Routing speech synthesis to StepFun through unspeech's OpenAI-compatible
+ *   `stepfun/*` backend.
  *
  * Expects:
  * - `ctx.unspeechBaseURL` points at an unspeech deployment that includes the
@@ -24,6 +24,8 @@ const STEPFUN_DEFAULT_VOICE = 'cixingnansheng'
  * - `ctx.keyPlaintext` is the StepFun API key.
  * - `ctx.adapterParams.model` optionally selects `stepaudio-2.5-tts`,
  *   `step-tts-2`, or `step-tts-mini`.
+ * - `ctx.adapterParams.endpointProfile` optionally selects a provider-owned
+ *   endpoint profile such as `step-plan`; AIRI never owns the endpoint URL.
  *
  * Returns:
  * - {@link TtsResult} with the upstream audio body and content type.
@@ -41,6 +43,7 @@ export const stepfunAdapter: TtsAdapter = {
     const responseFormat = input.responseFormat ?? (typeof ctx.adapterParams.responseFormat === 'string' && ctx.adapterParams.responseFormat
       ? ctx.adapterParams.responseFormat
       : STEPFUN_DEFAULT_FORMAT)
+    const extraBody = buildExtraBody(input, ctx)
 
     return sendSpeechViaUnSpeech({
       ctx,
@@ -49,7 +52,7 @@ export const stepfunAdapter: TtsAdapter = {
       voice,
       speed: input.speed,
       responseFormat,
-      extraBody: buildExtraBody(input, ctx),
+      extraBody,
       fallbackContentType: audioMimeFromFormat(responseFormat),
       providerLabel: 'stepfun',
     })
@@ -67,6 +70,9 @@ export const stepfunAdapter: TtsAdapter = {
 function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string, unknown> {
   const extraOptions = input.extraOptions ?? {}
   const body: Record<string, unknown> = {}
+
+  if (typeof ctx.adapterParams.endpointProfile === 'string' && ctx.adapterParams.endpointProfile)
+    body.endpoint_profile = ctx.adapterParams.endpointProfile
 
   if (typeof extraOptions.volume === 'number' && Number.isFinite(extraOptions.volume))
     body.volume = extraOptions.volume
