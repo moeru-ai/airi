@@ -58,6 +58,19 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  it('preserves an explicitly cleared FunASR model on startup', async () => {
+    persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
+
+    const providersStore = useProvidersStore()
+    providersStore.providers['funasr-audio-transcription'].model = ''
+    const hearingStore = useHearingStore()
+
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('')
+      expect(providersStore.getProviderConfig('funasr-audio-transcription')?.model).toBe('')
+    })
+  })
+
   it('restores the FunASR configured model when the provider is selected', async () => {
     const providersStore = useProvidersStore()
     const hearingStore = useHearingStore()
