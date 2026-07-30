@@ -4,6 +4,10 @@ category: DevLog
 date: 2025-03-10
 ---
 
+<script setup>
+import customizableThemeColors from '../../../en/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4'
+</script>
+
 ## 데자뷔
 
 지난 금요일(3월 7일)에는 AIRI 스테이지 UI 와 설정 UI 의 새로운 느낌을 디자인하고 다듬어 보려 했는데,
@@ -70,7 +74,7 @@ DevStream 이 끝날 무렵에야 마침내 아이디어가 떠올랐습니다.
 [@junkwarrior87](https://github.com/junkwarrior87) 덕분에 스테이지 전체의 색을 커스터마이즈할 수
 있게 됐습니다! (이게 몇 시간 만에 될 줄은 정말 몰랐습니다...)
 
-<ThemedVideo controls muted src="/en/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4" />
+<ThemedVideo controls muted :src="customizableThemeColors" />
 
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60

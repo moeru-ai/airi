@@ -5,6 +5,8 @@ date: 2025-03-20
 ---
 
 <script setup>
+import histoireFirstLook from '../../../en/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4'
+import airiDemo from '../../../en/blog/DevLog-2025.03.20/assets/airi-demo.mp4'
 import Gelbana from '../../../en/blog/DevLog-2025.03.20/assets/steins-gate-gelnana-from-elpsycongrooblog.avif'
 import NewUIV3 from '../../../en/blog/DevLog-2025.03.10/assets/new-ui-v3.avif'
 import NewUIV3Dark from '../../../en/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif'
@@ -66,7 +68,7 @@ Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를
 
 [@sumimakito](https://github.com/sumimakito) 가 작업을 마치고 녹화한 첫인상입니다:
 
-<ThemedVideo muted autoplay src="/en/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4" />
+<ThemedVideo muted autoplay :src="histoireFirstLook" />
 
 OKLCH 색 팔레트 전체를 캔버스에 한 번에 펼쳐 놓고 참고할 수 있습니다. 하지만 색을 이리저리
 시도해 보면서 Project AIRI 테마와 같은 결의 느낌을 잡기에는 완벽하지 않았죠.
@@ -153,7 +155,7 @@ Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microso
 
 이 모든 것을 합치면 이런 결과가 나옵니다:
 
-<ThemedVideo controls muted autoplay src="/en/blog/DevLog-2025.03.20/assets/airi-demo.mp4" />
+<ThemedVideo controls muted autoplay :src="airiDemo" />
 
 거의 똑같습니다. 하지만 저희 이야기는 여기서 끝나지 않습니다. 지금은 아직 기억(memory)과
 더 나은 모션 제어를 구현하지 못했고, 전사 설정 UI 도 빠져 있습니다. 이달이 끝나기 전에는

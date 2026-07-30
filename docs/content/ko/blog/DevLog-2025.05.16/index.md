@@ -5,6 +5,7 @@ date: 2025-05-16
 ---
 
 <script setup>
+import webaiExamplesDemo from '../../../en/blog/DevLog-2025.05.16/assets/webai-examples-demo.MP4'
 import VelinLight from '../../../en/blog/DevLog-2025.05.16/assets/velin-light.avif'
 import VelinDark from '../../../en/blog/DevLog-2025.05.16/assets/velin-dark.avif'
 
@@ -125,7 +126,7 @@ LLM 스트리밍 토큰과 오디오 바이트의 이벤트 기반 스트림을 
 그 결과 나온 것이 [WebAI Realtime Voice Chat Examples](https://github.com/proj-airi/webai-example-realtime-voice-chat) 입니다.
 TypeScript 코드 300~500줄 하나로 웹 브라우저에서 ChatGPT 같은 음성 대화 시스템을 구현할 수 있음을 증명했습니다.
 
-<ThemedVideo controls muted src="/en/blog/DevLog-2025.05.16/assets/webai-examples-demo.MP4" style="height: 640px;" />
+<ThemedVideo controls muted :src="webaiExamplesDemo" style="height: 640px;" />
 
 실시간 음성 대화 시스템을 밑바닥부터 어떻게 구성하는지 보여 드리기 위해, 가능한 모든 단계를
 작고 재사용 가능한 조각으로 최대한 나눠 봤습니다:

@@ -9,6 +9,7 @@ preview-cover:
 ---
 
 <script setup lang="ts">
+import airiFactorioYoloV0PlaygroundVnc from '../../../en/blog/DevLog-2025.08.26/assets/airi-factorio-yolo-v0-playground-vnc.mp4'
 import NmsIou from '../../../en/blog/DevLog-2025.08.26/components/nms-iou.vue'
 </script>
 
@@ -20,7 +21,7 @@ import NmsIou from '../../../en/blog/DevLog-2025.08.26/components/nms-iou.vue'
 
 먼저 결과부터 보여 드리겠습니다:
 
-<ThemedVideo src="/en/blog/DevLog-2025.08.26/assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
+<ThemedVideo :src="airiFactorioYoloV0PlaygroundVnc" controls playsinline />
 
 영상에서 저는 웹 페이지의 VNC 연결로 Factorio 를 플레이하고 있고, 오른쪽에는 객체 탐지 결과가 거의 실시간으로 표시됩니다. [HuggingFace Space](https://huggingface.co/spaces/proj-airi/factorio-yolo-v0-playground) 에도 배포했으니 편하게 써 보세요.
 

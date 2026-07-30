@@ -4,6 +4,10 @@ category: DevLog
 date: 2025-04-22
 ---
 
+<script setup>
+import cursorOpenSettings from '../../../en/blog/DevLog-2025.04.22/assets/cursor-open-settings.mp4'
+</script>
+
 ## 낮 시간의 일기
 
 안녕하세요, [@LemonNeko](https://github.com/LemonNekoGH) 입니다. 이번에는 제가 DevLog 작성에 참여해서 개발 이야기를 나눠 보려 합니다.
@@ -12,7 +16,7 @@ date: 2025-04-22
 
 지난 주말(2025.04.20), 시간을 좀 내서 ADB 와 상호작용할 수 있는 MCP 서버 데모 [airi-android](https://github.com/LemonNekoGH/airi-android) 를 만들었습니다. AIRI 에게 기본적인 모바일 조작 능력을 주는 것이죠 (사실 대부분의 LLM 이 이걸 통해 휴대폰을 조작할 수 있습니다). 데모 영상입니다:
 
-<ThemedVideo controls muted src="/en/blog/DevLog-2025.04.22/assets/cursor-open-settings.mp4" />
+<ThemedVideo controls muted :src="cursorOpenSettings" />
 
 Docker 이미지로도 패키징해서 [MCP 서버 목록](https://mcp.so/server/airi-android/lemonnekogh)에 등록했습니다. 관심 있으시면 편하게 써 보세요.
 

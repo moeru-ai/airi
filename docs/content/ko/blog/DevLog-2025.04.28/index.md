@@ -5,6 +5,8 @@ date: 2025-04-28
 ---
 
 <script setup>
+import airiMcpSettings from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4'
+import airiMcpInputText from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4'
 import airiMcpArch from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif'
 </script>
 
@@ -20,12 +22,12 @@ import airiMcpArch from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-arch
 
 <details>
   <summary>AIRI 의 MCP 서버 설정</summary>
-  <ThemedVideo controls muted src="/en/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
+  <ThemedVideo controls muted :src="airiMcpSettings" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI 가 휴대폰에 `Hello World` 를 입력하는 모습</summary>
-  <ThemedVideo controls muted src="/en/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
+  <ThemedVideo controls muted :src="airiMcpInputText" />
 </details>
 
 개발 중 생각을 정리하려고 LLM 이 Android 폰을 호출하는 흐름을 그림으로 그려 봤습니다:

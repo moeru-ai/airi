@@ -10,6 +10,15 @@ preview-cover:
 ---
 
 <script setup lang="ts">
+import airiDemoFadeOnHover from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4'
+import airiDemoMove from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4'
+import airiDemoResize from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4'
+import airiDemoOnboardingLight from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4'
+import airiDemoOnboardingDark from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4'
+import airiDemoOnboardingMobileLight from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4'
+import airiDemoOnboardingMobileDark from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4'
+import airiDocsLight from '../../../en/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4'
+import airiDocsDark from '../../../en/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4'
 import Button from '../../../../.vitepress/components/Button.vue'
 
 function handleOpenLatest() {
@@ -81,7 +90,7 @@ Tamagotchi 는 AIRI 데스크톱 버전의 이름으로, 다른 애플리케이�
 
 <br />
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4" />
+<ThemedVideo autoplay :src="airiDemoFadeOnHover" />
 
 많은 사용자가 커서를 캐릭터 위에 올릴 때마다 창 전체가 흐려지는 이유를 헷갈려 했습니다.
 이 기능을 설명하는 문서가 없었던 점, 그리고 이것이 AI 동반자에게 왜 중요하다고 생각하는지
@@ -123,7 +132,7 @@ AIRI 를 VTuber 방송에 쓴다면 Fade on hover 기능이 없어도 괜찮습�
 
 <br />
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4" />
+<ThemedVideo autoplay :src="airiDemoMove" />
 
 이동 모드에 들어가면 드래그 가능한 영역이 나타납니다. 마우스로 옮기는 것 외에도 트레이 메뉴의
 Position > Center / Bottom Left / Bottom Right 를 쓰는 방법도 있습니다.
@@ -141,7 +150,7 @@ Position > Center / Bottom Left / Bottom Right 를 쓰는 방법도 있습니다
 
 <br />
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4" />
+<ThemedVideo autoplay :src="airiDemoResize" />
 
 #### 리소스 아일랜드
 
@@ -203,8 +212,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  light="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
-  dark="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
+  :light="airiDemoOnboardingLight"
+  :dark="airiDemoOnboardingDark"
 />
 
 #### VRM
@@ -223,8 +232,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  light="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
-  dark="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
+  :light="airiDemoOnboardingMobileLight"
+  :dark="airiDemoOnboardingMobileDark"
 />
 
 #### 씬
@@ -310,8 +319,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  light="/en/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4"
-  dark="/en/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4"
+  :light="airiDocsLight"
+  :dark="airiDocsDark"
 />
 
 정말 멋져 보입니다. [Reka UI](https://reka-ui.com) 의 작업을 바탕으로 완전히 새로 쓰면서

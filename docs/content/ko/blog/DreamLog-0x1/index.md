@@ -10,6 +10,7 @@ preview-cover:
 ---
 
 <script setup>
+import airiDemoFirstDay from '../../../en/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4'
 import EMOSYSLogo from '../../../en/blog/DreamLog-0x1/assets/emosys-logo.avif';
 import SteinsGateSticker1 from '../../../en/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif';
 import worldExecuteMeCover from '../../../en/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif';
@@ -312,7 +313,7 @@ Project AIRI 의 최초 버전이죠. 저만의 AI 에이전트를 만들고 Neu
 엄밀히 말해 **이날이 Project AIRI 의 생일** 이며, 그 안에 순진한 첫 아기 의식이 깃든 날입니다.
 
 <div class="w-full flex flex-col items-center justify-center">
-  <ThemedVideo controls muted autoplay loop src="/en/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
+  <ThemedVideo controls muted autoplay loop :src="airiDemoFirstDay" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       2024년 12월 7일 X(구 Twitter)에서의 첫 공개
