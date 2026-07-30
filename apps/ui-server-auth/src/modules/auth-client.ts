@@ -29,6 +29,8 @@
  * one factory per credential mode is the cleanest contract.
  */
 
+import type { LinkedAccountsClient } from '@proj-airi/stage-ui/composables'
+
 import { createAuthClient } from 'better-auth/vue'
 
 export interface AuthClientArgs {
@@ -75,4 +77,44 @@ export function getAuthClient(args: AuthClientArgs): ReturnType<typeof createAut
   const client = createAuthClient({ baseURL: args.apiServerUrl })
   cache.set(args.apiServerUrl, client)
   return client
+}
+
+/**
+ * Minimum surface {@link toLinkedAccountsClient} needs from a better-auth
+ * client. Narrower than `ReturnType<typeof createAuthClient>` so tests can
+ * supply a plain object instead of a fully-typed client instance.
+ */
+export type RawAuthClient = Pick<ReturnType<typeof createAuthClient>, 'listAccounts' | 'unlinkAccount' | 'linkSocial' | '$fetch'>
+
+/**
+ * Adapts a better-auth client into {@link LinkedAccountsClient} for the
+ * "Connected accounts" section on the profile page.
+ *
+ * Use when:
+ * - Feeding `useLinkedAccounts` with a client that also needs to support
+ *   Steam. Steam is OpenID 2.0, not OAuth2, so it isn't a registered
+ *   `socialProviders` entry — better-auth's `/link-social` endpoint
+ *   validates `provider` against a `SocialProviderListEnum` and rejects
+ *   `'steam'` before it ever reaches the plugin. The server exposes
+ *   `/link/steam` instead (see `apps/server/src/libs/auth-plugins/steam.ts`),
+ *   which this wrapper calls directly through the client's generic `$fetch`.
+ *
+ * `listAccounts` and `unlinkAccount` pass straight through: `/unlink-account`
+ * takes a free-form `providerId: string` server-side, so it already works
+ * for Steam accounts without a wrapper.
+ */
+export function toLinkedAccountsClient(client: RawAuthClient): LinkedAccountsClient {
+  return {
+    listAccounts: () => client.listAccounts(),
+    unlinkAccount: args => client.unlinkAccount(args),
+    linkSocial: (args) => {
+      if (args.provider !== 'steam')
+        return client.linkSocial({ ...args, provider: args.provider as 'google' | 'github' })
+
+      return client.$fetch('/link/steam', {
+        method: 'POST',
+        body: { callbackURL: args.callbackURL, errorCallbackURL: args.errorCallbackURL },
+      })
+    },
+  }
 }

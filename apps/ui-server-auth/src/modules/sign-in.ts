@@ -101,14 +101,23 @@ function normalizeTrustedAdminRedirect(redirect: string): string | null {
 
 export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
   const fetchImpl = params.fetchImpl ?? fetch
-  const endpoint = new URL('/api/auth/sign-in/social', params.apiServerUrl)
+
+  // Steam is OpenID 2.0, not OAuth2 — better-auth's `/sign-in/social` only
+  // recognizes registered `socialProviders`, so it has its own endpoint
+  // (`libs/auth-plugins/steam.ts` on the server) that takes `callbackURL`
+  // without a `provider` field. Response shape (`{ url, redirect }`) matches
+  // `/sign-in/social`, so the branch below still applies to both.
+  const endpoint = params.provider === 'steam'
+    ? new URL('/api/auth/sign-in/steam', params.apiServerUrl)
+    : new URL('/api/auth/sign-in/social', params.apiServerUrl)
+  const body = params.provider === 'steam'
+    ? { callbackURL: params.callbackURL }
+    : { provider: params.provider, callbackURL: params.callbackURL }
+
   const response = await fetchImpl(endpoint.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: params.provider,
-      callbackURL: params.callbackURL,
-    }),
+    body: JSON.stringify(body),
     credentials: 'include',
     redirect: 'manual',
   })
