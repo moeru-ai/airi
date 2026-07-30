@@ -48,6 +48,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
@@ -66,6 +67,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
@@ -85,6 +87,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: '',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: [],
       AUTH_APPLE_TEAM_ID: '',
       AUTH_APPLE_KEY_ID: '',
       AUTH_APPLE_PRIVATE_KEY_PEM: '',
@@ -103,6 +106,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: '',
@@ -113,7 +117,7 @@ describe('createAuth', () => {
     expect(auth.options.socialProviders?.apple).toBeUndefined()
   })
 
-  it('configures Apple with a verifiable ES256 client secret and trusted callback origin', async () => {
+  it('configures Apple for web OAuth and native ID-token sign-in', async () => {
     const auth = createAuth({} as unknown as Database, {
       API_SERVER_URL: 'http://localhost:3000',
       AUTH_GOOGLE_CLIENT_ID: 'google-client',
@@ -121,6 +125,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
@@ -145,13 +150,48 @@ describe('createAuth', () => {
       audience: 'https://appleid.apple.com',
     })).resolves.toBeDefined()
     expect(config.clientId).toBe('apple-service-id')
+    expect(config.audience).toEqual([
+      'apple-service-id',
+      'ai.moeru.airi-pocket',
+      'ai.moeru.airi-pro',
+    ])
     expect(header).toMatchObject({ alg: 'ES256', kid: 'apple-key-id' })
     expect(claims.exp! - claims.iat!).toBe(180 * 24 * 60 * 60)
+    expect(await config.mapProfileToUser?.({
+      sub: 'apple-user-id',
+      email: '',
+      email_verified: true,
+      is_private_email: false,
+      real_user_status: 2,
+      name: '',
+      picture: '',
+    })).toEqual({
+      email: 'apple-user-id@apple.placeholder.local',
+    })
+    expect(await config.mapProfileToUser?.({
+      sub: 'apple-user-id',
+      email: 'relay@privaterelay.appleid.com',
+      email_verified: true,
+      is_private_email: true,
+      real_user_status: 2,
+      name: '',
+      picture: '',
+    })).toEqual({
+      email: 'relay@privaterelay.appleid.com',
+    })
 
     const context = await auth.$context
     const resolvedProvider = context.socialProviders.find(provider => provider.id === 'apple')
     if (!resolvedProvider)
       throw new TypeError('Expected Better Auth to resolve the Apple provider')
+
+    expect(resolvedProvider.options && 'audience' in resolvedProvider.options
+      ? resolvedProvider.options.audience
+      : undefined).toEqual([
+      'apple-service-id',
+      'ai.moeru.airi-pocket',
+      'ai.moeru.airi-pro',
+    ])
 
     const authorizationURL = await resolvedProvider.createAuthorizationURL({
       state: 'apple-oauth-state',

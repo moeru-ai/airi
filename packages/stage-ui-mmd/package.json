@@ -26,7 +26,8 @@
     "./utils/mmd-loader": "./src/utils/mmd-loader.ts",
     "./utils/mmd-preview": "./src/utils/mmd-preview.ts",
     "./utils/mmd-validator": "./src/utils/mmd-validator.ts",
-    "./utils/mmd-zip-loader": "./src/utils/mmd-zip-loader.ts"
+    "./utils/mmd-zip-loader": "./src/utils/mmd-zip-loader.ts",
+    "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"

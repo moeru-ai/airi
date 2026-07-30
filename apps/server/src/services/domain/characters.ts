@@ -233,39 +233,61 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
     async deleteAllForUser(userId: string) {
       const now = new Date()
 
-      const charRows = await db.update(schema.character)
-        .set({ deletedAt: now, updatedAt: now })
-        .where(and(
-          or(
-            eq(schema.character.ownerId, userId),
-            eq(schema.character.creatorId, userId),
-          ),
-          isNull(schema.character.deletedAt),
-        ))
-        .returning({ id: schema.character.id })
+      const result = await db.transaction(async (tx) => {
+        const charRows = await tx.update(schema.character)
+          .set({ deletedAt: now, updatedAt: now })
+          .where(and(
+            or(
+              eq(schema.character.ownerId, userId),
+              eq(schema.character.creatorId, userId),
+            ),
+            isNull(schema.character.deletedAt),
+          ))
+          .returning({ id: schema.character.id })
 
-      const likeRows = await db.update(userCharacterSchema.characterLikes)
-        .set({ deletedAt: now })
-        .where(and(
-          eq(userCharacterSchema.characterLikes.userId, userId),
-          isNull(userCharacterSchema.characterLikes.deletedAt),
-        ))
-        .returning({ characterId: userCharacterSchema.characterLikes.characterId })
+        const likeRows = await tx.update(userCharacterSchema.characterLikes)
+          .set({ deletedAt: now })
+          .where(and(
+            eq(userCharacterSchema.characterLikes.userId, userId),
+            isNull(userCharacterSchema.characterLikes.deletedAt),
+          ))
+          .returning({ characterId: userCharacterSchema.characterLikes.characterId })
 
-      const bookmarkRows = await db.update(userCharacterSchema.characterBookmarks)
-        .set({ deletedAt: now })
-        .where(and(
-          eq(userCharacterSchema.characterBookmarks.userId, userId),
-          isNull(userCharacterSchema.characterBookmarks.deletedAt),
-        ))
-        .returning({ characterId: userCharacterSchema.characterBookmarks.characterId })
+        const bookmarkRows = await tx.update(userCharacterSchema.characterBookmarks)
+          .set({ deletedAt: now })
+          .where(and(
+            eq(userCharacterSchema.characterBookmarks.userId, userId),
+            isNull(userCharacterSchema.characterBookmarks.deletedAt),
+          ))
+          .returning({ characterId: userCharacterSchema.characterBookmarks.characterId })
+
+        for (const characterId of new Set(likeRows.map(row => row.characterId))) {
+          await tx.update(schema.character)
+            .set({
+              likesCount: sql`greatest(${schema.character.likesCount} - 1, 0)`,
+              updatedAt: now,
+            })
+            .where(eq(schema.character.id, characterId))
+        }
+
+        for (const characterId of new Set(bookmarkRows.map(row => row.characterId))) {
+          await tx.update(schema.character)
+            .set({
+              bookmarksCount: sql`greatest(${schema.character.bookmarksCount} - 1, 0)`,
+              updatedAt: now,
+            })
+            .where(eq(schema.character.id, characterId))
+        }
+
+        return { charRows, likeRows, bookmarkRows }
+      })
 
       logger
         .withFields({
           userId,
-          characters: charRows.length,
-          likes: likeRows.length,
-          bookmarks: bookmarkRows.length,
+          characters: result.charRows.length,
+          likes: result.likeRows.length,
+          bookmarks: result.bookmarkRows.length,
         })
         .log('Characters / likes / bookmarks soft-deleted for user')
     },

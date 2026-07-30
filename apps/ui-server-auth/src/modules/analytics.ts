@@ -1,5 +1,5 @@
 /**
- * PostHog product analytics for the auth-only SPA (`apps/ui-server-auth`).
+ * Provider-neutral analytics for the auth-only SPA (`apps/ui-server-auth`).
  *
  * This surface captures anonymous auth-UI milestones such as form completion,
  * sign-in attempts, email verification, and password recovery. Canonical
@@ -9,44 +9,120 @@
  *
  * Unlike the stage apps there is no in-app analytics consent toggle here
  * (the user isn't signed in yet, so there's no settings store to read).
- * Capture posture matches the docs site: enabled in analytics-enabled
- * builds (`VITE_ENABLE_POSTHOG`), disclosed via the privacy policy linked
- * on the sign-in page.
+ * Capture posture matches the docs site: the optional provider is enabled by
+ * the application entry in configured builds and disclosed via the privacy
+ * policy linked on the sign-in page.
  */
 
 import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables'
 
-import posthog from 'posthog-js'
-
-import {
-  DEFAULT_POSTHOG_CONFIG,
-  POSTHOG_ENABLED,
-  POSTHOG_PROJECT_KEY,
-} from '../../../../posthog.config'
-
 /** Login/signup credential kinds shown on the sign-in page. */
 export type AuthMethod = 'email' | 'github' | 'google'
 
-let initialized = false
+interface CaptureOptions {
+  /**
+   * Set when navigation immediately follows capture. Adapters can select a
+   * transport that survives document unload.
+   */
+  beforeNavigation?: boolean
+}
+
+/** Adapter contract installed by an optional analytics provider chunk. */
+export interface AnalyticsAdapter {
+  capture: (event: string, properties: Record<string, unknown>, options?: CaptureOptions) => void
+  identify: (userId: string) => void
+}
+
+type PendingOperation
+  = | { kind: 'capture', event: string, properties: Record<string, unknown>, options?: CaptureOptions }
+    | { kind: 'identify', userId: string }
+
+type LoadState = 'idle' | 'loading' | 'ready' | 'unavailable'
 
 /**
- * Initialize PostHog for the auth surface. Call once from `main.ts` before
- * mount; later calls are no-ops. Returns whether capture is active so
- * callers can skip building event payloads in analytics-disabled builds.
+ * Owns optional-adapter loading and guarantees that product-event calls never
+ * make core auth UI wait for, or depend on, a provider SDK.
  */
-export function initAuthAnalytics(): boolean {
-  if (!POSTHOG_ENABLED)
-    return false
+export class AnalyticsClient {
+  private adapter: AnalyticsAdapter | undefined
+  private loadPromise: Promise<boolean> | undefined
+  private loadState: LoadState = 'idle'
+  private readonly pendingOperations: PendingOperation[] = []
 
-  if (initialized)
-    return true
+  load(loader: () => Promise<AnalyticsAdapter>): Promise<boolean> {
+    if (this.loadPromise)
+      return this.loadPromise
 
-  posthog.init(POSTHOG_PROJECT_KEY, { ...DEFAULT_POSTHOG_CONFIG })
-  // Same single-project setup as the stage apps: the `app_surface` super
-  // property is how auth traffic is told apart in shared dashboards.
-  posthog.register({ app_surface: 'auth' })
-  initialized = true
-  return true
+    this.loadState = 'loading'
+    this.loadPromise = Promise.resolve()
+      .then(loader)
+      .then((adapter) => {
+        this.adapter = adapter
+        this.loadState = 'ready'
+        this.flush()
+        return true
+      })
+      .catch(() => {
+        // Content blockers commonly reject the provider's module request. The
+        // provider is optional, so discard queued telemetry and stay no-op.
+        this.pendingOperations.length = 0
+        this.loadState = 'unavailable'
+        return false
+      })
+
+    return this.loadPromise
+  }
+
+  capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {
+    if (this.adapter) {
+      this.adapter.capture(event, properties, options)
+      return
+    }
+
+    if (this.loadState === 'loading')
+      this.enqueue({ kind: 'capture', event, properties, options })
+  }
+
+  identify(userId: string): void {
+    if (this.adapter) {
+      this.adapter.identify(userId)
+      return
+    }
+
+    if (this.loadState === 'loading')
+      this.enqueue({ kind: 'identify', userId })
+  }
+
+  private enqueue(operation: PendingOperation): void {
+    // A provider may remain slow indefinitely. Bound memory while preserving
+    // the newest auth funnel steps, which are the most useful after recovery.
+    if (this.pendingOperations.length === 100)
+      this.pendingOperations.shift()
+    this.pendingOperations.push(operation)
+  }
+
+  private flush(): void {
+    if (!this.adapter)
+      return
+
+    for (const operation of this.pendingOperations) {
+      if (operation.kind === 'identify')
+        this.adapter.identify(operation.userId)
+      else
+        this.adapter.capture(operation.event, operation.properties, operation.options)
+    }
+    this.pendingOperations.length = 0
+  }
+}
+
+const analytics = new AnalyticsClient()
+
+/**
+ * Starts loading the optional provider adapter without exposing its SDK to
+ * pages or to the application's static module graph.
+ */
+export function loadAnalyticsAdapter(loader: () => Promise<AnalyticsAdapter>): Promise<boolean> {
+  return analytics.load(loader)
 }
 
 /**
@@ -55,29 +131,11 @@ export function initAuthAnalytics(): boolean {
  * uses as `distinctId` (see `apps/server` product events forwarding).
  */
 export function identifyAuthUser(userId: string): void {
-  if (!initialized)
-    return
-  posthog.identify(userId)
-}
-
-interface CaptureOptions {
-  /**
-   * Set when navigation immediately follows the capture call
-   * (`window.location.href = ...`). The batched queue would race the
-   * unload and drop the event; sendBeacon survives it.
-   */
-  beforeNavigation?: boolean
+  analytics.identify(userId)
 }
 
 function capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {
-  if (!initialized)
-    return
-
-  posthog.capture(
-    event,
-    properties,
-    options?.beforeNavigation ? { send_instantly: true, transport: 'sendBeacon' } : undefined,
-  )
+  analytics.capture(event, properties, options)
 }
 
 /** Anonymous email-signup UI milestone; the server owns the registration fact. */

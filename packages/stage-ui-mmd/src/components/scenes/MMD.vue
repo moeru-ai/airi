@@ -363,7 +363,7 @@ async function loadModel(src: string) {
   disposeModel()
 
   try {
-    resolved = await loadMMDModelFromSource(src)
+    resolved = await loadMMDModelFromSource(src, { cacheKey: props.modelId })
     mesh = resolved.mesh
 
     modelGroup = new Group()

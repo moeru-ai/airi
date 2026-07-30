@@ -38,7 +38,7 @@
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "culori": "catalog:",
-    "jszip": "catalog:",
+    "fflate": "catalog:",
     "pinia": "catalog:",
     "pixi-filters": "catalog:",
     "vue": "catalog:"

@@ -72,6 +72,8 @@ AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_CLIENT_SECRET
 # Apple optional；启用时四项必须一起配置
 AUTH_APPLE_CLIENT_ID, AUTH_APPLE_TEAM_ID
 AUTH_APPLE_KEY_ID, AUTH_APPLE_PRIVATE_KEY_PEM
+# iOS 原生 Sign in with Apple；逗号分隔，每项必须与一个 Xcode target 的 Bundle ID 一致
+AUTH_APPLE_APP_BUNDLE_IDENTIFIERS=ai.moeru.airi-pocket,ai.moeru.airi-pro
 
 # OIDC Trusted Clients（均 optional，不配则不注册）
 # Web and Pocket are public clients (no secret, PKCE only)
@@ -79,6 +81,53 @@ OIDC_CLIENT_ID_WEB
 OIDC_CLIENT_ID_ELECTRON, OIDC_CLIENT_SECRET_ELECTRON
 OIDC_CLIENT_ID_POCKET
 ```
+
+### iOS 原生 Sign in with Apple
+
+iOS 使用 `ASAuthorizationAppleIDProvider` 获取 Apple identity token，然后直接调用 Better Auth 的社交登录接口；不要先请求授权 URL，也不需要打开系统浏览器：
+
+```http
+POST /api/auth/sign-in/social
+Content-Type: application/json
+
+{
+  "provider": "apple",
+  "idToken": {
+    "token": "<ASAuthorizationAppleIDCredential.identityToken UTF-8 JWT>",
+    "nonce": "<the exact value assigned to ASAuthorizationAppleIDRequest.nonce>"
+  }
+}
+```
+
+首次授权时，客户端可以额外传入 Apple 原生回调给出的姓名；email 由服务端从 identity token claim 读取：
+
+```json
+{
+  "provider": "apple",
+  "idToken": {
+    "token": "<identity-token>",
+    "nonce": "<nonce>",
+    "user": {
+      "name": {
+        "firstName": "<given-name>",
+        "lastName": "<family-name>"
+      }
+    }
+  }
+}
+```
+
+Better Auth 验证 token 的签名、issuer、Bundle ID audience allowlist 和可选 nonce 后，直接返回 session，不会返回 Apple 登录 URL：
+
+```json
+{
+  "redirect": false,
+  "token": "<better-auth-session-token>",
+  "user": {}
+}
+```
+
+客户端后续可将返回的 session token 作为 `Authorization: Bearer <token>` 调用业务 API。Apple 只在首次授权提供姓名，并可能只在首次授权提供 email；服务端会保留首次写入的 email，后续 token 未携带 email 时使用 Apple `sub` 生成不可投递的 placeholder 以解析已绑定账号。
 
 ## Token 层次
 

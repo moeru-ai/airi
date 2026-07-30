@@ -1,28 +1,22 @@
+import type { AnalyticsAdapter } from './analytics'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { initAuthAnalytics, trackSignupFormCompleted } from './analytics'
+import {
+  AnalyticsClient,
+  loadAnalyticsAdapter,
+  trackSignupFormCompleted,
+} from './analytics'
 
-const posthogMocks = vi.hoisted(() => ({
+const adapterMocks = {
   capture: vi.fn(),
-  init: vi.fn(),
-  register: vi.fn(),
-}))
+  identify: vi.fn(),
+} satisfies AnalyticsAdapter
 
-vi.mock('posthog-js', () => ({
-  default: posthogMocks,
-}))
-
-vi.mock('../../../../posthog.config', () => ({
-  DEFAULT_POSTHOG_CONFIG: {},
-  POSTHOG_ENABLED: true,
-  POSTHOG_PROJECT_KEY: 'test-project-key',
-}))
-
-describe('auth product analytics', () => {
+describe('auth analytics', () => {
   beforeEach(() => {
-    posthogMocks.capture.mockClear()
-    posthogMocks.init.mockClear()
-    posthogMocks.register.mockClear()
+    adapterMocks.capture.mockClear()
+    adapterMocks.identify.mockClear()
   })
 
   // ROOT CAUSE:
@@ -33,16 +27,49 @@ describe('auth product analytics', () => {
   //
   // The anonymous UI milestone must use its own name. The identified server
   // event remains the only canonical `signup_completed` business fact.
-  it('keeps anonymous signup UI completion separate from the canonical server signup fact', () => {
-    expect(initAuthAnalytics()).toBe(true)
-    expect(posthogMocks.register).toHaveBeenCalledWith({ app_surface: 'auth' })
+  it('keeps anonymous signup UI completion separate from the canonical server signup fact', async () => {
+    await expect(loadAnalyticsAdapter(async () => adapterMocks)).resolves.toBe(true)
 
     trackSignupFormCompleted({ source: 'email', requires_verification: true })
 
-    expect(posthogMocks.capture).toHaveBeenCalledWith(
+    expect(adapterMocks.capture).toHaveBeenCalledWith(
       'signup_form_completed',
       { source: 'email', requires_verification: true },
-      undefined,
+      { beforeNavigation: false },
     )
+  })
+
+  it('flushes calls made while the optional adapter is loading', async () => {
+    const client = new AnalyticsClient()
+    let install: ((adapter: AnalyticsAdapter) => void) | undefined
+    const loading = client.load(() => new Promise<AnalyticsAdapter>((resolve) => {
+      install = resolve
+    }))
+
+    client.capture('login_started', { method: 'github' }, { beforeNavigation: true })
+    client.identify('user-1')
+    await Promise.resolve()
+    install?.(adapterMocks)
+
+    await expect(loading).resolves.toBe(true)
+    expect(adapterMocks.capture).toHaveBeenCalledWith(
+      'login_started',
+      { method: 'github' },
+      { beforeNavigation: true },
+    )
+    expect(adapterMocks.identify).toHaveBeenCalledWith('user-1')
+  })
+
+  it('becomes a harmless no-op when a content blocker rejects the adapter import', async () => {
+    const client = new AnalyticsClient()
+    const loading = client.load(async () => {
+      throw new TypeError('Failed to fetch dynamically imported module')
+    })
+
+    client.capture('login_started', { method: 'google' })
+
+    await expect(loading).resolves.toBe(false)
+    expect(() => client.capture('login_failed', { method: 'google' })).not.toThrow()
+    expect(adapterMocks.capture).not.toHaveBeenCalled()
   })
 })
