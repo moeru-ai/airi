@@ -46,6 +46,19 @@ export default defineConfig({
   build: {
     emptyOutDir: true,
     outDir: resolve(join(import.meta.dirname, 'dist')),
+    rolldownOptions: {
+      output: {
+        // NOTICE:
+        // Safari content blockers can reject application chunks solely because a
+        // semantic filename such as `analytics-*.js` matches a filtering rule.
+        // Root cause: auth analytics is currently shared by the entry and routes,
+        // so blocking that generated chunk prevents the Vue app from mounting.
+        // Source/context: `apps/ui-server-auth/src/modules/analytics.ts`.
+        // Removal condition: analytics is no longer an application-critical static
+        // dependency and blocked optional modules cannot prevent app startup.
+        chunkFileNames: 'assets/chunk-[hash].js',
+      },
+    },
     sourcemap: true,
   },
   worker: {
