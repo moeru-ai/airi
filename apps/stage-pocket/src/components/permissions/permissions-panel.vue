@@ -43,8 +43,9 @@ async function refreshMicrophonePermission() {
   }
 
   const permission = await navigator.permissions?.query({ name: 'microphone' }).catch(() => undefined)
-  microphonePermissionGranted.value = permission?.state === 'granted'
-    || microphonePermissionGrantedFromStore.value
+  microphonePermissionGranted.value = permission
+    ? permission.state === 'granted'
+    : microphonePermissionGrantedFromStore.value
 }
 
 async function refreshPermissionStates() {
@@ -89,17 +90,15 @@ async function requestMicrophonePermission() {
     if (microphonePermissionGranted.value)
       return
 
-    if (microphonePermissionRequested.value) {
-      if (isNativePlatform) {
-        await NativeSettings.open({
-          optionAndroid: AndroidSettings.ApplicationDetails,
-          optionIOS: IOSSettings.App,
-        })
-      }
+    if (microphonePermissionRequested.value && isNativePlatform) {
+      await NativeSettings.open({
+        optionAndroid: AndroidSettings.ApplicationDetails,
+        optionIOS: IOSSettings.App,
+      })
       return
     }
 
-    // Persist before requesting so every later click takes the settings route, including after denial.
+    // Persist before requesting so later native clicks take the settings route, including after denial.
     microphonePermissionRequested.value = true
     await audioDeviceStore.askPermission()
     await refreshMicrophonePermission()
