@@ -1,8 +1,29 @@
+import type { RawLinkedAccountsClient } from './use-linked-accounts'
+
 import { describe, expect, it, vi } from 'vitest'
 import { createSSRApp, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 
-import { useLinkedAccounts } from './use-linked-accounts'
+import { useLinkedAccounts, withSteamLinking } from './use-linked-accounts'
+
+// NOTICE:
+// `RawLinkedAccountsClient['$fetch']` is a generic function type
+// (`<T>(path, options) => Promise<{ data: T | null, ... }>`), and `vi.fn(...)`
+// widens a generic implementation's return type to `unknown` instead of
+// preserving the per-call `T` — see vitest/tinyspy's `Mock<T>` wrapping,
+// which infers from the concrete call signature, not a generic one. A test
+// double for a genuinely generic method isn't practical to type exactly, so
+// `overrides.$fetch` (when supplied) is cast at the call site instead.
+// Removal condition: vitest ships a `Mock` type that preserves generics.
+function fakeRawClient(overrides: Partial<RawLinkedAccountsClient>): RawLinkedAccountsClient {
+  return {
+    listAccounts: vi.fn(async () => ({ data: [], error: null })),
+    unlinkAccount: vi.fn(async () => ({ data: null, error: null })),
+    linkSocial: vi.fn(async () => ({ data: null, error: null })),
+    $fetch: vi.fn(async () => ({ data: null, error: null })) as unknown as RawLinkedAccountsClient['$fetch'],
+    ...overrides,
+  }
+}
 
 describe('useLinkedAccounts', () => {
   it('passes the profile page URL as the OAuth link error callback URL', async () => {
@@ -122,5 +143,51 @@ describe('useLinkedAccounts', () => {
     linkSocial.mockResolvedValueOnce({ data: null, error: { message: 'nope' } })
     await holder.linkedAccounts.link('google', 'Google')
     expect(onLinkStarted).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('withSteamLinking', () => {
+  it('passes listAccounts and unlinkAccount straight through', async () => {
+    const listAccounts = vi.fn(async () => ({ data: [], error: null }))
+    const unlinkAccount = vi.fn(async () => ({ data: { status: true }, error: null }))
+
+    const wrapped = withSteamLinking(fakeRawClient({ listAccounts, unlinkAccount }))
+    await wrapped.listAccounts()
+    await wrapped.unlinkAccount({ providerId: 'steam' })
+
+    expect(listAccounts).toHaveBeenCalledTimes(1)
+    expect(unlinkAccount).toHaveBeenCalledWith({ providerId: 'steam' })
+  })
+
+  it('routes google/github linking through the real linkSocial endpoint', async () => {
+    const linkSocial = vi.fn(async () => ({ data: { url: 'https://accounts.google.com/o/oauth2/auth' }, error: null }))
+
+    const wrapped = withSteamLinking(fakeRawClient({ linkSocial }))
+    await wrapped.linkSocial({ provider: 'google', callbackURL: '/profile' })
+
+    expect(linkSocial).toHaveBeenCalledWith({ provider: 'google', callbackURL: '/profile' })
+  })
+
+  // Steam is OpenID 2.0, not OAuth2 — better-auth's `/link-social` validates
+  // `provider` against a `SocialProviderListEnum` and would reject 'steam'
+  // before ever reaching a plugin (better-auth/dist/api/routes/account.mjs).
+  // The wrapper must divert Steam linking to the plugin's own `/link/steam`
+  // endpoint via `$fetch` instead of calling the client's `linkSocial`.
+  it('routes Steam linking through $fetch(\'/link/steam\') instead of linkSocial', async () => {
+    const linkSocial = vi.fn()
+    const $fetch = vi.fn(async () => ({
+      data: { url: 'https://steamcommunity.com/openid/login?...', redirect: true },
+      error: null,
+    })) as unknown as RawLinkedAccountsClient['$fetch']
+
+    const wrapped = withSteamLinking(fakeRawClient({ linkSocial, $fetch }))
+    const result = await wrapped.linkSocial({ provider: 'steam', callbackURL: '/profile', errorCallbackURL: '/profile?error=steam' })
+
+    expect(linkSocial).not.toHaveBeenCalled()
+    expect($fetch).toHaveBeenCalledWith('/link/steam', {
+      method: 'POST',
+      body: { callbackURL: '/profile', errorCallbackURL: '/profile?error=steam' },
+    })
+    expect(result.data?.url).toBe('https://steamcommunity.com/openid/login?...')
   })
 })

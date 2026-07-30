@@ -94,6 +94,62 @@ export interface UseLinkedAccountsArgs {
 }
 
 /**
+ * Minimum surface {@link withSteamLinking} needs from a better-auth client.
+ * Kept hand-rolled (not `Pick<ReturnType<typeof createAuthClient>, ...>`)
+ * for the same reason {@link LinkedAccountsClient} is structural: it must
+ * fit both the cookie-credentialed (ui-server-auth) and Bearer-only
+ * (stage-web/stage-tamagotchi) client instances without this module
+ * depending on the concrete better-auth client type.
+ */
+export interface RawLinkedAccountsClient extends Pick<LinkedAccountsClient, 'listAccounts' | 'unlinkAccount' | 'linkSocial'> {
+  /**
+   * Generic request escape hatch mirroring better-auth's client `$fetch`.
+   * Only used to reach plugin endpoints (like Steam's `/link/steam`) that
+   * fall outside the standard `linkSocial` surface.
+   */
+  $fetch: <T>(path: string, options: { method: string, body: unknown }) => Promise<{
+    data: T | null
+    error: { message?: string, status?: number } | null
+  }>
+}
+
+/**
+ * Adapts a raw better-auth client into a {@link LinkedAccountsClient} that
+ * also supports linking a Steam account.
+ *
+ * Use when:
+ * - Feeding {@link useLinkedAccounts} a client for a surface that lists
+ *   `steam` in its provider set (ui-server-auth profile, stage-web /
+ *   stage-tamagotchi account settings).
+ *
+ * Why Steam needs this: it's OpenID 2.0, not OAuth2, so it isn't a
+ * registered `socialProviders` entry — better-auth's `/link-social`
+ * validates `provider` against a fixed `SocialProviderListEnum` and would
+ * reject `'steam'` before ever reaching a plugin. The `steam()` server
+ * plugin exposes `/link/steam` instead, which this wrapper reaches through
+ * the client's generic `$fetch`.
+ *
+ * `listAccounts` and `unlinkAccount` pass straight through unmodified:
+ * `/unlink-account` takes a free-form `providerId: string` server-side, so
+ * Steam accounts already unlink without special-casing.
+ */
+export function withSteamLinking(client: RawLinkedAccountsClient): LinkedAccountsClient {
+  return {
+    listAccounts: () => client.listAccounts(),
+    unlinkAccount: args => client.unlinkAccount(args),
+    linkSocial: (args) => {
+      if (args.provider !== 'steam')
+        return client.linkSocial(args)
+
+      return client.$fetch<{ url?: string, redirect?: boolean, status?: boolean }>('/link/steam', {
+        method: 'POST',
+        body: { callbackURL: args.callbackURL, errorCallbackURL: args.errorCallbackURL },
+      })
+    },
+  }
+}
+
+/**
  * Shared state + handlers for the "Connected accounts" section.
  * Two consumers (ui-server-auth profile, stage-web settings/account)
  * share all the logic but render the section differently, so this stops
