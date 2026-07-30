@@ -11,6 +11,53 @@ pages:
     mcp-server:
       description: MCPサーバーとツールの接続と管理
       title: MCPサーバー
+  screen-awareness:
+    title: Screen awareness
+    description: Let AIRI periodically observe a selected display and respond through the existing character pipeline.
+    enable:
+      label: Enable scheduled screen awareness
+      description: Disabled by default. When enabled, AIRI observes the selected display at the configured interval.
+      enabled: Enabled
+      disabled: Disabled
+    privacy:
+      title: Privacy first
+      description: Screenshots stay in memory and are never written to disk. When sensitive content may be visible, AIRI is instructed to give only a general privacy reminder.
+    permission:
+      description: Screen Recording permission is required before AIRI can list or observe displays.
+    capture:
+      title: Display capture
+      description: Only full displays are listed. Application windows are not available to this feature.
+      display-label: Display
+      display-placeholder: Select a display
+      refresh: Refresh displays
+      no-displays: No displays are currently available.
+      load-error: Failed to load available displays
+    interval:
+      label: Observation interval
+      description: Scheduled observations wait or skip when a conversation, model request, character response, or speech is active.
+      seconds: '{count} seconds'
+      minutes: '{count} minutes'
+    observe-now:
+      label: Observe now
+      description: Run one observation immediately. This manual action is available even when scheduled awareness is disabled.
+    status:
+      title: Activity
+      current: 'Status: {status}'
+      last-observed: 'Last observed: {time}'
+      never: Never
+      idle: Ready
+      waiting: Waiting for the current interaction to finish
+      observing: Observing the selected display
+      responding: Preparing the character response
+      error: Needs attention
+      error-label: The last observation could not be completed
+    recent-response:
+      title: Latest character response
+      empty: No screen-awareness response yet.
+      expand: Show response
+      collapse: Hide response
+    caption:
+      close: Close screen-awareness response
   system:
     sections:
       section:

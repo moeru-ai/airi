@@ -17,11 +17,14 @@ const scrollContainer = ref<HTMLElement>()
 useRestoreScroll(scrollContainer)
 
 const routeMeta = computed(() => route.meta as {
+  fillSettingsViewport?: boolean
   titleKey?: string
   subtitleKey?: string
   title?: string
   subtitle?: string
 })
+
+const fillSettingsViewport = computed(() => routeMeta.value.fillSettingsViewport === true)
 
 const providerTitle = computed(() => {
   if (!route.path.startsWith('/settings/providers/'))
@@ -79,7 +82,11 @@ const routeHeaderMetadata = computed(() => {
 
       min-h-0 flex-1
     >
-      <div ref="scrollContainer" relative h-full w-full overflow-y-auto scrollbar-none>
+      <div
+        ref="scrollContainer"
+        relative h-full w-full scrollbar-none
+        :class="fillSettingsViewport ? ['overflow-hidden'] : ['overflow-y-auto']"
+      >
         <div flex="~ col" mx-auto h-full max-w-screen-xl>
           <PageHeader
             :title="routeHeaderMetadata?.title ?? ''"
@@ -87,7 +94,10 @@ const routeHeaderMetadata = computed(() => {
             :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
             px-4
           />
-          <div min-h-0 flex-1 px-4>
+          <div
+            min-h-0 flex-1 px-4
+            :class="fillSettingsViewport ? ['overflow-hidden', 'pb-4'] : []"
+          >
             <RouterView />
           </div>
         </div>

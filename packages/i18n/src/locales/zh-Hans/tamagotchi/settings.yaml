@@ -11,6 +11,53 @@ pages:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
+  screen-awareness:
+    title: 屏幕感知
+    description: 让 AIRI 定时观察指定显示器，并通过现有角色管线自然回应。
+    enable:
+      label: 启用定时屏幕感知
+      description: 此功能默认关闭。启用后，AIRI 会按设定周期观察所选显示器。
+      enabled: 已启用
+      disabled: 已关闭
+    privacy:
+      title: 隐私优先
+      description: 截图仅在内存中处理，绝不会写入磁盘。画面可能包含敏感内容时，AIRI 只会给出通用隐私提醒。
+    permission:
+      description: AIRI 需要获得屏幕录制权限，才能列出或观察显示器。
+    capture:
+      title: 屏幕捕获
+      description: 此处只列出完整显示器，不会提供单独的应用窗口。
+      display-label: 显示器
+      display-placeholder: 选择显示器
+      refresh: 刷新显示器
+      no-displays: 当前没有可用的显示器。
+      load-error: 无法加载可用显示器
+    interval:
+      label: 观察周期
+      description: 普通对话、模型请求、角色回复或语音正在进行时，定时观察会等待或跳过。
+      seconds: '{count} 秒'
+      minutes: '{count} 分钟'
+    observe-now:
+      label: 立即观察
+      description: 立即执行一次观察。即使定时屏幕感知处于关闭状态，也可以使用此手动操作。
+    status:
+      title: 运行状态
+      current: '当前状态：{status}'
+      last-observed: '上次观察：{time}'
+      never: 从未观察
+      idle: 就绪
+      waiting: 正在等待当前交互结束
+      observing: 正在观察所选显示器
+      responding: 正在准备角色回应
+      error: 需要处理
+      error-label: 上次观察未能完成
+    recent-response:
+      title: 最近一次角色回应
+      empty: 还没有屏幕感知回应。
+      expand: 查看回应
+      collapse: 收起回应
+    caption:
+      close: 关闭屏幕感知回应
   system:
     sections:
       section:
