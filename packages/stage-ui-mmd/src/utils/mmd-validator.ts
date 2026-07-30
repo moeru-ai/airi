@@ -3,6 +3,8 @@ import type { MMDModelFormat } from './mmd-zip-loader'
 import { errorMessageFrom } from '@moeru/std'
 import { unzip } from 'fflate'
 
+import { readZipEntryPaths } from './zip-entry-paths'
+
 export type MMDValidationStatus = 'VALID' | 'INVALID'
 
 export interface MMDValidationReport {
@@ -31,12 +33,15 @@ export async function validateMMDZip(file: File): Promise<MMDValidationReport> {
 
   try {
     const data = new Uint8Array(await file.arrayBuffer())
+    const decodedPaths = readZipEntryPaths(data)
+    let entryIndex = 0
     const files = await new Promise<string[]>((resolve, reject) => {
       const paths: string[] = []
       unzip(data, {
         filter: (entry) => {
-          if (!entry.name.endsWith('/') && !entry.name.endsWith('\\'))
-            paths.push(entry.name)
+          const path = decodedPaths[entryIndex++] ?? entry.name
+          if (!path.endsWith('/') && !path.endsWith('\\'))
+            paths.push(path)
           // Validation only needs entry names, so skip decompressing model and texture payloads.
           return false
         },

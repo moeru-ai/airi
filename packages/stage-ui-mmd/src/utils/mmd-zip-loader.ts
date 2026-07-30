@@ -4,6 +4,8 @@ import type { UrlModifier } from '../composables/mmd/loader'
 
 import { unzip } from 'fflate'
 
+import { readZipEntryPaths } from './zip-entry-paths'
+
 export type MMDModelFormat = 'pmx' | 'pmd'
 
 export interface MMDModelVariant {
@@ -114,14 +116,17 @@ function createUrlModifier(blobUrls: Record<string, string>): UrlModifier {
  */
 export async function loadMMDZip(file: File | Blob | ArrayBuffer): Promise<MMDLoadedAssets> {
   const data = new Uint8Array(file instanceof ArrayBuffer ? file : await file.arrayBuffer())
+  const decodedPaths = readZipEntryPaths(data)
+  let entryIndex = 0
   // fflate adds results as async extraction finishes, so capture the ZIP directory order separately.
-  const paths: string[] = []
+  const archiveEntries: Array<{ archivePath: string, path: string }> = []
   const archive = await new Promise<Unzipped>((resolve, reject) => {
     unzip(data, {
       filter: (entry) => {
-        const isFile = !entry.name.endsWith('/') && !entry.name.endsWith('\\')
+        const path = decodedPaths[entryIndex++] ?? entry.name
+        const isFile = !path.endsWith('/') && !path.endsWith('\\')
         if (isFile)
-          paths.push(entry.name)
+          archiveEntries.push({ archivePath: entry.name, path })
         return isFile
       },
     }, (error, files) => {
@@ -133,13 +138,14 @@ export async function loadMMDZip(file: File | Blob | ArrayBuffer): Promise<MMDLo
     })
   })
 
+  const paths = archiveEntries.map(entry => entry.path)
   const variants = detectMMDVariants(paths)
   if (variants.length === 0)
     throw new Error('MMD ZIP must contain a .pmx or .pmd model file')
 
   const blobUrls: Record<string, string> = {}
-  for (const path of paths)
-    blobUrls[path] = URL.createObjectURL(new Blob([archive[path]]))
+  for (const entry of archiveEntries)
+    blobUrls[entry.path] = URL.createObjectURL(new Blob([archive[entry.archivePath]]))
 
   const variant = variants[0]
   const modelBlobUrl = blobUrls[variant.modelPath]

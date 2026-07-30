@@ -70,6 +70,28 @@ describe('loadMMDZip', () => {
       loaded.dispose()
     }
   })
+
+  // https://github.com/moeru-ai/airi/pull/2183#discussion_r3684385081
+  it('uses the Unicode Path extra field for archive entry names', async () => {
+    const unicodePath = new TextEncoder().encode('纹理.png')
+    const unicodePathExtra = new Uint8Array(5 + unicodePath.length)
+    unicodePathExtra.set([1, 250, 8, 15, 228])
+    unicodePathExtra.set(unicodePath, 5)
+
+    const archive = zipSync({
+      'model.pmx': new Uint8Array([1, 2, 3]),
+      'texture.png': [new Uint8Array([4, 5, 6]), { extra: { 0x7075: unicodePathExtra } }],
+    })
+    const loaded = await loadMMDZip(new Blob([archive]))
+
+    try {
+      expect(Object.keys(loaded.blobUrls)).toEqual(['model.pmx', '纹理.png'])
+      expect(loaded.urlModifier('纹理.png')).toBe(loaded.blobUrls['纹理.png'])
+    }
+    finally {
+      loaded.dispose()
+    }
+  })
 })
 
 describe('validateMMDZip', () => {
