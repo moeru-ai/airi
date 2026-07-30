@@ -142,9 +142,13 @@ function createAppleProviderConfig(
           env.AUTH_APPLE_CLIENT_ID,
           ...env.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS,
         ],
-        // Apple omits email after the initial consent. Better Auth still
-        // requires one before it can resolve the existing provider account, so
-        // use Apple's stable team-scoped subject as a non-deliverable fallback.
+        // NOTICE:
+        // Why: Apple omits email after initial consent, while Better Auth 1.6.5
+        // rejects ID-token sign-in before resolving the existing provider account.
+        // Root cause: `/api/routes/sign-in.mjs` requires userInfo.user.email.
+        // Source: `https://better-auth.com/docs/concepts/oauth#handling-providers-without-email`.
+        // Removal condition: Better Auth resolves existing accounts by
+        // providerId/accountId without requiring email (tracked upstream as #9124).
         mapProfileToUser: (profile: AppleProfile) => ({
           email: profile.email || `${profile.sub}@apple.placeholder.local`,
         }),
