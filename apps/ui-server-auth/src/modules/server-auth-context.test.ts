@@ -58,4 +58,34 @@ describe('ui-server-auth bootstrap context', () => {
 
     expect(getServerAuthBootstrapContext()?.apiServerUrl).toBe('https://airi-server-dev.up.railway.app')
   })
+
+  // ROOT CAUSE:
+  //
+  // This standalone auth UI is a client-side SPA: vue-router navigates from
+  // /sign-in to /verify-email via pushState, changing window.location.href
+  // without a page reload. getServerAuthBootstrapContext() used to cache its
+  // result in a single module-level variable on first call, so every later
+  // call on the same page load reused the FIRST visited route's resolved
+  // apiServerUrl (or null) regardless of the current URL's query string.
+  //
+  // Concretely: a user lands on /sign-in with no api_server_url (context is
+  // cached as null), signs up, and gets redirected to
+  // /verify-email?api_server_url=http://localhost:3000 — but the stale cached
+  // `null` is returned, so verify-email silently falls back to the production
+  // SERVER_URL instead of the local dev server that created the account.
+  //
+  // Fixed by keying the cache on window.location.href so each SPA route
+  // re-resolves its own context.
+  it('re-resolves the bootstrap context after an in-page SPA navigation changes the URL', () => {
+    document.body.innerHTML = ''
+    window.history.replaceState(null, '', '/ui/sign-in')
+    expect(getServerAuthBootstrapContext()).toBeNull()
+
+    window.history.pushState(
+      null,
+      '',
+      '/ui/verify-email?api_server_url=http%3A%2F%2Flocalhost%3A3000',
+    )
+    expect(getServerAuthBootstrapContext()?.apiServerUrl).toBe('http://localhost:3000')
+  })
 })

@@ -21,7 +21,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from '../modules/email-password'
-import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
+import { API_SERVER_URL_QUERY_PARAM, getServerAuthBootstrapContext } from '../modules/server-auth-context'
 import { createServerSignInContext, requestSocialSignInRedirect } from '../modules/sign-in'
 
 type Step = 'identify' | 'password' | 'create'
@@ -201,6 +201,7 @@ async function handleEmailSignIn(event: Event) {
         path: '/verify-email',
         query: {
           email: credentials.email.trim(),
+          [API_SERVER_URL_QUERY_PARAM]: apiServerUrl,
           ...(oidcContinueURL.value ? { continueURL: oidcContinueURL.value } : {}),
         },
       })
@@ -252,6 +253,7 @@ async function handleEmailSignUp(event: Event) {
         path: '/verify-email',
         query: {
           email,
+          [API_SERVER_URL_QUERY_PARAM]: apiServerUrl,
           ...(oidcContinueURL.value ? { continueURL: oidcContinueURL.value } : {}),
         },
       })

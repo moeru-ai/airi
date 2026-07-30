@@ -12,7 +12,7 @@ export interface ServerAuthBootstrapContext {
 }
 
 const SCRIPT_ID = 'airi-server-auth-context'
-const API_SERVER_URL_QUERY_PARAM = 'api_server_url'
+export const API_SERVER_URL_QUERY_PARAM = 'api_server_url'
 
 const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://api.airi.build',
@@ -34,31 +34,42 @@ const TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS = [
   /^https:\/\/127\.0\.0\.1(:\d+)?$/,
 ]
 
-let cachedContext: ServerAuthBootstrapContext | null | undefined
+// NOTICE:
+// Keyed by current href because this standalone auth UI is a client-side SPA:
+// vue-router changes `window.location.search` (and thus the `api_server_url`
+// query param) without a page reload. A single module-level cache pinned to the
+// first visited route would freeze every later route onto the first route's
+// apiServerUrl (e.g. landing on /sign-in with no param cached null, then
+// /verify-email?api_server_url=http://localhost:3000 wrongly reusing null and
+// falling back to the production SERVER_URL). See debug session 474385.
+let cachedContextForUrl: { url: string, context: ServerAuthBootstrapContext | null } | undefined
 
 export function getServerAuthBootstrapContext(): ServerAuthBootstrapContext | null {
-  if (cachedContext !== undefined)
-    return cachedContext
+  const currentHref = window.location.href
+  if (cachedContextForUrl !== undefined && cachedContextForUrl.url === currentHref)
+    return cachedContextForUrl.context
 
   const element = document.getElementById(SCRIPT_ID)
+  let context: ServerAuthBootstrapContext | null
   if (!element) {
-    cachedContext = resolveStandaloneServerAuthContext(window.location.href, SERVER_URL)
-    return cachedContext
+    context = resolveStandaloneServerAuthContext(currentHref, SERVER_URL)
+  }
+  else {
+    try {
+      const parsed = JSON.parse(element.textContent ?? '') as Partial<ServerAuthBootstrapContext>
+      context = {
+        apiServerUrl: parsed.apiServerUrl ?? SERVER_URL,
+        currentUrl: parsed.currentUrl ?? currentHref,
+        oidcCallback: parsed.oidcCallback,
+      }
+    }
+    catch {
+      context = resolveStandaloneServerAuthContext(currentHref, SERVER_URL)
+    }
   }
 
-  try {
-    const parsed = JSON.parse(element.textContent ?? '') as Partial<ServerAuthBootstrapContext>
-    cachedContext = {
-      apiServerUrl: parsed.apiServerUrl ?? SERVER_URL,
-      currentUrl: parsed.currentUrl ?? window.location.href,
-      oidcCallback: parsed.oidcCallback,
-    }
-    return cachedContext
-  }
-  catch {
-    cachedContext = resolveStandaloneServerAuthContext(window.location.href, SERVER_URL)
-    return cachedContext
-  }
+  cachedContextForUrl = { url: currentHref, context }
+  return context
 }
 
 /**
