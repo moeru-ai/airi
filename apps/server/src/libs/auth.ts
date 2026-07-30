@@ -1,3 +1,5 @@
+import type { AppleProfile } from 'better-auth/social-providers'
+
 import type { AuthMetrics } from '../otel'
 import type { EmailService } from '../services/adapters/email'
 import type { ProductEventService } from '../services/domain/product-events'
@@ -100,11 +102,13 @@ function buildWebRedirectUris(env: Env): string[] {
  * Apple uses a signed ES256 JWT as the OAuth client secret. Better Auth
  * resolves async social-provider configuration once while creating its auth
  * context, so this uses Apple's supported 180-day lifetime instead of the
- * Go server's per-callback five-minute token. Incomplete credentials leave the
- * provider disabled, matching the empty optional configuration.
+ * Go server's per-callback five-minute token. The App Bundle ID is a separate
+ * audience for ID tokens issued by Apple's native AuthenticationServices API.
+ * Incomplete credentials leave the provider disabled, matching the empty
+ * optional configuration.
  */
 function createAppleProviderConfig(
-  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
+  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_APP_BUNDLE_IDENTIFIER' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
 ) {
   if (!env.AUTH_APPLE_CLIENT_ID
     || !env.AUTH_APPLE_TEAM_ID
@@ -130,6 +134,13 @@ function createAppleProviderConfig(
       return {
         clientId: env.AUTH_APPLE_CLIENT_ID,
         clientSecret,
+        appBundleIdentifier: env.AUTH_APPLE_APP_BUNDLE_IDENTIFIER || undefined,
+        // Apple omits email after the initial consent. Better Auth still
+        // requires one before it can resolve the existing provider account, so
+        // use Apple's stable team-scoped subject as a non-deliverable fallback.
+        mapProfileToUser: (profile: AppleProfile) => ({
+          email: profile.email || `${profile.sub}@apple.placeholder.local`,
+        }),
       }
     },
   }

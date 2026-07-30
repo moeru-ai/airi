@@ -14,6 +14,7 @@ function baseEnv(): Record<string, string> {
     AUTH_GITHUB_CLIENT_ID: 'github-client',
     AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
     AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+    AUTH_APPLE_APP_BUNDLE_IDENTIFIER: 'ai.moeru.airi-pocket',
     AUTH_APPLE_TEAM_ID: 'apple-team-id',
     AUTH_APPLE_KEY_ID: 'apple-key-id',
     AUTH_APPLE_PRIVATE_KEY_PEM: 'line-one\\nline-two',
@@ -48,12 +49,14 @@ describe('parseEnv', () => {
     expect(env.AUTH_UI_URL).toBe('https://accounts.airi.build/ui')
     expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
+    expect(env.AUTH_APPLE_APP_BUNDLE_IDENTIFIER).toBe('ai.moeru.airi-pocket')
     expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('line-one\nline-two')
   })
 
   it('allows Apple auth to remain disabled when no Apple credentials are configured', () => {
     const input = baseEnv()
     delete input.AUTH_APPLE_CLIENT_ID
+    delete input.AUTH_APPLE_APP_BUNDLE_IDENTIFIER
     delete input.AUTH_APPLE_TEAM_ID
     delete input.AUTH_APPLE_KEY_ID
     delete input.AUTH_APPLE_PRIVATE_KEY_PEM
@@ -61,6 +64,7 @@ describe('parseEnv', () => {
     const env = parseEnv(input)
 
     expect(env.AUTH_APPLE_CLIENT_ID).toBe('')
+    expect(env.AUTH_APPLE_APP_BUNDLE_IDENTIFIER).toBe('')
     expect(env.AUTH_APPLE_TEAM_ID).toBe('')
     expect(env.AUTH_APPLE_KEY_ID).toBe('')
     expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')

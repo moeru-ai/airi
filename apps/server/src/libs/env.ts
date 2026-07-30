@@ -120,6 +120,7 @@ const EnvSchema = object({
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
   AUTH_APPLE_CLIENT_ID: optional(string(), ''),
+  AUTH_APPLE_APP_BUNDLE_IDENTIFIER: optional(string(), ''),
   AUTH_APPLE_TEAM_ID: optional(string(), ''),
   AUTH_APPLE_KEY_ID: optional(string(), ''),
   AUTH_APPLE_PRIVATE_KEY_PEM: optional(
