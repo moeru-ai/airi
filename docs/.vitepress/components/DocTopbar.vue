@@ -6,7 +6,6 @@ import { useScroll } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger } from 'reka-ui'
 import { useData, useRoute, withBase } from 'vitepress'
 import { computed, ref, toRefs, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import DocSidebarItem from '../components/DocSidebarItem.vue'
 
@@ -14,7 +13,6 @@ import { flatten } from '../utils/flatten'
 
 const { path } = toRefs(useRoute())
 const { page, theme } = useData()
-const { t } = useI18n()
 
 const isSidebarOpen = ref(false)
 const sidebar = computed(() => (theme.value.sidebar as (DefaultTheme.SidebarItem & { icon?: string })[]))
@@ -143,7 +141,9 @@ watch(path, () => {
 
       <div class="h-full flex items-center">
         <a
-          href="/characters/"
+          v-for="tab in sectionTabs.filter(i => isCharacterPage(i.link))"
+          :key="tab.label"
+          :href="tab.link"
           :class="{ '!border-b-primary !font-semibold !text-foreground': withBase(page.relativePath).includes('characters') }"
           class="mx-4 h-full inline-flex items-center gap-2 border-b border-b-transparent py-2 text-sm text-muted-foreground font-medium hover:border-b-muted hover:text-foreground"
         >
@@ -151,7 +151,7 @@ watch(path, () => {
             icon="lucide:scan-face"
             class="text-lg"
           />
-          {{ t('docs.theme.pages.characters.title') }}
+          {{ tab.label }}
         </a>
       </div>
     </div>
