@@ -85,4 +85,28 @@ describe('funASR Hearing model synchronization', () => {
       expect(providersStore.getProviderConfig('funasr-audio-transcription')?.model).toBe('fun-asr-nano')
     })
   })
+
+  it('clears the FunASR model when another provider is selected', async () => {
+    const hearingStore = useHearingStore()
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'openai-compatible-audio-transcription'
+
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('')
+    })
+  })
+
+  it('preserves a persisted model when Hearing starts with another provider', () => {
+    persistedSettings.set('settings/hearing/active-provider', 'openai-compatible-audio-transcription')
+    persistedSettings.set('settings/hearing/active-model', 'whisper-1')
+
+    const hearingStore = useHearingStore()
+
+    expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+  })
 })

@@ -335,11 +335,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return typeof model === 'string' ? model : 'sensevoice'
   })
 
-  watch(activeTranscriptionProvider, async (providerId) => {
+  watch(activeTranscriptionProvider, async (providerId, previousProviderId) => {
     verboseJsonNotSupported.value = false
     if (providerId === 'funasr-audio-transcription') {
       activeTranscriptionModel.value = activeFunASRConfiguredModel.value || 'sensevoice'
       await loadModelsForProvider(providerId)
+    }
+    else if (previousProviderId === 'funasr-audio-transcription') {
+      activeTranscriptionModel.value = ''
     }
   }, { immediate: true })
 
