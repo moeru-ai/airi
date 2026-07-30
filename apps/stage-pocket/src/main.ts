@@ -7,6 +7,7 @@ import NProgress from 'nprogress'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
+import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/stores/analytics/client'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -26,6 +27,11 @@ import 'splitpanes/dist/splitpanes.css'
 import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
+
+configureAnalyticsAdapter(async (options) => {
+  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/stores/analytics/posthog')
+  return createPosthogAdapter(options)
+})
 
 const pinia = createPinia()
 

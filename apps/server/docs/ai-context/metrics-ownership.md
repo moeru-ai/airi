@@ -112,7 +112,7 @@
 ### PostHog（前端 / 外部数据源，产品侧）
 
 已接入：
-- 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 初始化；web / desktop / pocket / auth / docs 共用一个 project key，以 `app_surface` 区分运行端。
+- 前端 `posthog-js` 通过 `packages/stage-ui/src/stores/analytics/posthog.ts` 动态 adapter 初始化；web / desktop / pocket / auth / docs 共用一个 project key，以 `app_surface` 区分运行端。
 - Server 先把产品事实写入 `product_events`，再异步 best-effort 转发注册、支付、订阅等白名单业务事实到 PostHog；LLM / TTS per-request 事件不转发，PostHog 失败也不能影响请求主链路。
 - 前端 identity：`useSharedAnalyticsStore.initialize()` watch `authStore.isAuthenticated` 自动调 `posthog.identify(user.id)` / `reset()`
 - 平台统一写入 `app_surface`；`entry_surface` 只表示 `settings_flux` 这类业务入口，避免同名字段混用或覆盖 PostHog super property。

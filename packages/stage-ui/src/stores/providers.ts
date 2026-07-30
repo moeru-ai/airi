@@ -55,7 +55,7 @@ import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
 import { getProviderValidationIntervalMs, listProviders as listDefinedProviders, ProviderValidationCheck } from '../libs/providers'
 import { resolveProviderSourceMetadata } from '../libs/providers/source-metadata'
 import { getDefaultKokoroModel, KOKORO_MODELS, kokoroModelsToModelInfo } from '../workers/kokoro/constants'
-import { capturePosthogEvent, ensurePosthogInitialized, isPosthogAvailableInBuild } from './analytics/posthog'
+import { captureAnalyticsEvent, ensureAnalyticsInitialized, isAnalyticsAvailableInBuild } from './analytics/client'
 import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
@@ -108,14 +108,14 @@ function analyticsSurface(): 'web' | 'mobile' | 'electron' {
  * Checks analytics settings and initializes PostHog without loading build metadata.
  */
 function canCaptureProviderAnalytics(): boolean {
-  if (!isPosthogAvailableInBuild())
+  if (!isAnalyticsAvailableInBuild())
     return false
 
   const settingsAnalytics = useSettingsAnalytics()
   if (!settingsAnalytics.analyticsEnabled)
     return false
 
-  return ensurePosthogInitialized(true)
+  return ensureAnalyticsInitialized(true)
 }
 
 /**
@@ -130,7 +130,7 @@ function trackModelListLoaded(properties: {
   if (!canCaptureProviderAnalytics())
     return
 
-  capturePosthogEvent('model_list_loaded', {
+  captureAnalyticsEvent('model_list_loaded', {
     ...properties,
     app_surface: analyticsSurface(),
   })
@@ -148,7 +148,7 @@ function trackModelListFailed(properties: {
   if (!canCaptureProviderAnalytics())
     return
 
-  capturePosthogEvent('model_list_failed', {
+  captureAnalyticsEvent('model_list_failed', {
     ...properties,
     app_surface: analyticsSurface(),
   })
