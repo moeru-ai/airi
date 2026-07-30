@@ -677,6 +677,7 @@ export default defineConfig<ThemeConfig>({
                   { text: '웹 버전', link: withBase('/ko/docs/manual/web/') },
                 ],
               },
+              { text: '설치와 사용', link: withBase('/ko/docs/manual/tamagotchi/setup-and-use/') },
               {
                 text: '설정',
                 items: [
