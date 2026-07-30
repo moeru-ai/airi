@@ -203,6 +203,52 @@ describe('media permissions', () => {
     )).toBe(false)
   })
 
+  // https://github.com/moeru-ai/airi/issues/2177
+  it('grants screen capture requests reported as media from local app pages (Issue #2177)', () => {
+    // ROOT CAUSE:
+    //
+    // `navigator.mediaDevices.getDisplayMedia()` reaches `setPermissionRequestHandler` as the `media`
+    // permission, and Electron only appends `audio` or `video` to `mediaTypes` for device capture, so a
+    // screen capture request arrives with an empty `mediaTypes` list.
+    //
+    // `shouldGrantElectronPermission` returned early for every `media` operation and demanded audio-only
+    // details, so screen capture was denied before the allowlisted `display-capture` entry was reached:
+    //
+    // if (permission === 'media')
+    //   return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+    //
+    // We fixed this by resolving a `media` operation without device media types to `display-capture`, so
+    // the existing allowlist and local-frame checks decide the outcome.
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
+    )).toBe(true)
+  })
+
+  it('rejects screen capture requests reported as media from remote pages', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({
+        mediaTypes: [],
+        requestingUrl: 'https://example.com/capture.html',
+        securityOrigin: 'https://example.com',
+      }),
+    )).toBe(false)
+  })
+
+  it('keeps camera requests denied now that screen capture shares the media permission', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: ['video'], securityOrigin: 'file:///app/index.html' }),
+    )).toBe(false)
+  })
+
   /** @example Local AIRI pages retain sanitized clipboard writes used by chat copy actions. */
   it('grants sanitized clipboard writes from local app pages', () => {
     expect(shouldGrantElectronPermission(

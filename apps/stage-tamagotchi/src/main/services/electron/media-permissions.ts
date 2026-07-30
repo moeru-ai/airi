@@ -35,6 +35,20 @@ function isAudioMediaPermission(permission: ElectronPermission, details?: Electr
 }
 
 /**
+ * Checks whether Electron described a screen or window capture operation.
+ *
+ * Electron routes `getDisplayMedia()` through the `media` permission and only appends `audio` or `video`
+ * to `mediaTypes` for device capture, so display capture is the media operation that declares no media
+ * type at all. See {@link https://github.com/electron/electron/blob/v41.2.1/shell/browser/web_contents_permission_helper.cc#L249-L274}.
+ */
+function isDisplayCaptureMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media' || !details)
+    return false
+
+  return 'mediaTypes' in details && details.mediaTypes?.length === 0
+}
+
+/**
  * Checks whether every requester identity supplied by Electron is local to AIRI.
  */
 function shouldGrantLocalAppPermission(
@@ -89,6 +103,7 @@ export function shouldGrantAudioCapturePermission(
  * Expects:
  * - Unknown or unreviewed permission categories must remain denied
  * - All explicit frame, security, and embedding origins must identify local AIRI pages
+ * - Electron reports screen capture through the `media` permission instead of `display-capture`
  *
  * Returns:
  * - Whether the requested permission is both allowlisted and locally owned
@@ -99,10 +114,15 @@ export function shouldGrantElectronPermission(
   requestingOrigin?: string,
   details?: ElectronPermissionDetails,
 ): boolean {
-  if (permission === 'media')
-    return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+  if (shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details))
+    return true
 
-  return LOCAL_APP_PERMISSION_NAMES.has(permission)
+  // Screen capture arrives as a `media` operation, so it has to be resolved back to the reviewed
+  // `display-capture` entry before the allowlist is consulted. Camera and microphone operations keep
+  // reporting their device media type and therefore never reach the allowlist through this path.
+  const allowlistPermission = isDisplayCaptureMediaPermission(permission, details) ? 'display-capture' : permission
+
+  return LOCAL_APP_PERMISSION_NAMES.has(allowlistPermission)
     && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
 }
 
