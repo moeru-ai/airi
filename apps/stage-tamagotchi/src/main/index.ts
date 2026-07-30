@@ -12,7 +12,7 @@ import messages from '@proj-airi/i18n/locales'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
@@ -116,7 +116,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupMediaPermissionHandlers(session.defaultSession)
+  setupMediaPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()

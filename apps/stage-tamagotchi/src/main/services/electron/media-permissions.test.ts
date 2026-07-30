@@ -209,7 +209,7 @@ describe('media permissions', () => {
     //
     // `navigator.mediaDevices.getDisplayMedia()` reaches `setPermissionRequestHandler` as the `media`
     // permission, and Electron only appends `audio` or `video` to `mediaTypes` for device capture, so a
-    // screen capture request arrives with an empty `mediaTypes` list.
+    // desktop capture request arrives with an empty `mediaTypes` list.
     //
     // `shouldGrantElectronPermission` returned early for every `media` operation and demanded audio-only
     // details, so screen capture was denied before the allowlisted `display-capture` entry was reached:
@@ -224,6 +224,7 @@ describe('media permissions', () => {
       'media',
       undefined,
       createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
+      () => true,
     )).toBe(true)
   })
 
@@ -237,6 +238,38 @@ describe('media permissions', () => {
         requestingUrl: 'https://example.com/capture.html',
         securityOrigin: 'https://example.com',
       }),
+      () => true,
+    )).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2178#discussion_r3681573150
+  it('rejects desktop capture that no renderer asked for', () => {
+    // ROOT CAUSE:
+    //
+    // Electron reports the legacy `chromeMediaSource: 'desktop'` constraint with the same empty
+    // `mediaTypes` list as `getDisplayMedia()`, but serves it from `HandleUserMediaRequest` instead of
+    // `setDisplayMediaRequestHandler`. Granting on empty `mediaTypes` alone therefore also handed a local
+    // page the full desktop through `getUserMedia()`, skipping AIRI's own source selection:
+    //
+    // const allowlistPermission = isDisplayCaptureMediaPermission(permission, details) ? 'display-capture' : permission
+    //
+    // We fixed this by additionally requiring an authorized capture source, which only AIRI's selected
+    // source flow installs.
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
+      () => false,
+    )).toBe(false)
+  })
+
+  it('denies desktop capture when no authorization callback is supplied', () => {
+    expect(shouldGrantElectronPermission(
+      localWebContents,
+      'media',
+      undefined,
+      createMediaRequestDetails({ mediaTypes: [], securityOrigin: 'file:///app/index.html' }),
     )).toBe(false)
   })
 
@@ -246,6 +279,7 @@ describe('media permissions', () => {
       'media',
       undefined,
       createMediaRequestDetails({ mediaTypes: ['video'], securityOrigin: 'file:///app/index.html' }),
+      () => true,
     )).toBe(false)
   })
 
