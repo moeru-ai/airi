@@ -107,4 +107,18 @@ describe('validateMMDZip', () => {
     expect(report.detected.format).toBe('pmx')
     expect(report.detected.textureCount).toBe(1)
   })
+
+  // https://github.com/moeru-ai/airi/pull/2183#discussion_r3684619045
+  it('rejects entries using a compression method unsupported by fflate', async () => {
+    const archive = zipSync({ 'model.pmx': new Uint8Array([1, 2, 3]) })
+    const view = new DataView(archive.buffer, archive.byteOffset, archive.byteLength)
+    const endRecordOffset = archive.byteLength - 22
+    const centralDirectoryOffset = view.getUint32(endRecordOffset + 16, true)
+    view.setUint16(centralDirectoryOffset + 10, 14, true)
+
+    const report = await validateMMDZip(new File([archive], 'unsupported-compression.zip'))
+
+    expect(report.status).toBe('INVALID')
+    expect(report.errors).toEqual(['Failed to read ZIP: Unsupported ZIP compression method: 14'])
+  })
 })

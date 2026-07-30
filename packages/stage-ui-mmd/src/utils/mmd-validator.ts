@@ -40,7 +40,11 @@ export async function validateMMDZip(file: File): Promise<MMDValidationReport> {
       unzip(data, {
         filter: (entry) => {
           const path = decodedPaths[entryIndex++] ?? entry.name
-          if (!path.endsWith('/') && !path.endsWith('\\'))
+          const isFile = !path.endsWith('/') && !path.endsWith('\\')
+          // fflate's archive API can only extract stored and standard Deflate entries.
+          if (isFile && entry.compression !== 0 && entry.compression !== 8)
+            throw new Error(`Unsupported ZIP compression method: ${entry.compression}`)
+          if (isFile)
             paths.push(path)
           // Validation only needs entry names, so skip decompressing model and texture payloads.
           return false
