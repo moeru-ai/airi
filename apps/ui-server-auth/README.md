@@ -23,7 +23,7 @@ pnpm -F @proj-airi/ui-server-auth build
 
 ## Deployment
 
-`pnpm -F @proj-airi/ui-server-auth build` writes to `apps/ui-server-auth/dist`. Vue Router owns `/ui/*`, while Vite assets are served from root `/assets/*` so Cloudflare Pages can serve static files without rewriting nested asset paths. Cloudflare Pages uses `public/_redirects` to route `/ui/*` back to the SPA HTML.
+`pnpm -F @proj-airi/ui-server-auth build` writes to `apps/ui-server-auth/dist`. Vue Router owns `/ui/*`, while Vite assets are served from root `/assets/*` so Cloudflare Pages can serve static files without rewriting nested asset paths. `public/_redirects` scopes the SPA rewrite to `/ui/*`, and the top-level `public/404.html` keeps missing assets and other unknown paths as HTTP 404 responses.
 
 The production GitHub Actions workflow deploys this app to the Cloudflare Pages project `moeru-ai-airi-auth` with separate auth-account credentials:
 
