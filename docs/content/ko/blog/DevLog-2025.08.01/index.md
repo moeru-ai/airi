@@ -14,6 +14,28 @@ import CharacterMatcher from '../../../en/blog/DevLog-2025.08.01/CharacterMatche
 import GraphemeClusterAssembler from '../../../en/blog/DevLog-2025.08.01/GraphemeClusterAssembler.vue'
 import GraphemeClusterInspector from '../../../en/blog/DevLog-2025.08.01/GraphemeClusterInspector.vue'
 import RollingText from '../../../en/blog/DevLog-2025.08.01/RollingText.vue'
+
+// NOTICE:
+// These two arrays are hoisted out of the template on purpose.
+//
+// Written inline as `:characters="['👩‍👧', '‍', '👦']"` — the way the English
+// post does it — vue-tsc reports `error TS1005: ',' expected` against an
+// unrelated straight double quote much further down the page (the
+// "grapheme cluster" in the Clustr section).
+//
+// The astral-plane emoji inside a template binding expression desynchronise
+// Volar's offset mapping for VitePress markdown, so a later plain-text `"`
+// ends up parsed as part of a generated TS expression. Escaping the ZWJ or
+// editing that prose line only moves the symptom; keeping the surrogate
+// pairs out of template expressions is what actually fixes it.
+//
+// The English post survives by luck, not by construction — its prose happens
+// not to place a straight quote at the mis-mapped offset.
+//
+// Removal condition: drop this once Volar maps surrogate pairs in markdown
+// template expressions correctly.
+const pairCluster = [...'👩‍👧']
+const trioCluster = ['👩‍👧', '‍', '👦']
 </script>
 
 ## 시작하기 전에
@@ -106,13 +128,13 @@ grapheme cluster 나 코드 포인트에 마우스를 올려 어떻게 결합되
 바이트를 좀 받아서 다음과 같은 grapheme cluster 로 올바르게 디코딩했다고 상상해 봅시다:
 
 <div flex="~ row items-center justify-center gap-1" overflow="x-scroll">
-<GraphemeClusterAssembler :characters="[...'👩‍👧']" />
+<GraphemeClusterAssembler :characters="pairCluster" />
 </div>
 
 이 시점에서 "👩‍👧"(2인) 자체는 하나의 grapheme cluster 입니다. 이걸 꺼내고 다음 바이트를 읽기 시작해도 될까요? 아직입니다. 실제로 바이트가 더 도착하면 앞의 grapheme cluster 는 "👩‍👧‍👦"(3인)가 됩니다:
 
 <div flex="~ row items-center justify-center gap-1" overflow="x-scroll">
-<GraphemeClusterAssembler :characters="['👩‍👧', '‍', '👦']" />
+<GraphemeClusterAssembler :characters="trioCluster" />
 </div>
 
 "👩‍👧"(2인)를 한 스텝 일찍 내보내면 불완전한 grapheme cluster 를 만들어 내게 되는데, 이건 우리가 원하는 게 아닙니다.
