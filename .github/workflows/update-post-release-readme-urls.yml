@@ -17,7 +17,7 @@ permissions:
 
 concurrency:
   group: update-post-release-readme-urls
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
