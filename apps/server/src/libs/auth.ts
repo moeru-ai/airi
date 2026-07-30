@@ -1,3 +1,5 @@
+import type { AppleProfile } from 'better-auth/social-providers'
+
 import type { AuthMetrics } from '../otel'
 import type { EmailService } from '../services/adapters/email'
 import type { ProductEventService } from '../services/domain/product-events'
@@ -100,11 +102,14 @@ function buildWebRedirectUris(env: Env): string[] {
  * Apple uses a signed ES256 JWT as the OAuth client secret. Better Auth
  * resolves async social-provider configuration once while creating its auth
  * context, so this uses Apple's supported 180-day lifetime instead of the
- * Go server's per-callback five-minute token. Incomplete credentials leave the
- * provider disabled, matching the empty optional configuration.
+ * Go server's per-callback five-minute token. Apple's native
+ * AuthenticationServices API issues each app an ID token for its Bundle ID,
+ * so every first-party web/native identifier is kept in one explicit audience
+ * allowlist. Incomplete credentials leave the provider disabled, matching the
+ * empty optional configuration.
  */
 function createAppleProviderConfig(
-  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
+  env: Pick<Env, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_APP_BUNDLE_IDENTIFIERS' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>,
 ) {
   if (!env.AUTH_APPLE_CLIENT_ID
     || !env.AUTH_APPLE_TEAM_ID
@@ -130,6 +135,23 @@ function createAppleProviderConfig(
       return {
         clientId: env.AUTH_APPLE_CLIENT_ID,
         clientSecret,
+        // Better Auth passes this array to jose's JWT audience check. Keeping
+        // the web Services ID in the same allowlist preserves web ID-token
+        // verification while allowing every configured native app Bundle ID.
+        audience: [
+          env.AUTH_APPLE_CLIENT_ID,
+          ...env.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS,
+        ],
+        // NOTICE:
+        // Why: Apple omits email after initial consent, while Better Auth 1.6.5
+        // rejects ID-token sign-in before resolving the existing provider account.
+        // Root cause: `/api/routes/sign-in.mjs` requires userInfo.user.email.
+        // Source: `https://better-auth.com/docs/concepts/oauth#handling-providers-without-email`.
+        // Removal condition: Better Auth resolves existing accounts by
+        // providerId/accountId without requiring email (tracked upstream as #9124).
+        mapProfileToUser: (profile: AppleProfile) => ({
+          email: profile.email || `${profile.sub}@apple.placeholder.local`,
+        }),
       }
     },
   }
