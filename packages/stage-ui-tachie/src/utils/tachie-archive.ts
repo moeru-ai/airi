@@ -275,7 +275,7 @@ function disposeDecodedImages(images: Iterable<TachieDecodedImage>) {
     image.dispose()
 }
 
-function extractTachieArchive(data: Uint8Array): Promise<Record<string, Uint8Array>> {
+function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
   return new Promise((resolve, reject) => {
     try {
       unzip(data, {
@@ -309,12 +309,12 @@ async function inspectTachieArchive(
   if (errors.length > 0)
     return { archiveBytes, detected: [], errors, ignoredEntries: [], warnings }
 
-  let archiveFiles: Record<string, Uint8Array>
+  let files: Record<string, Uint8Array>
   try {
     const data = input instanceof Blob
       ? await input.arrayBuffer().then(buffer => new Uint8Array(buffer))
       : new Uint8Array(input)
-    archiveFiles = await extractTachieArchive(data)
+    files = await unzipAsync(data)
   }
   catch (error) {
     return {
@@ -326,7 +326,7 @@ async function inspectTachieArchive(
     }
   }
 
-  const layout = resolveTachieArchiveLayout(Object.keys(archiveFiles))
+  const layout = resolveTachieArchiveLayout(Object.keys(files))
   errors.push(...layout.errors)
   if (layout.ignoredEntries.length > 0)
     warnings.push(`Ignored ${layout.ignoredEntries.length} unrecognized archive ${layout.ignoredEntries.length === 1 ? 'entry' : 'entries'}.`)
@@ -353,7 +353,7 @@ async function inspectTachieArchive(
   }
 
   const extractedImagesByPath = new Map(
-    Object.entries(archiveFiles).map(([path, bytes]) => [normalizedArchivePath(path), bytes]),
+    Object.entries(files).map(([path, bytes]) => [normalizedArchivePath(path), bytes]),
   )
 
   const images = new Map<typeof TACHIE_EMOTIONS[number], TachieDecodedImage>()
