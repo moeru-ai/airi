@@ -2,9 +2,13 @@
 
 import type { Configuration } from 'electron-builder'
 
+import process from 'node:process'
+
 import { execSync } from 'node:child_process'
 
 import { isMacOS } from 'std-env'
+
+import { packSteamRedistributables } from './scripts/pack-steam-redistributables'
 
 function hasXcode26OrAbove() {
   if (!isMacOS)
@@ -39,6 +43,14 @@ else {
   // machine-readable output such as `BUNDLE_NAME=$(...)`.
   console.warn('[electron-builder/config] Xcode version is 26 or above. Using .icon format for macOS app icon.')
 }
+
+// NOTICE:
+// Steam loads an unsigned libsteam_api.dylib from beside the .app, so only
+// Steam builds disable hardened-runtime library validation.
+// https://github.com/moeru-ai/airi/pull/1966#discussion_r3642547795
+const macEntitlementsFile = process.env.VITE_DISTRIBUTION === 'steam'
+  ? 'build/entitlements.mac.steam.plist'
+  : 'build/entitlements.mac.plist'
 
 export default {
   appId: 'ai.moeru.airi',
@@ -104,6 +116,35 @@ export default {
       filter: ['**/*'],
     },
   ],
+  // NOTICE:
+  // Steam redistributables must be present before codesign/notarize finishes.
+  // On macOS they must NOT go under Contents/MacOS — codesign treats every file
+  // there as a code subcomponent, and steam_appid.txt fails with
+  // “code object is not signed at all”. Place them next to the .app instead
+  // (Steam sets cwd to the game folder that contains AIRI.app).
+  afterPack: async (context) => {
+    if (process.env.VITE_DISTRIBUTION !== 'steam')
+      return
+
+    const electronPlatform = context.electronPlatformName
+    let platform: 'macos' | 'windows' | 'linux'
+    switch (electronPlatform) {
+      case 'darwin':
+        platform = 'macos'
+        break
+      case 'win32':
+        platform = 'windows'
+        break
+      case 'linux':
+        platform = 'linux'
+        break
+      default:
+        return
+    }
+
+    // macOS: sibling of `.app` in appOutDir. Win/Linux: next to the executable.
+    await packSteamRedistributables(platform, context.appOutDir)
+  },
   extraMetadata: {
     name: 'ai.moeru.airi',
     main: 'out/main/index.js',
@@ -135,7 +176,8 @@ export default {
     runAfterFinish: true,
   },
   mac: {
-    entitlementsInherit: 'build/entitlements.mac.plist',
+    entitlements: macEntitlementsFile,
+    entitlementsInherit: macEntitlementsFile,
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
     publish: {
