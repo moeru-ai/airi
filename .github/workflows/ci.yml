@@ -26,12 +26,12 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
     # Lint Godot C# code
       - name: Lint Godot C#
         working-directory: ./engines/stage-tamagotchi-godot
-        run: dotnet format stage-tamagotchi-godot.sln --verify-no-changes
+        run: dotnet format stage-tamagotchi-godot.slnx --verify-no-changes
 
       - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest
         working-directory: ./apps/stage-pocket
@@ -86,13 +86,13 @@ jobs:
         if: matrix.app_name == 'stage-tamagotchi-godot'
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Setup Godot
         if: matrix.app_name == 'stage-tamagotchi-godot'
         uses: chickensoft-games/setup-godot@v2
         with:
-          version: 4.6.2
+          version: 4.7.1
           use-dotnet: true
           include-templates: true
 
@@ -135,13 +135,13 @@ jobs:
       #   if: matrix.app_name == 'stage-tamagotchi-godot'
       #   uses: actions/setup-dotnet@v4
       #   with:
-      #     dotnet-version: '8.0.x'
+      #     dotnet-version: '10.0.x'
 
       # - name: Setup Godot
       #   if: matrix.app_name == 'stage-tamagotchi-godot'
       #   uses: chickensoft-games/setup-godot@v2
       #   with:
-      #     version: 4.6.2
+      #     version: 4.7.1
       #     use-dotnet: true
       #     include-templates: true
 

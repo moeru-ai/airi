@@ -310,7 +310,7 @@ Recommended to use [GodotEnv](https://github.com/chickensoft-games/GodotEnv) to 
 You can use the command below to set current Godot version for this project:
 
 ```bash
-godotenv godot use 4.6.2
+godotenv godot use 4.7.1
 ```
 
 Then run the Godot editor with the current project:
