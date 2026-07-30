@@ -1,6 +1,7 @@
+import { zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 
-import { resolveTachieArchiveLayout } from './tachie-archive'
+import { resolveTachieArchiveLayout, validateTachieZip } from './tachie-archive'
 
 describe('resolveTachieArchiveLayout', () => {
   it('maps root images case-insensitively while ignoring metadata', () => {
@@ -69,5 +70,14 @@ describe('resolveTachieArchiveLayout', () => {
     ])
 
     expect(layout.errors).toContain('Emotion images must be stored at the archive root or inside one wrapping directory.')
+  })
+
+  it('extracts ZIP entries before validating the archive layout', async () => {
+    const archive = zipSync({ 'happy.png': new Uint8Array([1, 2, 3]) }, { level: 0 })
+    const report = await validateTachieZip(new File([archive], 'missing-neutral.tachie.zip'))
+
+    expect(report.status).toBe('INVALID')
+    expect(report.detected).toEqual([{ emotion: 'happy', path: 'happy.png' }])
+    expect(report.errors).toEqual(['Tachie archive must contain a neutral image.'])
   })
 })
