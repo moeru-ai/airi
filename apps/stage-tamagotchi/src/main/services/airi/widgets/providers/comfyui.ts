@@ -7,13 +7,14 @@ import { useLogg } from '@guiiai/logg'
 const log = useLogg('providers-comfyui').useGlobalConfig()
 
 const POLL_INTERVAL_MS = 5000
-const POLL_TIMEOUT_MS = 1000 * 60 * 5 // 5 minutes
+const DEFAULT_GENERATION_TIMEOUT_MINUTES = 10
 
 export class ComfyUIProvider implements ArtistryProvider {
   readonly id = 'comfyui'
   readonly name = 'ComfyUI (Local)'
 
   private serverUrl = 'http://localhost:8188'
+  private generationTimeoutMs = DEFAULT_GENERATION_TIMEOUT_MINUTES * 60 * 1000
   private savedWorkflows: any[] = []
   private activeWorkflowId = ''
 
@@ -55,6 +56,8 @@ export class ComfyUIProvider implements ArtistryProvider {
   async initialize(config: any): Promise<void> {
     if (config?.comfyuiServerUrl)
       this.serverUrl = config.comfyuiServerUrl.replace(/\/+$/, '') // strip trailing slashes
+    if (typeof config?.comfyuiGenerationTimeoutMinutes === 'number')
+      this.generationTimeoutMs = config.comfyuiGenerationTimeoutMinutes * 60 * 1000
     if (config?.comfyuiSavedWorkflows)
       this.savedWorkflows = config.comfyuiSavedWorkflows
     if (config?.comfyuiActiveWorkflow)
@@ -77,8 +80,11 @@ export class ComfyUIProvider implements ArtistryProvider {
       return { jobId, providerJobId: jobId }
     }
 
-    // Start async generation
-    this.pollForResult(jobId, template, request)
+    // Start async generation.
+    // NOTICE: Snapshot the timeout for this job. The provider is a shared singleton and
+    // initialize() mutates this.generationTimeoutMs, so a later generation syncing a
+    // different timeout must not move this job's deadline while it is still polling.
+    this.pollForResult(jobId, template, request, this.generationTimeoutMs)
 
     return { jobId, providerJobId: jobId }
   }
@@ -87,6 +93,7 @@ export class ComfyUIProvider implements ArtistryProvider {
     jobId: string,
     template: { workflow: Record<string, any>, exposedFields: Record<string, string[]> },
     request: ArtistryRequest,
+    generationTimeoutMs: number,
   ) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Preparing workflow...' })
 
@@ -166,8 +173,8 @@ export class ComfyUIProvider implements ArtistryProvider {
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
         attempt++
 
-        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-          throw new Error('Generation timed out after 5 minutes')
+        if (Date.now() - startTime > generationTimeoutMs) {
+          throw new Error(`Generation timed out after ${generationTimeoutMs / 60_000} minutes`)
         }
 
         if (attempt % 3 === 0) {

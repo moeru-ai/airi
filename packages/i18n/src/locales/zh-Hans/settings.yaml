@@ -1114,6 +1114,10 @@ pages:
               label: 服务器地址
               description: ComfyUI 正在运行的地址
               placeholder: http://localhost:8188
+            generation_timeout:
+              label: 生成超时时间
+              description: 工作流较慢、使用集成显卡或显存不足时请提高此值。AIRI 会在向对话返回结果前等待 ComfyUI 完成。
+              value: '{minutes} 分钟'
           cors:
             title: 检测到 CORS 阻止
             description: ComfyUI 默认会阻止来自其他应用程序的请求。若要允许 AIRI 连接，必须使用 --enable-cors-header "*" 参数启动 ComfyUI。

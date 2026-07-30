@@ -6,6 +6,7 @@ export const artistryConfigSchema = object({
   artistryProvider: optional(string(), 'none'),
   artistryGlobals: optional(object({
     comfyuiServerUrl: optional(string(), 'http://localhost:8188'),
+    comfyuiGenerationTimeoutMinutes: optional(number(), 10),
     comfyuiSavedWorkflows: optional(array(any()), []),
     comfyuiActiveWorkflow: optional(string(), ''),
     replicateApiKey: optional(string(), ''),
