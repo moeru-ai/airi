@@ -1,8 +1,5 @@
-import type JSZipType from 'jszip'
-
-import JSZip from 'jszip'
-
 import { errorMessageFrom } from '@moeru/std'
+import { unzip } from 'fflate'
 
 import { DEFAULT_TACHIE_EMOTION, isTachieEmotion, TACHIE_EMOTIONS } from '../constants/emotions'
 
@@ -10,8 +7,6 @@ import { DEFAULT_TACHIE_EMOTION, isTachieEmotion, TACHIE_EMOTIONS } from '../con
 export const TACHIE_ARCHIVE_SUFFIX = '.tachie.zip'
 /** Maximum compressed ZIP size accepted by the loader. */
 export const MAX_TACHIE_ARCHIVE_BYTES = 100 * 1024 * 1024
-/** Maximum combined RGBA texture memory accepted after image decoding. */
-export const MAX_TACHIE_IMAGE_BYTES = 300 * 1024 * 1024
 
 /** One recognized emotion image in its original archive location. */
 export interface TachieArchiveEntry {
@@ -100,12 +95,6 @@ export interface TachieValidationReport {
   errors: string[]
   /** Non-blocking findings that require import confirmation. */
   warnings: string[]
-}
-
-interface JSZipObjectWithCompressedData extends JSZipType.JSZipObject {
-  _data?: {
-    uncompressedSize?: number
-  }
 }
 
 /** Optional policy overrides for loading Tachie archives. */
@@ -286,6 +275,25 @@ function disposeDecodedImages(images: Iterable<TachieDecodedImage>) {
     image.dispose()
 }
 
+function unzipAsync(data: Uint8Array): Promise<Record<string, Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    try {
+      unzip(data, {
+        filter: file => !file.name.endsWith('/') && !file.name.endsWith('\\'),
+      }, (error, files) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(files)
+      })
+    }
+    catch (error) {
+      reject(error)
+    }
+  })
+}
+
 async function inspectTachieArchive(
   input: Blob | ArrayBuffer,
   options: TachieArchiveLoadOptions = {},
@@ -301,9 +309,12 @@ async function inspectTachieArchive(
   if (errors.length > 0)
     return { archiveBytes, detected: [], errors, ignoredEntries: [], warnings }
 
-  let zip: JSZipType
+  let files: Record<string, Uint8Array>
   try {
-    zip = await JSZip.loadAsync(input)
+    const data = input instanceof Blob
+      ? await input.arrayBuffer().then(buffer => new Uint8Array(buffer))
+      : new Uint8Array(input)
+    files = await unzipAsync(data)
   }
   catch (error) {
     return {
@@ -315,39 +326,11 @@ async function inspectTachieArchive(
     }
   }
 
-  const archiveFiles = Object.values(zip.files).filter(file => !file.dir)
-  const layout = resolveTachieArchiveLayout(archiveFiles.map(file => file.name))
+  const layout = resolveTachieArchiveLayout(Object.keys(files))
   errors.push(...layout.errors)
   if (layout.ignoredEntries.length > 0)
-    warnings.push(`Ignored ${layout.ignoredEntries.length} unrecognized archive entr${layout.ignoredEntries.length === 1 ? 'y' : 'ies'}.`)
+    warnings.push(`Ignored ${layout.ignoredEntries.length} unrecognized archive ${layout.ignoredEntries.length === 1 ? 'entry' : 'entries'}.`)
   if (errors.length > 0) {
-    return {
-      archiveBytes,
-      detected: layout.entries,
-      errors,
-      ignoredEntries: layout.ignoredEntries,
-      warnings,
-    }
-  }
-
-  let declaredImageBytes = 0
-  for (const entry of layout.entries) {
-    const file = zip.file(entry.path)
-    if (!file)
-      continue
-
-    // NOTICE:
-    // Preflight the declared uncompressed size before JSZip allocates a complete entry.
-    // JSZip keeps central-directory sizes on the private `_data` object but does not expose
-    // them in its public types. Source/context: `jszip/lib/compressedObject.js` and
-    // `jszip/index.d.ts` (the commented `CompressedObject` declaration).
-    // Removal condition: JSZip exposes uncompressed entry sizes through its public API.
-    const declaredSize = (file as JSZipObjectWithCompressedData)._data?.uncompressedSize
-    if (typeof declaredSize === 'number')
-      declaredImageBytes += declaredSize
-  }
-  if (declaredImageBytes > MAX_TACHIE_IMAGE_BYTES) {
-    errors.push('Tachie images exceed the 300 MiB uncompressed size limit.')
     return {
       archiveBytes,
       detected: layout.entries,
@@ -369,20 +352,23 @@ async function inspectTachieArchive(
     }
   }
 
+  const extractedImagesByPath = new Map(
+    Object.entries(files).map(([path, bytes]) => [normalizedArchivePath(path), bytes]),
+  )
+
   const images = new Map<typeof TACHIE_EMOTIONS[number], TachieDecodedImage>()
   let width = 0
   let height = 0
   let decodedImageBytes = 0
 
   for (const entry of layout.entries) {
-    const file = zip.file(entry.path)
-    if (!file) {
+    const bytes = extractedImagesByPath.get(entry.path)
+    if (!bytes) {
       errors.push(`Missing archive entry "${entry.path}".`)
       continue
     }
 
     try {
-      const bytes = await file.async('uint8array')
       const blob = new Blob([Uint8Array.from(bytes).buffer])
       const decoded = await decodeImage(blob)
       const dimensions = imageDimensions(decoded.source)
@@ -397,15 +383,7 @@ async function inspectTachieArchive(
         continue
       }
 
-      // Browser textures use four 8-bit channels regardless of the source
-      // image's compression or alpha usage. Count this decoded footprint so
-      // high-resolution PNG/WebP inputs cannot bypass the memory budget.
       decodedImageBytes += dimensions.width * dimensions.height * 4
-      if (decodedImageBytes > MAX_TACHIE_IMAGE_BYTES) {
-        decoded.dispose()
-        errors.push('Tachie images exceed the 300 MiB decoded texture memory limit.')
-        break
-      }
 
       if (width === 0 && height === 0) {
         width = dimensions.width
