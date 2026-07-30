@@ -1,6 +1,8 @@
+import type { Unzipped } from 'fflate'
+
 import type { UrlModifier } from '../composables/mmd/loader'
 
-import JSZip from 'jszip'
+import { unzip } from 'fflate'
 
 export type MMDModelFormat = 'pmx' | 'pmd'
 
@@ -111,22 +113,27 @@ function createUrlModifier(blobUrls: Record<string, string>): UrlModifier {
  * Call `dispose()` on unmount or reload to revoke the blob URLs.
  */
 export async function loadMMDZip(file: File | Blob | ArrayBuffer): Promise<MMDLoadedAssets> {
-  const zip = new JSZip()
-  const archive = await zip.loadAsync(file)
+  const data = new Uint8Array(file instanceof ArrayBuffer ? file : await file.arrayBuffer())
+  const archive = await new Promise<Unzipped>((resolve, reject) => {
+    unzip(data, {
+      filter: entry => !entry.name.endsWith('/') && !entry.name.endsWith('\\'),
+    }, (error, files) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      resolve(files)
+    })
+  })
 
-  const paths = Object.keys(archive.files).filter(name => !archive.files[name].dir)
+  const paths = Object.keys(archive)
   const variants = detectMMDVariants(paths)
   if (variants.length === 0)
     throw new Error('MMD ZIP must contain a .pmx or .pmd model file')
 
   const blobUrls: Record<string, string> = {}
-  await Promise.all(paths.map(async (path) => {
-    const entry = archive.files[path]
-    if (!entry)
-      return
-    const blob = await entry.async('blob')
-    blobUrls[path] = URL.createObjectURL(blob)
-  }))
+  for (const [path, entry] of Object.entries(archive))
+    blobUrls[path] = URL.createObjectURL(new Blob([entry]))
 
   const variant = variants[0]
   const modelBlobUrl = blobUrls[variant.modelPath]

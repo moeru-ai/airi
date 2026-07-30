@@ -1,8 +1,7 @@
 import type { MMDModelFormat } from './mmd-zip-loader'
 
-import JSZip from 'jszip'
-
 import { errorMessageFrom } from '@moeru/std'
+import { unzip } from 'fflate'
 
 export type MMDValidationStatus = 'VALID' | 'INVALID'
 
@@ -31,9 +30,24 @@ export async function validateMMDZip(file: File): Promise<MMDValidationReport> {
   const detected: MMDValidationReport['detected'] = { textureCount: 0 }
 
   try {
-    const zip = new JSZip()
-    const archive = await zip.loadAsync(file)
-    const files = Object.keys(archive.files).filter(name => !archive.files[name].dir)
+    const data = new Uint8Array(await file.arrayBuffer())
+    const files = await new Promise<string[]>((resolve, reject) => {
+      const paths: string[] = []
+      unzip(data, {
+        filter: (entry) => {
+          if (!entry.name.endsWith('/') && !entry.name.endsWith('\\'))
+            paths.push(entry.name)
+          // Validation only needs entry names, so skip decompressing model and texture payloads.
+          return false
+        },
+      }, (error) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(paths)
+      })
+    })
 
     const pmx = files.filter(name => name.toLowerCase().endsWith('.pmx'))
     const pmd = files.filter(name => name.toLowerCase().endsWith('.pmd'))
