@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
-import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts, withSteamLinking } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -144,7 +144,7 @@ const {
   unlink: unlinkLinkedProvider,
   link: linkLinkedProvider,
 } = useLinkedAccounts({
-  client: authClient,
+  client: withSteamLinking(authClient),
   isAuthenticated,
   describeError: error => errorMessageFrom(error) ?? '',
   messages: {
@@ -207,7 +207,7 @@ function handleUnlinkProvider(providerId: string) {
   return unlinkLinkedProvider(providerId, providerName)
 }
 
-function handleLinkProvider(providerId: 'github' | 'google') {
+function handleLinkProvider(providerId: 'github' | 'google' | 'steam') {
   linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
