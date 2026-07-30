@@ -1,3 +1,5 @@
+import type { Pool } from 'pg'
+
 import type { Env } from './env'
 
 import pg from 'pg'
@@ -14,6 +16,12 @@ const logger = useLogger('db')
 export type Database = ReturnType<typeof createDrizzle>['db']
 
 type DrizzleEnv = Pick<Env, 'DATABASE_URL' | 'DB_POOL_MAX' | 'DB_POOL_IDLE_TIMEOUT_MS' | 'DB_POOL_CONNECTION_TIMEOUT_MS' | 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS'>
+
+/**
+ * Session-scoped advisory lock key shared by every replica of this service.
+ * Arbitrary stable int4 — must stay identical across deploys.
+ */
+const SCHEMA_MIGRATE_LOCK_KEY = 872_314_059
 
 // NOTICE: pg is imported statically here. The OTEL instrumentation hooks are
 // registered via --import ./instrumentation.ts (preload) which runs before
@@ -36,6 +44,42 @@ export function createDrizzle(env: DrizzleEnv) {
   return { db, pool }
 }
 
-export function migrateDatabase(db: Database) {
-  return migrate(db, migrations)
+/**
+ * Runs `run` while holding a Postgres session advisory lock on `client`.
+ *
+ * Lock and unlock must use the same session: advisory locks are session-scoped,
+ * and unlock on another connection would leave the lock held.
+ */
+export async function withSessionAdvisoryLock<T>(
+  client: { query: (text: string, values?: unknown[]) => Promise<unknown> },
+  lockKey: number,
+  run: () => Promise<T>,
+): Promise<T> {
+  await client.query('SELECT pg_advisory_lock($1)', [lockKey])
+  try {
+    return await run()
+  }
+  finally {
+    await client.query('SELECT pg_advisory_unlock($1)', [lockKey])
+  }
+}
+
+/**
+ * Applies Drizzle migrations while holding a Postgres session advisory lock.
+ *
+ * Railway (and other multi-replica deploys) boot several processes at once;
+ * without this lock each replica races `CREATE TABLE` and the loser dies with
+ * 42P07 before HTTP listen, so `/livez` healthchecks time out.
+ */
+export async function migrateDatabase(pool: Pool) {
+  const client = await pool.connect()
+  try {
+    await withSessionAdvisoryLock(client, SCHEMA_MIGRATE_LOCK_KEY, async () => {
+      const lockedDb = drizzle(client, { schema: fullSchema })
+      await migrate(lockedDb, migrations)
+    })
+  }
+  finally {
+    client.release()
+  }
 }

@@ -127,6 +127,13 @@
       "when": 1782912836523,
       "tag": "0017_nappy_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785312836523,
+      "tag": "0018_capability_catalog_repair",
+      "breakpoints": true
     }
   ]
 }
