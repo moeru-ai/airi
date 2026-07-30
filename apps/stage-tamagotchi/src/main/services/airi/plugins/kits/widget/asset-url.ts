@@ -3,16 +3,13 @@ import type { ManifestEntry } from '../../types'
 
 import { isPlainObject } from 'es-toolkit'
 
-import {
-  buildMountedStaticAssetPath,
-  normalizeStaticAssetPath,
-} from '../../../http-server/static-assets/paths'
+import { buildMountedStaticAssetPath, normalizeStaticAssetPath } from '../../../http-server/static-assets/paths'
 
 /**
  * Describes one widget iframe asset as seen from the mounted `/ui` route.
  *
  * Use when:
- * - Converting plugin config asset paths into mounted extension asset URLs
+ * - Converting extension config asset paths into mounted extension asset URLs
  * - Creating sessions that must validate against route-relative asset paths
  *
  * Expects:
@@ -90,7 +87,7 @@ export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | u
  *
  * Expects:
  * - Module config may contain widget iframe `src` or `assetPath` fields
- * - Mapping includes a manifest entry for `module.ownerPluginId`
+ * - Mapping includes a manifest entry for `module.ownerExtensionId`
  *
  * Returns:
  * - Original module when rewrite is not applicable
@@ -98,9 +95,9 @@ export function resolveWidgetAssetRoute(assetPath: string): WidgetAssetRoute | u
  */
 export function rewriteWidgetModuleAssetUrl(
   module: PluginHostModuleSummary,
-  manifestEntryByName: Map<string, ManifestEntry>,
+  manifestEntryByExtensionId: Map<string, ManifestEntry>,
   options?: {
-    pluginAssetBaseUrl?: string
+    extensionAssetBaseUrl?: string
     createAssetSession?: (input: {
       extensionId: string
       version: string
@@ -110,7 +107,7 @@ export function rewriteWidgetModuleAssetUrl(
     }) => Promise<{ assetSessionId: string, url?: string }>
   },
 ): Promise<PluginHostModuleSummary> | PluginHostModuleSummary {
-  const entry = manifestEntryByName.get(module.ownerPluginId)
+  const entry = manifestEntryByExtensionId.get(module.ownerExtensionId)
   if (!entry) {
     return module
   }
@@ -141,23 +138,23 @@ export function rewriteWidgetModuleAssetUrl(
     return module
   }
 
-  if (!options?.pluginAssetBaseUrl || !options.createAssetSession) {
+  if (!options?.extensionAssetBaseUrl || !options.createAssetSession) {
     return module
   }
 
   return options.createAssetSession({
-    extensionId: module.ownerPluginId,
+    extensionId: module.ownerExtensionId,
     version: entry.version,
     sessionId: module.ownerSessionId,
     routeAssetPath: widgetAssetRoute.routeAssetPath,
     sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,
   }).then((session) => {
     const mountedPath = buildMountedStaticAssetPath({
-      extensionId: module.ownerPluginId,
+      extensionId: module.ownerExtensionId,
       assetSessionId: session.assetSessionId,
       assetPath: widgetAssetRoute.routeAssetPath,
     })
-    const iframeUrl = session.url ?? (mountedPath ? new URL(mountedPath, options.pluginAssetBaseUrl).toString() : '')
+    const iframeUrl = session.url ?? (mountedPath ? new URL(mountedPath, options.extensionAssetBaseUrl).toString() : '')
     if (!iframeUrl) {
       return module
     }

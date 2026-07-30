@@ -9,6 +9,176 @@ export function currentDisplayBounds(window: BrowserWindow) {
   return nearbyDisplay.bounds
 }
 
+/**
+ * Computes bounds that center a window inside an Electron display work area.
+ *
+ * Use when:
+ * - Recovering a desktop window that was moved outside the visible work area
+ * - Preserving the current window size while changing only its position
+ *
+ * Expects:
+ * - Both rectangles use Electron logical display coordinates
+ * - The display work area excludes menu bars, docks, and taskbars
+ *
+ * Returns:
+ * - Centered bounds that preserve the window width and height
+ */
+export function computeCenteredWindowBounds(options: {
+  displayWorkArea: Rectangle
+  windowBounds: Rectangle
+}): Rectangle {
+  const centeredOffsetX = Math.floor((options.displayWorkArea.width - options.windowBounds.width) / 2)
+  const centeredOffsetY = Math.floor((options.displayWorkArea.height - options.windowBounds.height) / 2)
+
+  return {
+    x: options.displayWorkArea.x + Math.max(0, centeredOffsetX),
+    y: options.displayWorkArea.y + Math.max(0, centeredOffsetY),
+    width: options.windowBounds.width,
+    height: options.windowBounds.height,
+  }
+}
+
+/**
+ * Centers and reveals an Electron window on the display matching its current bounds.
+ *
+ * Use when:
+ * - A renderer requests recovery of an off-screen AIRI window
+ * - A hidden window must become visible after its position is restored
+ *
+ * Expects:
+ * - The window is alive and supports Electron's bounds APIs
+ *
+ * Returns:
+ * - The centered bounds applied to the window
+ */
+export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setBounds' | 'show'> | undefined): Rectangle {
+  if (!window || window.isDestroyed())
+    throw new Error('Main AIRI window is not available.')
+
+  const windowBounds = window.getBounds()
+  const displayWorkArea = screen.getDisplayMatching(windowBounds).workArea
+  const centeredBounds = computeCenteredWindowBounds({ displayWorkArea, windowBounds })
+
+  window.setBounds(centeredBounds)
+  window.show()
+
+  return centeredBounds
+}
+
+export interface ResizableDisplayArea {
+  /** Full display bounds used to decide which physical display owns most of a window. */
+  bounds: Rectangle
+  /** Usable display area used for quadrant anchoring and final window clamping. */
+  workArea: Rectangle
+}
+
+export interface DominantDisplayResizeOptions {
+  /** Current window bounds in Electron display coordinates. */
+  currentBounds: Rectangle
+  /** Desired size before display work-area clamping. */
+  targetSize: Pick<Rectangle, 'width' | 'height'>
+  /** Displays from Electron screen APIs. */
+  displays: readonly ResizableDisplayArea[]
+}
+
+/**
+ * Computes resize bounds from the display that owns most of the current window.
+ */
+export function computeResizedBoundsAnchoredToDominantDisplay(options: DominantDisplayResizeOptions): Rectangle {
+  const targetWidth = Math.round(options.targetSize.width)
+  const targetHeight = Math.round(options.targetSize.height)
+  const display = findDominantDisplayArea(options.currentBounds, options.displays)
+
+  if (!display) {
+    return {
+      ...options.currentBounds,
+      width: targetWidth,
+      height: targetHeight,
+    }
+  }
+
+  const workArea = display.workArea
+
+  // Target sizes may come from a larger display preset. Clamp them before
+  // deriving anchors so the right/bottom edge math never asks for coordinates
+  // outside the selected display's usable area.
+  const width = Math.min(targetWidth, workArea.width)
+  const height = Math.min(targetHeight, workArea.height)
+  const workAreaRight = workArea.x + workArea.width
+  const workAreaBottom = workArea.y + workArea.height
+  const currentRight = options.currentBounds.x + options.currentBounds.width
+  const currentBottom = options.currentBounds.y + options.currentBounds.height
+
+  // The quadrant is based on the current window center, not the top-left
+  // corner, so a window crossing displays behaves according to where most of
+  // the visible window lives inside the selected work area.
+  const currentCenterX = options.currentBounds.x + options.currentBounds.width / 2
+  const currentCenterY = options.currentBounds.y + options.currentBounds.height / 2
+  const workAreaCenterX = workArea.x + workArea.width / 2
+  const workAreaCenterY = workArea.y + workArea.height / 2
+
+  // Left/top quadrants keep the original x/y. Right/bottom quadrants keep the
+  // opposite edge visually fixed by subtracting the new size from the current
+  // right/bottom edge.
+  const x = currentCenterX > workAreaCenterX
+    ? currentRight - width
+    : options.currentBounds.x
+  const y = currentCenterY > workAreaCenterY
+    ? currentBottom - height
+    : options.currentBounds.y
+
+  // The anchor can still land just outside the work area when the previous
+  // window crossed a screen boundary. Clamp after anchoring so resize intent
+  // wins first, then display safety.
+  return {
+    x: Math.round(clamp(x, workArea.x, workAreaRight - width)),
+    y: Math.round(clamp(y, workArea.y, workAreaBottom - height)),
+    width,
+    height,
+  }
+}
+
+/**
+ * Finds the display that owns the largest visible share of `bounds`.
+ */
+export function findDominantDisplayArea(bounds: Rectangle, displays: readonly ResizableDisplayArea[]): ResizableDisplayArea | undefined {
+  let dominantDisplay: ResizableDisplayArea | undefined
+  let dominantArea = -1
+
+  for (const display of displays) {
+    // Use full display bounds, not workArea. Menu bars and docks shrink
+    // workArea, but they should not change which physical display owns a
+    // cross-screen window.
+    const area = intersectionArea(bounds, display.bounds)
+    if (area > dominantArea) {
+      dominantDisplay = display
+      dominantArea = area
+    }
+  }
+
+  return dominantDisplay
+}
+
+function intersectionArea(a: Rectangle, b: Rectangle): number {
+  // Each side of the overlap rectangle is the inner edge from the two source
+  // rectangles. If the right edge crosses the left edge, or bottom crosses top,
+  // the rectangles do not overlap.
+  const left = Math.max(a.x, b.x)
+  const top = Math.max(a.y, b.y)
+  const right = Math.min(a.x + a.width, b.x + b.width)
+  const bottom = Math.min(a.y + a.height, b.y + b.height)
+
+  if (right <= left || bottom <= top) {
+    return 0
+  }
+
+  return (right - left) * (bottom - top)
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
 interface SizeActual { actual: number }
 interface SizePercentage { percentage: number }
 type Size = SizeActual | SizePercentage | number

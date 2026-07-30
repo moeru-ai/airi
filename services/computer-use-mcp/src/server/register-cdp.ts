@@ -4,6 +4,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { z } from 'zod'
 
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 
 export interface RegisterCdpToolsOptions {
@@ -40,11 +41,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           isError: true,
           content: [
-            textContent(`CDP connect failed: ${error instanceof Error ? error.message : String(error)}. Ensure Chrome is running with --remote-debugging-port=9222.`),
+            textContent(`CDP connect failed: ${errorMessageFromValue(error)}. Ensure Chrome is running with --remote-debugging-port=9222.`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -95,11 +96,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           isError: true,
           content: [
-            textContent(`CDP accessibility snapshot failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`CDP accessibility snapshot failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -129,11 +130,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           isError: true,
           content: [
-            textContent(`CDP evaluate failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`CDP evaluate failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -170,11 +171,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           isError: true,
           content: [
-            textContent(`CDP collect elements failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`CDP collect elements failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -215,11 +216,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           isError: true,
           content: [
-            textContent(`CDP screenshot failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`CDP screenshot failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -249,11 +250,11 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
         return {
           isError: true,
           content: [
-            textContent(`CDP navigate failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`CDP navigate failed: ${errorMessageFromValue(error)}`),
           ],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }

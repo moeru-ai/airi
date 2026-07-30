@@ -3,6 +3,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Button, Callout, Collapsible } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
@@ -13,7 +14,14 @@ import { electronGetServerChannelQrPayload } from '../../../../shared/eventa'
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
 
 const { t } = useI18n()
+const { trackDevicePairingQrShown } = useAnalytics()
 const getServerChannelQrPayload = useElectronEventaInvoke(electronGetServerChannelQrPayload)
+
+function handleToggleExpanded(visible: boolean, setVisible: (value: boolean) => void) {
+  setVisible(visible)
+  if (visible)
+    trackDevicePairingQrShown()
+}
 const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
 
 const loading = shallowRef(false)
@@ -82,7 +90,7 @@ watch([hostname, tlsConfig, authToken], () => {
         :class="[
           'w-full flex items-center justify-between gap-3 rounded-xl text-left outline-none transition-all duration-250 ease-in-out',
         ]"
-        @click="slotProps.setVisible(!slotProps.visible)"
+        @click="handleToggleExpanded(!slotProps.visible, slotProps.setVisible)"
       >
         <div :class="['min-w-0 flex flex-col gap-1']">
           <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">

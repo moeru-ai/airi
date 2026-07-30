@@ -22,6 +22,7 @@ import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { setupInlayWindow } from '../windows/inlay'
+import { computeResizedBoundsAnchoredToDominantDisplay, findDominantDisplayArea } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
 
 const RECOMMENDED_WIDTH = 450
@@ -35,21 +36,20 @@ function applyWindowSize(window: BrowserWindow, width: number, height: number, x
 
   window.setResizable(true)
 
-  const bounds = {
-    width: Math.round(width),
-    height: Math.round(height),
-  } as Electron.Rectangle
-
-  if (x !== undefined && y !== undefined) {
-    bounds.x = Math.round(x)
-    bounds.y = Math.round(y)
-  }
+  const bounds = x !== undefined && y !== undefined
+    ? {
+        x: Math.round(x),
+        y: Math.round(y),
+        width: Math.round(width),
+        height: Math.round(height),
+      }
+    : computeResizedBoundsAnchoredToDominantDisplay({
+        currentBounds: window.getBounds(),
+        targetSize: { width, height },
+        displays: screen.getAllDisplays(),
+      })
 
   window.setBounds(bounds)
-  if (x === undefined || y === undefined) {
-    window.center()
-  }
-
   window.show()
 }
 
@@ -109,8 +109,10 @@ export function setupTray(params: {
         return
       }
 
-      const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
-      const { width: windowWidth, height: windowHeight } = params.mainWindow.getBounds()
+      const mainWindowBounds = params.mainWindow.getBounds()
+      const currentDisplay = findDominantDisplayArea(mainWindowBounds, screen.getAllDisplays()) ?? screen.getDisplayMatching(mainWindowBounds)
+      const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = currentDisplay.workArea
+      const { width: windowWidth, height: windowHeight } = mainWindowBounds
 
       const fullHeightTarget = areaHeight
       const fullWidthTarget = Math.floor(areaHeight * ASPECT_RATIO)

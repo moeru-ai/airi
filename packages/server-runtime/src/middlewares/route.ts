@@ -10,8 +10,8 @@ export type RouteDecision
     | { type: 'targets', targetIds: Set<string> }
 
 export interface RoutingPolicy {
-  allowPlugins?: string[]
-  denyPlugins?: string[]
+  allowExtensions?: string[]
+  denyExtensions?: string[]
   allowLabels?: string[]
   denyLabels?: string[]
 }
@@ -29,7 +29,7 @@ type DestinationList = Array<string | RouteTargetExpression>
 
 function getPeerLabels(peer: AuthenticatedPeer) {
   return {
-    ...peer.identity?.plugin?.labels,
+    ...peer.extensionIdentity?.labels,
     ...peer.identity?.labels,
   }
 }
@@ -71,13 +71,13 @@ export function peerMatchesPolicy(peer: AuthenticatedPeer, policy: RoutingPolicy
     return false
   }
 
-  const pluginId = peer.identity?.plugin?.id ?? ''
+  const extensionId = peer.identity?.extension.id ?? peer.extensionIdentity?.id ?? ''
 
-  if (policy.allowPlugins?.length && !policy.allowPlugins.includes(pluginId)) {
+  if (policy.allowExtensions?.length && !policy.allowExtensions.includes(extensionId)) {
     return false
   }
 
-  if (policy.denyPlugins?.length && policy.denyPlugins.includes(pluginId)) {
+  if (policy.denyExtensions?.length && policy.denyExtensions.includes(extensionId)) {
     return false
   }
 

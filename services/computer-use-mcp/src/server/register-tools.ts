@@ -13,8 +13,10 @@ import type { WorkflowSuspension } from '../workflows'
 import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
+import { errorMessageFrom } from '@moeru/std'
 import { z } from 'zod'
 
+import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { getRuntimePreflight } from '../preflight'
 import { summarizeRunState } from '../transparency'
@@ -37,6 +39,7 @@ import {
 import { refreshRuntimeRunState } from './refresh-run-state'
 import { executeChromeEnsure } from './register-chrome-session'
 import { createAcquirePtyCallback, executeApprovedPtyCreate } from './register-pty'
+import { createToolLaneHygieneServer } from './tool-lane-hygiene'
 import { formatWorkflowStructuredContent } from './workflow-formatter'
 import { createWorkflowPrepToolExecutor } from './workflow-prep-tools'
 
@@ -102,8 +105,39 @@ function buildBrowserDomUnavailableResponse(runtime: ComputerUseServerRuntime, u
   }
 }
 
+function buildBrowserDomActionErrorResponse(params: {
+  runtime: ComputerUseServerRuntime
+  error: unknown
+  selector: string
+  actionKind: string
+}) {
+  const { runtime, error, selector, actionKind } = params
+  const message = errorMessageFrom(error) ?? 'unknown error'
+  const repairSuggestion = diagnoseBrowserActionError(error, selector, actionKind)
+
+  return {
+    isError: true,
+    content: [
+      textContent(
+        repairSuggestion
+          ? `${actionKind} failed for "${selector}": ${message}\n\n${repairSuggestion.reactionText}`
+          : `${actionKind} failed for "${selector}": ${message}`,
+      ),
+    ],
+    structuredContent: {
+      status: 'error',
+      selector,
+      actionKind,
+      error: message,
+      repairSuggestion: repairSuggestion ?? undefined,
+      bridge: runtime.browserDomBridge.getStatus(),
+    },
+  }
+}
+
 export function registerComputerUseTools(params: RegisterComputerUseToolsOptions) {
-  const { server, runtime, executeAction, enableTestTools } = params
+  const { runtime, executeAction, enableTestTools } = params
+  const server = createToolLaneHygieneServer(params.server, runtime.stateManager)
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   const acquirePty = createAcquirePtyCallback(runtime)
 
@@ -445,15 +479,16 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         }
       }
       catch (error) {
+        const message = errorMessageFrom(error) ?? 'unknown error'
         return {
           isError: true,
           content: [
-            textContent(`Browser agent failed: ${error instanceof Error ? error.message : String(error)}`),
+            textContent(`Browser agent failed: ${message}`),
           ],
           structuredContent: {
             status: 'error',
             browserAgent: launchContext,
-            error: error instanceof Error ? error.message : String(error),
+            error: message,
           },
         }
       }
@@ -565,11 +600,22 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
-      const result = await runtime.browserDomBridge.clickSelector({
-        selector,
-        tabId,
-        frameIds,
-      })
+      let result: Awaited<ReturnType<typeof runtime.browserDomBridge.clickSelector>>
+      try {
+        result = await runtime.browserDomBridge.clickSelector({
+          selector,
+          tabId,
+          frameIds,
+        })
+      }
+      catch (error) {
+        return buildBrowserDomActionErrorResponse({
+          runtime,
+          error,
+          selector,
+          actionKind: 'browser_dom_click',
+        })
+      }
 
       // NOTICE: clickSelector resolves even when the clickAt step misses
       // (e.g. reflow between target lookup and click dispatch). Inspect
@@ -767,12 +813,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
 
-      const results = await runtime.browserDomBridge.waitForElement({
-        selector,
-        timeoutMs,
-        tabId,
-        frameIds,
-      })
+      let results: Awaited<ReturnType<typeof runtime.browserDomBridge.waitForElement>>
+      try {
+        results = await runtime.browserDomBridge.waitForElement({
+          selector,
+          timeoutMs,
+          tabId,
+          frameIds,
+        })
+      }
+      catch (error) {
+        return buildBrowserDomActionErrorResponse({
+          runtime,
+          error,
+          selector,
+          actionKind: 'browser_dom_wait_for_element',
+        })
+      }
       return {
         content: [
           textContent(summarizeBrowserDomFrameResults(`wait_for_element for "${selector}"`, results)),
@@ -877,10 +934,11 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           parsed = JSON.parse(optsJson) as unknown
         }
         catch (error) {
+          const message = errorMessageFrom(error) ?? 'unknown error'
           return {
             isError: true,
             content: [
-              textContent(`browser_dom_trigger_event expected optsJson to be valid JSON: ${error instanceof Error ? error.message : String(error)}`),
+              textContent(`browser_dom_trigger_event expected optsJson to be valid JSON: ${message}`),
             ],
             structuredContent: {
               status: 'invalid_params',

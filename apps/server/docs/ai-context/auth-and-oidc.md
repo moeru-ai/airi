@@ -69,6 +69,11 @@ Server 通过 `better-auth` 同时充当**用户认证后端**和 **OIDC Provide
 # 社交 Provider
 AUTH_GOOGLE_CLIENT_ID, AUTH_GOOGLE_CLIENT_SECRET
 AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_CLIENT_SECRET
+# Apple optional；启用时四项必须一起配置
+AUTH_APPLE_CLIENT_ID, AUTH_APPLE_TEAM_ID
+AUTH_APPLE_KEY_ID, AUTH_APPLE_PRIVATE_KEY_PEM
+# iOS 原生 Sign in with Apple；逗号分隔，每项必须与一个 Xcode target 的 Bundle ID 一致
+AUTH_APPLE_APP_BUNDLE_IDENTIFIERS=ai.moeru.airi-pocket,ai.moeru.airi-pro
 
 # OIDC Trusted Clients（均 optional，不配则不注册）
 # Web and Pocket are public clients (no secret, PKCE only)
@@ -76,6 +81,53 @@ OIDC_CLIENT_ID_WEB
 OIDC_CLIENT_ID_ELECTRON, OIDC_CLIENT_SECRET_ELECTRON
 OIDC_CLIENT_ID_POCKET
 ```
+
+### iOS 原生 Sign in with Apple
+
+iOS 使用 `ASAuthorizationAppleIDProvider` 获取 Apple identity token，然后直接调用 Better Auth 的社交登录接口；不要先请求授权 URL，也不需要打开系统浏览器：
+
+```http
+POST /api/auth/sign-in/social
+Content-Type: application/json
+
+{
+  "provider": "apple",
+  "idToken": {
+    "token": "<ASAuthorizationAppleIDCredential.identityToken UTF-8 JWT>",
+    "nonce": "<the exact value assigned to ASAuthorizationAppleIDRequest.nonce>"
+  }
+}
+```
+
+首次授权时，客户端可以额外传入 Apple 原生回调给出的姓名；email 由服务端从 identity token claim 读取：
+
+```json
+{
+  "provider": "apple",
+  "idToken": {
+    "token": "<identity-token>",
+    "nonce": "<nonce>",
+    "user": {
+      "name": {
+        "firstName": "<given-name>",
+        "lastName": "<family-name>"
+      }
+    }
+  }
+}
+```
+
+Better Auth 验证 token 的签名、issuer、Bundle ID audience allowlist 和可选 nonce 后，直接返回 session，不会返回 Apple 登录 URL：
+
+```json
+{
+  "redirect": false,
+  "token": "<better-auth-session-token>",
+  "user": {}
+}
+```
+
+客户端后续可将返回的 session token 作为 `Authorization: Bearer <token>` 调用业务 API。Apple 只在首次授权提供姓名，并可能只在首次授权提供 email；服务端会保留首次写入的 email，后续 token 未携带 email 时使用 Apple `sub` 生成不可投递的 placeholder 以解析已绑定账号。
 
 ## Token 层次
 
@@ -87,6 +139,8 @@ OIDC_CLIENT_ID_POCKET
 | Session 对象 | UI / API 所需的用户态快照 | `fetchSession()` 后保存在 auth store | 跟随 access token 可解析结果 |
 
 **为什么现在可以直接用 OIDC access token？** 因为服务端的 `resolveRequestAuth()` 已经统一支持两条路径：先走 `auth.api.getSession()` 解析 better-auth session；如果没有 session，再用 `jose.jwtVerify()` 本地验证 JWT 签名、issuer、audience、过期时间，然后通过 `findUserById()` 补齐用户信息。对业务路由来说，拿到的仍然是统一的 `{ user, session }` 结构。
+
+**测试环境登录绕过：** 设置 `TEST_AUTH_TOKEN` 后，业务 API 可以直接带 `Authorization: Bearer $TEST_AUTH_TOKEN` 进入 `resolveRequestAuth()`，无需走 UI 登录或 better-auth session。默认虚拟用户为 `test-user / test@example.com / Test User`，可用 `TEST_AUTH_USER_ID`、`TEST_AUTH_USER_EMAIL`、`TEST_AUTH_USER_NAME`、`TEST_AUTH_USER_ROLE` 覆盖；需要访问 `/api/admin/*` 时把 `TEST_AUTH_USER_ROLE=admin`。该 token 只接入业务鉴权链路，不改变 `/api/auth/*` better-auth 登录/OIDC 端点；生产环境保持 unset。
 
 **JWT 签发条件：** 前端在 authorize/token 请求中传递 `resource` 参数（值为 `API_SERVER_URL`），oauthProvider 据此签发 JWT 而非 opaque token。JWKS 通过 `/api/auth/jwks` 端点获取并缓存。
 

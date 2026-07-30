@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Section } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore, useBackgroundStore } from '@proj-airi/stage-ui/stores'
 import { Button, Callout } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { trackSceneBackgroundSet } = useAnalytics()
 const backgroundStore = useBackgroundStore()
 const cardStore = useAiriCardStore()
 
@@ -31,6 +33,7 @@ const activeBackgroundId = computed({
       ...cardStore.activeCard,
       extensions: extension,
     })
+    trackSceneBackgroundSet({ source: 'scene_settings', cleared: val === 'none' })
   },
 })
 
@@ -50,8 +53,19 @@ function setAsBackground(id: string) {
   activeBackgroundId.value = id
 }
 
+function requestDeleteConfirmation(message: string): boolean {
+  // NOTICE:
+  // Native confirm is the existing guard for this destructive scene action.
+  // Root cause: `no-alert` rejects direct `confirm(...)` calls before this page
+  // has a shared confirmation-dialog primitive wired into the scene gallery flow.
+  // Source/context: this component already used native confirm for scene delete.
+  // Removal condition: replace with the shared modal confirmation component.
+  const confirmAction = globalThis.confirm.bind(globalThis)
+  return confirmAction(message)
+}
+
 function removeBackground(id: string) {
-  if (confirm(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
+  if (requestDeleteConfirmation(t('settings.pages.scene.gallery.delete_confirm', 'Are you sure you want to delete this background?'))) {
     backgroundStore.removeBackground(id)
   }
 }

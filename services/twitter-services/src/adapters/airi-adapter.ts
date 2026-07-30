@@ -1,13 +1,13 @@
-/**
- * Airi Adapter
- * Adapts the X service as an Airi module
- */
 import type { Context } from '../core/browser/context'
 import type { Tweet } from '../core/services/tweet'
 import type { TwitterServices } from '../types/services'
 
 import * as fs from 'node:fs/promises'
 
+/**
+ * Airi Adapter
+ * Adapts the X service as an Airi module
+ */
 import { Client } from '@proj-airi/server-sdk'
 
 import { getDefaultConfig } from '../config/types'
@@ -16,6 +16,7 @@ import { useTwitterTimelineServices } from '../core/services/timeline'
 import { useTwitterTweetServices } from '../core/services/tweet'
 import { useTwitterUserServices } from '../core/services/user'
 import { parseTwitterCommand } from '../parsers/command-parser'
+import { errorToMessage } from '../utils/error'
 import { logger } from '../utils/logger'
 
 export interface AiriAdapterConfig {
@@ -270,7 +271,7 @@ ${tweets.map((t: Tweet) => `- ${t.author.displayName}: ${t.text.substring(0, 80)
       }
     }
     catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMessage = errorToMessage(error)
       logger.main.errorWithError('Error handling input:', error)
       this.client.send({
         type: 'input:text',

@@ -5,4 +5,9 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>StageTamagotchiGodot</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- Keep generated sources and verification harnesses out of the game assembly. -->
+    <Compile Remove=".godot\**\*.cs" />
+    <Compile Remove="tests\**\*.cs" />
+  </ItemGroup>
 </Project>

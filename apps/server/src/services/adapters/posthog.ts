@@ -1,95 +1,78 @@
-import type { Env } from '../../libs/env'
-
 import { useLogger } from '@guiiai/logg'
 import { PostHog } from 'posthog-node'
 
 const logger = useLogger('posthog')
 
 /**
- * Server-side PostHog client. Used to capture authoritative business events
- * the browser cannot see (Stripe webhooks, subscription state changes,
- * admin actions). Pairs with the browser-side PostHog already wired up in
- * `packages/stage-ui/src/stores/analytics/posthog.ts`.
- *
- * Use when:
- * - You're inside a server-side handler (Stripe webhook, admin route) and
- *   need to emit an event that will be analysed in PostHog funnels or
- *   cohorts (e.g. `payment_completed`, `subscription_cancelled`).
- *
- * Expects:
- * - `POSTHOG_API_KEY` env var. When unset (dev/CI) this returns `null` so
- *   callers degrade gracefully with `posthog?.capture(...)`.
- * - `distinctId` must match the browser's `posthog.identify(userId)` — we
- *   use the Better Auth `user.id` for that everywhere. Stripe webhooks
- *   that only have an email use the email as a fallback `distinctId` and
- *   include `userId` in the event properties so PostHog's merge resolves
- *   the person.
- *
- * Returns:
- * - A `PostHog` client configured for low-latency immediate sends, or
- *   `null` when key is unset. Callers must use `captureSafe()` (which
- *   wraps `captureImmediate`) — the regular `capture()` only enqueues
- *   and would let webhook responses race ahead of the HTTP send.
+ * One product event forwarded to PostHog, keyed by the Better Auth user id
+ * so it merges with the browser person identified via `posthog.identify()`.
  */
-export function createPostHogClient(env: Env): PostHog | null {
-  if (!env.POSTHOG_API_KEY) {
-    logger.warn('POSTHOG_API_KEY is unset — server-side analytics disabled')
-    return null
-  }
-
-  // NOTICE:
-  // `flushAt: 1` keeps the background-batch threshold low so any stray
-  // `posthog.capture()` (non-immediate path) flushes promptly. Real send-
-  // path for webhook events goes through `captureImmediate()` in
-  // `captureSafe`, which bypasses the queue entirely and resolves only
-  // after the HTTP round-trip. We also rely on `shutdown(timeoutMs)` from
-  // app.ts to drain any residual queue on SIGTERM.
-  return new PostHog(env.POSTHOG_API_KEY, {
-    host: env.POSTHOG_HOST || 'https://us.i.posthog.com',
-    flushAt: 1,
-    flushInterval: 0,
-  })
+export interface PosthogCaptureInput {
+  distinctId: string
+  event: string
+  properties: Record<string, unknown>
 }
 
 /**
- * Safe capture wrapper. PostHog must never block or fail a webhook /
- * billing path — any error here is logged and swallowed.
- *
- * Use when:
- * - Inside a server-side handler that has business work to finish even
- *   if PostHog is down. The handler already wrote to Postgres and
- *   updated metrics; PostHog is the optional last step.
- *
- * Expects:
- * - Caller awaits the returned promise. We use `captureImmediate` (not
- *   `capture`) because PostHog Node SDK's regular `capture` only enqueues
- *   — `flushAt: 1` triggers a *background* flush, which means the webhook
- *   handler can return before the event reaches PostHog and SIGTERM may
- *   strand the queued event. `captureImmediate` does the HTTP send inline
- *   and resolves only after the network round-trip.
- *
- * Consent boundary:
- * - Browser-side capture is gated by `useAnalytics().canCapture()` (user
- *   toggle in Settings → Analytics).
- * - Server-side events here are operational telemetry tied to business
- *   facts that already occurred (auth records the user, Stripe records
- *   the payment, the LLM router records the request). They are emitted
- *   regardless of the browser toggle on legitimate-interest grounds —
- *   the user cannot opt out of the server knowing they signed up or
- *   paid, only out of additional product analytics on top. Surface this
- *   distinction in the privacy policy.
+ * Minimal capture boundary the product-events service depends on. Kept as
+ * an interface so tests inject a fake instead of mocking the SDK.
  */
-export async function captureSafe(
-  posthog: PostHog | null,
-  event: { distinctId: string, event: string, properties?: Record<string, unknown> },
-): Promise<void> {
-  if (!posthog)
-    return
+export interface PosthogSink {
+  /**
+   * Queue a high-volume analytics event without waiting for a network
+   * roundtrip. Use on request hot paths where occasional process-exit loss is
+   * preferable to user-visible latency.
+   */
+  captureQueued?: (input: PosthogCaptureInput) => void
+  capture: (input: PosthogCaptureInput) => Promise<void>
+  /** Flush and close the underlying client. Call on server shutdown. */
+  shutdown: () => Promise<void>
+}
 
-  try {
-    await posthog.captureImmediate(event)
-  }
-  catch (err) {
-    logger.withError(err).withFields({ event: event.event, distinctId: event.distinctId }).warn('PostHog captureImmediate failed; swallowing to protect caller')
+/**
+ * PostHog sink for server-side product events.
+ *
+ * Low-frequency conversion facts use `captureImmediate` (one HTTP roundtrip
+ * per event) because they terminate money/auth funnels. High-frequency AI
+ * generation facts use `captureQueued`, which is buffered by the SDK and
+ * flushed on shutdown, so chat completion requests don't wait on PostHog.
+ *
+ * Capture failures are logged and swallowed — analytics forwarding must
+ * never fail the Stripe webhook or auth flow that triggered it. The
+ * Postgres `product_events` row is the source of truth either way.
+ */
+export function createPosthogSink(options: { projectKey: string, host: string }): PosthogSink {
+  const client = new PostHog(options.projectKey, { host: options.host })
+
+  return {
+    captureQueued(input: PosthogCaptureInput): void {
+      try {
+        client.capture({
+          distinctId: input.distinctId,
+          event: input.event,
+          properties: input.properties,
+        })
+      }
+      catch (err) {
+        logger.withError(err).withFields({ event: input.event }).warn('Failed to enqueue product event to PostHog')
+      }
+    },
+
+    async capture(input: PosthogCaptureInput): Promise<void> {
+      try {
+        await client.captureImmediate({
+          distinctId: input.distinctId,
+          event: input.event,
+          properties: input.properties,
+        })
+      }
+      catch (err) {
+        logger.withError(err).withFields({ event: input.event }).warn('Failed to forward product event to PostHog')
+      }
+    },
+
+    async shutdown(): Promise<void> {
+      await client.shutdown()
+    },
   }
 }

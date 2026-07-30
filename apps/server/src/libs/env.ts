@@ -80,6 +80,23 @@ const EnvSchema = object({
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
+  // Standalone auth UI base URL. The server keeps `/auth/*` as the historical
+  // entrypoint and redirects those requests here after ui-server-auth moved out
+  // of the server image.
+  AUTH_UI_URL: optional(string(), 'https://accounts.airi.build/ui'),
+
+  // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
+  // entrypoint and redirects those requests here after the admin UI moved to
+  // the standalone proj-airi repository.
+  ADMIN_UI_URL: optional(string(), 'https://admin.airi.build'),
+
+  // Canonical user-facing web app origin. Used as the Stripe redirect base
+  // (success_url / cancel_url / portal return_url) when a request has no trusted
+  // browser origin — notably the Electron desktop renderer, which loads from
+  // file:// and sends no usable web origin. Web/mobile requests keep returning to
+  // their own origin; only origin-less clients fall back to this.
+  WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
+
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
@@ -102,6 +119,39 @@ const EnvSchema = object({
   AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
   AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
   AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
+  AUTH_APPLE_CLIENT_ID: optional(string(), ''),
+  AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: optional(
+    pipe(
+      string(),
+      transform(raw => [...new Set(
+        raw
+          .split(',')
+          .map(bundleIdentifier => bundleIdentifier.trim())
+          .filter(Boolean),
+      )]),
+    ),
+    '',
+  ),
+  AUTH_APPLE_TEAM_ID: optional(string(), ''),
+  AUTH_APPLE_KEY_ID: optional(string(), ''),
+  AUTH_APPLE_PRIVATE_KEY_PEM: optional(
+    pipe(
+      string(),
+      // Deployment dashboards commonly store multiline secrets with escaped
+      // newlines. jose's PKCS8 importer requires the original PEM layout.
+      transform(raw => raw.replaceAll(String.raw`\n`, '\n')),
+    ),
+    '',
+  ),
+
+  // Testing-only bearer token bypass. Keep unset in production. When set,
+  // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
+  // through resolveRequestAuth without creating a better-auth session row.
+  TEST_AUTH_TOKEN: optional(string(), ''),
+  TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
+  TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
+  TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
+  TEST_AUTH_USER_ROLE: optional(string(), ''),
 
   // Resend transactional email. RESEND_API_KEY required when emailAndPassword
   // sign-up / forgot-password / change-email / magic-link is exercised. Service
@@ -114,11 +164,6 @@ const EnvSchema = object({
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
-
-  // PostHog server-side analytics. Optional — when unset the client is null
-  // and `captureSafe(...)` is a no-op so webhooks still complete.
-  POSTHOG_API_KEY: optional(string(), ''),
-  POSTHOG_HOST: optional(string(), 'https://us.i.posthog.com'),
 
   // LLM/TTS gateway is fully internalised by the in-process router; provider
   // baseURLs live per-upstream inside LLM_ROUTER_CONFIG, and the default chat /
@@ -153,6 +198,14 @@ const EnvSchema = object({
   DB_POOL_IDLE_TIMEOUT_MS: optionalIntegerFromString(30000, 'DB_POOL_IDLE_TIMEOUT_MS', 1),
   DB_POOL_CONNECTION_TIMEOUT_MS: optionalIntegerFromString(5000, 'DB_POOL_CONNECTION_TIMEOUT_MS', 1),
   DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: optionalIntegerFromString(10000, 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS', 1),
+
+  // PostHog product-event forwarding (signup / payment / subscription facts).
+  // Defaults to the shared AIRI project key (same browser-safe phc_* key the
+  // client surfaces embed in posthog.config.ts), so forwarding is on out of
+  // the box. Set to an empty string to disable; Postgres `product_events`
+  // stays the source of truth either way.
+  POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
+  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
 
   // OpenTelemetry
   OTEL_SERVICE_NAMESPACE: optional(string(), 'airi'),

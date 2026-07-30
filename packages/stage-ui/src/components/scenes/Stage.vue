@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
+import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import type { EmotionPayload } from '../../constants/emotions'
 import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from '../../libs/speech/tts-session'
 
+import { defineInvokeHandler } from '@moeru/eventa'
 import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
+import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
+import { TachieScene } from '@proj-airi/stage-ui-tachie'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
@@ -26,14 +30,17 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
-import { useAuthProviderSync } from '../../composables/use-auth-provider-sync'
+import { useAnalytics } from '../../composables/use-analytics'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { getDefinedProvider } from '../../libs/providers/providers'
+import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
+import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
@@ -42,6 +49,7 @@ import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
+import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useSpeechRuntimeStore } from '../../stores/speech-runtime'
 
 const props = withDefaults(defineProps<{
@@ -61,6 +69,8 @@ const { getDb } = useDuckDb()
 const vrmViewerRef = ref<InstanceType<typeof ThreeScene>>()
 const live2dSceneRef = ref<InstanceType<typeof Live2DScene>>()
 const spineSceneRef = ref<InstanceType<typeof SpineScene>>()
+const tachieSceneRef = ref<InstanceType<typeof TachieScene>>()
+const mmdSceneRef = ref<InstanceType<typeof MMDScene>>()
 
 const settingsStore = useSettings()
 const {
@@ -85,8 +95,34 @@ const {
   spineRenderScale,
 } = storeToRefs(settingsStore)
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
+const disposePlaybackStateHandler = defineInvokeHandler(
+  getSpeechBusContext(),
+  speechOutputGetPlaybackState,
+  () => ({ speaking: nowSpeaking.value }),
+)
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
+const speechOutputControlStore = useSpeechOutputControlStore()
+const { latestStopRequest, speechMuted } = storeToRefs(speechOutputControlStore)
+const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
+const VRM_INTERACTION_COOLDOWN_MS = 450
+
+function getVrmInteractionExpression(target: VrmInteractionTarget) {
+  if (target === 'head')
+    return 'happy'
+  if (target === 'leftFoot' || target === 'rightFoot')
+    return 'relaxed'
+  return 'surprised'
+}
+
+function onVRMInteract(target: VrmInteractionTarget) {
+  const now = Date.now()
+  const lastTriggeredAt = lastVrmInteractionAt.get(target) ?? 0
+  if (now - lastTriggeredAt < VRM_INTERACTION_COOLDOWN_MS)
+    return
+  lastVrmInteractionAt.set(target, now)
+  vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
+}
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatOrchestratorStore()
 const chatHookCleanups: Array<() => void> = []
@@ -95,7 +131,6 @@ const chatHookCleanups: Array<() => void> = []
 //             cross-window broadcast wiring.
 
 const providersStore = useProvidersStore()
-useAuthProviderSync()
 const live2dStore = useLive2dParams()
 const showStage = ref(true)
 const viewUpdateCleanups: Array<() => void> = []
@@ -126,11 +161,33 @@ const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
 
+function resetAssistantSpeechSurface(source: string) {
+  nowSpeaking.value = false
+  mouthOpenSize.value = 0
+  assistantCaption.value = ''
+
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+  }
+  catch (error) {
+    console.warn(`[Stage] Failed to post caption reset for ${source} (channel may be closed)`, { error })
+  }
+
+  try {
+    postPresent({ type: 'assistant-reset' })
+  }
+  catch (error) {
+    console.warn(`[Stage] Failed to post present reset for ${source} (channel may be closed)`, { error })
+  }
+}
+
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
 const speechRuntimeStore = useSpeechRuntimeStore()
+const { trackOfficialTtsAutoEnabled } = useAnalytics()
+let officialAutoTtsTrackedForTurn = false
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -152,6 +209,12 @@ const emotionsQueue = createQueue<EmotionPayload>({
       }
       else if (stageModelRenderer.value === 'spine') {
         spineSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
+      }
+      else if (stageModelRenderer.value === 'tachie') {
+        tachieSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
+      }
+      else if (stageModelRenderer.value === 'mmd') {
+        mmdSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
       }
     },
   ],
@@ -291,6 +354,11 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
 
     try {
       source.start(0)
+      if (item.intentId.startsWith('stream-')) {
+        const model = resolveStreamingSessionModel()
+        if (model)
+          trackOfficialAutoTtsForTurn(model)
+      }
     }
     catch {
       stopPlayback()
@@ -306,9 +374,37 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
   ownerOverflowPolicy: 'steal-oldest',
 })
 
+/**
+ * Classifies chat auto-TTS voice usage before forwarding analytics to the server.
+ */
+function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
+  return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
+}
+
+/**
+ * Tracks official auto-TTS once per assistant turn when chat audio is actually used.
+ */
+function trackOfficialAutoTtsForTurn(modelId: string) {
+  if (officialAutoTtsTrackedForTurn)
+    return
+  if (activeSpeechProvider.value !== OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    return
+
+  officialAutoTtsTrackedForTurn = true
+  trackOfficialTtsAutoEnabled({
+    tts_provider_id: activeSpeechProvider.value,
+    tts_model_id: modelId,
+    source: 'chat_auto_tts',
+    enabled: true,
+  })
+}
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
+      return null
+
+    if (speechMuted.value)
       return null
 
     if (activeSpeechProvider.value === 'speech-noop')
@@ -390,17 +486,37 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
     if (!model || !voice)
       return null
 
-    const input = ssmlEnabled.value
-      ? speechStore.generateSSML(request.text, voice, { ...providerConfig, pitch: pitch.value })
-      : request.text
-
     try {
+      const speechRequest = speechStore.resolveSpeechInput({
+        text: request.text,
+        voice,
+        providerConfig: {
+          ...providerConfig,
+          pitch: ssmlEnabled.value ? pitch.value : undefined,
+        },
+        forceSSML: ssmlEnabled.value,
+        supportsSSML: speechStore.supportsSSML,
+      })
+
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
+      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
+        ? {
+            ...speechRequest.providerConfig,
+            extraBody: {
+              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
+              airi_analytics: {
+                trigger: 'auto',
+                source: 'chat_auto_tts',
+                voice_type: resolveStageVoiceType(),
+              },
+            },
+          }
+        : speechRequest.providerConfig
       const res = await generateSpeech({
-        ...provider.speech(model, providerConfig),
-        input,
+        ...provider.speech(model, providerConfigWithAnalytics),
+        input: speechRequest.input,
         voice: voice.id,
       })
 
@@ -408,6 +524,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         return null
 
       const audioBuffer = await audioContext.decodeAudioData(res)
+      trackOfficialAutoTtsForTurn(model)
       return audioBuffer
     }
     catch (err) {
@@ -453,29 +570,36 @@ speechPipeline.on('onTurnCancel', ({ turnId }) => {
   streamingControl.cancelTurn(turnId)
 })
 
-playbackManager.onEnd(() => {
+function resetSpeakingState() {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
-})
+}
 
-playbackManager.onStart(({ item }) => {
-  nowSpeaking.value = true
-  // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
-  // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
-  // breaking playback when the channel is unavailable.
-  assistantCaption.value += ` ${item.text}`
-  try {
-    postCaption({ type: 'caption-assistant', text: item.text })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
-  try {
-    postPresent({ type: 'assistant-append', text: item.text })
-  }
-  catch {
-    // BroadcastChannel may be closed - don't break playback
-  }
+bindSpeakingStateToPlaybackManager(playbackManager, {
+  setSpeaking: (speaking) => {
+    if (!speaking)
+      resetSpeakingState()
+    else
+      nowSpeaking.value = true
+  },
+  onStart: ({ item }) => {
+    // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
+    // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
+    // breaking playback when the channel is unavailable.
+    assistantCaption.value += ` ${item.text}`
+    try {
+      postCaption({ type: 'caption-assistant', text: item.text })
+    }
+    catch {
+      // BroadcastChannel may be closed - don't break playback
+    }
+    try {
+      postPresent({ type: 'assistant-append', text: item.text })
+    }
+    catch {
+      // BroadcastChannel may be closed - don't break playback
+    }
+  },
 })
 
 function startLipSyncLoop() {
@@ -565,7 +689,29 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
-function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
+function stopSpeechOutput(reason: string) {
+  currentSession?.cancel(reason)
+  currentSession = null
+  speechPipeline.stopAll(reason)
+  playbackManager.stopAll(reason)
+  resetAssistantSpeechSurface(reason)
+}
+
+/**
+ * Resolves the official streaming TTS model for the current Stage session.
+ */
+function resolveStreamingSessionModel(): string | null {
+  const activeModel = activeSpeechModel.value as string | undefined
+  const sessionModel = activeModel?.includes('/') ? activeModel : getDefaultStreamingModel()
+  if (!sessionModel?.includes('/'))
+    return null
+  return sessionModel
+}
+
+function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
+  if (speechMuted.value)
+    return null
+
   // Snapshotted once per session, so a mid-session provider/voice swap
   // does not corrupt an in-flight session — the watcher below detects
   // changes and tears down explicitly. Returns `null` when streaming
@@ -575,8 +721,16 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   const voiceId = activeSpeechVoice.value?.id
   if (!voiceId)
     return null
-  const sessionModel = (activeSpeechModel.value as string | undefined) || 'volcengine/seed-tts-2.0'
-  const apiResourceId = sessionModel.includes('/') ? sessionModel.split('/', 2)[1] : 'seed-tts-2.0'
+  // Resolve the concrete streaming model id. The active speech model is only
+  // valid here when it carries the `<backend>/<api_resource_id>` shape the ws
+  // upstream expects — the HTTP TTS `auto` alias (and an empty selection after
+  // a provider switch) must NOT reach the bridge, so fall back to the
+  // server-curated default instead of a hardcoded id. Returns null (segmenter
+  // fallback) when neither resolves, rather than guessing a resource id.
+  const sessionModel = resolveStreamingSessionModel()
+  if (!sessionModel)
+    return null
+  const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
@@ -584,13 +738,14 @@ function buildStreamingSnapshot(): StreamingSessionSnapshot | null {
   return {
     model: sessionModel,
     voice: voiceId,
+    voiceType: resolveStageVoiceType(),
     bufferEntireSession,
     extraBody: {
       api_resource_id: apiResourceId,
       audio: { sample_rate: 24000, bit_rate: 64000 },
     },
     ownerId: activeCardId.value,
-    onImmediateSpecial: playSpecialToken,
+    onImmediateSpecial: special => playSpecialToken(special, { turnId }),
   }
 }
 
@@ -604,14 +759,25 @@ function resolveSpeechTransport(providerId: string | null | undefined): SpeechTr
   return getDefinedProvider(providerId)?.capabilities?.speech?.transport
 }
 
-function openTtsSession(): StageTtsSession {
-  return createStageTtsSession<AudioBuffer>({
+function openTtsSession(turnId: string): StageTtsSession {
+  // A session must only clear the module-level `currentSession` if it IS that session. The previous
+  // code cleared it whenever any `stream-` session completed, which is unsafe once sessions exist that
+  // are not assigned to `currentSession` (e.g. one-off read-aloud sessions): one of those finishing
+  // would null a still-active chat session and drop the rest of the reply. Capture the session and
+  // compare identity; the `stream-` guard is preserved so segmenter sessions still don't self-clear.
+  let session: StageTtsSession | null = null
+  const clearIfActive = () => {
+    if (session && currentSession === session && session.intentId.startsWith('stream-'))
+      currentSession = null
+  }
+  session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
-    streaming: buildStreamingSnapshot,
+    streaming: () => buildStreamingSnapshot(turnId),
     audioContext,
     playbackManager,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
+      turnId,
       ownerId: activeCardId.value,
       priority: 'normal',
       behavior: 'queue',
@@ -623,41 +789,46 @@ function openTtsSession(): StageTtsSession {
           model: activeSpeechModel.value,
           error: err,
         })
-        if (currentSession?.intentId.startsWith('stream-'))
-          currentSession = null
+        // Drop the failed session so no further audio is queued, but let the
+        // playback manager keep draining already-queued audio and emit its own
+        // terminal events. Calling resetSpeakingState() here would force the
+        // mouth shut while audio is still playing.
+        clearIfActive()
       },
       onDone: () => {
-        if (currentSession?.intentId.startsWith('stream-'))
-          currentSession = null
+        clearIfActive()
       },
     },
   })
+  return session
 }
 
-chatHookCleanups.push(onBeforeMessageComposed(async () => {
+watch(latestStopRequest, (request) => {
+  if (!request)
+    return
+
+  stopSpeechOutput(request.reason)
+})
+
+watch(speechMuted, (muted) => {
+  if (muted)
+    stopSpeechOutput('muted')
+}, { immediate: true })
+
+chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
+  officialAutoTtsTrackedForTurn = false
   playbackManager.stopAll('new-message')
+  resetAssistantSpeechSurface('new-message')
+
+  currentSession?.cancel('new-message')
+  currentSession = null
+
+  if (speechMuted.value)
+    return
 
   setupAnalyser()
   await setupLipSync()
-  // Reset assistant caption for a new message
-  assistantCaption.value = ''
-  try {
-    postCaption({ type: 'caption-assistant', text: '' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post caption reset (channel may be closed)', { error })
-  }
-  try {
-    postPresent({ type: 'assistant-reset' })
-  }
-  catch (error) {
-    // BroadcastChannel may be closed if user navigated away - don't break flow
-    console.warn('[Stage] Failed to post present reset (channel may be closed)', { error })
-  }
-
-  currentSession?.cancel('new-message')
-  currentSession = openTtsSession()
+  currentSession = openTtsSession(context.turnId)
 }))
 
 chatHookCleanups.push(onBeforeSend(async () => {
@@ -668,7 +839,14 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
   currentSession?.appendText(literal)
 }))
 
-chatHookCleanups.push(onTokenSpecial(async (special) => {
+chatHookCleanups.push(onTokenSpecial(async (special, context) => {
+  // Muting speech must not suppress non-audio signals such as emotion, motion,
+  // delay, or plugin calls that normally travel through the TTS session.
+  if (speechMuted.value) {
+    await playSpecialToken(special, { turnId: context.turnId })
+    return
+  }
+
   currentSession?.appendSpecial(special)
 }))
 
@@ -764,6 +942,12 @@ function canvasElement() {
 
   else if (stageModelRenderer.value === 'spine')
     return spineSceneRef.value?.canvasElement()
+
+  else if (stageModelRenderer.value === 'tachie')
+    return tachieSceneRef.value?.canvasElement()
+
+  else if (stageModelRenderer.value === 'mmd')
+    return mmdSceneRef.value?.canvasElement()
 }
 
 function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, radius: number) {
@@ -773,12 +957,21 @@ function readRenderTargetRegionAtClientPoint(clientX: number, clientY: number, r
   return vrmViewerRef.value?.readRenderTargetRegionAtClientPoint?.(clientX, clientY, radius) ?? null
 }
 
+async function captureCharacterFrame() {
+  if (stageModelRenderer.value === 'live2d')
+    return live2dSceneRef.value?.captureFrame()
+  if (stageModelRenderer.value === 'vrm')
+    return vrmViewerRef.value?.captureFrame()
+  if (stageModelRenderer.value === 'spine')
+    return spineSceneRef.value?.captureFrame()
+  if (stageModelRenderer.value === 'tachie')
+    return tachieSceneRef.value?.captureFrame()
+  if (stageModelRenderer.value === 'mmd')
+    return mmdSceneRef.value?.captureFrame()
+}
+
 async function captureFrame() {
-  const charBlob = await (stageModelRenderer.value === 'live2d'
-    ? live2dSceneRef.value?.captureFrame()
-    : stageModelRenderer.value === 'vrm'
-      ? vrmViewerRef.value?.captureFrame()
-      : spineSceneRef.value?.captureFrame())
+  const charBlob = await captureCharacterFrame()
 
   if (!activeBackgroundUrl.value || !charBlob)
     return charBlob
@@ -826,6 +1019,7 @@ async function captureFrame() {
 }
 
 onUnmounted(() => {
+  disposePlaybackStateHandler()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
@@ -895,6 +1089,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :current-audio-source="currentAudioSource"
         @error="console.error"
+        @vrm-interact="onVRMInteract"
       />
       <SpineScene
         v-if="stageModelRenderer === 'spine' && showStage"
@@ -910,6 +1105,33 @@ defineExpose({
         :idle-animation-enabled="spineIdleAnimationEnabled"
         :max-fps="spineMaxFps"
         :render-scale="spineRenderScale"
+      />
+      <TachieScene
+        v-if="stageModelRenderer === 'tachie' && showStage"
+        ref="tachieSceneRef"
+        v-model:state="componentState"
+        min-w="50% <lg:full" min-h="100 sm:100"
+        h-full w-full flex-1
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :paused="paused"
+        :theme-colors-hue="themeColorsHue"
+        :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        @error="console.error"
+      />
+      <MMDScene
+        v-if="stageModelRenderer === 'mmd' && showStage"
+        ref="mmdSceneRef"
+        v-model:state="componentState"
+        min-w="50% <lg:full" min-h="100 sm:100"
+        h-full w-full flex-1
+        :model-src="stageModelSelectedUrl"
+        :model-id="stageModelSelected"
+        :paused="paused"
+        :cursor-position="cursorPosition"
+        :enable-orbit-controls="props.enableOrbitControls"
+        :current-audio-source="currentAudioSource"
+        @error="console.error"
       />
       <div
         v-if="stageModelRenderer === 'godot'"

@@ -3,7 +3,6 @@ import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -22,10 +21,10 @@ import { useI18n } from 'vue-i18n'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const messageInput = ref<string>('')
 const hearingPopoverOpen = ref(false)
-const sessionsDrawerOpen = ref(false)
 const isComposing = ref(false)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -59,6 +58,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     isStageTamagotchi,
   },
 )
+const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
 
 async function handleSend() {
   if (!messageInput.value.trim() || isComposing.value) {
@@ -203,24 +203,10 @@ watch(sendMode, () => {
         @compositionend="isComposing = false"
       />
 
-      <!-- Bottom-left action button: Microphone -->
+      <!-- Input configuration controls -->
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
-        <!-- Conversations drawer trigger -->
-        <button
-          :class="[
-            'h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95',
-            'text-lg text-neutral-500 dark:text-neutral-400',
-          ]"
-          title="Conversations"
-          @click="sessionsDrawerOpen = true"
-        >
-          <div class="i-solar:chat-line-bold-duotone h-5 w-5" />
-        </button>
-
-        <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
             <button
@@ -297,6 +283,25 @@ watch(sendMode, () => {
             />
           </PopoverContent>
         </PopoverRoot>
+      </div>
+
+      <div
+        absolute bottom-2 right-2 z-10 flex items-center gap-1
+      >
+        <button
+          v-if="showStopSpeakingButton"
+          data-testid="stop-speaking-button"
+          :class="[
+            'h-8 w-8 flex items-center justify-center rounded-md outline-none',
+            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
+            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+          ]"
+          title="Stop speaking"
+          aria-label="Stop speaking"
+          @click="stopSpeakingFromChat"
+        >
+          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+        </button>
       </div>
     </div>
   </div>

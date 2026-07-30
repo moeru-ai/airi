@@ -586,7 +586,7 @@ apps/server/
 
 **Patterns to follow**:
 - ioredis Pub/Sub: dedicated subscriber connection (search for existing pubsub usage in `apps/server` — `redis-boundaries-and-pubsub.md` references this)
-- redis-keys helper: `apps/server/src/utils/redis-keys.ts:11+` `createRedisKey` pattern
+- redis-keys helper: `apps/server/src/utils/redis-keys.ts:11+` `redisKeyFrom` pattern
 - Health route skip: existing pattern at `apps/server/src/app.ts:126-128`
 
 **Test scenarios**:

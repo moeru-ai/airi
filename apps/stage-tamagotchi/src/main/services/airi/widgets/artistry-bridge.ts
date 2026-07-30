@@ -12,11 +12,7 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import {
-  artistryGenerateHeadless,
-  artistrySyncConfig,
-  artistryTestComfyUIConnection,
-} from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
 import { ComfyUIProvider } from './providers/comfyui'
@@ -256,7 +252,7 @@ export async function generateHeadless(params: {
     return await executionPromise
   }
   catch (err) {
-    return { error: errorMessageFrom(err) ?? String(err) }
+    return { error: errorMessageFromValue(err) }
   }
   finally {
     // Remove from map after completion so it can be re-triggered later

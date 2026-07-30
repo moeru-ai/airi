@@ -4,7 +4,7 @@ import type { JsonSchema } from 'xsschema'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
-import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { resolveArtistryConfigFromStore, useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
@@ -171,7 +171,7 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
   }
   catch (e) {
     console.error('[ImageJournalTool] Failed to create entry', e)
-    return `Error: ${e instanceof Error ? e.message : String(e)}`
+    return `Error: ${errorMessageFromValue(e)}`
   }
 }
 
@@ -210,7 +210,7 @@ async function executeSetAsBackground(params: { query?: string }) {
       return `Background set to "${entry.title}".`
     }
     catch (e) {
-      return `Error applying "${entry.title}": ${e instanceof Error ? e.message : String(e)}`
+      return `Error applying "${entry.title}": ${errorMessageFromValue(e)}`
     }
   }
 

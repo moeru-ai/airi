@@ -22,6 +22,7 @@ import {
   resizePty,
   writeToPty,
 } from '../terminal/pty-runner'
+import { errorMessageFromValue } from '../utils/error-message'
 import { textContent } from './content'
 import { buildApprovalResponse } from './responses'
 import { detectPagination, extractCwdFromPrompt } from './terminal-heuristics'
@@ -191,7 +192,7 @@ export async function executeApprovedPtyCreate(
     }
   }
   catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const message = errorMessageFromValue(error)
 
     await runtime.session.record({
       event: 'failed',
@@ -377,10 +378,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
     catch (error) {
       return {
         isError: true,
-        content: [textContent(`PTY send_input failed: ${error instanceof Error ? error.message : String(error)}`)],
+        content: [textContent(`PTY send_input failed: ${errorMessageFromValue(error)}`)],
         structuredContent: {
           status: 'error',
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessageFromValue(error),
         },
       }
     }
@@ -482,10 +483,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
       catch (error) {
         return {
           isError: true,
-          content: [textContent(`PTY read failed: ${error instanceof Error ? error.message : String(error)}`)],
+          content: [textContent(`PTY read failed: ${errorMessageFromValue(error)}`)],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }
@@ -537,10 +538,10 @@ export function registerPtyTools({ server, runtime }: RegisterPtyToolsOptions) {
       catch (error) {
         return {
           isError: true,
-          content: [textContent(`PTY resize failed: ${error instanceof Error ? error.message : String(error)}`)],
+          content: [textContent(`PTY resize failed: ${errorMessageFromValue(error)}`)],
           structuredContent: {
             status: 'error',
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessageFromValue(error),
           },
         }
       }

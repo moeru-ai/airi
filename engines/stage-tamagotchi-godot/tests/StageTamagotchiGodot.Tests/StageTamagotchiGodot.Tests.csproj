@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ProjectDirInput>$(MSBuildThisFileDirectory)..\..</ProjectDirInput>
+    <GodotProjectDir>$([System.IO.Path]::GetFullPath('$(ProjectDirInput)'))</GodotProjectDir>
+    <GodotDir>$([MSBuild]::EnsureTrailingSlash('$(GodotProjectDir)'))</GodotDir>
+    <GodotProjectDir>$(GodotDir)</GodotProjectDir>
+    <GodotProjectDirBase64>$([MSBuild]::ConvertToBase64('$(GodotDir)'))</GodotProjectDirBase64>
+    <ImplicitUsings>false</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="GodotProjectDir" />
+    <CompilerVisibleProperty Include="GodotProjectDirBase64" />
+    <CompilerVisibleProperty Include="GodotSourceGenerators" />
+    <CompilerVisibleProperty Include="IsGodotToolsProject" />
+    <Compile Remove="..\..\.godot\**\*.cs" />
+    <ProjectReference Include="..\..\stage-tamagotchi-godot.csproj" />
+  </ItemGroup>
+</Project>

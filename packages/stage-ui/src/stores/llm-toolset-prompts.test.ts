@@ -24,7 +24,7 @@ describe('useLlmToolsetPromptsStore', () => {
       },
     ])
 
-    expect(store.activeToolsetPrompt).toContain('Runtime Toolset Guidance')
+    expect(store.activeToolsetPrompt).toContain('## Toolset')
     expect(store.activeToolsetPrompt).toContain('Chess Plugin Guidance')
     expect(store.activeToolsetPrompt).toContain('Do not pass fen or pgn when mode is "new".')
 

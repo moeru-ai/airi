@@ -47,7 +47,7 @@ const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSessi
 const { activeCardId } = storeToRefs(useAiriCardStore())
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
-const { trackChatSessionStarted } = useAnalytics()
+const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
 
 // Re-entry guard for the "new session" button. Without this, a rapid
 // double-click would call `createSession` twice (creating two orphan
@@ -154,6 +154,14 @@ const rows = computed<SessionRow[]>(() => {
 })
 
 async function selectSession(sessionId: string) {
+  const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
+  if (sessionId !== activeSessionId.value && selectedRow) {
+    trackChatSessionSelected({
+      source: 'sessions_drawer',
+      message_count: (sessionMessages.value[sessionId] ?? []).filter(message => message.role !== 'system').length,
+      cloud_synced: !!selectedRow.meta.cloudChatId,
+    })
+  }
   chatSession.setActiveSession(sessionId)
   showDialog.value = false
 }

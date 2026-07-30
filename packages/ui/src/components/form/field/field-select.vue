@@ -1,20 +1,9 @@
 <script setup lang="ts" generic="T extends AcceptableValue">
 import type { AcceptableValue } from 'reka-ui'
 
+import type { SelectOptionGroupItem, SelectOptionItem } from '../select'
+
 import { Select } from '../select'
-
-interface SelectOptionItem<T extends AcceptableValue> {
-  label: string
-  value: T
-  description?: string
-  disabled?: boolean
-  icon?: string
-}
-
-interface SelectOptionGroupItem<T extends AcceptableValue> {
-  groupLabel?: string
-  children?: SelectOptionItem<T>[]
-}
 
 const props = withDefaults(defineProps<{
   label: string

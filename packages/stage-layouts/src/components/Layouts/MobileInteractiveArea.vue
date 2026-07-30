@@ -6,7 +6,7 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { ChatHistory, HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -28,6 +28,8 @@ import IndicatorMicVolume from '../Widgets/IndicatorMicVolume.vue'
 import ActionAbout from './InteractiveArea/Actions/About.vue'
 
 import { useTranscriptions } from '../../composables/use-transcriptions'
+import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
+import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
 const { isDark, toggleDark } = useTheme()
@@ -39,9 +41,25 @@ const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { sending } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
+const { rerunToolCall } = useChatToolCallRerun()
 
 function handleDeleteMessage(index: number) {
+  const message = messages.value[index]
   messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+  trackChatMessageDeleted({
+    source: 'history',
+    message_role: message?.role ?? 'unknown',
+  })
+}
+
+function handleCleanupMessages() {
+  const messageCount = messages.value.filter(message => message.role !== 'system').length
+  cleanupMessages()
+  trackChatMessagesCleared({
+    source: 'chat_controls',
+    message_count: messageCount,
+  })
 }
 
 const messageInput = ref('')
@@ -76,6 +94,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
     isStageTamagotchi,
   },
 )
+const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
@@ -167,6 +186,7 @@ onMounted(() => {
             'relative z-20',
           ]"
           @delete-message="handleDeleteMessage($event.index)"
+          @tool-call-rerun="rerunToolCall"
         />
       </Transition>
     </KeepAlive>
@@ -179,15 +199,36 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <ActionAbout />
-          <button
-            border="2 solid neutral-100/60 dark:neutral-800/30"
-            bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-            title="Conversations"
-            @click="sessionsDrawerOpen = true"
-          >
-            <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-          </button>
+          <div flex="~ col" items-end gap-1>
+            <button
+              data-testid="conversation-selector-button"
+              border="2 solid neutral-100/60 dark:neutral-800/30"
+              bg="neutral-50/70 dark:neutral-800/70"
+              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+              :title="t('stage.chat.sessions.title')"
+              :aria-label="t('stage.chat.sessions.title')"
+              @click="sessionsDrawerOpen = true"
+            >
+              <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+            </button>
+            <button
+              data-testid="speech-mute-button"
+              :class="[
+                'w-fit flex items-center self-end justify-center rounded-xl border-2 border-solid p-2 backdrop-blur-md',
+                'border-neutral-100/60 text-neutral-500 transition-colors active:scale-95 dark:border-neutral-800/30 dark:text-neutral-400',
+                speechMuted
+                  ? 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
+                  : 'bg-neutral-50/70 hover:text-primary-500 dark:bg-neutral-800/70 dark:hover:text-primary-400',
+              ]"
+              :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+              :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+              :aria-pressed="speechMuted"
+              @click="toggleSpeechMuted"
+            >
+              <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone size-5" />
+              <div v-else class="i-solar:volume-loud-bold-duotone size-5" />
+            </button>
+          </div>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
             v-model:enabled="enabled"
@@ -230,7 +271,7 @@ onMounted(() => {
             bg="neutral-50/70 dark:neutral-800/70"
             w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
             title="Cleanup Messages"
-            @click="cleanupMessages()"
+            @click="handleCleanupMessages"
           >
             <div class="i-solar:trash-bin-2-bold-duotone" />
           </button>
@@ -253,6 +294,20 @@ onMounted(() => {
           @compositionstart="isComposing = true"
           @compositionend="isComposing = false"
         />
+        <button
+          v-if="showStopSpeakingButton"
+          data-testid="stop-speaking-button"
+          :class="[
+            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] flex items-center justify-center self-end rounded-md outline-none',
+            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
+            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+          ]"
+          title="Stop speaking"
+          aria-label="Stop speaking"
+          @click="stopSpeakingFromChat"
+        >
+          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
+        </button>
         <button
           v-if="messageInput.trim() || isComposing"
           w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md

@@ -8,6 +8,7 @@ import type { ServerForm } from './mcp-config'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import {
   Button,
   Callout,
@@ -41,6 +42,7 @@ import {
 } from './mcp-config'
 
 const { t } = useI18n()
+const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
@@ -219,8 +221,10 @@ function addServer() {
 
 function removeServer(rowId: string) {
   const i = servers.value.findIndex(s => s.rowId === rowId)
-  if (i >= 0)
+  if (i >= 0) {
     servers.value.splice(i, 1)
+    trackMcpServerRemoved()
+  }
   savedIds.value.delete(rowId)
   expandedIds.value.delete(rowId)
   if (testRowId.value === rowId)
@@ -320,6 +324,7 @@ async function runConnectionTest() {
     testResult.value = { ok: false, error: errorMessageFrom(e) ?? 'Unknown error', durationMs: 0 }
   }
   finally {
+    trackMcpConnectionTestRun({ success: testResult.value?.ok === true })
     testRunning.value = false
   }
 }
@@ -470,6 +475,7 @@ onMounted(async () => {
       </article>
 
       <Button
+        v-track-button="{ name: 'mcp_server_added' }"
         variant="secondary-muted" size="md" block :disabled="isBusy"
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"

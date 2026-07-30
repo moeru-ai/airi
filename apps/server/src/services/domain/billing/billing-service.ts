@@ -316,6 +316,93 @@ export function createBillingService(
     },
 
     /**
+     * Set a user's flux balance to an absolute value within a DB transaction.
+     *
+     * Use when:
+     * - An admin overrides a balance directly (e.g. zeroing it out for
+     *   testing). Unlike credit/debit this is not request-driven and carries
+     *   no idempotency key — every call rewrites the balance to `balance` and
+     *   appends one `admin_set` ledger row recording the before/after.
+     *
+     * Expects:
+     * - `balance` is a non-negative integer. The route layer validates this.
+     *
+     * Returns:
+     * - The balance before and after, plus the appended ledger row id. The
+     *   ledger `amount` is the absolute delta magnitude; direction lives in
+     *   `metadata.direction` since a set can move the balance either way.
+     */
+    async setFlux(input: {
+      userId: string
+      balance: number
+      description: string
+      issuedByUserId: string
+    }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string }> {
+      const txResult = await db.transaction(async (tx) => {
+        await tx.insert(fluxSchema.userFlux)
+          .values({ userId: input.userId, flux: 0 })
+          .onConflictDoNothing({ target: fluxSchema.userFlux.userId })
+
+        const [row] = await tx
+          .select({ flux: fluxSchema.userFlux.flux })
+          .from(fluxSchema.userFlux)
+          .where(eq(fluxSchema.userFlux.userId, input.userId))
+          .for('update')
+
+        const balanceBefore = row!.flux
+        const balanceAfter = input.balance
+        const delta = balanceAfter - balanceBefore
+
+        await tx.update(fluxSchema.userFlux)
+          .set({ flux: balanceAfter, updatedAt: new Date() })
+          .where(eq(fluxSchema.userFlux.userId, input.userId))
+
+        const [insertedTx] = await tx.insert(fluxTxSchema.fluxTransaction).values({
+          userId: input.userId,
+          type: 'admin_set',
+          amount: Math.abs(delta),
+          balanceBefore,
+          balanceAfter,
+          description: input.description,
+          metadata: {
+            source: 'admin_set',
+            requestedBalance: input.balance,
+            direction: delta >= 0 ? 'credit' : 'debit',
+            issuedByUserId: input.issuedByUserId,
+          },
+        }).returning({ id: fluxTxSchema.fluxTransaction.id })
+
+        return { balanceBefore, balanceAfter, fluxTransactionId: insertedTx!.id }
+      })
+
+      // NOTICE:
+      // Invalidate (DEL) rather than write (SET) the cache. An admin override
+      // is a "truth changed" event, so we drop the key and let the next
+      // getFlux miss reload from Postgres — mirrors FluxService.deleteAllForUser.
+      // Writing the new value instead would have setFlux contribute its own
+      // post-commit SET to the existing cross-operation cache-write race that
+      // credit/debit already have (a slower concurrent SET can land last and
+      // clobber it); DEL keeps setFlux from adding to that and defers to truth.
+      // Best-effort: a failed DEL only leaves a stale cache entry that the next
+      // mutation or TTL-less overwrite corrects; Postgres stays authoritative.
+      try {
+        await redis.del(userFluxRedisKey(input.userId))
+      }
+      catch {
+        logger.withFields({ userId: input.userId }).warn('Failed to invalidate flux cache after setFlux')
+      }
+
+      logger.withFields({
+        userId: input.userId,
+        balanceBefore: txResult.balanceBefore,
+        balanceAfter: txResult.balanceAfter,
+        issuedByUserId: input.issuedByUserId,
+      }).log('Set flux balance')
+
+      return txResult
+    },
+
+    /**
      * Credit flux from a Stripe checkout session (one-time payment).
      * Idempotent: claims the checkout session row by flipping `fluxCredited`
      * from false to true; replays of the same Stripe event observe the row

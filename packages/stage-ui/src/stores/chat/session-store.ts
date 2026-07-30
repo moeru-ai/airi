@@ -23,7 +23,7 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
-import { capturePosthogEvent } from '../analytics/posthog'
+import { captureAnalyticsEvent } from '../analytics/client'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -178,6 +178,39 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return generateInitialMessageFromPrompt(systemPrompt.value)
   }
 
+  function refreshActiveSessionSystemMessage() {
+    const sessionId = activeSessionId.value
+    const meta = sessionMetas.value[sessionId]
+
+    // A card switch updates `systemPrompt` before its character session has
+    // necessarily finished loading. Never rewrite the previous character's
+    // session or persist an empty in-memory placeholder over an IDB history
+    // that is still being hydrated.
+    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
+      return
+
+    const currentMessages = sessionMessages.value[sessionId] ?? []
+    const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
+    const currentSystemMessage = currentMessages[systemMessageIndex]
+    const resolvedSystemMessage = generateInitialMessage()
+
+    if (currentSystemMessage?.content === resolvedSystemMessage.content)
+      return
+
+    if (currentSystemMessage) {
+      const nextMessages = [...currentMessages]
+      nextMessages[systemMessageIndex] = {
+        ...currentSystemMessage,
+        role: 'system',
+        content: resolvedSystemMessage.content,
+      }
+      replaceSessionMessages(sessionId, nextMessages)
+      return
+    }
+
+    replaceSessionMessages(sessionId, [resolvedSystemMessage, ...currentMessages])
+  }
+
   function ensureGeneration(sessionId: string) {
     if (sessionGenerations.value[sessionId] === undefined)
       sessionGenerations.value[sessionId] = 0
@@ -322,6 +355,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             await persistSession(sessionId)
         }
         loadedSessions.add(sessionId)
+        if (activeSessionId.value === sessionId)
+          refreshActiveSessionSystemMessage()
 
         // Cloud gap fill: when the session is mapped to a cloud chat, ask
         // the server for everything past our highest known seq. Best
@@ -406,6 +441,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
 
+    captureAnalyticsEvent('conversation_created', {
+      conversation_id: sessionId,
+      source: options?.messages?.length ? 'fork' : 'new_session',
+      character_id: characterId,
+      cloud_synced: currentUserId !== 'local',
+    })
+
     // Fire-and-forget cloud reconcile so the freshly-minted session gets a
     // `cloudChatId` (POST /api/v1/chats) before the user types into it.
     // Reentrant: `reconcileCloudSessions` itself guards on `cloudReconcileTask`
@@ -443,9 +485,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     // Snapshot count before the in-memory wipe below zeroes it out.
     const messageCount = (sessionMessages.value[sessionId] ?? []).length
-    capturePosthogEvent('chat_session_deleted', {
+    captureAnalyticsEvent('chat_session_deleted', {
       session_id: sessionId,
       message_count: messageCount,
+    })
+    captureAnalyticsEvent('conversation_deleted', {
+      conversation_id: sessionId,
+      message_count: messageCount,
+      cloud_synced: !!meta.cloudChatId,
     })
 
     const wasActive = activeSessionId.value === sessionId
@@ -1373,6 +1420,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     void ensureActiveSessionForCharacter()
   })
+
+  // Keep the active conversation aligned with edits to the active card. The
+  // active session id is included because card switching resolves the target
+  // session asynchronously after the card prompt itself has already changed.
+  watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
 
   // Auth toggles drive cloud WS lifecycle independently of activeCardId so
   // a card swap inside a single session does not bounce the socket. The

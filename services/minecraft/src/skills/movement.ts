@@ -6,7 +6,7 @@ import type { PathfindProgressInfo, PathfindResult } from './patched-goto'
 
 import pathfinder from 'mineflayer-pathfinder'
 
-import { sleep } from '@moeru/std'
+import { errorMessageFrom, sleep } from '@moeru/std'
 import { randomInt } from 'es-toolkit'
 import { Vec3 } from 'vec3'
 
@@ -285,33 +285,59 @@ export async function stay(mineflayer: Mineflayer, seconds = 30): Promise<boolea
 }
 
 export async function goToBed(mineflayer: Mineflayer): Promise<boolean> {
-  const beds = mineflayer.bot.findBlocks({
+  // Consider several nearby beds, not just the closest. The closest is often already occupied (e.g.
+  // the master is lying in it), and mineflayer's bot.sleep throws "the bed is occupied" — we want to
+  // fall through to a free bed instead of giving up. `name.includes('bed')` matches every colour
+  // variant (white_bed, red_bed, ...); the literal name "bed" does not exist in modern Minecraft.
+  const bedPositions = mineflayer.bot.findBlocks({
     matching: block => block.name.includes('bed'),
     maxDistance: 32,
-    count: 1,
+    count: 24,
   })
 
-  if (beds.length === 0) {
+  if (bedPositions.length === 0) {
     log(mineflayer, 'I could not find a bed to sleep in.')
     return false
   }
 
-  const loc = beds[0]
-  await goToPosition(mineflayer, loc.x, loc.y, loc.z)
+  let lastError: string | null = null
 
-  const bed = mineflayer.bot.blockAt(loc)
-  if (!bed) {
-    log(mineflayer, 'I could not find a bed to sleep in.')
-    return false
+  for (const loc of bedPositions) {
+    const bed = mineflayer.bot.blockAt(loc)
+    if (!bed)
+      continue
+
+    // Skip beds already in use (the occupied bedstate, e.g. the master's bed) without walking over.
+    const occupied = (bed.getProperties?.() as { occupied?: unknown } | undefined)?.occupied
+    if (occupied === true || occupied === 'true')
+      continue
+
+    await goToPosition(mineflayer, loc.x, loc.y, loc.z)
+
+    const bedNow = mineflayer.bot.blockAt(loc)
+    if (!bedNow)
+      continue
+
+    try {
+      await mineflayer.bot.sleep(bedNow)
+    }
+    catch (err) {
+      lastError = errorMessageFrom(err) ?? ''
+      // Sleeping only works at night / during a thunderstorm — no other bed will help, so stop.
+      if (lastError.includes('not night'))
+        break
+      // Otherwise this bed was occupied/unreachable; try the next nearest one.
+      continue
+    }
+
+    log(mineflayer, 'I am in bed.')
+    while (mineflayer.bot.isSleeping) {
+      await sleep(500)
+    }
+    log(mineflayer, 'I have woken up.')
+    return true
   }
 
-  await mineflayer.bot.sleep(bed)
-  log(mineflayer, 'I am in bed.')
-
-  while (mineflayer.bot.isSleeping) {
-    await sleep(500)
-  }
-
-  log(mineflayer, 'I have woken up.')
-  return true
+  log(mineflayer, `I could not sleep in any nearby bed${lastError ? ` (${lastError})` : ''}.`)
+  return false
 }

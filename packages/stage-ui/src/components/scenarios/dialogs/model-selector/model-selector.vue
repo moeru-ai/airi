@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
+import type { TachieValidationReport } from '@proj-airi/stage-ui-tachie'
 
 import type { DisplayModel } from '../../../../stores/display-models'
 
 import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
+import { TACHIE_ARCHIVE_SUFFIX, validateTachieZip } from '@proj-airi/stage-ui-tachie'
 import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -12,6 +14,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Live2DReportModal from './Live2DReportModal.vue'
+import TachieReportModal from './tachieReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
 
@@ -28,13 +31,24 @@ const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(display
 const { t } = useI18n()
 
 function handleRemoveModel(model: DisplayModel) {
+  const wasActive = props.selectedModel?.id === model.id
   displayModelStore.removeDisplayModel(model.id)
+  // Removing the model that is currently on stage must also take it off the
+  // stage; otherwise the scene keeps rendering the already-loaded mesh (its
+  // blob URL stays valid). Switch to the first remaining model, or none.
+  if (wasActive) {
+    const fallback = displayModels.value.find(m => m.id !== model.id)
+    emits('pick', fallback)
+  }
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)
 const showReportModal = ref(false)
 const pendingFile = ref<File | null>(null)
 const validationReport = ref<Live2DValidationReport | null>(null)
+const showTachieReportModal = ref(false)
+const pendingTachieFile = ref<File | null>(null)
+const tachieValidationReport = ref<TachieValidationReport | null>(null)
 
 watch(() => props.selectedModel?.id, (modelId) => {
   highlightDisplayModelCard.value = modelId
@@ -71,6 +85,36 @@ async function confirmImport() {
   const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.Live2dZip, pendingFile.value)
   highlightDisplayModelCard.value = displayModel.id
   pendingFile.value = null
+}
+
+async function handleAddTachieModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+
+  const picked = file[0]
+  if (!picked.name.toLowerCase().endsWith(TACHIE_ARCHIVE_SUFFIX))
+    return
+
+  const report = await validateTachieZip(picked)
+  pendingTachieFile.value = picked
+  tachieValidationReport.value = report
+
+  if (report.status === 'VALID') {
+    await confirmTachieImport()
+    return
+  }
+
+  showTachieReportModal.value = true
+}
+
+async function confirmTachieImport() {
+  if (!pendingTachieFile.value || tachieValidationReport.value?.status === 'INVALID')
+    return
+
+  const displayModel = await displayModelStore.addDisplayModel(DisplayModelFormat.TachieZip, pendingTachieFile.value)
+  highlightDisplayModelCard.value = displayModel.id
+  pendingTachieFile.value = null
+  tachieValidationReport.value = null
 }
 
 function handleFixError(error: string) {
@@ -118,11 +162,43 @@ async function handleAddSpineModel(file: FileList | null) {
   highlightDisplayModelCard.value = displayModel.id
 }
 
+async function handleAddMMDModel(file: FileList | null) {
+  if (file === null || file.length === 0)
+    return
+
+  const picked = file[0]
+  const lower = picked.name.toLowerCase()
+  // MMD distributes models as a zip (model + textures) or, less commonly, as a
+  // bare .pmx/.pmd. The renderer detects zip vs raw by magic bytes at load
+  // time, so the format here is mainly a label; .pmd keeps its own enum value.
+  let format: DisplayModelFormat
+  if (lower.endsWith('.pmd'))
+    format = DisplayModelFormat.PMD
+  else if (lower.endsWith('.pmx') || lower.endsWith('.zip'))
+    format = DisplayModelFormat.PMXZip
+  else
+    return
+
+  // NOTICE:
+  // Keep this await for the same import-then-pick race as the other formats.
+  // Source/context: model selector import flow -> settings model pick -> settings-stage-model.getDisplayModel().
+  // Removal condition: addDisplayModel becomes a synchronous transaction or pick is blocked by explicit import state.
+  try {
+    const displayModel = await displayModelStore.addDisplayModel(format, picked)
+    highlightDisplayModelCard.value = displayModel.id
+  }
+  catch (err) {
+    // Surface the failure instead of leaving the dialog looking inert.
+    console.error('[model-selector] failed to import MMD model:', err)
+  }
+}
+
 const mapFormatRenderer: Record<DisplayModelFormat, string> = {
   [DisplayModelFormat.Live2dZip]: 'Live2D',
   [DisplayModelFormat.Live2dDirectory]: 'Live2D',
   [DisplayModelFormat.VRM]: 'VRM',
   [DisplayModelFormat.SpineZip]: 'Spine',
+  [DisplayModelFormat.TachieZip]: 'Tachie',
   [DisplayModelFormat.PMXDirectory]: 'MMD',
   [DisplayModelFormat.PMXZip]: 'MMD',
   [DisplayModelFormat.PMD]: 'MMD',
@@ -131,10 +207,14 @@ const mapFormatRenderer: Record<DisplayModelFormat, string> = {
 const live2dDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
 const vrmDialog = useFileDialog({ accept: '.vrm', multiple: false, reset: true })
 const spineDialog = useFileDialog({ accept: '.zip', multiple: false, reset: true })
+const tachieDialog = useFileDialog({ accept: TACHIE_ARCHIVE_SUFFIX, multiple: false, reset: true })
+const mmdDialog = useFileDialog({ accept: '.zip,.pmx,.pmd', multiple: false, reset: true })
 
 live2dDialog.onChange(handleAddLive2DModel)
 vrmDialog.onChange(handleAddVRMModel)
 spineDialog.onChange(handleAddSpineModel)
+tachieDialog.onChange(handleAddTachieModel)
+mmdDialog.onChange(handleAddMMDModel)
 </script>
 
 <template>
@@ -144,6 +224,11 @@ spineDialog.onChange(handleAddSpineModel)
       :report="validationReport"
       @confirm="confirmImport"
       @fix-error="handleFixError"
+    />
+    <TachieReportModal
+      v-model:open="showTachieReportModal"
+      :report="tachieValidationReport"
+      @confirm="confirmTachieImport"
     />
 
     <div flex items-center>
@@ -204,6 +289,29 @@ spineDialog.onChange(handleAddSpineModel)
                 transition="colors duration-200 ease-in-out" @click="spineDialog.open()"
               >
                 Spine
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
+                transition="colors duration-200 ease-in-out" @click="mmdDialog.open()"
+              >
+                MMD
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                :class="[
+                  'data-[disabled]:text-mauve8 relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 leading-none outline-none data-[disabled]:pointer-events-none',
+                  'text-base sm:text-sm',
+                  'data-[highlighted]:bg-primary-300/20 dark:data-[highlighted]:bg-primary-100/20',
+                  'data-[highlighted]:text-primary-400 dark:data-[highlighted]:text-primary-200',
+                ]"
+                transition="colors duration-200 ease-in-out"
+                @click="tachieDialog.open()"
+              >
+                Tachie
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenuPortal>
@@ -273,6 +381,7 @@ spineDialog.onChange(handleAddSpineModel)
             <img
               v-if="model.previewImage"
               :src="model.previewImage"
+              draggable="false"
               :class="[
                 'h-full w-full rounded-xl object-cover',
                 'transition-all duration-200 ease-in-out',

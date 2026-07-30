@@ -1,6 +1,11 @@
 allow-visible-on-all-workspaces:
   title: 跨桌面可见性
   description: 允许窗口在所有虚拟桌面中可见，仅限 macOS。
+spotlight:
+  errors:
+    unknown: 未知错误
+    prefix: '出错啦：{message}'
+    shortcutRegistrationFailed: '出错啦：快捷键注册失败'
 pages:
   modules:
     mcp-server:
@@ -14,6 +19,18 @@ pages:
     window-shortcuts:
       description: 修改窗口快捷方式
       title: 窗口快捷方式
+      empty: 未设置
+      spotlight:
+        title: Spotlight 快捷键
+        description: 点击快捷键后按下新的快捷键，按 Esc 取消。
+      actions:
+        recording: 请按键
+        reset: 重置
+      errors:
+        load: 无法加载快捷键
+        conflict: 该快捷键已被占用
+        failed: 快捷键更新失败
+        requiresModifier: 请至少使用 Cmd、Ctrl、Alt 或 Super 中的一个修饰键。
       toggle-move:
         label: 切换移动状态
       toggle-resize:

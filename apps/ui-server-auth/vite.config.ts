@@ -13,7 +13,7 @@ import VueRouter from 'vue-router/vite'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
-  base: '/auth/',
+  base: '/',
   optimizeDeps: {
     exclude: [
       // Internal Packages
@@ -45,7 +45,24 @@ export default defineConfig({
   },
   build: {
     emptyOutDir: true,
-    outDir: resolve(join(import.meta.dirname, '..', 'server', 'public', 'ui-server-auth')),
+    manifest: true,
+    outDir: resolve(join(import.meta.dirname, 'dist')),
+    rolldownOptions: {
+      output: {
+        chunkFileNames: (chunkInfo) => {
+          const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
+            const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('posthog')
+          })
+
+          // Keep analytics as the source-domain name, but explicitly map its
+          // public URL to a neutral chunk name that filter lists cannot infer.
+          return containsAnalyticsModule
+            ? 'assets/chunk-[hash].js'
+            : 'assets/[name]-[hash].js'
+        },
+      },
+    },
     sourcemap: true,
   },
   worker: {

@@ -5,8 +5,8 @@ import { rawTool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { toJsonSchema } from 'xsschema'
 
+import { normalizeNullableAnyOf } from '../../json-schema'
 import {
-  normalizeNullableAnyOf,
   normalizeSparkCommandDestinations,
   normalizeSparkCommandGuidanceOptions,
   normalizeSparkCommandMetadata,
@@ -65,7 +65,13 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
 
         options.sendSparkCommand(command)
 
-        return `spark:command sent (${command.commandId}) to ${command.destinations.join(', ')}`
+        // `destinations` may be undefined: the channel sender (stores/llm.ts sendSparkCommand) deletes
+        // it to trigger broadcast-to-all-authenticated-peers. Guard the .join so we don't surface
+        // "Cannot read properties of undefined (reading 'join')" back to the LLM after a successful send.
+        const dests = Array.isArray(command.destinations) && command.destinations.length > 0
+          ? command.destinations.join(', ')
+          : 'all authenticated peers (broadcast)'
+        return `spark:command sent (${command.commandId}) to ${dests}`
       },
     }),
   ]

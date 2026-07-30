@@ -111,7 +111,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
       let timeoutId: ReturnType<typeof setTimeout> | undefined
       let abortListener: (() => void) | null = null
 
-      const cleanup = (): void => {
+      function cleanup(): void {
         if (timeoutId !== undefined)
           clearTimeout(timeoutId)
         w.removeEventListener('message', handler)
@@ -119,7 +119,7 @@ export function createBackgroundRemovalAdapter(): BackgroundRemovalAdapter {
           signal.removeEventListener('abort', abortListener)
       }
 
-      const handler = (event: MessageEvent): void => {
+      function handler(event: MessageEvent): void {
         if (event.data.requestId !== requestId)
           return
 

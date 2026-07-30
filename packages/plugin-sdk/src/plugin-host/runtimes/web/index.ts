@@ -9,10 +9,10 @@ export * from '../../shared'
 export * from '../../transports'
 
 /**
- * Creates the Eventa context used by web-side plugin host sessions.
+ * Creates the Eventa context used by web-side extension host sessions.
  *
  * Use when:
- * - Bootstrapping a web runtime plugin session
+ * - Bootstrapping a web runtime extension session
  *
  * Expects:
  * - `transport` describes a transport supported by the web runtime

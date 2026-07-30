@@ -26,8 +26,33 @@ const { t } = useI18n()
 const { theme, frontmatter } = useData()
 const { path } = toRefs(useRoute())
 
+/**
+ * Normalizes a document route or sidebar link before matching.
+ *
+ * Before:
+ * - "/zh-Hans/docs/manual/config/providers/consciousness/official.html"
+ * - "/zh-Hans/docs/manual/config/providers/consciousness/official/"
+ *
+ * After:
+ * - "/zh-Hans/docs/manual/config/providers/consciousness/official"
+ */
+function normalizeDocumentPath(value: string): string {
+  const withoutDocumentExtension = value.replace(/(?:\/index)?\.(?:html|md)$/, '')
+  const withoutTrailingSlash = withoutDocumentExtension.replace(/\/+$/, '')
+
+  return withoutTrailingSlash || '/'
+}
+
 const sidebar = computed(() => theme.value.sidebar as DefaultTheme.SidebarItem[])
-const activeSection = computed(() => sidebar.value.find(section => flatten(section.items ?? [], 'items')?.find(item => item.link === path.value.replace('.html', ''))))
+const activeSection = computed(() => {
+  const currentPath = normalizeDocumentPath(path.value)
+
+  return sidebar.value.find(section =>
+    flatten(section.items ?? [], 'items').some(item =>
+      item.link != null && normalizeDocumentPath(item.link) === currentPath,
+    ),
+  )
+})
 
 const isSidebarEnabled = computed(() => {
   if (frontmatter.value.sidebar === false) {

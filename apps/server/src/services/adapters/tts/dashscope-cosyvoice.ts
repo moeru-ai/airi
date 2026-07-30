@@ -2,19 +2,9 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { errorMessageFrom } from '@moeru/std'
-
-import { createBadGatewayError, createInternalError } from '../../../utils/error'
-
-/**
- * Default DashScope cosyvoice voice id. v2 voice ids carry an explicit `_v2`
- * suffix; `longxiaochun_v2` is the general-purpose Chinese assistant voice
- * called out in Alibaba's voice list.
- *
- * NOTICE:
- * Hardcoded near use; promote when ops want per-tenant defaults.
- */
-const DEFAULT_COSYVOICE_VOICE = 'longxiaochun_v2'
+import { createBadRequestError } from '../../../utils/error'
+import { audioMimeFromFormat } from './audio-format'
+import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
 
 /**
  * Default cosyvoice audio format. Mirrors the OpenAI `mp3` default expected by
@@ -28,8 +18,8 @@ const DEFAULT_COSYVOICE_FORMAT = 'mp3'
  * v2 is the most conservative current default and shares a request body shape
  * with v3/v3.5 so ops can retarget via `adapterParams.model` without code.
  * NOTICE:
- * If you bump this past v2, verify the chosen `DEFAULT_COSYVOICE_VOICE` exists
- * for that model — voice catalogs differ between v2 (`*_v2`) and v3 (`*_v3`).
+ * If you bump this past v2, verify the configured default voice exists for
+ * that model — voice catalogs differ between v2 (`*_v2`) and v3 (`*_v3`).
  */
 const DEFAULT_COSYVOICE_MODEL = 'cosyvoice-v2'
 
@@ -63,45 +53,26 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     const model = typeof ctx.adapterParams.model === 'string'
       ? ctx.adapterParams.model
       : DEFAULT_COSYVOICE_MODEL
-    const voice = input.voice ?? DEFAULT_COSYVOICE_VOICE
+    if (!input.voice)
+      throw createBadRequestError('dashscope-cosyvoice voice is required', 'BAD_REQUEST')
+    if (typeof input.extraOptions?.pitch === 'number' || typeof input.extraOptions?.volume === 'number') {
+      throw createBadRequestError(
+        'dashscope-cosyvoice does not support Voice Pack pitch or volume parameters',
+        'BAD_REQUEST',
+      )
+    }
+    const voice = input.voice
     const format = input.responseFormat ?? DEFAULT_COSYVOICE_FORMAT
 
-    const body = JSON.stringify({
+    return sendSpeechViaUnSpeech({
+      ctx,
       model: `alibaba/${model}`,
       input: input.text,
       voice,
-      response_format: format,
+      responseFormat: format,
+      fallbackContentType: audioMimeFromFormat(format),
+      providerLabel: 'dashscope-cosyvoice',
     })
-
-    let response: Response
-    try {
-      response = await ctx.fetchImpl(`${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/audio/speech`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${ctx.keyPlaintext.toString('utf8')}`,
-          'Content-Type': 'application/json',
-        },
-        body,
-        signal: ctx.abortSignal,
-      })
-    }
-    catch (error) {
-      throw createInternalError(`dashscope-cosyvoice tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      const err = new Error(`dashscope-cosyvoice tts upstream ${response.status}: ${text.slice(0, 256)}`) as Error & { status?: number }
-      err.status = response.status
-      throw err
-    }
-
-    // unspeech aggregates the WS binary frames and returns the audio buffer
-    // directly, so we no longer parse a JSON envelope or follow a signed URL.
-    const audioBytes = await response.arrayBuffer()
-    const contentType = response.headers.get('content-type') ?? formatToMime(format)
-
-    return { contentType, body: audioBytes }
   },
 
   async getVoiceCatalog(ctx: TtsVoiceCatalogContext): Promise<Voice[]> {
@@ -109,45 +80,13 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     // (unspeech/pkg/backend/alibaba/voices.go `//go:embed voices.json`),
     // so this call is in-memory on unspeech's side and only crosses a TCP
     // hop. No upstream credential is required.
-    const url = `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/api/voices?backend=alibaba`
-
-    let response: Response
-    try {
-      response = await ctx.fetchImpl(url, {
-        method: 'GET',
-        headers: { Accept: 'application/json' },
-        signal: ctx.abortSignal,
-      })
-    }
-    catch (error) {
-      throw createBadGatewayError(`cosyvoice voices fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-    }
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '')
-      throw createBadGatewayError(
-        `cosyvoice voices upstream ${response.status}: ${text.slice(0, 256)}`,
-        { lastStatusCode: response.status },
-      )
-    }
-
-    const data = await response.json() as { voices: Voice[] }
-    if (!Array.isArray(data.voices))
-      throw createBadGatewayError('cosyvoice voices upstream missing voices[]')
-
-    return data.voices
+    const params = new URLSearchParams({ provider: 'alibaba' })
+    if (typeof ctx.adapterParams.model === 'string')
+      params.set('model', ctx.adapterParams.model)
+    return listVoicesViaUnSpeech({
+      ctx,
+      query: params.toString(),
+      providerLabel: 'cosyvoice',
+    })
   },
-}
-
-/**
- * Maps cosyvoice's `format` (`mp3` / `wav` / `pcm`) to a MIME type for the
- * client. Keeps the router contract symmetric with Azure / Volcengine.
- */
-function formatToMime(format: string): string {
-  switch (format) {
-    case 'mp3': return 'audio/mpeg'
-    case 'wav': return 'audio/wav'
-    case 'pcm': return 'audio/L16'
-    default: return 'application/octet-stream'
-  }
 }

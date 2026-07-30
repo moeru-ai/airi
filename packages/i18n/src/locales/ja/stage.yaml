@@ -20,6 +20,9 @@ send-mode:
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: Enter二回
+speech-output:
+  mute: 音声をミュート
+  unmute: ミュートを解除
 operations:
   load-models: モデルの読み込み
   load-models-status:
@@ -94,6 +97,6 @@ promo-banner:
       cta: テーマを表示
 waiting: 待機中
 websocket-status:
-  connected: Connected
-  disconnected: No connection
-  open-settings: Open connection settings
+  connected: 接続済み
+  disconnected: 未接続
+  open-settings: 接続設定を開く

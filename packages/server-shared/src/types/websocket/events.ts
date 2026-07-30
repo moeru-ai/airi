@@ -1,9 +1,9 @@
-import type { ModuleIdentity, ProtocolEvents, RouteConfig, WebSocketEventSource } from '@proj-airi/plugin-protocol/types'
+import type { MetadataEventSource, ProtocolEvents, RouteConfig, WebSocketEventSource } from '@proj-airi/plugin-protocol/types'
 
 export * from '@proj-airi/plugin-protocol/types'
 
 export interface WebSocketEventBaseMetadata {
-  source?: ModuleIdentity
+  source?: MetadataEventSource
   event?: {
     id?: string
     parentId?: string
@@ -18,7 +18,7 @@ export interface WebSocketBaseEvent<T, D, S extends string = string> {
    */
   source?: WebSocketEventSource | S
   metadata: {
-    source: ModuleIdentity
+    source: MetadataEventSource
     event: {
       id: string
       parentId?: string

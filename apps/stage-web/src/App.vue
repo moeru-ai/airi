@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
+import { isAnalyticsAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -23,6 +24,7 @@ import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
 import { usePWAStore } from './stores/pwa'
 
 usePWAStore()
+useAuthProviderSync()
 
 const contextBridgeStore = useContextBridgeStore()
 const i18n = useI18n()
@@ -63,7 +65,7 @@ const colors = computed(() => {
 })
 
 const onboardingExtraSteps = computed(() => {
-  return isPosthogAvailableInBuild()
+  return isAnalyticsAvailableInBuild()
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
     : []
 })

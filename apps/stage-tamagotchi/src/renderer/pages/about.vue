@@ -7,14 +7,14 @@ import semver from 'semver'
 
 import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
-import { useBreakpoints } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useBreakpoints } from '@proj-airi/stage-ui/composables'
 import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { Button, ContainerError, DoubleCheckButton, FieldSelect, Progress } from '@proj-airi/ui'
 import { useClipboard } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../../shared/eventa'
@@ -31,6 +31,12 @@ const {
   downloadUpdate,
   quitAndInstall,
 } = useElectronAutoUpdater()
+
+const {
+  trackUpdateDownloaded,
+  trackUpdateInstallClicked,
+  trackSettingsChanged,
+} = useAnalytics()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
 const isLatestVersion = computed(() => {
@@ -119,6 +125,18 @@ const isDowngradeUpdate = computed(() => {
 const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
 const setUpdaterPreferences = useElectronEventaInvoke(electronSetUpdaterPreferences)
 
+function handleQuitAndInstall() {
+  trackUpdateInstallClicked({ channel: selectedUpdateChannel.value, version: updateState.value.info?.version })
+  quitAndInstall()
+}
+
+// Fires on the state transition (not the download click) so the event means
+// "an update binary actually landed on this machine".
+watch(() => updateState.value.status, (status) => {
+  if (status === 'downloaded')
+    trackUpdateDownloaded({ channel: selectedUpdateChannel.value, version: updateState.value.info?.version })
+})
+
 function handleDownloadClick() {
   if (updateState.value.info?.releaseNotes)
     showChangelog.value = true
@@ -181,9 +199,16 @@ async function setUpdateChannelPreference(channel: UpdateChannelOption) {
 
   isUpdateChannelUpdating.value = true
   try {
+    const previousChannel = selectedUpdateChannel.value
     const nextChannel = channel === 'auto' ? undefined : channel as ElectronUpdaterChannel
     const preferences = await setUpdaterPreferences({ channel: nextChannel })
     selectedUpdateChannel.value = preferences?.channel ?? 'auto'
+    trackSettingsChanged({
+      setting_name: 'update_channel',
+      previous_value: previousChannel,
+      new_value: selectedUpdateChannel.value,
+      source: 'settings',
+    })
     await checkForUpdates()
   }
   finally {
@@ -325,7 +350,7 @@ onMounted(() => {
                 <div>
                   <DoubleCheckButton
                     variant="primary"
-                    @confirm="quitAndInstall()"
+                    @confirm="handleQuitAndInstall()"
                   >
                     {{ restartButtonLabel }}
                     <template #confirm>
@@ -353,6 +378,7 @@ onMounted(() => {
 
                 <div :class="['flex flex-wrap gap-2']">
                   <Button
+                    v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
                     :variant="isError ? 'caution' : 'secondary'"
                     :loading="isBusy"
                     :disabled="isDisabled"

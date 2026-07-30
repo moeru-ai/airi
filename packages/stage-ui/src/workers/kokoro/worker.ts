@@ -16,6 +16,7 @@ import type {
 } from '../../libs/inference/protocol'
 import type { VoiceKey, Voices } from './types'
 
+import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { KokoroTTS } from 'kokoro-js'
 
 import { MODEL_IDS, MODEL_NAMES } from '../../libs/inference/constants'
@@ -102,7 +103,7 @@ function clearCancelled(requestId: string): void {
 }
 
 function sendError(requestId: string, error: unknown, phase?: 'load' | 'inference'): void {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessageFromValue(error)
   const code = classifyError(error, phase)
   const msg: ErrorResponse = {
     type: 'error',
@@ -204,7 +205,7 @@ async function loadModel(request: LoadModelRequest): Promise<void> {
         lastError = error
         console.warn(
           `[Kokoro Worker] Failed with dtype=${attempt.dtype} device=${attempt.device}, trying next fallback...`,
-          error instanceof Error ? error.message : error,
+          errorMessageFromValue(error),
         )
       }
     }

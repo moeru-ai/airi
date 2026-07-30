@@ -1,24 +1,28 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { argv, exit } from 'node:process'
+
 import JSZip from 'jszip'
+
+import { decodeZipFileName } from './decode-zip-filename'
 
 /**
  * Enhanced reporting utility to analyze and validate Live2D ZIP structures.
  */
 
 async function generateReport(zipPath: string) {
-  console.log(`\n================================================================`)
-  console.log(`LIVE2D STRUCTURE REPORT: ${path.basename(zipPath)}`)
-  console.log(`================================================================\n`)
+  console.info(`\n================================================================`)
+  console.info(`LIVE2D STRUCTURE REPORT: ${path.basename(zipPath)}`)
+  console.info(`================================================================\n`)
 
   if (!fs.existsSync(zipPath)) {
     console.error(`Error: File not found at ${zipPath}`)
-    process.exit(1)
+    exit(1)
   }
 
   const data = fs.readFileSync(zipPath)
-  const zip = await JSZip.loadAsync(data)
+  const zip = await JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
   const allFiles = Object.keys(zip.files)
 
   const report = {
@@ -40,9 +44,9 @@ async function generateReport(zipPath: string) {
   }
 
   // 1. Enumerate Files and Check Non-ASCII
-  console.log(`[1] Enumerating ${allFiles.length} files...`)
+  console.info(`[1] Enumerating ${allFiles.length} files...`)
   allFiles.forEach((f) => {
-    if (/[^\x00-\x7F]/.test(f)) {
+    if (Array.from(f).some(char => char.charCodeAt(0) > 0x7F)) {
       report.issues.push(`Non-ASCII filename detected: "${f}" (Ensure middleware handles this)`)
     }
   })
@@ -166,26 +170,26 @@ async function generateReport(zipPath: string) {
   report.checks.push(`Total Motions found: ${report.metadata.motions.length}`)
 
   // Final Summary
-  console.log(`[2] SUMMARY`)
-  console.log(`    Type: ${report.structureType}`)
-  console.log(`    Status: ${report.issues.length === 0 ? 'VALID' : 'INVALID'}`)
+  console.info(`[2] SUMMARY`)
+  console.info(`    Type: ${report.structureType}`)
+  console.info(`    Status: ${report.issues.length === 0 ? 'VALID' : 'INVALID'}`)
 
   if (report.checks.length > 0) {
-    console.log(`\n[3] CHECKS PASSED:`)
-    report.checks.forEach(c => console.log(`    [V] ${c}`))
+    console.info(`\n[3] CHECKS PASSED:`)
+    report.checks.forEach(c => console.info(`    [V] ${c}`))
   }
 
   if (report.issues.length > 0) {
-    console.log(`\n[4] ISSUES FOUND:`)
-    report.issues.forEach(i => console.log(`    [X] ${i}`))
+    console.info(`\n[4] ISSUES FOUND:`)
+    report.issues.forEach(i => console.info(`    [X] ${i}`))
   }
 
-  console.log(`\n================================================================\n`)
+  console.info(`\n================================================================\n`)
 }
 
-const target = process.argv[2]
+const target = argv[2]
 if (!target) {
-  console.log('Usage: node_modules/.bin/tsx packages/stage-ui-live2d/src/utils/live2d-structure-report.ts <zip-path>')
+  console.info('Usage: node_modules/.bin/tsx packages/stage-ui-live2d/src/utils/live2d-structure-report.ts <zip-path>')
 }
 else {
   generateReport(target).catch(console.error)

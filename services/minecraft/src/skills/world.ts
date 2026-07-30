@@ -9,6 +9,16 @@ import pf from 'mineflayer-pathfinder'
 
 import { McData } from '../utils/mcdata'
 
+/**
+ * Default radius (in blocks) for the bot's "vision" — how far skill-level scans look for blocks,
+ * entities, players, etc. Raised from the original 16 to 48 so Airi can find/act on things farther
+ * away (cows to hunt, ores to mine, drops to collect). This only affects in-bot scanning work — it
+ * does NOT meaningfully change backbone-LLM token cost, because scan results stay in the sandbox/
+ * skills and never enter the prompt (only the compact [PERCEPTION] name summary does). The real
+ * cost of a larger radius is CPU (findBlocks scans more chunks) and pathfinding to distant targets.
+ */
+const DEFAULT_SCAN_RADIUS = 48
+
 export function getNearestFreeSpace(
   mineflayer: Mineflayer,
   size: number = 1,
@@ -57,7 +67,7 @@ export function getNearestFreeSpace(
   return undefined
 }
 
-export function getNearestBlocks(mineflayer: Mineflayer, blockTypes: string[] | string | null = null, distance: number = 16, count: number = 10000): Block[] {
+export function getNearestBlocks(mineflayer: Mineflayer, blockTypes: string[] | string | null = null, distance: number = DEFAULT_SCAN_RADIUS, count: number = 10000): Block[] {
   const mcData = McData.fromBot(mineflayer.bot)
   const blockNames = blockTypes === null
     ? mcData.getAllBlocks(['air']).map(block => block.name)
@@ -90,12 +100,12 @@ export function getNearestBlocks(mineflayer: Mineflayer, blockTypes: string[] | 
     .map(item => item.block)
 }
 
-export function getNearestBlock(mineflayer: Mineflayer, blockType: string, distance: number = 16): Block | null {
+export function getNearestBlock(mineflayer: Mineflayer, blockType: string, distance: number = DEFAULT_SCAN_RADIUS): Block | null {
   const blocks = getNearestBlocks(mineflayer, blockType, distance, 1)
   return blocks[0] || null
 }
 
-export function getNearbyEntities(mineflayer: Mineflayer, maxDistance: number = 16): Entity[] {
+export function getNearbyEntities(mineflayer: Mineflayer, maxDistance: number = DEFAULT_SCAN_RADIUS): Entity[] {
   return Object.values(mineflayer.bot.entities)
     .filter((entity): entity is Entity =>
       entity !== null
@@ -107,14 +117,14 @@ export function getNearbyEntities(mineflayer: Mineflayer, maxDistance: number = 
     )
 }
 
-export function getNearestEntityWhere(mineflayer: Mineflayer, predicate: (entity: Entity) => boolean, maxDistance: number = 16): Entity | null {
+export function getNearestEntityWhere(mineflayer: Mineflayer, predicate: (entity: Entity) => boolean, maxDistance: number = DEFAULT_SCAN_RADIUS): Entity | null {
   return mineflayer.bot.nearestEntity(entity =>
     predicate(entity)
     && mineflayer.bot.entity.position.distanceTo(entity.position) < maxDistance,
   )
 }
 
-export function getNearbyPlayers(mineflayer: Mineflayer, maxDistance: number = 16): Entity[] {
+export function getNearbyPlayers(mineflayer: Mineflayer, maxDistance: number = DEFAULT_SCAN_RADIUS): Entity[] {
   return getNearbyEntities(mineflayer, maxDistance)
     .filter(entity =>
       entity.type === 'player'
@@ -167,7 +177,7 @@ export function getNearbyPlayerNames(mineflayer: Mineflayer): string[] {
   )]
 }
 
-export function getNearbyBlockTypes(mineflayer: Mineflayer, distance: number = 16): string[] {
+export function getNearbyBlockTypes(mineflayer: Mineflayer, distance: number = DEFAULT_SCAN_RADIUS): string[] {
   return [...new Set(
     getNearestBlocks(mineflayer, null, distance)
       .map(block => block.name),

@@ -57,7 +57,7 @@ describe('dashscopeCosyvoiceAdapter', () => {
 
     await expect(
       dashscopeCosyvoiceAdapter.send(
-        { text: 'hi' },
+        { text: 'hi', voice: 'longxiaochun_v2' },
         {
           keyPlaintext: Buffer.from('sk-test', 'utf8'),
           baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
@@ -71,10 +71,10 @@ describe('dashscopeCosyvoiceAdapter', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
-  it('falls back to cosyvoice-v2 + longxiaochun_v2 when caller omits model / voice', async () => {
+  it('rejects missing voice instead of hardcoding a model-specific default', async () => {
     const fetchImpl = vi.fn().mockResolvedValueOnce(binaryResponse(new Uint8Array([0])))
 
-    await dashscopeCosyvoiceAdapter.send(
+    await expect(dashscopeCosyvoiceAdapter.send(
       { text: 'hi' },
       {
         keyPlaintext: Buffer.from('sk-test', 'utf8'),
@@ -83,15 +83,39 @@ describe('dashscopeCosyvoiceAdapter', () => {
         adapterParams: {},
         fetchImpl: fetchImpl as unknown as typeof fetch,
       },
-    )
+    )).rejects.toMatchObject({ statusCode: 400 })
 
-    const body = JSON.parse(fetchImpl.mock.calls[0][1].body as string)
-    expect(body.model).toBe('alibaba/cosyvoice-v2')
-    expect(body.voice).toBe('longxiaochun_v2')
-    expect(body.response_format).toBe('mp3')
+    expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('voice catalog is proxied through unspeech (alibaba backend)', async () => {
+  /**
+   * @example
+   * dashscopeCosyvoiceAdapter.send({ text: 'hi', extraOptions: { volume: 5 } }, ctx)
+   */
+  it('fails fast when Voice Pack pitch or volume params reach DashScope cosyvoice', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(binaryResponse(new Uint8Array([0])))
+
+    await expect(dashscopeCosyvoiceAdapter.send(
+      {
+        text: 'hi',
+        voice: 'longxiaochun_v2',
+        extraOptions: {
+          volume: 5,
+        },
+      },
+      {
+        keyPlaintext: Buffer.from('sk-test', 'utf8'),
+        baseURL: 'https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/SpeechSynthesizer',
+        unspeechBaseURL: UNSPEECH,
+        adapterParams: {},
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    )).rejects.toMatchObject({ statusCode: 400 })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('voice catalog is proxied through unspeech with the selected cosyvoice model', async () => {
     // The catalog itself is unspeech-owned now (embedded JSON in
     // unspeech/pkg/backend/alibaba/voices.go). This test only verifies the
     // wire contract — fixture content is intentionally minimal so an
@@ -100,10 +124,17 @@ describe('dashscopeCosyvoiceAdapter', () => {
       voices: [{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }],
     }), { status: 200 })) as unknown as typeof fetch
     const catalog = await dashscopeCosyvoiceAdapter.getVoiceCatalog({
-      adapterParams: {},
+      adapterParams: { model: 'cosyvoice-v2' },
       unspeechBaseURL: UNSPEECH,
       fetchImpl,
     })
     expect(catalog).toEqual([{ id: 'longxiaochun_v2', name: 'Longxiaochun v2' }])
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `${UNSPEECH}/api/voices?provider=alibaba&model=cosyvoice-v2`,
+      expect.objectContaining({
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      }),
+    )
   })
 })

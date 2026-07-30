@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VoiceInfo } from '../../../stores/providers'
 
+import { errorMessageFrom } from '@moeru/std'
 import { FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -80,7 +81,7 @@ async function handleGenerateTestSpeech() {
   }
   catch (error) {
     console.error('Error generating speech:', error)
-    errorMessage.value = error instanceof Error ? error.message : 'An unknown error occurred'
+    errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
   }
   finally {
     isGenerating.value = false

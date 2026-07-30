@@ -4,7 +4,15 @@ import process from 'node:process'
 
 import { basename, extname, relative, resolve, sep } from 'node:path'
 
+import { x } from 'tinyexec'
+
 export type CapacitorPlatform = 'android' | 'ios'
+
+interface CapacitorTarget {
+  id?: string
+}
+
+type ListCapacitorTargets = (platform: CapacitorPlatform) => Promise<readonly CapacitorTarget[]>
 
 const nativeExtensionsByPlatform: Record<CapacitorPlatform, Set<string>> = {
   ios: new Set([
@@ -84,7 +92,42 @@ export function hasCapacitorTargetArg(capArgs: string[]): boolean {
   return capArgs.some((arg, index) => arg === '--target' || (index > 0 && arg.startsWith('--target=')))
 }
 
-export function resolveCapRunArgs(capArgs: string[], env: NodeJS.ProcessEnv = process.env): string[] {
+function parseCapacitorTargetList(value: string): CapacitorTarget[] {
+  const parsed = JSON.parse(value)
+  if (!Array.isArray(parsed)) {
+    throw new TypeError('Expected `cap run --list --json` to return a JSON array.')
+  }
+
+  return parsed
+    .filter((target): target is CapacitorTarget => typeof target === 'object' && target !== null && typeof (target as CapacitorTarget).id === 'string')
+}
+
+async function listCapacitorTargets(platform: CapacitorPlatform): Promise<CapacitorTarget[]> {
+  const output = await x('cap', ['run', platform, '--list', '--json'])
+
+  return parseCapacitorTargetList(output.stdout)
+}
+
+/**
+ * Resolves Capacitor run arguments by applying target defaults.
+ *
+ * Use when:
+ * - `cap-vite` is about to run `cap run`
+ * - Callers want env-based device IDs before falling back to the first available target
+ *
+ * Expects:
+ * - `capArgs[0]` is already validated as `ios` or `android` by the CLI boundary
+ * - Explicit `--target` arguments must stay untouched so Capacitor can validate them
+ *
+ * Returns:
+ * - The original args when a target is explicit
+ * - Args with `--target` injected from env or the first listed Capacitor target
+ */
+export async function resolveCapRunArgs(
+  capArgs: string[],
+  env: NodeJS.ProcessEnv = process.env,
+  listTargets: ListCapacitorTargets = listCapacitorTargets,
+): Promise<string[]> {
   if (capArgs.length === 0 || hasCapacitorTargetArg(capArgs)) {
     return capArgs
   }
@@ -100,7 +143,16 @@ export function resolveCapRunArgs(capArgs: string[], env: NodeJS.ProcessEnv = pr
   }
 
   if (!target) {
-    return capArgs
+    if (!platform) {
+      return capArgs
+    }
+
+    const targets = await listTargets(platform)
+    target = targets.find(device => device.id)?.id
+  }
+
+  if (!target) {
+    throw new Error(`No ${platform} devices or simulators found. Connect a device, start a simulator or emulator, or pass --target explicitly.`)
   }
 
   return [platformArg, '--target', target, ...rest]

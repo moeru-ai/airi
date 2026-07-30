@@ -33,6 +33,10 @@
   - 全量 metric 目录（按域分组：HTTP / Auth / Engagement / Revenue / GenAI / Email / Rate limit / Runtime），含名字、类型、Labels、落点
 - `metrics-ownership.md`
   - 指标分层规则：什么走 Grafana / 什么走 PostHog / 什么是 Postgres truth；含 7 题判定 Checklist、PostHog 事件命名约定、当前指标归属总表、PostHog 接入路线图
+- `product-analytics-instrumentation.md`
+  - 面向社区 / 产品问题的埋点补充方案：上手激活、Provider 配置、TTS 音色、语音输入、反馈、看板和异常播报
+- `product-analytics-dashboard-setup.md`
+  - 产品分析看板落地说明：PostHog insights、Grafana 产品事件面板、告警表达式；不含 Discord / QQ 同步和日报 / 周报脚本
 - `auth-and-oidc.md`
   - 认证与 OIDC Provider 架构、登录流程、trusted clients、踩坑记录
 - `email-auth-resend.md`
@@ -41,6 +45,8 @@
   - 账号注销架构：auth 表 hard delete + 业务表软删，handler 协议、各业务行为、failure 模型
 - `admin-flux-grants.md`
   - Admin 批量发 FLUX（活动赠送）：单一同步 POST，无 batch 表无后台 loop，`adminGuard` 邮箱白名单 + 可选 `idempotencyKey`
+- `account-ban.md`
+  - Admin 授权改 role-based（better-auth `admin` 插件，删 `ADMIN_EMAILS`）；ban/unban 收敛到 better-auth 原生端点（`user.banned`），`resolveRequestAuth` + userinfo guard 做 OIDC JWT 热路径立即生效；改余额（`setFlux`）保留自建；含 disabledPaths 端点收口与「dashboard 为何不上」的决策
 - `verifications/email-auth.md`
   - 邮箱注册 / 忘记密码 / OIDC 桥接登录 三条用户路径的真实实测证据
 - `verifications/account-deletion.md`
@@ -51,6 +57,10 @@
   - Unpaid-usage exploit 修补（commit `7267b0d6b`）的代码层验证 + 残余 gap（TTS flux-meter 未适配 partial-debit）+ follow-up 清单
 - `verifications/flux-unbilled-reconciliation.md`
   - 70.2K 历史漏账的取证 SQL + Loki query 模板、处理决策框架、修补后的监控建议
+- `verifications/admin-user-balance-ban.md`
+  - Admin role 鉴权 / 封禁热路径闸 / 改余额：role adminGuard、resolveRequestAuth+userinfo 封禁、setFlux 的真实 PGlite/Hono 执行证据（含 flux-grants 集成测试走 role），及 better-auth admin 端点本身待端到端实测
+- `verifications/product-analytics-smoke.md`
+  - 产品分析埋点上线冒烟清单：PostHog journey events、Postgres TTS metadata、Grafana Product Analytics row、Prometheus label 安全边界
 
 ## 快速结论
 

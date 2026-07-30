@@ -4,11 +4,19 @@ import type { ProfileUser } from '../modules/profile'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Avatar, Button, FieldInput } from '@proj-airi/ui'
 import { computed, onMounted, reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import {
+  identifyAuthUser,
+  trackOauthProviderLinkStarted,
+  trackOauthProviderUnlinked,
+  trackPasswordChanged,
+  trackPasswordResetRequested,
+  trackSignedOut,
+} from '../modules/analytics'
 import { getAuthClient } from '../modules/auth-client'
 import { requestPasswordReset } from '../modules/email-password'
 import {
@@ -98,6 +106,8 @@ const {
     unlinked: provider => t('server.auth.profile.linkedAccounts.message.unlinked', { provider }),
     linkStarted: provider => t('server.auth.profile.linkedAccounts.message.linkStarted', { provider }),
   },
+  onUnlinked: providerId => trackOauthProviderUnlinked({ provider: providerId }),
+  onLinkStarted: providerId => trackOauthProviderLinkStarted({ provider: providerId }),
 })
 
 const nameDirty = computed(() => {
@@ -138,6 +148,9 @@ onMounted(async () => {
     // call needed here.
     user.value = result.user
     profileForm.name = result.user.name
+    // Merge this browser's anonymous funnel events (sign-in page views,
+    // login_started, …) into the Better Auth user person.
+    identifyAuthUser(result.user.id)
   }
   catch (error) {
     profileError.value = describeProfileError(error) || t('server.auth.profile.error.loadFailed')
@@ -200,6 +213,7 @@ async function handleChangePassword(event: Event) {
     passwordForm.next = ''
     passwordForm.confirm = ''
     passwordSuccess.value = t('server.auth.profile.message.passwordChanged')
+    trackPasswordChanged()
   }
   catch (error) {
     passwordError.value = describeProfileError(error) || t('server.auth.profile.error.changePasswordFailed')
@@ -237,6 +251,7 @@ async function handleSendSetPasswordLink() {
       redirectTo: new URL('/auth/reset-password', apiServerUrl).toString(),
     })
     setPasswordSuccess.value = t('server.auth.profile.password.setLinkSent', { email: user.value.email })
+    trackPasswordResetRequested()
   }
   catch (error) {
     setPasswordError.value = describeProfileError(error)
@@ -256,6 +271,7 @@ async function handleSignOut() {
 
   try {
     await signOut({ apiServerUrl })
+    trackSignedOut()
     await router.replace('/sign-in')
   }
   catch (error) {
@@ -312,19 +328,14 @@ function formatLinkedSince(iso: string): string {
       <section
         :class="['max-w-sm w-full flex flex-col items-center gap-2 mb-6']"
       >
-        <div
+        <Avatar
+          :src="avatarUrl"
+          :alt="t('server.auth.profile.avatar.altText')"
+          referrer-policy="no-referrer"
           :class="[
             'h-24 w-24 overflow-hidden rounded-full border border-neutral-200 dark:border-neutral-700 bg-neutral-100 dark:bg-neutral-800',
           ]"
-        >
-          <img
-            v-if="avatarUrl"
-            :src="avatarUrl"
-            :alt="t('server.auth.profile.avatar.altText')"
-            :class="['h-full w-full object-cover']"
-            referrerpolicy="no-referrer"
-          >
-        </div>
+        />
         <div
           v-if="usingGravatarFallback"
           :class="['flex flex-col items-center gap-1 text-center text-xs text-neutral-500']"

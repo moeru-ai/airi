@@ -10,6 +10,7 @@
  */
 
 import type { DesktopSession } from './desktop-session'
+import type { ToolLane } from './server/tool-descriptors'
 import type { TaskMemory } from './task-memory/types'
 import type {
   BrowserSurfaceAvailability,
@@ -198,6 +199,10 @@ export interface RunState {
   // --- Desktop Session ---------------------------------------------------
   /** Agent's active desktop execution session. */
   desktopSession?: DesktopSession
+
+  // --- Tool lane hygiene ------------------------------------------------
+  /** Inferred active lane from the most recent non-exempt tool invocation. */
+  inferredActiveLane?: ToolLane
 
   // --- Meta -------------------------------------------------------------
   /** ISO timestamp of the last state update. */
@@ -487,6 +492,11 @@ export class RunStateManager {
    */
   clearDesktopSession(): void {
     this.state.desktopSession = undefined
+    this.touch()
+  }
+
+  updateInferredLane(lane: ToolLane): void {
+    this.state.inferredActiveLane = lane
     this.touch()
   }
 

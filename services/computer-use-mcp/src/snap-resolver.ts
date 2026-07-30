@@ -47,7 +47,9 @@ export interface SnapResolverOptions {
  * If no containment match, falls back to nearest-center within the
  * proximity threshold.
  *
- * @param point - The raw coordinate to resolve
+ * @param point - The raw coordinate to resolve.
+ * @param point.x - Horizontal screen coordinate.
+ * @param point.y - Vertical screen coordinate.
  * @param snapshot - The current desktop grounding snapshot
  * @param options - Optional resolution parameters
  * @returns The snap resolution with matched candidate and reason

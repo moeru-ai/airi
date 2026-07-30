@@ -10,7 +10,7 @@ import { nanoid } from '../utils/id'
 export const fluxTransaction = pgTable('flux_transaction', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').notNull(),
-  type: text('type').notNull(), // 'credit' | 'debit' | 'initial'
+  type: text('type').notNull(), // 'credit' | 'debit' | 'initial' | 'promo' | 'admin_set'
   amount: bigint('amount', { mode: 'number' }).notNull(), // always positive
   balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),
   balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),

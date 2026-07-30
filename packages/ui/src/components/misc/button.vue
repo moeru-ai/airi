@@ -154,7 +154,7 @@ const baseClasses = computed(() => {
   const theme = variant[props.theme] || variant.default
 
   return [
-    'font-medium outline-none',
+    'font-medium outline-none whitespace-nowrap',
     'transition-all duration-200 ease-in-out',
     'disabled:cursor-not-allowed disabled:opacity-50',
     'backdrop-blur-md',

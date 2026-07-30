@@ -13,6 +13,11 @@ function baseEnv(): Record<string, string> {
     AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
     AUTH_GITHUB_CLIENT_ID: 'github-client',
     AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+    AUTH_APPLE_CLIENT_ID: 'apple-service-id',
+    AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: 'ai.moeru.airi-pocket, ai.moeru.airi-pro, ai.moeru.airi-pocket',
+    AUTH_APPLE_TEAM_ID: 'apple-team-id',
+    AUTH_APPLE_KEY_ID: 'apple-key-id',
+    AUTH_APPLE_PRIVATE_KEY_PEM: 'line-one\\nline-two',
     // Required: a deterministic 32-byte base64 value so env parse succeeds.
     LLM_ROUTER_MASTER_KEY: Buffer.alloc(32, 0xAA).toString('base64'),
   }
@@ -41,7 +46,43 @@ describe('parseEnv', () => {
 
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
+    expect(env.AUTH_UI_URL).toBe('https://accounts.airi.build/ui')
+    expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
+    expect(env.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS).toEqual([
+      'ai.moeru.airi-pocket',
+      'ai.moeru.airi-pro',
+    ])
+    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('line-one\nline-two')
+  })
+
+  it('allows Apple auth to remain disabled when no Apple credentials are configured', () => {
+    const input = baseEnv()
+    delete input.AUTH_APPLE_CLIENT_ID
+    delete input.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS
+    delete input.AUTH_APPLE_TEAM_ID
+    delete input.AUTH_APPLE_KEY_ID
+    delete input.AUTH_APPLE_PRIVATE_KEY_PEM
+
+    const env = parseEnv(input)
+
+    expect(env.AUTH_APPLE_CLIENT_ID).toBe('')
+    expect(env.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS).toEqual([])
+    expect(env.AUTH_APPLE_TEAM_ID).toBe('')
+    expect(env.AUTH_APPLE_KEY_ID).toBe('')
+    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')
+  })
+
+  it('leaves incomplete Apple credentials for provider setup to disable', () => {
+    const input = baseEnv()
+    delete input.AUTH_APPLE_PRIVATE_KEY_PEM
+
+    const env = parseEnv(input)
+
+    expect(env.AUTH_APPLE_CLIENT_ID).toBe('apple-service-id')
+    expect(env.AUTH_APPLE_TEAM_ID).toBe('apple-team-id')
+    expect(env.AUTH_APPLE_KEY_ID).toBe('apple-key-id')
+    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')
   })
 
   it('parses ADDITIONAL_TRUSTED_ORIGINS into a normalized origin list', () => {
@@ -54,6 +95,35 @@ describe('parseEnv', () => {
       'https://10.0.0.129:5273',
       'https://198.18.0.1:5273',
     ])
+  })
+
+  it('parses TEST_AUTH_TOKEN with default virtual user settings', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      TEST_AUTH_TOKEN: 'local-test-token',
+    })
+
+    expect(env.TEST_AUTH_TOKEN).toBe('local-test-token')
+    expect(env.TEST_AUTH_USER_ID).toBe('test-user')
+    expect(env.TEST_AUTH_USER_EMAIL).toBe('test@example.com')
+    expect(env.TEST_AUTH_USER_NAME).toBe('Test User')
+    expect(env.TEST_AUTH_USER_ROLE).toBe('')
+  })
+
+  it('parses TEST_AUTH_TOKEN virtual user overrides', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      TEST_AUTH_TOKEN: 'local-test-token',
+      TEST_AUTH_USER_ID: 'admin-user',
+      TEST_AUTH_USER_EMAIL: 'admin@example.com',
+      TEST_AUTH_USER_NAME: 'Admin User',
+      TEST_AUTH_USER_ROLE: 'admin',
+    })
+
+    expect(env.TEST_AUTH_USER_ID).toBe('admin-user')
+    expect(env.TEST_AUTH_USER_EMAIL).toBe('admin@example.com')
+    expect(env.TEST_AUTH_USER_NAME).toBe('Admin User')
+    expect(env.TEST_AUTH_USER_ROLE).toBe('admin')
   })
 
   it('lLM_ROUTER_MASTER_KEY decodes a valid 32-byte base64 value into a Buffer', () => {

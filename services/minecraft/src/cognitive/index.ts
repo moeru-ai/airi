@@ -102,8 +102,10 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         // Set message handling via EventBus
         const chatHandler = new ChatMessageHandler(bot.username)
         bot.bot.on('chat', (username, message) => {
-          if (chatHandler.isBotMessage(username))
+          if (chatHandler.isBotMessage(username)) {
+            // The bot's own chat line — it must not react to its own messages.
             return
+          }
 
           if (message.trim().toLowerCase() === '!pause') {
             const paused = brain.togglePaused()

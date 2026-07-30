@@ -54,6 +54,12 @@ export interface StreamingTtsSessionOptions {
    * `section_id`, `context_texts`, etc.
    */
   extraBody?: Record<string, unknown>
+  /** Business trigger hint sent to server-side product analytics. */
+  ttsTrigger?: 'auto' | 'manual'
+  /** Low-cardinality source hint sent to server-side product analytics. */
+  ttsSource?: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  /** Low-cardinality voice bucket sent to server-side product analytics. */
+  ttsVoiceType?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
   /** Caller-side abort signal. Closes the ws and rejects with `AbortError`. */
   signal?: AbortSignal
 }
@@ -85,7 +91,11 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
     throw new Error('streaming-tts: not authenticated')
 
   const baseUrl = options.serverUrl ?? SERVER_URL
-  const wsUrl = toWebSocketUrl(baseUrl, '/api/v1/audio/speech/ws', token)
+  const wsUrl = toWebSocketUrl(baseUrl, '/api/v1/audio/speech/ws', token, {
+    ttsTrigger: options.ttsTrigger ?? 'manual',
+    ttsSource: options.ttsSource ?? 'manual_preview',
+    ttsVoiceType: options.ttsVoiceType ?? 'unknown',
+  })
 
   const audioChunks: ArrayBuffer[] = []
   const sentences: StreamingTtsSessionResult['sentences'] = []
@@ -225,10 +235,22 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
   })
 }
 
-function toWebSocketUrl(httpBase: string, path: string, token: string): string {
+function toWebSocketUrl(
+  httpBase: string,
+  path: string,
+  token: string,
+  analytics: {
+    ttsTrigger: 'auto' | 'manual'
+    ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+    ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+  },
+): string {
   const u = new URL(path, httpBase)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
   u.searchParams.set('token', token)
+  u.searchParams.set('tts_trigger', analytics.ttsTrigger)
+  u.searchParams.set('tts_source', analytics.ttsSource)
+  u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
   return u.toString()
 }
 

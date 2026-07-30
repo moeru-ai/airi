@@ -20,6 +20,9 @@ send-mode:
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: Двойной Enter
+speech-output:
+  mute: Отключить озвучивание
+  unmute: Включить озвучивание
 operations:
   load-models: Загрузить модели
   load-models-status:
@@ -94,6 +97,6 @@ promo-banner:
       cta: Просмотр тем
 waiting: Ожидание
 websocket-status:
-  connected: Connected
-  disconnected: No connection
-  open-settings: Open connection settings
+  connected: Подключено
+  disconnected: Нет подключения
+  open-settings: Открыть настройки подключения

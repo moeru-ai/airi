@@ -61,6 +61,13 @@ const modelOptions = computed(() => {
   }))
 })
 
+const model = computed({
+  get: () => config.value?.model || defaultModel,
+  set: (value) => {
+    ensureProviderConfig().model = value
+  },
+})
+
 const availableVoices = computed(() => speechStore.availableVoices[providerId] || [])
 
 const isVoiceDesignModel = computed(() => model.value === 'mimo-v2.5-tts-voicedesign')
@@ -83,13 +90,6 @@ const stylePromptDescription = computed(() => {
   }
 
   return 'Natural-language control sent as the user message. You can leave it empty for a neutral delivery.'
-})
-
-const model = computed({
-  get: () => config.value?.model || defaultModel,
-  set: (value) => {
-    ensureProviderConfig().model = value
-  },
 })
 
 const stylePrompt = computed({
