@@ -9,9 +9,9 @@ import { configRedisKey } from '../../utils/redis-keys'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
- * entire routing surface: per-model upstream list, optional provider billing
- * tiers, per-upstream key array (envelope-encrypted ciphertexts), fallback
- * triggers, and default timeouts.
+ * entire routing surface: per-model upstream list, optional candidate groups,
+ * per-upstream key array (envelope-encrypted ciphertexts), transition policies,
+ * and default timeouts.
  *
  * Schema enforces:
  * - key entry id must not contain `|` — the envelope-crypto AAD uses `|` as
@@ -32,7 +32,7 @@ export const fallbackTriggersSchema = optional(
 )
 
 /**
- * Explicit transition policy between upstream accounts or billing tiers.
+ * Explicit allow-list for one routing transition.
  *
  * Unlike {@link fallbackTriggersSchema}, this contract has no permissive
  * defaults: an omitted status or timeout never authorizes a transition across
@@ -65,22 +65,22 @@ export const llmUpstreamSchema = object({
   timeoutMs: optional(number()),
 })
 
-export const llmRoutingTierSchema = object({
-  id: pipe(string(), nonEmpty('llm.routing.tiers[].id must not be empty')),
+export const llmRoutingGroupSchema = object({
+  id: pipe(string(), nonEmpty('llm.routing.groups[].id must not be empty')),
   upstreamIds: pipe(
-    array(pipe(string(), nonEmpty('llm.routing.tiers[].upstreamIds[] must not be empty'))),
-    check(v => v.length >= 1, 'llm.routing.tiers[].upstreamIds must contain at least 1 entry'),
-    check(v => new Set(v).size === v.length, 'llm.routing.tiers[].upstreamIds must be unique'),
+    array(pipe(string(), nonEmpty('llm.routing.groups[].upstreamIds[] must not be empty'))),
+    check(v => v.length >= 1, 'llm.routing.groups[].upstreamIds must contain at least 1 entry'),
+    check(v => new Set(v).size === v.length, 'llm.routing.groups[].upstreamIds must be unique'),
   ),
   retryOn: routeFailureTriggersSchema,
-  nextTierOn: optional(routeFailureTriggersSchema),
+  continueOn: optional(routeFailureTriggersSchema),
 })
 
 export const llmRoutingSchema = object({
-  tiers: pipe(
-    array(llmRoutingTierSchema),
-    check(v => v.length >= 1, 'llm.routing.tiers must contain at least 1 entry'),
-    check(v => new Set(v.map(tier => tier.id)).size === v.length, 'llm.routing.tiers[].id must be unique'),
+  groups: pipe(
+    array(llmRoutingGroupSchema),
+    check(v => v.length >= 1, 'llm.routing.groups must contain at least 1 entry'),
+    check(v => new Set(v.map(group => group.id)).size === v.length, 'llm.routing.groups[].id must be unique'),
   ),
 })
 
@@ -101,11 +101,11 @@ export const llmModelSchema = pipe(
     if (model.routing == null)
       return true
     const upstreamIds = new Set(model.upstreams.map(upstream => upstream.id))
-    const referencedIds = model.routing.tiers.flatMap(tier => tier.upstreamIds)
+    const referencedIds = model.routing.groups.flatMap(group => group.upstreamIds)
     return referencedIds.length === upstreamIds.size
       && new Set(referencedIds).size === referencedIds.length
       && referencedIds.every(id => upstreamIds.has(id))
-  }, 'llm.routing.tiers must reference every upstream id exactly once'),
+  }, 'llm.routing.groups must reference every upstream id exactly once'),
 )
 
 const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine'])
@@ -129,23 +129,23 @@ export const ttsUpstreamSchema = object({
   maxConcurrency: optional(pipe(number(), check(v => v >= 1, 'tts.upstreams[].maxConcurrency must be >= 1 when set'))),
 })
 
-export const ttsRoutingTierSchema = object({
-  id: pipe(string(), nonEmpty('tts.routing.tiers[].id must not be empty')),
+export const ttsRoutingGroupSchema = object({
+  id: pipe(string(), nonEmpty('tts.routing.groups[].id must not be empty')),
   upstreamIds: pipe(
-    array(pipe(string(), nonEmpty('tts.routing.tiers[].upstreamIds[] must not be empty'))),
-    check(v => v.length >= 1, 'tts.routing.tiers[].upstreamIds must contain at least 1 entry'),
-    check(v => new Set(v).size === v.length, 'tts.routing.tiers[].upstreamIds must be unique'),
+    array(pipe(string(), nonEmpty('tts.routing.groups[].upstreamIds[] must not be empty'))),
+    check(v => v.length >= 1, 'tts.routing.groups[].upstreamIds must contain at least 1 entry'),
+    check(v => new Set(v).size === v.length, 'tts.routing.groups[].upstreamIds must be unique'),
   ),
   strategy: optional(picklist(['ordered', 'least-inflight']), 'ordered'),
   retryOn: routeFailureTriggersSchema,
-  nextTierOn: optional(routeFailureTriggersSchema),
+  continueOn: optional(routeFailureTriggersSchema),
 })
 
 export const ttsRoutingSchema = object({
-  tiers: pipe(
-    array(ttsRoutingTierSchema),
-    check(v => v.length >= 1, 'tts.routing.tiers must contain at least 1 entry'),
-    check(v => new Set(v.map(tier => tier.id)).size === v.length, 'tts.routing.tiers[].id must be unique'),
+  groups: pipe(
+    array(ttsRoutingGroupSchema),
+    check(v => v.length >= 1, 'tts.routing.groups must contain at least 1 entry'),
+    check(v => new Set(v.map(group => group.id)).size === v.length, 'tts.routing.groups[].id must be unique'),
   ),
 })
 
@@ -187,20 +187,20 @@ export const ttsModelSchema = pipe(
     if (model.routing == null)
       return true
     const upstreamIds = new Set(model.upstreams.map(upstream => upstream.id))
-    const referencedIds = model.routing.tiers.flatMap(tier => tier.upstreamIds)
+    const referencedIds = model.routing.groups.flatMap(group => group.upstreamIds)
     return referencedIds.length === upstreamIds.size
       && new Set(referencedIds).size === referencedIds.length
       && referencedIds.every(id => upstreamIds.has(id))
-  }, 'tts.routing.tiers must reference every upstream id exactly once'),
+  }, 'tts.routing.groups must reference every upstream id exactly once'),
   check((model) => {
     if (model.routing == null)
       return true
     const upstreamById = new Map(model.upstreams.map(upstream => [upstream.id, upstream]))
-    return model.routing.tiers.every(tier =>
-      tier.strategy !== 'least-inflight'
-      || tier.upstreamIds.every(id => upstreamById.get(id)?.maxConcurrency != null),
+    return model.routing.groups.every(group =>
+      group.strategy !== 'least-inflight'
+      || group.upstreamIds.every(id => upstreamById.get(id)?.maxConcurrency != null),
     )
-  }, 'tts.routing least-inflight tiers require maxConcurrency on every upstream'),
+  }, 'tts.routing least-inflight groups require maxConcurrency on every upstream'),
 )
 
 export const asrUpstreamSchema = object({

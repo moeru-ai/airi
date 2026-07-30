@@ -298,12 +298,19 @@ describe('azureAdapter.send', () => {
 })
 
 describe('stepfunAdapter', () => {
-  it('lists StepFun official voices without an unspeech request', async () => {
+  it('uses unspeech as the StepFun voice-catalog source', async () => {
     const adapter = getAdapter('stepfun')
-    const fetchImpl = vi.fn() as unknown as typeof fetch
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      voices: [{
+        id: 'cixingnansheng',
+        name: '磁性男声',
+        compatible_models: ['stepaudio-2.5-tts', 'step-tts-2', 'step-tts-mini'],
+      }],
+    }), { status: 200 })) as unknown as typeof fetch
 
     const voices = await adapter.getVoiceCatalog({
       adapterParams: {},
+      unspeechBaseURL: 'http://unspeech.local',
       fetchImpl,
     })
 
@@ -316,7 +323,9 @@ describe('stepfunAdapter', () => {
         }),
       ]),
     )
-    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
+    const [calledUrl] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
+    expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=stepfun')
   })
 
   it('posts OpenAI-compatible speech JSON to unspeech with model=stepfun/<model>', async () => {
@@ -340,7 +349,7 @@ describe('stepfunAdapter', () => {
       },
       {
         keyPlaintext: Buffer.from('step-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local:5933',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,
@@ -371,7 +380,7 @@ describe('stepfunAdapter', () => {
     expect(result.body).toBeInstanceOf(ArrayBuffer)
   })
 
-  it('posts Step Plan speech directly to the subscription endpoint', async () => {
+  it('passes the Step Plan endpoint profile to unspeech', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
       status: 200,
@@ -390,10 +399,10 @@ describe('stepfunAdapter', () => {
       },
       {
         keyPlaintext: Buffer.from('step-plan-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local:5933',
         adapterParams: {
-          apiMode: 'step-plan',
+          endpointProfile: 'step-plan',
           model: 'stepaudio-2.5-tts',
         },
         fetchImpl,
@@ -401,19 +410,22 @@ describe('stepfunAdapter', () => {
     )
 
     const [calledURL, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
-    expect(calledURL).toBe('https://api.stepfun.com/step_plan/v1/audio/speech')
+    expect(calledURL).toBe('http://unspeech.local:5933/v1/audio/speech')
     expect(init.method).toBe('POST')
     expect(init.headers).toMatchObject({
       'Authorization': 'Bearer step-plan-key',
       'Content-Type': 'application/json',
     })
     expect(JSON.parse(init.body as string)).toEqual({
-      model: 'stepaudio-2.5-tts',
+      model: 'stepfun/stepaudio-2.5-tts',
       input: '你好',
       voice: 'cixingnansheng',
       response_format: 'mp3',
       speed: 1.1,
-      instruction: '温柔、克制',
+      extra_body: {
+        endpoint_profile: 'step-plan',
+        instruction: '温柔、克制',
+      },
     })
     expect(result.contentType).toBe('audio/mpeg')
     expect(result.body).toBeInstanceOf(ArrayBuffer)
@@ -435,7 +447,7 @@ describe('stepfunAdapter', () => {
       },
       {
         keyPlaintext: Buffer.from('step-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,
@@ -455,7 +467,7 @@ describe('stepfunAdapter', () => {
       { text: 'hi', voice: 'cixingnansheng' },
       {
         keyPlaintext: Buffer.from('bad-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,
@@ -476,7 +488,7 @@ describe('stepfunAdapter', () => {
       { text: 'hi', voice: 'cixingnansheng' },
       {
         keyPlaintext: Buffer.from('step-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,

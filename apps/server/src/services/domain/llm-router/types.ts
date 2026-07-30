@@ -14,13 +14,13 @@ import type {
   llmModelSchema,
   llmRouterConfigSchema,
   llmRouterDefaultsSchema,
+  llmRoutingGroupSchema,
   llmRoutingSchema,
-  llmRoutingTierSchema,
   llmUpstreamSchema,
   routeFailureTriggersSchema,
   ttsModelSchema,
+  ttsRoutingGroupSchema,
   ttsRoutingSchema,
-  ttsRoutingTierSchema,
   ttsUpstreamSchema,
 } from '../../adapters/config-kv'
 
@@ -36,44 +36,44 @@ export type RouterConfig = InferOutput<typeof llmRouterConfigSchema>
 export type RouterDefaults = InferOutput<typeof llmRouterDefaultsSchema>
 
 /**
- * LLM upstream — one provider account endpoint with its ordered key list.
+ * LLM upstream — one candidate endpoint with its ordered key list.
  */
 export type LlmUpstream = InferOutput<typeof llmUpstreamSchema>
 
 /**
- * LLM model entry — upstream accounts plus an optional provider tier route.
+ * LLM model entry — upstream candidates plus an optional grouped route.
  */
 export type LlmModel = InferOutput<typeof llmModelSchema>
 
 /**
- * Provider-aware LLM route split into ordered billing tiers.
+ * LLM route composed from ordered candidate groups.
  */
 export type LlmRouting = InferOutput<typeof llmRoutingSchema>
 
 /**
- * One ordered equivalence tier of LLM upstream accounts.
+ * One ordered group of interchangeable LLM candidates.
  */
-export type LlmRoutingTier = InferOutput<typeof llmRoutingTierSchema>
+export type LlmRoutingGroup = InferOutput<typeof llmRoutingGroupSchema>
 
 /**
- * TTS upstream — one provider account endpoint with adapter params + key list.
+ * TTS upstream — one candidate endpoint with adapter params + key list.
  */
 export type TtsUpstream = InferOutput<typeof ttsUpstreamSchema>
 
 /**
- * TTS model entry — provider tag, upstream accounts, and optional tier route.
+ * TTS model entry — provider tag, upstream candidates, and optional grouped route.
  */
 export type TtsModel = InferOutput<typeof ttsModelSchema>
 
 /**
- * Provider-aware TTS route split into ordered billing or capacity tiers.
+ * TTS route composed from ordered candidate groups.
  */
 export type TtsRouting = InferOutput<typeof ttsRoutingSchema>
 
 /**
- * One equivalence tier of TTS upstream accounts.
+ * One group of interchangeable TTS candidates.
  */
-export type TtsRoutingTier = InferOutput<typeof ttsRoutingTierSchema>
+export type TtsRoutingGroup = InferOutput<typeof ttsRoutingGroupSchema>
 
 /**
  * ASR model entry — provider tag + ordered upstreams for realtime transcription.

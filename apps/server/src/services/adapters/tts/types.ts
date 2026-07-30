@@ -42,19 +42,12 @@ export interface TtsAdapterContext {
   /**
    * Per-upstream baseURL from `LLM_ROUTER_CONFIG.tts.upstreams[i].baseURL`.
    *
-   * Most adapters forward through unspeech and use this as provider metadata.
-   * StepFun also uses it to distinguish the dedicated Step Plan endpoint from
-   * the ordinary pay-as-you-go API.
+   * Adapters forward through unspeech and may use this as provider metadata.
+   * Provider endpoint selection belongs to unspeech, not this URL.
    */
   baseURL: string
-  /**
-   * unspeech REST base URL (no trailing slash).
-   *
-   * Present only when {@link TtsAdapter.requiresUnspeech} permits the router to
-   * resolve that dependency. Direct transports such as Step Plan do not need
-   * or receive it.
-   */
-  unspeechBaseURL?: string
+  /** unspeech REST base URL (no trailing slash). */
+  unspeechBaseURL: string
   /** Free-form adapter-specific params from `tts.upstreams[i].adapterParams` (e.g. Volcengine `appid` / `cluster`). */
   adapterParams: Record<string, unknown>
   /** Fetch implementation. Tests inject a `vi.fn()`; production passes `globalThis.fetch`. */
@@ -92,12 +85,10 @@ export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcen
  * `keyPlaintext` and `region` are mandatory for live providers (Azure) that
  * proxy through unspeech and call the upstream provider with a subscription
  * key; the router decrypts the envelope key and forwards `adapterParams.region`
- * verbatim. Providers with static, credential-less catalogs (DashScope
- * cosyvoice, Volcengine) ignore both fields.
+ * verbatim. Unspeech-backed static catalogs ignore both fields.
  *
- * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the router
- * only for catalogs that declare the dependency. Static provider catalogs do
- * not receive it.
+ * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the router.
+ * Passing it through the context keeps adapters free of configKV coupling.
  */
 export interface TtsVoiceCatalogContext {
   /** Decrypted upstream credential (live providers only). */
@@ -106,8 +97,8 @@ export interface TtsVoiceCatalogContext {
   region?: string
   /** Free-form adapter-specific params (mirrors `tts.upstreams[i].adapterParams`). */
   adapterParams: Record<string, unknown>
-  /** unspeech REST base URL, no trailing slash; absent for static catalogs. */
-  unspeechBaseURL?: string
+  /** unspeech REST base URL, no trailing slash. */
+  unspeechBaseURL: string
   /** Fetch implementation. Tests inject `vi.fn()`; production passes `globalThis.fetch`. */
   fetchImpl: typeof fetch
   /** Caller-side abort signal — propagated to the upstream fetch. */
@@ -136,26 +127,14 @@ export interface TtsVoiceCatalogContext {
 export interface TtsAdapter {
   /** Stable id used by the registry and config (`tts.upstreams[i].adapter`). */
   id: TtsAdapterId
-  /**
-   * Declares whether this configured upstream needs the shared unspeech
-   * deployment. Omit when every request uses unspeech.
-   */
-  requiresUnspeech?: (ctx: Pick<TtsAdapterContext, 'adapterParams' | 'baseURL'>) => boolean
-  /**
-   * Declares whether voice lookup needs the shared unspeech deployment.
-   *
-   * @default true
-   */
-  requiresUnspeechForVoiceCatalog?: boolean
   /** Dispatches one TTS request and resolves with the audio payload. */
   send: (input: TtsInput, ctx: TtsAdapterContext) => Promise<TtsResult>
   /**
    * Returns the voice catalog for the provider.
    *
-   * Live providers (Azure) call upstream via unspeech using the supplied
-   * region + plaintext key. Static providers (dashscope-cosyvoice, volcengine)
-   * return their compiled-in JSON and ignore the context fields. Adapters
-   * MUST throw on upstream failure — no empty-array fallback.
+   * Live providers (Azure) call upstream through unspeech using the supplied
+   * region + plaintext key. Static provider catalogs are also owned and served
+   * by unspeech. Adapters MUST throw on upstream failure — no empty fallback.
    */
   getVoiceCatalog: (ctx: TtsVoiceCatalogContext) => Promise<Voice[]>
 }

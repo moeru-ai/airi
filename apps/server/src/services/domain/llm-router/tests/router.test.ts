@@ -691,8 +691,8 @@ describe('createLlmRouterService', () => {
     expect((configKV.getOptional as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
   })
 
-  describe('route LLM provider tiers', () => {
-    function makeTieredLlmRouter(fetchImpl: typeof fetch) {
+  describe('route LLM provider groups', () => {
+    function makeGroupedLlmRouter(fetchImpl: typeof fetch) {
       const { config, crypto } = makeConfig({
         upstreams: [
           { baseURL: 'https://api.stepfun.com/step_plan/v1', keyIds: ['plan-a'] },
@@ -706,7 +706,7 @@ describe('createLlmRouterService', () => {
       Object.assign(model.upstreams[2], { id: 'paygo' })
       Object.assign(model, {
         routing: {
-          tiers: [
+          groups: [
             {
               id: 'plan',
               upstreamIds: ['plan-a', 'plan-b'],
@@ -714,7 +714,7 @@ describe('createLlmRouterService', () => {
                 httpCodes: [402, 429, 500, 502, 503, 504],
                 onTimeout: true,
               },
-              nextTierOn: {
+              continueOn: {
                 httpCodes: [402],
                 onTimeout: false,
               },
@@ -751,7 +751,7 @@ describe('createLlmRouterService', () => {
         return happyResponse({ id: 'completion' })
       }) as unknown as typeof fetch
 
-      const router = makeTieredLlmRouter(fetchImpl)
+      const router = makeGroupedLlmRouter(fetchImpl)
       const response = await router.route({
         modelName: 'openai/gpt-5-mini',
         body: { messages: [] },
@@ -765,14 +765,14 @@ describe('createLlmRouterService', () => {
       ])
     })
 
-    it('does not spend ordinary LLM API balance when the Plan tier is rate-limited', async () => {
+    it('does not spend ordinary LLM API balance when the Plan group is rate-limited', async () => {
       const calledURLs: string[] = []
       const fetchImpl = vi.fn(async (input: string | URL | Request) => {
         calledURLs.push(String(input))
         return failResponse(429)
       }) as unknown as typeof fetch
 
-      const router = makeTieredLlmRouter(fetchImpl)
+      const router = makeGroupedLlmRouter(fetchImpl)
 
       await expect(router.route({
         modelName: 'openai/gpt-5-mini',
@@ -793,7 +793,7 @@ describe('createLlmRouterService', () => {
         return failResponse(401)
       }) as unknown as typeof fetch
 
-      const router = makeTieredLlmRouter(fetchImpl)
+      const router = makeGroupedLlmRouter(fetchImpl)
 
       await expect(router.route({
         modelName: 'openai/gpt-5-mini',
@@ -1014,28 +1014,35 @@ describe('createLlmRouterService', () => {
     })
   })
 
-  describe('routeTts provider tiers', () => {
-    function makeTieredStepfunConfig(): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
+  describe('routeTts provider groups', () => {
+    function endpointProfileFrom(init?: RequestInit): string {
+      const body = JSON.parse(String(init?.body)) as {
+        extra_body?: { endpoint_profile?: string }
+      }
+      return body.extra_body?.endpoint_profile ?? 'default'
+    }
+
+    function makeGroupedStepfunConfig(): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
       const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
       const modelName = 'stepfun/stepaudio-2.5-tts'
       const upstreams = [
         {
           id: 'plan-a',
-          baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+          baseURL: 'https://api.stepfun.com',
           keyId: 'plan-key-a',
-          apiMode: 'step-plan',
+          endpointProfile: 'step-plan',
         },
         {
           id: 'plan-b',
-          baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+          baseURL: 'https://api.stepfun.com',
           keyId: 'plan-key-b',
-          apiMode: 'step-plan',
+          endpointProfile: 'step-plan',
         },
         {
           id: 'paygo',
-          baseURL: 'https://api.stepfun.com/v1/audio/speech',
+          baseURL: 'https://api.stepfun.com',
           keyId: 'paygo-key',
-          apiMode: 'pay-as-you-go',
+          endpointProfile: 'default',
         },
       ].map(upstream => ({
         id: upstream.id,
@@ -1048,7 +1055,7 @@ describe('createLlmRouterService', () => {
           }),
         }],
         adapterParams: {
-          apiMode: upstream.apiMode,
+          endpointProfile: upstream.endpointProfile,
           model: 'stepaudio-2.5-tts',
         },
       }))
@@ -1061,7 +1068,7 @@ describe('createLlmRouterService', () => {
               provider: 'stepfun',
               upstreams,
               routing: {
-                tiers: [
+                groups: [
                   {
                     id: 'plan',
                     upstreamIds: ['plan-a', 'plan-b'],
@@ -1070,7 +1077,7 @@ describe('createLlmRouterService', () => {
                       httpCodes: [402, 429, 500, 502, 503, 504],
                       onTimeout: true,
                     },
-                    nextTierOn: {
+                    continueOn: {
                       httpCodes: [402],
                       onTimeout: false,
                     },
@@ -1103,10 +1110,10 @@ describe('createLlmRouterService', () => {
       return { config, crypto }
     }
 
-    function makeTieredStepfunRouter(
+    function makeGroupedStepfunRouter(
       fetchImpl: typeof fetch,
     ): ReturnType<typeof createLlmRouterService> {
-      const { config, crypto } = makeTieredStepfunConfig()
+      const { config, crypto } = makeGroupedStepfunConfig()
       return createLlmRouterService({
         configKV: makeConfigKV(config),
         envelopeCrypto: crypto,
@@ -1118,11 +1125,12 @@ describe('createLlmRouterService', () => {
     }
 
     it('uses pay-as-you-go only after every Plan account reports quota exhaustion', async () => {
-      const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-        const url = String(input)
-        calledURLs.push(url)
-        if (url.includes('/step_plan/'))
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        const profile = endpointProfileFrom(init)
+        calledProfiles.push(profile)
+        if (profile === 'step-plan')
           return failResponse(402, { error: { code: 'quota_exceeded' } })
         return new Response(new Uint8Array([0x01]), {
           status: 200,
@@ -1130,44 +1138,39 @@ describe('createLlmRouterService', () => {
         })
       }) as unknown as typeof fetch
 
-      const router = makeTieredStepfunRouter(fetchImpl)
+      const router = makeGroupedStepfunRouter(fetchImpl)
       const response = await router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
       })
 
       expect(response.status).toBe(200)
-      expect(calledURLs).toEqual([
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-        'http://unspeech.local:5933/v1/audio/speech',
-      ])
+      expect(calledProfiles).toEqual(['step-plan', 'step-plan', 'default'])
     })
 
-    it('stays inside the Plan tier when a Plan account succeeds', async () => {
-      const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-        calledURLs.push(String(input))
+    it('stays inside the Plan group when a Plan account succeeds', async () => {
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        calledProfiles.push(endpointProfileFrom(init))
         return new Response(new Uint8Array([0x01]), {
           status: 200,
           headers: { 'content-type': 'audio/mpeg' },
         })
       }) as unknown as typeof fetch
 
-      const router = makeTieredStepfunRouter(fetchImpl)
+      const router = makeGroupedStepfunRouter(fetchImpl)
       const response = await router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
       })
 
       expect(response.status).toBe(200)
-      expect(calledURLs).toEqual([
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-      ])
+      expect(calledProfiles).toEqual(['step-plan'])
     })
 
-    it('serves a Plan-only request without UNSPEECH_UPSTREAM config', async () => {
-      const { config, crypto } = makeTieredStepfunConfig()
+    it('requires UNSPEECH_UPSTREAM for an endpoint-profile request', async () => {
+      const { config, crypto } = makeGroupedStepfunConfig()
       const configKV = makeConfigKV(config)
       const getOrThrow = vi.fn(async () => {
         throw new Error('UNSPEECH_UPSTREAM not configured')
@@ -1186,18 +1189,17 @@ describe('createLlmRouterService', () => {
         concurrencyLedger: makeLedger(),
       })
 
-      const response = await router.routeTts({
+      await expect(router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
-      })
+      })).rejects.toThrow('UNSPEECH_UPSTREAM not configured')
 
-      expect(response.status).toBe(200)
-      expect(fetchImpl).toHaveBeenCalledTimes(1)
-      expect(getOrThrow).not.toHaveBeenCalled()
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect(getOrThrow).toHaveBeenCalledWith('UNSPEECH_UPSTREAM')
     })
 
-    it('lists official voices for a Plan-only model without UNSPEECH_UPSTREAM config', async () => {
-      const { config, crypto } = makeTieredStepfunConfig()
+    it('requires UNSPEECH_UPSTREAM for the StepFun voice catalog', async () => {
+      const { config, crypto } = makeGroupedStepfunConfig()
       const configKV = makeConfigKV(config)
       const getOrThrow = vi.fn(async () => {
         throw new Error('UNSPEECH_UPSTREAM not configured')
@@ -1213,32 +1215,28 @@ describe('createLlmRouterService', () => {
         concurrencyLedger: makeLedger(),
       })
 
-      const voices = await router.listTtsVoices('stepfun/stepaudio-2.5-tts')
+      await expect(
+        router.listTtsVoices('stepfun/stepaudio-2.5-tts'),
+      ).rejects.toThrow('UNSPEECH_UPSTREAM not configured')
 
-      expect(voices).toEqual(expect.arrayContaining([
-        expect.objectContaining({
-          id: 'cixingnansheng',
-          name: '磁性男声',
-          compatible_models: expect.arrayContaining(['stepaudio-2.5-tts']),
-        }),
-      ]))
       expect(fetchImpl).not.toHaveBeenCalled()
-      expect(getOrThrow).not.toHaveBeenCalled()
+      expect(getOrThrow).toHaveBeenCalledWith('UNSPEECH_UPSTREAM')
     })
 
     it('keeps a Step Plan attempt timeout distinct from HTTP 500 at the paid boundary', async () => {
-      const { config, crypto } = makeTieredStepfunConfig()
+      const { config, crypto } = makeGroupedStepfunConfig()
       config.defaults!.perAttemptTimeoutMs = 10
       const model = config.tts.models['stepfun/stepaudio-2.5-tts']
-      model.routing!.tiers[0].nextTierOn = {
+      model.routing!.groups[0].continueOn = {
         httpCodes: [500],
         onTimeout: false,
       }
-      const calledURLs: string[] = []
+      const calledProfiles: string[] = []
       const fetchImpl = vi.fn((input: string | URL | Request, init?: RequestInit) => {
-        const url = String(input)
-        calledURLs.push(url)
-        if (!url.includes('/step_plan/')) {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        const profile = endpointProfileFrom(init)
+        calledProfiles.push(profile)
+        if (profile !== 'step-plan') {
           return Promise.resolve(new Response(new Uint8Array([0x01]), {
             status: 200,
             headers: { 'content-type': 'audio/mpeg' },
@@ -1270,51 +1268,45 @@ describe('createLlmRouterService', () => {
         details: expect.objectContaining({ lastStatusCode: 'timeout' }),
       })
 
-      expect(calledURLs).toEqual([
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-      ])
-      expect(calledURLs).not.toContain('http://unspeech.local:5933/v1/audio/speech')
+      expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
+      expect(calledProfiles).not.toContain('default')
     })
 
-    it('does not cross the paid boundary when the Plan tier is rate-limited', async () => {
-      const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-        calledURLs.push(String(input))
+    it('does not cross the paid boundary when the Plan group is rate-limited', async () => {
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        calledProfiles.push(endpointProfileFrom(init))
         return failResponse(429)
       }) as unknown as typeof fetch
 
-      const router = makeTieredStepfunRouter(fetchImpl)
+      const router = makeGroupedStepfunRouter(fetchImpl)
 
       await expect(router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
       })).rejects.toBeInstanceOf(ApiError)
 
-      expect(calledURLs).toEqual([
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-      ])
-      expect(calledURLs).not.toContain('http://unspeech.local:5933/v1/audio/speech')
+      expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
+      expect(calledProfiles).not.toContain('default')
     })
 
     it('stops the provider route immediately on a Plan authentication failure', async () => {
-      const calledURLs: string[] = []
-      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
-        calledURLs.push(String(input))
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        calledProfiles.push(endpointProfileFrom(init))
         return failResponse(401)
       }) as unknown as typeof fetch
 
-      const router = makeTieredStepfunRouter(fetchImpl)
+      const router = makeGroupedStepfunRouter(fetchImpl)
 
       await expect(router.routeTts({
         modelName: 'stepfun/stepaudio-2.5-tts',
         input: { text: '你好' },
       })).rejects.toBeInstanceOf(ApiError)
 
-      expect(calledURLs).toEqual([
-        'https://api.stepfun.com/step_plan/v1/audio/speech',
-      ])
+      expect(calledProfiles).toEqual(['step-plan'])
     })
   })
 
@@ -1439,19 +1431,19 @@ describe('createLlmRouterService', () => {
               provider: 'stepfun',
               upstreams: [{
                 id: 'plan',
-                baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+                baseURL: 'https://api.stepfun.com',
                 keys: [{
                   id: keyEntryId,
                   ciphertext: crypto.encryptKey('sk-plan', { modelName, keyEntryId }),
                 }],
                 adapterParams: {
-                  apiMode: 'step-plan',
+                  endpointProfile: 'step-plan',
                   model: 'stepaudio-2.5-tts',
                 },
                 maxConcurrency: 1,
               }],
               routing: {
-                tiers: [{
+                groups: [{
                   id: 'plan',
                   upstreamIds: ['plan'],
                   strategy: 'least-inflight',
@@ -1484,7 +1476,7 @@ describe('createLlmRouterService', () => {
       )
     })
 
-    it('enforces maxConcurrency for an ordered provider tier', async () => {
+    it('enforces maxConcurrency for an ordered provider group', async () => {
       const { config, crypto } = makePoolConfig([
         { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
       ])
@@ -1492,7 +1484,7 @@ describe('createLlmRouterService', () => {
       Object.assign(model.upstreams[0], { id: 'primary' })
       Object.assign(model, {
         routing: {
-          tiers: [{
+          groups: [{
             id: 'primary',
             upstreamIds: ['primary'],
             strategy: 'ordered',
@@ -1511,7 +1503,7 @@ describe('createLlmRouterService', () => {
       expect(release).toHaveBeenCalledWith('app-1')
     })
 
-    it('keeps least-inflight selection inside the active tier before considering pay-as-you-go', async () => {
+    it('keeps least-inflight selection inside the active group before considering pay-as-you-go', async () => {
       const { config, crypto } = makePoolConfig([
         { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
         { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },
@@ -1523,13 +1515,13 @@ describe('createLlmRouterService', () => {
       Object.assign(model.upstreams[2], { id: 'paygo' })
       Object.assign(model, {
         routing: {
-          tiers: [
+          groups: [
             {
               id: 'plan',
               upstreamIds: ['plan-a', 'plan-b'],
               strategy: 'least-inflight',
               retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
-              nextTierOn: { httpCodes: [402], onTimeout: false },
+              continueOn: { httpCodes: [402], onTimeout: false },
             },
             {
               id: 'paygo',
@@ -1560,7 +1552,7 @@ describe('createLlmRouterService', () => {
       expect(tryAcquire).toHaveBeenCalledWith('plan-b', 10)
     })
 
-    it('does not cross tiers when a Plan account was skipped at its concurrency limit', async () => {
+    it('does not cross groups when a Plan account was skipped at its concurrency limit', async () => {
       const { config, crypto } = makePoolConfig([
         { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
         { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },
@@ -1572,13 +1564,13 @@ describe('createLlmRouterService', () => {
       Object.assign(model.upstreams[2], { id: 'paygo' })
       Object.assign(model, {
         routing: {
-          tiers: [
+          groups: [
             {
               id: 'plan',
               upstreamIds: ['plan-a', 'plan-b'],
               strategy: 'least-inflight',
               retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-              nextTierOn: { httpCodes: [402], onTimeout: false },
+              continueOn: { httpCodes: [402], onTimeout: false },
             },
             {
               id: 'paygo',

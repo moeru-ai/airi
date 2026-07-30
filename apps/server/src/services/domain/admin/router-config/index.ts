@@ -391,7 +391,7 @@ export function buildStepfunSlice(input: StepfunSliceInput, envelope: EnvelopeCr
     model: {
       provider: 'stepfun',
       upstreams: [{
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         keys: [{ id: keyEntryId, ciphertext }],
         adapterParams: {
           model: input.upstreamModel ?? 'stepaudio-2.5-tts',
@@ -604,7 +604,7 @@ function buildStepfunSlicePreservingKey(input: StepfunSliceInput, envelope: Enve
     model: {
       provider: 'stepfun',
       upstreams: [{
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         keys: [key],
         adapterParams: {
           model: input.upstreamModel ?? 'stepaudio-2.5-tts',
@@ -717,9 +717,9 @@ export function buildSlice(
  *   not currently re-tune timeouts via this path.
  *
  * Throws:
- * - When merge mode targets a tiered LLM/TTS model. The legacy slice contract
- *   cannot identify one upstream or represent routing tiers, so replacing that
- *   model would silently erase its fallback and billing-boundary policy.
+ * - When merge mode targets a grouped LLM/TTS model. The legacy slice contract
+ *   cannot identify one upstream or represent routing groups, so replacing that
+ *   model would silently erase its routing policy.
  */
 export function buildNextRouterConfig(
   mode: 'merge' | 'reset',
@@ -737,7 +737,7 @@ export function buildNextRouterConfig(
     if (slice.surface === 'llm') {
       if (mode === 'merge' && llmModels[slice.modelName]?.routing != null) {
         throw new Error(
-          `Legacy admin config cannot update tiered llm model ${slice.modelName}; use the provider-tier configuration surface`,
+          `Legacy admin config cannot update grouped llm model ${slice.modelName}; use a group-aware router config update`,
         )
       }
       llmModels[slice.modelName] = slice.model
@@ -745,7 +745,7 @@ export function buildNextRouterConfig(
     else if (slice.surface === 'tts') {
       if (mode === 'merge' && ttsModels[slice.modelName]?.routing != null) {
         throw new Error(
-          `Legacy admin config cannot update tiered tts model ${slice.modelName}; use the provider-tier configuration surface`,
+          `Legacy admin config cannot update grouped tts model ${slice.modelName}; use a group-aware router config update`,
         )
       }
       ttsModels[slice.modelName] = slice.model

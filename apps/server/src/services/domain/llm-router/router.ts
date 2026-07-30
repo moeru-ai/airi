@@ -8,7 +8,7 @@ import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { TtsAdapterId, TtsInput } from '../../adapters/tts/types'
 import type { ConcurrencyLedger } from './concurrency-ledger'
-import type { LlmRouteContext, LlmRouteRequest, LlmRoutingTier, LlmUpstream, RouteFailureTriggers, TtsRoutingTier, TtsUpstream } from './types'
+import type { LlmRouteContext, LlmRouteRequest, LlmRoutingGroup, LlmUpstream, RouteFailureTriggers, TtsRoutingGroup, TtsUpstream } from './types'
 
 import { Buffer as NodeBuffer } from 'node:buffer'
 
@@ -334,8 +334,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         if (!fallbackHttpCodes.includes(status)) {
           // Status not in the key-level fallback whitelist — surface as the
           // last status and stop walking this upstream. A configured provider
-          // tier decides separately whether another account may be attempted;
-          // models without tiers preserve the historical KTD-13 behavior.
+          // group decides separately whether another account may be attempted;
+          // models without groups preserve the historical KTD-13 behavior.
           attemptIndex += 1
           break
         }
@@ -428,17 +428,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    async function routeTier(tier: LlmRoutingTier): Promise<
+    async function routeGroup(group: LlmRoutingGroup): Promise<
       | { kind: 'ok', response: Response }
       | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
     > {
       const statuses: Array<number | 'timeout'> = []
-      for (let tierUpstreamIndex = 0; tierUpstreamIndex < tier.upstreamIds.length; tierUpstreamIndex += 1) {
-        const upstreamId = tier.upstreamIds[tierUpstreamIndex]
+      for (let groupCandidateIndex = 0; groupCandidateIndex < group.upstreamIds.length; groupCandidateIndex += 1) {
+        const upstreamId = group.upstreamIds[groupCandidateIndex]
         const index = llmModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
         if (index === -1) {
           throw new Error(
-            `LLM routing tier ${tier.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
+            `LLM routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
           )
         }
 
@@ -446,8 +446,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         if (result.kind === 'ok')
           return result
         statuses.push(...result.statuses)
-        const hasNextAccount = tierUpstreamIndex < tier.upstreamIds.length - 1
-        if (hasNextAccount && !failuresMatch(result.statuses, tier.retryOn))
+        const hasNextCandidate = groupCandidateIndex < group.upstreamIds.length - 1
+        if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true }
       }
 
@@ -455,17 +455,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     if (llmModel.routing != null) {
-      for (let tierIndex = 0; tierIndex < llmModel.routing.tiers.length; tierIndex += 1) {
-        const tier = llmModel.routing.tiers[tierIndex]
-        const result = await routeTier(tier)
+      for (let groupIndex = 0; groupIndex < llmModel.routing.groups.length; groupIndex += 1) {
+        const group = llmModel.routing.groups[groupIndex]
+        const result = await routeGroup(group)
         if (result.kind === 'ok')
           return result.response
 
-        const hasNextTier = tierIndex < llmModel.routing.tiers.length - 1
+        const hasNextGroup = groupIndex < llmModel.routing.groups.length - 1
         if (
           result.transitionBlocked
-          || !hasNextTier
-          || !failuresMatch(result.statuses, tier.nextTierOn)
+          || !hasNextGroup
+          || !failuresMatch(result.statuses, group.continueOn)
         ) {
           break
         }
@@ -489,9 +489,9 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       throw new Error(`Router exhausted with no recorded failures for model ${req.modelName}`)
     }
 
-    // Same-status exhaustion: every recorded failure shares the same
-    // status (or 'timeout'). Strong signal of an account-level / shared-
-    // backend cap that ordinary fallback cannot recover from.
+    // Same-status exhaustion: every recorded failure shares one status (or
+    // timeout). This is a strong signal of a shared upstream constraint that
+    // ordinary candidate fallback cannot recover from.
     const distinctStatuses = new Set(allFailures.map(f => f.status))
     if (distinctStatuses.size === 1) {
       const status = allFailures[0].status
@@ -533,7 +533,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     abortSignal: AbortSignal | undefined,
     perAttemptTimeoutMs: number,
     fallbackHttpCodes: number[],
-    resolveUnspeechBaseURL: () => Promise<string>,
+    unspeechBaseURL: string,
     onAttemptFailure: (failure: { keyId: string, status: number | 'timeout', errorMessage?: string }) => void,
   ): Promise<
     | { kind: 'ok', contentType: string, body: ArrayBuffer | ReadableStream<Uint8Array>, attemptIndex: number }
@@ -542,12 +542,6 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const providerTag = deriveProviderTag(upstream.baseURL)
     const rotator = createKeyRotator(upstream, options.envelopeCrypto, modelName, options.gatewayMetrics, providerTag)
     const adapter = getAdapter(providerId)
-    const unspeechBaseURL = adapter.requiresUnspeech?.({
-      baseURL: upstream.baseURL,
-      adapterParams: upstream.adapterParams ?? {},
-    }) === false
-      ? undefined
-      : await resolveUnspeechBaseURL()
     const failures: Array<{ keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let attemptIndex = 0
 
@@ -637,8 +631,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
           })
           if (!fallbackHttpCodes.includes(rawStatus)) {
             // Same key-level policy as chat: stop rotating credentials in this
-            // upstream. The provider tier makes the separate account-level
-            // transition decision.
+            // candidate. The enclosing group separately decides whether another
+            // candidate may be tried.
             attemptIndex += 1
             break
           }
@@ -722,7 +716,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const statuses: Array<number | 'timeout'> = []
     for (let rankedIndex = 0; rankedIndex < ranked.length; rankedIndex += 1) {
       const { upstream, index, poolId, maxConcurrency } = ranked[rankedIndex]
-      const hasNextAccount = rankedIndex < ranked.length - 1
+      const hasNextCandidate = rankedIndex < ranked.length - 1
       if (maxConcurrency == null) {
         // Unlimited pool — dispatch without occupying a slot.
         dispatchedAny = true
@@ -733,7 +727,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         statuses.push(...result.statuses)
         if (result.sawTooManyRequests)
           await markSaturated(upstream, poolId)
-        if (hasNextAccount && retryOn != null && !failuresMatch(result.statuses, retryOn))
+        if (hasNextCandidate && retryOn != null && !failuresMatch(result.statuses, retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true }
         continue
       }
@@ -757,7 +751,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         statuses.push(...result.statuses)
         if (result.sawTooManyRequests)
           await markSaturated(upstream, poolId)
-        if (hasNextAccount && retryOn != null && !failuresMatch(result.statuses, retryOn))
+        if (hasNextCandidate && retryOn != null && !failuresMatch(result.statuses, retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true }
       }
       finally {
@@ -773,10 +767,10 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       )
     }
 
-    // A paid-tier transition requires evidence from every account in the
-    // active tier. A pool skipped because it was full, circuit-broken, or lost
-    // the acquire race has not reported quota exhaustion, so it must block the
-    // transition even when every dispatched pool returned an allowed status.
+    // Advancing past a group requires evidence from every candidate. A pool
+    // skipped because it was full, circuit-broken, or lost the acquire race has
+    // not produced a failure status, so it must block the transition even when
+    // every dispatched pool returned an allowed status.
     return {
       kind: 'exhausted',
       statuses,
@@ -803,14 +797,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const defaults = slice.defaults ?? { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504] }
     const fallbackHttpCodes = ttsModel.fallbackTriggers?.httpCodes ?? defaults.fallbackHttpCodes ?? [401, 402, 403, 429, 500, 502, 503, 504]
 
-    // Resolve unspeech only if the selected adapter transport needs it. Step
-    // Plan calls its dedicated provider endpoint directly, so a Plan-only
-    // deployment remains valid without UNSPEECH_UPSTREAM.
-    let unspeechBaseURL: string | undefined
-    async function resolveUnspeechBaseURL(): Promise<string> {
-      unspeechBaseURL ??= (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
-      return unspeechBaseURL
-    }
+    const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
     const allFailures: Array<{ provider: string, keyId: string, status: number | 'timeout', errorMessage?: string }> = []
     let triedUpstreams = 0
@@ -842,7 +829,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         req.abortSignal,
         perAttemptTimeoutMs,
         fallbackHttpCodes,
-        resolveUnspeechBaseURL,
+        unspeechBaseURL,
         (failure) => { allFailures.push({ provider: providerTag, ...failure }) },
       )
 
@@ -861,22 +848,22 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       }
     }
 
-    async function routeTier(tier: TtsRoutingTier): Promise<
+    async function routeGroup(group: TtsRoutingGroup): Promise<
       | { kind: 'ok', response: Response }
       | { kind: 'exhausted', statuses: Array<number | 'timeout'>, transitionBlocked: boolean }
     > {
-      const indexedUpstreams = tier.upstreamIds.map((upstreamId) => {
+      const indexedUpstreams = group.upstreamIds.map((upstreamId) => {
         const index = ttsModel.upstreams.findIndex(upstream => upstream.id === upstreamId)
         if (index === -1) {
           throw new Error(
-            `TTS routing tier ${tier.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
+            `TTS routing group ${group.id} references unknown upstream ${upstreamId} for model ${req.modelName}`,
           )
         }
         return { upstream: ttsModel.upstreams[index], index }
       })
 
       const capacityManaged = indexedUpstreams.some(({ upstream }) => upstream.maxConcurrency != null)
-      if (tier.strategy === 'least-inflight' || capacityManaged) {
+      if (group.strategy === 'least-inflight' || capacityManaged) {
         const indexByUpstream = new Map(indexedUpstreams.map(({ upstream, index }) => [upstream, index]))
         return routeTtsAcrossPools(
           indexedUpstreams.map(({ upstream }) => upstream),
@@ -887,20 +874,20 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
               throw new Error(`TTS routing lost upstream index for model ${req.modelName}`)
             return attemptUpstream(upstream, index)
           },
-          tier.retryOn,
-          tier.strategy,
+          group.retryOn,
+          group.strategy,
         )
       }
 
       const statuses: Array<number | 'timeout'> = []
-      for (let tierUpstreamIndex = 0; tierUpstreamIndex < indexedUpstreams.length; tierUpstreamIndex += 1) {
-        const { upstream, index } = indexedUpstreams[tierUpstreamIndex]
+      for (let groupCandidateIndex = 0; groupCandidateIndex < indexedUpstreams.length; groupCandidateIndex += 1) {
+        const { upstream, index } = indexedUpstreams[groupCandidateIndex]
         const result = await attemptUpstream(upstream, index)
         if (result.kind === 'ok')
           return result
         statuses.push(...result.statuses)
-        const hasNextAccount = tierUpstreamIndex < indexedUpstreams.length - 1
-        if (hasNextAccount && !failuresMatch(result.statuses, tier.retryOn))
+        const hasNextCandidate = groupCandidateIndex < indexedUpstreams.length - 1
+        if (hasNextCandidate && !failuresMatch(result.statuses, group.retryOn))
           return { kind: 'exhausted', statuses, transitionBlocked: true }
       }
 
@@ -908,17 +895,17 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     }
 
     if (ttsModel.routing != null) {
-      for (let tierIndex = 0; tierIndex < ttsModel.routing.tiers.length; tierIndex += 1) {
-        const tier = ttsModel.routing.tiers[tierIndex]
-        const result = await routeTier(tier)
+      for (let groupIndex = 0; groupIndex < ttsModel.routing.groups.length; groupIndex += 1) {
+        const group = ttsModel.routing.groups[groupIndex]
+        const result = await routeGroup(group)
         if (result.kind === 'ok')
           return result.response
 
-        const hasNextTier = tierIndex < ttsModel.routing.tiers.length - 1
+        const hasNextGroup = groupIndex < ttsModel.routing.groups.length - 1
         if (
           result.transitionBlocked
-          || !hasNextTier
-          || !failuresMatch(result.statuses, tier.nextTierOn)
+          || !hasNextGroup
+          || !failuresMatch(result.statuses, group.continueOn)
         ) {
           break
         }
@@ -1014,9 +1001,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
       return existingLoad
 
     const load = (async () => {
-      const unspeechBaseURL = adapter.requiresUnspeechForVoiceCatalog === false
-        ? undefined
-        : (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
+      const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
       // Live providers (Azure) need the decrypted Azure subscription key + region;
       // static-catalog providers (alibaba, volcengine) ignore both. The router

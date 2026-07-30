@@ -271,7 +271,7 @@ describe('buildStepfunSlice', () => {
 
     expect(built.kind).toBe('stepfun')
     expect(built.model.provider).toBe('stepfun')
-    expect(built.model.upstreams[0].baseURL).toBe('https://api.stepfun.com/v1/audio/speech')
+    expect(built.model.upstreams[0].baseURL).toBe('https://api.stepfun.com')
     expect(built.model.upstreams[0].adapterParams).toEqual({
       model: 'stepaudio-2.5-tts',
       defaultVoice: 'cixingnansheng',
@@ -582,7 +582,7 @@ describe('createAdminRouterConfigService', () => {
     expect(Object.keys(written.tts.models)).toEqual(['microsoft/v1'])
   })
 
-  it('rejects legacy merge updates that would replace a tiered TTS model', async () => {
+  it('rejects legacy merge updates that would replace a grouped TTS model', async () => {
     const modelName = 'stepfun/stepaudio-2.5-tts'
     const existingConfig = {
       llm: { models: {} },
@@ -593,25 +593,25 @@ describe('createAdminRouterConfigService', () => {
             upstreams: [
               {
                 id: 'plan',
-                baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+                baseURL: 'https://api.stepfun.com',
                 keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
-                adapterParams: { apiMode: 'step-plan', model: 'stepaudio-2.5-tts' },
+                adapterParams: { endpointProfile: 'step-plan', model: 'stepaudio-2.5-tts' },
               },
               {
                 id: 'paygo',
-                baseURL: 'https://api.stepfun.com/v1/audio/speech',
+                baseURL: 'https://api.stepfun.com',
                 keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
-                adapterParams: { apiMode: 'pay-as-you-go', model: 'stepaudio-2.5-tts' },
+                adapterParams: { endpointProfile: 'default', model: 'stepaudio-2.5-tts' },
               },
             ],
             routing: {
-              tiers: [
+              groups: [
                 {
                   id: 'plan',
                   upstreamIds: ['plan'],
                   strategy: 'ordered' as const,
                   retryOn: { httpCodes: [402], onTimeout: false },
-                  nextTierOn: { httpCodes: [402], onTimeout: false },
+                  continueOn: { httpCodes: [402], onTimeout: false },
                 },
                 {
                   id: 'paygo',
@@ -640,7 +640,7 @@ describe('createAdminRouterConfigService', () => {
         upstreamModel: 'stepaudio-2.5-tts',
         plaintextKey: 'rotated-key',
       }],
-    })).rejects.toThrow(/cannot update tiered tts model/i)
+    })).rejects.toThrow(/cannot update grouped tts model/i)
 
     expect(kv.store.get('LLM_ROUTER_CONFIG')).toBe(existingConfig)
     expect(captured).toEqual([])

@@ -151,7 +151,7 @@ describe('configKVService', () => {
     })
   })
 
-  it('llm router config should preserve explicit LLM and TTS provider tiers', async () => {
+  it('llm router config should preserve explicit LLM and TTS provider groups', async () => {
     await service.set('LLM_ROUTER_CONFIG', {
       llm: {
         models: {
@@ -171,12 +171,12 @@ describe('configKVService', () => {
               },
             ],
             routing: {
-              tiers: [
+              groups: [
                 {
                   id: 'plan',
                   upstreamIds: ['plan'],
                   retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-                  nextTierOn: { httpCodes: [402], onTimeout: false },
+                  continueOn: { httpCodes: [402], onTimeout: false },
                 },
                 {
                   id: 'paygo',
@@ -199,26 +199,26 @@ describe('configKVService', () => {
             upstreams: [
               {
                 id: 'plan',
-                baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+                baseURL: 'https://api.stepfun.com',
                 keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
-                adapterParams: { apiMode: 'step-plan' },
+                adapterParams: { endpointProfile: 'step-plan' },
                 maxConcurrency: 1,
               },
               {
                 id: 'paygo',
-                baseURL: 'https://api.stepfun.com/v1/audio/speech',
+                baseURL: 'https://api.stepfun.com',
                 keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
-                adapterParams: { apiMode: 'pay-as-you-go' },
+                adapterParams: { endpointProfile: 'default' },
               },
             ],
             routing: {
-              tiers: [
+              groups: [
                 {
                   id: 'plan',
                   upstreamIds: ['plan'],
                   strategy: 'least-inflight',
                   retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
-                  nextTierOn: { httpCodes: [402], onTimeout: false },
+                  continueOn: { httpCodes: [402], onTimeout: false },
                 },
                 {
                   id: 'paygo',
@@ -245,15 +245,15 @@ describe('configKVService', () => {
     const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
     const model = value.tts.models['stepfun/stepaudio-2.5-tts']
 
-    expect(value.llm.models['step-3.5-flash'].routing?.tiers.map(tier => tier.id)).toEqual(['plan', 'paygo'])
-    expect(model.routing?.tiers.map(tier => tier.id)).toEqual(['plan', 'paygo'])
-    expect(model.routing?.tiers[0].nextTierOn).toEqual({
+    expect(value.llm.models['step-3.5-flash'].routing?.groups.map(group => group.id)).toEqual(['plan', 'paygo'])
+    expect(model.routing?.groups.map(group => group.id)).toEqual(['plan', 'paygo'])
+    expect(model.routing?.groups[0].continueOn).toEqual({
       httpCodes: [402],
       onTimeout: false,
     })
   })
 
-  it('rejects a TTS provider tier that references an unknown upstream', async () => {
+  it('rejects a TTS provider group that references an unknown upstream', async () => {
     redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), JSON.stringify({
       llm: { models: {} },
       tts: {
@@ -262,11 +262,11 @@ describe('configKVService', () => {
             provider: 'stepfun',
             upstreams: [{
               id: 'plan',
-              baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+              baseURL: 'https://api.stepfun.com',
               keys: [{ id: 'plan-key', ciphertext: 'ciphertext' }],
             }],
             routing: {
-              tiers: [{
+              groups: [{
                 id: 'plan',
                 upstreamIds: ['missing'],
                 strategy: 'ordered',
@@ -295,11 +295,11 @@ describe('configKVService', () => {
             provider: 'stepfun',
             upstreams: [{
               id: 'plan',
-              baseURL: 'https://api.stepfun.com/step_plan/v1/audio/speech',
+              baseURL: 'https://api.stepfun.com',
               keys: [{ id: 'plan-key', ciphertext: 'ciphertext' }],
             }],
             routing: {
-              tiers: [{
+              groups: [{
                 id: 'plan',
                 upstreamIds: ['plan'],
                 strategy: 'least-inflight',
