@@ -72,8 +72,8 @@ AUTH_GITHUB_CLIENT_ID, AUTH_GITHUB_CLIENT_SECRET
 # Apple optional；启用时四项必须一起配置
 AUTH_APPLE_CLIENT_ID, AUTH_APPLE_TEAM_ID
 AUTH_APPLE_KEY_ID, AUTH_APPLE_PRIVATE_KEY_PEM
-# iOS 原生 Sign in with Apple；值必须与 Xcode target 的 Bundle ID 一致
-AUTH_APPLE_APP_BUNDLE_IDENTIFIER
+# iOS 原生 Sign in with Apple；逗号分隔，每项必须与一个 Xcode target 的 Bundle ID 一致
+AUTH_APPLE_APP_BUNDLE_IDENTIFIERS=ai.moeru.airi-pocket,ai.moeru.airi-pro
 
 # OIDC Trusted Clients（均 optional，不配则不注册）
 # Web and Pocket are public clients (no secret, PKCE only)
@@ -117,7 +117,7 @@ Content-Type: application/json
 }
 ```
 
-Better Auth 验证 token 的签名、issuer、Bundle ID audience 和可选 nonce 后，直接返回 session，不会返回 Apple 登录 URL：
+Better Auth 验证 token 的签名、issuer、Bundle ID audience allowlist 和可选 nonce 后，直接返回 session，不会返回 Apple 登录 URL：
 
 ```json
 {

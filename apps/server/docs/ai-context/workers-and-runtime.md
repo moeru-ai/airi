@@ -55,7 +55,7 @@
 - `AUTH_GITHUB_CLIENT_SECRET`
 - Apple（optional；启用时以下四项必须一起配置）
 - `AUTH_APPLE_CLIENT_ID`
-- `AUTH_APPLE_APP_BUNDLE_IDENTIFIER`（iOS 原生 identity token 的 audience）
+- `AUTH_APPLE_APP_BUNDLE_IDENTIFIERS`（iOS 原生 identity token 的逗号分隔 audience allowlist）
 - `AUTH_APPLE_TEAM_ID`
 - `AUTH_APPLE_KEY_ID`
 - `AUTH_APPLE_PRIVATE_KEY_PEM`

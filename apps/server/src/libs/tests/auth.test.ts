@@ -48,7 +48,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIER: 'ai.moeru.airi-pocket',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
@@ -67,7 +67,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIER: 'ai.moeru.airi-pocket',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
@@ -87,7 +87,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: '',
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIER: '',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: [],
       AUTH_APPLE_TEAM_ID: '',
       AUTH_APPLE_KEY_ID: '',
       AUTH_APPLE_PRIVATE_KEY_PEM: '',
@@ -106,7 +106,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIER: 'ai.moeru.airi-pocket',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: '',
@@ -125,7 +125,7 @@ describe('createAuth', () => {
       AUTH_GITHUB_CLIENT_ID: 'github-client',
       AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
       AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-      AUTH_APPLE_APP_BUNDLE_IDENTIFIER: 'ai.moeru.airi-pocket',
+      AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: ['ai.moeru.airi-pocket', 'ai.moeru.airi-pro'],
       AUTH_APPLE_TEAM_ID: 'apple-team-id',
       AUTH_APPLE_KEY_ID: 'apple-key-id',
       AUTH_APPLE_PRIVATE_KEY_PEM: applePrivateKey,
@@ -150,7 +150,11 @@ describe('createAuth', () => {
       audience: 'https://appleid.apple.com',
     })).resolves.toBeDefined()
     expect(config.clientId).toBe('apple-service-id')
-    expect(config.appBundleIdentifier).toBe('ai.moeru.airi-pocket')
+    expect(config.audience).toEqual([
+      'apple-service-id',
+      'ai.moeru.airi-pocket',
+      'ai.moeru.airi-pro',
+    ])
     expect(header).toMatchObject({ alg: 'ES256', kid: 'apple-key-id' })
     expect(claims.exp! - claims.iat!).toBe(180 * 24 * 60 * 60)
     expect(await config.mapProfileToUser?.({
@@ -181,9 +185,13 @@ describe('createAuth', () => {
     if (!resolvedProvider)
       throw new TypeError('Expected Better Auth to resolve the Apple provider')
 
-    expect(resolvedProvider.options && 'appBundleIdentifier' in resolvedProvider.options
-      ? resolvedProvider.options.appBundleIdentifier
-      : undefined).toBe('ai.moeru.airi-pocket')
+    expect(resolvedProvider.options && 'audience' in resolvedProvider.options
+      ? resolvedProvider.options.audience
+      : undefined).toEqual([
+      'apple-service-id',
+      'ai.moeru.airi-pocket',
+      'ai.moeru.airi-pro',
+    ])
 
     const authorizationURL = await resolvedProvider.createAuthorizationURL({
       state: 'apple-oauth-state',
