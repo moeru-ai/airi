@@ -30,9 +30,21 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://api.airi.build'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
 const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
-// Active loopback server cleanup handle
-let closeLoopback: (() => void) | null = null
-let signingInFlight = false
+interface LoginAttempt {
+  cancelled: boolean
+  closeLoopback: (() => void) | null
+}
+
+let activeLoginAttempt: LoginAttempt | null = null
+
+function cancelLoginAttempt(attempt: LoginAttempt): void {
+  attempt.cancelled = true
+  attempt.closeLoopback?.()
+}
+
+function isActiveLoginAttempt(attempt: LoginAttempt): boolean {
+  return activeLoginAttempt === attempt && !attempt.cancelled
+}
 
 export interface WindowAuthManager {
   registerWindow: (params: { context: MainContext, window: BrowserWindow }) => void
@@ -87,26 +99,25 @@ export function createAuthService(params: {
       return
     }
 
-    if (signingInFlight) {
+    if (activeLoginAttempt) {
       log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
-      closeLoopback?.()
-      closeLoopback = null
-      signingInFlight = false
+      cancelLoginAttempt(activeLoginAttempt)
     }
 
-    signingInFlight = true
+    const attempt: LoginAttempt = {
+      cancelled: false,
+      closeLoopback: null,
+    }
+    activeLoginAttempt = attempt
 
     try {
-      // Clean up any previous in-flight login
-      closeLoopback?.()
-
       const codeVerifier = generateCodeVerifier()
       const codeChallenge = await generateCodeChallenge(codeVerifier)
       const state = generateState()
 
       // Start loopback server to receive the callback
       const loopback = await startLoopbackServer(state)
-      closeLoopback = loopback.close
+      attempt.closeLoopback = loopback.close
 
       // Use the server-side relay as redirect_uri. The relay page serves HTML
       // that forwards the authorization code to the loopback via JS fetch().
@@ -129,28 +140,47 @@ export function createAuthService(params: {
       url.searchParams.set('prompt', 'login')
       url.searchParams.set('resource', SERVER_URL)
 
-      // Open system browser
-      await shell.openExternal(url.toString())
-
       // Wait for the callback in the background
       loopback.result
         .then(async ({ code }) => {
+          if (!isActiveLoginAttempt(attempt))
+            return
+
           const tokens = await exchangeCode(code, codeVerifier, redirectUri)
+          if (!isActiveLoginAttempt(attempt))
+            return
+
           params.windowAuthManager.broadcastAuthCallback(tokens)
           log.log('OIDC token exchange successful')
         })
         .catch((err) => {
+          if (!isActiveLoginAttempt(attempt))
+            return
+
           log.withError(err).error('OIDC signing in failed')
           params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
         })
         .finally(() => {
-          closeLoopback = null
-          signingInFlight = false
+          if (activeLoginAttempt === attempt)
+            activeLoginAttempt = null
         })
+
+      // An attempt may be replaced while its loopback server is starting.
+      // Close that stale server without opening another browser window.
+      if (!isActiveLoginAttempt(attempt)) {
+        loopback.close()
+        return
+      }
+
+      // Open system browser
+      await shell.openExternal(url.toString())
     }
     catch (err) {
-      closeLoopback = null
-      signingInFlight = false
+      if (!isActiveLoginAttempt(attempt))
+        return
+
+      cancelLoginAttempt(attempt)
+      activeLoginAttempt = null
       log.withError(err).error('Failed to start OIDC signing in flow')
       params.windowAuthManager.broadcastAuthError(errorMessageFrom(err) ?? 'OIDC signing in failed')
     }
@@ -161,9 +191,10 @@ export function createAuthService(params: {
       return
     }
 
-    closeLoopback?.()
-    closeLoopback = null
-    signingInFlight = false
+    if (activeLoginAttempt) {
+      cancelLoginAttempt(activeLoginAttempt)
+      activeLoginAttempt = null
+    }
   })
 }
 
