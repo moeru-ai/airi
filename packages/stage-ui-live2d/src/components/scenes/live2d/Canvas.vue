@@ -2,8 +2,9 @@
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DModel } from 'pixi-live2d-display/cubism4'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+import { loadLive2DRuntime } from '../../../utils/live2d-runtime'
 
 const props = withDefaults(defineProps<{
   width: number
@@ -19,7 +20,9 @@ const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', {
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
-const pixiApp = ref<Application>()
+// Pixi owns a large mutable WebGL object graph. Deep Vue proxies add a getter
+// trap to every Cubism 2 core lookup and can consume most of a frame.
+const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
 
 function resolveMaxFps(limit?: number) {
@@ -49,6 +52,7 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   componentState.value = 'loading'
   isPixiCanvasReady.value = false
 
+  const { Live2DModel } = await loadLive2DRuntime()
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)

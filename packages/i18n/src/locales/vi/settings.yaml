@@ -186,6 +186,8 @@ live2d:
     shadow: Đổ bóng
     reset-parameters: Đặt lại tham số mặc định
   clear-model-cache: Xóa bộ nhớ đệm của mô hình
+  load-error:
+    title: Couldn't load this Live2D model
   expressions:
     title: Biểu cảm
     override-toggle: Hệ thống biểu cảm

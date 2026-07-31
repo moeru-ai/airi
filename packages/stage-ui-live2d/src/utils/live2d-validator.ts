@@ -1,157 +1,206 @@
 import JSZip from 'jszip'
 
+import { errorMessageFrom } from '@moeru/std'
+
 import { decodeZipFileName } from './decode-zip-filename'
+import { isCubism2RuntimeConfigured } from './live2d-runtime'
+
+export type Live2DRuntimeFamily = 'cubism2' | 'cubism3-plus'
 
 export interface Live2DValidationReport {
   fileName: string
   totalFiles: number
   status: 'VALID' | 'WARNING' | 'INVALID'
   entryPoint: string | null
-  structureType: 'Standard (model3.json)' | 'Heuristic (Loose Files)' | 'Unknown'
+  runtimeFamily: Live2DRuntimeFamily | null
+  structureType: 'Cubism 2 (model.json)' | 'Cubism 3+ (model3.json)' | 'Unknown'
   errors: string[]
   warnings: string[]
   checks: string[]
   mocInfo?: {
+    format: 'moc' | 'moc3'
     header: string
-    ver: number
+    ver: number | null
     size: number
   }
 }
 
+function normalizeArchivePath(baseDir: string, relativePath: string): string {
+  const stack: string[] = []
+  const parts = baseDir ? [...baseDir.split('/'), ...relativePath.split(/[\\/]/)] : relativePath.split(/[\\/]/)
+  for (const part of parts) {
+    if (!part || part === '.')
+      continue
+    if (part === '..')
+      stack.pop()
+    else
+      stack.push(part)
+  }
+  return stack.join('/')
+}
+
+function cubism2References(json: Record<string, unknown>): Array<[string, string]> {
+  const references: Array<[string, string]> = []
+  if (typeof json.model === 'string')
+    references.push([json.model, 'MOC'])
+  if (typeof json.physics === 'string')
+    references.push([json.physics, 'Physics'])
+  if (typeof json.pose === 'string')
+    references.push([json.pose, 'Pose'])
+  if (Array.isArray(json.textures))
+    json.textures.forEach(path => typeof path === 'string' && references.push([path, 'Texture']))
+
+  const motions = json.motions
+  if (motions && typeof motions === 'object') {
+    for (const definitions of Object.values(motions)) {
+      if (!Array.isArray(definitions))
+        continue
+      for (const definition of definitions) {
+        if (definition && typeof definition === 'object' && 'file' in definition && typeof definition.file === 'string')
+          references.push([definition.file, 'Motion'])
+      }
+    }
+  }
+
+  if (Array.isArray(json.expressions)) {
+    for (const expression of json.expressions) {
+      if (expression && typeof expression === 'object' && 'file' in expression && typeof expression.file === 'string')
+        references.push([expression.file, 'Expression'])
+    }
+  }
+  return references
+}
+
+function cubism3References(json: Record<string, unknown>): Array<[string, string]> {
+  const references: Array<[string, string]> = []
+  const refs = json.FileReferences
+  if (!refs || typeof refs !== 'object')
+    return references
+  const fileReferences = refs as Record<string, unknown>
+
+  for (const [key, label] of [['Moc', 'MOC'], ['Physics', 'Physics'], ['Pose', 'Pose'], ['DisplayInfo', 'DisplayInfo']] as const) {
+    if (typeof fileReferences[key] === 'string')
+      references.push([fileReferences[key], label])
+  }
+  if (Array.isArray(fileReferences.Textures))
+    fileReferences.Textures.forEach(path => typeof path === 'string' && references.push([path, 'Texture']))
+  if (Array.isArray(fileReferences.Expressions)) {
+    for (const expression of fileReferences.Expressions) {
+      if (expression && typeof expression === 'object' && 'File' in expression && typeof expression.File === 'string')
+        references.push([expression.File, 'Expression'])
+    }
+  }
+  const motions = fileReferences.Motions
+  if (motions && typeof motions === 'object') {
+    for (const definitions of Object.values(motions)) {
+      if (!Array.isArray(definitions))
+        continue
+      for (const definition of definitions) {
+        if (definition && typeof definition === 'object' && 'File' in definition && typeof definition.File === 'string')
+          references.push([definition.File, 'Motion'])
+      }
+    }
+  }
+  return references
+}
+
+/** Validates Cubism 2 and Cubism 3+ model ZIPs without executing either runtime. */
 export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
-  const zip = await JSZip.loadAsync(file, { decodeFileName: decodeZipFileName })
-  const allPaths = Object.keys(zip.files)
+  const zip = await JSZip.loadAsync(await file.arrayBuffer(), { decodeFileName: decodeZipFileName })
+  const allPaths = Object.keys(zip.files).filter(path => !zip.files[path].dir)
+  const model3Files = allPaths.filter(path => path.endsWith('.model3.json'))
+  const model2Files = allPaths.filter(path => path.endsWith('model.json'))
 
   const report: Live2DValidationReport = {
     fileName: (file as File).name || 'live2d-model.zip',
     totalFiles: allPaths.length,
     status: 'VALID',
     entryPoint: null,
+    runtimeFamily: null,
     structureType: 'Unknown',
     errors: [],
     warnings: [],
     checks: [],
   }
 
-  // 1. Entry Point Identification
-  const model3Files = allPaths.filter(p => p.endsWith('.model3.json'))
-  if (model3Files.length > 0) {
+  if (model2Files.length + model3Files.length !== 1) {
+    report.errors.push(`Invalid structure: expected exactly one .model.json or .model3.json entry point, found ${model2Files.length + model3Files.length}.`)
+  }
+  else if (model3Files.length === 1) {
     report.entryPoint = model3Files[0]
-    report.structureType = 'Standard (model3.json)'
-    report.checks.push(`Entry point identified: ${report.entryPoint}`)
+    report.runtimeFamily = 'cubism3-plus'
+    report.structureType = 'Cubism 3+ (model3.json)'
   }
   else {
-    const mocFiles = allPaths.filter(p => p.endsWith('.moc3'))
-    if (mocFiles.length === 1) {
-      report.structureType = 'Heuristic (Loose Files)'
-      report.checks.push(`Heuristic match found: Unique MOC file ${mocFiles[0]}`)
-    }
-    else {
-      report.errors.push(`Invalid Structure: No .model3.json found and ${mocFiles.length} .moc3 files encountered.`)
+    report.entryPoint = model2Files[0]
+    report.runtimeFamily = 'cubism2'
+    report.structureType = 'Cubism 2 (model.json)'
+    if (!isCubism2RuntimeConfigured()) {
+      report.warnings.push('Cubism 2 runtime is not configured in this build. Set AIRI_CUBISM2_CORE_PATH and AIRI_CUBISM2_CORE_SHA256 when building AIRI.')
     }
   }
 
-  // 2. MOC Header & Size Audit
-  const mocPath = allPaths.find(p => p.endsWith('.moc3'))
-  if (mocPath) {
-    const buf = await zip.file(mocPath)!.async('uint8array')
-    const header = String.fromCharCode(...buf.slice(0, 4))
-    const ver = buf[4]
-    const sizeMb = buf.length / 1024 / 1024
-
-    report.mocInfo = { header, ver, size: buf.length }
-
-    if (header !== 'MOC3') {
-      report.errors.push(`Invalid MOC Header: "${header}" (Expected MOC3)`)
-    }
-    else {
-      report.checks.push(`MOC3 Header Valid (Sub-version: ${ver}, Size: ${sizeMb.toFixed(2)} MB)`)
-    }
-
-    if (sizeMb > 100) {
-      report.errors.push(`CRITICAL WEIGHT: MOC file is ${sizeMb.toFixed(2)} MB. This "Mega-Model" likely exceeds browser WASM memory limits.`)
-    }
-    else if (sizeMb > 30) {
-      report.warnings.push(`HEAVY RESOURCE: MOC file is ${sizeMb.toFixed(2)} MB. This may cause performance issues in web browsers.`)
-    }
-  }
-
-  // 3. Basename Collision Audit (AIRI ZipLoader weakness)
   const basenames = new Map<string, string[]>()
-  allPaths.forEach((p) => {
-    if (p.endsWith('/'))
-      return // Skip directories
-    const base = p.split(/[\\/]/).pop()!
-    if (!basenames.has(base))
-      basenames.set(base, [])
-    basenames.get(base)!.push(p)
-  })
-
-  for (const [base, paths] of basenames.entries()) {
-    if (paths.length > 1) {
-      report.errors.push(`BASENAME COLLISION: Filename "${base}" exists in multiple locations: ${paths.join(', ')}. This causes data loss in AIRI's loader.`)
-    }
+  for (const path of allPaths) {
+    const base = path.split(/[\\/]/).pop()!
+    basenames.set(base, [...(basenames.get(base) ?? []), path])
+  }
+  for (const [base, paths] of basenames) {
+    if (paths.length > 1)
+      report.errors.push(`Basename collision: "${base}" exists at ${paths.join(', ')}.`)
   }
 
-  // 4. Detailed Reference Validation
-  if (report.entryPoint) {
+  if (report.entryPoint && report.runtimeFamily) {
     try {
-      const content = await zip.file(report.entryPoint)!.async('text')
-      const json = JSON.parse(content)
-      const baseDir = report.entryPoint.split(/[\\/]/).slice(0, -1).join('/')
+      const json = JSON.parse(await zip.file(report.entryPoint)!.async('text')) as Record<string, unknown>
+      const baseDir = report.entryPoint.split('/').slice(0, -1).join('/')
+      const references = report.runtimeFamily === 'cubism2'
+        ? cubism2References(json)
+        : cubism3References(json)
 
-      const resolve = (rel: string) => {
-        if (!rel)
-          return ''
-        const parts = baseDir ? [...baseDir.split('/'), ...rel.split(/[\\/]/)] : rel.split(/[\\/]/)
-        const stack: string[] = []
-        for (const p of parts) {
-          if (p === '.' || p === '')
-            continue
-          if (p === '..')
-            stack.pop()
-          else stack.push(p)
-        }
-        return stack.join('/')
+      for (const [relativePath, label] of references) {
+        const expectedPath = normalizeArchivePath(baseDir, relativePath)
+        if (allPaths.includes(expectedPath))
+          continue
+        const caseMismatch = allPaths.find(path => path.toLowerCase() === expectedPath.toLowerCase())
+        report.errors.push(caseMismatch
+          ? `Case sensitivity mismatch: ${label} "${relativePath}" resolves to "${expectedPath}", but the ZIP contains "${caseMismatch}".`
+          : `Missing reference: ${label} "${relativePath}" expected at "${expectedPath}".`)
       }
 
-      const checkRef = (rel: string, type: string) => {
-        const full = resolve(rel)
-        if (!allPaths.includes(full)) {
-          // Check for case-insensitivity match to provide better error
-          const fuzzy = allPaths.find(p => p.toLowerCase() === full.toLowerCase())
-          if (fuzzy) {
-            report.errors.push(`CASE SENSITIVITY MISMATCH: "${rel}" expects "${full}" but ZIP contains "${fuzzy}". Browsers are case-sensitive.`)
+      const mocReference = references.find(([, label]) => label === 'MOC')?.[0]
+      if (mocReference) {
+        const mocPath = normalizeArchivePath(baseDir, mocReference)
+        const mocFile = zip.file(mocPath)
+        if (mocFile) {
+          const bytes = await mocFile.async('uint8array')
+          const format = report.runtimeFamily === 'cubism2' ? 'moc' : 'moc3'
+          const headerLength = format === 'moc' ? 3 : 4
+          const header = String.fromCharCode(...bytes.slice(0, headerLength))
+          const expectedHeader = format === 'moc' ? 'moc' : 'MOC3'
+          report.mocInfo = {
+            format,
+            header,
+            ver: format === 'moc3' ? bytes[4] : null,
+            size: bytes.length,
           }
-          else {
-            report.errors.push(`MISSING REFERENCE: ${type} "${rel}" (expected at "${full}") not found in ZIP.`)
-          }
+          if (header !== expectedHeader)
+            report.errors.push(`Invalid ${format.toUpperCase()} header: "${header}" (expected "${expectedHeader}").`)
+          if (bytes.length > 100 * 1024 * 1024)
+            report.errors.push(`${format.toUpperCase()} is larger than 100 MB and likely exceeds browser memory limits.`)
+          else if (bytes.length > 30 * 1024 * 1024)
+            report.warnings.push(`${format.toUpperCase()} is larger than 30 MB and may perform poorly in a browser.`)
         }
       }
-
-      const refs = json.FileReferences || {}
-      if (refs.Moc)
-        checkRef(refs.Moc, 'MOC')
-      if (Array.isArray(refs.Textures)) {
-        refs.Textures.forEach((t: string) => checkRef(t, 'Texture'))
-      }
-      if (refs.Physics)
-        checkRef(refs.Physics, 'Physics')
-      if (Array.isArray(refs.Expressions)) {
-        refs.Expressions.forEach((e: any) => checkRef(typeof e === 'string' ? e : e.File, 'Expression'))
-      }
+      report.checks.push(`Validated ${references.length} referenced Cubism assets.`)
     }
-    catch (e: any) {
-      report.errors.push(`JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${e.message}`)
+    catch (error) {
+      report.errors.push(`JSON parse error in ${report.entryPoint}: ${errorMessageFrom(error) ?? 'Unknown validation error'}`)
     }
   }
 
-  // 5. Final Status
-  if (report.errors.length > 0)
-    report.status = 'INVALID'
-  else if (report.warnings.length > 0)
-    report.status = 'WARNING'
-  else report.status = 'VALID'
-
+  report.status = report.errors.length > 0
+    ? 'INVALID'
+    : report.warnings.length > 0 ? 'WARNING' : 'VALID'
   return report
 }

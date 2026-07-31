@@ -30,13 +30,15 @@
     "./utils/live2d-preview": "./src/utils/live2d-preview.ts",
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
-    "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
+    "./utils/opfs-loader": "./src/utils/opfs-loader.ts",
+    "./vite": "./src/vite/cubism2-core.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@lemonneko/crop-empty-pixels": "catalog:",
+    "@moeru/std": "catalog:",
     "@pixi/app": "catalog:",
     "@pixi/constants": "catalog:",
     "@pixi/core": "catalog:",
@@ -68,6 +70,7 @@
   "devDependencies": {
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:vitest",
     "vue-tsc": "catalog:"
   }

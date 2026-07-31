@@ -3,12 +3,15 @@ import cropImg from '@lemonneko/crop-empty-pixels'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
+
+import { loadLive2DRuntime } from './live2d-runtime'
+import { adaptInternalModel } from './model-adapter'
 
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
 export async function loadLive2DModelPreview(file: File) {
+  const { Live2DFactory, Live2DModel } = await loadLive2DRuntime()
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
 
@@ -56,6 +59,7 @@ export async function loadLive2DModelPreview(file: File) {
 
   try {
     await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], file.name)], { autoInteract: false })
+    adaptInternalModel(modelInstance.internalModel)
     app.stage.addChild(modelInstance)
 
     modelInstance.x = 275

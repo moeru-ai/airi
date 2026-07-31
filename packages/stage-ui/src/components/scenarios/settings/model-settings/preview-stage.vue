@@ -6,9 +6,11 @@ import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
+import { Callout } from '@proj-airi/ui'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useSettings } from '../../../../stores/settings'
 import {
@@ -57,6 +59,18 @@ const {
   spineRenderScale,
 } = storeToRefs(settingsStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
+
+const { t } = useI18n()
+
+// Loader-authored reason the Live2D model failed to render, empty while healthy.
+// The preview otherwise just stays blank, which reads as "no model selected".
+const live2dLoadError = ref('')
+
+// A new source means a new attempt: drop the previous failure so it cannot
+// outlive the model that produced it.
+watch([stageModelSelectedUrl, stageModelRenderer], () => {
+  live2dLoadError.value = ''
+})
 
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
 const vrmSceneClassList = computed(() => normalizeClassList(props.vrmSceneClass))
@@ -204,15 +218,43 @@ const cursorPosition = computed(() => ({
 <template>
   <template v-if="stageModelRenderer === 'live2d'">
     <div :class="live2dSceneClassList">
-      <Live2DScene
-        ref="live2dSceneRef"
-        v-model:state="live2dComponentState"
-        :model-src="stageModelSelectedUrl"
-        :model-id="stageModelSelected"
-        :cursor-position="cursorPosition"
-        :theme-colors-hue="themeColorsHue"
-        :theme-colors-hue-dynamic="themeColorsHueDynamic"
-      />
+      <!-- Owns the stacking context for the failure overlay; the caller-supplied
+           scene class carries no positioning guarantee. -->
+      <div :class="['relative h-full w-full']">
+        <Live2DScene
+          ref="live2dSceneRef"
+          v-model:state="live2dComponentState"
+          :model-src="stageModelSelectedUrl"
+          :model-id="stageModelSelected"
+          :cursor-position="cursorPosition"
+          :theme-colors-hue="themeColorsHue"
+          :theme-colors-hue-dynamic="themeColorsHueDynamic"
+          @error="live2dLoadError = $event"
+        />
+        <div
+          v-if="live2dLoadError"
+          :class="[
+            'pointer-events-none absolute inset-0',
+            'flex items-center justify-center',
+            'px-4 py-6',
+          ]"
+        >
+          <Callout
+            theme="orange"
+            :class="['pointer-events-auto w-96 max-w-full']"
+          >
+            <template #label>
+              <div :class="['flex items-center gap-1.5']">
+                <div i-solar:warning-circle-line-duotone />
+                <span>{{ t('settings.live2d.load-error.title') }}</span>
+              </div>
+            </template>
+            <p :class="['text-sm break-words']">
+              {{ live2dLoadError }}
+            </p>
+          </Callout>
+        </div>
+      </div>
     </div>
   </template>
   <template v-if="stageModelRenderer === 'vrm'">

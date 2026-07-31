@@ -143,3 +143,6 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 docs/ai/context/verifications/
 .playwright-mcp/
+
+# Local drop-in for the proprietary Cubism 2 Web core (third-party, not redistributable)
+packages/stage-ui-live2d/.cubism2/

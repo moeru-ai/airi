@@ -1,4 +1,4 @@
-import type { Live2DFactoryContext, Middleware } from 'pixi-live2d-display/cubism4'
+import type { Live2DFactoryContext, Middleware } from 'pixi-live2d-display'
 
 import JSZip from 'jszip'
 

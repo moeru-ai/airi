@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
+import { errorMessageFrom } from '@moeru/std'
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { useTheme } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
@@ -11,7 +13,6 @@ import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import {
@@ -28,6 +29,8 @@ import {
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useL2dViewControl, useLive2dParams } from '../../../stores'
+import { loadLive2DRuntime } from '../../../utils/live2d-runtime'
+import { adaptInternalModel, initializeCubism2Model } from '../../../utils/model-adapter'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -71,7 +74,13 @@ const props = withDefaults(defineProps<{
 
 const emits = defineEmits<{
   (e: 'modelLoaded'): void
-  (e: 'error', error: Error): void
+  /**
+   * Human-readable reason the model failed to load. Forwarded verbatim from the
+   * thrown error so actionable loader text — such as the missing-Cubism-2-core
+   * instructions raised by `utils/live2d-zip-loader.ts` — reaches the UI
+   * unchanged.
+   */
+  (e: 'error', message: string): void
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
@@ -93,12 +102,13 @@ const offset = computed(() => ({
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
-const model = ref<Live2DModel<PixiLive2DInternalModel>>()
+const model = shallowRef<PixiLive2DModel<PixiLive2DInternalModel>>()
+const forceMotionPriority = shallowRef<number>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
 const nowSpeaking = toRef(() => props.nowSpeaking)
-const lastUpdateTime = ref(0)
+const lastUpdateAtMs = ref(0)
 
 const { isDark: dark } = useTheme()
 const dropShadowFilter = shallowRef(new DropShadowFilter({
@@ -250,16 +260,12 @@ async function loadModel() {
       return
     }
 
+    const { Live2DFactory, Live2DModel, MotionPriority } = await loadLive2DRuntime()
+    forceMotionPriority.value = MotionPriority.FORCE
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
-    availableMotions.value.forEach((motion) => {
-      if (motion.motionName in Emotion) {
-        motionMap.value[motion.fileName] = motion.motionName
-      }
-      else {
-        motionMap.value[motion.fileName] = EmotionNeutralMotionName
-      }
-    })
+    initializeCubism2Model(live2DModel.internalModel, pixiApp.value!.renderer)
+    adaptInternalModel(live2DModel.internalModel)
 
     // --- Scene
 
@@ -285,32 +291,39 @@ async function loadModel() {
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
+    // Cubism 2 archives name the idle group freely — `idle`, `Idle`, `idle_01`
+    // — while the SDK only ever looks up the one name in `groups.idle`. Point it
+    // at whatever this model actually ships, otherwise every idle-gated plugin
+    // below treats the model as permanently non-idle.
+    const detectedIdleGroup = Object.keys(motionManager.definitions).find(group => /^idle\d*$/i.test(group))
+    if (detectedIdleGroup)
+      motionManager.groups.idle = detectedIdleGroup
+
     availableMotions.value = Object
       .entries(motionManager.definitions)
       .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
         motionName,
         motionIndex: index,
-        fileName: motion.File,
+        fileName: motion.File ?? motion.file,
       })) || []))
       .filter(Boolean)
+
+    // Must run after availableMotions is assigned above: availableMotions is
+    // persisted through useLocalStorageManualReset, so mapping it any earlier
+    // classifies the previously loaded model's motions (or nothing at all on a
+    // first-ever run).
+    availableMotions.value.forEach((motion) => {
+      if (motion.motionName in Emotion) {
+        motionMap.value[motion.fileName] = motion.motionName
+      }
+      else {
+        motionMap.value[motion.fileName] = EmotionNeutralMotionName
+      }
+    })
 
     // Check if user has selected a runtime motion to play as idle
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
     const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
-
-    // Configure the selected motion to loop
-    if (selectedMotionGroup !== null && selectedMotionIndex) {
-      const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
-      if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
-        const motionIndex = Number.parseInt(selectedMotionIndex)
-        const motion = motionManager.motionGroups[groupIndex][motionIndex]
-        if (motion && motion._looper) {
-          // Force the motion to loop
-          motion._looper.loopDuration = 0 // 0 means infinite loop
-          console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)
-        }
-      }
-    }
 
     if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
@@ -322,21 +335,6 @@ async function loadModel() {
       }, 300)
     }
 
-    // Remove eye ball movements from idle motion group to prevent conflicts
-    // This is too hacky
-    // FIXME: it cannot blink if loading a model only have idle motion
-    if (motionManager.groups.idle) {
-      motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
-        motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
-            curve.id = `_${curve.id}`
-          }
-        })
-      })
-    }
-
-    // This is hacky too
     const motionManagerUpdate = useLive2DMotionManagerUpdate({
       internalModel,
       motionManager,
@@ -347,16 +345,19 @@ async function loadModel() {
       live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
-      lastUpdateTime,
+      lastUpdateAtMs,
     })
 
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
-    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
-    // Both run in 'final' stage (ignores handled state).
-    // Expression first: sets desired parameter values (e.g. closed eyes = 0).
-    // Blink second: reads post-expression eye values, Multiply-modulates on top.
+    // The rest run in the 'final' stage, which ignores the handled state.
+    // Idle focus first: it must land after the SDK motion update to override an
+    // idle motion's own eyeball curves, but before expression so an expression
+    // targeting eye-ball parameters still wins.
+    // Expression next: sets desired parameter values (e.g. closed eyes = 0).
+    // Blink after: reads post-expression eye values, Multiply-modulates on top.
     // This ensures blink respects expression state (0 × blinkFactor = 0).
+    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
@@ -394,7 +395,8 @@ async function loadModel() {
     coreModel.setParameterValueById('ParamAngleZ', modelParameters.value.angleZ)
     coreModel.setParameterValueById('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
     coreModel.setParameterValueById('ParamEyeROpen', modelParameters.value.rightEyeOpen)
-    coreModel.setParameterValueById('ParamEyeSmile', modelParameters.value.leftEyeSmile)
+    coreModel.setParameterValueById('ParamEyeLSmile', modelParameters.value.leftEyeSmile)
+    coreModel.setParameterValueById('ParamEyeRSmile', modelParameters.value.rightEyeSmile)
     coreModel.setParameterValueById('ParamBrowLX', modelParameters.value.leftEyebrowLR)
     coreModel.setParameterValueById('ParamBrowRX', modelParameters.value.rightEyebrowLR)
     coreModel.setParameterValueById('ParamBrowLY', modelParameters.value.leftEyebrowY)
@@ -439,7 +441,7 @@ async function loadModel() {
   }
   catch (error) {
     console.error('[Live2D] Failed to load model:', error)
-    emits('error', error instanceof Error ? error : new Error(String(error)))
+    emits('error', errorMessageFrom(error) ?? 'Failed to load the Live2D model.')
   }
   finally {
     modelLoading.value = false
@@ -453,7 +455,10 @@ async function loadModel() {
 
 /**
  * Initialise the expression controller by reading expression definitions from
- * the model settings (model3.json) and parsing each referenced exp3.json file.
+ * the model settings and parsing each referenced expression file. Both
+ * generations are covered: Cubism 2 declares `expressions` in `model.json` and
+ * ships `.exp.json`, Cubism 3+ declares them in `model3.json` and ships
+ * `.exp3.json`; the parsed payloads share the same shape.
  *
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
@@ -466,8 +471,10 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   if (!settings)
     return
 
-  // model3.json stores expressions as { Name, File }[] under settings.expressions
-  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
+  const expressionRefs: { Name: string, File: string }[] = (settings.expressions ?? []).map((expression: any) => ({
+    Name: expression.Name ?? expression.name,
+    File: expression.File ?? expression.file,
+  }))
   if (expressionRefs.length === 0)
     return
 
@@ -475,6 +482,12 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
   // models the resolved URL points to an in-memory blob/object URL.
   const readExpFile = async (filePath: string): Promise<string> => {
+    const embeddedExpression = settings._expFiles?.find((expression: any) =>
+      expression.fileName === filePath || expression.fileName.endsWith(`/${filePath}`),
+    )
+    if (embeddedExpression)
+      return JSON.stringify(embeddedExpression.data)
+
     const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
     const response = await fetch(resolvedUrl)
     if (!response.ok)
@@ -494,7 +507,7 @@ async function setMotion(motionName: string, index?: number) {
 
   console.info('Setting motion:', motionName, 'index:', index)
   try {
-    await model.value.motion(motionName, index, MotionPriority.FORCE)
+    await model.value.motion(motionName, index, forceMotionPriority.value)
     console.info('Motion started successfully:', motionName)
   }
   catch (error) {
@@ -505,31 +518,40 @@ async function setMotion(motionName: string, index?: number) {
 const dropShadowColorComputer = ref<HTMLDivElement>()
 const dropShadowAnimationId = ref(0)
 
-function updateDropShadowFilter() {
+/**
+ * Attaches or detaches the drop shadow filter on the current model.
+ *
+ * Kept separate from {@link updateDropShadowColor} because assigning `filters`
+ * rebuilds PIXI's filter chain for the display object, which forces the Live2D
+ * model to be re-rendered through a fresh set of framebuffer-backed render
+ * textures. The dynamic-theme loop below runs every frame and only ever needs to
+ * retint the filter already in place.
+ */
+function syncDropShadowFilter() {
   if (!model.value)
     return
 
-  if (!live2dShadowEnabled.value) {
-    model.value.filters = []
-    return
-  }
+  model.value.filters = live2dShadowEnabled.value ? [dropShadowFilter.value] : []
+}
 
+/**
+ * Retints the filter from the hidden probe element, which resolves the current
+ * theme's primary color through UnoCSS rather than duplicating it in script.
+ */
+function updateDropShadowColor() {
   if (!dropShadowColorComputer.value)
     return
 
   const color = getComputedStyle(dropShadowColorComputer.value).backgroundColor
   dropShadowFilter.value.color = Number(formatHex(color)!.replace('#', '0x'))
-  model.value.filters = [dropShadowFilter.value]
 }
 
 watch(modelSrcRef, async () => await loadModel(), { immediate: true })
-watch(dark, updateDropShadowFilter, { immediate: true })
-watch([model, themeColorsHue], updateDropShadowFilter)
-watch(live2dShadowEnabled, updateDropShadowFilter)
+watch([dark, themeColorsHue], updateDropShadowColor, { immediate: true })
+watch([model, live2dShadowEnabled], syncDropShadowFilter)
 
-// TODO: This is hacky!
 function updateDropShadowFilterLoop() {
-  updateDropShadowFilter()
+  updateDropShadowColor()
   if (!live2dShadowEnabled.value) {
     dropShadowAnimationId.value = 0
     return
@@ -584,6 +606,20 @@ watch(() => modelParameters.value.rightEyeOpen, (value) => {
   if (model.value) {
     const internalModel = model.value.internalModel
     internalModel.coreModel.setParameterValueById('ParamEyeROpen', value)
+  }
+})
+
+watch(() => modelParameters.value.leftEyeSmile, (value) => {
+  if (model.value) {
+    const internalModel = model.value.internalModel
+    internalModel.coreModel.setParameterValueById('ParamEyeLSmile', value)
+  }
+})
+
+watch(() => modelParameters.value.rightEyeSmile, (value) => {
+  if (model.value) {
+    const internalModel = model.value.internalModel
+    internalModel.coreModel.setParameterValueById('ParamEyeRSmile', value)
   }
 })
 
@@ -744,8 +780,9 @@ onMounted(() => {
   onUnmounted(() => removeListener())
 })
 
-onMounted(async () => {
-  updateDropShadowFilter()
+onMounted(() => {
+  updateDropShadowColor()
+  syncDropShadowFilter()
 })
 
 onUnmounted(() => {

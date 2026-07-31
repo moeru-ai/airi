@@ -186,6 +186,8 @@ live2d:
     shadow: Отбрасывать тень
     reset-parameters: Сброс к параметрам по умолчанию
   clear-model-cache: Очистка кеша
+  load-error:
+    title: Couldn't load this Live2D model
   expressions:
     title: Выражения
     override-toggle: Система выражений

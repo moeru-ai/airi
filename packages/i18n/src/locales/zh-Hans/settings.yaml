@@ -186,6 +186,8 @@ live2d:
     shadow: 投影
     reset-parameters: 重置为默认参数
   clear-model-cache: 清除模型缓存
+  load-error:
+    title: 无法加载该 Live2D 模型
   expressions:
     title: 表情
     override-toggle: 表情系统

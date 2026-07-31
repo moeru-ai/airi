@@ -10,9 +10,6 @@ import Live2DModel from './live2d/Model.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
-import '../../utils/live2d-zip-loader'
-import '../../utils/live2d-opfs-registration'
-
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
   modelSrc?: string
@@ -30,6 +27,16 @@ const props = withDefaults(defineProps<{
   themeColorsHue: 220.44,
   themeColorsHueDynamic: false,
 })
+
+const emits = defineEmits<{
+  /**
+   * Human-readable reason the model failed to load, relayed verbatim from
+   * `Model.vue`. Consumers are expected to surface it: a Cubism 2 model in a
+   * build without the proprietary core fails here and produces no other visible
+   * signal than a blank stage.
+   */
+  (e: 'error', message: string): void
+}>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
@@ -125,6 +132,7 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        @error="emits('error', $event)"
       />
     </Live2DCanvas>
   </Screen>
