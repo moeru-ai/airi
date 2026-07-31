@@ -17,13 +17,13 @@ import { MicrophonePermission } from '../../modules/microphone-permission'
 
 const { t } = useI18n()
 const audioDeviceStore = useSettingsAudioDevice()
-const { permissionGranted: microphonePermissionGrantedFromStore } = storeToRefs(audioDeviceStore)
+const { permissionGranted: webMicrophonePermissionGranted } = storeToRefs(audioDeviceStore)
 
 const isNativePlatform = Capacitor.isNativePlatform()
 const isAndroid = Capacitor.getPlatform() === 'android'
 
 const notificationPermissionGranted = shallowRef(false)
-const microphonePermissionGranted = shallowRef(false)
+const platformMicrophonePermissionGranted = shallowRef(false)
 const requestingNotificationPermission = shallowRef(false)
 const requestingMicrophonePermission = shallowRef(false)
 const microphonePermissionRequested = useLocalStorage('permissions/microphone/requested', false)
@@ -38,14 +38,14 @@ async function refreshNotificationPermission() {
 async function refreshMicrophonePermission() {
   if (isAndroid) {
     const permission = await MicrophonePermission.checkPermission()
-    microphonePermissionGranted.value = permission.granted
+    platformMicrophonePermissionGranted.value = permission.granted
     return
   }
 
   const permission = await navigator.permissions?.query({ name: 'microphone' }).catch(() => undefined)
-  microphonePermissionGranted.value = permission
+  platformMicrophonePermissionGranted.value = permission
     ? permission.state === 'granted'
-    : microphonePermissionGrantedFromStore.value
+    : webMicrophonePermissionGranted.value
 }
 
 async function refreshPermissionStates() {
@@ -87,7 +87,7 @@ async function requestMicrophonePermission() {
   requestingMicrophonePermission.value = true
   try {
     await refreshMicrophonePermission()
-    if (microphonePermissionGranted.value)
+    if (platformMicrophonePermissionGranted.value)
       return
 
     if (microphonePermissionRequested.value && isNativePlatform) {
@@ -139,7 +139,7 @@ onUnmounted(() => {
       :title="t('settings.dialogs.onboarding.permissions.microphoneTitle')"
       :description="t('settings.dialogs.onboarding.permissions.microphoneDescription')"
       :action-label="t('settings.dialogs.onboarding.permissions.requestAction')"
-      :granted="microphonePermissionGranted"
+      :granted="platformMicrophonePermissionGranted"
       :disabled="requestingMicrophonePermission"
       @request="requestMicrophonePermission"
     />
