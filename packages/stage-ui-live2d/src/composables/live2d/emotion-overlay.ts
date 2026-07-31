@@ -127,7 +127,9 @@ export interface EmotionOverlayPlugins {
  * Undoing the contribution in `pre` removes the question. Nothing else has run
  * yet that frame, so the value there is unambiguously the previous frame's
  * output, and by the time `apply` reads it in `final` the model holds only
- * what this frame produced.
+ * what this frame produced. It also narrows the one comparison that remains —
+ * "is this still what I left here?" — down to a single possible other writer,
+ * the parameter watchers that run outside the frame loop.
  *
  * @example
  * ```ts
@@ -139,8 +141,12 @@ export interface EmotionOverlayPlugins {
 export function createEmotionOverlayPlugins(options: EmotionOverlayOptions): EmotionOverlayPlugins {
   const { reading, enabled } = options
 
-  /** Value each touched parameter held before this overlay contributed to it. */
-  const bases = new Map<string, number>()
+  /**
+   * Per touched parameter: the value it held before the overlay contributed
+   * (`base`), and the value the model actually kept afterwards (`written`,
+   * which differs from `base + offset` whenever the model clamped the write).
+   */
+  const applied = new Map<string, { base: number, written: number }>()
 
   function declaresParameter(coreModel: MotionManagerPluginContext['model'], parameterId: string): boolean {
     // NOTICE:
@@ -158,12 +164,28 @@ export function createEmotionOverlayPlugins(options: EmotionOverlayOptions): Emo
     if (!coreModel)
       return
 
-    for (const [parameterId, base] of bases)
-      coreModel.setParameterValueById(parameterId, base)
+    for (const [parameterId, record] of applied) {
+      const current = coreModel.getParameterValueById(parameterId) as number
+      if (!Number.isFinite(current))
+        continue
 
-    // Writing the base back here is safe even for a parameter a motion will
-    // key: the motion runs after this stage and overwrites it anyway.
-    bases.clear()
+      // Still holding what the overlay left there, so its contribution is what
+      // needs to come out. A different value can only have come from outside
+      // the frame loop — the parameter watchers behind the model-settings
+      // sliders write these same ids — and that write is now the base.
+      //
+      // Asking this here rather than in `apply` is what makes the answer
+      // trustworthy: no plugin, motion, expression or blink has run yet this
+      // frame, so an out-of-band write is the only thing the difference can
+      // mean. The residual case, an outside writer landing on exactly the
+      // overlay's last output, restores and re-adds the same offset and so is
+      // invisible unless the reading also changed in that frame, where it is
+      // bounded by MAX_ABS_OFFSET.
+      if (Object.is(current, record.written))
+        coreModel.setParameterValueById(parameterId, record.base)
+    }
+
+    applied.clear()
   }
 
   const apply: MotionManagerPlugin = (ctx: MotionManagerPluginContext) => {
@@ -182,7 +204,13 @@ export function createEmotionOverlayPlugins(options: EmotionOverlayOptions): Emo
         continue
 
       coreModel.setParameterValueById(parameterId, base + offset)
-      bases.set(parameterId, base)
+
+      // Read back rather than storing `base + offset`: the model clamps to the
+      // parameter's declared range, so what it kept is what `restore` has to
+      // recognise next frame. Nothing has run in between, so this readback is
+      // unambiguously the overlay's own write.
+      const written = coreModel.getParameterValueById(parameterId) as number
+      applied.set(parameterId, { base, written: Number.isFinite(written) ? written : base + offset })
     }
   }
 
