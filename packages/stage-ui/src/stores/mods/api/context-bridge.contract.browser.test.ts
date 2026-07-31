@@ -9,6 +9,7 @@ type HookCallback = (...args: unknown[]) => Promise<void> | void
 type UseContextBridgeStore = typeof import('./context-bridge')['useContextBridgeStore']
 
 const contextUpdateHooks: HookCallback[] = []
+const disconnectedHooks: HookCallback[] = []
 const serverEventHooks = new Map<string, HookCallback[]>()
 
 const chatContextIngestMock = vi.fn()
@@ -19,6 +20,7 @@ const resetStreamMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
 const onReconnectedMock = vi.fn(() => () => {})
+const onDisconnectedMock = vi.fn((callback: HookCallback) => registerHook(disconnectedHooks, callback))
 const onContextUpdateMock = vi.fn((callback: HookCallback) => registerHook(contextUpdateHooks, callback))
 const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registerServerEventHook(eventName, callback))
 const getProviderInstanceMock = vi.fn()
@@ -37,6 +39,7 @@ const streamEndHooks: HookCallback[] = []
 const assistantEndHooks: HookCallback[] = []
 const assistantMessageHooks: HookCallback[] = []
 const turnCompleteHooks: HookCallback[] = []
+const pendingSendCancellationHooks: HookCallback[] = []
 
 const activeSessionIdRef = ref('session-1')
 let currentGeneration = 7
@@ -139,6 +142,32 @@ function createContextUpdateEvent(overrides: Record<string, unknown> = {}) {
   }
 }
 
+function createDiscordInputEvent(options: {
+  principalId: string
+  sessionId: string
+  text: string
+}) {
+  return {
+    type: 'input:text',
+    source: 'discord',
+    metadata: createMetadata('discord', 'discord-bot'),
+    data: {
+      text: options.text,
+      overrides: {
+        sessionId: options.sessionId,
+      },
+      discord: {
+        channelId: `channel-${options.sessionId}`,
+        guildMember: {
+          id: options.principalId,
+          displayName: 'Discord user',
+          nickname: 'Discord user',
+        },
+      },
+    },
+  }
+}
+
 const chatOrchestratorMock = {
   sending: false,
   ingest: vi.fn(),
@@ -153,6 +182,7 @@ const chatOrchestratorMock = {
   onAssistantResponseEnd: (callback: HookCallback) => registerHook(assistantEndHooks, callback),
   onAssistantMessage: (callback: HookCallback) => registerHook(assistantMessageHooks, callback),
   onChatTurnComplete: (callback: HookCallback) => registerHook(turnCompleteHooks, callback),
+  onPendingSendsCancelled: (callback: HookCallback) => registerHook(pendingSendCancellationHooks, callback),
 
   emitBeforeMessageComposedHooks: (...args: unknown[]) => emitHooks(beforeComposeHooks, ...args),
   emitAfterMessageComposedHooks: (...args: unknown[]) => emitHooks(afterComposeHooks, ...args),
@@ -261,6 +291,7 @@ vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
     ensureConnected: ensureConnectedMock,
     onReconnected: onReconnectedMock,
+    onDisconnected: onDisconnectedMock,
     onContextUpdate: onContextUpdateMock,
     onEvent: onEventMock,
     send: serverSendMock,
@@ -281,6 +312,7 @@ describe('context bridge contract', () => {
     ensureConnectedMock.mockClear()
     ensureConnectedMock.mockResolvedValue(undefined)
     onReconnectedMock.mockClear()
+    onDisconnectedMock.mockClear()
     onContextUpdateMock.mockClear()
     onEventMock.mockClear()
     getProviderInstanceMock.mockReset()
@@ -303,6 +335,8 @@ describe('context bridge contract', () => {
     assistantEndHooks.length = 0
     assistantMessageHooks.length = 0
     turnCompleteHooks.length = 0
+    pendingSendCancellationHooks.length = 0
+    disconnectedHooks.length = 0
     contextUpdateHooks.length = 0
     serverEventHooks.clear()
   })
@@ -636,5 +670,147 @@ describe('context bridge contract', () => {
     expect(chatOrchestratorMock.sending).toBe(true)
 
     await store.dispose()
+  })
+
+  it('bounds Discord retained work before the Web Lock wait (CSR-09)', async () => {
+    // ROOT CAUSE:
+    //
+    // A blocked generation owns the context-bridge Web Lock while every later
+    // Discord event queues another lock request. The stable Discord user ID is
+    // present on every event, but current admission does not inspect it.
+    //
+    // Before the fix, all six events below are retained across distinct exact
+    // sessions and five appear as unbounded Web Lock waiters.
+    //
+    // The fix admits at most four reservations for one principal before any
+    // request enters the Web Lock or global chat-orchestrator queue.
+    activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'mock-model'
+    getProviderInstanceMock.mockResolvedValue({})
+
+    let releaseBlockedGeneration: () => void = () => {}
+    const blockedGeneration = new Promise<void>((resolve) => {
+      releaseBlockedGeneration = resolve
+    })
+    chatOrchestratorMock.ingest
+      .mockImplementationOnce(() => blockedGeneration)
+      .mockResolvedValue(undefined)
+
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    const submissions = Array.from({ length: 6 }, (_, index) => emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: '123456789012345678',
+      sessionId: `discord-guild-${index + 1}`,
+      text: `message-${index + 1}`,
+    })))
+
+    try {
+      await vi.waitFor(async () => {
+        const lockState = await navigator.locks.query()
+        const pendingInputLocks = (lockState.pending ?? []).filter(lock => lock.name === 'context-bridge:event:input:text')
+        expect(pendingInputLocks.length).toBeLessThanOrEqual(3)
+      })
+    }
+    finally {
+      releaseBlockedGeneration()
+      await Promise.all(submissions)
+      await store.dispose()
+    }
+
+    expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(4)
+  })
+
+  it('fails closed when Discord principal identity is malformed (CSR-09)', async () => {
+    activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'mock-model'
+    getProviderInstanceMock.mockResolvedValue({})
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: 'display-name-is-not-an-id',
+      sessionId: 'discord-guild-1',
+      text: 'malformed principal',
+    }))
+
+    expect(getProviderInstanceMock).not.toHaveBeenCalled()
+    expect(chatOrchestratorMock.ingest).not.toHaveBeenCalled()
+
+    await store.dispose()
+  })
+
+  it('cancels retained Discord work when its exact session is reset (CSR-09)', async () => {
+    activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'mock-model'
+    getProviderInstanceMock.mockResolvedValue({})
+
+    let releaseBlockedGeneration: () => void = () => {}
+    chatOrchestratorMock.ingest.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      releaseBlockedGeneration = resolve
+    }))
+
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const sessionId = 'discord-guild-reset'
+    const submissions = [1, 2].map(index => emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: '123456789012345678',
+      sessionId,
+      text: `message-${index}`,
+    })))
+    await vi.waitFor(() => expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1))
+
+    await emitHooks(pendingSendCancellationHooks, sessionId)
+    releaseBlockedGeneration()
+    await Promise.all(submissions)
+
+    expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1)
+    await store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2097
+  it('continues queued Discord ingestion when reset cannot settle the active ingest (CSR-09)', async () => {
+    // ROOT CAUSE:
+    //
+    // A session reset aborted the Discord reservation, but a provider that did
+    // not settle left chatOrchestrator.ingest() holding the context-bridge Web
+    // Lock. The queue could not dispatch later Discord input through that lock.
+    //
+    // Before the fix, the second ingest call below never occurs.
+    //
+    // We fixed this by ending both the scheduler wait and Web Lock ownership on
+    // cancellation, independently of provider cooperation.
+    activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'mock-model'
+    getProviderInstanceMock.mockResolvedValue({})
+    chatOrchestratorMock.ingest
+      .mockImplementationOnce(() => new Promise<void>(() => {}))
+      .mockResolvedValueOnce(undefined)
+
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const blockedSubmission = emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: '123456789012345678',
+      sessionId: 'discord-guild-reset',
+      text: 'blocked message',
+    }))
+    const nextSubmission = emitServerEvent('input:text', createDiscordInputEvent({
+      principalId: '223456789012345678',
+      sessionId: 'discord-guild-next',
+      text: 'next message',
+    }))
+    await vi.waitFor(() => expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(1))
+
+    try {
+      await emitHooks(pendingSendCancellationHooks, 'discord-guild-reset')
+      await vi.waitFor(() => expect(chatOrchestratorMock.ingest).toHaveBeenCalledTimes(2))
+    }
+    finally {
+      await store.dispose()
+    }
+
+    await expect(blockedSubmission).resolves.toBeUndefined()
+    await expect(nextSubmission).resolves.toBeUndefined()
+    expect(chatOrchestratorMock.ingest.mock.calls[1]?.[0]).toBe('next message')
   })
 })
