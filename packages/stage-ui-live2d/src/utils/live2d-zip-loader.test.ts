@@ -279,8 +279,8 @@ describe('live2d zip loader settings sanitization', () => {
     expect((thrown as Error).message).toBe(
       'Cubism 2 model "kasumi_casual/model.json" needs the proprietary live2d.min.js core, '
       + 'which is not present in this build. '
-      + 'Drop the core at packages/stage-ui-live2d/.cubism2/live2d.min.js for development, '
-      + 'or set AIRI_CUBISM2_CORE_PATH and AIRI_CUBISM2_CORE_SHA256 for a release build.',
+      + 'It is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, '
+      + 'or supply your own copy at packages/stage-ui-live2d/.cubism2/live2d.min.js or through AIRI_CUBISM2_CORE_PATH.',
     )
     expect((thrown as Error).message).not.toBe('Unknown Live2D settings JSON.')
   })

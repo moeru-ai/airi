@@ -136,7 +136,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     report.runtimeFamily = 'cubism2'
     report.structureType = 'Cubism 2 (model.json)'
     if (!isCubism2RuntimeConfigured()) {
-      report.warnings.push('Cubism 2 runtime is not configured in this build. Set AIRI_CUBISM2_CORE_PATH and AIRI_CUBISM2_CORE_SHA256 when building AIRI.')
+      report.warnings.push('Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.')
     }
   }
 

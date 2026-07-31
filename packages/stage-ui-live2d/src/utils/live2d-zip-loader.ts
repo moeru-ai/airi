@@ -70,13 +70,18 @@ function isCubism2SettingsJSON(json: JSONObject): boolean {
 }
 
 /**
- * Explains how to supply the Cubism 2 core, matching the provisioning story in
- * this package's README and the Vite plugin's two input paths.
+ * Explains why the core is absent, matching the provisioning story in this
+ * package's README.
+ *
+ * The Vite plugin normally downloads the core, so reaching this message means
+ * that download was disabled or failed — which it reports at build time. The
+ * build log is named first because it holds the actual cause; supplying the
+ * core by hand is the fallback, not the expected path.
  */
 function cubism2CoreMissingMessage(url: string): string {
   return `Cubism 2 model "${url}" needs the proprietary live2d.min.js core, which is not present in this build. `
-    + `Drop the core at packages/stage-ui-live2d/.cubism2/live2d.min.js for development, `
-    + `or set AIRI_CUBISM2_CORE_PATH and AIRI_CUBISM2_CORE_SHA256 for a release build.`
+    + `It is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, `
+    + `or supply your own copy at packages/stage-ui-live2d/.cubism2/live2d.min.js or through AIRI_CUBISM2_CORE_PATH.`
 }
 
 function createModelSettings(text: string, url: string): ModelSettings {
