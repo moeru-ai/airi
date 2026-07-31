@@ -122,15 +122,47 @@ export interface EmotionOverlayOptions {
 export function createEmotionOverlayPlugin(options: EmotionOverlayOptions): MotionManagerPlugin {
   const { snapshot, enabled } = options
 
-  return (ctx: MotionManagerPluginContext) => {
-    if (enabled && !enabled.value)
-      return
+  /**
+   * What this overlay wrote last frame, and the value it was built on.
+   *
+   * NOTICE:
+   * A parameter no motion keys is not reset between frames — the expression
+   * controller documents the same behaviour and solves it by writing from a
+   * stored default. Without this record, reading the parameter back would
+   * return this overlay's own previous output and the offset would compound
+   * every frame: a 0.11 mouth offset reaches 6.6 within a second at 60fps.
+   *
+   * So the readback is only trusted when something else has changed it. If it
+   * still equals what was written, the frame has no opinion of its own and the
+   * recorded base is used instead.
+   */
+  const applied = new Map<string, { written: number, base: number }>()
 
+  return (ctx: MotionManagerPluginContext) => {
     const coreModel = ctx.model
     if (!coreModel)
       return
 
-    const offsets = resolveEmotionOffsets(snapshot.value.current)
+    // Disabled produces an empty set rather than returning early, so the
+    // restore pass below still runs and the last offset does not stay stuck on
+    // the model.
+    const offsets = enabled && !enabled.value
+      ? {}
+      : resolveEmotionOffsets(snapshot.value.current)
+
+    for (const parameterId of [...applied.keys()]) {
+      if (parameterId in offsets)
+        continue
+
+      const prev = applied.get(parameterId)!
+      const currentValue = coreModel.getParameterValueById(parameterId) as number
+      // Only undo the contribution if nothing else has claimed the parameter
+      // since; otherwise the newer value is the one that should stand.
+      if (Number.isFinite(currentValue) && Object.is(currentValue, prev.written))
+        coreModel.setParameterValueById(parameterId, prev.base)
+
+      applied.delete(parameterId)
+    }
 
     for (const [parameterId, offset] of Object.entries(offsets)) {
       // NOTICE:
@@ -149,7 +181,14 @@ export function createEmotionOverlayPlugin(options: EmotionOverlayOptions): Moti
       if (!Number.isFinite(currentValue))
         continue
 
-      coreModel.setParameterValueById(parameterId, currentValue + offset)
+      const prev = applied.get(parameterId)
+      const base = prev !== undefined && Object.is(currentValue, prev.written)
+        ? prev.base
+        : currentValue
+
+      const next = base + offset
+      coreModel.setParameterValueById(parameterId, next)
+      applied.set(parameterId, { written: next, base })
     }
   }
 }
