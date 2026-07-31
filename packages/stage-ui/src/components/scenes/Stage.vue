@@ -19,7 +19,7 @@ import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
-import { useBroadcastChannel } from '@vueuse/core'
+import { useBroadcastChannel, useRafFn } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
@@ -41,6 +41,7 @@ import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
+import { createEmotionState } from '../../stores/emotion-state'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
@@ -183,6 +184,14 @@ const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
 
+// Continuous mood floor. Motions are discrete and end; this keeps a reading
+// that decays back to baseline between them, so the model does not snap to
+// perfectly neutral the moment a motion finishes.
+const emotionState = createEmotionState()
+const emotionReading = computed(() => emotionState.snapshot.value.current)
+
+useRafFn(({ delta }) => emotionState.update(delta / 1000))
+
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
     async (ctx) => {
@@ -196,6 +205,8 @@ const emotionsQueue = createQueue<EmotionPayload>({
       }
       else if (stageModelRenderer.value === 'live2d') {
         currentMotion.value = { group: EMOTION_EmotionMotionName_value[ctx.data.name] }
+        // The motion plays once; the reading outlives it and fades on its own.
+        emotionState.nudge(ctx.data.name, ctx.data.intensity)
       }
       else if (stageModelRenderer.value === 'spine') {
         spineSceneRef.value?.setEmotion(ctx.data.name, ctx.data.intensity)
@@ -1028,6 +1039,7 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
+        :emotion="emotionReading"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"

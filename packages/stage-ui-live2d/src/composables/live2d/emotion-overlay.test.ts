@@ -3,7 +3,7 @@ import type { MotionManagerPluginContext } from './motion-manager'
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { createEmotionOverlayPlugin, resolveEmotionOffsets } from './emotion-overlay'
+import { createEmotionOverlayPlugins, resolveEmotionOffsets } from './emotion-overlay'
 
 const NEUTRAL = { valence: 0, arousal: 0, dominance: 0 }
 
@@ -68,113 +68,84 @@ describe('resolveEmotionOffsets', () => {
   })
 })
 
-describe('createEmotionOverlayPlugin', () => {
-  it('should add its offset to the value the frame already produced', () => {
+describe('createEmotionOverlayPlugins', () => {
+  function runFrame(
+    overlay: ReturnType<typeof createEmotionOverlayPlugins>,
+    model: ReturnType<typeof createModel>,
+  ) {
+    overlay.restore(createContext(model))
+    overlay.apply(createContext(model))
+  }
+
+  it('should layer its offset onto the value the frame produced', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0.4 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.5 } })
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
 
-    createEmotionOverlayPlugin({ snapshot })(createContext(model))
+    runFrame(createEmotionOverlayPlugins({ reading: () => vad.value }), model)
 
-    const expected = 0.4 + resolveEmotionOffsets(snapshot.value.current).ParamMouthForm
+    const expected = 0.4 + resolveEmotionOffsets(vad.value).ParamMouthForm
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(expected, 6)
   })
 
-  // A rig without brow parameters should lose the brow contribution, not throw
-  // or have a wrong baseline baked into an undeclared parameter.
-  it('should skip parameters the model does not declare', () => {
-    const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
-    const snapshot = ref({ current: { valence: 0.5, arousal: 0.5, dominance: 0.5 } })
-
-    createEmotionOverlayPlugin({ snapshot })(createContext(model))
-
-    expect(model.setParameterValueById).toHaveBeenCalledTimes(1)
-    expect(model.setParameterValueById).toHaveBeenCalledWith('ParamMouthForm', expect.any(Number))
-  })
-
-  it('should write nothing while the state is neutral', () => {
-    const model = createModel(['ParamMouthForm', 'ParamAngleY'])
-    const snapshot = ref({ current: { ...NEUTRAL } })
-
-    createEmotionOverlayPlugin({ snapshot })(createContext(model))
-
-    expect(model.setParameterValueById).not.toHaveBeenCalled()
-  })
-
-  it('should write nothing while disabled', () => {
-    const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.9 } })
-
-    createEmotionOverlayPlugin({ snapshot, enabled: ref(false) })(createContext(model))
-
-    expect(model.setParameterValueById).not.toHaveBeenCalled()
-  })
-
-  // A parameter no motion keys is not reset between frames, so reading it back
-  // returns this overlay's own previous output. Without a record of what was
-  // written the offset compounds every frame — 0.11 becomes 6.6 within a
-  // second at 60fps.
+  // A parameter no motion keys is not reset between frames. Without the restore
+  // stage the overlay would read back its own output and compound: a 0.11
+  // offset reaches 6.6 within a second at 60fps.
   it('should hold steady over many frames when nothing else touches the parameter', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.5 } })
-    const plugin = createEmotionOverlayPlugin({ snapshot })
-    const offset = resolveEmotionOffsets(snapshot.value.current).ParamMouthForm
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value })
+    const offset = resolveEmotionOffsets(vad.value).ParamMouthForm
 
-    const ctx = createContext(model)
     for (let frame = 0; frame < 60; frame++)
-      plugin(ctx)
+      runFrame(overlay, model)
 
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(offset, 6)
   })
 
-  it('should layer onto the value a motion produced this frame', () => {
+  it('should follow a motion that rewrites the parameter each frame', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.5 } })
-    const plugin = createEmotionOverlayPlugin({ snapshot })
-    const offset = resolveEmotionOffsets(snapshot.value.current).ParamMouthForm
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value })
+    const offset = resolveEmotionOffsets(vad.value).ParamMouthForm
 
-    plugin(createContext(model))
-    // A motion keys the parameter on the next frame.
+    overlay.restore(createContext(model))
     model.values.set('ParamMouthForm', 0.6)
-    plugin(createContext(model))
+    overlay.apply(createContext(model))
 
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.6 + offset, 6)
   })
 
-  // Same transition the expression controller handles: a parameter written
-  // last frame and not written this frame has to be put back, or the last mood
-  // stays frozen on the model forever.
-  it('should restore the parameter when the state returns to neutral', () => {
+  it('should give the parameter back when the state returns to neutral', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0.2 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.5 } })
-    const plugin = createEmotionOverlayPlugin({ snapshot })
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value })
 
-    plugin(createContext(model))
+    runFrame(overlay, model)
     expect(model.values.get('ParamMouthForm')).not.toBeCloseTo(0.2, 6)
 
-    snapshot.value = { current: { ...NEUTRAL } }
-    plugin(createContext(model))
+    vad.value = { ...NEUTRAL }
+    runFrame(overlay, model)
 
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.2, 6)
   })
 
-  it('should restore the parameter when it is switched off', () => {
+  it('should give the parameter back when it is switched off', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0.2 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.5 } })
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
     const enabled = ref(true)
-    const plugin = createEmotionOverlayPlugin({ snapshot, enabled })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value, enabled: () => enabled.value })
 
-    plugin(createContext(model))
+    runFrame(overlay, model)
     enabled.value = false
-    plugin(createContext(model))
+    runFrame(overlay, model)
 
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.2, 6)
   })
 
-  // Cubism clamps to a parameter's declared range, so the model may not hold
-  // the number that was written. Recording the unclamped value would make the
-  // next frame read it as someone else's change and leave the parameter stuck
-  // at the ceiling.
-  it('should restore the base even when the model clamped the write', () => {
+  // The model clamps to a parameter's declared range, so the value it keeps is
+  // not always the one written. Restoring from the recorded base rather than
+  // from a readback means the clamp cannot strand the parameter at its ceiling.
+  it('should give the parameter back even when the model clamped the write', () => {
     const values = new Map([['ParamEyeLOpen', 0.95]])
     const model = {
       getParameterIndex: vi.fn(() => 0),
@@ -183,32 +154,35 @@ describe('createEmotionOverlayPlugin', () => {
         values.set(id, Math.min(Math.max(value, 0), 1))
       }),
       values,
-    }
-    const snapshot = ref({ current: { ...NEUTRAL, arousal: 0.8 } })
-    const plugin = createEmotionOverlayPlugin({ snapshot })
+    } as unknown as ReturnType<typeof createModel>
+    const vad = ref({ ...NEUTRAL, arousal: 0.8 })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value })
 
-    plugin(createContext(model as unknown as ReturnType<typeof createModel>))
+    runFrame(overlay, model)
     expect(values.get('ParamEyeLOpen')).toBe(1)
 
-    snapshot.value = { current: { ...NEUTRAL } }
-    plugin(createContext(model as unknown as ReturnType<typeof createModel>))
+    vad.value = { ...NEUTRAL }
+    runFrame(overlay, model)
 
     expect(values.get('ParamEyeLOpen')).toBeCloseTo(0.95, 6)
   })
 
-  // If something else claimed the parameter after our write, that newer value
-  // is the one that should stand — undoing our contribution would clobber it.
-  it('should not undo its contribution once another writer has claimed the parameter', () => {
+  it('should skip parameters the model does not declare', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
-    const snapshot = ref({ current: { ...NEUTRAL, valence: 0.5 } })
-    const plugin = createEmotionOverlayPlugin({ snapshot })
+    const vad = ref({ valence: 0.5, arousal: 0.5, dominance: 0.5 })
 
-    plugin(createContext(model))
-    model.values.set('ParamMouthForm', 0.9)
+    createEmotionOverlayPlugins({ reading: () => vad.value }).apply(createContext(model))
 
-    snapshot.value = { current: { ...NEUTRAL } }
-    plugin(createContext(model))
+    expect(model.setParameterValueById).toHaveBeenCalledTimes(1)
+    expect(model.setParameterValueById).toHaveBeenCalledWith('ParamMouthForm', expect.any(Number))
+  })
 
-    expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.9, 6)
+  it('should write nothing while the state is neutral', () => {
+    const model = createModel(['ParamMouthForm', 'ParamAngleY'])
+    const vad = ref({ ...NEUTRAL })
+
+    createEmotionOverlayPlugins({ reading: () => vad.value }).apply(createContext(model))
+
+    expect(model.setParameterValueById).not.toHaveBeenCalled()
   })
 })

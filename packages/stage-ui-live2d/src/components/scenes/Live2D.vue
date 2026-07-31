@@ -23,6 +23,8 @@ const props = withDefaults(defineProps<{
   nowSpeaking?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
+  /** Forwarded to the model; see `Model.vue`. */
+  emotion?: { valence: number, arousal: number, dominance: number }
 }>(), {
   paused: false,
   mouthOpenSize: 0,
@@ -119,6 +121,7 @@ defineExpose({
         :eye-focus-source-active="!!activeCursorPosition"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
+        :emotion="emotion"
         :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
         :live2d-force-idle-eye-animation="live2dForceIdleEyeAnimation"
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"

@@ -1,5 +1,3 @@
-import type { Ref } from 'vue'
-
 import type { MotionManagerPlugin, MotionManagerPluginContext } from './motion-manager'
 
 /**
@@ -96,111 +94,97 @@ export function resolveEmotionOffsets(vad: EmotionOverlayInput): Record<string, 
 }
 
 export interface EmotionOverlayOptions {
-  snapshot: Ref<{ current: EmotionOverlayInput }>
+  /** Reads the state for the current frame. Called once per frame, in `apply`. */
+  reading: () => EmotionOverlayInput
   /** Lets the overlay be switched off without unregistering it. @default always on */
-  enabled?: Ref<boolean>
+  enabled?: () => boolean
+}
+
+/**
+ * The two halves of the overlay. Both must be registered, and `restore` must be
+ * the first `pre` plugin — a `pre` plugin that marks the frame handled stops
+ * the ones after it, and skipping the restore would leave the previous frame's
+ * offset baked into the base.
+ */
+export interface EmotionOverlayPlugins {
+  /** Register on `pre`, before any other pre plugin. */
+  restore: MotionManagerPlugin
+  /** Register on `final`. */
+  apply: MotionManagerPlugin
 }
 
 /**
  * Applies the continuous emotional state to the model as small additive
- * offsets, on top of whatever motion and expressions produced this frame.
+ * offsets, layered on whatever motion and expressions produced this frame.
  *
- * Register on the `final` stage: those run unconditionally, so the mood floor
- * survives a frame that another plugin has marked handled, and it lands after
- * the native motion update rather than being overwritten by it.
+ * Split across two stages on purpose. A parameter no motion keys is not reset
+ * between frames, so a single-stage overlay would read back its own previous
+ * output and compound the offset every frame. Comparing the readback against
+ * what was written cannot fix that reliably either: the model clamps, and two
+ * writers can land on the same value, so equality answers neither "did anyone
+ * else write this" nor "is this still mine".
  *
- * A parameter the model does not declare is skipped rather than written, so a
- * rig missing brow parameters degrades to no brow contribution instead of
- * throwing.
+ * Undoing the contribution in `pre` removes the question. Nothing else has run
+ * yet that frame, so the value there is unambiguously the previous frame's
+ * output, and by the time `apply` reads it in `final` the model holds only
+ * what this frame produced.
  *
  * @example
  * ```ts
- * const state = createEmotionState()
- * register(createEmotionOverlayPlugin({ snapshot: state.snapshot }), 'final')
+ * const overlay = createEmotionOverlayPlugins({ reading: () => state.snapshot.value.current })
+ * register(overlay.restore, 'pre')   // must come first
+ * register(overlay.apply, 'final')
  * ```
  */
-export function createEmotionOverlayPlugin(options: EmotionOverlayOptions): MotionManagerPlugin {
-  const { snapshot, enabled } = options
+export function createEmotionOverlayPlugins(options: EmotionOverlayOptions): EmotionOverlayPlugins {
+  const { reading, enabled } = options
 
-  /**
-   * What this overlay wrote last frame, and the value it was built on.
-   *
-   * NOTICE:
-   * A parameter no motion keys is not reset between frames — the expression
-   * controller documents the same behaviour and solves it by writing from a
-   * stored default. Without this record, reading the parameter back would
-   * return this overlay's own previous output and the offset would compound
-   * every frame: a 0.11 mouth offset reaches 6.6 within a second at 60fps.
-   *
-   * So the readback is only trusted when something else has changed it. If it
-   * still equals what was written, the frame has no opinion of its own and the
-   * recorded base is used instead.
-   */
-  const applied = new Map<string, { written: number, base: number }>()
+  /** Value each touched parameter held before this overlay contributed to it. */
+  const bases = new Map<string, number>()
 
-  return (ctx: MotionManagerPluginContext) => {
+  function declaresParameter(coreModel: MotionManagerPluginContext['model'], parameterId: string): boolean {
+    // NOTICE:
+    // Cubism answers an unknown parameter id with 0 and a warning rather than
+    // an error, which would silently bake a wrong baseline into the model.
+    // Guarded because the mock models used in tests do not implement it.
+    if (typeof coreModel.getParameterIndex !== 'function')
+      return true
+
+    return coreModel.getParameterIndex(parameterId) >= 0
+  }
+
+  const restore: MotionManagerPlugin = (ctx: MotionManagerPluginContext) => {
     const coreModel = ctx.model
     if (!coreModel)
       return
 
-    // Disabled produces an empty set rather than returning early, so the
-    // restore pass below still runs and the last offset does not stay stuck on
-    // the model.
-    const offsets = enabled && !enabled.value
-      ? {}
-      : resolveEmotionOffsets(snapshot.value.current)
+    for (const [parameterId, base] of bases)
+      coreModel.setParameterValueById(parameterId, base)
 
-    for (const parameterId of [...applied.keys()]) {
-      if (parameterId in offsets)
+    // Writing the base back here is safe even for a parameter a motion will
+    // key: the motion runs after this stage and overwrites it anyway.
+    bases.clear()
+  }
+
+  const apply: MotionManagerPlugin = (ctx: MotionManagerPluginContext) => {
+    const coreModel = ctx.model
+    if (!coreModel)
+      return
+    if (enabled && !enabled())
+      return
+
+    for (const [parameterId, offset] of Object.entries(resolveEmotionOffsets(reading()))) {
+      if (!declaresParameter(coreModel, parameterId))
         continue
 
-      const prev = applied.get(parameterId)!
-      const currentValue = coreModel.getParameterValueById(parameterId) as number
-      // Only undo the contribution if nothing else has claimed the parameter
-      // since; otherwise the newer value is the one that should stand.
-      if (Number.isFinite(currentValue) && Object.is(currentValue, prev.written))
-        coreModel.setParameterValueById(parameterId, prev.base)
-
-      applied.delete(parameterId)
-    }
-
-    for (const [parameterId, offset] of Object.entries(offsets)) {
-      // NOTICE:
-      // Cubism returns 0 and warns for an unknown parameter id rather than
-      // throwing, which would silently bake a wrong baseline into the model.
-      // `getParameterIndex` is the cheap way to ask whether the rig actually
-      // declares this parameter; guarded because the mock models used in tests
-      // do not implement it.
-      const index = typeof coreModel.getParameterIndex === 'function'
-        ? coreModel.getParameterIndex(parameterId)
-        : 0
-      if (index < 0)
+      const base = coreModel.getParameterValueById(parameterId) as number
+      if (!Number.isFinite(base))
         continue
 
-      const currentValue = coreModel.getParameterValueById(parameterId) as number
-      if (!Number.isFinite(currentValue))
-        continue
-
-      const prev = applied.get(parameterId)
-      const base = prev !== undefined && Object.is(currentValue, prev.written)
-        ? prev.base
-        : currentValue
-
-      const next = base + offset
-      coreModel.setParameterValueById(parameterId, next)
-
-      // NOTICE:
-      // Cubism clamps to the parameter's declared range, so the model may not
-      // hold the value that was just written — `ParamEyeLOpen` tops out at 1
-      // and an arousal offset pushes past it. Recording the unclamped number
-      // would make the next frame's comparison fail, the record be dropped as
-      // "someone else changed it", and the parameter stay stuck at the ceiling
-      // instead of returning to base. Store what the model actually kept.
-      const effective = coreModel.getParameterValueById(parameterId) as number
-      applied.set(parameterId, {
-        written: Number.isFinite(effective) ? effective : next,
-        base,
-      })
+      coreModel.setParameterValueById(parameterId, base + offset)
+      bases.set(parameterId, base)
     }
   }
+
+  return { restore, apply }
 }

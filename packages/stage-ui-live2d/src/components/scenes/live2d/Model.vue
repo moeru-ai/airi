@@ -16,6 +16,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  createEmotionOverlayPlugins,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -50,6 +51,12 @@ const props = withDefaults(defineProps<{
   live2dForceAutoBlinkEnabled?: boolean
   live2dExpressionEnabled?: boolean
   live2dShadowEnabled?: boolean
+  /**
+   * Continuous emotional reading, layered onto the rig as small additive
+   * offsets. Typed structurally rather than imported from the package that owns
+   * it, which already depends on this one.
+   */
+  emotion?: { valence: number, arousal: number, dominance: number }
 }>(), {
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -350,6 +357,15 @@ async function loadModel() {
       lastUpdateTime,
     })
 
+    const emotionOverlay = createEmotionOverlayPlugins({
+      reading: () => props.emotion ?? { valence: 0, arousal: 0, dominance: 0 },
+      enabled: () => props.live2dExpressionEnabled !== false,
+    })
+
+    // Must be the first 'pre' plugin: the stage stops at the first plugin that
+    // marks the frame handled, and the overlay needs its previous contribution
+    // undone before anything else reads or writes these parameters.
+    motionManagerUpdate.register(emotionOverlay.restore, 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
@@ -360,6 +376,8 @@ async function loadModel() {
     motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
+    // Last: the mood layer colours whatever the frame already produced.
+    motionManagerUpdate.register(emotionOverlay.apply, 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
