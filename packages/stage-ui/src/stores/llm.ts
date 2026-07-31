@@ -37,9 +37,18 @@ export const useLLM = defineStore('llm', () => {
       await runStream()
     }
     catch (err) {
-      if (isToolRelatedError(err)) {
-        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error`)
+      // NOTICE:
+      // Auto-degrade to a tool-less retry when the provider rejects the tool set
+      // (e.g. DeepSeek/OpenRouter's strict serde deserializer 400s on tool schemas
+      // containing `anyOf`). streamFrom reads `toolsCompatibility` and omits tools
+      // on the retry, so the user's turn recovers inline instead of surfacing the
+      // 400. The `!== false` guard prevents a second tool-related failure from
+      // looping. Subsequent calls reuse the cached decision.
+      if (isToolRelatedError(err) && toolsCompatibility.value.get(key) !== false) {
+        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error and retrying once`)
         toolsCompatibility.value.set(key, false)
+        await runStream()
+        return
       }
       // NOTICE:
       // Auto-degrade content-part arrays to plain strings on the next attempt
