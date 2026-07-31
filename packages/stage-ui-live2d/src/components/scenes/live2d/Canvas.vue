@@ -24,6 +24,8 @@ const isPixiCanvasReady = ref(false)
 // trap to every Cubism 2 core lookup and can consume most of a frame.
 const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
+// Not a ref: nothing renders from it, it only gates the async setup below.
+let isDisposed = false
 
 function resolveMaxFps(limit?: number) {
   if (!limit || limit <= 0)
@@ -53,6 +55,17 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   isPixiCanvasReady.value = false
 
   const { Live2DModel } = await loadLive2DRuntime()
+
+  // The first call here injects the Cubism 2 core <script> and waits on the
+  // network before the bundle import resolves, so this await can span seconds.
+  // A scene switch or route change inside that window already ran `onUnmounted`
+  // while `pixiApp` was still undefined, leaving it nothing to destroy. Without
+  // this guard the continuation would then build a WebGL context and a running
+  // ticker owned by a dead component, appended to a detached parent, with no
+  // remaining path to tear either down.
+  if (isDisposed)
+    return
+
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
@@ -102,7 +115,10 @@ watch(() => props.maxFps, (limit) => {
 })
 
 onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
-onUnmounted(() => pixiApp.value?.destroy())
+onUnmounted(() => {
+  isDisposed = true
+  pixiApp.value?.destroy()
+})
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {
