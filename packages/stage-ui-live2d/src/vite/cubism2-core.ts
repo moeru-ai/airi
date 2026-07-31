@@ -26,6 +26,23 @@ const dropInCorePath = resolve(packageRoot, '.cubism2', 'live2d.min.js')
 const defaultCacheDir = resolve(packageRoot, '.cubism2', 'cache')
 
 /**
+ * Where the core is published, relative to the app's base URL.
+ *
+ * NOTICE:
+ * Deliberately has no leading slash. The consumer assigns this to `script.src`
+ * after joining it to `import.meta.env.BASE_URL`, and a root-anchored path would
+ * survive that join unchanged — see {@link file://./../utils/live2d-runtime.ts}.
+ *
+ * That breaks packaged stage-tamagotchi, whose renderer builds with `base: './'`
+ * and loads over `file://` (`apps/stage-tamagotchi/src/main/libs/electron/location.ts`
+ * returns `{ file }` outside dev). There, `/assets/js/live2d.min.js` resolves
+ * against the file-system root instead of the renderer directory the asset was
+ * emitted into. Vite rewrites the same path when it appears in `index.html`,
+ * because that is an asset reference it can see; a define string is not.
+ */
+const coreAssetPath = 'assets/js/live2d.min.js'
+
+/**
  * The only fetchable copy of the Cubism 2.1 core.
  *
  * Live2D removed every official Cubism 2.1 SDK download on 2019-09-04
@@ -246,16 +263,14 @@ export interface Cubism2CoreOptions {
  * gitignored `packages/stage-ui-live2d/.cubism2/live2d.min.js` drop-in, then the
  * download. A local copy always wins, so the network is only reached by a
  * checkout that has none. If every source fails — including an offline runner —
- * `__AIRI_CUBISM2_CORE_URL__` stays `null` and the build keeps its Cubism 3+
+ * `__AIRI_CUBISM2_CORE_PATH__` stays `null` and the build keeps its Cubism 3+
  * only behaviour, so legacy models fail validation with a warning instead of at
  * runtime.
  *
- * A resolved core is served from `/assets/js/live2d.min.js` by the dev server
- * and emitted to `assets/js/live2d.min.js` by production builds.
+ * A resolved core is served by the dev server and emitted by production builds
+ * at {@link coreAssetPath}, which the define reports verbatim.
  */
 export function Cubism2Core(options: Cubism2CoreOptions = {}): Plugin {
-  const publicPath = '/assets/js/live2d.min.js'
-
   // Owned by `config()`, which Vite always runs before `configureServer` and
   // `buildStart`; those hooks only ever publish bytes this hook already verified.
   let source: Buffer | undefined
@@ -296,7 +311,7 @@ export function Cubism2Core(options: Cubism2CoreOptions = {}): Plugin {
 
         return {
           define: {
-            __AIRI_CUBISM2_CORE_URL__: 'null',
+            __AIRI_CUBISM2_CORE_PATH__: 'null',
           },
         }
       }
@@ -321,7 +336,7 @@ export function Cubism2Core(options: Cubism2CoreOptions = {}): Plugin {
 
       return {
         define: {
-          __AIRI_CUBISM2_CORE_URL__: JSON.stringify(publicPath),
+          __AIRI_CUBISM2_CORE_PATH__: JSON.stringify(coreAssetPath),
         },
       }
     },
@@ -329,7 +344,9 @@ export function Cubism2Core(options: Cubism2CoreOptions = {}): Plugin {
       if (!source)
         return
 
-      server.middlewares.use(publicPath, (_request, response) => {
+      // Connect mounts on a root-anchored prefix, and Vite has already stripped
+      // any configured base from `req.url` by the time user middlewares run.
+      server.middlewares.use(`/${coreAssetPath}`, (_request, response) => {
         response.setHeader('Content-Type', 'text/javascript; charset=utf-8')
         response.end(source)
       })
@@ -347,9 +364,11 @@ export function Cubism2Core(options: Cubism2CoreOptions = {}): Plugin {
       // a build-only concern. `watchMode` is Vite's dev flag; inverted here it
       // matches a true production build.
       if (source && !this.meta.watchMode) {
+        // Must stay the path the define reports: the consumer resolves that
+        // string against the app base to find exactly this file.
         this.emitFile({
           type: 'asset',
-          fileName: 'assets/js/live2d.min.js',
+          fileName: coreAssetPath,
           source,
         })
       }

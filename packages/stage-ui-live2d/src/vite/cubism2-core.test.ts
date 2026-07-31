@@ -143,27 +143,57 @@ describe('cubism2 core vite plugin', () => {
   })
 
   it.skipIf(dropInCoreExists)('keeps Cubism 3+ only builds untouched when nothing is configured', async () => {
-    expect(await runConfigHook(createPlugin())).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: 'null' } })
+    expect(await runConfigHook(createPlugin())).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: 'null' } })
   })
 
   it.skipIf(dropInCoreExists)('treats a configured path that is not on disk as no core at all', async () => {
     const missingPath = join(fixtureDirectory, 'not-provisioned.js')
 
-    expect(await runConfigHook(createPlugin({ sourcePath: missingPath }))).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: 'null' } })
+    expect(await runConfigHook(createPlugin({ sourcePath: missingPath }))).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: 'null' } })
   })
 
   it('points the define at the served core when the checksum matches', async () => {
     const core = writeCoreFixture('verified.js', 'window.Live2D = { verified: true }')
 
     expect(await runConfigHook(createPlugin({ sourcePath: core.path, sha256: core.sha256 })))
-      .toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+      .toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2201
+  it('reports the core path relative to the app base, never root-anchored', async () => {
+    // ROOT CAUSE:
+    //
+    // The define carried a root-anchored `/assets/js/live2d.min.js`, which the
+    // consumer assigned straight to `script.src`.
+    //
+    // Packaged stage-tamagotchi builds its renderer with `base: './'` and loads
+    // it over `file://`, so that path resolved against the filesystem root
+    // instead of the renderer directory the asset was emitted into. The same
+    // path written in `index.html` was fine, because Vite rewrites asset
+    // references it can see in HTML and cannot rewrite a define string.
+    //
+    // The blast radius was every Live2D model, not just Cubism 2 ones: a
+    // non-null define makes `loadLive2DRuntime` take the combined-bundle branch,
+    // whose rejection is cached for the process lifetime.
+    //
+    // We fixed this by emitting a base-relative path that the consumer joins to
+    // `import.meta.env.BASE_URL` — `./` in the packaged renderer, `/` in dev and
+    // in the web and pocket apps.
+    const core = writeCoreFixture('base-relative.js', 'window.Live2D = { base: "relative" }')
+
+    const config = await runConfigHook(createPlugin({ sourcePath: core.path, sha256: core.sha256 }))
+
+    const definedPath: unknown = config?.define?.__AIRI_CUBISM2_CORE_PATH__
+    expect(typeof definedPath).toBe('string')
+    expect(JSON.parse(definedPath as string)).toBe('assets/js/live2d.min.js')
+    expect(JSON.parse(definedPath as string).startsWith('/')).toBe(false)
   })
 
   it('serves an unpinned core so the local drop-in needs no setup', async () => {
     const core = writeCoreFixture('unpinned.js', 'window.Live2D = { pinned: false }')
 
     expect(await runConfigHook(createPlugin({ sourcePath: core.path })))
-      .toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+      .toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     expect(recordedWarnings.some(warning => warning.includes('without a checksum'))).toBe(true)
   })
 
@@ -190,7 +220,7 @@ describe('cubism2 core vite plugin', () => {
     process.env.AIRI_CUBISM2_CORE_PATH = core.path
     process.env.AIRI_CUBISM2_CORE_SHA256 = core.sha256
 
-    expect(await runConfigHook(createPlugin())).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(createPlugin())).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
   })
 
   it('prefers options.sourcePath over AIRI_CUBISM2_CORE_PATH', async () => {
@@ -201,7 +231,7 @@ describe('cubism2 core vite plugin', () => {
     // The digest is the observable: it only matches if the option's file was the
     // one read, so a reversed precedence fails here as a checksum mismatch.
     expect(await runConfigHook(createPlugin({ sourcePath: preferred.path, sha256: preferred.sha256 })))
-      .toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+      .toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
   })
 })
 
@@ -283,7 +313,7 @@ describe('cubism2 core download', () => {
   it.skipIf(dropInCoreExists)('fetches and caches the core when no local copy resolves', async () => {
     const plugin = Cubism2Core({ downloadUrl: `${origin}/core.js`, downloadSha256: coreSha256, cacheDir: cacheDirectory })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     expect(requestedPaths).toEqual(['/core.js'])
     expect(readFileSync(cachedCorePath(), 'utf8')).toBe(coreBody)
   })
@@ -301,7 +331,7 @@ describe('cubism2 core download', () => {
 
     await runConfigHook(Cubism2Core(options))
 
-    expect(await runConfigHook(Cubism2Core(options))).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(Cubism2Core(options))).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     // The second build is a separate plugin instance, so a cache that only
     // lived in memory would show a second request here.
     expect(requestedPaths).toEqual(['/core.js'])
@@ -312,7 +342,7 @@ describe('cubism2 core download', () => {
 
     const plugin = Cubism2Core({ downloadUrl: `${origin}/core.js`, downloadSha256: coreSha256, cacheDir: cacheDirectory })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     expect(requestedPaths).toEqual(['/core.js'])
     expect(readFileSync(cachedCorePath(), 'utf8')).toBe(coreBody)
   })
@@ -320,7 +350,7 @@ describe('cubism2 core download', () => {
   it.skipIf(dropInCoreExists)('discards downloaded bytes that do not match the pin', async () => {
     const plugin = Cubism2Core({ downloadUrl: `${origin}/substituted.js`, downloadSha256: coreSha256, cacheDir: cacheDirectory })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: 'null' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: 'null' } })
     expect(existsSync(cachedCorePath())).toBe(false)
     expect(recordedWarnings.some(warning => warning.includes('does not match its pinned checksum'))).toBe(true)
   })
@@ -333,21 +363,21 @@ describe('cubism2 core download', () => {
 
     const plugin = Cubism2Core({ downloadUrl: `${origin}/core.js`, downloadSha256: coreSha256, cacheDir: join(blockedParent, 'cache') })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     expect(recordedWarnings.some(warning => warning.includes('could not be cached at'))).toBe(true)
   })
 
   it.skipIf(dropInCoreExists)('keeps building when the download fails', async () => {
     const plugin = Cubism2Core({ downloadUrl: `${origin}/gone.js`, downloadSha256: coreSha256, cacheDir: cacheDirectory })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: 'null' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: 'null' } })
     expect(recordedWarnings.some(warning => warning.includes('HTTP 404'))).toBe(true)
   })
 
   it.skipIf(dropInCoreExists)('never requests a custom URL that has no checksum', async () => {
     const plugin = Cubism2Core({ downloadUrl: `${origin}/core.js`, cacheDir: cacheDirectory })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: 'null' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: 'null' } })
     expect(requestedPaths).toEqual([])
     expect(recordedWarnings.some(warning => warning.includes('never used unverified'))).toBe(true)
   })
@@ -356,7 +386,7 @@ describe('cubism2 core download', () => {
     process.env.AIRI_CUBISM2_CORE_URL = `${origin}/core.js`
     process.env.AIRI_CUBISM2_CORE_URL_SHA256 = coreSha256
 
-    expect(await runConfigHook(Cubism2Core({ cacheDir: cacheDirectory }))).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(Cubism2Core({ cacheDir: cacheDirectory }))).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     expect(requestedPaths).toEqual(['/core.js'])
   })
 
@@ -364,7 +394,7 @@ describe('cubism2 core download', () => {
     process.env.AIRI_CUBISM2_CORE_URL = `${origin}/core.js`
     process.env.AIRI_CUBISM2_CORE_URL_SHA256 = coreSha256
 
-    expect(await runConfigHook(Cubism2Core({ downloadUrl: false, cacheDir: cacheDirectory }))).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: 'null' } })
+    expect(await runConfigHook(Cubism2Core({ downloadUrl: false, cacheDir: cacheDirectory }))).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: 'null' } })
     expect(requestedPaths).toEqual([])
   })
 
@@ -374,7 +404,7 @@ describe('cubism2 core download', () => {
 
     const plugin = Cubism2Core({ sourcePath: localCorePath, downloadUrl: `${origin}/core.js`, downloadSha256: coreSha256, cacheDir: cacheDirectory })
 
-    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_URL__: '"/assets/js/live2d.min.js"' } })
+    expect(await runConfigHook(plugin)).toEqual({ define: { __AIRI_CUBISM2_CORE_PATH__: '"assets/js/live2d.min.js"' } })
     expect(requestedPaths).toEqual([])
   })
 })

@@ -85,7 +85,14 @@ warning naming the cause. In that state Cubism 2 imports receive an actionable
 validation warning instead of failing at runtime.
 
 However the core is obtained, the plugin serves it in development and emits it
-as `assets/js/live2d.min.js` in production. It remains subject to the
+as `assets/js/live2d.min.js` in production, and reports that path through the
+`__AIRI_CUBISM2_CORE_PATH__` define. The path is relative to the app's base URL,
+so consumers must resolve it against `import.meta.env.BASE_URL` rather than
+treating it as root-anchored — packaged stage-tamagotchi builds with
+`base: './'` and loads over `file://`, where a leading slash escapes the
+renderer directory.
+
+The core remains subject to the
 [Live2D SDK license](https://www.live2d.com/en/sdk/license/) and is not covered
 by AIRI's MIT license.
 

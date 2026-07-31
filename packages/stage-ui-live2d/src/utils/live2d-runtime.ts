@@ -2,7 +2,29 @@ import type * as Live2DDisplay from 'pixi-live2d-display'
 
 import { errorMessageFrom } from '@moeru/std'
 
-declare const __AIRI_CUBISM2_CORE_URL__: string | null
+/**
+ * Path of the emitted Cubism 2 core relative to the app base, or `null` in a
+ * build that carries no core. Injected by the `Cubism2Core` Vite plugin.
+ */
+declare const __AIRI_CUBISM2_CORE_PATH__: string | null
+
+/**
+ * Resolves the emitted core against the base URL the app was built for.
+ *
+ * NOTICE:
+ * The join is what makes packaged stage-tamagotchi work. Its renderer builds
+ * with `base: './'` and loads over `file://`, so a root-anchored `/assets/...`
+ * would resolve against the filesystem root rather than the renderer directory
+ * holding the asset. Because the plugin's define is a plain runtime string
+ * assigned to `script.src`, Vite cannot rewrite it the way it rewrites the same
+ * path in `index.html`, so the base has to be applied here.
+ *
+ * Vite normalises a resolved base to end in `/` (`./` for a relative base, `/`
+ * in dev and for the web and pocket apps), so concatenation is enough.
+ */
+function coreUrlFrom(path: string): string {
+  return `${import.meta.env.BASE_URL}${path}`
+}
 
 declare global {
   interface Window {
@@ -68,8 +90,8 @@ async function importCombinedRuntime(): Promise<Live2DRuntime> {
  */
 export function loadLive2DRuntime(): Promise<Live2DRuntime> {
   runtimePromise ??= (async () => {
-    const cubism2CoreUrl = typeof __AIRI_CUBISM2_CORE_URL__ === 'string'
-      ? __AIRI_CUBISM2_CORE_URL__
+    const cubism2CoreUrl = typeof __AIRI_CUBISM2_CORE_PATH__ === 'string'
+      ? coreUrlFrom(__AIRI_CUBISM2_CORE_PATH__)
       : null
 
     // NOTICE:
@@ -113,6 +135,6 @@ export function loadLive2DRuntime(): Promise<Live2DRuntime> {
 }
 
 export function isCubism2RuntimeConfigured(): boolean {
-  return typeof __AIRI_CUBISM2_CORE_URL__ === 'string'
-    && __AIRI_CUBISM2_CORE_URL__.length > 0
+  return typeof __AIRI_CUBISM2_CORE_PATH__ === 'string'
+    && __AIRI_CUBISM2_CORE_PATH__.length > 0
 }
