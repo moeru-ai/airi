@@ -48,6 +48,41 @@ describe('live2D ZIP validator', () => {
     expect(report.status).toBe('WARNING')
   })
 
+  it('accepts an archive shipping a VTube Studio pin file and a macOS settings sidecar', async () => {
+    const zip = new JSZip()
+    zip.file('hiyori/hiyori.model3.json', JSON.stringify({
+      Version: 3,
+      FileReferences: {
+        Moc: 'hiyori.moc3',
+        Textures: ['textures/hiyori_00.png'],
+      },
+    }))
+    zip.file('hiyori/hiyori.moc3', new Uint8Array([77, 79, 67, 51, 3]))
+    zip.file('hiyori/textures/hiyori_00.png', new Uint8Array([1]))
+    zip.file('hiyori/items_pinned_to_model.json', '[]')
+    zip.file('__MACOSX/hiyori/._hiyori.model3.json', new Uint8Array([0, 5, 22, 7]))
+
+    // ROOT CAUSE:
+    //
+    // The entry-point scan matched raw suffixes, so `items_pinned_to_model.json`
+    // ends with "model.json" and `__MACOSX/hiyori/._hiyori.model3.json` ends with
+    // ".model3.json" were both counted:
+    //
+    //   const model2Files = allPaths.filter(path => path.endsWith('model.json'))
+    //
+    // Three entry points tripped the exactly-one rule, so the report came back
+    // INVALID and the model selector refused an archive the loader handles.
+    //
+    // We fixed this by counting through the loader's own `isSettingsFile`, which
+    // already excludes pin files and ignored macOS entries.
+    const report = await validateLive2DZip(blobFromBytes(await zip.generateAsync({ type: 'uint8array' })))
+
+    expect(report.errors).toEqual([])
+    expect(report.status).toBe('VALID')
+    expect(report.entryPoint).toBe('hiyori/hiyori.model3.json')
+    expect(report.runtimeFamily).toBe('cubism3-plus')
+  })
+
   it('reports missing Cubism 2 references', async () => {
     const zip = new JSZip()
     zip.file('model.json', JSON.stringify({

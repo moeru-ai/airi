@@ -247,6 +247,51 @@ describe('live2d zip loader settings sanitization', () => {
     })
   })
 
+  it('imports a zip model whose archive carries an unparseable expression file', async () => {
+    const runtime = await import('pixi-live2d-display/cubism4')
+    const { configureLive2DLoaders } = await import('./live2d-zip-loader')
+    configureLive2DLoaders(runtime)
+    const { ZipLoader } = runtime
+
+    const zip = new JSZip()
+    zip.file('302301_shisihangshi/302301_shisihangshi.model3.json', createShisihangshiSettingsText())
+    zip.file('302301_shisihangshi/302301_shisihangshi.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('302301_shisihangshi/textures/302301_shisihangshi_00.png', new Uint8Array([1, 2, 3]))
+    zip.file(
+      '302301_shisihangshi/expressions/happy.exp3.json',
+      JSON.stringify({ Type: 'Live2D Expression', Parameters: [{ Id: 'ParamAngleX', Value: 30 }] }),
+    )
+    zip.file('302301_shisihangshi/expressions/truncated.exp.json', '{ "params": [')
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+
+    // ROOT CAUSE:
+    //
+    // Metadata collection parsed every expression file inside one Promise.all:
+    //
+    //   metadataSettings._expFiles = await Promise.all(paths.map(async fileName => ({
+    //     data: JSON.parse(await reader.file(fileName)!.async('text')),
+    //   })))
+    //
+    // A single malformed or stray sidecar therefore rejected createSettings and
+    // failed the whole import, even though the manifest and render assets were
+    // valid and expressions are optional. The metadata pass this replaced caught
+    // the error and only lost the metadata.
+    //
+    // We fixed this by parsing each file on its own and dropping the ones that
+    // throw, so the readable expressions still reach _expFiles.
+    const settings = await ZipLoader.createSettings(reader)
+    const { _expFiles: expressionFiles } = settings as typeof settings & {
+      _expFiles?: Array<{ name: string, fileName: string, data: unknown }>
+    }
+
+    expect(settings.url).toBe('302301_shisihangshi/302301_shisihangshi.model3.json')
+    expect(expressionFiles).toHaveLength(1)
+    expect(expressionFiles?.[0].name).toBe('happy')
+    expect(expressionFiles?.[0].fileName).toBe('302301_shisihangshi/expressions/happy.exp3.json')
+  })
+
   it('reports how to supply the Cubism 2 core when a legacy model.json reaches a Cubism 3+ only build', async () => {
     const runtime = await import('pixi-live2d-display/cubism4')
     const { configureLive2DLoaders } = await import('./live2d-zip-loader')

@@ -4,6 +4,7 @@ import { errorMessageFrom } from '@moeru/std'
 
 import { decodeZipFileName } from './decode-zip-filename'
 import { isCubism2RuntimeConfigured } from './live2d-runtime'
+import { isSettingsFile } from './live2d-zip-loader'
 
 export type Live2DRuntimeFamily = 'cubism2' | 'cubism3-plus'
 
@@ -108,8 +109,15 @@ function cubism3References(json: Record<string, unknown>): Array<[string, string
 export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer(), { decodeFileName: decodeZipFileName })
   const allPaths = Object.keys(zip.files).filter(path => !zip.files[path].dir)
-  const model3Files = allPaths.filter(path => path.endsWith('.model3.json'))
-  const model2Files = allPaths.filter(path => path.endsWith('model.json'))
+
+  // Count entry points exactly the way the loader selects one. A raw suffix scan
+  // would also claim VTube Studio's `items_pinned_to_model.json` and macOS
+  // `__MACOSX/._*.model3.json` sidecars — both end in `model.json` — and report
+  // the archive as having several entry points, which the model selector blocks
+  // from being imported even though the runtime loads it fine.
+  const settingsFiles = allPaths.filter(isSettingsFile)
+  const model3Files = settingsFiles.filter(path => path.endsWith('.model3.json'))
+  const model2Files = settingsFiles.filter(path => !path.endsWith('.model3.json'))
 
   const report: Live2DValidationReport = {
     fileName: (file as File).name || 'live2d-model.zip',

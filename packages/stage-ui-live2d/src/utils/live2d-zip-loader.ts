@@ -4,6 +4,8 @@ import type { Live2DRuntime } from './live2d-runtime'
 
 import JSZip from 'jszip'
 
+import { errorMessageFrom } from '@moeru/std'
+
 import { decodeZipFileName } from './decode-zip-filename'
 import { isCubism2RuntimeConfigured } from './live2d-runtime'
 
@@ -117,8 +119,21 @@ function createModelSettings(text: string, url: string): ModelSettings {
 interface Live2DModelMetadata {
   /** Parsed `.cdi3.json`, absent for Cubism 2 archives and Cubism 3+ archives that ship none. */
   _cdiData?: unknown
-  /** Every `.exp.json` / `.exp3.json` in the model, each named by its extension-stripped basename. */
+  /**
+   * Every readable `.exp.json` / `.exp3.json` in the model, each named by its
+   * extension-stripped basename. Files that fail to parse are left out rather
+   * than failing the load; see {@link collectMetadata}.
+   */
   _expFiles?: Array<{ name: string, fileName: string, data: unknown }>
+}
+
+/**
+ * One metadata candidate, decoupled from the loader that produced it: `ZipLoader`
+ * reads through JSZip while `FileLoader` reads OPFS-restored `File`s.
+ */
+interface MetadataSource {
+  path: string
+  readText: () => Promise<string>
 }
 
 function isExpressionPath(path: string): boolean {
@@ -134,44 +149,52 @@ function expressionNameOf(path: string): string {
   return basename(path).replace(/\.exp3?\.json$/i, '')
 }
 
-async function collectArchiveMetadata(reader: JSZip, settings: ModelSettings, filePaths: string[]) {
-  const metadataSettings = settings as ModelSettings & Live2DModelMetadata
-
-  // The caller passes raw ZIP entries, which still include macOS AppleDouble
-  // sidecars. Those carry binary payloads under a JSON-looking name, so parsing
-  // one throws; OPFS strips them before the File[] path ever sees them.
-  const modelPaths = filePaths.filter(path => !shouldIgnoreLive2DArchiveEntry(path))
-
-  const cdiPath = modelPaths.find(isCdiPath)
-  if (cdiPath)
-    metadataSettings._cdiData = JSON.parse(await reader.file(cdiPath)!.async('text'))
-
-  metadataSettings._expFiles = await Promise.all(modelPaths.filter(isExpressionPath).map(async fileName => ({
-    name: expressionNameOf(fileName),
-    fileName,
-    data: JSON.parse(await reader.file(fileName)!.async('text')),
-  })))
+/**
+ * Reads one metadata payload, reporting an unparseable file as "no metadata
+ * here" instead of throwing.
+ *
+ * Returns a wrapper rather than the value itself so a legitimately parsed
+ * `null` stays distinguishable from a failed read.
+ */
+async function readOptionalJSON(source: MetadataSource): Promise<{ data: unknown } | undefined> {
+  try {
+    return { data: JSON.parse(await source.readText()) }
+  }
+  catch (error) {
+    console.warn(`[Live2D] Ignoring unreadable metadata file "${source.path}":`, errorMessageFrom(error))
+    return undefined
+  }
 }
 
 /**
- * `collectArchiveMetadata` for the OPFS-restored `File[]` path, where entries
- * are read through the File API instead of JSZip.
+ * Collects the optional `.cdi3.json` and expression payloads AIRI attaches to
+ * `ModelSettings`, for whichever loader supplied the sources.
+ *
+ * Parse failures are per-file and non-fatal. This metadata decorates a model
+ * that its settings file and render assets already describe completely, and the
+ * expression initializer skips individual expressions it cannot use, so letting
+ * one malformed or stray sidecar reject `createSettings` would turn an optional
+ * problem into a failed import of the entire model.
  */
-async function collectDirectoryMetadata(files: File[], settings: ModelSettings) {
-  const metadataSettings = settings as ModelSettings & Live2DModelMetadata
-  const pathOf = (file: File) => file.webkitRelativePath || file.name
+async function collectMetadata(sources: MetadataSource[]): Promise<Live2DModelMetadata> {
+  const metadata: Live2DModelMetadata = {}
 
-  const cdiFile = files.find(file => isCdiPath(pathOf(file)))
-  if (cdiFile)
-    metadataSettings._cdiData = JSON.parse(await cdiFile.text())
+  const cdiSource = sources.find(source => isCdiPath(source.path))
+  if (cdiSource) {
+    const parsed = await readOptionalJSON(cdiSource)
+    if (parsed)
+      metadata._cdiData = parsed.data
+  }
 
-  metadataSettings._expFiles = await Promise.all(
-    files.filter(file => isExpressionPath(pathOf(file))).map(async file => ({
-      name: expressionNameOf(pathOf(file)),
-      fileName: pathOf(file),
-      data: JSON.parse(await file.text()),
-    })),
+  const expressions = await Promise.all(
+    sources.filter(source => isExpressionPath(source.path)).map(async (source) => {
+      const parsed = await readOptionalJSON(source)
+      return parsed && { name: expressionNameOf(source.path), fileName: source.path, data: parsed.data }
+    }),
   )
+  metadata._expFiles = expressions.filter(expression => expression != null)
+
+  return metadata
 }
 
 /**
@@ -195,7 +218,15 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
       sanitizeModelSettingsText(await reader.file(settingsPath)!.async('text')),
       settingsPath,
     )
-    await collectArchiveMetadata(reader, settings, filePaths)
+    // Raw ZIP entries still include macOS AppleDouble sidecars, which carry a
+    // binary payload under a JSON-looking name. OPFS strips them before the
+    // File[] path below ever sees one.
+    Object.assign(settings, await collectMetadata(
+      filePaths
+        .filter(path => !shouldIgnoreLive2DArchiveEntry(path))
+        .map(path => ({ path, readText: () => reader.file(path)!.async('text') })),
+    ))
+
     return settings
   }
 
@@ -231,7 +262,10 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
     const settingsUrl = settingsFile.webkitRelativePath || settingsFile.name
     const settings = createModelSettings(await FileLoader.readText(settingsFile), settingsUrl)
     Object.assign(settings, { _objectURL: URL.createObjectURL(settingsFile) })
-    await collectDirectoryMetadata(files, settings)
+    Object.assign(settings, await collectMetadata(
+      files.map(file => ({ path: file.webkitRelativePath || file.name, readText: () => file.text() })),
+    ))
+
     return settings
   }
   FileLoader.readText = async (file: File) => {

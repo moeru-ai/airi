@@ -48,6 +48,25 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
 
 export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 
+/**
+ * Picks the motion group a model actually idles on, given its motion definitions.
+ *
+ * Cubism 2 archives name the group freely — `idle`, `Idle`, `idle01`, `idle_01`
+ * — while the SDK only ever looks up the single name held in
+ * `motionManager.groups.idle`. Every idle-gated plugin below keys off that
+ * lookup through `ctx.isIdleMotion`, so a model whose group is spelled
+ * differently reads as permanently non-idle: no idle gaze, no forced blink, no
+ * idle-disable handling.
+ *
+ * Returns `undefined` when nothing matches, which leaves the SDK default in place.
+ */
+export function resolveIdleMotionGroup(definitions: Record<string, unknown>): string | undefined {
+  // The separator is optional because both `idle01` and `idle_01` ship in the
+  // wild; the trailing digits are optional because a bare `idle` is the most
+  // common spelling of all.
+  return Object.keys(definitions).find(group => /^idle[-_]?\d*$/i.test(group))
+}
+
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']

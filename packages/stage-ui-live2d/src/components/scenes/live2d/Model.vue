@@ -17,6 +17,7 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  resolveIdleMotionGroup,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -291,11 +292,9 @@ async function loadModel() {
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
-    // Cubism 2 archives name the idle group freely — `idle`, `Idle`, `idle_01`
-    // — while the SDK only ever looks up the one name in `groups.idle`. Point it
-    // at whatever this model actually ships, otherwise every idle-gated plugin
-    // below treats the model as permanently non-idle.
-    const detectedIdleGroup = Object.keys(motionManager.definitions).find(group => /^idle\d*$/i.test(group))
+    // Point `groups.idle` at whatever this model actually ships, otherwise every
+    // idle-gated plugin below treats the model as permanently non-idle.
+    const detectedIdleGroup = resolveIdleMotionGroup(motionManager.definitions)
     if (detectedIdleGroup)
       motionManager.groups.idle = detectedIdleGroup
 

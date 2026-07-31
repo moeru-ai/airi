@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import {
+  resolveIdleMotionGroup,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginIdleDisable,
@@ -70,6 +71,29 @@ function createContext(overrides: Partial<MotionManagerPluginContext> = {}): Mot
 
   return Object.assign(context, overrides) as unknown as MotionManagerPluginContext
 }
+
+describe('idle motion group detection', () => {
+  it('matches the separator forms Cubism 2 archives ship', () => {
+    // ROOT CAUSE:
+    //
+    // The detector was `/^idle\d*$/i`, which rejects the underscored `idle_01`
+    // that the comment beside it already listed as a supported spelling. Those
+    // archives kept the SDK default in `motionManager.groups.idle`, so once the
+    // shipped idle motion started, `useLive2DMotionManagerUpdate` computed
+    // isIdleMotion === false and skipped every idle-gated plugin: idle gaze,
+    // forced blinking, and idle-disable handling.
+    //
+    // We fixed this by allowing an optional `-`/`_` before the index.
+    expect(resolveIdleMotionGroup({ idle_01: [] })).toBe('idle_01')
+    expect(resolveIdleMotionGroup({ 'idle-01': [] })).toBe('idle-01')
+    expect(resolveIdleMotionGroup({ idle01: [] })).toBe('idle01')
+    expect(resolveIdleMotionGroup({ Idle: [] })).toBe('Idle')
+  })
+
+  it('leaves the SDK default in place when no group looks like an idle group', () => {
+    expect(resolveIdleMotionGroup({ tap_body: [], idlest: [] })).toBeUndefined()
+  })
+})
 
 describe('live2d motion manager plugins', () => {
   /**
