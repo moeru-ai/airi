@@ -188,7 +188,19 @@ export function createEmotionOverlayPlugin(options: EmotionOverlayOptions): Moti
 
       const next = base + offset
       coreModel.setParameterValueById(parameterId, next)
-      applied.set(parameterId, { written: next, base })
+
+      // NOTICE:
+      // Cubism clamps to the parameter's declared range, so the model may not
+      // hold the value that was just written — `ParamEyeLOpen` tops out at 1
+      // and an arousal offset pushes past it. Recording the unclamped number
+      // would make the next frame's comparison fail, the record be dropped as
+      // "someone else changed it", and the parameter stay stuck at the ceiling
+      // instead of returning to base. Store what the model actually kept.
+      const effective = coreModel.getParameterValueById(parameterId) as number
+      applied.set(parameterId, {
+        written: Number.isFinite(effective) ? effective : next,
+        base,
+      })
     }
   }
 }
