@@ -87,15 +87,15 @@ export function rateLimiter(opts: RateLimitOptions) {
 }
 
 /**
- * Returns Railway's canonical client address only for a request received from
- * its internal proxy network.
+ * Returns Railway's canonical client address only when proxy trust is enabled
+ * and the request was received from an internal proxy address.
  *
  * Before:
  * - a client could send `X-Forwarded-For: 203.0.113.1` and choose its bucket
  *
  * After:
- * - `X-Real-IP` is used only when Railway's edge marker and an internal socket
- *   prove the request traversed the configured Railway proxy boundary
+ * - `X-Real-IP` is used only when the explicit deployment setting and an
+ *   internal socket establish the configured Railway proxy boundary
  */
 function getTrustedProxyClientAddress(c: Context<HonoEnv>, trustedProxy: RateLimitOptions['trustedProxy']): string | undefined {
   if (trustedProxy !== 'railway')
@@ -103,9 +103,8 @@ function getTrustedProxyClientAddress(c: Context<HonoEnv>, trustedProxy: RateLim
 
   try {
     const remoteAddress = getConnInfo(c).remote?.address
-    const edge = c.req.header('x-railway-edge')
     const clientAddress = c.req.header('x-real-ip')?.trim()
-    if (!isRailwayInternalAddress(remoteAddress) || !edge?.startsWith('railway/') || !clientAddress || isIP(clientAddress) === 0)
+    if (!isRailwayInternalAddress(remoteAddress) || !clientAddress || isIP(clientAddress) === 0)
       return undefined
 
     return clientAddress

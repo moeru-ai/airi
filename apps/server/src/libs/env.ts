@@ -5,7 +5,7 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
+import { check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform } from 'valibot'
 
 /**
  * Parses `ADDITIONAL_TRUSTED_ORIGINS`: comma-separated absolute origins used for
@@ -79,6 +79,11 @@ const EnvSchema = object({
   PORT: optionalIntegerFromString(3000, 'PORT', 1),
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
+
+  // Trust Railway's canonical client-IP headers only when the application is
+  // deployed behind a private reverse-proxy boundary. Keep unset for direct or
+  // self-hosted deployments so callers cannot choose their own rate-limit key.
+  RATE_LIMIT_TRUSTED_PROXY: optional(picklist(['railway'])),
 
   // Standalone auth UI base URL. The server keeps `/auth/*` as the historical
   // entrypoint and redirects those requests here after ui-server-auth moved out

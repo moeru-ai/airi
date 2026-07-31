@@ -53,7 +53,17 @@ describe('parseEnv', () => {
       'ai.moeru.airi-pocket',
       'ai.moeru.airi-pro',
     ])
+    expect(env.RATE_LIMIT_TRUSTED_PROXY).toBeUndefined()
     expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('line-one\nline-two')
+  })
+
+  it('parses an explicit Railway rate-limit proxy boundary', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      RATE_LIMIT_TRUSTED_PROXY: 'railway',
+    })
+
+    expect(env.RATE_LIMIT_TRUSTED_PROXY).toBe('railway')
   })
 
   it('allows Apple auth to remain disabled when no Apple credentials are configured', () => {
