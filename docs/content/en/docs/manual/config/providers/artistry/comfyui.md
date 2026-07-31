@@ -30,7 +30,7 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 ## Verify configuration
 
 1. In **Settings → Modules → Consciousness**, select a chat model that supports tool calling. AIRI needs the model to invoke the Artistry tool before ComfyUI receives a generation task.
-2. Open **Settings → Modules → Artistry** and select **ComfyUI**.
+2. Open **Settings → Modules → Artistry** and select **ComfyUI (Local)**.
 3. Return to chat and ask AIRI to generate a non-sensitive image.
 4. Confirm that the task appears in ComfyUI's Queue or History. A returned image confirms that the connection, active workflow, exposed fields, and chat-model tool call work.
 
@@ -39,4 +39,4 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 - **Test Connection fails:** Confirm that ComfyUI is running and that the **Server URL**, port, and network route are correct.
 - **The browser reports a cross-origin error:** Restart ComfyUI with the CORS options shown on AIRI's ComfyUI provider page.
 - **The workflow fails in ComfyUI:** Import the API-format workflow JSON, then confirm that every referenced custom node and model is installed.
-- **No task appears in Queue or History:** Confirm that the selected chat model supports tool calling and that **Settings → Modules → Artistry** is set to **ComfyUI**. Text-only models that cannot call tools cannot start an Artistry task.
+- **No task appears in Queue or History:** For the interactive Artistry flow, confirm that the selected chat model supports tool calling and that **Settings → Modules → Artistry** is set to **ComfyUI (Local)**. Text-only models that cannot call tools cannot start an interactive Artistry task.

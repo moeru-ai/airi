@@ -15,7 +15,7 @@ The chat model is AIRI's “brain.” To generate text replies, AIRI needs eithe
 
 1. Open **Settings → Providers → Chat** and select the provider you want to use.
 
-When you are not sure which one to choose, start with [OpenRouter](./providers/consciousness/openrouter.md), [DeepSeek](./providers/consciousness/deepseek.md), [OpenAI Compatible API](./providers/consciousness/openai.md), or local [Ollama](./providers/consciousness/ollama.md). Other chat providers are listed under **Providers → Chat**.
+When you are not sure which one to choose, start with [OpenRouter](./providers/consciousness/openrouter.md), [DeepSeek](./providers/consciousness/deepseek.md), [OpenAI Compatible](./providers/consciousness/openai.md), or local [Ollama](./providers/consciousness/ollama.md). Other chat providers are listed under **Providers → Chat**.
 
 2. Enter the API Key. Change the Base URL in advanced settings only when the provider's documentation requires another address.
 

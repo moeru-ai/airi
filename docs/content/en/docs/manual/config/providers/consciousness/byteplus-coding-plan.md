@@ -20,7 +20,7 @@ Do not commit API keys or endpoint credentials, include them in screenshots, or 
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Chat → BytePlus Coding Plan** and enter the API key.
-2. Keep the default Base URL unless the Coding Plan documentation provides another compatible API root. Models come from AIRI's static provider list; this form has no endpoint or model field.
+2. Keep the default **Base URL** unless the Coding Plan documentation provides another compatible API root. Models come from AIRI's static provider list; this form has no Endpoint ID or model field.
 
 ## Verify configuration
 

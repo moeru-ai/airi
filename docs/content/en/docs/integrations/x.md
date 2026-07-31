@@ -12,7 +12,7 @@ Do not enter an API Key, API Secret, Access Token, or Access Token Secret in the
 
 ## Current limitation
 
-The AIRI module publishes configuration under the module name `twitter`, while the external service listens for `x`. The external service also runs as a separate process and is not started by AIRI. Until the module identifiers and service lifecycle are wired together, saving the form cannot enable X features.
+The AIRI module publishes configuration under the module name `twitter`, while the external service expects `x`. The channel protocols also disagree: the server forwards configuration as `module:configure` with a `{ config }` payload, but the service listens for `ui:configure` and expects a `moduleName` field. The external service also runs as a separate process and is not started by AIRI. Fixing only the module name or starting the service manually is therefore not enough to make the form work.
 
 There is no supported end-user workaround. Contributors investigating the implementation can compare:
 

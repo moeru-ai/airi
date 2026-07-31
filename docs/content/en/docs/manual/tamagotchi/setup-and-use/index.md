@@ -69,7 +69,7 @@ Complete the initial configuration as follows:
 
 1. Open AIRI and start the onboarding flow.
 2. On the welcome screen, optionally click the <span class="i-lucide:globe inline-block align-[-0.125em]" aria-hidden="true"></span> **globe button** in the upper-right corner to change the interface language.
-3. Select **Setup with your provider** to use your own provider, or **Sign in** to use AIRI's official provider. If you are unsure which provider to use, start with [AIRI Official Provider](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), [OpenAI Compatible Provider](../../config/providers/consciousness/openai.md), or a local [Ollama](../../config/providers/consciousness/ollama.md) instance.
+3. Select **Setup with your provider** to use your own provider, or **Sign in** to use AIRI's official provider. If you are unsure which provider to use, start with [AIRI Official Provider](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), [OpenAI Compatible](../../config/providers/consciousness/openai.md), or a local [Ollama](../../config/providers/consciousness/ollama.md) instance.
 4. If you use your own provider:
     1. Select the provider you would like to use and click **Next**.
     2. Enter your API key, change the Base URL if necessary, and click **Next**.
@@ -128,7 +128,7 @@ Find the AIRI icon in the Windows taskbar or macOS menu bar.
 ::: tip If you can't find the taskbar/menu bar icon...
 On Windows, you may need to click "Show hidden icons (⌃)" on the taskbar to expand it to find the AIRI icon.
 
-On macOS, icons may be hidden behind the notch (especially on MacBook built-in displays). At this point, some existing menu bar icons need to be hidden. You can open System Settings → Menu Bar to show or hide menu icons.
+On a MacBook with a display notch, the AIRI icon may not fit in the visible menu bar. Open **System Settings → Menu Bar** and hide another menu bar item to make room.
 :::
 
 Right-click the AIRI icon to open the tray menu. The available entries depend on the current platform and app state:
@@ -147,7 +147,7 @@ Right-click the AIRI icon to open the tray menu. The available entries depend on
   - **Bottom Right** — Align to the lower-right corner of the desktop.
 - **Settings...** — open the settings interface.
 - **About...** — open the About window to view the version, visit the project homepage, update AIRI, or select the update channel.
-- **Open Inlay...** — open a floating input box. Enter a request and press Enter; AIRI hides the box and displays the result as a notification. Press Esc to cancel.
+- **Open Inlay...** — open an experimental window for testing Electron vibrancy and background-material effects. It is not the Spotlight prompt.
 - **Open Widgets...** — open the widget window. Widgets supplied by maps, weather, art, or extensions appear here; the window may be empty when no corresponding tool or extension is running.
 - **Open Caption...** / **Close Caption...** — open or close captions. When TTS is enabled, captions display AIRI's spoken text and are hidden by default while the pointer hovers over them.
 - **Caption Overlay** — contains two options:
@@ -192,7 +192,7 @@ You can click **Expand** in the main window and then select **Open Chat** to ope
 
 Here you can chat with AIRI. After speech synthesis is enabled, **Stop speaking** appears while AIRI is reading a reply; clicking it stops the current speech playback without cancelling the generated text reply.
 
-Click **Conversations** on the left side of the input area, or click the chat-window title, to open the conversation list. The list shows the preview and synchronization status of each conversation according to the last updated time; you can switch, delete conversations, or create new conversations for the current character. Deletion is usually unrecoverable, so confirm that the content is no longer needed.
+Click **Conversations** in the chat-window title bar, or click the title itself, to open the conversation list. The list shows the preview and synchronization status of each conversation according to the last updated time; you can switch, delete conversations, or create new conversations for the current character. Deletion is usually unrecoverable, so confirm that the content is no longer needed.
 
 <a id="chapter-4-settings"></a>
 ## Chapter 4: Settings
@@ -225,16 +225,16 @@ To create a character card:
 
 The most important part of the identity is the name and description:
 
-- The name is the official name of the character. If a nickname is set, the nickname will be used first.
+- The name is the character name currently shown by AIRI. Although Character Card V3 supports a `nickname` field, the current interface and runtime still display `name`.
 - The description is the specific details about the character. You can play with it freely, or you can refer to the default character card.
 
-::: info Editor’s addition
-- If you choose to refer to the default character card to write your own character's settings, the second half of the content about the ACT tag does not need to be added.
+::: info Editor's notes
+- The default ReLU prompt explains AIRI's `ACT` tokens for stage emotions and actions. Keep equivalent instructions in a custom card if you want the model to control those behaviors; omitting them can reduce or remove action and emotion output.
 - Creator notes are only notes for character cards and will not affect the AIRI response results.
 - Behavior defines personality, scenario, and greetings. Modules can specify chat, Vision, Speech, and display-model preferences. Artistry stores image-generation preferences. Settings contains the system prompt, post-history instructions, and card version.
 :::
 
-::: warning requires manual activation
+::: warning Requires manual activation
 Creating a character card does not activate it automatically. Use the card's activation control before starting a conversation with it.
 :::
 
@@ -315,12 +315,14 @@ Here you can configure AIRI's ability to create art.
 
 Open **Settings → Providers → Artistry** to configure an image provider, then enable it under **Settings → Modules → Artistry**.
 
-::: warning Please use a chat model that supports tool calls
-Artistic creation does not generate images directly from the character: AIRI makes the configured image tool available to the current **chat model**, which calls the tool to submit the generation task. Therefore, the chat provider and model must support **Tool Calling / Function Calling**.
+::: warning Tool calling for interactive Artistry
+In the ordinary interactive Artistry flow, AIRI makes the configured image tool available to the current **chat model**, which calls the tool to submit the generation task. This flow requires a provider and model that support **Tool Calling / Function Calling**.
 
 Under **Settings → Modules → Consciousness**, select a model that the provider explicitly marks as supporting tool calling. Models limited to ordinary text conversations may respond with text without submitting a task to the selected image service.
 
 After configuration, ask the character to generate a simple image. Confirm that AIRI initiates a tool call; if the provider offers task status, history, or a console, you can also confirm that it received the task. AIRI displays the result after the task completes and returns an image. See the corresponding page under **Settings → Providers → Artistry** for provider-specific verification.
+
+The character-card option **Cinematic Autonomy (Autonomous Artist)** uses a separate text-analysis flow and invokes the selected image provider directly, so that mode does not require LLM tool calling.
 :::
 
 #### Short-term memory
@@ -337,11 +339,11 @@ Discord integration requires running the bot service from source to allow AIRI t
 
 1. Create a Discord application and enable the required Intents described in the [Discord Bot Integration Guide](/en/docs/integrations/discord).
 2. Start the Discord bot service from the repository.
-3. In AIRI, open **Settings → Modules → Discord**, enter **Discord Bot Token**, turn on **Enable Discord Integration**, and click **Save**. The running bot service receives this configuration from AIRI.
-4. Configure the remaining bot-service settings described in the integration guide.
+3. In AIRI, open **Settings → Connection** and copy the **Auth Token** into the bot service configuration.
+4. Open **Settings → Modules → Discord**, enter the **Bot Token**, turn on **Enable Discord Integration**, and click **Save**. The running bot service receives this configuration from AIRI.
 
 ::: warning Credential security
-Discord Bot Token, Model API Key, and Speech Service Credentials should only be saved in the local configuration file. Do not submit, screenshot, or send these configurations.
+The Bot Token, AIRI Auth Token, and optional transcription credentials should only be saved in local configuration. Do not submit, screenshot, or send these values.
 :::
 
 #### X / Twitter
@@ -356,7 +358,7 @@ Open **Settings → Modules → Web Search**, then follow the [Web Search Config
 
 Minecraft integration requires running a local agent service from source. Follow the [Minecraft Agent Integration Guide](/en/docs/integrations/minecraft) to configure the trusted server, AIRI, and model services, and then start the agent.
 
-::: warning security reminder
+::: warning Security reminder
 Do not connect Minecraft agents to untrusted public servers. It drives local Minecraft sessions and network connections, and malicious servers can cause unexpected behavior.
 :::
 
@@ -394,7 +396,7 @@ Here you can select and set up your character's model.
 
 ![AIRI character model settings](./assets/manual-models.avif)
 
-AIRI supports Live2D, Spine 2D and VRM 3D models.
+AIRI supports Live2D, Spine 2D, VRM 3D, MMD, and Tachie models.
 
 If you just want to switch an existing model, we recommend the following steps:
 
@@ -402,16 +404,22 @@ If you just want to switch an existing model, we recommend the following steps:
 2. Click **Pick** on the model you want to use.
 3. Click **Confirm** to complete the switch.
 
-To import your own model, open **Model Selector** and use **Import**. The selector currently supports ZIP packages for Live2D and Spine, VRM files, and ZIP packages for MMD models.
+To import your own model, open **Model Selector** and use **Import**. The selector accepts:
+
+- Live2D: `.zip`
+- VRM: `.vrm`
+- Spine: `.zip`
+- MMD: `.zip`, `.pmx`, or `.pmd`
+- Tachie: `.tachie.zip`
 
 ::: info Godot Stage (Experimental)
 **Switch to Godot Stage (Experimental)** starts the separate Godot stage renderer; click **Back to Built-in Stage** to switch back. Godot Stage currently supports only VRM models. With a VRM model selected, you can adjust camera X/Y/Z, yaw, pitch, and field of view in Godot View. Status and model-loading errors also appear there.
 :::
 
 ::: warning Please pay attention before importing the model
-- Older Live2D models are not supported, please select files including "\*.moc3".
-- Before importing the Live2D model, you need to compress the "model folder" into a "\*.zip" file before importing it.
-- Spine models also need to be imported as "\*.zip"; VRM uses a single "\*.vrm" file.
+- Older Live2D formats are not supported. The model package must include a `.moc3` file.
+- Compress the complete Live2D model folder as a `.zip` file before importing it.
+- Spine models also use `.zip`; VRM uses a single `.vrm` file.
 :::
 
 #### If you select a Live2D model
@@ -423,9 +431,9 @@ You can continue to adjust in the following order:
 3. To use an idle animation, ensure that the imported package includes animation files.
 4. Expand **Expressions** and enable **Expression System** to use expressions included with the model.
 
-When speech synthesis is enabled, AIRI automatically restores Live2D's mouth state after reading.
+When speech synthesis is enabled, AIRI automatically restores Live2D's mouth state after speech playback.
 
-::: info parameters and expressions
+::: info Parameters and expressions
 The parameters, standby animations and expressions available to the model are determined by the model file itself. After the Expression System is enabled, only the expressions actually provided by the model will be displayed; if there are no expressions or animation files, the corresponding options will have no effect.
 :::
 
@@ -477,7 +485,7 @@ API Keys, AccessKey Secrets, and other service credentials should only be saved 
 ![AIRI service provider settings](./assets/manual-providers.avif)
 
 ::: tip Technical advice
-The provider list depends on the installed AIRI version. If an unlisted provider implements an OpenAI-compatible interface, use the corresponding **OpenAI Compatible API** entry and enter the exact Base URL and model ID from that provider's documentation.
+The provider list depends on the installed AIRI version. If an unlisted provider implements an OpenAI-compatible interface, use the corresponding **OpenAI Compatible** entry and enter the exact Base URL and model ID from that provider's documentation.
 :::
 
 <a id="chapter-4-data"></a>
@@ -535,12 +543,12 @@ Configure AIRI's theme colors here.
 - Below it is a preview of the color effect.
 - You can also directly select the preset below to change the theme color.
 
-::: tip color presets
+::: tip Color presets
 Click a color swatch to apply its preset.
 :::
 
 #### Window Shortcuts
-Here you can modify the **Spotlight** global shortcut keys. Spotlight is the floating input box used by Open Quick Actions.
+Here you can modify the **Spotlight** global shortcut. Spotlight is AIRI's floating prompt input.
 
 1. Click the current shortcut key.
 2. Press the new key combination you want to use; it must contain at least one modifier key: Cmd, Ctrl, Alt, or Super.
@@ -548,7 +556,7 @@ Here you can modify the **Spotlight** global shortcut keys. Spotlight is the flo
 4. Click **Reset** to restore the default shortcut.
 
 ::: tip Use Spotlight
-Pressing the set shortcut key will open the quick operation input box. Press Enter after entering the request to send it to AIRI, or Esc to close.
+Press the configured shortcut to open Spotlight. Enter a request and press Enter; AIRI hides Spotlight and displays the result in a notification. Press Esc to close it without sending.
 :::
 
 #### Developer
@@ -589,8 +597,10 @@ Flux is the balance used by AIRI's official services. After signing in, open **F
 
 ##### Lower area
 
-The lower-right controls provide four actions:
+The lower-right controls provide six actions:
 
+- open saved conversations;
+- mute or unmute speech output;
 - adjust character position and size;
 - clear the current conversation;
 - switch between light and dark themes;

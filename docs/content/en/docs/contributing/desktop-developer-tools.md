@@ -20,7 +20,8 @@ Choose a tool based on what you need to investigate:
 | What you need to check | Start with |
 | --- | --- |
 | Page errors, element styles, or network requests | Open Developer Tools |
-| Lag or broken transition animations | Lag Visualizer and the animation switches |
+| Three.js or VRM rendering diagnostics | Lag Visualizer |
+| Broken transition animations | the animation switches |
 | Keyboard, mouse, display, or global-shortcut behavior | useMagicKeys, mouse/display tools, or Global Shortcut |
 | Chat context, WebSockets, or real-time transcription | Context Flow, WebSocket Inspector, or Aliyun Real-time Transcriber |
 | Plugin discovery, loading, or unloading | Plugin Host Debug |
@@ -41,11 +42,11 @@ This tool renders high-volume Markdown in a separate window to test long passage
 
 ### IO Tracer
 
-IO Tracer opens a diagnostic window for input and output events. Use it to check whether an action produces the expected events or state changes. Event payloads can contain contextual data, so open it only when needed and avoid sharing complete traces.
+IO Tracer shows the timing spans for interaction turns across ASR, LLM, Streaming Control, TTS, and Playback. Use it to locate delays or missing stages in the voice-and-chat pipeline. Trace data can contain contextual information, so open it only when needed and avoid sharing complete traces.
 
 ### Lag Visualizer
 
-Lag Visualizer shows interface performance and frame timing. Use it when window movement, stage changes, character rendering, or animations stutter. It helps identify rendering load but does not optimize performance automatically. A report should include reproduction steps, device details, and the observed frame-time change.
+Lag Visualizer traces the Stage Three runtime. It reports the window lifecycle, Three.js render counts and resources, VRM frame-update timing, fade-on-hover hit tests, VRM load and disposal timing, and renderer/resource snapshots. Use it for Three.js or VRM rendering problems; it is not a general page-transition, long-task, or FPS profiler.
 
 ### Stage and page transition animations
 
@@ -75,7 +76,7 @@ Widgets Calling creates overlay widgets and validates the component props passed
 
 ### Beat Sync Visualizer
 
-Beat Sync Visualizer plots beat-synchronized V-motion targets, paths, and Y/Z scalar changes. Use it to check whether audio- or beat-driven character movement is continuous and stable, and to compare movement data produced by different inputs.
+Beat Sync Visualizer plots beat-synchronized V-motion targets, paths, and Y/Z scalar changes. Use **Hit beat** or **Hit V sequence** to inject test beats and inspect the resulting motion. This page has no audio input or automatic beat-detection path.
 
 ## Chat, real-time services, and networking
 
@@ -91,7 +92,7 @@ WebSocket Inspector displays raw WebSocket traffic. Use it for failed connection
 
 ### Aliyun Real-time Transcriber
 
-This page sends microphone audio to Alibaba Cloud NLS and displays the transcription as it arrives. It validates the full real-time speech-recognition path: microphone input, credentials, network connectivity, and transcription output. Select the correct input device and record only where you have permission.
+This page sends audio from the system's default microphone to Alibaba Cloud NLS and displays the transcription as it arrives. It validates the real-time speech-recognition path: default microphone input, credentials, network connectivity, and transcription output. The page does not provide an input-device selector, so choose the desired default microphone in the operating system before opening it. Record only where you have permission.
 
 ## Plugins, updates, and system features
 

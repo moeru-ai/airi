@@ -9,7 +9,7 @@ When AIRI opens for the first time, optionally use the globe button in the upper
 
 ### Select a Chat provider
 
-Choose a Chat provider such as OpenAI, DeepSeek, or Ollama. For another service that implements the OpenAI API, select **OpenAI Compatible API** and enter both its API key and documented Base URL. The screenshot uses SiliconFlow as an example.
+Choose a Chat provider such as OpenAI, DeepSeek, or Ollama. For another service that implements the OpenAI API, select **OpenAI Compatible** and enter both its API key and documented Base URL. The screenshot uses SiliconFlow as an example.
 
 ![AIRI provider API configuration example](/assets/screenshot-api-example.avif)
 
@@ -36,7 +36,7 @@ In addition to text dialogue, AIRI supports many forms of interaction. Open **Se
 
 Open **Settings → Providers → Speech** to configure a speech provider. Then open **Settings → Modules → Speech** and select the provider, model, and voice.
 
-### Let AIRI hear the sound
+### Enable voice input
 
 Open **Settings → Providers → Transcription** to configure a transcription provider. Then open **Settings → Modules → Hearing**, select the provider and model, and choose an available microphone. The microphone button on the main page opens the hearing controls.
 

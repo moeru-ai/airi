@@ -28,6 +28,14 @@ If you want to quickly experience AIRI without configuring a third-party API Key
 
 Flux is the balance used by AIRI official services. Any initial grant is configured by the current deployment, so check the balance shown in **Settings → Flux** rather than assuming a fixed amount.
 
+## Enable the provider
+
+1. Open **Settings → Modules → Consciousness**.
+2. Select **Official Provider** and the **Auto** model.
+3. Send a short message and confirm that AIRI replies.
+
+AIRI selects the official provider automatically only when no chat provider is already active. If you previously selected another provider, signing in does not replace that selection.
+
 ## Charge Flux
 
 Open **Settings → Flux** and choose an available package. On desktop, AIRI opens checkout in the system browser and refreshes the balance when the app regains focus. Builds or deployments with purchasing disabled do not offer checkout.

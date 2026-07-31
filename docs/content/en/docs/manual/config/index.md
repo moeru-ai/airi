@@ -26,7 +26,7 @@ After completing the chat configuration, configure the voice as needed:
 
 ## Additional setup
 
-After the service provider configuration is completed, you can also change the theme color of AIRI in the settings, or switch between Live2D (2D) and VRM (3D) models.
+After configuring a provider, you can also change AIRI's theme or switch its display model. The current model selector supports Live2D, Spine, VRM, MMD, and Tachie.
 
 <video autoplay loop muted playsinline preload="metadata" poster="/assets/tutorial-basic-open-settings-poster.avif">
  <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
@@ -36,15 +36,12 @@ When configuring a service provider, use the default address and model name from
 
 ### Change model
 
-You can replace the default model with another Live2D (2D) model or a VRM (3D) model.
+You can replace the default model with another supported 2D or 3D display model.
 
 Model settings are located in **Settings → Models**.
 
-::: tip Importing a model from VTuber Studio?
-The library we use to render Live2D models may have problems reading ZIP files packaged by VTuber Studio because VTuber Studio uses some files that the Live2D engine does not recognize.
-Therefore, when compressing a VTuber Studio model into a ZIP file before importing, make sure to exclude the following files:
-
-- `items_pinned_to_model.json`
+::: tip Importing a model from VTube Studio?
+Compress the complete Live2D model folder as a ZIP file. AIRI ignores VTube Studio's `items_pinned_to_model.json` metadata during import, so you do not need to remove it manually.
 :::
 
 <br />

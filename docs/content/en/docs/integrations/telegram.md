@@ -22,16 +22,24 @@ Keep the Telegram Bot Token, database connection, and model API keys only in the
 cp services/telegram-bot/.env services/telegram-bot/.env.local
 ```
 
-Edit **services/telegram-bot/.env.local** and provide **TELEGRAM_BOT_TOKEN**, the database connection, and the chat-model and embedding-model settings.
+Edit **services/telegram-bot/.env.local** and provide **TELEGRAM_BOT_TOKEN**, the database connection, and the chat-model and embedding-model settings. The embedding service's output size must match `EMBEDDING_DIMENSION`; supported values are `768`, `1024`, and `1536`.
 
 ## Initialize the database
 
 ```bash
 cd services/telegram-bot
-docker compose up -d
+docker compose up -d --wait pgvector
 cd ../..
 pnpm -F @proj-airi/telegram-bot db:push
 ```
+
+The repository Compose file exposes PostgreSQL on host port `5433`. When using that service, set:
+
+```env
+DATABASE_URL=postgres://postgres:123456@localhost:5433/postgres
+```
+
+Starting only `pgvector` avoids launching the optional Grafana, Tempo, Prometheus, and OpenTelemetry services.
 
 ## Start
 

@@ -21,15 +21,15 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Speech → OpenAI Compatible API**.
+1. Open **Settings → Providers → Speech → OpenAI Compatible**.
 2. Fill in the API Key and the TTS model ID to be used.
-3. For official OpenAI, select the separate **OpenAI** provider. The **OpenAI Compatible API** provider has no default Base URL; enter the complete API root documented by the compatible service.
+3. For official OpenAI, select the separate **OpenAI** provider. The **OpenAI Compatible** provider has no default Base URL; enter the complete API root documented by the compatible service.
 4. Adjust the speaking speed as needed.
 
 ## Verify configuration
 
 1. Select the configured service provider, model, and voice in **Settings → Modules → Speech**.
-2. Enter test text and click **Test**.
+2. Enter test text and click **Test Voice**.
 3. If the voice can be played normally, the configuration is successful; if an error is displayed, please check the credentials, model ID and Base URL according to the error message.
 
 ## Troubleshooting

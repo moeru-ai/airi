@@ -21,7 +21,8 @@ Real-time recognition will send the audio to the official service. Don't use tes
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Transcription → Official Transcription Provider**.
-2. Select `Auto` or the model provided by the server, and then go to **Settings → Modules → Hearing** to enable it.
+2. Confirm that the provider page is available for the signed-in account. This page does not contain the active model selector.
+3. Open **Settings → Modules → Hearing**, select **Official Transcription Provider**, and select **Auto**. The current provider exposes only the `Auto` model.
 
 ## Verify configuration
 

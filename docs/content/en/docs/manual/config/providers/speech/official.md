@@ -26,7 +26,13 @@ Available models, quotas, and regions are determined by the official service. Do
 ## Verify configuration
 
 1. Open **Settings → Modules → Speech**, select **Official Speech Provider**, and choose an available model and voice.
-2. Enter a short test sentence and confirm that AIRI plays the generated audio. If the service does not offer a streaming voice, no streaming option appears.
+2. Enter a short test sentence, click **Test Voice**, and confirm that AIRI plays the generated audio.
+
+## Optional streaming provider
+
+When the official service reports streaming TTS as available, AIRI shows a separate **Official Streaming Speech Provider** card and module option. It has its own model list and is not an option inside **Official Speech Provider**.
+
+To use it, open **Settings → Modules → Speech**, select **Official Streaming Speech Provider**, and then choose an available model and voice. AIRI does not switch an existing speech selection to the streaming provider automatically.
 
 ## Troubleshooting
 

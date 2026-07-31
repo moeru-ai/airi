@@ -27,7 +27,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. Open **Settings → Modules → Artistry** and select **Nano Banana**.
+1. Open **Settings → Modules → Artistry** and select **Nano Banana (Preview)**.
 2. Under **Settings → Modules → Consciousness**, select a chat model that supports tool/function calling.
 3. Return to chat and ask AIRI to generate a non-sensitive image.
 4. A returned image confirms that the API key, model, resolution, and tool call work.

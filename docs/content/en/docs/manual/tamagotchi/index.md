@@ -9,7 +9,7 @@ After installing and starting AIRI, complete the onboarding flow:
 
 1. On the welcome screen, optionally click the <span class="i-lucide:globe inline-block align-[-0.125em]" aria-hidden="true"></span> **globe button** in the upper-right corner to change the interface language.
 2. Select **Setup with your provider**, or select **Sign in** to use the official AIRI provider.
-3. Select a Chat provider such as OpenRouter, OpenAI Compatible API, DeepSeek, Ollama, Google Gemini, or Anthropic.
+3. Select a Chat provider such as OpenRouter, OpenAI Compatible, DeepSeek, Ollama, Google Gemini, or Anthropic.
 4. Fill in the API Key, local service address and other necessary information.
 5. Select a chat model, then select **Save and Continue**.
 6. After returning to the main character window, click **Expand** in the Controls Island in the lower-right corner.

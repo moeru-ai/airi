@@ -21,9 +21,9 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Transcription → OpenAI Compatible API**.
+1. Open **Settings → Providers → Transcription → OpenAI Compatible**.
 2. Fill in the API Key and the ASR/STT model ID to be used.
-3. For official OpenAI, select the separate **OpenAI** provider. The **OpenAI Compatible API** provider has no default Base URL; enter the complete API root documented by the compatible service.
+3. For official OpenAI, select the separate **OpenAI** provider. The **OpenAI Compatible** provider has no default Base URL; enter the complete API root documented by the compatible service.
 
 ## Verify configuration
 

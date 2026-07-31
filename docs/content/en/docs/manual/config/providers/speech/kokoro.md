@@ -6,7 +6,7 @@ description: Configuring native Kokoro speech synthesis in AIRI
 Kokoro runs speech synthesis as a native model in AIRI.
 
 ::: info Why choose Kokoro?
-If you want to process speech content locally and the device meets the model running conditions, you can choose Kokoro.
+Choose Kokoro if you want to synthesize speech locally and your device has enough resources to run the model.
 :::
 
 ## Prepare local operating environment
@@ -16,7 +16,7 @@ If you want to process speech content locally and the device meets the model run
 3. This option does not require a cloud API key, but uses local storage, memory, and compute resources.
 
 ::: warning Local resource usage
-Local models take up download space, memory, and computing resources. Do not force enable when device resources are insufficient.
+The model uses local storage, memory, and CPU or GPU resources. If the download cannot complete, memory pressure is high, or synthesis makes the device unresponsive, use a hosted speech provider instead.
 :::
 
 ## Configure in AIRI

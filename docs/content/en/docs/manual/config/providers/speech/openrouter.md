@@ -6,7 +6,7 @@ description: Configuring OpenRouter as a speech synthesis service provider in AI
 OpenRouter is an aggregation API service provider. After completing the configuration, select the model and voice provided by OpenRouter under **Settings → Modules → Speech**.
 
 ::: info Why choose OpenRouter Voice?
-Choose this provider if you want to manage multiple models and voice capabilities within the same OpenRouter account. When using AIRI in mainland China, you can try 302.AI first; actual availability still depends on your network environment, payment method, and service provider policies.
+Choose this provider if you want to manage supported speech models and voices through an OpenRouter account. Availability still depends on your network environment, payment method, and OpenRouter policies.
 :::
 
 ## Obtain API Key
@@ -28,7 +28,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 ## Verify configuration
 
 1. Select the configured provider, model, and voice under **Settings → Modules → Speech**.
-2. Enter a test text and click Test.
+2. Enter test text and click **Test Voice**.
 3. If the voice can be played normally, the configuration is successful; if an error is displayed, please check the credentials and model based on the error message.
 
 ## Troubleshooting

@@ -28,7 +28,7 @@ Do not commit, screenshot, or share API tokens. If a token is exposed, revoke it
 
 ## Verify configuration
 
-1. Open **Settings → Modules → Artistry** and select **Replicate**.
+1. Open **Settings → Modules → Artistry** and select **Replicate.ai (Cloud)**.
 2. Under **Settings → Modules → Consciousness**, select a chat model that supports tool/function calling.
 3. Return to chat and ask AIRI to generate a non-sensitive image.
 4. A returned image confirms that the token, model ID, account quota, and tool call work.

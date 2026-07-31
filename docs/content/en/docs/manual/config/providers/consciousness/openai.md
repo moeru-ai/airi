@@ -4,7 +4,7 @@ description: Configuring OpenAI or an OpenAI-compatible chat service in AIRI
 is_openai_compatible: true
 ---
 
-Select **OpenAI** for the official OpenAI endpoint, or **OpenAI Compatible API** for a third-party compatible endpoint. After completing the configuration, select the provider and chat model under **Settings → Modules → Consciousness**.
+Select **OpenAI** for the official OpenAI endpoint, or **OpenAI Compatible** for a third-party compatible endpoint. After completing the configuration, select the provider and chat model under **Settings → Modules → Consciousness**.
 
 ::: info Why choose OpenAI or Compatible API?
 If you already have an OpenAI API Key, or the service provider explicitly provides an OpenAI-compatible chat interface, you can use this configuration method. Merely having an API address ending with `/v1` or a key starting with `sk-` does not guarantee service compatibility.
@@ -22,7 +22,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Chat → OpenAI** or **OpenAI Compatible API**.
+1. Open **Settings → Providers → Chat → OpenAI** or **OpenAI Compatible**.
 2. Paste the API Key into the basic settings.
 3. When using OpenAI official services, keep the default Base URL: `https://api.openai.com/v1`; when using compatible services, fill in the API root address provided by the service provider's documentation, and do not append the `/chat/completions` path.
 
