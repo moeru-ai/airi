@@ -167,6 +167,50 @@ describe('createEmotionOverlayPlugins', () => {
     expect(values.get('ParamEyeLOpen')).toBeCloseTo(0.95, 6)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2193#discussion_r3688677911
+  //
+  // ROOT CAUSE:
+  //
+  // `restore` wrote its recorded base back unconditionally. The model-settings
+  // sliders write these same parameter ids from Vue watchers, which run outside
+  // the frame loop, so a manual change made between two frames was overwritten
+  // by the previous frame's base before the next frame even started — and for a
+  // parameter no motion keys, nothing put it back.
+  //
+  // Restoring only when the parameter still holds the overlay's own last write
+  // keeps that manual value. The question is only answerable in `pre`, where no
+  // plugin, motion, expression or blink has run yet, so an out-of-band write is
+  // the only thing a difference can mean.
+  it('should keep a value written from outside the frame loop', () => {
+    const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0.1 })
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value })
+    const offset = resolveEmotionOffsets(vad.value).ParamMouthForm
+
+    runFrame(overlay, model)
+
+    // A settings slider moves between frames.
+    model.values.set('ParamMouthForm', 0.8)
+    runFrame(overlay, model)
+
+    expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.8 + offset, 6)
+  })
+
+  it('should not strand the outside value once the state goes neutral', () => {
+    const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0.1 })
+    const vad = ref({ ...NEUTRAL, valence: 0.5 })
+    const overlay = createEmotionOverlayPlugins({ reading: () => vad.value })
+
+    runFrame(overlay, model)
+    model.values.set('ParamMouthForm', 0.8)
+    runFrame(overlay, model)
+
+    vad.value = { ...NEUTRAL }
+    runFrame(overlay, model)
+
+    expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.8, 6)
+  })
+
   it('should skip parameters the model does not declare', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
     const vad = ref({ valence: 0.5, arousal: 0.5, dominance: 0.5 })
