@@ -170,6 +170,32 @@ describe('createEmotionOverlayPlugin', () => {
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.2, 6)
   })
 
+  // Cubism clamps to a parameter's declared range, so the model may not hold
+  // the number that was written. Recording the unclamped value would make the
+  // next frame read it as someone else's change and leave the parameter stuck
+  // at the ceiling.
+  it('should restore the base even when the model clamped the write', () => {
+    const values = new Map([['ParamEyeLOpen', 0.95]])
+    const model = {
+      getParameterIndex: vi.fn(() => 0),
+      getParameterValueById: vi.fn((id: string) => values.get(id) ?? 0),
+      setParameterValueById: vi.fn((id: string, value: number) => {
+        values.set(id, Math.min(Math.max(value, 0), 1))
+      }),
+      values,
+    }
+    const snapshot = ref({ current: { ...NEUTRAL, arousal: 0.8 } })
+    const plugin = createEmotionOverlayPlugin({ snapshot })
+
+    plugin(createContext(model as unknown as ReturnType<typeof createModel>))
+    expect(values.get('ParamEyeLOpen')).toBe(1)
+
+    snapshot.value = { current: { ...NEUTRAL } }
+    plugin(createContext(model as unknown as ReturnType<typeof createModel>))
+
+    expect(values.get('ParamEyeLOpen')).toBeCloseTo(0.95, 6)
+  })
+
   // If something else claimed the parameter after our write, that newer value
   // is the one that should stand — undoing our contribution would clobber it.
   it('should not undo its contribution once another writer has claimed the parameter', () => {
