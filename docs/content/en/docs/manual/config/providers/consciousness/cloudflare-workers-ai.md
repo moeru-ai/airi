@@ -6,7 +6,7 @@ description: Configure the Cloudflare Workers AI chat model in AIRI
 Cloudflare Workers AI uses account-level credentials. In addition to the API Token, AIRI requires a Cloudflare Account ID to locate your Workers AI resources.
 
 ::: info Why choose Cloudflare Workers AI?
-If your model service has been deployed in a Cloudflare account, you can use Workers AI to directly reuse the account's Token and Account ID.
+Use this provider to run supported Workers AI models through your Cloudflare account.
 :::
 
 ## Prepare credentials
@@ -16,7 +16,7 @@ If your model service has been deployed in a Cloudflare account, you can use Wor
 3. In the [Cloudflare Console](https://dash.cloudflare.com/), find and copy the Account ID.
 
 ::: warning Safety reminder
-API Token is bound to account permissions. Please follow the principle of least privilege and grant only the Workers AI permissions required by AIRI; do not publish Token or Account ID with public logs.
+API Tokens are bound to account permissions. Follow the principle of least privilege and grant only the Workers AI permissions required by AIRI. Do not include the Token or Account ID in public logs.
 :::
 
 ## Configure in AIRI

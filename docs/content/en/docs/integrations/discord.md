@@ -48,6 +48,12 @@ pnpm -F @proj-airi/discord-bot start
 
 The authenticated bot service receives the enabled state and token through AIRI's configuration channel. If the service is not running or its AIRI Auth Token is missing or incorrect, saving these fields alone does not start the Discord bot.
 
-## Notes
+## Install and use the bot in Discord
 
-Before inviting the bot to a server, limit its permissions to the channels and capabilities it needs. If the Bot Token is lost or exposed, reset it immediately in the Discord Developer Portal.
+1. In the Discord Developer Portal, configure a **Guild Install** for the application and install the bot in your server. Request only the permissions required for the text and voice features you intend to use. The `bot` OAuth2 scope includes `applications.commands` by default.
+2. For text chat, send the bot a direct message or mention it in a server channel. The bot does not respond to every server message.
+3. For voice input, join a voice channel and run `/summon`. The service registers `/ping` and `/summon` after the bot logs in.
+
+## Security notes
+
+Limit the bot's access to the channels and capabilities it needs. If the Bot Token is lost or exposed, reset it immediately in the Discord Developer Portal.

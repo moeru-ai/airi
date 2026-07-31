@@ -15,7 +15,7 @@ If you already use MiMo, or want to use its multimodal model to process audio co
 2. Create an API Key, copy it and keep it in a safe place.
 
 ::: warning API Key and audio data
-Don't expose the API Key. Using cloud transcription will send the audio to be recognized to the service provider. Please confirm your data processing requirements first.
+Do not expose the API Key. Cloud transcription sends audio to the provider for processing, so confirm that this meets your privacy and data-handling requirements.
 :::
 
 ## Configure in AIRI

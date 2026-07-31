@@ -21,7 +21,7 @@ If you want to quickly experience AIRI without configuring a third-party API Key
 3. Follow the prompts to complete login/registration.
 
     ::: info
-    If you don't receive the email, please check if it is in spam.
+    If the email does not arrive, check the spam folder.
     :::
 
 ## Check available Flux

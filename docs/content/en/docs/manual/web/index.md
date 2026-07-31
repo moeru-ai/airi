@@ -46,11 +46,11 @@ Vision support is still experimental. See [Configure vision](../config/vision.md
 
 ## Character Card
 
-AIRI has a built-in character card called "ReLU", and you can also write your own character card for the model. You can find the button to switch character cards in the upper right corner of the homepage, or you can switch from the settings.
+AIRI includes a character card named "ReLU", and you can also create your own character card. Use the character switcher in the upper-right corner of the main page, or switch cards from Settings.
 
 ### Character card content
 
-The character card contains AIRI's name, description, personality, behavior, etc. You can highly customize your AI.
+A character card defines AIRI's name, description, personality, scenario, and greetings. Character cards let you customize AIRI's identity and behavior.
 
 ### Character card settings
 

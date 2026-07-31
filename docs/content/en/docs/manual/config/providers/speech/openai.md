@@ -30,7 +30,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 1. Select the configured service provider, model, and voice in **Settings → Modules → Speech**.
 2. Enter test text and click **Test Voice**.
-3. If the voice can be played normally, the configuration is successful; if an error is displayed, please check the credentials, model ID and Base URL according to the error message.
+3. If the test audio plays, the provider is configured correctly. If AIRI displays an error, use its message to check the credentials, model ID, and Base URL.
 
 ## Troubleshooting
 

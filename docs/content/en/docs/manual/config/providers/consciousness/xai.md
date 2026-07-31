@@ -32,4 +32,4 @@ Only save the API Key in your password manager or AIRI's local settings. Do not 
 
 ## Troubleshooting
 
-If provider validation fails, please check the API key, available credit or quota, rate limits, and network connection first. When the model list is not available, the model ID given in the xAI documentation can be manually filled in on the Consciousness page.
+If provider validation fails, verify the API key, available credit or quota, rate limits, and network connection. If AIRI cannot load the model list, enter the exact model ID from the xAI documentation manually on the **Consciousness** page.

@@ -30,9 +30,9 @@ Available models, quotas, and regions are determined by the official service. Do
 
 ## Optional streaming provider
 
-When the official service reports streaming TTS as available, AIRI shows a separate **Official Streaming Speech Provider** card and module option. It has its own model list and is not an option inside **Official Speech Provider**.
+When the official service reports streaming TTS as available, AIRI shows a separate **Official Streaming Speech Provider** card under **Settings → Providers → Speech**.
 
-To use it, open **Settings → Modules → Speech**, select **Official Streaming Speech Provider**, and then choose an available model and voice. AIRI does not switch an existing speech selection to the streaming provider automatically.
+In **Settings → Modules → Speech**, keep **Official Speech Provider** selected. AIRI includes the streaming models in that provider's model list. Select a streaming model and voice; AIRI then switches the internal speech provider automatically to match the selected model.
 
 ## Troubleshooting
 

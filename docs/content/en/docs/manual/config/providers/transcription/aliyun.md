@@ -34,4 +34,4 @@ Do not commit the AccessKey ID, AccessKey Secret, or AppKey, include them in scr
 
 ## Troubleshooting
 
-When credential verification fails, please confirm that the three credentials come from the same Alibaba Cloud account and project, and check the RAM user permissions. When there are no text results, please confirm that the system has granted AIRI microphone permission.
+If credential verification fails, confirm that all three credentials come from the same Alibaba Cloud account and project, then check the RAM user permissions. If no text appears, confirm that the operating system has granted AIRI microphone access.

@@ -28,4 +28,4 @@ Open **Settings → Providers → Chat → AIHubMix** and fill in the **API Key*
 
 ## Troubleshooting
 
-When pinging the API fails, check the API Key, account balance, and network connection. When the model list fails to load, confirm that the Base URL remains at the default value, or enter the exact model ID provided by AIHubMix on the Consciousness page.
+If the API check fails, verify the API Key, account balance, and network connection. If AIRI cannot load the model list, confirm that the Base URL is unchanged or enter the exact model ID provided by AIHubMix manually on the **Consciousness** page.

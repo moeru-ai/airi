@@ -33,4 +33,4 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list cannot be loaded, you can manually enter the exact model ID provided by Z.ai on the **Consciousness** page.
+If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. If AIRI cannot load the model list, enter the exact model ID provided by Z.ai manually on the **Consciousness** page.

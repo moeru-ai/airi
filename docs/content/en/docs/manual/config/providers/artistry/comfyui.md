@@ -3,7 +3,7 @@ title: ComfyUI (Artistry)
 description: Connect local ComfyUI workflows to AIRI
 ---
 
-ComfyUI lets AIRI use image-generation workflows from your local machine or a trusted LAN. Configure and activate the workflow on the provider page, then enable ComfyUI under **Settings → Modules → Artistry**.
+ComfyUI lets AIRI use image-generation workflows from your local machine or a trusted LAN. Configure and activate the workflow on the provider page, then select **ComfyUI (Local)** under **Settings → Modules → Artistry**.
 
 ::: info Why choose ComfyUI?
 Choose ComfyUI to use your own installed models, nodes, and workflows while keeping image generation in your local environment.
@@ -22,8 +22,8 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Artistry → ComfyUI**.
-2. Fill in the ComfyUI Server URL; this machine uses `http://localhost:8188` by default.
-3. Click **Test Connection** to confirm that AIRI can read the ComfyUI service status.
+2. Fill in the ComfyUI **Server URL**. The default is `http://localhost:8188`.
+3. Click **Test** to confirm that AIRI can read the ComfyUI service status.
 4. Upload the API workflow JSON in the Workflow area, enter a name, and select the input fields that AIRI may control.
 5. Save the workflow and make it the active workflow.
 
@@ -36,7 +36,7 @@ Do not expose ComfyUI's service ports to untrusted public networks. Check the no
 
 ## Troubleshooting
 
-- **Test Connection fails:** Confirm that ComfyUI is running and that the **Server URL**, port, and network route are correct.
+- **Test fails:** Confirm that ComfyUI is running and that the **Server URL**, port, and network route are correct.
 - **The browser reports a cross-origin error:** Restart ComfyUI with the CORS options shown on AIRI's ComfyUI provider page.
 - **The workflow fails in ComfyUI:** Import the API-format workflow JSON, then confirm that every referenced custom node and model is installed.
 - **No task appears in Queue or History:** For the interactive Artistry flow, confirm that the selected chat model supports tool calling and that **Settings → Modules → Artistry** is set to **ComfyUI (Local)**. Text-only models that cannot call tools cannot start an interactive Artistry task.

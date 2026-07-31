@@ -34,4 +34,4 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Troubleshooting
 
-If pinging the API fails, confirm that the API key comes from the global platform, the Base URL is `https://api.minimax.io/v1/`, the account has available credit or quota, no rate limit is active, and the network can reach the service. A `401` response commonly means that a mainland-China key was paired with the global endpoint, or vice versa. If the model list fails to load, enter the exact model ID from MiniMax Global on the **Consciousness** page.
+If the API check fails, confirm that the API key comes from the global platform, the Base URL is `https://api.minimax.io/v1/`, the account has available credit or quota, no rate limit is active, and the network can reach the service. A `401` response commonly means that a mainland-China key was paired with the global endpoint, or vice versa. If AIRI cannot load the model list, enter the exact model ID from MiniMax Global manually on the **Consciousness** page.

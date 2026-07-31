@@ -38,6 +38,10 @@ Use this minimal `manifest.json`:
 
 An AIRI-exported package may also contain a supported display model under `models/` and describe it in `manifest.json`. The two-file structure above is sufficient for a card without a bundled display model.
 
+::: warning AIRI Card packages are not lossless CCv3 backups
+AIRI imports an explicit whitelist of character fields and AIRI module settings. It preserves the fields shown in the template below, but discards unsupported CCv3 metadata such as `group_only_greetings`, `mes_example`, `creator`, and `tags`. Third-party extensions and unsupported fields inside `extensions.airi` are also removed. Keep a separate copy of the original card if you need a lossless backup.
+:::
+
 ## `card.json` template
 
 ```json
@@ -52,14 +56,10 @@ An AIRI-exported package may also contain a supported display model under `model
     "scenario": "This character is meeting the user for the first time.",
     "first_mes": "Hello! Nice to meet you.",
     "alternate_greetings": [],
-    "group_only_greetings": [],
-    "mes_example": "",
-    "creator": "Your Name",
     "creator_notes": "",
     "character_version": "1.0.0",
     "system_prompt": "",
     "post_history_instructions": "",
-    "tags": ["example"],
     "extensions": {}
   }
 }

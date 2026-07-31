@@ -33,4 +33,4 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When using a compatible service, please confirm that it explicitly supports the OpenAI Chat Completions API and check that the Base URL is the root address specified in the service provider's documentation.
+If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. For a compatible service, confirm that it supports the OpenAI Chat Completions API and that the Base URL is the API root documented by the provider.

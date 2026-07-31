@@ -16,7 +16,7 @@ You can select this if you are already running Index-TTS locally and want the so
 3. Confirm that the service can return model and voice information.
 
 ::: warning Local service security
-Do not expose local service ports to untrusted public networks. If you modify the listening address, please confirm that you are responsible for access control.
+Do not expose local service ports to untrusted public networks. If you change the listening address, secure access to the service yourself.
 :::
 
 ## Configure in AIRI

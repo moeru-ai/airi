@@ -33,4 +33,4 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Troubleshooting
 
-If pinging the API fails, please check the API key, available credit or quota, rate limits, and network connection. When the model list fails to load, you can manually enter the exact model ID provided by Fireworks AI on the Consciousness page.
+If the API check fails, verify the API key, available credit or quota, rate limits, and network connection. If AIRI cannot load the model list, enter the exact model ID provided by Fireworks AI manually on the **Consciousness** page.

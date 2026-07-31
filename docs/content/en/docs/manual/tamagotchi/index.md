@@ -16,7 +16,7 @@ After installing and starting AIRI, complete the onboarding flow:
 7. Click **Open Chat**, enter the message and send it.
 
 ::: tip Using Ollama locally?
-Allow only the AIRI origin that you use, for example `OLLAMA_ORIGINS=http://localhost:5173`, then restart Ollama. Do not use a wildcard or expose Ollama to the public internet. If AIRI runs on another trusted LAN device, replace the origin with that device's exact AIRI URL.
+Ollama allows AIRI Desktop's local development and packaged-app origins by default, so a local desktop setup normally does not require `OLLAMA_ORIGINS`. If you access AIRI from a non-default remote web origin and encounter a CORS error, add that exact origin to `OLLAMA_ORIGINS` and restart Ollama. Do not use a wildcard or expose Ollama to the public internet.
 :::
 
 <br />
@@ -29,7 +29,7 @@ Allow only the AIRI origin that you use, for example `OLLAMA_ORIGINS=http://loca
 
 The desktop version is also called Stage Tamagotchi and usually consists of these interfaces:
 
-- **Main Character Window**: Live2D/VRM stage resident on the desktop.
+- **Main Character Window**: A desktop-resident character stage supporting Live2D, Spine, VRM, MMD, and Tachie.
 - **Controls Island**: A small group of buttons in the lower-right corner of the main character window.
 - **Chat Window**: A conversation window opened from the Controls Island.
 - **Settings Window**: Configure providers, profiles, models, modules, data, connections, and system options.
@@ -47,14 +47,14 @@ The Controls Island is the main entry point for everyday use of the desktop app.
 - Click **Switch Profile** to change the current character card.
 - If needed, you can click **Refresh** to reload the stage.
 - Click the light/dark icon to switch themes.
-- Click the pushpin icon to switch the window to the top.
+- Click the pushpin icon to toggle **Pin on top**.
 - Click the eye icon to toggle **Auto hide** / **Always show**.
 - Click **Open hearing Controls** to open voice-input controls.
 - Drag **Drag to move window** to move the main character window.
 
 ## Hide on hover
 
-The eye icon is used to toggle how AIRI is displayed: remain clickable, or minimize occlusion and click distractions while you work.
+The eye icon controls whether AIRI remains fully interactive or fades out of the way to reduce obstruction while you work.
 
 - **Always show** keeps the character visible and clickable.
 - **Auto hide** fades the character and interface when the cursor is close, making it easier to click the application below.
@@ -99,6 +99,6 @@ After your first chat, review these pages:
 - **Modules**: Select services for consciousness, speech, hearing, vision, memory, Discord, Minecraft, Factorio, MCP, and other modules.
 - **Models**: Switch between supported 2D/3D models, or import your own.
 - **AIRI Card**: Switch the current character, or create a new character card.
-- **System**: Set language, theme, data analysis preferences and desktop-specific options.
+- **System**: Set the language, theme, usage-analytics settings, and desktop-specific options.
 
-Some modules are still in the experimental stage and may require local source code configuration or additional external services. For more complete Windows usage instructions, please refer to [Desktop version detailed instructions](./setup-and-use/).
+Some modules are experimental and require local source configuration or additional services. See the [complete desktop manual](./setup-and-use/) for detailed instructions.

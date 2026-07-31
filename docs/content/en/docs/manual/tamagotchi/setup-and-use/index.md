@@ -192,7 +192,7 @@ You can click **Expand** in the main window and then select **Open Chat** to ope
 
 Here you can chat with AIRI. After speech synthesis is enabled, **Stop speaking** appears while AIRI is reading a reply; clicking it stops the current speech playback without cancelling the generated text reply.
 
-Click **Conversations** in the chat-window title bar, or click the title itself, to open the conversation list. The list shows the preview and synchronization status of each conversation according to the last updated time; you can switch, delete conversations, or create new conversations for the current character. Deletion is usually unrecoverable, so confirm that the content is no longer needed.
+Click **Conversations** in the chat-window title bar, or click the title itself, to open the conversation list. Conversations are ordered by their most recent update and show a preview and synchronization status. You can switch or delete conversations, or create a new conversation for the current character. Deletion is usually unrecoverable, so confirm that you no longer need the content.
 
 <a id="chapter-4-settings"></a>
 ## Chapter 4: Settings
@@ -210,7 +210,7 @@ Here you can import, create, edit, and activate character cards.
 ![AIRI character card settings](./assets/manual-airi-card.avif)
 
 ::: info About import and export
-Character cards can be imported or exported as AIRI character card packs. Card packs use Character Card V3 data and optionally come with Live2D, Spine or VRM display models. AIRI will verify the inventory and character card data in the package when importing; packages that are incorrectly formatted or missing required files cannot be imported.
+Character cards can be imported or exported as AIRI character card packs. Card packs use Character Card V3 data and may include a Live2D, Spine, Tachie, or VRM display model. During import, AIRI validates the package manifest and character-card data; packages with an invalid format or missing required files cannot be imported. AIRI Card packs use an explicit field whitelist and are not lossless CCv3 backups; see the [Character Card Template](../character-card-template.md) for details.
 :::
 
 To create a character card:
@@ -223,10 +223,10 @@ To create a character card:
 6. Click **Create**.
 7. Activate the new card by clicking the control in its lower-right corner, or open the card and click **Activate**.
 
-The most important part of the identity is the name and description:
+The most important identity fields are the character's name and description:
 
 - The name is the character name currently shown by AIRI. Although Character Card V3 supports a `nickname` field, the current interface and runtime still display `name`.
-- The description is the specific details about the character. You can play with it freely, or you can refer to the default character card.
+- The description tells the model who the character is. Use the default character card as a reference when you need an example.
 
 ::: info Editor's notes
 - The default ReLU prompt explains AIRI's `ACT` tokens for stage emotions and actions. Keep equivalent instructions in a custom card if you want the model to control those behaviors; omitting them can reduce or remove action and emotion output.
@@ -262,12 +262,12 @@ Open **Settings → Modules → Speech** to select the active speech provider, m
 #### Hearing
 Open **Settings → Modules → Hearing** to select the transcription provider, model, and audio input. See [Voice Input and Output](../../config/audio.md) for configuration. If you are not using voice input yet, select **None**.
 
-::: info Definition: Speech recognition STT
+::: info Speech recognition (ASR/STT)
 
 Speech-to-text (STT), also called automatic speech recognition (ASR), converts spoken audio into text.
 :::
 
-::: info When used on macOS
+::: info Using voice input on macOS
 The first time you use voice input on macOS, allow AIRI to access the microphone when prompted.
 ![macOS permission prompt](image-7.png)
 :::
@@ -277,8 +277,8 @@ The first time you use voice input on macOS, allow AIRI to access the microphone
 In addition, you can:
 
 - Enable the Auto-send transcribed text feature for automatic sending.
-- Turn off this function to adjust the transcription results.
-- Adjust the send delay through Auto-send delay.
+- Disable it to review or edit a transcription before sending it.
+- Use **Auto-send delay** to change how long AIRI waits before sending.
 
 ::: info Automatic sending
 When auto-send is enabled, the recognized text will be sent to the chat session after a set delay; when it is turned off, you can check or modify the text before sending it manually.
@@ -286,13 +286,13 @@ When auto-send is enabled, the recognized text will be sent to the chat session 
 
 If you want to test the microphone:
 
-1. Click **Start Monitoring** in the middle part of the interface.
-2. If necessary, you can adjust Sensitivity.
+1. Click **Start Monitoring**.
+2. Adjust **Sensitivity** if necessary.
 
 If you want to test STT functionality:
 
-1. Click **Start Speech-to-Text Test** at the bottom of the interface.
-2. Then view the recognition results under Transcription Result.
+1. Click **Start Speech-to-Text Test**.
+2. Review the recognized text under **Transcription Result**.
 
 #### Vision
 Open **Settings → Modules → Vision** to select the active vision provider and image-capable model and to set **Capture interval**. See [Visual Understanding](../../config/vision.md) for the complete flow.
@@ -320,18 +320,18 @@ In the ordinary interactive Artistry flow, AIRI makes the configured image tool 
 
 Under **Settings → Modules → Consciousness**, select a model that the provider explicitly marks as supporting tool calling. Models limited to ordinary text conversations may respond with text without submitting a task to the selected image service.
 
-After configuration, ask the character to generate a simple image. Confirm that AIRI initiates a tool call; if the provider offers task status, history, or a console, you can also confirm that it received the task. AIRI displays the result after the task completes and returns an image. See the corresponding page under **Settings → Providers → Artistry** for provider-specific verification.
+After configuration, ask the character to generate a simple image. Confirm that AIRI initiates a tool call; if the provider offers task status, history, or a console, you can also confirm that it received the task. After the task returns an image, AIRI displays the result. See the corresponding page under **Settings → Providers → Artistry** for provider-specific verification.
 
 The character-card option **Cinematic Autonomy (Autonomous Artist)** uses a separate text-analysis flow and invokes the selected image provider directly, so that mode does not require LLM tool calling.
 :::
 
 #### Short-term memory
 
-The function is under development, please stay tuned. If you have ideas for implementing this feature, please submit suggestions via issues or PR.
+This feature is not available yet. If you have ideas for its implementation, submit an issue or pull request.
 
 #### Long term memory
 
-The function is under development, please stay tuned. If you have ideas for implementing this feature, please submit suggestions via issues or PR.
+This feature is not available yet. If you have ideas for its implementation, submit an issue or pull request.
 
 #### Discord
 
@@ -416,7 +416,7 @@ To import your own model, open **Model Selector** and use **Import**. The select
 **Switch to Godot Stage (Experimental)** starts the separate Godot stage renderer; click **Back to Built-in Stage** to switch back. Godot Stage currently supports only VRM models. With a VRM model selected, you can adjust camera X/Y/Z, yaw, pitch, and field of view in Godot View. Status and model-loading errors also appear there.
 :::
 
-::: warning Please pay attention before importing the model
+::: warning Before importing a model
 - Older Live2D formats are not supported. The model package must include a `.moc3` file.
 - Compress the complete Live2D model folder as a `.zip` file before importing it.
 - Spine models also use `.zip`; VRM uses a single `.vrm` file.
@@ -472,7 +472,7 @@ If you skip onboarding, configure a chat provider first: enter its API key or ac
 After switching chat providers, the selected chat model is cleared. Return to **Modules → Consciousness** to select a model for the new provider.
 
 ::: warning Credential security
-API Keys, AccessKey Secrets, and other service credentials should only be saved in the current device's settings. Do not commit them to the repository, post them in an Issue, take a screenshot, or send them to others.
+Save API Keys, AccessKey Secrets, and other service credentials only in settings on your device. Do not commit them to the repository, post them in an issue, include them in screenshots, or send them to anyone.
 :::
 
 ::: tip Configuration guide
@@ -633,7 +633,7 @@ Select the background button to choose a different stage background.
 
 ### FAQ
 
-- After upgrading from an earlier version, the model may "disappear" if you have changed its size or position. When encountering this problem, please reset the model's scale and position in the model settings interface.
+- After an upgrade, a model may appear to be missing if its saved size or position places it outside the visible area. Reset the model's scale and position under **Settings → Models**.
 
 <a id="h3-1-1"></a>
 ### Connection status shortcut

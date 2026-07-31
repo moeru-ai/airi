@@ -1,15 +1,15 @@
 ---
 title: Telegram Bot
-description: Run AIRI as a Telegram bot using Postgres and model services
+description: Run AIRI as a Telegram bot using PostgreSQL and model services
 ---
 
-The Telegram bot requires a Telegram Bot Token, Postgres with pgvector, and model services. It is intended to be run from source.
+The Telegram bot requires a Telegram Bot Token, a PostgreSQL vector database, and model services. The repository Compose service runs PostgreSQL with pgvecto.rs 0.4.0 in pgvector compatibility mode. The bot is intended to be run from source.
 
 ## Prerequisites
 
 - Install dependencies from the repository root with **pnpm i**.
 - Create a Telegram bot with [@BotFather](https://t.me/BotFather) and obtain its token.
-- Make Docker available to start the repository's Postgres and pgvector services.
+- Make Docker available to start the repository's PostgreSQL vector service.
 - Prepare chat-model and embedding-model services.
 
 ::: warning Credential security

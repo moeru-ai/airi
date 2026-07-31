@@ -28,4 +28,4 @@ Do not commit the API key, include it in screenshots, or share it with anyone.
 
 ## Troubleshooting
 
-When pinging the API fails, check the API Key, account status, and network connection. When the model list fails to load, confirm that the Base URL remains as default, or enter the exact model ID provided by Xiaomi MiMo on the Consciousness page.
+If the API check fails, verify the API Key, account status, and network connection. If AIRI cannot load the model list, confirm that the Base URL is unchanged or enter the exact model ID provided by Xiaomi MiMo manually on the **Consciousness** page.
