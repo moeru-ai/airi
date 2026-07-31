@@ -126,6 +126,22 @@ describe('createEmotionState', () => {
       expect(state.snapshot.value.target.valence).toBeLessThan(0)
     })
 
+    // A backgrounded tab resumes with a multi-second delta. Charging that whole
+    // frame to the hold would skip every second of decay that actually elapsed
+    // after the hold ended, so the emotion would outlive its own timer.
+    it('should decay for the part of a long frame that falls after the hold', () => {
+      const coarse = createEmotionState({ seed: 9 })
+      const fine = createEmotionState({ seed: 9 })
+
+      coarse.nudge(Emotion.Angry, 0)
+      fine.nudge(Emotion.Angry, 0)
+
+      coarse.update(60)
+      run(fine, 60, 0.1)
+
+      expect(coarse.snapshot.value.target.valence).toBeCloseTo(fine.snapshot.value.target.valence, 2)
+    })
+
     it('should scale the hold with intensity', () => {
       const weak = createEmotionState()
       const strong = createEmotionState()

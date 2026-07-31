@@ -216,10 +216,17 @@ export function createEmotionState(options?: CreateEmotionStateOptions): Emotion
     // still drifts while held, it just is not yet being pulled back to
     // baseline. This is what stops an expression from collapsing the instant
     // its triggering motion finishes.
-    if (holdRemaining > 0)
-      holdRemaining = Math.max(0, holdRemaining - dtSeconds)
-    else
-      target = lerpVAD(target, baseline, approach(dtSeconds, DECAY_RATE))
+    //
+    // The frame is split at the moment the hold expires rather than being
+    // charged wholly to one side. A tab that was backgrounded and resumes with
+    // a multi-second delta would otherwise consume the whole frame clearing the
+    // hold and decay for none of the time that actually elapsed after it.
+    const heldFor = Math.min(holdRemaining, dtSeconds)
+    holdRemaining -= heldFor
+
+    const decayFor = dtSeconds - heldFor
+    if (decayFor > 0)
+      target = lerpVAD(target, baseline, approach(decayFor, DECAY_RATE))
 
     driftCountdown -= dtSeconds
     if (driftCountdown <= 0)
