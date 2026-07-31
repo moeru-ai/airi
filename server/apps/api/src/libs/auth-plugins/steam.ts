@@ -33,11 +33,11 @@ const CallbackQuerySchema = z.looseObject({
  *
  * Identity model:
  * - Steam never exposes an email address. New sign-ups get a placeholder
- *   `<steamid64>@steam.local` address (mirrors how Apple Sign In accounts
- *   without a real email get `<sub>@privaterelay.appleid.com`-style
- *   placeholders elsewhere in this codebase) and `emailVerified: true` —
- *   the placeholder can never receive mail, so "verification" is meaningless
- *   for it and would otherwise permanently block sign-in.
+ *   `<steamid64>@steam.placeholder.local` address (mirrors how Apple Sign In
+ *   accounts without a real email get `<sub>@apple.placeholder.local`) and
+ *   `emailVerified: true` — the placeholder can never receive mail, so
+ *   "verification" is meaningless for it and would otherwise permanently
+ *   block sign-in.
  * - No `CheckAppOwnership` call here: that check only makes sense for the
  *   ticket-based desktop sign-in path (a Steam client already launched the
  *   app), where it works as free anti-fraud you don't get from a web login.
@@ -206,7 +206,7 @@ export function steam() {
     else {
       const { user } = await ctx.context.internalAdapter.createOAuthUser(
         {
-          email: `${steamId}@steam.local`,
+          email: `${steamId}@steam.placeholder.local`,
           emailVerified: true,
           name: `Steam User ${steamId}`,
         },

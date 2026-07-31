@@ -127,7 +127,7 @@ describe('steam auth plugin', () => {
     expect(account).not.toBeNull()
 
     const user = await context.internalAdapter.findUserById(account!.userId)
-    expect(user?.email).toBe(`${STEAM_ID}@steam.local`)
+    expect(user?.email).toBe(`${STEAM_ID}@steam.placeholder.local`)
     expect(user?.emailVerified).toBe(true)
   })
 
