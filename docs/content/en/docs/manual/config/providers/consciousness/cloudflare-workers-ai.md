@@ -26,9 +26,10 @@ API Token is bound to account permissions. Please follow the principle of least 
 
 ## Verify configuration
 
-1. Wait for AIRI's automatic credential validation to pass.
+1. Wait for AIRI's automatic required-field check to pass. This check only confirms that both fields contain a value; it does not contact Cloudflare or verify the credentials.
 2. Click **Select Model →** to open **Settings → Modules → Consciousness**, then select Cloudflare Workers AI and an available model.
+3. Return to the chat and send a test message. A successful response confirms that the Account ID, API Token permissions, and selected model work together.
 
 ## Troubleshooting
 
-If AIRI prompts that the credentials are invalid, check whether the Token permissions and Account ID are from the same Cloudflare account. This provider does not use an editable Base URL, so no fields should be populated with Worker URL or API paths.
+If the required-field check fails, confirm that both **API Token** and **Account ID** contain a value. If the test message fails, check that the Token has Workers AI permissions and belongs to the same Cloudflare account as the Account ID. This provider does not use an editable Base URL, so do not enter a Worker URL or API path.
