@@ -17,8 +17,8 @@ interface RateLimitOptions {
   keyGenerator?: (c: Context<HonoEnv>) => string
   /**
    * Reverse proxy whose client-address header is safe to use. The caller must
-   * select this only for a deployment that prevents direct public access to
-   * the application process.
+   * select this only when the deployment guarantees that the named proxy owns
+   * and overwrites that header before the request reaches the application.
    */
   trustedProxy?: 'railway'
   /**
@@ -87,55 +87,16 @@ export function rateLimiter(opts: RateLimitOptions) {
 }
 
 /**
- * Returns Railway's canonical client address only when proxy trust is enabled
- * and the request was received from an internal proxy address.
- *
- * Before:
- * - a client could send `X-Forwarded-For: 203.0.113.1` and choose its bucket
- *
- * After:
- * - `X-Real-IP` is used only when the explicit deployment setting and an
- *   internal socket establish the configured Railway proxy boundary
+ * Uses Railway's canonical client address only after the deployment explicitly
+ * opts into that trust boundary. Proxy transport details do not affect it.
  */
 function getTrustedProxyClientAddress(c: Context<HonoEnv>, trustedProxy: RateLimitOptions['trustedProxy']): string | undefined {
   if (trustedProxy !== 'railway')
     return undefined
 
-  try {
-    const remoteAddress = getConnInfo(c).remote?.address
-    const clientAddress = c.req.header('x-real-ip')?.trim()
-    if (!isRailwayInternalAddress(remoteAddress) || !clientAddress || isIP(clientAddress) === 0)
-      return undefined
-
-    return clientAddress
-  }
-  catch {
+  const clientAddress = c.req.header('x-real-ip')?.trim()
+  if (!clientAddress || isIP(clientAddress) === 0)
     return undefined
-  }
-}
 
-/**
- * Identifies address ranges Railway documents for internal proxy traffic.
- *
- * Before:
- * - `203.0.113.42`
- *
- * After:
- * - `100.64.0.42`
- */
-function isRailwayInternalAddress(address: string | undefined): boolean {
-  if (!address)
-    return false
-
-  const normalizedAddress = address.replace(/^::ffff:/i, '')
-  const octets = normalizedAddress.split('.').map(Number)
-  if (octets.length !== 4 || octets.some(octet => !Number.isInteger(octet) || octet < 0 || octet > 255))
-    return false
-
-  const [first, second] = octets
-  return first === 10
-    || first === 100
-    || first === 127
-    || (first === 172 && second >= 16 && second <= 31)
-    || (first === 192 && second === 168)
+  return clientAddress
 }

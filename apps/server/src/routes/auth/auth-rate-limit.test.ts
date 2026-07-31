@@ -41,8 +41,8 @@ async function createApp(trustedProxy?: 'railway') {
   return new Hono<HonoEnv>().route('/', routes)
 }
 
-async function listen(app: Hono<HonoEnv>) {
-  const server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' })
+async function listen(app: Hono<HonoEnv>, hostname = '127.0.0.1') {
+  const server = serve({ fetch: app.fetch, port: 0, hostname })
   const port = await new Promise<number>((resolve) => {
     server.once('listening', () => {
       const address = server.address()
@@ -52,7 +52,7 @@ async function listen(app: Hono<HonoEnv>) {
   })
 
   return {
-    origin: `http://127.0.0.1:${port}`,
+    origin: `http://${hostname.includes(':') ? `[${hostname}]` : hostname}:${port}`,
     close: () => new Promise<void>((resolve, reject) => {
       server.close(error => error ? reject(error) : resolve())
     }),
@@ -81,13 +81,14 @@ describe('auth API rate limiting behind Railway', () => {
     }
   })
 
-  it('uses the forwarded client IP behind a custom-domain gateway', async () => {
+  it('uses the forwarded client IP over an IPv6 gateway socket', async () => {
     // ROOT CAUSE: proxy trust was inferred from API_SERVER_URL, so moving the
-    // public custom domain to Caddy disabled X-Real-IP and merged every
-    // anonymous caller into the Caddy replica's socket-address bucket.
-    // AFTER: proxy trust is an explicit deployment setting rather than being
-    // inferred from the externally visible URL.
-    const server = await listen(await createApp('railway'))
+    // public custom domain to Caddy first disabled X-Real-IP. The replacement
+    // then allowed only IPv4 proxy sockets, while Railway connected Caddy to
+    // ts-api over private IPv6, so callers still shared the Caddy socket bucket.
+    // AFTER: the explicit deployment setting owns proxy trust; the middleware
+    // validates X-Real-IP without coupling it to the proxy transport family.
+    const server = await listen(await createApp('railway'), '::1')
 
     try {
       expect((await request(server.origin, '203.0.113.10')).status).toBe(200)
