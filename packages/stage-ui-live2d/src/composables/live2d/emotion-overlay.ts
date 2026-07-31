@@ -25,6 +25,16 @@ interface OverlayBinding {
   valence?: number
   arousal?: number
   dominance?: number
+  /**
+   * Scale the offset by the parameter's current value instead of adding it flat.
+   *
+   * Eye openness is modulated multiplicatively everywhere else in this package —
+   * auto-blink writes `blinkFactor * base` — so that a deliberate zero survives:
+   * a blink apex, or an expression that closes the eyes, must stay closed. This
+   * overlay runs after both, so adding a flat offset there would prise them
+   * back open.
+   */
+  relativeToCurrent?: boolean
 }
 
 /**
@@ -45,13 +55,21 @@ const OVERLAY_BINDINGS: readonly OverlayBinding[] = [
   // inner brow on negative valence is what makes sadness legible at all.
   { parameterId: 'ParamBrowLY', valence: 0.12, arousal: 0.08 },
   { parameterId: 'ParamBrowRY', valence: 0.12, arousal: 0.08 },
-  // Arousal widens the eyes slightly. Small, because auto-blink also writes
-  // here and a large offset would visibly fight it.
-  { parameterId: 'ParamEyeLOpen', arousal: 0.10 },
-  { parameterId: 'ParamEyeROpen', arousal: 0.10 },
+  // Arousal widens the eyes slightly, in proportion to how open they already
+  // are, so a closed eye stays closed.
+  { parameterId: 'ParamEyeLOpen', arousal: 0.10, relativeToCurrent: true },
+  { parameterId: 'ParamEyeROpen', arousal: 0.10, relativeToCurrent: true },
   // Dominance rides the head: chin up when in control, down when withdrawing.
   { parameterId: 'ParamAngleY', dominance: 6 },
 ] as const
+
+/**
+ * Parameters whose offset is a gain on the current value rather than an amount
+ * added to it. Derived from the table so the two cannot drift apart.
+ */
+const RELATIVE_PARAMETERS = new Set(
+  OVERLAY_BINDINGS.filter(binding => binding.relativeToCurrent).map(binding => binding.parameterId),
+)
 
 /** Ceiling on any single parameter's offset, in that parameter's own units. */
 const MAX_ABS_OFFSET = 0.25
@@ -71,8 +89,9 @@ function clamp(value: number, limit: number): number {
  * After:
  * - `{ ParamMouthForm: 0.11, ParamBrowLY: 0.06, ParamBrowRY: 0.06 }`
  *
- * Offsets are additive, so a parameter absent from the result simply means the
- * state has no opinion about it this frame.
+ * A parameter absent from the result simply means the state has no opinion about
+ * it this frame. Whether a value is added to the parameter or multiplied through
+ * it is a property of the binding, not of this result — see `relativeToCurrent`.
  */
 export function resolveEmotionOffsets(vad: EmotionOverlayInput): Record<string, number> {
   const offsets: Record<string, number> = {}
@@ -203,14 +222,20 @@ export function createEmotionOverlayPlugins(options: EmotionOverlayOptions): Emo
       if (!Number.isFinite(base))
         continue
 
-      coreModel.setParameterValueById(parameterId, base + offset)
+      // A relative parameter multiplies through the current value, so a zero
+      // written by a blink or a closed-eye expression stays zero.
+      const amount = RELATIVE_PARAMETERS.has(parameterId) ? offset * base : offset
+      if (amount === 0)
+        continue
+
+      coreModel.setParameterValueById(parameterId, base + amount)
 
       // Read back rather than storing `base + offset`: the model clamps to the
       // parameter's declared range, so what it kept is what `restore` has to
       // recognise next frame. Nothing has run in between, so this readback is
       // unambiguously the overlay's own write.
       const written = coreModel.getParameterValueById(parameterId) as number
-      applied.set(parameterId, { base, written: Number.isFinite(written) ? written : base + offset })
+      applied.set(parameterId, { base, written: Number.isFinite(written) ? written : base + amount })
     }
   }
 

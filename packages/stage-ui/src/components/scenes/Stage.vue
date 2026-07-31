@@ -281,6 +281,15 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
     const act = normalizeActPayload(signal.payload)
     if (act.motion && stageModelRenderer.value === 'live2d') {
       currentMotion.value = { group: act.motion }
+
+      // A payload may name both, and the custom motion wins — it is more
+      // specific than the one the emotion would have picked. The mood is
+      // orthogonal to which motion plays, though, so it still moves rather
+      // than being dropped along with the emotion's motion.
+      const emotion = act.emotion ? toStageEmotionPayload(act.emotion) : undefined
+      if (emotion)
+        emotionState.nudge(emotion.name, emotion.intensity)
+
       return
     }
     if (act.emotion) {

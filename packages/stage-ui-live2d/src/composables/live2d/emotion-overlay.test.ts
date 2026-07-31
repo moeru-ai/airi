@@ -211,6 +211,48 @@ describe('createEmotionOverlayPlugins', () => {
     expect(model.values.get('ParamMouthForm')).toBeCloseTo(0.8, 6)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2193#discussion_r3689112594
+  //
+  // ROOT CAUSE:
+  //
+  // The eye offset was added flat. `apply` is registered after the expression
+  // and auto-blink plugins on 'final', so a frame that deliberately wrote the
+  // eyes to 0 — a blink apex, or a closed-eye expression — was reopened to the
+  // offset. Everything else in this package modulates eye openness
+  // multiplicatively (auto-blink writes `blinkFactor * base`) precisely so that
+  // a deliberate zero survives; the overlay now does the same.
+  it('should leave eyes closed by a blink or expression closed', () => {
+    const model = createModel(['ParamEyeLOpen', 'ParamEyeROpen'], { ParamEyeLOpen: 0, ParamEyeROpen: 0 })
+    const vad = ref({ ...NEUTRAL, arousal: 0.85 })
+
+    createEmotionOverlayPlugins({ reading: () => vad.value }).apply(createContext(model))
+
+    expect(model.values.get('ParamEyeLOpen')).toBe(0)
+    expect(model.values.get('ParamEyeROpen')).toBe(0)
+  })
+
+  it('should still widen eyes that are open', () => {
+    const model = createModel(['ParamEyeLOpen'], { ParamEyeLOpen: 1 })
+    const vad = ref({ ...NEUTRAL, arousal: 0.85 })
+
+    createEmotionOverlayPlugins({ reading: () => vad.value }).apply(createContext(model))
+
+    expect(model.values.get('ParamEyeLOpen')).toBeGreaterThan(1)
+  })
+
+  it('should scale the eye offset with how open the eye already is', () => {
+    const half = createModel(['ParamEyeLOpen'], { ParamEyeLOpen: 0.5 })
+    const full = createModel(['ParamEyeLOpen'], { ParamEyeLOpen: 1 })
+    const vad = ref({ ...NEUTRAL, arousal: 0.85 })
+
+    createEmotionOverlayPlugins({ reading: () => vad.value }).apply(createContext(half))
+    createEmotionOverlayPlugins({ reading: () => vad.value }).apply(createContext(full))
+
+    const halfDelta = half.values.get('ParamEyeLOpen')! - 0.5
+    const fullDelta = full.values.get('ParamEyeLOpen')! - 1
+    expect(halfDelta).toBeCloseTo(fullDelta / 2, 6)
+  })
+
   it('should skip parameters the model does not declare', () => {
     const model = createModel(['ParamMouthForm'], { ParamMouthForm: 0 })
     const vad = ref({ valence: 0.5, arousal: 0.5, dominance: 0.5 })
