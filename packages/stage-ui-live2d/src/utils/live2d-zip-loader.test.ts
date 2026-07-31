@@ -292,6 +292,45 @@ describe('live2d zip loader settings sanitization', () => {
     expect(expressionFiles?.[0].fileName).toBe('302301_shisihangshi/expressions/happy.exp3.json')
   })
 
+  // Pins the invariant `validateLive2DZip` relies on after dropping its
+  // basename-collision rule: entries are addressed by full archive path, so two
+  // files sharing a basename never overwrite one another.
+  it('keeps two same-basename entries distinct', async () => {
+    const runtime = await import('pixi-live2d-display/cubism4')
+    const { configureLive2DLoaders } = await import('./live2d-zip-loader')
+    configureLive2DLoaders(runtime)
+    const { ZipLoader } = runtime
+
+    const zip = new JSZip()
+    zip.file('m/m.model3.json', JSON.stringify({
+      Version: 3,
+      FileReferences: {
+        Moc: 'm.moc3',
+        Textures: ['a/tex.png', 'b/tex.png'],
+      },
+    }))
+    zip.file('m/m.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('m/a/tex.png', new Uint8Array([1, 1, 1]))
+    zip.file('m/b/tex.png', new Uint8Array([2, 2]))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = await ZipLoader.unzip(reader, settings)
+
+    expect(files.map(file => file.webkitRelativePath).sort()).toEqual([
+      'm/a/tex.png',
+      'm/b/tex.png',
+      'm/m.moc3',
+    ])
+    // Distinct byte lengths: proves each path carries its own payload rather
+    // than one having overwritten the other under a shared basename.
+    const textures = files.filter(file => file.webkitRelativePath.endsWith('tex.png'))
+    expect(await textures.find(file => file.webkitRelativePath === 'm/a/tex.png')!.arrayBuffer()).toHaveProperty('byteLength', 3)
+    expect(await textures.find(file => file.webkitRelativePath === 'm/b/tex.png')!.arrayBuffer()).toHaveProperty('byteLength', 2)
+    expect(() => settings.validateFiles(files.map(file => encodeURI(file.webkitRelativePath)))).not.toThrow()
+  })
+
   it('reports how to supply the Cubism 2 core when a legacy model.json reaches a Cubism 3+ only build', async () => {
     const runtime = await import('pixi-live2d-display/cubism4')
     const { configureLive2DLoaders } = await import('./live2d-zip-loader')

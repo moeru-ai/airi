@@ -83,6 +83,42 @@ describe('live2D ZIP validator', () => {
     expect(report.runtimeFamily).toBe('cubism3-plus')
   })
 
+  it('accepts an archive with the same basename in two directories', async () => {
+    const zip = new JSZip()
+    zip.file('m/m.model3.json', JSON.stringify({
+      Version: 3,
+      FileReferences: {
+        Moc: 'm.moc3',
+        Textures: ['a/tex.png', 'b/tex.png'],
+      },
+    }))
+    zip.file('m/m.moc3', new Uint8Array([77, 79, 67, 51, 3]))
+    zip.file('m/a/tex.png', new Uint8Array([1]))
+    zip.file('m/b/tex.png', new Uint8Array([2]))
+
+    // ROOT CAUSE:
+    //
+    // The validator rejected every repeated basename outright:
+    //
+    //   report.errors.push(`Basename collision: "${base}" exists at ...`)
+    //
+    // It was guarding against a loader that flattened ZIP entries to their
+    // basename, but nothing flattens them: `ZipLoader.unzip` stamps each file's
+    // full `webkitRelativePath`, `FileLoader.upload` matches on that full path,
+    // and `OPFSCache.writeFile` splits the entry path to persist real nested
+    // directories. The rule only produced INVALID reports, which the model
+    // selector blocks from being imported.
+    //
+    // We fixed this by dropping the check. The loader-side invariant it assumed
+    // is pinned by "keeps two same-basename entries distinct" in
+    // live2d-zip-loader.test.ts.
+    const report = await validateLive2DZip(blobFromBytes(await zip.generateAsync({ type: 'uint8array' })))
+
+    expect(report.errors).toEqual([])
+    expect(report.status).toBe('VALID')
+    expect(report.entryPoint).toBe('m/m.model3.json')
+  })
+
   it('reports missing Cubism 2 references', async () => {
     const zip = new JSZip()
     zip.file('model.json', JSON.stringify({

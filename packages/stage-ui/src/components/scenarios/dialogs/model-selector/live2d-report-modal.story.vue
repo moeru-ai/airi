@@ -63,10 +63,12 @@ const invalidReport: Live2DValidationReport = {
   entryPoint: null,
   runtimeFamily: null,
   structureType: 'Unknown',
+  // Kept verbatim to what `validateLive2DZip` emits today, so the story shows
+  // the modal wrapping real error text rather than invented placeholders.
   errors: [
-    'Invalid Structure: No .model3.json found and 0 .moc3 files encountered.',
-    'Missing thumbnail referenced by model settings.',
-    'BASENAME COLLISION: Filename "texture_00.png" exists in multiple locations: model/textures/texture_00.png, model/expressions/texture_00.png. This causes data loss in AIRI\'s loader.',
+    'Invalid structure: expected exactly one .model.json or .model3.json entry point, found 0.',
+    'Missing reference: Texture "textures/texture_00.png" expected at "model/textures/texture_00.png".',
+    'Case sensitivity mismatch: Physics "data/Physics.json" resolves to "model/data/Physics.json", but the ZIP contains "model/data/physics.json".',
   ],
   warnings: [
     'Archive contains loose files at the root. Put the model files in one folder before zipping.',

@@ -148,16 +148,6 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     }
   }
 
-  const basenames = new Map<string, string[]>()
-  for (const path of allPaths) {
-    const base = path.split(/[\\/]/).pop()!
-    basenames.set(base, [...(basenames.get(base) ?? []), path])
-  }
-  for (const [base, paths] of basenames) {
-    if (paths.length > 1)
-      report.errors.push(`Basename collision: "${base}" exists at ${paths.join(', ')}.`)
-  }
-
   if (report.entryPoint && report.runtimeFamily) {
     try {
       const json = JSON.parse(await zip.file(report.entryPoint)!.async('text')) as Record<string, unknown>
