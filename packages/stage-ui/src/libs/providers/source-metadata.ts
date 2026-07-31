@@ -90,6 +90,7 @@ const providerSourceMetadataById = {
   'openpaths': paidCloud,
   'openrouter-ai': paidCloud,
   'openrouter-audio-speech': paidCloud,
+  'orcarouter': paidCloud,
   'perplexity-ai': paidCloud,
   'player2-speech': freeLocal,
   'speech-noop': false,

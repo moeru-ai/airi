@@ -1373,6 +1373,9 @@ pages:
       openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
+      orcarouter:
+        description: orcarouter.ai
+        title: OrcaRouter
       perplexity:
         description: perplexity.ai
         title: Perplexity
