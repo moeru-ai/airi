@@ -12,6 +12,10 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '')
   const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '')
   const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
+  // Roleplay thinking toggle. On: keep model reasoning enabled and let the chat
+  // orchestrator inject a roleplay guard so the character stays in first person.
+  // Off: ask the provider to disable thinking and skip the guard injection.
+  const thinkingEnabled = useLocalStorageManualReset<boolean>('settings/consciousness/thinking-enabled', true)
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 
@@ -92,6 +96,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
 
   function resetState() {
     activeProvider.reset()
+    thinkingEnabled.reset()
     resetModelSelection()
   }
 
@@ -101,6 +106,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     activeProvider,
     activeModel,
     customModelName: activeCustomModelName,
+    thinkingEnabled,
     expandedDescriptions,
     modelSearchQuery,
 

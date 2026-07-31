@@ -4,6 +4,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,6 +18,7 @@ const {
   activeProvider,
   activeModel,
   customModelName,
+  thinkingEnabled,
   modelSearchQuery,
   supportsModelListing,
   providerModels,
@@ -157,6 +159,26 @@ function handleDeleteProvider(providerId: string) {
             </RouterLink>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Thinking / roleplay guard toggle -->
+    <div v-if="activeProvider">
+      <div flex="~ col gap-4">
+        <div>
+          <h2 class="text-lg md:text-2xl">
+            {{ t('settings.pages.modules.consciousness.sections.section.thinking.title') }}
+          </h2>
+          <div text="neutral-400 dark:neutral-400">
+            <span>{{ t('settings.pages.modules.consciousness.sections.section.thinking.subtitle') }}</span>
+          </div>
+        </div>
+        <FieldCheckbox
+          v-model="thinkingEnabled"
+          :label="t('settings.pages.modules.consciousness.sections.section.thinking.label')"
+          :description="t('settings.pages.modules.consciousness.sections.section.thinking.description')"
+          placement="right"
+        />
       </div>
     </div>
 
