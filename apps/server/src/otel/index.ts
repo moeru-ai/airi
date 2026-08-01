@@ -1,4 +1,4 @@
-import type { Counter, Histogram, ObservableGauge } from '@opentelemetry/api'
+import type { Counter, Histogram, Meter, ObservableGauge } from '@opentelemetry/api'
 // NOTICE:
 // HTTP server metrics (request duration, active requests) are emitted by
 // `@hono/otel`'s `httpInstrumentationMiddleware` registered in `app.ts`. It
@@ -7,16 +7,11 @@ import type { Counter, Histogram, ObservableGauge } from '@opentelemetry/api'
 // for OUTBOUND requests only (LLM gateway, Stripe, Resend) — see
 // `instrumentation.ts`.
 
-import type { Env } from '../libs/env'
-
 import { useLogger } from '@guiiai/logg'
 import { metrics, trace } from '@opentelemetry/api'
 import { logs, SeverityNumber } from '@opentelemetry/api-logs'
 
 import {
-  METRIC_AIRI_EMAIL_DURATION,
-  METRIC_AIRI_EMAIL_FAILURES,
-  METRIC_AIRI_EMAIL_SEND,
   METRIC_AIRI_FLUX_CREDITED,
   METRIC_AIRI_FLUX_UNBILLED,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC,
@@ -38,8 +33,6 @@ import {
   METRIC_AIRI_STRIPE_REVENUE,
   METRIC_AIRI_TTS_CHARS,
   METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS,
-  METRIC_AUTH_ATTEMPTS,
-  METRIC_AUTH_FAILURES,
   METRIC_CHARACTER_CREATED,
   METRIC_CHARACTER_DELETED,
   METRIC_CHARACTER_ENGAGEMENT,
@@ -56,12 +49,6 @@ import {
   METRIC_STRIPE_EVENTS,
   METRIC_STRIPE_PAYMENT_FAILED,
   METRIC_STRIPE_SUBSCRIPTION_EVENT,
-  METRIC_USER_ACTIVE_ROLLING,
-  METRIC_USER_ACTIVE_SESSIONS,
-  METRIC_USER_DISTINCT_ACTIVE,
-  METRIC_USER_LOGIN,
-  METRIC_USER_REGISTERED,
-  METRIC_USER_TOTAL,
   METRIC_WS_CONNECTIONS_ACTIVE,
   METRIC_WS_MESSAGES_RECEIVED,
   METRIC_WS_MESSAGES_SENT,
@@ -69,80 +56,6 @@ import {
 } from '../utils/observability'
 
 const logger = useLogger('otel')
-
-export interface AuthMetrics {
-  attempts: Counter
-  failures: Counter
-  userRegistered: Counter
-  userLogin: Counter
-  /**
-   * Pull-based gauge for total registered users.
-   *
-   * Use when:
-   * - Reporting current account-base size. Pair with
-   *   {@link AuthMetrics.userRegistered} for signup deltas over a time window.
-   *
-   * Expects:
-   * - Backed by `SELECT COUNT(*) FROM "user"`. Same cluster-wide truth as the
-   *   other DB-backed gauges; dashboards MUST aggregate with `max()`/`avg()`,
-   *   not `sum()`.
-   */
-  totalUsers: ObservableGauge
-  /**
-   * Cluster-wide active session count, sourced from Postgres (Better Auth
-   * `session` table where `expires_at > NOW()`).
-   *
-   * Why ObservableGauge instead of UpDownCounter:
-   * - UpDownCounter drifts: TTL expiration never fires a -1, and multi-
-   *   replica deploys split +1 / -1 across instances (signin on A, signout
-   *   on B). The previous implementation went unboundedly positive.
-   * - Reading from the source-of-truth DB at scrape time makes the metric
-   *   self-correcting.
-   *
-   * Multi-replica note:
-   * - Every replica reads the same DB and reports the same value, so the
-   *   dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
-   *   Using sum() would multiply the real count by the replica count.
-   * - See `apps/server/docs/ai-context/observability-conventions.md`,
-   *   "Multi-Replica Considerations".
-   */
-  activeSessions: ObservableGauge
-  /**
-   * Pull-based gauge for distinct users with ≥1 non-expired session.
-   *
-   * Use when:
-   * - Querying real "active users" — not session rows. Better Auth creates a
-   *   new `session` row per sign-in and per OIDC token refresh, and never
-   *   GCs expired rows, so {@link AuthMetrics.activeSessions} drifts up
-   *   over time even when the actual user base is small.
-   *
-   * Expects:
-   * - Backed by `SELECT COUNT(DISTINCT user_id) FROM session WHERE expires_at > now()`.
-   *   Same cluster-wide truth as `activeSessions`; dashboards MUST aggregate
-   *   with `avg()`, not `sum()` — see observability-conventions.md.
-   */
-  distinctActiveUsers: ObservableGauge
-  /**
-   * Pull-based gauge for rolling-window distinct active users (DAU / WAU /
-   * MAU).
-   *
-   * Use when:
-   * - Reporting "how many users were active in the last 24h / 7d / 30d" —
-   *   the standard product-engagement funnel, distinct from
-   *   {@link AuthMetrics.distinctActiveUsers} which only counts users with a
-   *   currently-live session.
-   *
-   * Expects:
-   * - Backed by `COUNT(*) FILTER (WHERE last_seen_at > now() - window)` over
-   *   the `user` table. `last_seen_at` is touched on sign-in and on every
-   *   OIDC access-token refresh (~hourly), so it is a per-user last-activity
-   *   timestamp (see the `user.lastSeenAt` schema note).
-   * - Observed once per window with a `window` attribute (`24h` / `7d` /
-   *   `30d`). Same cluster-wide truth as the other DB-backed gauges;
-   *   dashboards MUST aggregate with `max()`/`avg()`, not `sum()`.
-   */
-  rollingActiveUsers: ObservableGauge
-}
 
 export interface EngagementMetrics {
   chatMessages: Counter
@@ -313,12 +226,6 @@ export interface GatewayMetrics {
   poolInflight: ObservableGauge
 }
 
-export interface EmailMetrics {
-  send: Counter
-  failures: Counter
-  duration: Histogram
-}
-
 export interface RateLimitMetrics {
   blocked: Counter
 }
@@ -350,16 +257,36 @@ export interface ProductMetrics {
   events: Counter
 }
 
-export interface OtelInstance {
-  auth: AuthMetrics
+export interface ApiOtelInstance {
   engagement: EngagementMetrics
   revenue: RevenueMetrics
   genAi: GenAiMetrics
   gateway: GatewayMetrics
-  email: EmailMetrics
   rateLimit: RateLimitMetrics
   observability: ObservabilityMetrics
   product: ProductMetrics
+}
+
+function createSharedMetrics(meter: Meter) {
+  const rateLimit: RateLimitMetrics = {
+    blocked: meter.createCounter(METRIC_AIRI_RATE_LIMIT_BLOCKED, {
+      description: 'Requests blocked by rate limiter',
+    }),
+  }
+
+  const observability: ObservabilityMetrics = {
+    metricReadErrors: meter.createCounter(METRIC_AIRI_OBSERVABILITY_READ_ERRORS, {
+      description: 'Failures reading metric values inside gauge callbacks',
+    }),
+  }
+
+  const product: ProductMetrics = {
+    events: meter.createCounter(METRIC_AIRI_PRODUCT_EVENTS, {
+      description: 'Low-cardinality product event volume. Distinct users live in Postgres product_events, not Prometheus labels.',
+    }),
+  }
+
+  return { rateLimit, observability, product }
 }
 
 /**
@@ -379,41 +306,13 @@ export interface OtelInstance {
  * - Metric bundle with primed counters (so low-traffic series show up in
  *   Prometheus from boot), or `null` when OTel is disabled.
  */
-export function initOtel(env: Pick<Env, 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'OTEL_SERVICE_NAME'>): OtelInstance | null {
+export function initOtel(env: { OTEL_EXPORTER_OTLP_ENDPOINT?: string, OTEL_SERVICE_NAME: string }): ApiOtelInstance | null {
   if (!env.OTEL_EXPORTER_OTLP_ENDPOINT) {
     logger.log('OpenTelemetry disabled (set OTEL_EXPORTER_OTLP_ENDPOINT to enable)')
     return null
   }
 
   const meter = metrics.getMeter(env.OTEL_SERVICE_NAME)
-
-  // Auth & User metrics
-  const auth: AuthMetrics = {
-    attempts: meter.createCounter(METRIC_AUTH_ATTEMPTS, {
-      description: 'Number of authentication attempts',
-    }),
-    failures: meter.createCounter(METRIC_AUTH_FAILURES, {
-      description: 'Number of failed authentication attempts',
-    }),
-    userRegistered: meter.createCounter(METRIC_USER_REGISTERED, {
-      description: 'Number of new user registrations',
-    }),
-    userLogin: meter.createCounter(METRIC_USER_LOGIN, {
-      description: 'Number of user sign-ins',
-    }),
-    totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
-      description: 'Total registered users sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
-    }),
-    activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use avg(), not sum())',
-    }),
-    distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
-      description: 'Distinct users with ≥1 non-expired session — true active-user count, immune to per-row session inflation (cluster-wide; dashboard must use avg(), not sum())',
-    }),
-    rollingActiveUsers: meter.createObservableGauge(METRIC_USER_ACTIVE_ROLLING, {
-      description: 'Rolling-window distinct active users (DAU/WAU/MAU) from user.last_seen_at, labelled by window=24h|7d|30d (cluster-wide; dashboard must use max(), not sum())',
-    }),
-  }
 
   // Engagement metrics
   const engagement: EngagementMetrics = {
@@ -550,36 +449,7 @@ export function initOtel(env: Pick<Env, 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'OTEL_SE
     }),
   }
 
-  const email: EmailMetrics = {
-    send: meter.createCounter(METRIC_AIRI_EMAIL_SEND, {
-      description: 'Transactional emails accepted by Resend',
-    }),
-    failures: meter.createCounter(METRIC_AIRI_EMAIL_FAILURES, {
-      description: 'Transactional email send failures',
-    }),
-    duration: meter.createHistogram(METRIC_AIRI_EMAIL_DURATION, {
-      description: 'Email provider call duration',
-      unit: 's',
-    }),
-  }
-
-  const rateLimit: RateLimitMetrics = {
-    blocked: meter.createCounter(METRIC_AIRI_RATE_LIMIT_BLOCKED, {
-      description: 'Requests blocked by rate limiter',
-    }),
-  }
-
-  const observability: ObservabilityMetrics = {
-    metricReadErrors: meter.createCounter(METRIC_AIRI_OBSERVABILITY_READ_ERRORS, {
-      description: 'Failures reading metric values inside gauge callbacks',
-    }),
-  }
-
-  const product: ProductMetrics = {
-    events: meter.createCounter(METRIC_AIRI_PRODUCT_EVENTS, {
-      description: 'Low-cardinality product event volume. Distinct users live in Postgres product_events, not Prometheus labels.',
-    }),
-  }
+  const { rateLimit, observability, product } = createSharedMetrics(meter)
 
   // NOTICE:
   // OTel SDK only emits a Counter time series after .add() runs the first time.
@@ -591,10 +461,6 @@ export function initOtel(env: Pick<Env, 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'OTEL_SE
   // Removal condition: OTel SDK changes default to register Counters at create
   // time (https://github.com/open-telemetry/opentelemetry-specification/issues/2298).
   const counters = [
-    auth.attempts,
-    auth.failures,
-    auth.userRegistered,
-    auth.userLogin,
     engagement.chatMessages,
     engagement.characterCreated,
     engagement.characterDeleted,
@@ -626,15 +492,13 @@ export function initOtel(env: Pick<Env, 'OTEL_EXPORTER_OTLP_ENDPOINT' | 'OTEL_SE
     gateway.subscriberState,
     gateway.configWrite,
     gateway.configInvalidHmac,
-    email.send,
-    email.failures,
     rateLimit.blocked,
     observability.metricReadErrors,
     product.events,
   ]
   for (const counter of counters) counter.add(0)
 
-  return { auth, engagement, revenue, genAi, gateway, email, rateLimit, observability, product }
+  return { engagement, revenue, genAi, gateway, rateLimit, observability, product }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

@@ -1,9 +1,9 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
+import { user } from '@proj-airi/auth-shared'
 import { pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm/relations'
 
-import { user } from './accounts'
 import { character } from './characters'
 
 // NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes

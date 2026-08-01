@@ -74,24 +74,13 @@ export type Harness = Awaited<ReturnType<typeof startVerificationContext>>
  *
  * Returns:
  * - A `Harness` value with the mounted app, drizzle handle, and helpers to
- *   set a session user, seed flux balance, override config keys, and inspect
+ *   set a test principal, seed flux balance, override config keys, and inspect
  *   the in-memory Redis store
  */
 
 export async function startVerificationContext() {
   const db = await getSharedDb()
   await resetDataRows(db)
-
-  let activeSession: { user: any, session: any } | null = null
-
-  const auth: any = {
-    api: {
-      getSession: vi.fn(async () => activeSession),
-      getOAuthServerConfig: vi.fn(async () => ({})),
-      getOpenIdConfig: vi.fn(async () => ({})),
-    },
-    handler: vi.fn(async () => new Response('not-found', { status: 404 })),
-  }
 
   const configStore: Record<string, any> = {
     FLUX_PER_REQUEST: 1,
@@ -170,6 +159,13 @@ export async function startVerificationContext() {
 
   const env: any = {
     API_SERVER_URL: 'http://localhost:3000',
+    AUTH_SERVER_URL: 'http://localhost:3000',
+    AUTH_INTERNAL_SECRET: '',
+    TEST_AUTH_TOKEN: '',
+    TEST_AUTH_USER_ID: 'test-user',
+    TEST_AUTH_USER_EMAIL: 'test@example.com',
+    TEST_AUTH_USER_NAME: 'Test User',
+    TEST_AUTH_USER_ROLE: '',
     OTEL_SERVICE_NAME: 'airi-server-test',
     ADDITIONAL_TRUSTED_ORIGINS: '',
     HOST: '127.0.0.1',
@@ -177,7 +173,6 @@ export async function startVerificationContext() {
   }
 
   const { app } = await buildApp({
-    auth,
     db,
     characterService: stub,
     chatService: stub,
@@ -209,32 +204,18 @@ export async function startVerificationContext() {
     configStore,
     userDeletionService,
     fluxService,
-    setSessionUser(user: SessionUser | null) {
-      activeSession = user
-        ? {
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.name ?? user.id,
-              emailVerified: user.emailVerified ?? true,
-              role: user.role ?? null,
-              banned: false,
-              banExpires: null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            },
-            session: {
-              id: `sess-${user.id}`,
-              userId: user.id,
-              token: `tok-${user.id}`,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              expiresAt: new Date(Date.now() + 3600_000),
-              ipAddress: null,
-              userAgent: null,
-            },
-          }
-        : null
+    setSessionUser(user: SessionUser | null): Record<string, string> {
+      if (!user) {
+        env.TEST_AUTH_TOKEN = ''
+        return {}
+      }
+
+      env.TEST_AUTH_TOKEN = `test-auth:${user.id}`
+      env.TEST_AUTH_USER_ID = user.id
+      env.TEST_AUTH_USER_EMAIL = user.email
+      env.TEST_AUTH_USER_NAME = user.name ?? user.id
+      env.TEST_AUTH_USER_ROLE = user.role ?? ''
+      return { Authorization: `Bearer ${env.TEST_AUTH_TOKEN}` }
     },
     async seedUser(opts: SeedUserOptions) {
       await db.insert(schema.user).values({

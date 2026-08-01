@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
-import type { OtelInstance } from './otel'
+import type { ApiOtelInstance } from './otel'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
@@ -30,7 +30,6 @@ import process from 'node:process'
 import Stripe from 'stripe'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
-import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
 import { Hono } from 'hono'
@@ -63,7 +62,7 @@ import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
-import { createInternalIdentityRoutes } from './routes/internal-identity'
+import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
@@ -112,7 +111,7 @@ interface AppDeps {
   envelopeCrypto: EnvelopeCrypto
   redis: Redis
   env: Env
-  otel: OtelInstance | null
+  otel: ApiOtelInstance | null
   userDeletionService: UserDeletionService
   llmRouter: LlmRouterService
   providerCatalogService: ProviderCatalogService
@@ -125,9 +124,8 @@ export async function buildApp(deps: AppDeps) {
     .use('*', async (c, next) => {
       await next()
 
-      // NOTICE: All API responses should be non-cacheable. Auth responses can
-      // carry session state through redirects, and stale API payloads are not
-      // safe to serve from edge caches after user/account mutations.
+      // NOTICE: Stale API payloads are unsafe to serve from edge caches after
+      // user, billing, or configuration mutations.
       c.res.headers.set('Cache-Control', 'no-store, no-cache, private, max-age=0')
       c.res.headers.set('Pragma', 'no-cache')
       c.res.headers.set('Expires', '0')
@@ -335,9 +333,10 @@ export async function buildApp(deps: AppDeps) {
       ui: 'https://airi.moeru.ai',
     }))
 
-    .route('/internal/identity', createInternalIdentityRoutes({
-      secret: deps.env.IDENTITY_INTERNAL_SECRET,
+    .route('/internal/auth', createInternalAuthRoutes({
+      secret: deps.env.AUTH_INTERNAL_SECRET,
       userDeletionService: deps.userDeletionService,
+      productEventService: deps.productEventService,
     }))
 
     /**
@@ -395,8 +394,8 @@ export async function buildApp(deps: AppDeps) {
 
     /**
      * Admin per-user balance override (set balance, incl. 0 for testing).
-     * Account ban/unban live under the better-auth admin plugin at
-     * `/api/auth/admin/ban-user` / `/api/auth/admin/unban-user`.
+     * Account ban/unban live on the Auth service under the Better Auth
+     * admin plugin at `/api/auth/admin/ban-user` and `/api/auth/admin/unban-user`.
      */
     .route('/api/admin/users', createAdminUsersRoutes(deps.adminUsersService))
 
@@ -780,7 +779,7 @@ export async function createApp() {
     providerCatalogService,
     ttsConcurrencyLedger,
   })
-  // Identity owns account/session gauges; API only observes its business pools.
+  // Auth owns account/session gauges; API only observes its business pools.
   if (resolved.otel) {
     registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
     registerWsOnlineUsersGauge(resolved.otel.engagement.wsUsersOnline, resolved.redis, resolved.otel.observability.metricReadErrors)
@@ -822,22 +821,4 @@ export async function createApp() {
     port: resolved.env.PORT,
     hostname: resolved.env.HOST,
   }
-}
-
-function handleProcessError(error: unknown, type: string) {
-  useLogger().withError(error).error(type)
-}
-
-export async function runApiServer(): Promise<void> {
-  const { app: honoApp, injectWebSocket, port, hostname } = await createApp()
-  const server = serve({ fetch: honoApp.fetch, port, hostname })
-  injectWebSocket(server)
-
-  process.on('uncaughtException', error => handleProcessError(error, 'Uncaught exception'))
-  process.on('unhandledRejection', error => handleProcessError(error, 'Unhandled rejection'))
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('close', () => resolve())
-    server.once('error', error => reject(error))
-  })
 }

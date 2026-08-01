@@ -1,11 +1,11 @@
-# Email auth via Resend (apps/server + apps/ui-server-auth)
+# Email auth via Resend (apps/auth-server + apps/ui-server-auth)
 
 Status: in progress
 Last updated: 2026-04-27
 
 ## Goal
 
-1. 接入 **Resend** 作为 `apps/server` 的统一邮件发送 service。
+1. 接入 **Resend** 作为 `apps/auth-server` 的统一邮件发送 service。
 2. 把 Better Auth 的四个邮件回调接好：
    - `emailVerification.sendVerificationEmail`（注册后验证邮箱）
    - `emailAndPassword.sendResetPassword`（忘记密码）
@@ -27,10 +27,10 @@ Last updated: 2026-04-27
 
 In:
 
-- `apps/server/src/services/adapters/email.ts`：统一 `EmailService` 接口（`sendVerification` / `sendPasswordReset` / `sendMagicLink` / `sendChangeEmail`），每个方法对应一个 HTML + plaintext 模板。
-- `apps/server/src/libs/auth.ts`：装上 4 个 callback；启用 `requireEmailVerification: true`；加载 `magicLink` plugin。
-- `apps/server/src/libs/env.ts`：新增 `RESEND_API_KEY`（必填）、`RESEND_FROM_EMAIL`（必填）、`RESEND_FROM_NAME`（可选）、`AUTH_EMAIL_VERIFY_REDIRECT_URL` / `AUTH_PASSWORD_RESET_REDIRECT_URL`（可选，默认根据 `API_SERVER_URL` 推算 ui-server-auth origin）。
-- `apps/server/src/app.ts`：把 `EmailService` 通过 `injeca` 装配，注入到 `auth` provider。
+- `apps/auth-server/src/services/adapters/email.ts`：统一 `EmailService` 接口（`sendVerification` / `sendPasswordReset` / `sendMagicLink` / `sendChangeEmail`），每个方法对应一个 HTML + plaintext 模板。
+- `apps/auth-server/src/libs/auth.ts`：装上 4 个 callback；启用 `requireEmailVerification: true`；加载 `magicLink` plugin。
+- `apps/auth-server/src/libs/env.ts`：定义 `RESEND_API_KEY`、`RESEND_FROM_EMAIL`、`RESEND_FROM_NAME` 与 `AUTH_UI_URL`。
+- `apps/auth-server/src/app.ts`：把 `EmailService` 通过 `injeca` 装配，注入到 `auth` provider。
 - `apps/ui-server-auth/src/pages`：扩 `sign-in.vue`；新增 `sign-up.vue`、`verify-email.vue`、`forgot-password.vue`、`reset-password.vue`。
 - `apps/ui-server-auth/src/modules/sign-in.ts` 同级补 `email-password.ts` 处理 emailPassword sign-in/up + forgot/reset 的真实调用。
 - `packages/i18n`：新增 auth.signUp / verifyEmail / forgotPassword / resetPassword 字段。
@@ -46,7 +46,7 @@ Out:
 
 - **Resend SDK**：使用官方 `resend` npm 包。错误处理走 `errorMessageFrom`（`@moeru/std`）；失败时抛 `ApiError(502, 'email/send_failed', ...)` 让 Better Auth 把错传回前端。
 - **触发邮件的位置**：Better Auth 的 hook 是 server 内部回调，不是 HTTP 路由——跨实例时只有处理该次 sign-in/up 的实例会触发，不会重复。
-- **Verify / reset 链接 URL**：链接落地页不放 `apps/server`，而是放独立部署的 `apps/ui-server-auth`。`API_SERVER_URL` 是 server 自身（如 `https://api.airi.build`），ui-server-auth 是同站点的另一域（如 `https://accounts.airi.build/ui`）；两者通过 trustedOrigins 互信。链接组装规则：
+- **Verify / reset 链接 URL**：链接落地页不放 `apps/auth-server`，而是放独立部署的 `apps/ui-server-auth`。Auth server 的 public issuer 由 `PUBLIC_URL` 定义，UI base 由 `AUTH_UI_URL` 定义；两者通过 trustedOrigins 互信。链接组装规则：
   - Verify email：`<UI_BASE>/verify-email?token=<token>`
   - Reset password：`<UI_BASE>/reset-password?token=<token>`
   - 由 `getAuthTrustedOrigins(request)` 第一个匹配的 origin 决定 `<UI_BASE>`，避免硬编码。
@@ -57,7 +57,7 @@ Out:
 
 - `resend` SDK ESM-only？需在加包后 `pnpm typecheck` 验证（unverified）。
 - `better-auth/plugins/magic-link` 可与 `oauthProvider` 共存（unverified，但插件是独立 endpoint，不冲突）。
-- ui-server-auth 在 dev 下走 `http://localhost:5173`，与 `apps/server` 不同源。`server` 已在 `getAuthTrustedOrigins` 把 dev origin 加进来。
+- ui-server-auth 在 dev 下走 `http://localhost:5173`，与 `apps/auth-server` 不同源。Auth server 已在 `getAuthTrustedOrigins` 把 dev origin 加进来。
 
 ## 验证计划
 

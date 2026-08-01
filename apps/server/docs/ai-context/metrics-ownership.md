@@ -55,7 +55,7 @@
 
 `user_active_sessions`（COUNT(\*)）和 `user_distinct_active`（COUNT(DISTINCT user_id)）共享同一张 `session` 表：
 
-- **Better Auth 每次 sign-in / 每次 OIDC access-token 颁发都新建一条 session row，从不主动 GC 过期 row**——因为 `oauth_access_token.session_id` FK 指向 session（`apps/server/src/libs/auth.ts:513` 注释）
+- **Better Auth 每次 sign-in / 每次 OIDC access-token 颁发都新建一条 session row，从不主动 GC 过期 row**——因为 `oauth_access_token.session_id` FK 指向 session（`apps/auth-server/src/libs/auth.ts:513` 注释）
 - 实战观察：~80K `user_active_sessions` 对应实际只有几百 distinct user。比例 5+ 就该考虑加 session GC cron 或缩短 Better Auth `expiresIn`
 - 永远展示 `user_distinct_active` 给非工程师看（PM、运营）；`user_active_sessions` 留给工程师 debug
 

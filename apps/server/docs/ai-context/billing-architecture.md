@@ -41,7 +41,7 @@ OpenAI route (`routes/openai/v1/index.ts`) 在 `consumeFluxForLLM` 完成后调�
 
 ### 进程角色
 
-只有 `api` 一个 role（`src/bin/run.ts`），且没有任何"常驻后台 loop"或"fire-and-forget 异步任务"。所有写路径（包括 admin flux grant）都在请求线程内完成；多实例安全靠 `(userId, requestId)` 幂等索引。详见 [`workers-and-runtime.md`](workers-and-runtime.md)。
+业务 API 使用独立入口 `apps/server/src/main.ts`，且没有任何"常驻后台 loop"或"fire-and-forget 异步任务"。所有写路径（包括 admin flux grant）都在请求线程内完成；多实例安全靠 `(userId, requestId)` 幂等索引。`apps/auth-server` 是另一独立应用，不参与 billing runtime。详见 [`workers-and-runtime.md`](workers-and-runtime.md)。
 
 ### Stripe 定价
 

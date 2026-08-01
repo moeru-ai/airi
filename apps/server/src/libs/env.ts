@@ -5,61 +5,9 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform } from 'valibot'
+import { check, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
 
-/**
- * Parses `ADDITIONAL_TRUSTED_ORIGINS`: comma-separated absolute origins used for
- * CORS (`/api/*`) and request-derived trusted bases (e.g. Stripe return URLs).
- * Each segment is normalized via `URL.origin` so trailing slashes are stripped.
- *
- * Before:
- * - `" https://10.0.0.129:5273/ , https://198.18.0.1:5273 "`
- *
- * After:
- * - `["https://10.0.0.129:5273", "https://198.18.0.1:5273"]`
- */
-export function parseAdditionalTrustedOriginsEnv(raw: string): string[] {
-  const trimmed = raw.trim()
-  if (!trimmed)
-    return []
-
-  const seen = new Set<string>()
-  const out: string[] = []
-
-  for (const part of trimmed.split(',')) {
-    const entry = part.trim()
-    if (!entry)
-      continue
-
-    let normalized: string
-    try {
-      normalized = new URL(entry).origin
-    }
-    catch {
-      throw new TypeError(`ADDITIONAL_TRUSTED_ORIGINS: invalid URL origin segment "${entry}"`)
-    }
-
-    if (!seen.has(normalized)) {
-      seen.add(normalized)
-      out.push(normalized)
-    }
-  }
-
-  return out
-}
-
-function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
-  return optional(
-    pipe(
-      string(),
-      nonEmpty(`${envKey} must not be empty`),
-      transform(input => Number(input)),
-      integer(`${envKey} must be an integer`),
-      minValue(minimum, `${envKey} must be at least ${minimum}`),
-    ),
-    String(defaultValue),
-  )
-}
+import { optionalIntegerFromString, parseAdditionalTrustedOriginsEnv } from './runtime-env'
 
 function optionalNumberFromString(defaultValue: number, envKey: string, minimum: number, maximum: number) {
   return optional(
@@ -79,21 +27,12 @@ const EnvSchema = object({
   PORT: optionalIntegerFromString(3000, 'PORT', 1),
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
+  AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
 
-  // Shared only between the Identity and API Railway services. Identity uses
+  // Shared only between the Auth and API Railway services. Auth uses
   // it to request business-data cleanup before Better Auth deletes a user.
   // Empty keeps local login flows usable, but account deletion fails closed.
-  IDENTITY_INTERNAL_SECRET: optional(string(), ''),
-
-  // Trust Railway's canonical client-IP headers only when the application is
-  // deployed behind a private reverse-proxy boundary. Keep unset for direct or
-  // self-hosted deployments so callers cannot choose their own rate-limit key.
-  RATE_LIMIT_TRUSTED_PROXY: optional(picklist(['railway'])),
-
-  // Standalone auth UI base URL. The server keeps `/auth/*` as the historical
-  // entrypoint and redirects those requests here after ui-server-auth moved out
-  // of the server image.
-  AUTH_UI_URL: optional(string(), 'https://accounts.airi.build/ui'),
+  AUTH_INTERNAL_SECRET: optional(string(), ''),
 
   // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
   // entrypoint and redirects those requests here after the admin UI moved to
@@ -120,56 +59,14 @@ const EnvSchema = object({
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
 
-  // Required: signs session cookies and encrypts JWKS private keys in DB.
-  // Must be stable across deploys/instances, otherwise every redeploy invalidates
-  // all existing sessions and forces users to re-login.
-  BETTER_AUTH_SECRET: optional(string(), ''),
-
-  AUTH_GOOGLE_CLIENT_ID: optional(string(), ''),
-  AUTH_GOOGLE_CLIENT_SECRET: optional(string(), ''),
-  AUTH_GITHUB_CLIENT_ID: optional(string(), ''),
-  AUTH_GITHUB_CLIENT_SECRET: optional(string(), ''),
-  AUTH_APPLE_CLIENT_ID: optional(string(), ''),
-  AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: optional(
-    pipe(
-      string(),
-      transform(raw => [...new Set(
-        raw
-          .split(',')
-          .map(bundleIdentifier => bundleIdentifier.trim())
-          .filter(Boolean),
-      )]),
-    ),
-    '',
-  ),
-  AUTH_APPLE_TEAM_ID: optional(string(), ''),
-  AUTH_APPLE_KEY_ID: optional(string(), ''),
-  AUTH_APPLE_PRIVATE_KEY_PEM: optional(
-    pipe(
-      string(),
-      // Deployment dashboards commonly store multiline secrets with escaped
-      // newlines. jose's PKCS8 importer requires the original PEM layout.
-      transform(raw => raw.replaceAll(String.raw`\n`, '\n')),
-    ),
-    '',
-  ),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
-  // through resolveRequestAuth without creating a better-auth session row.
+  // through resolveRequestAuth without creating an Auth session row.
   TEST_AUTH_TOKEN: optional(string(), ''),
   TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
   TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
   TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
   TEST_AUTH_USER_ROLE: optional(string(), ''),
-
-  // Resend transactional email. RESEND_API_KEY required when emailAndPassword
-  // sign-up / forgot-password / change-email / magic-link is exercised. Service
-  // boots without it but those flows will throw at send-time.
-  RESEND_API_KEY: optional(string(), ''),
-  // From address must be a verified Resend sender (e.g. `noreply@your-domain`).
-  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
-  // Optional friendly name; rendered as `Name <email>` per Resend's RFC 5322 display-name format.
-  RESEND_FROM_NAME: optional(string(), 'Project AIRI'),
 
   STRIPE_SECRET_KEY: optional(string()),
   STRIPE_WEBHOOK_SECRET: optional(string()),
@@ -234,86 +131,12 @@ const EnvSchema = object({
 
 export type Env = InferOutput<typeof EnvSchema>
 
-const IdentityEnvSchema = object({
-  HOST: optional(string(), '0.0.0.0'),
-  PORT: optionalIntegerFromString(3000, 'PORT', 1),
-  API_SERVER_URL: optional(string(), 'http://localhost:3000'),
-  IDENTITY_INTERNAL_SECRET: optional(string(), ''),
-  RATE_LIMIT_TRUSTED_PROXY: optional(picklist(['railway'])),
-  AUTH_UI_URL: optional(string(), 'https://accounts.airi.build/ui'),
-  ADDITIONAL_TRUSTED_ORIGINS: optional(
-    pipe(string(), transform(raw => parseAdditionalTrustedOriginsEnv(raw))),
-    '',
-  ),
-  DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
-  REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
-  BETTER_AUTH_SECRET: pipe(string(), nonEmpty('BETTER_AUTH_SECRET is required')),
-  AUTH_GOOGLE_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_ID is required')),
-  AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),
-  AUTH_GITHUB_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_ID is required')),
-  AUTH_GITHUB_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GITHUB_CLIENT_SECRET is required')),
-  AUTH_APPLE_CLIENT_ID: optional(string(), ''),
-  AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: optional(
-    pipe(
-      string(),
-      transform(raw => [...new Set(
-        raw
-          .split(',')
-          .map(bundleIdentifier => bundleIdentifier.trim())
-          .filter(Boolean),
-      )]),
-    ),
-    '',
-  ),
-  AUTH_APPLE_TEAM_ID: optional(string(), ''),
-  AUTH_APPLE_KEY_ID: optional(string(), ''),
-  AUTH_APPLE_PRIVATE_KEY_PEM: optional(
-    pipe(
-      string(),
-      // Deployment dashboards commonly store multiline secrets with escaped
-      // newlines. jose's PKCS8 importer requires the original PEM layout.
-      transform(raw => raw.replaceAll(String.raw`\n`, '\n')),
-    ),
-    '',
-  ),
-  TEST_AUTH_TOKEN: optional(string(), ''),
-  TEST_AUTH_USER_ID: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_ID must not be empty when set')), 'test-user'),
-  TEST_AUTH_USER_EMAIL: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_EMAIL must not be empty when set')), 'test@example.com'),
-  TEST_AUTH_USER_NAME: optional(pipe(string(), nonEmpty('TEST_AUTH_USER_NAME must not be empty when set')), 'Test User'),
-  TEST_AUTH_USER_ROLE: optional(string(), ''),
-  RESEND_API_KEY: optional(string(), ''),
-  RESEND_FROM_EMAIL: optional(string(), 'noreply@airi.moeru.ai'),
-  RESEND_FROM_NAME: optional(string(), 'Project AIRI'),
-  DB_POOL_MAX: optionalIntegerFromString(20, 'DB_POOL_MAX', 1),
-  DB_POOL_IDLE_TIMEOUT_MS: optionalIntegerFromString(30000, 'DB_POOL_IDLE_TIMEOUT_MS', 1),
-  DB_POOL_CONNECTION_TIMEOUT_MS: optionalIntegerFromString(5000, 'DB_POOL_CONNECTION_TIMEOUT_MS', 1),
-  DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: optionalIntegerFromString(10000, 'DB_POOL_KEEPALIVE_INITIAL_DELAY_MS', 1),
-  POSTHOG_PROJECT_KEY: optional(string(), 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9'), // cspell:disable-line
-  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
-  OTEL_SERVICE_NAME: optional(string(), 'identity'),
-  OTEL_EXPORTER_OTLP_ENDPOINT: optional(string()),
-})
-
-/** Environment owned by the standalone Identity process. */
-export type IdentityEnv = InferOutput<typeof IdentityEnvSchema>
-
 export function parseEnv(inputEnv: Record<string, string> | typeof env): Env {
   try {
     return parse(EnvSchema, inputEnv)
   }
   catch (err) {
     useLogger().withError(err).error('Invalid environment variables')
-    exit(1)
-  }
-}
-
-/** Parses only Identity-owned configuration; business-only secrets are ignored. */
-export function parseIdentityEnv(inputEnv: Record<string, string> | typeof env): IdentityEnv {
-  try {
-    return parse(IdentityEnvSchema, inputEnv)
-  }
-  catch (err) {
-    useLogger().withError(err).error('Invalid identity environment variables')
     exit(1)
   }
 }

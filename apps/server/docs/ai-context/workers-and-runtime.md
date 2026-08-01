@@ -2,7 +2,9 @@
 
 ## 进程角色
 
-入口：`src/bin/run.ts`。
+API 入口：`apps/server/src/main.ts`。Auth server 使用独立 package 的
+`apps/auth-server/src/main.ts`，不经过 role CLI，也不会加载 API
+composition root。
 
 - `api`
   - 启动 Hono HTTP + WebSocket 服务
@@ -14,8 +16,8 @@
 
 启动路径：
 
-- `src/bin/run.ts`
-- `runApiServer()`
+- `src/main.ts`
+- `src/server.ts` 的 `runApiServer()`
 - `createApp()`
 
 启动时会做的事情：
@@ -44,10 +46,11 @@
 - `HOST`
 - `PORT`
 - `API_SERVER_URL`
+- `AUTH_SERVER_URL`
 - `DATABASE_URL`
 - `REDIS_URL`
 
-### Auth
+### Auth server only
 
 - `AUTH_GOOGLE_CLIENT_ID`
 - `AUTH_GOOGLE_CLIENT_SECRET`
@@ -59,6 +62,10 @@
 - `AUTH_APPLE_TEAM_ID`
 - `AUTH_APPLE_KEY_ID`
 - `AUTH_APPLE_PRIVATE_KEY_PEM`
+
+这些变量只由 `apps/auth-server/src/libs/env.ts` 解析，API 的
+`apps/server/src/libs/env.ts` 不会读取或暴露它们。Auth server 另使用
+`PUBLIC_URL` 作为 OIDC public origin、`RESOURCE_SERVER_URL` 访问私网 API。
 
 ### Stripe
 
@@ -93,7 +100,9 @@
 
 ## OpenTelemetry
 
-初始化在 `instrumentation.ts`（NodeSDK lifecycle）+ `src/otel/index.ts`（metric handles）+ `src/otel/gauges/*.ts`（DB-backed ObservableGauge callbacks，例如 `gauges/active-sessions.ts`）。
+API 初始化在 `instrumentation.ts`（NodeSDK lifecycle）和
+`src/otel/index.ts`（business metric handles）。账号/会话 gauge 已移到
+`apps/auth-server/src/otel/gauges`，不会随 API runtime 加载。
 
 启用条件：
 
@@ -102,7 +111,7 @@
 覆盖面：
 
 - HTTP
-- Auth
+- Auth（由 `apps/auth-server` 独立导出）
 - Chat engagement
 - Revenue
 - LLM

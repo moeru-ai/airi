@@ -7,7 +7,8 @@
 - `GET /livez` — K8s 风格 liveness 探针，纯静态 200，不碰任何外部依赖
 - `GET /readyz` — K8s 风格 readiness 探针，并发 ping Postgres + Redis；任一失败回 503。**不**检查上游 LLM key 健康（R14）
 - `GET /` — 服务标识 JSON，避免邮件链接拼错落到框架默认 404
-- `/internal/identity/user-deletion` — 仅供 Identity 使用的共享凭据接口
+- `/internal/auth/user-deletion` — Auth server 发起账户删除前调用
+- `/internal/auth/events` — Auth server 转发 signup/session product facts
 - `/api/v1/characters`
 - `/api/v1/providers`
 - `/api/v1/chats`
@@ -22,7 +23,7 @@
 ### HTTP
 
 - `sessionMiddleware(db, env)`
-  - 从 `api.airi.build/api/auth/jwks` 验证 OIDC access token；该路径由 Caddy 转发到私网 Identity 服务
+  - 从 `AUTH_SERVER_URL/api/auth/jwks` 验证 OIDC access token；生产中该路径由 Caddy 转发到私网 Auth 服务
   - 校验 issuer、API audience、过期时间和用户封禁状态
   - 把 `user` / `session` 注入 Hono context
 - `authGuard`
@@ -41,17 +42,17 @@
 
 ## 路由到服务映射
 
-### Identity `/api/auth/*` 及 `/auth/*`
+### Auth server `/api/auth/*` 及 `/auth/*`
 
 实现位置：
 
-- 运行入口：`src/identity-server.ts`
-- 路由入口：`src/routes/auth/index.ts`（仅挂载到 Identity app）
-- token auth 辅助路由：`src/routes/oidc/token-auth.ts`
-- Electron 回调中继：`src/routes/oidc/electron-callback.ts`
-- better-auth 配置：`src/libs/auth.ts`
-- Bearer 解析：`src/libs/request-auth.ts`
-- 登录页渲染：`src/utils/sign-in-page.ts`
+- 运行入口：`apps/auth-server/src/main.ts`
+- composition root：`apps/auth-server/src/server.ts`
+- 路由入口：`apps/auth-server/src/routes/auth/index.ts`
+- token auth 辅助路由：`apps/auth-server/src/routes/auth/oidc/token-auth.ts`
+- Electron 回调中继：`apps/auth-server/src/routes/auth/oidc/electron-callback.ts`
+- Better Auth 配置：`apps/auth-server/src/libs/auth.ts`
+- Bearer 解析：`apps/auth-server/src/libs/request-auth.ts`
 
 特点：
 
@@ -60,7 +61,7 @@
 - Bearer plugin + JWT plugin 已启用
 - `/api/auth/*` 有独立 IP 限流
 - `GET /api/auth/get-session`、`POST /api/auth/sign-out`、`GET /api/auth/list-sessions` 由本地路由处理
-- Identity helper routes 支持 Better Auth session 和 OIDC access token
+- Auth helper routes 支持 Better Auth session 和 OIDC access token
 - API 不挂载这些路由，只接受面向 resource audience 的 access token
 - 详见 `auth-and-oidc.md`
 

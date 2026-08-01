@@ -2,17 +2,13 @@ import { Buffer } from 'node:buffer'
 
 import { describe, expect, it } from 'vitest'
 
-import { parseAdditionalTrustedOriginsEnv, parseEnv, parseIdentityEnv } from '../env'
+import { parseEnv } from '../env'
+import { parseAdditionalTrustedOriginsEnv } from '../runtime-env'
 
 function baseEnv(): Record<string, string> {
   return {
     DATABASE_URL: 'postgres://example',
     REDIS_URL: 'redis://example',
-    AUTH_APPLE_CLIENT_ID: 'apple-service-id',
-    AUTH_APPLE_APP_BUNDLE_IDENTIFIERS: 'ai.moeru.airi-pocket, ai.moeru.airi-pro, ai.moeru.airi-pocket',
-    AUTH_APPLE_TEAM_ID: 'apple-team-id',
-    AUTH_APPLE_KEY_ID: 'apple-key-id',
-    AUTH_APPLE_PRIVATE_KEY_PEM: 'line-one\\nline-two',
     // Required: a deterministic 32-byte base64 value so env parse succeeds.
     LLM_ROUTER_MASTER_KEY: Buffer.alloc(32, 0xAA).toString('base64'),
   }
@@ -41,54 +37,11 @@ describe('parseEnv', () => {
 
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
-    expect(env.BETTER_AUTH_SECRET).toBe('')
-    expect(env.AUTH_UI_URL).toBe('https://accounts.airi.build/ui')
     expect(env.ADMIN_UI_URL).toBe('https://admin.airi.build')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
-    expect(env.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS).toEqual([
-      'ai.moeru.airi-pocket',
-      'ai.moeru.airi-pro',
-    ])
-    expect(env.RATE_LIMIT_TRUSTED_PROXY).toBeUndefined()
-    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('line-one\nline-two')
-  })
-
-  it('parses an explicit Railway rate-limit proxy boundary', () => {
-    const env = parseEnv({
-      ...baseEnv(),
-      RATE_LIMIT_TRUSTED_PROXY: 'railway',
-    })
-
-    expect(env.RATE_LIMIT_TRUSTED_PROXY).toBe('railway')
-  })
-
-  it('allows Apple auth to remain disabled when no Apple credentials are configured', () => {
-    const input = baseEnv()
-    delete input.AUTH_APPLE_CLIENT_ID
-    delete input.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS
-    delete input.AUTH_APPLE_TEAM_ID
-    delete input.AUTH_APPLE_KEY_ID
-    delete input.AUTH_APPLE_PRIVATE_KEY_PEM
-
-    const env = parseEnv(input)
-
-    expect(env.AUTH_APPLE_CLIENT_ID).toBe('')
-    expect(env.AUTH_APPLE_APP_BUNDLE_IDENTIFIERS).toEqual([])
-    expect(env.AUTH_APPLE_TEAM_ID).toBe('')
-    expect(env.AUTH_APPLE_KEY_ID).toBe('')
-    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')
-  })
-
-  it('leaves incomplete Apple credentials for provider setup to disable', () => {
-    const input = baseEnv()
-    delete input.AUTH_APPLE_PRIVATE_KEY_PEM
-
-    const env = parseEnv(input)
-
-    expect(env.AUTH_APPLE_CLIENT_ID).toBe('apple-service-id')
-    expect(env.AUTH_APPLE_TEAM_ID).toBe('apple-team-id')
-    expect(env.AUTH_APPLE_KEY_ID).toBe('apple-key-id')
-    expect(env.AUTH_APPLE_PRIVATE_KEY_PEM).toBe('')
+    expect('BETTER_AUTH_SECRET' in env).toBe(false)
+    expect('AUTH_GOOGLE_CLIENT_ID' in env).toBe(false)
+    expect('RESEND_API_KEY' in env).toBe(false)
   })
 
   it('parses ADDITIONAL_TRUSTED_ORIGINS into a normalized origin list', () => {
@@ -165,25 +118,5 @@ describe('parseEnv', () => {
     expect(env.LLM_ROUTER_MASTER_KEY.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
-  })
-})
-
-describe('parseIdentityEnv', () => {
-  it('parses Identity configuration without business-only LLM or Stripe secrets', () => {
-    const env = parseIdentityEnv({
-      DATABASE_URL: 'postgres://identity',
-      REDIS_URL: 'redis://identity',
-      API_SERVER_URL: 'https://api.airi.build',
-      BETTER_AUTH_SECRET: 'identity-secret-at-least-32-characters',
-      AUTH_GOOGLE_CLIENT_ID: 'google-client',
-      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
-      AUTH_GITHUB_CLIENT_ID: 'github-client',
-      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
-    })
-
-    expect(env.API_SERVER_URL).toBe('https://api.airi.build')
-    expect(env.BETTER_AUTH_SECRET).toBe('identity-secret-at-least-32-characters')
-    expect('LLM_ROUTER_MASTER_KEY' in env).toBe(false)
-    expect('STRIPE_SECRET_KEY' in env).toBe(false)
   })
 })

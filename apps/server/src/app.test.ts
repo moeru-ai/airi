@@ -38,7 +38,8 @@ function createTestDeps() {
     redis: redis as never,
     env: {
       API_SERVER_URL: 'https://api.airi.build',
-      IDENTITY_INTERNAL_SECRET: 'shared-secret',
+      AUTH_SERVER_URL: 'https://api.airi.build',
+      AUTH_INTERNAL_SECRET: 'shared-secret',
     } as never,
     otel: null,
     userDeletionService: { register: vi.fn(), softDeleteAll: vi.fn() },

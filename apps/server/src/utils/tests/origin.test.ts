@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getAuthTrustedOrigins, getTrustedOrigin, resolveCheckoutRedirectBase, resolveTrustedRequestOrigin } from '../origin'
+import { getTrustedOrigin, resolveCheckoutRedirectBase, resolveTrustedRequestOrigin } from '../origin'
 
 describe('origin utils', () => {
   it('allows localhost origins', () => {
@@ -55,30 +55,6 @@ describe('origin utils', () => {
     expect(resolveTrustedRequestOrigin(request)).toBe('http://localhost:5173')
   })
 
-  it('collects api and request origins for auth', () => {
-    const request = new Request('http://localhost/api/auth/sign-in/social', {
-      headers: {
-        origin: 'http://localhost:5173',
-      },
-    })
-
-    expect(getAuthTrustedOrigins({
-      API_SERVER_URL: 'https://api.airi.moeru.ai',
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-    }, request)).toEqual([
-      'https://api.airi.moeru.ai',
-      'https://airi.moeru.ai',
-      'https://accounts.airi.build',
-      'https://server-dev.airi-server-auth.pages.dev',
-      'https://admin.airi.build',
-      'https://server-dev.airi-server-admin.pages.dev',
-      'https://appleid.apple.com',
-      'http://localhost:*',
-      'http://127.0.0.1:*',
-      'http://localhost:5173',
-    ])
-  })
-
   describe('resolveCheckoutRedirectBase', () => {
     const fallback = 'https://airi.moeru.ai'
 
@@ -120,56 +96,5 @@ describe('origin utils', () => {
 
       expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe(fallback)
     })
-  })
-
-  it('includes ADDITIONAL_TRUSTED_ORIGINS in Better Auth trustedOrigins list', () => {
-    expect(getAuthTrustedOrigins({
-      API_SERVER_URL: 'https://api.airi.moeru.ai',
-      ADDITIONAL_TRUSTED_ORIGINS: ['https://10.0.0.129:5273'],
-    })).toEqual([
-      'https://api.airi.moeru.ai',
-      'https://airi.moeru.ai',
-      'https://accounts.airi.build',
-      'https://server-dev.airi-server-auth.pages.dev',
-      'https://admin.airi.build',
-      'https://server-dev.airi-server-admin.pages.dev',
-      'https://appleid.apple.com',
-      'https://10.0.0.129:5273',
-      'http://localhost:*',
-      'http://127.0.0.1:*',
-    ])
-  })
-
-  it('does not include native deep-link schemes in Better Auth trustedOrigins', () => {
-    expect(getTrustedOrigin('capacitor://localhost')).toBe('capacitor://localhost')
-    expect(getTrustedOrigin('ai.moeru.airi-pocket://links')).toBe('ai.moeru.airi-pocket://links')
-
-    const authOrigins = getAuthTrustedOrigins({
-      API_SERVER_URL: 'https://api.airi.build',
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-    })
-
-    expect(authOrigins).not.toContain('capacitor://localhost')
-    expect(authOrigins).not.toContain('ai.moeru.airi-pocket://links')
-  })
-
-  // ROOT CAUSE:
-  //
-  // Email verification links carry a callbackURL query parameter that Better
-  // Auth validates only against its trustedOrigins list. The standalone auth
-  // UI sends callbackURL=https://accounts.airi.build/ui/verify-email?verified=true,
-  // but getAuthTrustedOrigins previously listed only API_SERVER_URL,
-  // additional env origins, and localhost wildcards. Clicking the email from
-  // a normal inbox has no usable Origin/Referer header, so request-derived
-  // trust could not add the auth UI origin and Better Auth returned
-  // INVALID_CALLBACK_URL.
-  //
-  // Before patch: auth UI callback -> not in trustedOrigins -> 403.
-  // After patch: built-in first-party exact origins are always present.
-  it('includes built-in first-party origins for email verification callbacks without request headers', () => {
-    expect(getAuthTrustedOrigins({
-      API_SERVER_URL: 'https://api.airi.build',
-      ADDITIONAL_TRUSTED_ORIGINS: [],
-    })).toContain('https://accounts.airi.build')
   })
 })

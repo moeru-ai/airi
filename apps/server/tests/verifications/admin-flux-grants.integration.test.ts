@@ -33,11 +33,11 @@ describe('verification: admin-flux-grants', () => {
     it('credits 100 flux to each existing recipient and returns the per-email outcome buckets', async () => {
       await ctx.seedUser({ id: 'recipient-1', email: 'rec1@example.com', balance: 0 })
       await ctx.seedUser({ id: 'recipient-2', email: 'rec2@example.com', balance: 25 })
-      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, role: 'admin' })
+      const authHeaders = ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, role: 'admin' })
 
       const res = await ctx.app.request('/api/admin/flux-grants', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: 'integration-test grant',
           amount: 100,
@@ -85,11 +85,11 @@ describe('verification: admin-flux-grants', () => {
   describe('path 2: dry-run preview', () => {
     it('reports willGrant / notFound / duplicateInInput without writing a ledger row', async () => {
       await ctx.seedUser({ id: 'recipient-1', email: 'rec1@example.com', balance: 0 })
-      ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, role: 'admin' })
+      const authHeaders = ctx.setSessionUser({ id: 'admin-1', email: ADMIN_EMAIL, role: 'admin' })
 
       const res = await ctx.app.request('/api/admin/flux-grants?dryRun=true', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: 'smoke',
           amount: 100,
@@ -140,11 +140,11 @@ describe('verification: admin-flux-grants', () => {
 
     it('returns 403 when the session user has no admin role', async () => {
       await ctx.seedUser({ id: 'normie', email: 'normie@example.com', balance: 0 })
-      ctx.setSessionUser({ id: 'normie', email: 'normie@example.com', role: 'user' })
+      const authHeaders = ctx.setSessionUser({ id: 'normie', email: 'normie@example.com', role: 'user' })
 
       const res = await ctx.app.request('/api/admin/flux-grants', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...authHeaders, 'Content-Type': 'application/json' },
         body: JSON.stringify({ description: 'x', amount: 1, emails: ['a@b.com'] }),
       })
 

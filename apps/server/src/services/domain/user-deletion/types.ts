@@ -68,7 +68,8 @@ export interface UserDeletionHandler {
  * Coordinator for account deletion across business modules.
  *
  * Use when:
- * - Wiring better-auth's `user.deleteUser.beforeDelete` hook in `libs/auth.ts`.
+ * - Serving the authenticated internal request emitted by Auth server's
+ *   `user.deleteUser.beforeDelete` hook.
  * - Implementing an admin-triggered deletion path (future).
  *
  * Expects:

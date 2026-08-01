@@ -11,6 +11,8 @@
 
 - `architecture-overview.md`
   - 入口、依赖注入、应用装配、核心边界
+- `auth-service-extraction.md`
+  - `apps/auth-server` package、Caddy 路由、internal contract 与 migration ownership
 - `transport-and-routes.md`
   - HTTP / WebSocket 接口面、路由到服务映射、鉴权与中间件
 - `data-model-and-state.md`
@@ -65,7 +67,7 @@
 ## 快速结论
 
 - `apps/server/src/app.ts` 是唯一的 API 应用装配入口。
-- 服务端采用 `Hono + injeca + Drizzle + Redis + better-auth`。
+- 业务 API 采用 `Hono + injeca + Drizzle + Redis`；Better Auth 仅存在于独立的 `apps/auth-server`。
 - 路由层整体较薄，业务逻辑主要在 `src/services/`。
 - **Postgres 是所有余额与计费状态的唯一真相源**，Redis 只做缓存、KV、Pub/Sub。计费链路不再使用 Redis Streams。
 - WebSocket 只用于聊天同步，跨实例广播依赖 Redis Pub/Sub。

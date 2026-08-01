@@ -1,62 +1,42 @@
 # `@proj-airi/server`
 
-HTTP and WebSocket backend for AIRI. This app owns auth, billing, chat synchronization, gateway forwarding, and server-side observability export.
+Project AIRI's resource API. Authentication is a separate workspace app at
+`apps/auth-server`; this package does not instantiate Better Auth or expose
+auth/OIDC routes.
 
-## What It Does
+## Responsibilities
 
-- Serves the Hono-based API and WebSocket endpoints.
-- Uses Postgres as the source of truth for users, billing, and durable state.
-- Uses Redis for cache, KV, Pub/Sub, and Streams.
-- Forwards GenAI requests to the configured upstream gateway and records billing from usage.
-- Exports traces, metrics, and logs through OpenTelemetry.
+- Hono business APIs and WebSocket endpoints.
+- Characters, chats, providers, Flux, Stripe, model routing, and billing.
+- PostgreSQL migration ownership for the currently shared database.
+- Redis cache, configuration KV, and cross-instance Pub/Sub.
+- Local verification of Auth-issued OIDC JWTs through public JWKS.
 
-## How To Use It
-
-Install dependencies from the repo root and run scoped commands:
+## Run locally
 
 ```sh
+pnpm -F @proj-airi/server dev
 pnpm -F @proj-airi/server typecheck
 pnpm -F @proj-airi/server exec vitest run
 pnpm -F @proj-airi/server build
 ```
 
-For local observability infrastructure, use:
+Run the authentication application separately:
 
 ```sh
-docker compose -f apps/server/docker-compose.otel.yml up -d
+pnpm -F @proj-airi/auth-server dev
 ```
 
-## `AUTH_UI_URL`
+## Service boundaries
 
-`apps/ui-server-auth` is deployed separately from the server image. The API server still owns the historical `/auth/*` entrypoints and redirects them to **`AUTH_UI_URL`**.
+- `AUTH_SERVER_URL` is the public issuer origin used for JWKS, issuer, and
+  audience validation. With Caddy routing, it remains `https://api.airi.build`.
+- `AUTH_INTERNAL_SECRET` authenticates the private `/internal/auth/*` contract
+  shared with auth-server.
+- Auth tables and principal types come from `@proj-airi/auth-shared`; no module
+  under `apps/auth-server` is imported.
+- `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to
+  `https://admin.airi.build`.
 
-Default:
-
-`AUTH_UI_URL=https://accounts.airi.build/ui`
-
-Set this when previewing or deploying auth UI to a different Cloudflare URL.
-
-## `ADMIN_UI_URL`
-
-The admin UI is deployed from the standalone `proj-airi` repository. The API server still owns the historical `/admin/*` entrypoints and redirects them to **`ADMIN_UI_URL`**.
-
-Default:
-
-`ADMIN_UI_URL=https://admin.airi.build`
-
-Set this when previewing or deploying admin UI to a different Cloudflare URL.
-
-## `RATE_LIMIT_TRUSTED_PROXY`
-
-Keep this unset for local and self-hosted deployments. Set
-`RATE_LIMIT_TRUSTED_PROXY=railway` when the API runs behind the trusted
-Railway/Caddy boundary so anonymous auth requests are keyed by Railway's
-canonical `X-Real-IP` instead of the gateway socket address.
-
-## `ADDITIONAL_TRUSTED_ORIGINS` (LAN / Capacitor dev)
-
-When the mobile dev server uses a non-localhost origin (for example `https://10.x.x.x:5273` from `cap copy ios` / `capacitor.config.json`), set **`ADDITIONAL_TRUSTED_ORIGINS`** in `apps/server/.env.local` to a comma-separated list of exact origins (parsed and normalized at startup). Example:
-
-`ADDITIONAL_TRUSTED_ORIGINS=https://10.0.0.129:5273,https://198.18.0.1:5273`
-
-Restart the API server after changing this variable.
+For the complete extraction and Caddy boundary, see
+[`docs/ai-context/auth-service-extraction.md`](docs/ai-context/auth-service-extraction.md).

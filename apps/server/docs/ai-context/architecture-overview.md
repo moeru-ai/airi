@@ -2,7 +2,7 @@
 
 ## 一句话总结
 
-`apps/server` 提供两个独立 Hono 运行时：Identity 负责认证/OIDC，API 负责角色、聊天、Provider 配置、Flux、Stripe 和 LLM 代理。整体模式是：
+`apps/server` 提供业务 API；独立的 `apps/auth-server` 负责认证/OIDC。两者是不同 workspace app，不共享 composition root 或运行时依赖图。整体模式是：
 
 - 路由层负责参数校验、鉴权、错误映射
 - 服务层负责业务逻辑和数据库事务
@@ -12,7 +12,14 @@
 
 ## 入口与装配
 
-业务 API 入口在 `src/app.ts`；身份入口在 `src/identity-server.ts`。两者拥有独立 composition root：
+业务 API 和 Auth server 使用互不导入的 package、进程入口与 composition root：
+
+- `apps/server/src/main.ts` → `apps/server/src/server.ts` → `apps/server/src/app.ts`
+- `apps/auth-server/src/main.ts` → `apps/auth-server/src/server.ts` → `apps/auth-server/src/app.ts`
+
+不存在运行时 role selector；启动任一服务都不会加载另一棵服务依赖图。
+
+两者的装配职责分别是：
 
 - `createApp()`
   - 初始化 logger
@@ -27,10 +34,13 @@
   - 注入 WebSocket
   - 绑定 `uncaughtException` / `unhandledRejection`
 
-CLI 入口在 `src/bin/run.ts`，提供两种角色：
+- API：业务 HTTP/WS，不安装或创建 Better Auth，也不暴露 auth/OIDC handler
+- Auth server：Better Auth、OIDC、账户生命周期和认证健康检查
 
-- `api`：业务 HTTP/WS，不创建 Better Auth，也不暴露 auth/OIDC handler
-- `identity`：Better Auth、OIDC、账户生命周期和身份健康检查
+环境 schema 也按 app 分开：`apps/server/src/libs/env.ts` 只定义 API 配置，
+`apps/auth-server/src/libs/env.ts` 只定义 Auth 配置。共享的
+`@proj-airi/auth-shared` 只承载账号表、principal/session contract 与 ban
+expiry policy，不承载数据库连接、Redis、OTel 或服务装配。
 
 ## 依赖注入结构
 
@@ -55,13 +65,18 @@ CLI 入口在 `src/bin/run.ts`，提供两种角色：
   - `ttsMeter`
   - `userDeletionService`
 
-Identity 容器只注册 `db`、`redis`、`configKV`、`email`、`auth`、认证指标和一个远程账户删除 adapter。
+Auth server 容器只注册 auth DB projection、Redis、`authConfig`、email、
+Better Auth、认证指标、远程 auth-event adapter 和远程账户删除 adapter。
+
+只有 API composition root 执行全库 migration。Auth server 使用仅包含账号、
+会话和 OIDC 表的数据库 projection；product events 通过
+`POST /internal/auth/events` 交给 API-owned service 写入。
 
 这个装配顺序说明了几个事实：
 
 - `billingService` 依赖 `db + redis`
 - `fluxService` 只读余额，不承担余额写入职责
-- API 通过 Identity JWKS 验证 access token；不依赖 Better Auth runtime
+- API 通过 Auth server JWKS 验证 access token；不依赖 Better Auth runtime
 
 ## 应用层边界
 

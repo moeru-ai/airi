@@ -34,7 +34,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/server/Dockerfile
-    command: ['pnpm', '-F', '@proj-airi/server', 'run', 'server', 'api']
+    command: ['pnpm', '-F', '@proj-airi/server', 'start']
     depends_on:
       db:
         condition: service_healthy

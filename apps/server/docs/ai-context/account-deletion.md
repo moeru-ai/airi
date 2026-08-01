@@ -6,7 +6,7 @@ User-requested account deletion. Auth identity is hard-deleted; business records
 
 | 决策点 | 选择 | 理由 |
 |---|---|---|
-| `apps/server/src/schemas/accounts.ts` | **不动** | better-auth `auth:generate` 自动产物。修改会被下次生成覆盖 |
+| `packages/auth-shared/src/schema.ts` | **不动** | `apps/auth-server` 的 better-auth `auth:generate` 自动产物。修改会被下次生成覆盖 |
 | Auth 表 (user/session/account/oauth\*/verification) | **hard delete + cascade** | 跟着 user 一起 cascade 干净。无审计价值，留着只是 dangling auth state |
 | 业务表 (flux\*/stripe\*/character\*/providers/chats) | **soft delete (deleted_at)** | 审计、合规、debug 需要保留"这条记录原属于哪个 user" |
 | 业务表对 user.id 的 FK | **drop FK constraint，保留裸 userId 列** | better-auth hard-delete user 时不会被 cascade 干掉。跟 `llm_request_log` 现有做法一致 |
@@ -53,13 +53,16 @@ session/account/oauth_client/oauth_*_token/oauth_consent  ← 真删
 依赖图：
 
 ```
-auth ──depends on──► userDeletionService ──depends on──► [stripeService, fluxService, ...]
-                            │
-                            └─ 内部仅持有 { name, priority, softDelete } 列表，
-                               softDelete 是对 service.deleteAllForUser 的 thin wrapper
+auth-server ──authenticated HTTP──► API internal-auth route
+                                            │
+                                            ▼
+                                  userDeletionService
+                                            │
+                                            ▼
+                              [stripeService, fluxService, ...]
 ```
 
-auth 和业务 service **互不依赖**，双方都只依赖 `userDeletionService` 这层抽象。这是 DIP 的标准形态。
+Auth app 和业务 service **没有源码依赖**。Auth server 只依赖自己的 `UserDeletionService` port，remote adapter 通过带 `AUTH_INTERNAL_SECRET` 的内部 HTTP 调用 API；API 才装配业务 deletion handlers。
 
 ```ts
 // apps/server/src/services/domain/user-deletion/types.ts
@@ -76,12 +79,12 @@ export interface UserDeletionService {
 }
 ```
 
-装配在 `app.ts` 一处完成（每个 service 一行 `register`）。不分 transaction：每个 service 方法自己管 db/外部调用，**Stripe 这种没法 rollback 的副作用必须最先做**（priority 最小），失败就抛错中止后续 service 调用 + better-auth 的 user 删除，用户重试即可（idempotent：Stripe sub 已 cancel 的再 cancel 是 no-op；deletedAt 已设置的再 update 是 no-op）。
+业务 handlers 装配在 `apps/server/src/app.ts`；Auth adapter 装配在 `apps/auth-server/src/app.ts`。不分 transaction：每个 service 方法自己管 db/外部调用，**Stripe 这种没法 rollback 的副作用必须最先做**（priority 最小），失败会沿内部 HTTP 返回并中止 better-auth 的 user 删除，用户重试即可。
 
 ## 加新业务模块的步骤
 
 1. 在该 service 加 `async deleteAllForUser(userId: string)` 方法
-2. 在 `app.ts` 的 `userDeletionService` build 里加一行 `service.register({...})`
+2. 在 `apps/server/src/app.ts` 的 `userDeletionService` build 里加一行 `service.register({...})`
 3. 完成
 
 不需要：写新文件、改 service 接口、改 auth.ts、改 types.ts。
@@ -156,9 +159,11 @@ better-auth `internalAdapter.deleteAccounts` 删本地 `account` 表（user 跟 
 ## 相关代码索引
 
 - 业务表 schema: `apps/server/src/schemas/{flux,flux-transaction,stripe,characters,user-character,providers,chats}.ts`
-- Auth schema (不改): `apps/server/src/schemas/accounts.ts`
-- Auth 配置: `apps/server/src/libs/auth.ts` (extend with `user.deleteUser`)
-- Email service: `apps/server/src/services/adapters/email.ts` (extend interface + Resend impl)
+- Auth schema (不改): `packages/auth-shared/src/schema.ts`
+- Auth 配置: `apps/auth-server/src/libs/auth.ts` (extend with `user.deleteUser`)
+- Email service: `apps/auth-server/src/services/adapters/email.ts` (extend interface + Resend impl)
+- Auth port / HTTP adapter: `apps/auth-server/src/services/domain/user-deletion.ts`, `apps/auth-server/src/services/adapters/remote-user-deletion.ts`
+- API internal boundary: `apps/server/src/routes/internal-auth.ts`
 - Deletion scheduler: `apps/server/src/services/domain/user-deletion/` (registry only, no domain logic)
 - 各 service 自己的 `deleteAllForUser`: `apps/server/src/services/{characters,chats,flux,providers,stripe}.ts`
 - UI - settings page: `packages/stage-pages/src/pages/settings/account/account-settings-page.vue` (line ~430 TODO)

@@ -906,7 +906,7 @@ Prometheus label 不放 `user_id`、`session_id`、`voice_pack_id`、自定义�
 
 - Chat activation：`chat_activation_started`、`chat_activation_succeeded`、`chat_activation_failed` 只覆盖每个 conversation 首次 assistant response 之前的尝试；后续轮次继续发 message / latency events，第二轮单独发 `second_turn_started`。
 - Chat correlation：每次发送以 user message id 作为 `round_id`；activation、message、LLM latency、render、`message_round` 和 `message_round_failed` 事件共享 `conversation_id`、`round_id`、`turn_index`。
-- Identity：匿名 auth SPA 发 `signup_form_completed`；只有服务端 Better Auth user create hook 发 identified `signup_completed`。平台统一使用 `app_surface`，业务入口统一使用 `entry_surface`。
+- Auth server：匿名 auth SPA 发 `signup_form_completed`；只有服务端 Better Auth user create hook 发 identified `signup_completed`。平台统一使用 `app_surface`，业务入口统一使用 `entry_surface`。
 - Chat event reuse：主链路使用 `message_send_started`、`message_sent`、`llm_*`、`message_round`、`message_round_failed`；每轮成功 / 失败各自只有一个终点事件，不再发送 `chat_started`、`assistant_response_completed`、`chat_failed` 和 chat 的通用 `feature_used` 别名。
 - Model list：`model_list_loaded`、`model_list_failed`。
 - Provider config：`provider_config_started`、`provider_config_succeeded`、`provider_config_failed`。

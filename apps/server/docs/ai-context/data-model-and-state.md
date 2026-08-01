@@ -30,12 +30,13 @@
 
 来源文件：
 
-- `src/schemas/accounts.ts`
+- `packages/auth-shared/src/schema.ts`
 
 说明：
 
-- `better-auth` 直接用这组表
-- 由 `pnpm -F @proj-airi/server auth:generate` 自动产物，手改会被覆盖
+- `apps/auth-server` 的 `better-auth` 直接使用这组表
+- 由 `pnpm -F @proj-airi/auth-server auth:generate` 自动产物，手改会被覆盖
+- `apps/server` 只读取 user authorization projection，不加载 Better Auth runtime
 
 ### 角色与用户交互
 

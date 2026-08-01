@@ -2,7 +2,7 @@
 
 ## 一句话总结
 
-Server 通过 `better-auth` 同时充当**用户认证后端**和 **OIDC Provider（Authorization Server）**，为 Web、Electron Desktop、Capacitor Mobile 三个客户端提供 Authorization Code + PKCE 登录流程。客户端直接持有 OIDC access token，并通过服务端统一的 Bearer 解析链路完成鉴权与 session 查询。
+`apps/auth-server` 通过 `better-auth` 充当**用户认证后端**和 **OIDC Provider（Authorization Server）**，为 Web、Electron Desktop、Capacitor Mobile 三个客户端提供 Authorization Code + PKCE 登录流程。客户端持有 OIDC access token；`apps/server` 作为独立 resource server，通过 Auth server 的 JWKS 本地验签。
 
 ## 架构角色
 
@@ -12,7 +12,7 @@ Server 通过 `better-auth` 同时充当**用户认证后端**和 **OIDC Provide
 └──────────────┬──────────────────┘
                ↓ OAuth 2.0
 ┌──────────────────────────────────────────────────┐
-│  AIRI Server (better-auth OIDC Provider)         │
+│  AIRI Auth Server (better-auth OIDC Provider)    │
 │                                                  │
 │  /api/auth/oauth2/authorize  ← PKCE 授权          │
 │  /api/auth/oauth2/token      ← Code 换 Token      │
@@ -31,18 +31,18 @@ Server 通过 `better-auth` 同时充当**用户认证后端**和 **OIDC Provide
 
 ## 核心组件
 
-### Server 端
+### Auth / API 端
 
 | 文件 | 职责 |
 |------|------|
-| `src/libs/auth.ts` | better-auth 配置：社交 provider、OIDC provider 插件、trusted clients 种子数据、session/cookie 策略 |
-| `src/routes/auth/index.ts` | 所有鉴权路由的统一入口：sign-in 页、rate limiter、token auth 辅助路由、electron callback、well-known metadata、better-auth catch-all |
-| `src/routes/oidc/electron-callback.ts` | Electron 回调中继页：服务端 HTML 页面通过 JS fetch() 将 auth code 转发到 Electron 本地 loopback |
-| `src/routes/oidc/token-auth.ts` | Bearer token 辅助路由：`get-session`、`sign-out`、`list-sessions` |
-| `src/utils/sign-in-page.ts` | 渲染 fallback HTML 登录页（Google/GitHub 按钮） |
-| `src/utils/origin.ts` | 可信来源配置：`localhost`、`127.0.0.1`、`airi.moeru.ai`、`capacitor://localhost` |
-| `src/libs/env.ts` | OIDC 相关环境变量定义（Valibot schema） |
-| `src/libs/request-auth.ts` | 统一鉴权解析：优先读 better-auth session，再回退到受信任 OIDC access token |
+| `apps/auth-server/src/libs/auth.ts` | better-auth 配置：社交 provider、OIDC provider 插件、trusted clients 种子数据、session/cookie 策略 |
+| `apps/auth-server/src/routes/auth/index.ts` | 所有鉴权路由的统一入口：sign-in 页、rate limiter、token auth 辅助路由、electron callback、well-known metadata、better-auth catch-all |
+| `apps/auth-server/src/routes/auth/oidc/electron-callback.ts` | Electron 回调中继页：服务端 HTML 页面通过 JS fetch() 将 auth code 转发到 Electron 本地 loopback |
+| `apps/auth-server/src/routes/auth/oidc/token-auth.ts` | Bearer token 辅助路由：`get-session`、`sign-out`、`list-sessions` |
+| `apps/auth-server/src/utils/auth-ui.ts` | Auth UI redirect / fallback HTML |
+| `apps/auth-server/src/utils/origin.ts` | Auth 可信来源配置 |
+| `apps/auth-server/src/libs/env.ts` | Auth/OIDC 环境变量定义（Valibot schema） |
+| `apps/server/src/libs/request-auth.ts` | Resource API 鉴权：读取 Bearer JWT、通过 Auth JWKS 验签、加载授权 projection |
 
 ### Client 端
 
@@ -60,7 +60,7 @@ Server 通过 `better-auth` 同时充当**用户认证后端**和 **OIDC Provide
 | Client | ID 环境变量 | redirect_uri | 类型 |
 |--------|------------|--------------|------|
 | Web | `OIDC_CLIENT_ID_WEB` | `https://airi.moeru.ai/auth/callback`, `http://localhost:5173/auth/callback` | web |
-| Electron | `OIDC_CLIENT_ID_ELECTRON` | `{API_SERVER_URL}/api/auth/oidc/electron-callback`（服务端中继） | native |
+| Electron | `airi-stage-electron` | `{PUBLIC_URL}/api/auth/oidc/electron-callback`（服务端中继） | native |
 | Mobile | `OIDC_CLIENT_ID_POCKET` | `capacitor://localhost/auth/callback` | native |
 
 ### 环境变量
@@ -138,7 +138,7 @@ Better Auth 验证 token 的签名、issuer、Bundle ID audience allowlist 和�
 | OIDC Refresh Token | 刷新 access token | localStorage `auth/v1/refresh-token` | 长期，rotation 机制 |
 | Session 对象 | UI / API 所需的用户态快照 | `fetchSession()` 后保存在 auth store | 跟随 access token 可解析结果 |
 
-**为什么现在可以直接用 OIDC access token？** 因为服务端的 `resolveRequestAuth()` 已经统一支持两条路径：先走 `auth.api.getSession()` 解析 better-auth session；如果没有 session，再用 `jose.jwtVerify()` 本地验证 JWT 签名、issuer、audience、过期时间，然后通过 `findUserById()` 补齐用户信息。对业务路由来说，拿到的仍然是统一的 `{ user, session }` 结构。
+**为什么现在可以直接用 OIDC access token？** Resource API 的 `resolveRequestAuth()` 用 `jose.jwtVerify()` 和 Auth server 的 JWKS 验证签名、issuer、audience、过期时间，再从共享 auth schema 读取 user authorization projection。API 不实例化 Better Auth，也不导入 Auth app 的运行时模块。
 
 **测试环境登录绕过：** 设置 `TEST_AUTH_TOKEN` 后，业务 API 可以直接带 `Authorization: Bearer $TEST_AUTH_TOKEN` 进入 `resolveRequestAuth()`，无需走 UI 登录或 better-auth session。默认虚拟用户为 `test-user / test@example.com / Test User`，可用 `TEST_AUTH_USER_ID`、`TEST_AUTH_USER_EMAIL`、`TEST_AUTH_USER_NAME`、`TEST_AUTH_USER_ROLE` 覆盖；需要访问 `/api/admin/*` 时把 `TEST_AUTH_USER_ROLE=admin`。该 token 只接入业务鉴权链路，不改变 `/api/auth/*` better-auth 登录/OIDC 端点；生产环境保持 unset。
 
@@ -226,13 +226,12 @@ Electron 的 OIDC redirect_uri 不再直接指向 loopback 端口，而是指向
 
 ### Bearer 鉴权解析
 
-服务端通过 `src/libs/request-auth.ts` 解析请求头：
+Resource API 通过 `apps/server/src/libs/request-auth.ts` 解析请求头：
 
-1. 先调用 `auth.api.getSession({ headers })`，支持标准 better-auth session / cookie / Bearer session token
-2. 如果没有命中，读取 `Authorization: Bearer <token>`
-3. 使用 `jose.jwtVerify()` 本地验证 JWT 签名、issuer、audience、过期时间
-4. 从 JWT `sub` claim 提取 userId，调用 `findUserById()` 补齐用户信息
-5. 构造统一的 `{ user, session }`
+1. 读取 `Authorization: Bearer <token>`
+2. 使用 `jose.jwtVerify()` 和 `{AUTH_SERVER_URL}/api/auth/jwks` 本地验证 JWT 签名、issuer、audience、过期时间
+3. 从 JWT `sub` claim 提取 userId，读取共享 auth schema 中的 user authorization projection
+4. 检查即时 ban policy，并构造统一的 `{ user, session }`
 
 JWT access token 由 oauthProvider 签发，条件是前端在 authorize/token 请求中传递 `resource` 参数（值为 `API_SERVER_URL`）。JWKS 通过 `/api/auth/jwks` 端点获取并缓存。
 
@@ -252,7 +251,7 @@ JWT access token 由 oauthProvider 签发，条件是前端在 authorize/token �
 
 ## 路由注册顺序
 
-Auth 路由集中在 `src/routes/auth/index.ts`，通过 `.route('/', authRoutes)` 挂载到根路径。路由注册顺序很重要：
+Auth 路由集中在 `apps/auth-server/src/routes/auth/index.ts`，通过 `.route('/', authRoutes)` 挂载到根路径。路由注册顺序很重要：
 
 1. `GET /sign-in` — 登录选择页（或直接 302 到社交 provider）
 2. `USE /api/auth/*` — rate limiter（IP 限流）
@@ -294,14 +293,14 @@ Capacitor 移动端无法正确处理 state cookie（系统浏览器和 WebView 
 
 ## 修改指南
 
-- 新增 OIDC client → `src/libs/auth.ts` 的 `buildTrustedClientSeeds`，加环境变量到 `src/libs/env.ts`
-- 改登录页 → `src/utils/sign-in-page.ts`（HTML），或 `src/routes/auth/index.ts` 的 `/sign-in` 路由
-- 改认证中间件 → `src/app.ts` 的 session middleware
-- 改 trusted origins → `src/utils/origin.ts`
-- 改 Bearer 鉴权解析 → `src/libs/request-auth.ts`（JWT 本地验签，依赖 jose + JWKS）
-- 改 token auth 辅助路由 → `src/routes/oidc/token-auth.ts`
-- 改回调中继 → `src/routes/oidc/electron-callback.ts`
-- 改 Auth 路由结构 → `src/routes/auth/index.ts`
+- 新增 OIDC client → `apps/auth-server/src/libs/auth.ts` 的 `buildTrustedClientSeeds`
+- 改登录页 → `apps/auth-server/src/utils/auth-ui.ts`，或 `apps/auth-server/src/routes/auth/index.ts` 的 `/sign-in` 路由
+- 改 Auth app 装配 → `apps/auth-server/src/app.ts`
+- 改 trusted origins → `apps/auth-server/src/utils/origin.ts`
+- 改 API Bearer 鉴权解析 → `apps/server/src/libs/request-auth.ts`（JWT 本地验签，依赖 jose + Auth JWKS）
+- 改 token auth 辅助路由 → `apps/auth-server/src/routes/auth/oidc/token-auth.ts`
+- 改回调中继 → `apps/auth-server/src/routes/auth/oidc/electron-callback.ts`
+- 改 Auth 路由结构 → `apps/auth-server/src/routes/auth/index.ts`
 - 调试 OIDC 流程 → 检查 `/sign-in` 的 callbackURL 是否正确重建，以及 `oidc_login_prompt` cookie
 - Client 端登录逻辑 → `packages/stage-ui/src/libs/auth.ts` 和 `packages/stage-ui/src/libs/auth-oidc.ts`
 - Electron 认证回调处理 → `apps/stage-tamagotchi/src/renderer/bridges/electron-auth-callback.ts`

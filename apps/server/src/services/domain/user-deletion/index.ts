@@ -19,9 +19,11 @@ export type { UserDeletionContext, UserDeletionExecutor, UserDeletionHandler, Us
  * Call stack:
  *
  * better-auth `/delete-user/callback`
- *   -> `user.deleteUser.beforeDelete` (libs/auth.ts)
- *     -> {@link UserDeletionService.softDeleteAll}
- *       -> handler.softDelete (per registered module)
+ *   -> `user.deleteUser.beforeDelete` (`apps/auth-server/src/libs/auth.ts`)
+ *     -> Auth `RemoteUserDeletionService`
+ *       -> `POST /internal/auth/user-deletion`
+ *         -> {@link UserDeletionService.softDeleteAll}
+ *           -> handler.softDelete (per registered module)
  *
  * Failure model: a thrown error from any handler aborts before
  * `internalAdapter.deleteUser`, leaving the user row intact. The next retry

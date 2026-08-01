@@ -4,7 +4,7 @@
 
 ## 授权模型：role-based
 
-- `auth.ts` 启用 `admin({ adminRoles: ['admin'] })`。它给 `user` 表加 `role / banned / banReason / banExpires`，给 `session` 加 `impersonatedBy`（schema 手写进 `schemas/accounts.ts`，字段名与插件一致，迁移 `drizzle/0013_naive_groot.sql`）。
+- `apps/auth-server/src/libs/auth.ts` 启用 `admin({ adminRoles: ['admin'] })`。它给 `user` 表加 `role / banned / banReason / banExpires`，给 `session` 加 `impersonatedBy`（schema 位于 `packages/auth-shared/src/schema.ts`，字段名与插件一致，迁移 `drizzle/0013_naive_groot.sql`）。
 - 自建的 `/api/admin/*` 路由用 `middlewares/admin-guard.ts` 的 `adminGuard`：读 `c.get('user').role`，命中 `'admin'`（支持逗号分隔多角色）才放行，否则 401（无 user）/ 403（无 admin role）。
 - **没有 env 白名单，也没有自动 seed**。第一个 admin 手动设：`UPDATE "user" SET role = 'admin' WHERE email = '...';`。在那之前没人能访问任何 admin 端点（自建的和 better-auth 的都不行）。
 
@@ -21,9 +21,9 @@ admin 插件的封禁强制只在 `session.create.before`（拦新登录）。�
 
 所以热路径的封禁判断自己做，落在 `resolveRequestAuth`（所有传输层唯一鉴权入口：`sessionMiddleware` / 两个 WebSocket / OIDC `get-session`）：
 
-- 解析出 user 后调 `isUserBannedNow(user)`（`libs/request-auth.ts`），命中返回 `null` → 上层当未鉴权（401）。
+- 解析出 user 后调 `isUserBannedNow(user)`（`@proj-airi/auth-shared`），命中返回 `null` → 上层当未鉴权（401）。
 - `isUserBannedNow` 读的是 `user.banned`（`findUserById` 已经把整行 user 带回来了，**零额外查询**），并判 `banExpires`：过期的 ban 当未封禁。
-- `findUserById` 的 TS 返回类型是 better-auth 基础 User，不含插件字段，但运行时整行都在 → `request-auth.ts` 有一处带 `// NOTICE:` 的 widen cast 拿回 `banned`。
+- `findUserById` 的 TS 返回类型是 better-auth 基础 User，不含插件字段，但 Auth server 运行时会读取完整 user 行并通过共享 principal contract 判断 `banned`。
 
 另外 `/api/auth/oauth2/userinfo` 单独加了一道 guard（`routes/auth/index.ts`）：`/api/auth/*` 绕过 `sessionMiddleware`，而 userinfo 只验签就返 profile，所以这里用 `resolveSessionIgnoringBan` + `isUserBannedNow` 拦被封用户的有效 JWT。`/oauth2/introspect` 要 confidential client（一方 client 全 public），无可达调用方，不补。
 
@@ -40,14 +40,15 @@ flux-grants（`/api/admin/flux-grants`）和 router-config（`/api/admin/config/
 
 ## 相关文件
 
-- `src/libs/auth.ts` — `admin()` 插件 + `disabledPaths`
-- `src/schemas/accounts.ts` — user/session 上的 admin 插件字段
-- `src/middlewares/admin-guard.ts` — role-based `adminGuard`
-- `src/libs/request-auth.ts` — `isUserBannedNow` + 热路径封禁闸
-- `src/routes/auth/index.ts` — `/oauth2/userinfo` 封禁 guard
-- `src/routes/admin/users/index.ts` — `POST /balance`（自建）
-- `src/services/domain/admin/users/index.ts` — `setBalance` 编排
-- `src/services/domain/billing/billing-service.ts` — `setFlux`
+- `apps/auth-server/src/libs/auth.ts` — `admin()` 插件 + `disabledPaths`
+- `packages/auth-shared/src/schema.ts` — user/session 上的 admin 插件字段
+- `apps/server/src/middlewares/admin-guard.ts` — role-based `adminGuard`
+- `packages/auth-shared/src/session.ts` — `isUserBannedNow` 共享 principal policy
+- `apps/server/src/libs/request-auth.ts` — API 的本地 JWT 验签 + 热路径封禁闸
+- `apps/auth-server/src/routes/auth/index.ts` — `/oauth2/userinfo` 封禁 guard
+- `apps/server/src/routes/admin/users/index.ts` — `POST /balance`（自建）
+- `apps/server/src/services/domain/admin/users/index.ts` — `setBalance` 编排
+- `apps/server/src/services/domain/billing/billing-service.ts` — `setFlux`
 
 ## 余额缓存竞态（预先存在）
 

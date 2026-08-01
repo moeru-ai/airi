@@ -15,7 +15,7 @@ const mockedCreateRemoteJWKSet = vi.mocked(createRemoteJWKSet)
 const mockedJwtVerify = vi.mocked(jwtVerify)
 
 const mockEnv = {
-  API_SERVER_URL: 'https://api.airi.build',
+  AUTH_SERVER_URL: 'https://api.airi.build',
   TEST_AUTH_TOKEN: '',
   TEST_AUTH_USER_ID: 'test-user',
   TEST_AUTH_USER_EMAIL: 'test@example.com',
