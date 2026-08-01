@@ -9,6 +9,7 @@ export default defineConfig({
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',
+      'packages/i18n',
       'packages/better-ws',
       'packages/plugin-sdk',
       'packages/plugin-sdk-tamagotchi',
