@@ -17,15 +17,6 @@ import { createElectronCallbackRelay } from './oidc/electron-callback'
 import { createOIDCTokenAuthRoute } from './oidc/token-auth'
 import { createAuthUiRoutes } from './ui-routes'
 
-function usesRailwayEdge(apiServerUrl: string): boolean {
-  try {
-    return new URL(apiServerUrl).hostname.endsWith('.up.railway.app')
-  }
-  catch {
-    return false
-  }
-}
-
 export interface AuthRoutesDeps {
   auth: AuthInstance
   db: Database
@@ -62,9 +53,9 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     .use('/api/auth/*', rateLimiter({
       max: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_MAX'),
       windowSec: await deps.configKV.getOrThrow('AUTH_RATE_LIMIT_WINDOW_SEC'),
-      // Railway documents `X-Real-IP` as the client address. Limit trust to
-      // its deployed domain; self-hosted instances keep socket-only buckets.
-      trustedProxy: usesRailwayEdge(deps.env.API_SERVER_URL) ? 'railway' : undefined,
+      // Proxy trust is a deployment boundary, not a property of the public
+      // API URL. Custom domains and private gateways must opt in explicitly.
+      trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
       metrics: deps.rateLimitMetrics,
       routeLabel: 'auth.api',
     }))

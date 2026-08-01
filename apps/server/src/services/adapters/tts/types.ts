@@ -42,16 +42,11 @@ export interface TtsAdapterContext {
   /**
    * Per-upstream baseURL from `LLM_ROUTER_CONFIG.tts.upstreams[i].baseURL`.
    *
-   * Historically the upstream provider URL (e.g.
-   * `https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1`). After
-   * the Phase-B unspeech migration, adapters no longer call upstreams
-   * directly — every `send()` forwards through unspeech REST — so this field
-   * is informational only and adapters MAY ignore it. Kept on the context so
-   * existing operator configs continue to validate (the schema requires a
-   * non-empty string).
+   * Adapters forward through unspeech and may use this as provider metadata.
+   * Provider endpoint selection belongs to unspeech, not this URL.
    */
   baseURL: string
-  /** unspeech REST base URL (no trailing slash) — adapters POST to `<this>/v1/audio/speech`. */
+  /** unspeech REST base URL (no trailing slash). */
   unspeechBaseURL: string
   /** Free-form adapter-specific params from `tts.upstreams[i].adapterParams` (e.g. Volcengine `appid` / `cluster`). */
   adapterParams: Record<string, unknown>
@@ -90,12 +85,10 @@ export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcen
  * `keyPlaintext` and `region` are mandatory for live providers (Azure) that
  * proxy through unspeech and call the upstream provider with a subscription
  * key; the router decrypts the envelope key and forwards `adapterParams.region`
- * verbatim. Providers with static, credential-less catalogs (DashScope
- * cosyvoice, Volcengine) ignore both fields.
+ * verbatim. Unspeech-backed static catalogs ignore both fields.
  *
- * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the
- * router. Passing it through the context keeps adapters free of configKV
- * coupling — they receive a fully-resolved URL string.
+ * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the router.
+ * Passing it through the context keeps adapters free of configKV coupling.
  */
 export interface TtsVoiceCatalogContext {
   /** Decrypted upstream credential (live providers only). */
@@ -139,10 +132,9 @@ export interface TtsAdapter {
   /**
    * Returns the voice catalog for the provider.
    *
-   * Live providers (Azure) call upstream via unspeech using the supplied
-   * region + plaintext key. Static providers (dashscope-cosyvoice, volcengine)
-   * return their compiled-in JSON and ignore the context fields. Adapters
-   * MUST throw on upstream failure — no empty-array fallback.
+   * Live providers (Azure) call upstream through unspeech using the supplied
+   * region + plaintext key. Static provider catalogs are also owned and served
+   * by unspeech. Adapters MUST throw on upstream failure — no empty fallback.
    */
   getVoiceCatalog: (ctx: TtsVoiceCatalogContext) => Promise<Voice[]>
 }

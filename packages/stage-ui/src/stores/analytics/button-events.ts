@@ -1,9 +1,7 @@
-import posthog from 'posthog-js'
-
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 
 import { useSettingsAnalytics } from '../settings/analytics'
-import { ensurePosthogInitialized, isPosthogAvailableInBuild } from './posthog'
+import { captureAnalyticsEvent, ensureAnalyticsInitialized, isAnalyticsAvailableInBuild } from './client'
 
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
 export type ControlsIslandAction
@@ -52,9 +50,9 @@ export type TrackButtonEvent
 
 function canCapture(): boolean {
   const settingsAnalytics = useSettingsAnalytics()
-  return isPosthogAvailableInBuild()
+  return isAnalyticsAvailableInBuild()
     && settingsAnalytics.analyticsEnabled
-    && ensurePosthogInitialized(true)
+    && ensureAnalyticsInitialized(true)
 }
 
 function appSurface(): 'web' | 'mobile' | 'electron' {
@@ -84,27 +82,27 @@ export function captureTrackButtonEvent(event: TrackButtonEvent) {
         app_surface: appSurface(),
       }
       if (event.action === 'refresh_window' || event.action === 'close_app') {
-        posthog.capture(event.name, properties, { send_instantly: true, transport: 'sendBeacon' })
+        captureAnalyticsEvent(event.name, properties, { beforeNavigation: true })
         return
       }
 
-      posthog.capture(event.name, properties)
+      captureAnalyticsEvent(event.name, properties)
       return
     }
     case 'update_check_clicked':
-      posthog.capture(event.name, { channel: event.channel })
+      captureAnalyticsEvent(event.name, { channel: event.channel })
       return
     case 'update_install_clicked':
-      posthog.capture(
+      captureAnalyticsEvent(
         event.name,
         { channel: event.channel, ...(event.version && { version: event.version }) },
-        { send_instantly: true, transport: 'sendBeacon' },
+        { beforeNavigation: true },
       )
       return
     case 'mcp_server_added':
-      posthog.capture(event.name)
+      captureAnalyticsEvent(event.name, {})
       return
     case 'mcp_server_removed':
-      posthog.capture(event.name)
+      captureAnalyticsEvent(event.name, {})
   }
 }

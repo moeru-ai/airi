@@ -271,7 +271,7 @@ describe('buildStepfunSlice', () => {
 
     expect(built.kind).toBe('stepfun')
     expect(built.model.provider).toBe('stepfun')
-    expect(built.model.upstreams[0].baseURL).toBe('https://api.stepfun.com/v1/audio/speech')
+    expect(built.model.upstreams[0].baseURL).toBe('https://api.stepfun.com')
     expect(built.model.upstreams[0].adapterParams).toEqual({
       model: 'stepaudio-2.5-tts',
       defaultVoice: 'cixingnansheng',
@@ -580,6 +580,70 @@ describe('createAdminRouterConfigService', () => {
     const written = kv.store.get('LLM_ROUTER_CONFIG') as { llm: { models: Record<string, unknown> }, tts: { models: Record<string, unknown> } }
     expect(Object.keys(written.llm.models)).toEqual(['preexisting-chat'])
     expect(Object.keys(written.tts.models)).toEqual(['microsoft/v1'])
+  })
+
+  it('rejects legacy merge updates that would replace a grouped TTS model', async () => {
+    const modelName = 'stepfun/stepaudio-2.5-tts'
+    const existingConfig = {
+      llm: { models: {} },
+      tts: {
+        models: {
+          [modelName]: {
+            provider: 'stepfun' as const,
+            upstreams: [
+              {
+                id: 'plan',
+                baseURL: 'https://api.stepfun.com',
+                keys: [{ id: 'plan-key', ciphertext: 'plan-ciphertext' }],
+                adapterParams: { endpointProfile: 'step-plan', model: 'stepaudio-2.5-tts' },
+              },
+              {
+                id: 'paygo',
+                baseURL: 'https://api.stepfun.com',
+                keys: [{ id: 'paygo-key', ciphertext: 'paygo-ciphertext' }],
+                adapterParams: { endpointProfile: 'default', model: 'stepaudio-2.5-tts' },
+              },
+            ],
+            routing: {
+              groups: [
+                {
+                  id: 'plan',
+                  upstreamIds: ['plan'],
+                  strategy: 'ordered' as const,
+                  retryOn: { httpCodes: [402], onTimeout: false },
+                  continueOn: { httpCodes: [402], onTimeout: false },
+                },
+                {
+                  id: 'paygo',
+                  upstreamIds: ['paygo'],
+                  strategy: 'ordered' as const,
+                  retryOn: { httpCodes: [429, 500], onTimeout: true },
+                },
+              ],
+            },
+            fallbackTriggers: DEFAULT_FALLBACK_TRIGGERS,
+          },
+        },
+      },
+      defaults: { perAttemptTimeoutMs: 30000, fullChainTimeoutMs: 60000, fallbackHttpCodes: [500] },
+    }
+    kv.store.set('LLM_ROUTER_CONFIG', existingConfig)
+
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+
+    await expect(service.apply({
+      mode: 'merge',
+      dryRun: false,
+      slices: [{
+        kind: 'stepfun',
+        modelName,
+        upstreamModel: 'stepaudio-2.5-tts',
+        plaintextKey: 'rotated-key',
+      }],
+    })).rejects.toThrow(/cannot update grouped tts model/i)
+
+    expect(kv.store.get('LLM_ROUTER_CONFIG')).toBe(existingConfig)
+    expect(captured).toEqual([])
   })
 
   it('current returns editable slices from configKV without exposing raw ciphertext', async () => {

@@ -66,6 +66,11 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
     }
   }
   catch (error) {
+    // Keep abort identity intact so the router can apply `onTimeout`
+    // independently from HTTP 500 fallback policy.
+    if (ctx.abortSignal?.aborted)
+      throw error
+
     if (error instanceof UnSpeechAPIError) {
       const err = new Error(`${providerLabel} tts upstream ${error.status}: ${error.responseBody.slice(0, 256)}`) as Error & { status?: number }
       err.status = error.status

@@ -335,27 +335,45 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return typeof model === 'string' ? model : 'sensevoice'
   })
 
+  let pendingDestinationModelProvider = ''
+
+  function syncDestinationModel(providerId: string) {
+    if (activeTranscriptionProvider.value !== providerId)
+      return false
+
+    const providerConfig = providersStore.getProviderConfig(providerId)
+    const configuredModel = providerConfig?.model
+    const ownsModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof configuredModel === 'string'
+    if (ownsModel) {
+      activeTranscriptionModel.value = configuredModel.trim()
+      return true
+    }
+
+    const defaultOptions = providersStore.findProviderMetadata(providerId)?.defaultOptions?.()
+    const defaultModel = typeof defaultOptions?.model === 'string' ? defaultOptions.model.trim() : ''
+    const listedModel = providersStore.getModelsForProvider(providerId)[0]?.id ?? ''
+    const model = defaultModel || listedModel
+    if (!model)
+      return false
+
+    activeTranscriptionModel.value = model
+    if (providerConfig)
+      providerConfig.model = model
+    return true
+  }
+
   watch(activeTranscriptionProvider, async (providerId, previousProviderId) => {
     verboseJsonNotSupported.value = false
+    pendingDestinationModelProvider = ''
     if (providerId === 'funasr-audio-transcription') {
       activeTranscriptionModel.value = activeFunASRConfiguredModel.value
       await loadModelsForProvider(providerId)
     }
     else if (previousProviderId === 'funasr-audio-transcription') {
-      await loadModelsForProvider(providerId)
-      if (activeTranscriptionProvider.value !== providerId)
-        return
-
-      const providerConfig = providersStore.getProviderConfig(providerId)
-      const configuredModel = typeof providerConfig?.model === 'string' ? providerConfig.model.trim() : ''
-      const defaultOptions = providersStore.findProviderMetadata(providerId)?.defaultOptions?.()
-      const defaultModel = typeof defaultOptions?.model === 'string' ? defaultOptions.model.trim() : ''
-      const listedModel = providersStore.getModelsForProvider(providerId)[0]?.id ?? ''
-      const model = configuredModel || defaultModel || listedModel
-
-      activeTranscriptionModel.value = model
-      if (providerConfig && model && !configuredModel)
-        providerConfig.model = model
+      activeTranscriptionModel.value = ''
+      pendingDestinationModelProvider = providerId
+      if (syncDestinationModel(providerId))
+        pendingDestinationModelProvider = ''
     }
   }, { immediate: true })
 
@@ -397,6 +415,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
     if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
       await providersStore.fetchModelsForProvider(provider)
     }
+
+    if (pendingDestinationModelProvider === provider && syncDestinationModel(provider))
+      pendingDestinationModelProvider = ''
   }
 
   async function getModelsForProvider(provider: string) {

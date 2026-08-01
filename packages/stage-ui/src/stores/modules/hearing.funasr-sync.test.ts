@@ -139,6 +139,64 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3679505099
+  // ROOT CAUSE:
+  //
+  // The destination resolver trimmed an explicitly stored empty model and then treated the empty
+  // result as if the provider had never stored a model, silently replacing it with a default.
+  //
+  // The destination provider owns the empty value, so switching providers must preserve it.
+  it('preserves an explicitly cleared destination model after leaving FunASR (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+
+    providersStore.providers['openai-audio-transcription'].model = ''
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('')
+      expect(providersStore.getProviderConfig('openai-audio-transcription')?.model).toBe('')
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3679505102
+  // ROOT CAUSE:
+  //
+  // Both the Hearing store transition watcher and the settings page loaded the destination models.
+  // The two uncorrelated requests could resolve from different cache states and leave no active model.
+  //
+  // The settings page owns the destination load; the store consumes that single result.
+  it('reuses the settings page model load after leaving FunASR (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+    const browserProvider = providersStore.findProviderMetadata('browser-web-speech-api')
+    const listModels = vi.spyOn(browserProvider!.capabilities, 'listModels').mockResolvedValue([
+      {
+        id: 'en-US',
+        name: 'English (United States)',
+        provider: 'browser-web-speech-api',
+      },
+    ])
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'browser-web-speech-api'
+    await hearingStore.loadModelsForProvider('browser-web-speech-api')
+
+    await vi.waitFor(() => {
+      expect(listModels).toHaveBeenCalledTimes(1)
+      expect(hearingStore.activeTranscriptionModel).toBe('en-US')
+    })
+  })
+
   it('preserves a persisted model when Hearing starts with another provider', () => {
     persistedSettings.set('settings/hearing/active-provider', 'openai-compatible-audio-transcription')
     persistedSettings.set('settings/hearing/active-model', 'whisper-1')

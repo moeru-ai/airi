@@ -139,6 +139,38 @@ describe('characterService.deleteAllForUser', () => {
     expect(other?.deletedAt).toBeNull()
   })
 
+  it('decrements character engagement counters for soft-deleted likes and bookmarks', async () => {
+    await db.insert(schema.user).values([
+      { id: 'u-char-counts', name: 'Counts', email: 'counts@example.com' },
+      { id: 'u-char-owner', name: 'Owner', email: 'owner@example.com' },
+    ])
+    await db.insert(schema.character).values({
+      id: 'char-counts',
+      version: '1',
+      coverUrl: '',
+      creatorId: 'u-char-owner',
+      ownerId: 'u-char-owner',
+      characterId: 'cid-counts',
+      likesCount: 1,
+      bookmarksCount: 1,
+    })
+    await db.insert(schema.characterLikes).values({ userId: 'u-char-counts', characterId: 'char-counts' })
+    await db.insert(schema.characterBookmarks).values({ userId: 'u-char-counts', characterId: 'char-counts' })
+
+    const service = createCharacterService(db)
+    await service.deleteAllForUser('u-char-counts')
+
+    const character = await db.query.character.findFirst({ where: eq(schema.character.id, 'char-counts') })
+    expect(character?.likesCount).toBe(0)
+    expect(character?.bookmarksCount).toBe(0)
+
+    await service.deleteAllForUser('u-char-counts')
+
+    const afterRetry = await db.query.character.findFirst({ where: eq(schema.character.id, 'char-counts') })
+    expect(afterRetry?.likesCount).toBe(0)
+    expect(afterRetry?.bookmarksCount).toBe(0)
+  })
+
   it('soft-deletes the user likes and bookmarks', async () => {
     await db.insert(schema.user).values({ id: 'u-char-3', name: 'C3', email: 'c3@example.com' })
     await db.insert(schema.character).values({

@@ -46,6 +46,13 @@ Default:
 
 Set this when previewing or deploying admin UI to a different Cloudflare URL.
 
+## `RATE_LIMIT_TRUSTED_PROXY`
+
+Keep this unset for local and self-hosted deployments. Set
+`RATE_LIMIT_TRUSTED_PROXY=railway` when the API runs behind the trusted
+Railway/Caddy boundary so anonymous auth requests are keyed by Railway's
+canonical `X-Real-IP` instead of the gateway socket address.
+
 ## `ADDITIONAL_TRUSTED_ORIGINS` (LAN / Capacitor dev)
 
 When the mobile dev server uses a non-localhost origin (for example `https://10.x.x.x:5273` from `cap copy ios` / `capacitor.config.json`), set **`ADDITIONAL_TRUSTED_ORIGINS`** in `apps/server/.env.local` to a comma-separated list of exact origins (parsed and normalized at startup). Example:

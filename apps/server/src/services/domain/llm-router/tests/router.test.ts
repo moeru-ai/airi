@@ -77,7 +77,7 @@ function makeLedger(overrides: Partial<ConcurrencyLedger> = {}): ConcurrencyLedg
 function makeConfigKV(config: RouterConfig | null): ConfigKVService {
   return {
     getOptional: vi.fn(async (key: string) => (key === 'LLM_ROUTER_CONFIG' ? config : null)),
-    // routeTts reads UNSPEECH_UPSTREAM once per request via getOrThrow.
+    // routeTts resolves UNSPEECH_UPSTREAM lazily when the chosen adapter needs it.
     // LLM-side tests never invoke routeTts so the value is irrelevant; TTS
     // tests need a populated restBaseURL.
     getOrThrow: vi.fn(async (key: string) => {
@@ -691,6 +691,121 @@ describe('createLlmRouterService', () => {
     expect((configKV.getOptional as ReturnType<typeof vi.fn>).mock.calls.length).toBe(2)
   })
 
+  describe('route LLM provider groups', () => {
+    function makeGroupedLlmRouter(fetchImpl: typeof fetch) {
+      const { config, crypto } = makeConfig({
+        upstreams: [
+          { baseURL: 'https://api.stepfun.com/step_plan/v1', keyIds: ['plan-a'] },
+          { baseURL: 'https://api.stepfun.com/step_plan/v1', keyIds: ['plan-b'] },
+          { baseURL: 'https://api.stepfun.com/v1', keyIds: ['paygo'] },
+        ],
+      })
+      const model = config.llm.models['openai/gpt-5-mini']
+      Object.assign(model.upstreams[0], { id: 'plan-a' })
+      Object.assign(model.upstreams[1], { id: 'plan-b' })
+      Object.assign(model.upstreams[2], { id: 'paygo' })
+      Object.assign(model, {
+        routing: {
+          groups: [
+            {
+              id: 'plan',
+              upstreamIds: ['plan-a', 'plan-b'],
+              retryOn: {
+                httpCodes: [402, 429, 500, 502, 503, 504],
+                onTimeout: true,
+              },
+              continueOn: {
+                httpCodes: [402],
+                onTimeout: false,
+              },
+            },
+            {
+              id: 'paygo',
+              upstreamIds: ['paygo'],
+              retryOn: {
+                httpCodes: [429, 500, 502, 503, 504],
+                onTimeout: true,
+              },
+            },
+          ],
+        },
+      })
+
+      return createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+    }
+
+    it('uses the ordinary LLM API only after every Plan account returns 402', async () => {
+      const calledURLs: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+        const url = String(input)
+        calledURLs.push(url)
+        if (url.includes('/step_plan/'))
+          return failResponse(402, { error: { code: 'quota_exceeded' } })
+        return happyResponse({ id: 'completion' })
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedLlmRouter(fetchImpl)
+      const response = await router.route({
+        modelName: 'openai/gpt-5-mini',
+        body: { messages: [] },
+      })
+
+      expect(response.status).toBe(200)
+      expect(calledURLs).toEqual([
+        'https://api.stepfun.com/step_plan/v1/chat/completions',
+        'https://api.stepfun.com/step_plan/v1/chat/completions',
+        'https://api.stepfun.com/v1/chat/completions',
+      ])
+    })
+
+    it('does not spend ordinary LLM API balance when the Plan group is rate-limited', async () => {
+      const calledURLs: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+        calledURLs.push(String(input))
+        return failResponse(429)
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedLlmRouter(fetchImpl)
+
+      await expect(router.route({
+        modelName: 'openai/gpt-5-mini',
+        body: { messages: [] },
+      })).rejects.toBeInstanceOf(ApiError)
+
+      expect(calledURLs).toEqual([
+        'https://api.stepfun.com/step_plan/v1/chat/completions',
+        'https://api.stepfun.com/step_plan/v1/chat/completions',
+      ])
+      expect(calledURLs).not.toContain('https://api.stepfun.com/v1/chat/completions')
+    })
+
+    it('stops the LLM provider route immediately on Plan authentication failure', async () => {
+      const calledURLs: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+        calledURLs.push(String(input))
+        return failResponse(401)
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedLlmRouter(fetchImpl)
+
+      await expect(router.route({
+        modelName: 'openai/gpt-5-mini',
+        body: { messages: [] },
+      })).rejects.toBeInstanceOf(ApiError)
+
+      expect(calledURLs).toEqual([
+        'https://api.stepfun.com/step_plan/v1/chat/completions',
+      ])
+    })
+  })
+
   // --- routeTts adapter error contract -------------------------------------
   //
   // ROOT CAUSE:
@@ -899,9 +1014,305 @@ describe('createLlmRouterService', () => {
     })
   })
 
+  describe('routeTts provider groups', () => {
+    function endpointProfileFrom(init?: RequestInit): string {
+      const body = JSON.parse(String(init?.body)) as {
+        extra_body?: { endpoint_profile?: string }
+      }
+      return body.extra_body?.endpoint_profile ?? 'default'
+    }
+
+    function makeGroupedStepfunConfig(): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
+      const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
+      const modelName = 'stepfun/stepaudio-2.5-tts'
+      const upstreams = [
+        {
+          id: 'plan-a',
+          baseURL: 'https://api.stepfun.com',
+          keyId: 'plan-key-a',
+          endpointProfile: 'step-plan',
+        },
+        {
+          id: 'plan-b',
+          baseURL: 'https://api.stepfun.com',
+          keyId: 'plan-key-b',
+          endpointProfile: 'step-plan',
+        },
+        {
+          id: 'paygo',
+          baseURL: 'https://api.stepfun.com',
+          keyId: 'paygo-key',
+          endpointProfile: 'default',
+        },
+      ].map(upstream => ({
+        id: upstream.id,
+        baseURL: upstream.baseURL,
+        keys: [{
+          id: upstream.keyId,
+          ciphertext: crypto.encryptKey(`sk-${upstream.keyId}`, {
+            modelName,
+            keyEntryId: upstream.keyId,
+          }),
+        }],
+        adapterParams: {
+          endpointProfile: upstream.endpointProfile,
+          model: 'stepaudio-2.5-tts',
+        },
+      }))
+
+      const config = {
+        llm: { models: {} },
+        tts: {
+          models: {
+            [modelName]: {
+              provider: 'stepfun',
+              upstreams,
+              routing: {
+                groups: [
+                  {
+                    id: 'plan',
+                    upstreamIds: ['plan-a', 'plan-b'],
+                    strategy: 'ordered',
+                    retryOn: {
+                      httpCodes: [402, 429, 500, 502, 503, 504],
+                      onTimeout: true,
+                    },
+                    continueOn: {
+                      httpCodes: [402],
+                      onTimeout: false,
+                    },
+                  },
+                  {
+                    id: 'paygo',
+                    upstreamIds: ['paygo'],
+                    strategy: 'ordered',
+                    retryOn: {
+                      httpCodes: [429, 500, 502, 503, 504],
+                      onTimeout: true,
+                    },
+                  },
+                ],
+              },
+              fallbackTriggers: {
+                httpCodes: [401, 402, 429, 500, 502, 503, 504],
+                onTimeout: true,
+              },
+            },
+          },
+        },
+        defaults: {
+          perAttemptTimeoutMs: 5000,
+          fullChainTimeoutMs: 10000,
+          fallbackHttpCodes: [401, 402, 429, 500, 502, 503, 504],
+        },
+      } as unknown as RouterConfig
+
+      return { config, crypto }
+    }
+
+    function makeGroupedStepfunRouter(
+      fetchImpl: typeof fetch,
+    ): ReturnType<typeof createLlmRouterService> {
+      const { config, crypto } = makeGroupedStepfunConfig()
+      return createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+    }
+
+    it('uses pay-as-you-go only after every Plan account reports quota exhaustion', async () => {
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        const profile = endpointProfileFrom(init)
+        calledProfiles.push(profile)
+        if (profile === 'step-plan')
+          return failResponse(402, { error: { code: 'quota_exceeded' } })
+        return new Response(new Uint8Array([0x01]), {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
+        })
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedStepfunRouter(fetchImpl)
+      const response = await router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })
+
+      expect(response.status).toBe(200)
+      expect(calledProfiles).toEqual(['step-plan', 'step-plan', 'default'])
+    })
+
+    it('stays inside the Plan group when a Plan account succeeds', async () => {
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        calledProfiles.push(endpointProfileFrom(init))
+        return new Response(new Uint8Array([0x01]), {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
+        })
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedStepfunRouter(fetchImpl)
+      const response = await router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })
+
+      expect(response.status).toBe(200)
+      expect(calledProfiles).toEqual(['step-plan'])
+    })
+
+    it('requires UNSPEECH_UPSTREAM for an endpoint-profile request', async () => {
+      const { config, crypto } = makeGroupedStepfunConfig()
+      const configKV = makeConfigKV(config)
+      const getOrThrow = vi.fn(async () => {
+        throw new Error('UNSPEECH_UPSTREAM not configured')
+      })
+      Object.assign(configKV, { getOrThrow })
+      const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x01]), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      })) as unknown as typeof fetch
+      const router = createLlmRouterService({
+        configKV,
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      await expect(router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })).rejects.toThrow('UNSPEECH_UPSTREAM not configured')
+
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect(getOrThrow).toHaveBeenCalledWith('UNSPEECH_UPSTREAM')
+    })
+
+    it('requires UNSPEECH_UPSTREAM for the StepFun voice catalog', async () => {
+      const { config, crypto } = makeGroupedStepfunConfig()
+      const configKV = makeConfigKV(config)
+      const getOrThrow = vi.fn(async () => {
+        throw new Error('UNSPEECH_UPSTREAM not configured')
+      })
+      Object.assign(configKV, { getOrThrow })
+      const fetchImpl = vi.fn() as unknown as typeof fetch
+      const router = createLlmRouterService({
+        configKV,
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      await expect(
+        router.listTtsVoices('stepfun/stepaudio-2.5-tts'),
+      ).rejects.toThrow('UNSPEECH_UPSTREAM not configured')
+
+      expect(fetchImpl).not.toHaveBeenCalled()
+      expect(getOrThrow).toHaveBeenCalledWith('UNSPEECH_UPSTREAM')
+    })
+
+    it('keeps a Step Plan attempt timeout distinct from HTTP 500 at the paid boundary', async () => {
+      const { config, crypto } = makeGroupedStepfunConfig()
+      config.defaults!.perAttemptTimeoutMs = 10
+      const model = config.tts.models['stepfun/stepaudio-2.5-tts']
+      model.routing!.groups[0].continueOn = {
+        httpCodes: [500],
+        onTimeout: false,
+      }
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn((input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        const profile = endpointProfileFrom(init)
+        calledProfiles.push(profile)
+        if (profile !== 'step-plan') {
+          return Promise.resolve(new Response(new Uint8Array([0x01]), {
+            status: 200,
+            headers: { 'content-type': 'audio/mpeg' },
+          }))
+        }
+
+        return new Promise<Response>((_, reject) => {
+          const rejectAbort = () => reject(init?.signal?.reason ?? new Error('aborted'))
+          if (init?.signal?.aborted)
+            rejectAbort()
+          else
+            init?.signal?.addEventListener('abort', rejectAbort, { once: true })
+        })
+      }) as unknown as typeof fetch
+      const router = createLlmRouterService({
+        configKV: makeConfigKV(config),
+        envelopeCrypto: crypto,
+        gatewayMetrics: makeMetrics(),
+        fetchImpl,
+        redis: makeRedisStub(),
+        concurrencyLedger: makeLedger(),
+      })
+
+      await expect(router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })).rejects.toMatchObject({
+        statusCode: 504,
+        details: expect.objectContaining({ lastStatusCode: 'timeout' }),
+      })
+
+      expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
+      expect(calledProfiles).not.toContain('default')
+    })
+
+    it('does not cross the paid boundary when the Plan group is rate-limited', async () => {
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        calledProfiles.push(endpointProfileFrom(init))
+        return failResponse(429)
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedStepfunRouter(fetchImpl)
+
+      await expect(router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })).rejects.toBeInstanceOf(ApiError)
+
+      expect(calledProfiles).toEqual(['step-plan', 'step-plan'])
+      expect(calledProfiles).not.toContain('default')
+    })
+
+    it('stops the provider route immediately on a Plan authentication failure', async () => {
+      const calledProfiles: string[] = []
+      const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe('http://unspeech.local:5933/v1/audio/speech')
+        calledProfiles.push(endpointProfileFrom(init))
+        return failResponse(401)
+      }) as unknown as typeof fetch
+
+      const router = makeGroupedStepfunRouter(fetchImpl)
+
+      await expect(router.routeTts({
+        modelName: 'stepfun/stepaudio-2.5-tts',
+        input: { text: '你好' },
+      })).rejects.toBeInstanceOf(ApiError)
+
+      expect(calledProfiles).toEqual(['step-plan'])
+    })
+  })
+
   describe('routeTtspool capacity-aware routing', () => {
     // One app_id == one upstream (Volcengine `adapterParams.appid`), each capped
-    // at `maxConcurrency`. The router spreads load least-loaded-first across pools
+    // at `maxConcurrency`. The router spreads load least-inflight-first across pools
     // and circuit-breaks a pool on 429 (app_id concurrency exceeded upstream-side).
     function makePoolConfig(
       upstreams: Array<{ baseURL: string, appid: string, maxConcurrency?: number }>,
@@ -934,7 +1345,7 @@ describe('createLlmRouterService', () => {
       return { config, crypto }
     }
 
-    // Stateful in-memory ledger so least-loaded ordering and capacity gating are
+    // Stateful in-memory ledger so least-inflight ordering and capacity gating are
     // observable. `seed` pre-loads inflight counts to drive deterministic ranking.
     function makeStatefulLedger(seed: Record<string, number> = {}, saturatedSeed: string[] = []) {
       const inflight = new Map<string, number>(Object.entries(seed))
@@ -974,7 +1385,7 @@ describe('createLlmRouterService', () => {
       })
     }
 
-    it('routes to the least-loadedpool (covers AE1 — load spread, not first-fill)', async () => {
+    it('routes to the least-inflight pool (covers AE1 — load spread, not first-fill)', async () => {
       // @example two app_ids cap 10, seeded 8 vs 2 in-flight -> the new request
       // goes to the freer pool (app-2), not the config-first pool (app-1).
       const { config, crypto } = makePoolConfig([
@@ -990,6 +1401,208 @@ describe('createLlmRouterService', () => {
       expect(res.status).toBe(200)
       expect(tryAcquire).toHaveBeenCalledTimes(1)
       expect(tryAcquire.mock.calls[0][0]).toBe('app-2')
+    })
+
+    it('ranks least-inflight accounts by current usage when concurrency caps differ', async () => {
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 100 },
+        { baseURL: 'https://up-b.example', appid: 'app-2', maxConcurrency: 10 },
+      ])
+      const { ledger, tryAcquire } = makeStatefulLedger({ 'app-1': 50, 'app-2': 0 })
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(response.status).toBe(200)
+      expect(tryAcquire).toHaveBeenCalledTimes(1)
+      expect(tryAcquire).toHaveBeenCalledWith('app-2', 10)
+    })
+
+    it('namespaces a non-appid pool by model and upstream id', async () => {
+      const crypto = createEnvelopeCrypto({ masterKey: freshMasterKey() })
+      const modelName = 'stepfun/stepaudio-2.5-tts'
+      const keyEntryId = 'plan-key'
+      const config = {
+        llm: { models: {} },
+        tts: {
+          models: {
+            [modelName]: {
+              provider: 'stepfun',
+              upstreams: [{
+                id: 'plan',
+                baseURL: 'https://api.stepfun.com',
+                keys: [{
+                  id: keyEntryId,
+                  ciphertext: crypto.encryptKey('sk-plan', { modelName, keyEntryId }),
+                }],
+                adapterParams: {
+                  endpointProfile: 'step-plan',
+                  model: 'stepaudio-2.5-tts',
+                },
+                maxConcurrency: 1,
+              }],
+              routing: {
+                groups: [{
+                  id: 'plan',
+                  upstreamIds: ['plan'],
+                  strategy: 'least-inflight',
+                  retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+                }],
+              },
+              fallbackTriggers: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+            },
+          },
+        },
+        defaults: {
+          perAttemptTimeoutMs: 5000,
+          fullChainTimeoutMs: 10000,
+          fallbackHttpCodes: [402, 429, 500, 502, 503, 504],
+        },
+      } as RouterConfig
+      const { ledger, tryAcquire } = makeStatefulLedger()
+      const fetchImpl = vi.fn(async () => new Response(new Uint8Array([0x01]), {
+        status: 200,
+        headers: { 'content-type': 'audio/mpeg' },
+      })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const response = await router.routeTts({ modelName, input: { text: 'hi' } })
+
+      expect(response.status).toBe(200)
+      expect(tryAcquire).toHaveBeenCalledWith(
+        'model:["stepfun/stepaudio-2.5-tts","id","plan"]',
+        1,
+      )
+    })
+
+    it('enforces maxConcurrency for an ordered provider group', async () => {
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://up-a.example', appid: 'app-1', maxConcurrency: 10 },
+      ])
+      const model = config.tts.models['tts-pool']
+      Object.assign(model.upstreams[0], { id: 'primary' })
+      Object.assign(model, {
+        routing: {
+          groups: [{
+            id: 'primary',
+            upstreamIds: ['primary'],
+            strategy: 'ordered',
+            retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+          }],
+        },
+      })
+      const { ledger, tryAcquire, release } = makeStatefulLedger()
+      const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 })) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(response.status).toBe(200)
+      expect(tryAcquire).toHaveBeenCalledWith('app-1', 10)
+      expect(release).toHaveBeenCalledWith('app-1')
+    })
+
+    it('keeps least-inflight selection inside the active group before considering pay-as-you-go', async () => {
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
+        { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },
+        { baseURL: 'https://paygo.example', appid: 'paygo' },
+      ])
+      const model = config.tts.models['tts-pool']
+      Object.assign(model.upstreams[0], { id: 'plan-a' })
+      Object.assign(model.upstreams[1], { id: 'plan-b' })
+      Object.assign(model.upstreams[2], { id: 'paygo' })
+      Object.assign(model, {
+        routing: {
+          groups: [
+            {
+              id: 'plan',
+              upstreamIds: ['plan-a', 'plan-b'],
+              strategy: 'least-inflight',
+              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+              continueOn: { httpCodes: [402], onTimeout: false },
+            },
+            {
+              id: 'paygo',
+              upstreamIds: ['paygo'],
+              strategy: 'ordered',
+              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+            },
+          ],
+        },
+      })
+      const { ledger, tryAcquire } = makeStatefulLedger({ 'plan-a': 8, 'plan-b': 2 })
+      const selectedAppIds: string[] = []
+      const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { extra_body?: { app?: { appid?: string } } }
+        selectedAppIds.push(body.extra_body?.app?.appid ?? 'unknown')
+        return new Response(new Uint8Array([0x01]), {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
+        })
+      }) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+      const response = await router.routeTts({ modelName: 'tts-pool', input: { text: 'hi' } })
+
+      expect(response.status).toBe(200)
+      expect(selectedAppIds).toEqual(['plan-b'])
+      expect(tryAcquire).toHaveBeenCalledTimes(1)
+      expect(tryAcquire).toHaveBeenCalledWith('plan-b', 10)
+    })
+
+    it('does not cross groups when a Plan account was skipped at its concurrency limit', async () => {
+      const { config, crypto } = makePoolConfig([
+        { baseURL: 'https://plan-a.example', appid: 'plan-a', maxConcurrency: 10 },
+        { baseURL: 'https://plan-b.example', appid: 'plan-b', maxConcurrency: 10 },
+        { baseURL: 'https://paygo.example', appid: 'paygo' },
+      ])
+      const model = config.tts.models['tts-pool']
+      Object.assign(model.upstreams[0], { id: 'plan-a' })
+      Object.assign(model.upstreams[1], { id: 'plan-b' })
+      Object.assign(model.upstreams[2], { id: 'paygo' })
+      Object.assign(model, {
+        routing: {
+          groups: [
+            {
+              id: 'plan',
+              upstreamIds: ['plan-a', 'plan-b'],
+              strategy: 'least-inflight',
+              retryOn: { httpCodes: [402, 429, 500, 502, 503, 504], onTimeout: true },
+              continueOn: { httpCodes: [402], onTimeout: false },
+            },
+            {
+              id: 'paygo',
+              upstreamIds: ['paygo'],
+              strategy: 'ordered',
+              retryOn: { httpCodes: [429, 500, 502, 503, 504], onTimeout: true },
+            },
+          ],
+        },
+      })
+      const { ledger } = makeStatefulLedger({ 'plan-a': 10, 'plan-b': 0 })
+      const selectedAppIds: string[] = []
+      const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { extra_body?: { app?: { appid?: string } } }
+        const appid = body.extra_body?.app?.appid ?? 'unknown'
+        selectedAppIds.push(appid)
+        if (appid === 'plan-b')
+          return failResponse(402, { error: { code: 'quota_exceeded' } })
+        return new Response(new Uint8Array([0x01]), {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg' },
+        })
+      }) as unknown as typeof fetch
+
+      const router = makePoolRouter(config, crypto, ledger, fetchImpl)
+
+      await expect(router.routeTts({
+        modelName: 'tts-pool',
+        input: { text: 'hi' },
+      })).rejects.toBeInstanceOf(ApiError)
+
+      expect(selectedAppIds).toEqual(['plan-b'])
     })
 
     it('skips a fullpool and dispatches to one with capacity', async () => {

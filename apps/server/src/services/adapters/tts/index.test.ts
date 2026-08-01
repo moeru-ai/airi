@@ -298,7 +298,7 @@ describe('azureAdapter.send', () => {
 })
 
 describe('stepfunAdapter', () => {
-  it('lists StepFun voices through unspeech provider=stepfun', async () => {
+  it('uses unspeech as the StepFun voice-catalog source', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
       voices: [{
@@ -323,6 +323,7 @@ describe('stepfunAdapter', () => {
         }),
       ]),
     )
+    expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [calledUrl] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
     expect(calledUrl).toBe('http://unspeech.local/api/voices?provider=stepfun')
   })
@@ -348,7 +349,7 @@ describe('stepfunAdapter', () => {
       },
       {
         keyPlaintext: Buffer.from('step-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local:5933',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,
@@ -379,6 +380,57 @@ describe('stepfunAdapter', () => {
     expect(result.body).toBeInstanceOf(ArrayBuffer)
   })
 
+  it('passes the Step Plan endpoint profile to unspeech', async () => {
+    const adapter = getAdapter('stepfun')
+    const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    })) as unknown as typeof fetch
+
+    const result = await adapter.send(
+      {
+        text: '你好',
+        voice: 'cixingnansheng',
+        responseFormat: 'mp3',
+        speed: 1.1,
+        extraOptions: {
+          instruction: '温柔、克制',
+        },
+      },
+      {
+        keyPlaintext: Buffer.from('step-plan-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
+        unspeechBaseURL: 'http://unspeech.local:5933',
+        adapterParams: {
+          endpointProfile: 'step-plan',
+          model: 'stepaudio-2.5-tts',
+        },
+        fetchImpl,
+      },
+    )
+
+    const [calledURL, init] = (fetchImpl as unknown as { mock: { calls: [string, RequestInit][] } }).mock.calls[0]
+    expect(calledURL).toBe('http://unspeech.local:5933/v1/audio/speech')
+    expect(init.method).toBe('POST')
+    expect(init.headers).toMatchObject({
+      'Authorization': 'Bearer step-plan-key',
+      'Content-Type': 'application/json',
+    })
+    expect(JSON.parse(init.body as string)).toEqual({
+      model: 'stepfun/stepaudio-2.5-tts',
+      input: '你好',
+      voice: 'cixingnansheng',
+      response_format: 'mp3',
+      speed: 1.1,
+      extra_body: {
+        endpoint_profile: 'step-plan',
+        instruction: '温柔、克制',
+      },
+    })
+    expect(result.contentType).toBe('audio/mpeg')
+    expect(result.body).toBeInstanceOf(ArrayBuffer)
+  })
+
   it('passes voice_label through to unspeech for provider-level validation', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array([1]), {
@@ -395,7 +447,7 @@ describe('stepfunAdapter', () => {
       },
       {
         keyPlaintext: Buffer.from('step-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,
@@ -415,12 +467,34 @@ describe('stepfunAdapter', () => {
       { text: 'hi', voice: 'cixingnansheng' },
       {
         keyPlaintext: Buffer.from('bad-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com/v1/audio/speech',
+        baseURL: 'https://api.stepfun.com',
         unspeechBaseURL: 'http://unspeech.local',
         adapterParams: { model: 'stepaudio-2.5-tts' },
         fetchImpl,
       },
     )).rejects.toMatchObject({ status: 401 })
+  })
+
+  it('preserves an unspeech request abort for router timeout classification', async () => {
+    const adapter = getAdapter('stepfun')
+    const abortController = new AbortController()
+    const abortError = new Error('attempt-timeout')
+    abortController.abort(abortError)
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
+      throw init?.signal?.reason ?? new Error('aborted')
+    }) as unknown as typeof fetch
+
+    await expect(adapter.send(
+      { text: 'hi', voice: 'cixingnansheng' },
+      {
+        keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
+        unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
+        abortSignal: abortController.signal,
+      },
+    )).rejects.toBe(abortError)
   })
 })
 
