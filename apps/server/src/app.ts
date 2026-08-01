@@ -1,5 +1,3 @@
-import type Redis from 'ioredis'
-
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { ApiOtelInstance } from './otel'
@@ -27,11 +25,13 @@ import type { EnvelopeCrypto } from './utils/envelope-crypto'
 
 import process from 'node:process'
 
+import Redis from 'ioredis'
 import Stripe from 'stripe'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
+import { initializeExternalDependency } from '@proj-airi/server-node-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -40,8 +40,6 @@ import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
-import { initializeExternalDependency } from './libs/external-dependency'
-import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
@@ -334,7 +332,6 @@ export async function buildApp(deps: AppDeps) {
     }))
 
     .route('/internal/auth', createInternalAuthRoutes({
-      secret: deps.env.AUTH_INTERNAL_SECRET,
       userDeletionService: deps.userDeletionService,
       productEventService: deps.productEventService,
     }))
@@ -544,7 +541,7 @@ export async function createApp() {
         'Redis',
         logger,
         async (attempt) => {
-          const instance = createRedis(dependsOn.env.REDIS_URL)
+          const instance = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
 
           try {
             await instance.connect()

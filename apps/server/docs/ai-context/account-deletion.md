@@ -62,7 +62,10 @@ auth-server ──authenticated HTTP──► API internal-auth route
                               [stripeService, fluxService, ...]
 ```
 
-Auth app 和业务 service **没有源码依赖**。Auth server 只依赖自己的 `UserDeletionService` port，remote adapter 通过带 `AUTH_INTERNAL_SECRET` 的内部 HTTP 调用 API；API 才装配业务 deletion handlers。
+Auth app 和业务 service **没有源码依赖**。Auth server 通过统一的
+`ResourceApi` private HTTP boundary 调用 API；API 才装配业务 deletion
+handlers。该 internal route 不使用 application token，因此部署必须让 API
+只接受私网流量，并在公开 Caddy edge 拒绝 `/internal/*`。
 
 ```ts
 // apps/server/src/services/domain/user-deletion/types.ts

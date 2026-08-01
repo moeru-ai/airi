@@ -13,6 +13,7 @@ import * as authSchema from '@proj-airi/auth-shared'
 
 interface RequestAuthEnv {
   AUTH_SERVER_URL: string
+  AUTH_SERVER_INTERNAL_URL?: string
   TEST_AUTH_TOKEN: string
   TEST_AUTH_USER_ID: string
   TEST_AUTH_USER_EMAIL: string
@@ -22,6 +23,7 @@ interface RequestAuthEnv {
 
 interface TokenIssuerEnv {
   AUTH_SERVER_URL: string
+  AUTH_SERVER_INTERNAL_URL?: string
 }
 
 export type RequestAuthSession = AuthSession
@@ -80,7 +82,7 @@ function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): AuthSes
 const cachedJWKS = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 
 function getJWKS(env: TokenIssuerEnv): ReturnType<typeof createRemoteJWKSet> {
-  const jwksUrl = new URL('/api/auth/jwks', env.AUTH_SERVER_URL).toString()
+  const jwksUrl = new URL('/api/auth/jwks', env.AUTH_SERVER_INTERNAL_URL ?? env.AUTH_SERVER_URL).toString()
   const cached = cachedJWKS.get(jwksUrl)
   if (cached)
     return cached

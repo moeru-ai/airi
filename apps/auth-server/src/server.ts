@@ -1,24 +1,126 @@
+import type { AuthInstance } from './auth'
+import type { AuthDatabase } from './db'
+import type { AuthEnv } from './env'
+import type { RateLimitMetrics } from './otel'
+import type { AuthConfigService } from './rate-limit'
+import type { HonoEnv } from './routes'
+
 import process from 'node:process'
+
+import Redis from 'ioredis'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
+import { initializeExternalDependency } from '@proj-airi/server-node-shared'
+import { Hono } from 'hono'
+import { bodyLimit } from 'hono/body-limit'
+import { cors } from 'hono/cors'
+import { logger as honoLogger } from 'hono/logger'
 import { createContainer, createLoggLogger, lifecycle, provide, resolve, start, stop } from 'injeca'
 
-import { buildAuthApp } from './app'
-import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './libs/auth'
-import { createAuthDrizzle } from './libs/db'
-import { parseAuthEnv } from './libs/env'
-import { initializeExternalDependency } from './libs/external-dependency'
-import { createRedis } from './libs/redis'
-import { emitOtelLog, initAuthOtel } from './otel'
-import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
-import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
-import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
-import { registerTotalUsersGauge } from './otel/gauges/total-users'
-import { createAuthConfigService } from './services/adapters/auth-config'
-import { createEmailService } from './services/adapters/email'
-import { createRemoteAuthEventService } from './services/adapters/remote-auth-events'
-import { createRemoteUserDeletionService } from './services/adapters/remote-user-deletion'
+import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './auth'
+import { createAuthDrizzle } from './db'
+import { createEmailService } from './email'
+import { parseAuthEnv } from './env'
+import { ApiError, createInternalError } from './error'
+import { getTrustedOrigin } from './origin'
+import {
+  emitOtelLog,
+  initAuthOtel,
+  registerActiveSessionsGauge,
+  registerDistinctActiveUsersGauge,
+  registerRollingActiveUsersGauge,
+  registerTotalUsersGauge,
+} from './otel'
+import { createAuthConfigService } from './rate-limit'
+import { createResourceApi } from './resource-api'
+import { createAuthRoutes } from './routes'
+
+export interface AuthAppDeps {
+  auth: AuthInstance
+  db: AuthDatabase
+  redis: Redis
+  env: AuthEnv
+  authConfig: AuthConfigService
+  rateLimitMetrics?: RateLimitMetrics | null
+}
+
+/** Builds the standalone Auth HTTP surface without constructing its runtime dependencies. */
+export async function buildAuthApp(deps: AuthAppDeps) {
+  const logger = useLogger('auth-app').useGlobalConfig()
+
+  const app = new Hono<HonoEnv>()
+    .use('*', async (c, next) => {
+      await next()
+      c.res.headers.set('Cache-Control', 'no-store, no-cache, private, max-age=0')
+      c.res.headers.set('Pragma', 'no-cache')
+      c.res.headers.set('Expires', '0')
+    })
+    .use(
+      '/api/*',
+      cors({
+        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
+        credentials: true,
+      }),
+    )
+    .use(honoLogger())
+    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    .onError((err, c) => {
+      if (err instanceof ApiError) {
+        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
+        if (err.statusCode >= 500)
+          logger.withError(err).withFields(logFields).error('Auth API error occurred')
+        else if (err.statusCode !== 401)
+          logger.withError(err).withFields(logFields).warn('Auth API error occurred')
+
+        return c.json({
+          error: err.errorCode,
+          message: err.message,
+          details: err.details,
+        }, err.statusCode)
+      }
+
+      logger.withError(err).error('Unhandled auth error')
+      const internalError = createInternalError()
+      return c.json({
+        error: internalError.errorCode,
+        message: internalError.message,
+      }, internalError.statusCode)
+    })
+    .get('/livez', c => c.json({ status: 'live' }))
+    .get('/readyz', async (c) => {
+      const [dbResult, redisResult] = await Promise.allSettled([
+        // Auth does not run migrations. Probe an owned table so readiness
+        // stays false until the migration owner has installed the auth schema.
+        deps.db.execute('SELECT 1 FROM "user" LIMIT 1'),
+        deps.redis.ping(),
+      ])
+      const dbReady = dbResult.status === 'fulfilled'
+      const redisReady = redisResult.status === 'fulfilled'
+      const ready = dbReady && redisReady
+
+      return c.json({
+        status: ready ? 'ready' : 'not_ready',
+        checks: { db: dbReady ? 'ok' : 'fail', redis: redisReady ? 'ok' : 'fail' },
+      }, ready ? 200 : 503)
+    })
+    .get('/', c => c.json({
+      service: 'airi-auth',
+      issuer: `${deps.env.PUBLIC_URL}/api/auth`,
+      accounts: deps.env.AUTH_UI_URL,
+    }))
+    .route('/', await createAuthRoutes({
+      auth: deps.auth,
+      db: deps.db,
+      env: deps.env,
+      authConfig: deps.authConfig,
+      rateLimitMetrics: deps.rateLimitMetrics,
+    }))
+
+  return { app }
+}
+
+export type AuthAppType = Awaited<ReturnType<typeof buildAuthApp>>['app']
 
 /**
  * Builds the standalone auth runtime with its own dependency container.
@@ -64,7 +166,7 @@ export async function createAuthServer() {
     dependsOn: { env, lifecycle },
     build: async ({ dependsOn }) => {
       const instance = await initializeExternalDependency('Redis', logger, async (attempt) => {
-        const candidate = createRedis(dependsOn.env.REDIS_URL)
+        const candidate = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
         try {
           await candidate.connect()
           logger.log(`Connected to Redis on attempt ${attempt}`)
@@ -93,16 +195,12 @@ export async function createAuthServer() {
       fromName: dependsOn.env.RESEND_FROM_NAME,
     }, undefined, dependsOn.otel?.email),
   })
-  const authEvents = provide(container, 'services:authEvents', {
+  const resourceApi = provide(container, 'services:resourceApi', {
     dependsOn: { env },
-    build: ({ dependsOn }) => createRemoteAuthEventService(dependsOn.env),
-  })
-  const userDeletion = provide(container, 'services:userDeletion', {
-    dependsOn: { env },
-    build: ({ dependsOn }) => createRemoteUserDeletionService(dependsOn.env),
+    build: ({ dependsOn }) => createResourceApi(dependsOn.env.RESOURCE_SERVER_URL),
   })
   const auth = provide(container, 'services:auth', {
-    dependsOn: { authEvents, db, env, email, otel, userDeletion },
+    dependsOn: { db, env, email, otel, resourceApi },
     build: async ({ dependsOn }) => {
       await seedTrustedClients(dependsOn.db, dependsOn.env)
       for (const client of getTrustedClientSeedSummaries(dependsOn.env)) {
@@ -117,8 +215,7 @@ export async function createAuthServer() {
         dependsOn.env,
         dependsOn.email,
         dependsOn.otel?.auth,
-        dependsOn.userDeletion,
-        dependsOn.authEvents,
+        dependsOn.resourceApi,
       )
     },
   })

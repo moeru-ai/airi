@@ -3,26 +3,25 @@ import { describe, expect, it, vi } from 'vitest'
 import { createInternalAuthRoutes } from './internal-auth'
 
 describe('internal auth routes', () => {
-  it('rejects requests without the shared service credential', async () => {
+  it('rejects an invalid deletion contract before calling business services', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn() }
-    const app = createInternalAuthRoutes({ secret: 'shared-secret', userDeletionService, productEventService })
+    const app = createInternalAuthRoutes({ userDeletionService, productEventService })
 
     const response = await app.request('/user-deletion', { method: 'POST', body: '{}' })
 
-    expect(response.status).toBe(401)
+    expect(response.status).toBe(400)
     expect(userDeletionService.softDeleteAll).not.toHaveBeenCalled()
   })
 
-  it('delegates authenticated cleanup to the API-owned deletion workflow', async () => {
+  it('delegates private cleanup to the API-owned deletion workflow', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn(async () => undefined) }
     const productEventService = { track: vi.fn() }
-    const app = createInternalAuthRoutes({ secret: 'shared-secret', userDeletionService, productEventService })
+    const app = createInternalAuthRoutes({ userDeletionService, productEventService })
 
     const response = await app.request('/user-deletion', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer shared-secret',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ userId: 'user-1', reason: 'user-requested' }),
@@ -35,11 +34,10 @@ describe('internal auth routes', () => {
     })
   })
 
-  it('records authenticated auth lifecycle events in the API-owned event service', async () => {
+  it('records private auth lifecycle events in the API-owned event service', async () => {
     const userDeletionService = { register: vi.fn(), softDeleteAll: vi.fn() }
     const productEventService = { track: vi.fn(async () => undefined) }
     const app = createInternalAuthRoutes({
-      secret: 'shared-secret',
       userDeletionService,
       productEventService,
     })
@@ -47,7 +45,6 @@ describe('internal auth routes', () => {
     const response = await app.request('/events', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer shared-secret',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

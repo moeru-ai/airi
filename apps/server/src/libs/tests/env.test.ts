@@ -1,9 +1,9 @@
 import { Buffer } from 'node:buffer'
 
+import { parseAdditionalTrustedOriginsEnv } from '@proj-airi/server-node-shared'
 import { describe, expect, it } from 'vitest'
 
 import { parseEnv } from '../env'
-import { parseAdditionalTrustedOriginsEnv } from '../runtime-env'
 
 function baseEnv(): Record<string, string> {
   return {

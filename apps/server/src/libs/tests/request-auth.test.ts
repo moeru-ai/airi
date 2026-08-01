@@ -98,6 +98,25 @@ describe('resolveRequestAuth', () => {
     })
   })
 
+  it('fetches JWKS privately while preserving the public issuer contract', async () => {
+    mockValidJwt()
+
+    await resolveRequestAuth(
+      createDb(createUser()),
+      {
+        ...mockEnv,
+        AUTH_SERVER_INTERNAL_URL: 'http://auth:3000',
+      },
+      new Headers({ Authorization: 'Bearer jwt' }),
+    )
+
+    expect(mockedCreateRemoteJWKSet).toHaveBeenCalledWith(new URL('http://auth:3000/api/auth/jwks'))
+    expect(mockedJwtVerify).toHaveBeenCalledWith('jwt', 'mock-jwks', {
+      issuer: 'https://api.airi.build/api/auth',
+      audience: 'https://api.airi.build',
+    })
+  })
+
   it('rejects a banned principal after signature verification', async () => {
     mockValidJwt()
     const result = await resolveRequestAuth(

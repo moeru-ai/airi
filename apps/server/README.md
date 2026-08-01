@@ -21,18 +21,27 @@ pnpm -F @proj-airi/server exec vitest run
 pnpm -F @proj-airi/server build
 ```
 
-Run the authentication application separately:
+Run the complete local backend from the repository root:
 
 ```sh
-pnpm -F @proj-airi/auth-server dev
+pnpm dev:backend
 ```
+
+For source-level debugging, start `@proj-airi/server` and
+`@proj-airi/auth-server` separately instead.
+
+The root compose exposes the Caddy gateway at `http://localhost:6112` and keeps
+the API and Auth container ports private.
 
 ## Service boundaries
 
 - `AUTH_SERVER_URL` is the public issuer origin used for JWKS, issuer, and
   audience validation. With Caddy routing, it remains `https://api.airi.build`.
-- `AUTH_INTERNAL_SECRET` authenticates the private `/internal/auth/*` contract
-  shared with auth-server.
+- `/internal/auth/*` is reachable only on the deployment's trusted private
+  network. The public edge must reject `/internal/*` and the API service must
+  not have its own public ingress.
+- `AUTH_SERVER_INTERNAL_URL` optionally sends JWKS fetches directly to Auth on
+  the private network while issuer and audience remain `AUTH_SERVER_URL`.
 - Auth tables and principal types come from `@proj-airi/auth-shared`; no module
   under `apps/auth-server` is imported.
 - `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to

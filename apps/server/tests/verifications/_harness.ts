@@ -160,7 +160,6 @@ export async function startVerificationContext() {
   const env: any = {
     API_SERVER_URL: 'http://localhost:3000',
     AUTH_SERVER_URL: 'http://localhost:3000',
-    AUTH_INTERNAL_SECRET: '',
     TEST_AUTH_TOKEN: '',
     TEST_AUTH_USER_ID: 'test-user',
     TEST_AUTH_USER_EMAIL: 'test@example.com',

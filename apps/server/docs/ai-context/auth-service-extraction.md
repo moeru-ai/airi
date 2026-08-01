@@ -27,10 +27,11 @@ auth-specific rate limiting, and auth telemetry. `apps/server` owns business
 HTTP/WS routes, billing, product events, and the shared database migration
 history. Neither app imports the other.
 
-The only shared code is the neutral `@proj-airi/auth-shared` package containing
-auth tables, the principal/session contract, and ban-expiry policy. Auth event
-facts and account deletion cross the authenticated `/internal/auth/*` HTTP
-boundary instead of sharing API services or business tables.
+Auth tables, the principal/session contract, and ban-expiry policy live in the
+neutral `@proj-airi/auth-shared` package. Node boot primitives used by both
+processes live in `@proj-airi/server-node-shared`. Auth event facts and account
+deletion cross the private `/internal/auth/*` HTTP boundary instead of sharing
+API services or business tables.
 
 ## Configuration
 
@@ -39,7 +40,6 @@ Auth server:
 ```dotenv
 PUBLIC_URL=https://api.airi.build
 RESOURCE_SERVER_URL=http://api.railway.internal:3000
-AUTH_INTERNAL_SECRET=<same random value on both services>
 AUTH_UI_URL=https://accounts.airi.build/ui
 ```
 
@@ -48,12 +48,18 @@ Resource API:
 ```dotenv
 API_SERVER_URL=https://api.airi.build
 AUTH_SERVER_URL=https://api.airi.build
-AUTH_INTERNAL_SECRET=<same random value on both services>
+AUTH_SERVER_INTERNAL_URL=http://auth-server.railway.internal:3000
 ```
 
 `PUBLIC_URL` is Better Auth's base URL, issuer, and resource/audience. The
 private `RESOURCE_SERVER_URL` is used only for internal API calls and must not
 appear in discovery metadata, redirects, or client configuration.
+
+The internal contract deliberately has no application-level token. Its trust
+boundary is the Railway private network: the API service has no direct public
+ingress, and Caddy must reject `/internal/*` instead of proxying it.
+`AUTH_SERVER_INTERNAL_URL` changes only where the API downloads JWKS; JWT
+issuer and audience validation continue to use the public `AUTH_SERVER_URL`.
 
 ## Railway and Caddy
 
@@ -70,6 +76,10 @@ Caddy variables:
 AIRI_AUTH_BACKEND_HOST=${{auth-server.RAILWAY_PRIVATE_DOMAIN}}
 AIRI_AUTH_BACKEND_PORT=3000
 ```
+
+The public Caddy route set must include an explicit `/internal/*` rejection.
+The repository root compose applies the same policy through
+`deploy/caddy/Caddyfile` and exposes only the gateway port.
 
 ## Migration ownership
 

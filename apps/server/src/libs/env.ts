@@ -4,10 +4,9 @@ import { Buffer } from 'node:buffer'
 import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
+import { optionalIntegerFromString, parseAdditionalTrustedOriginsEnv } from '@proj-airi/server-node-shared'
 import { injeca } from 'injeca'
 import { check, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
-
-import { optionalIntegerFromString, parseAdditionalTrustedOriginsEnv } from './runtime-env'
 
 function optionalNumberFromString(defaultValue: number, envKey: string, minimum: number, maximum: number) {
   return optional(
@@ -28,11 +27,7 @@ const EnvSchema = object({
 
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
-
-  // Shared only between the Auth and API Railway services. Auth uses
-  // it to request business-data cleanup before Better Auth deletes a user.
-  // Empty keeps local login flows usable, but account deletion fails closed.
-  AUTH_INTERNAL_SECRET: optional(string(), ''),
+  AUTH_SERVER_INTERNAL_URL: optional(string()),
 
   // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
   // entrypoint and redirects those requests here after the admin UI moved to
