@@ -135,6 +135,7 @@
     "@webgpu/types": "catalog:",
     "csstype": "catalog:",
     "hfup": "catalog:",
+    "https-proxy-agent": "^7.0.6",
     "less": "catalog:",
     "unplugin-basemove": "catalog:",
     "unplugin-info": "catalog:",

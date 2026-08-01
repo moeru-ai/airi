@@ -62,6 +62,9 @@ interface Props {
   pauseButtonText?: string
   showVisualizer?: boolean
   listClass?: string
+  remoteSearch?: boolean
+  loading?: boolean
+  loadingText?: string
 }
 
 const isListExpanded = ref(false)
@@ -87,6 +90,10 @@ const voiceId = defineModel<string>('voice-id', { required: false, default: '' }
 
 // Filter voices based on search query
 const filteredVoices = computed(() => {
+  if (props.remoteSearch) {
+    return props.voices
+  }
+
   if (!searchQuery.value)
     return props.voices
 
@@ -339,8 +346,21 @@ const customVoiceName = ref('')
         {{ searchResultsText.replace('{count}', filteredVoices.length.toString()).replace('{total}', voices.length.toString()) }}
       </div>
 
+      <div
+        v-if="props.loading"
+        :class="[
+          'inline-flex items-center gap-2 text-sm',
+          'text-neutral-500 dark:text-neutral-400',
+        ]"
+      >
+        <div class="animate-spin">
+          <div i-solar:spinner-line-duotone class="text-base" />
+        </div>
+        <span>{{ props.loadingText || 'Loading voices...' }}</span>
+      </div>
+
       <!-- No search results -->
-      <Alert v-if="searchQuery && filteredVoices.length === 0" type="warning">
+      <Alert v-if="!props.loading && searchQuery && filteredVoices.length === 0" type="warning">
         <template #title>
           {{ searchNoResultsTitle }}
         </template>
@@ -372,7 +392,7 @@ const customVoiceName = ref('')
           :style="{ '--cols': props.columns }"
         >
           <!-- Not support voices warning -->
-          <Alert v-if="!searchQuery && filteredVoices.length === 0" type="warning">
+          <Alert v-if="!props.loading && !searchQuery && filteredVoices.length === 0" type="warning">
             <template #title>
               {{ unsupportedVoiceWarningTitle }}
             </template>

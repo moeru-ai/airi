@@ -21,18 +21,24 @@ const props = withDefaults(defineProps<{
   openOnClick: true,
 })
 
+defineEmits<{
+  search: [value: string]
+}>()
 const modelValue = defineModel<string | number>({ required: false })
+const searchTerm = defineModel<string>('searchTerm', { required: false })
 </script>
 
 <template>
   <Combobox
     v-model="modelValue"
+    v-model:search-term="searchTerm"
     :options="[{ groupLabel: '', children: props.options }]"
     :disabled="props.disabled"
     :open-on-click="props.openOnClick"
     :content-min-width="props.contentMinWidth"
     :content-width="props.contentWidth"
     :placeholder="props.placeholder"
+    @search="value => $emit('search', value)"
   >
     <template
       v-if="$slots.option"

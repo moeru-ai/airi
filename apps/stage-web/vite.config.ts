@@ -20,6 +20,7 @@ import { tryCatch } from '@moeru/std'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { LFS, SpaceCard } from 'hfup/vite'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -82,6 +83,14 @@ export default defineConfig({
       //
       // See: https://vite.dev/config/server-options#server-fs-strict
       strict: false,
+    },
+    proxy: {
+      '/api-fish': {
+        target: 'https://api.fish.audio',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api-fish/, ''),
+        agent: env.HTTPS_PROXY ? new HttpsProxyAgent(env.HTTPS_PROXY) : undefined,
+      },
     },
     warmup: {
       clientFiles: [

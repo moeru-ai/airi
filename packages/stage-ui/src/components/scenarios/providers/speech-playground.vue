@@ -19,7 +19,13 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
+  hideVoiceSelection?: boolean
+  audioMimeType?: string
 }>()
+
+const selectedVoice = defineModel<string>('selectedVoice', {
+  default: '',
+})
 
 const { t } = useI18n()
 
@@ -31,13 +37,12 @@ const errorMessage = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const useSSML = ref(false)
 const ssmlText = ref('')
-const selectedVoice = ref('')
 
 // Watch for changes in available voices
 watch(
   () => props.availableVoices,
   (newVoices) => {
-    if (newVoices.length > 0 && !selectedVoice.value) {
+    if (!props.hideVoiceSelection && newVoices.length > 0 && !selectedVoice.value) {
       selectedVoice.value = newVoices[0]?.id || ''
     }
   },
@@ -70,7 +75,9 @@ async function handleGenerateTestSpeech() {
     const response = await props.generateSpeech(input, selectedVoice.value, useSSML.value)
 
     // Convert the response to a blob and create an object URL
-    audioUrl.value = URL.createObjectURL(new Blob([response]))
+    audioUrl.value = URL.createObjectURL(new Blob([response], {
+      type: props.audioMimeType || '',
+    }))
 
     // Play the audio
     setTimeout(() => {
@@ -163,12 +170,15 @@ defineExpose({
       </template>
 
       <FieldCombobox
+        v-if="!props.hideVoiceSelection"
         v-model="selectedVoice"
         :options="voiceOptions"
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"
         :description="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description')"
         layout="horizontal"
       />
+
+      <slot name="before-actions" />
 
       <!-- Playground actions -->
       <button

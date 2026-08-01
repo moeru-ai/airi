@@ -24,7 +24,11 @@ const props = withDefaults(defineProps<{
   openOnClick: true,
 })
 
+defineEmits<{
+  search: [value: string]
+}>()
 const modelValue = defineModel<string>({ required: false })
+const searchTerm = defineModel<string>('searchTerm', { required: false })
 </script>
 
 <template>
@@ -55,6 +59,7 @@ const modelValue = defineModel<string>({ required: false })
       <slot>
         <ComboboxSelect
           v-model="modelValue"
+          v-model:search-term="searchTerm"
           :options="props.options?.filter(option => option.label && option.value) || []"
           :placeholder="props.placeholder"
           :disabled="props.disabled"
@@ -68,6 +73,7 @@ const modelValue = defineModel<string>({ required: false })
               : []),
             props.layout === 'horizontal' ? 'col-span-2' : 'row-span-2',
           ]"
+          @search="value => $emit('search', value)"
         >
           <template
             v-if="$slots.option"

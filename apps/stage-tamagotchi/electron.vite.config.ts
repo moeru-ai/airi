@@ -157,6 +157,13 @@ export default defineConfig({
         // See: https://vite.dev/config/server-options#server-fs-strict
         strict: false,
       },
+      proxy: {
+        '/api-fish': {
+          target: 'https://api.fish.audio',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/api-fish/, ''),
+        },
+      },
       warmup: {
         clientFiles: [
           `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src'))}/*.vue`,

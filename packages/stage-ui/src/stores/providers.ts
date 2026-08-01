@@ -60,6 +60,7 @@ import { useAuthStore } from './auth'
 import { createAliyunNLSProvider as createAliyunNlsStreamProvider } from './providers/aliyun/stream-transcription'
 import { convertProviderDefinitionsToMetadata } from './providers/converters'
 import { models as elevenLabsModels } from './providers/elevenlabs/list-models'
+import { buildFishAudioSpeechProvider } from './providers/fishaudio'
 import { buildGoogleGeminiSpeechProvider } from './providers/google-gemini-speech'
 import { buildOpenAICompatibleProvider } from './providers/openai-compatible-builder'
 import { buildOpenRouterAudioSpeechProvider } from './providers/openrouter/audio-speech'
@@ -222,7 +223,11 @@ export interface ProviderMetadata {
     | Promise<TranscriptionProviderWithExtraOptions>
   capabilities: {
     listModels?: (config: Record<string, unknown>) => Promise<ModelInfo[]>
-    listVoices?: (config: Record<string, unknown>, model?: string) => Promise<VoiceInfo[]>
+    listVoices?: (
+      config: Record<string, unknown>,
+      options?: string | { model?: string, searchTerm?: string, id?: string },
+    ) => Promise<VoiceInfo[]>
+    voiceSearchMode?: 'local' | 'remote'
     loadModel?: (config: Record<string, unknown>, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
   }
   validators: {
@@ -1631,6 +1636,7 @@ export const useProvidersStore = defineStore('providers', () => {
         },
       },
     },
+    'fishaudio-speech': buildFishAudioSpeechProvider(v => baseUrlValidator.value(v)),
     'openrouter-audio-speech': buildOpenRouterAudioSpeechProvider(v => baseUrlValidator.value(v)),
     'mimo-audio-speech': {
       id: 'mimo-audio-speech',
