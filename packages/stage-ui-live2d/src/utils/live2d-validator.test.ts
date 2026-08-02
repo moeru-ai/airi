@@ -35,6 +35,15 @@ async function createCubism2Zip(): Promise<Blob> {
   return blobFromBytes(await zip.generateAsync({ type: 'uint8array' }))
 }
 
+/**
+ * Every case here runs without the `__AIRI_CUBISM2_CORE_PATH__` define, so
+ * `isCubism2RuntimeConfigured()` is false and Cubism 2 archives always carry the
+ * missing-core error. Vitest has no build-time define to flip, and stubbing the
+ * identifier would only assert the stub, so the core-present branch is covered
+ * where the gate is produced instead: `cubism2-core.test.ts`.
+ */
+const CUBISM2_CORE_MISSING_ERROR = 'Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.'
+
 describe('live2D ZIP validator', () => {
   it('recognizes a complete DORI-style Cubism 2 archive', async () => {
     const report = await validateLive2DZip(await createCubism2Zip())
@@ -44,8 +53,32 @@ describe('live2D ZIP validator', () => {
     expect(report.entryPoint).toBe('tomori/casual/model.json')
     expect(report.mocInfo?.format).toBe('moc')
     expect(report.mocInfo?.header).toBe('moc')
-    expect(report.errors).toEqual([])
-    expect(report.status).toBe('WARNING')
+    // No structural complaint: the only error is this build carrying no core.
+    expect(report.errors).toEqual([CUBISM2_CORE_MISSING_ERROR])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197#discussion_r3698408368
+  it('blocks a Cubism 2 archive when this build carries no Cubism 2 core', async () => {
+    // ROOT CAUSE:
+    //
+    // The missing core was recorded as a warning:
+    //
+    //   report.warnings.push('Cubism 2 runtime is not present in this build. ...')
+    //
+    // A warning leaves `status` at 'WARNING', and Live2DReportModal.vue offers
+    // "Import Anyway" for anything short of INVALID. So the archive was imported
+    // and persisted, then failed on the stage: `createModelSettings` checks the
+    // same `isCubism2RuntimeConfigured()` gate and throws the missing-core error
+    // because the Cubism 3+-only bundle never claims a Cubism 2 settings file.
+    //
+    // We fixed this by reporting it as an error, which makes the report INVALID
+    // and closes the "Import Anyway" path for an archive this build cannot load.
+    const report = await validateLive2DZip(await createCubism2Zip())
+
+    expect(report.runtimeFamily).toBe('cubism2')
+    expect(report.warnings).toEqual([])
+    expect(report.errors).toContain(CUBISM2_CORE_MISSING_ERROR)
+    expect(report.status).toBe('INVALID')
   })
 
   it('accepts an archive shipping a VTube Studio pin file and a macOS settings sidecar', async () => {
@@ -131,6 +164,7 @@ describe('live2D ZIP validator', () => {
 
     expect(report.status).toBe('INVALID')
     expect(report.errors).toEqual([
+      CUBISM2_CORE_MISSING_ERROR,
       'Missing reference: Texture "data/missing.png" expected at "data/missing.png".',
     ])
   })

@@ -143,8 +143,13 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     report.entryPoint = model2Files[0]
     report.runtimeFamily = 'cubism2'
     report.structureType = 'Cubism 2 (model.json)'
+    // Reported as an error, not a warning: this is the same gate the loader
+    // checks, so a build without the core is guaranteed to reject the archive
+    // with the missing-core message once it reaches the stage. A WARNING report
+    // still offers "Import Anyway" in the audit modal, which would only defer
+    // that failure past the point where the model was already persisted.
     if (!isCubism2RuntimeConfigured()) {
-      report.warnings.push('Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.')
+      report.errors.push('Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.')
     }
   }
 

@@ -81,8 +81,9 @@ touches the network.
 
 Nothing about the download can break a build. An offline runner, a dead mirror,
 or bytes that fail the checksum all leave the build Cubism 3+ only, with a
-warning naming the cause. In that state Cubism 2 imports receive an actionable
-validation warning instead of failing at runtime.
+warning naming the cause. In that state validation rejects Cubism 2 archives
+with an actionable error naming that cause, so they are blocked at import rather
+than imported and then failing on the stage.
 
 However the core is obtained, the plugin serves it in development and emits it
 as `assets/js/live2d.min.js` in production, and reports that path through the
