@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { BilingualStreamParser } from './bilingual-parser'
 
+const KNOWN_TAGS = ['[EN]', '[ZH]', '[JA]', '[ES]', '[FR]', '[DE]', '[KO]', '[RU]', '[PT]', '[IT]']
+
 describe('bilingualStreamParser', () => {
   it('passes through all chunks unchanged when disabled', () => {
-    const parser = new BilingualStreamParser({ enabled: false, ttsTag: '[EN]' })
+    const parser = new BilingualStreamParser({ enabled: false, ttsTag: '[EN]', knownTags: KNOWN_TAGS })
     const res = parser.feed('[EN] Hello\n[ZH] 你好')
     expect(res).toEqual({
       ttsChunk: '[EN] Hello\n[ZH] 你好',
@@ -13,7 +15,7 @@ describe('bilingualStreamParser', () => {
   })
 
   it('filters TTS content according to matching language tag when enabled', () => {
-    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]' })
+    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]', knownTags: KNOWN_TAGS })
 
     const res1 = parser.feed('[EN] Hello world!')
     expect(res1.ttsChunk).toBe(' Hello world!')
@@ -25,7 +27,7 @@ describe('bilingualStreamParser', () => {
   })
 
   it('handles streaming chunks split across tag boundaries', () => {
-    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]' })
+    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]', knownTags: KNOWN_TAGS })
 
     const res1 = parser.feed('[E')
     expect(res1.ttsChunk).toBe('')
@@ -49,7 +51,7 @@ describe('bilingualStreamParser', () => {
   })
 
   it('falls back to reading untagged initial output until a non-matching tag arrives', () => {
-    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]' })
+    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]', knownTags: KNOWN_TAGS })
 
     const res1 = parser.feed('Greeting without tag. ')
     expect(res1.ttsChunk).toBe('Greeting without tag. ')
@@ -57,5 +59,18 @@ describe('bilingualStreamParser', () => {
     const res2 = parser.feed('\n[ZH] 你好')
     expect(res2.ttsChunk).toBe('\n')
     expect(res2.captionChunk).toBe('\n[ZH] 你好')
+  })
+
+  it('treats unknown bracketed words like [AIRI] or [docs] as literal prose, not tag switches', () => {
+    const parser = new BilingualStreamParser({ enabled: true, ttsTag: '[EN]', knownTags: KNOWN_TAGS })
+
+    // [EN] section starts, then [AIRI] should NOT switch sections
+    const res1 = parser.feed('[EN] Welcome to [AIRI] the assistant!')
+    expect(res1.ttsChunk).toBe(' Welcome to [AIRI] the assistant!')
+
+    // [ZH] is a known tag — should switch off TTS
+    const res2 = parser.feed('\n[ZH] 欢迎使用！')
+    expect(res2.ttsChunk).toBe('\n')
+    expect(res2.captionChunk).toBe('\n[ZH] 欢迎使用！')
   })
 })

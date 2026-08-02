@@ -17,10 +17,23 @@ export const useBilingualStore = defineStore('bilingual', () => {
     if (!enabled.value)
       return ''
 
+    const ttsTag = ttsLangInfo.value.tag
     const sub1Tag = sub1LangInfo.value.tag
     const sub2Tag = sub2LangInfo.value.tag
 
-    return `- Bilingual Subtitle Format Requirement:\n  You MUST structure your response into dual-language sections using language tags.\n  First, output the primary content in ${sub1LangInfo.value.name} starting with tag ${sub1Tag}.\n  Second, output the translated content in ${sub2LangInfo.value.name} starting with tag ${sub2Tag}.\n  Format example:\n  ${sub1Tag} Hello, how are you today?\n  ${sub2Tag} 你好，今天过得怎么样？\n\n`
+    // When TTS language matches Subtitle 1, only two sections are needed.
+    const sections = ttsTag === sub1Tag
+      ? [
+          `${sub1Tag} <content in ${sub1LangInfo.value.name}>`,
+          `${sub2Tag} <translation in ${sub2LangInfo.value.name}>`,
+        ]
+      : [
+          `${ttsTag} <spoken content in ${ttsLangInfo.value.name}>`,
+          `${sub1Tag} <content in ${sub1LangInfo.value.name}>`,
+          `${sub2Tag} <translation in ${sub2LangInfo.value.name}>`,
+        ]
+
+    return `- Bilingual Subtitle Format Requirement:\n  You MUST structure your response into language-tagged sections.\n  Use exactly these tags in this order:\n${sections.map(s => `  ${s}`).join('\n')}\n  Do NOT omit any of the above tags. Each tag must appear on its own line.\n\n`
   })
 
   return {

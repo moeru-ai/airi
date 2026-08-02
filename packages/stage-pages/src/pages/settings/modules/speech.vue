@@ -931,21 +931,21 @@ function handleDeleteProvider(providerId: string) {
           <div class="inline-flex items-center gap-4">
             <div class="i-solar:subtitles-bold-duotone" />
             <div>
-              Bilingual Subtitles
+              {{ t('settings.modules.speech.sections.section.bilingual-subtitles.title') }}
             </div>
           </div>
         </h2>
         <div flex="~ col gap-4">
           <FieldCheckbox
             v-model="bilingualEnabled"
-            label="Enable Bilingual Subtitles"
-            description="Instructs the AI to respond in spoken language and provide translated subtitles"
+            :label="t('settings.modules.speech.sections.section.bilingual-subtitles.enable.label')"
+            :description="t('settings.modules.speech.sections.section.bilingual-subtitles.enable.description')"
           />
 
           <template v-if="bilingualEnabled">
             <div flex="~ col md:row gap-4">
               <div flex="1 ~ col gap-1">
-                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">TTS Spoken Language</label>
+                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">{{ t('settings.modules.speech.sections.section.bilingual-subtitles.tts-language') }}</label>
                 <select
                   v-model="bilingualTtsLanguage"
                   border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
@@ -960,7 +960,7 @@ function handleDeleteProvider(providerId: string) {
               </div>
 
               <div flex="1 ~ col gap-1">
-                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">Subtitle 1 (Primary)</label>
+                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">{{ t('settings.modules.speech.sections.section.bilingual-subtitles.subtitle1') }}</label>
                 <select
                   v-model="bilingualSubtitleLanguage1"
                   border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"
@@ -975,7 +975,7 @@ function handleDeleteProvider(providerId: string) {
               </div>
 
               <div flex="1 ~ col gap-1">
-                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">Subtitle 2 (Translation)</label>
+                <label class="text-xs text-neutral-500 font-medium dark:text-neutral-400">{{ t('settings.modules.speech.sections.section.bilingual-subtitles.subtitle2') }}</label>
                 <select
                   v-model="bilingualSubtitleLanguage2"
                   border="neutral-100 dark:neutral-800 solid 2 focus:neutral-200 dark:focus:neutral-700"

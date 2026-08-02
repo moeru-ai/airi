@@ -12,6 +12,7 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
+import { BILINGUAL_LANGUAGES } from '@proj-airi/stage-shared'
 import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -178,6 +179,7 @@ const bilingualStore = useBilingualStore()
 let bilingualParser = new BilingualStreamParser({
   enabled: bilingualStore.enabled,
   ttsTag: bilingualStore.ttsLangInfo.tag,
+  knownTags: BILINGUAL_LANGUAGES.map(l => l.tag),
 })
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -812,6 +814,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
   bilingualParser = new BilingualStreamParser({
     enabled: bilingualStore.enabled,
     ttsTag: bilingualStore.ttsLangInfo.tag,
+    knownTags: BILINGUAL_LANGUAGES.map(l => l.tag),
   })
 
   currentSession?.cancel('new-message')
