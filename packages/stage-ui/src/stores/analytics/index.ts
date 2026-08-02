@@ -117,7 +117,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
     // (`payment_completed` keyed on Better Auth `user.id`) and browser-side
     // funnel events (anonymous `distinct_id` until identify) live on
     // different person profiles and the funnel never joins. See
-    // `apps/server/docs/ai-context/metrics-ownership.md`.
+    // `server/apps/api/docs/ai-context/metrics-ownership.md`.
     const authStore = useAuthStore()
     if (authStore.isAuthenticated && authStore.user?.id)
       identifyAnalyticsUser(authStore.user.id)

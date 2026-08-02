@@ -128,7 +128,7 @@ export function loadAnalyticsAdapter(loader: () => Promise<AnalyticsAdapter>): P
 /**
  * Merge this browser's anonymous events with the Better Auth user person.
  * `userId` must be the Better Auth `user.id` — the same value the server
- * uses as `distinctId` (see `apps/server` product events forwarding).
+ * uses as `distinctId` (see `server/apps/api` product events forwarding).
  */
 export function identifyAuthUser(userId: string): void {
   analytics.identify(userId)

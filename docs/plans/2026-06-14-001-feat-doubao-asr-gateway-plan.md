@@ -54,7 +54,7 @@ Volcengine's recorded-file ASR APIs are asynchronous and require an online audio
 
 ## Key Technical Decisions
 
-- **Use AIRI's audio extension route.** Add `POST /api/v1/audio/transcriptions` beside `/api/v1/audio/speech`. This matches the current route split in `apps/server/src/routes/openai/v1/index.ts` where only actual OpenAI public endpoints stay under `/api/v1/openai`.
+- **Use AIRI's audio extension route.** Add `POST /api/v1/audio/transcriptions` beside `/api/v1/audio/speech`. This matches the current route split in `server/apps/api/src/routes/openai/v1/index.ts` where only actual OpenAI public endpoints stay under `/api/v1/openai`.
 - **Use Volcengine standard AUC first.** The standard recorded-file API documented at `https://www.volcengine.com/docs/6561/1354868` has submit and query endpoints intended for normal recorded-file recognition. The idle variant at `https://www.volcengine.com/docs/6561/1840838` may complete within a 24h window, so it is not a good first fit for the synchronous Hearing settings test and recording workflow.
 - **Expose a multipart upload to AIRI clients, stage URL internally.** The official Volcengine AUC contract requires an audio URL, so the AIRI route should hide that provider-specific detail from clients and own temporary object storage.
 - **Extend `LLM_ROUTER_CONFIG` with ASR.** Add an `asr` slice beside existing `llm` and `tts` models instead of creating a separate router config key. This reuses envelope key encryption, config cache invalidation, admin preview/apply semantics, model defaults, and router ownership.
@@ -129,11 +129,11 @@ sequenceDiagram
 - **Requirements:** R5, R6, R7, R13
 - **Dependencies:** None
 - **Files:**
-  - `apps/server/src/services/adapters/config-kv.ts`
-  - `apps/server/src/services/domain/llm-router/config-loader.ts`
-  - `apps/server/src/services/domain/llm-router/router.ts`
-  - `apps/server/src/services/domain/llm-router/types.ts`
-  - `apps/server/src/services/domain/llm-router/tests/router.test.ts`
+  - `server/apps/api/src/services/adapters/config-kv.ts`
+  - `server/apps/api/src/services/domain/llm-router/config-loader.ts`
+  - `server/apps/api/src/services/domain/llm-router/router.ts`
+  - `server/apps/api/src/services/domain/llm-router/types.ts`
+  - `server/apps/api/src/services/domain/llm-router/tests/router.test.ts`
 - **Approach:** Extend `LLM_ROUTER_CONFIG` with an `asr.models` record. Add `asrProviderSchema` with a first provider value of `volcengine-asr`; use Doubao ASR as the user-facing/admin label. Add `DEFAULT_ASR_MODEL`, `FLUX_PER_MINUTE_STT`, and `STT_DEBT_TTL_SECONDS` ConfigKV entries. Add `routeAsr` and an `AsrRouteContext` that carries provider, model alias, upstream model/resource id, key entry id, timeout, and poll settings.
 - **Execution note:** Update config validation tests before wiring the route, because schema drift here would break admin preview/apply and runtime loading.
 - **Test scenarios:**
@@ -149,11 +149,11 @@ sequenceDiagram
 - **Requirements:** R3, R4, R7, R12
 - **Dependencies:** U1
 - **Files:**
-  - `apps/server/src/services/adapters/asr/types.ts`
-  - `apps/server/src/services/adapters/asr/volcengine.ts`
-  - `apps/server/src/services/adapters/asr/index.ts`
-  - `apps/server/src/services/adapters/asr/volcengine.test.ts`
-  - `apps/server/src/services/domain/llm-router/router.ts`
+  - `server/apps/api/src/services/adapters/asr/types.ts`
+  - `server/apps/api/src/services/adapters/asr/volcengine.ts`
+  - `server/apps/api/src/services/adapters/asr/index.ts`
+  - `server/apps/api/src/services/adapters/asr/volcengine.test.ts`
+  - `server/apps/api/src/services/domain/llm-router/router.ts`
 - **Approach:** Add an adapter contract that accepts a staged `audioUrl`, file format, optional language, response format, upstream model name, and adapter params. Implement standard AUC submit/query using `https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit` and `/query` by default, with endpoint overrides for tests and operations. Read status from the documented response headers and map success, processing, queued, silent audio, invalid request, empty audio, bad format, oversize, and busy states into AIRI gateway errors.
 - **Execution note:** Unit tests should mock `fetch` and exercise both header-level task status and JSON body mapping. Do not include real audio bytes in fixtures.
 - **Test scenarios:**
@@ -170,11 +170,11 @@ sequenceDiagram
 - **Requirements:** R8, R9, R11
 - **Dependencies:** None, but this unit has an ops choice before implementation.
 - **Files:**
-  - `apps/server/src/services/domain/audio-staging/index.ts`
-  - `apps/server/src/services/domain/audio-staging/index.test.ts`
-  - `apps/server/src/app.ts`
-  - `apps/server/src/services/adapters/config-kv.ts`
-  - docs under `apps/server/docs/ai-context/`
+  - `server/apps/api/src/services/domain/audio-staging/index.ts`
+  - `server/apps/api/src/services/domain/audio-staging/index.test.ts`
+  - `server/apps/api/src/app.ts`
+  - `server/apps/api/src/services/adapters/config-kv.ts`
+  - docs under `server/apps/api/docs/ai-context/`
 - **Approach:** Add an `AudioStagingService` interface with `stage({ requestId, userId, file, contentType }) -> { url, objectKey, expiresAt }` and `cleanup(objectKey)`. Implement the first concrete backend only after choosing the deployment storage target. The repository does not currently show a server-side object storage/presigned URL boundary; `unstorage` appears only as a package dependency for `packages/stage-ui`, not as server upload infrastructure.
 - **Implementation prerequisite:** Choose the temporary object storage backend and SDK/config shape before coding this unit. Candidate deployment-compatible backends are Volcengine TOS, S3-compatible object storage, or Cloudflare R2. The implementation must not pick a new storage dependency without user/ops confirmation.
 - **Execution note:** Keep route code dependent only on the interface, so the selected storage backend is isolated to this unit.
@@ -191,14 +191,14 @@ sequenceDiagram
 - **Requirements:** R1, R2, R4, R5, R6, R8, R9, R10, R11, R12
 - **Dependencies:** U1, U2, U3
 - **Files:**
-  - `apps/server/src/routes/openai/v1/index.ts`
-  - `apps/server/src/routes/openai/v1/gateway.ts`
-  - `apps/server/src/routes/openai/v1/types.ts`
-  - `apps/server/src/routes/openai/v1/operations/transcription-generation/index.ts`
-  - `apps/server/src/services/domain/openai-transcription/index.ts`
-  - `apps/server/src/routes/openai/v1/route.test.ts`
-  - `apps/server/src/app.ts`
-- **Approach:** Mirror the TTS service shape in `apps/server/src/services/domain/openai-speech/index.ts`. Parse multipart form data, resolve `model: "auto"` through `DEFAULT_ASR_MODEL`, stage the audio, derive trusted duration metadata for preflight, call `llmRouter.routeAsr`, map upstream result to OpenAI-style `json` or `verbose_json`, bill successful seconds through `sttMeter`, and emit request logs/product events/metrics. Add a route-specific upload limit so the global 1 MB body limit in `app.ts` does not silently reject normal audio files.
+  - `server/apps/api/src/routes/openai/v1/index.ts`
+  - `server/apps/api/src/routes/openai/v1/gateway.ts`
+  - `server/apps/api/src/routes/openai/v1/types.ts`
+  - `server/apps/api/src/routes/openai/v1/operations/transcription-generation/index.ts`
+  - `server/apps/api/src/services/domain/openai-transcription/index.ts`
+  - `server/apps/api/src/routes/openai/v1/route.test.ts`
+  - `server/apps/api/src/app.ts`
+- **Approach:** Mirror the TTS service shape in `server/apps/api/src/services/domain/openai-speech/index.ts`. Parse multipart form data, resolve `model: "auto"` through `DEFAULT_ASR_MODEL`, stage the audio, derive trusted duration metadata for preflight, call `llmRouter.routeAsr`, map upstream result to OpenAI-style `json` or `verbose_json`, bill successful seconds through `sttMeter`, and emit request logs/product events/metrics. Add a route-specific upload limit so the global 1 MB body limit in `app.ts` does not silently reject normal audio files.
 - **Execution note:** If reliable duration extraction requires a new dependency, pause for the storage/duration library decision rather than trusting client-provided duration.
 - **Test scenarios:**
   - Authenticated multipart request with `model=auto` routes to `DEFAULT_ASR_MODEL` and returns `{ text }`.
@@ -215,13 +215,13 @@ sequenceDiagram
 - **Requirements:** R6, R9, R10, R11, R12
 - **Dependencies:** U4
 - **Files:**
-  - `apps/server/src/app.ts`
-  - `apps/server/src/services/domain/billing/flux-meter.ts`
-  - `apps/server/src/services/domain/llm-tracing/index.ts`
-  - `apps/server/src/services/domain/product-events.ts`
-  - `apps/server/src/utils/observability.ts`
-  - `apps/server/docs/ai-context/flux-meter.md`
-  - `apps/server/docs/ai-context/observability-conventions.md`
+  - `server/apps/api/src/app.ts`
+  - `server/apps/api/src/services/domain/billing/flux-meter.ts`
+  - `server/apps/api/src/services/domain/llm-tracing/index.ts`
+  - `server/apps/api/src/services/domain/product-events.ts`
+  - `server/apps/api/src/utils/observability.ts`
+  - `server/apps/api/docs/ai-context/flux-meter.md`
+  - `server/apps/api/docs/ai-context/observability-conventions.md`
 - **Approach:** Instantiate `sttMeter` with `service: "stt"`, `FLUX_PER_MINUTE_STT`, and `STT_DEBT_TTL_SECONDS`. Add tracing helpers such as `startTranscriptionGeneration` and OTel operation labels for `transcription.generate`. Record low-cardinality metrics by operation, provider, model, status, and duration bucket. Request/product logs can include request id, provider, model, file metadata, duration seconds, and status, but not raw audio or full transcript unless a deliberate transcript logging policy is added later.
 - **Execution note:** Avoid adding transcript text to traces by default. A transcript can contain sensitive user speech and should be treated differently from bounded diagnostic snippets.
 - **Test scenarios:**
@@ -237,9 +237,9 @@ sequenceDiagram
 - **Requirements:** R7, R13
 - **Dependencies:** U1
 - **Files:**
-  - `apps/server/src/routes/admin/config/router/index.ts`
-  - `apps/server/src/services/domain/admin/router-config/index.ts`
-  - `apps/server/src/services/domain/admin/router-config/index.test.ts`
+  - `server/apps/api/src/routes/admin/config/router/index.ts`
+  - `server/apps/api/src/services/domain/admin/router-config/index.ts`
+  - `server/apps/api/src/services/domain/admin/router-config/index.test.ts`
   - `apps/ui-admin/src/modules/api.ts`
   - `apps/ui-admin/src/modules/router-config-form.ts`
   - `apps/ui-admin/src/modules/router-config-form.test.ts`
@@ -282,11 +282,11 @@ sequenceDiagram
 - **Requirements:** R3, R5, R7, R8, R9, R10, R11, R12, R13
 - **Dependencies:** U1-U7
 - **Files:**
-  - `apps/server/docs/ai-context/architecture-overview.md`
-  - `apps/server/docs/ai-context/transport-and-routes.md`
-  - `apps/server/docs/ai-context/flux-meter.md`
-  - `apps/server/docs/ai-context/observability-conventions.md`
-  - `apps/server/docs/ai-context/verifications/doubao-asr.md`
+  - `server/apps/api/docs/ai-context/architecture-overview.md`
+  - `server/apps/api/docs/ai-context/transport-and-routes.md`
+  - `server/apps/api/docs/ai-context/flux-meter.md`
+  - `server/apps/api/docs/ai-context/observability-conventions.md`
+  - `server/apps/api/docs/ai-context/verifications/doubao-asr.md`
 - **Approach:** Update stale audio route documentation, record the new `/api/v1/audio/transcriptions` surface, document the temporary audio staging requirement, and add an env-guarded verification note for real Volcengine AUC tests.
 - **Execution note:** Fix existing references that still mention `/api/v1/openai/audio/speech` while editing audio route docs.
 - **Test scenarios:** None; this unit is documentation, but it should point to the concrete automated and env-guarded verification commands.
@@ -309,8 +309,8 @@ sequenceDiagram
 
 | Surface | Impact |
 |---|---|
-| `apps/server` routes | Adds `POST /api/v1/audio/transcriptions` and operation `transcription.generate`; route-specific upload limit must avoid the current global 1 MB body limit problem. |
-| `apps/server` router/config | Extends `LLM_ROUTER_CONFIG` with `asr`, adds ASR model defaults and adapter params. |
+| `server/apps/api` routes | Adds `POST /api/v1/audio/transcriptions` and operation `transcription.generate`; route-specific upload limit must avoid the current global 1 MB body limit problem. |
+| `server/apps/api` router/config | Extends `LLM_ROUTER_CONFIG` with `asr`, adds ASR model defaults and adapter params. |
 | Billing | Adds `sttMeter` using seconds/minutes and a sub-Flux debt ledger, parallel to TTS chars. |
 | Observability | Adds ASR tracing, metrics, request logs, and product events without raw audio or transcript text by default. |
 | Admin | Adds ASR slice support to router config preview/apply and UI builder modules. |
@@ -343,11 +343,11 @@ sequenceDiagram
 
 ## Sources And Research
 
-- `apps/server/src/routes/openai/v1/index.ts` defines the current route split: `/api/v1/openai` for OpenAI chat and `/api/v1/audio` for AIRI audio extensions.
-- `apps/server/src/routes/openai/v1/gateway.ts` currently lists `chat.completions` and `speech.generate`; ASR needs a new operation.
-- `apps/server/src/services/domain/openai-speech/index.ts` is the closest domain-service pattern for routing, tracing, billing, request logs, product events, and metrics.
-- `apps/server/src/services/adapters/config-kv.ts` owns `LLM_ROUTER_CONFIG`, `DEFAULT_TTS_MODEL`, and TTS billing config; ASR config belongs near these definitions.
-- `apps/server/docs/ai-context/flux-meter.md` and `apps/server/docs/ai-context/billing-architecture.md` already describe STT as a sub-Flux service category.
+- `server/apps/api/src/routes/openai/v1/index.ts` defines the current route split: `/api/v1/openai` for OpenAI chat and `/api/v1/audio` for AIRI audio extensions.
+- `server/apps/api/src/routes/openai/v1/gateway.ts` currently lists `chat.completions` and `speech.generate`; ASR needs a new operation.
+- `server/apps/api/src/services/domain/openai-speech/index.ts` is the closest domain-service pattern for routing, tracing, billing, request logs, product events, and metrics.
+- `server/apps/api/src/services/adapters/config-kv.ts` owns `LLM_ROUTER_CONFIG`, `DEFAULT_TTS_MODEL`, and TTS billing config; ASR config belongs near these definitions.
+- `server/apps/api/docs/ai-context/flux-meter.md` and `server/apps/api/docs/ai-context/billing-architecture.md` already describe STT as a sub-Flux service category.
 - `packages/stage-ui/src/stores/modules/hearing.ts` uses `@xsai/generate-transcription` for file-based transcription and already handles `json`/`verbose_json`.
 - `packages/stage-ui/src/libs/providers/providers/official/index.ts` and `shared.ts` show how official providers attach AIRI auth and use `/api/v1/audio`.
 - `packages/stage-ui/src/composables/use-auth-provider-sync.ts` is the auth-driven provider activation point that needs Hearing support.

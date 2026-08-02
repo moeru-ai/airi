@@ -211,7 +211,7 @@ export function useAnalytics() {
    *
    * The funnel terminator `payment_completed` is forwarded to PostHog
    * server-side by the product-events service (allowlist in
-   * `apps/server/src/services/domain/product-events.ts`), keyed by the
+   * `server/apps/api/src/services/domain/product-events.ts`), keyed by the
    * Better Auth user id.
    */
   function trackCheckoutStarted(planId: string, properties: { entry_surface: string, checkout_session_id?: string, price_minor_unit?: number, currency?: string }) {
@@ -368,7 +368,7 @@ export function useAnalytics() {
 
   // ─── LLM round events (client-known fields only) ──────────────────────
   // Source-of-truth for HTTP status / token usage / billing stage is the
-  // server (apps/server/src/routes/openai/v1), which records them as
+  // server (server/apps/api/src/routes/openai/v1), which records them as
   // Postgres `product_events` rows — deliberately NOT forwarded to PostHog
   // (per-request volume stays in DB/Grafana). These client emits supply the
   // user-facing latency picture (TTFT, render time) the server cannot see.

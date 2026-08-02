@@ -112,12 +112,12 @@ sequenceDiagram
 - **Goal:** Define one shared representation for correlation, input summaries, upstream attempts, billing outcomes, and destination-specific projections.
 - **Requirements:** R1, R2, R3, R7, R8, R9, R12, R13
 - **Files:**
-  - `apps/server/src/services/domain/observability-diagnostics.ts` or `apps/server/src/services/domain/observability-diagnostics/index.ts`
-  - `apps/server/src/services/domain/observability-diagnostics.test.ts`
-  - `apps/server/src/utils/observability.ts`
-  - `apps/server/docs/ai-context/observability-conventions.md`
+  - `server/apps/api/src/services/domain/observability-diagnostics.ts` or `server/apps/api/src/services/domain/observability-diagnostics/index.ts`
+  - `server/apps/api/src/services/domain/observability-diagnostics.test.ts`
+  - `server/apps/api/src/utils/observability.ts`
+  - `server/apps/api/docs/ai-context/observability-conventions.md`
 - **Approach:** Add types such as `DiagnosticContext`, `InputDiagnostic`, `UpstreamDiagnostic`, `GenerationFailureDiagnostic`, and projection helpers for logs, span attributes, product event metadata, request-log diagnostics, and metric labels. Keep destination rules in code, not scattered at call sites.
-- **Patterns to follow:** `apps/server/src/utils/observability.ts` for existing `airi.*` attribute naming; `apps/server/docs/ai-context/observability-conventions.md` for low-cardinality rules.
+- **Patterns to follow:** `server/apps/api/src/utils/observability.ts` for existing `airi.*` attribute naming; `server/apps/api/docs/ai-context/observability-conventions.md` for low-cardinality rules.
 - **Test scenarios:**
   - Input snippets are truncated to the configured cap and preserve `input_chars`.
   - Upstream body snippets are truncated independently from input snippets.
@@ -130,12 +130,12 @@ sequenceDiagram
 - **Goal:** Preserve upstream status, parsed error code/message, body snippet, and fallback decision through router failures.
 - **Requirements:** R4, R5, R6, R12
 - **Files:**
-  - `apps/server/src/services/adapters/tts/unspeech.ts`
-  - `apps/server/src/services/domain/llm-router/router.ts`
-  - `apps/server/src/services/domain/llm-router/error-mapping.ts`
-  - `apps/server/src/services/domain/llm-router/tests/router.test.ts`
+  - `server/apps/api/src/services/adapters/tts/unspeech.ts`
+  - `server/apps/api/src/services/domain/llm-router/router.ts`
+  - `server/apps/api/src/services/domain/llm-router/error-mapping.ts`
+  - `server/apps/api/src/services/domain/llm-router/tests/router.test.ts`
 - **Approach:** Replace string-only TTS adapter errors with structured diagnostic fields attached to the thrown error or returned attempt failure. Parse `UnSpeechAPIError.responseBody` as JSON when possible and extract provider error code/message. Keep raw `bodySnippet` bounded. Ensure non-fallback 400s are logged and recorded before the router breaks. Revisit `fallbackCount` so it records real fallback decisions rather than all failed attempts.
-- **Patterns to follow:** Existing chat non-2xx handling in `apps/server/src/services/domain/llm-router/router.ts`, which already reads `bodySnippet`; existing `UpstreamAttempt` cause shape in `apps/server/src/services/domain/llm-router/error-mapping.ts`.
+- **Patterns to follow:** Existing chat non-2xx handling in `server/apps/api/src/services/domain/llm-router/router.ts`, which already reads `bodySnippet`; existing `UpstreamAttempt` cause shape in `server/apps/api/src/services/domain/llm-router/error-mapping.ts`.
 - **Test scenarios:**
   - UnSpeech/DashScope 400 JSON body becomes `upstream_http_status: 400`, parsed `upstream_error_code`, parsed `upstream_error_message`, and bounded `upstream_body_snippet`.
   - TTS 400 that is not in `fallbackHttpCodes` still emits an upstream failure log and attaches the attempt to `ApiError.cause`.
@@ -148,13 +148,13 @@ sequenceDiagram
 - **Goal:** Make non-streaming chat and HTTP TTS emit the same request lifecycle shape across logs, spans, product events, request logs, and metrics.
 - **Requirements:** R1, R2, R3, R6, R7, R10, R11
 - **Files:**
-  - `apps/server/src/routes/openai/v1/middlewares/telemetry.ts`
-  - `apps/server/src/routes/openai/v1/operations/chat-completions/index.ts`
-  - `apps/server/src/routes/openai/v1/operations/speech-generation/index.ts`
-  - `apps/server/src/services/domain/openai-speech/index.ts`
-  - `apps/server/src/routes/openai/v1/route.test.ts`
+  - `server/apps/api/src/routes/openai/v1/middlewares/telemetry.ts`
+  - `server/apps/api/src/routes/openai/v1/operations/chat-completions/index.ts`
+  - `server/apps/api/src/routes/openai/v1/operations/speech-generation/index.ts`
+  - `server/apps/api/src/services/domain/openai-speech/index.ts`
+  - `server/apps/api/src/routes/openai/v1/route.test.ts`
 - **Approach:** Extend `createRouteTelemetry` so both chat and speech can create a `DiagnosticContext`, record lifecycle events, and write failure request logs. Move duplicated TTS analytics fields into the shared helper where practical. Preserve existing success accounting and billing semantics.
-- **Patterns to follow:** Current `createRouteTelemetry` in `apps/server/src/routes/openai/v1/middlewares/telemetry.ts`; current TTS product event sequence in `apps/server/src/services/domain/openai-speech/index.ts`.
+- **Patterns to follow:** Current `createRouteTelemetry` in `server/apps/api/src/routes/openai/v1/middlewares/telemetry.ts`; current TTS product event sequence in `server/apps/api/src/services/domain/openai-speech/index.ts`.
 - **Test scenarios:**
   - HTTP TTS upstream 400 produces `speech_failed` metadata with request id, input chars, input snippet, upstream provider, upstream status, error code/message, body snippet, final status 502, and duration.
   - Chat router exhaustion produces `completion_failed` metadata with request id, model, input summary, upstream status/body snippet, final status, and duration.
@@ -167,11 +167,11 @@ sequenceDiagram
 - **Goal:** Bring `routes/audio-speech-ws` to the same diagnostic standard as HTTP TTS.
 - **Requirements:** R1, R2, R3, R7, R10, R11
 - **Files:**
-  - `apps/server/src/routes/audio-speech-ws/session.ts`
-  - `apps/server/src/routes/audio-speech-ws/types.ts`
-  - `apps/server/src/routes/audio-speech-ws/route.test.ts`
+  - `server/apps/api/src/routes/audio-speech-ws/session.ts`
+  - `server/apps/api/src/routes/audio-speech-ws/types.ts`
+  - `server/apps/api/src/routes/audio-speech-ws/route.test.ts`
 - **Approach:** Thread `requestId` into start, upstream dial, upstream control event, upstream error, billing failure, close, success, product event, and request-log paths. Accumulate a bounded input snippet from text frames and record input character counts. Map upstream control errors into the shared diagnostic envelope.
-- **Patterns to follow:** Existing WebSocket product event writes in `apps/server/src/routes/audio-speech-ws/session.ts`; existing request-log success write near the end of the session lifecycle.
+- **Patterns to follow:** Existing WebSocket product event writes in `server/apps/api/src/routes/audio-speech-ws/session.ts`; existing request-log success write near the end of the session lifecycle.
 - **Test scenarios:**
   - Upstream WebSocket error records request id, user id, model, voice, input chars, input snippet, upstream code/message, and final close status.
   - Upstream control error produces `speech_failed` product metadata with diagnostic fields.
@@ -184,16 +184,16 @@ sequenceDiagram
 - **Goal:** Store enough persistent diagnostic data to query incidents after volatile logs age out.
 - **Requirements:** R2, R3, R10, R11
 - **Files:**
-  - `apps/server/src/schemas/llm-request-log.ts`
-  - `apps/server/src/services/domain/request-log.ts`
-  - `apps/server/drizzle/0016_*.sql`
-  - `apps/server/drizzle/meta/_journal.json`
-  - `apps/server/drizzle/meta/0016_snapshot.json`
-  - `apps/server/src/schemas/product-events.ts`
-  - `apps/server/src/routes/openai/v1/route.test.ts`
-  - `apps/server/src/routes/audio-speech-ws/route.test.ts`
+  - `server/apps/api/src/schemas/llm-request-log.ts`
+  - `server/apps/api/src/services/domain/request-log.ts`
+  - `server/apps/api/drizzle/0016_*.sql`
+  - `server/apps/api/drizzle/meta/_journal.json`
+  - `server/apps/api/drizzle/meta/0016_snapshot.json`
+  - `server/apps/api/src/schemas/product-events.ts`
+  - `server/apps/api/src/routes/openai/v1/route.test.ts`
+  - `server/apps/api/src/routes/audio-speech-ws/route.test.ts`
 - **Approach:** Add request-log columns such as `request_id`, `operation`, `source`, `provider`, `reason`, `input_chars`, `upstream_status`, and `diagnostics` jsonb. Add indexes for `request_id`, `(user_id, created_at)`, and `(provider, upstream_status, created_at)` if query plans warrant them. Keep `product_events` schema stable unless type widening is needed; write scalar diagnostic metadata through U1 projections.
-- **Patterns to follow:** Existing Drizzle table definitions in `apps/server/src/schemas/*.ts`; existing migration numbering under `apps/server/drizzle/`.
+- **Patterns to follow:** Existing Drizzle table definitions in `server/apps/api/src/schemas/*.ts`; existing migration numbering under `server/apps/api/drizzle/`.
 - **Test scenarios:**
   - Failed HTTP TTS writes request log with request id, operation, provider, final status, upstream status, reason, input chars, and diagnostics jsonb.
   - Failed chat writes equivalent request-log fields.
@@ -206,13 +206,13 @@ sequenceDiagram
 - **Goal:** Make dashboards and future instrumentation use the new diagnostic contract correctly.
 - **Requirements:** R8, R12, R13
 - **Files:**
-  - `apps/server/src/otel/index.ts`
-  - `apps/server/src/utils/observability.ts`
-  - `apps/server/docs/ai-context/observability-conventions.md`
-  - `apps/server/docs/ai-context/observability-metrics.md`
-  - `apps/server/src/services/domain/llm-router/tests/router.test.ts`
+  - `server/apps/api/src/otel/index.ts`
+  - `server/apps/api/src/utils/observability.ts`
+  - `server/apps/api/docs/ai-context/observability-conventions.md`
+  - `server/apps/api/docs/ai-context/observability-metrics.md`
+  - `server/apps/api/src/services/domain/llm-router/tests/router.test.ts`
 - **Approach:** Add or revise counters for upstream attempt failures, real fallback decisions, and final route failures using low-cardinality labels. Document Loki, Tempo, Postgres, and Prometheus query patterns for request-level drilldown. Update metric docs to explain why user ids and snippets are excluded from Prometheus.
-- **Patterns to follow:** Current `GatewayMetrics` in `apps/server/src/otel/index.ts`; existing metric naming conventions in `apps/server/src/utils/observability.ts`.
+- **Patterns to follow:** Current `GatewayMetrics` in `server/apps/api/src/otel/index.ts`; existing metric naming conventions in `server/apps/api/src/utils/observability.ts`.
 - **Test scenarios:**
   - Upstream attempt failure increments an attempt-failure counter with provider/model/status-class labels.
   - Real fallback increments fallback counter only when the router actually proceeds to another key/upstream.
@@ -224,10 +224,10 @@ sequenceDiagram
 - **Goal:** Make the next incident answerable from Grafana/Loki/Tempo/Postgres without code spelunking.
 - **Requirements:** R2, R13
 - **Files:**
-  - `apps/server/docs/ai-context/observability-runbook.md`
-  - `apps/server/docs/ai-context/observability-conventions.md`
+  - `server/apps/api/docs/ai-context/observability-runbook.md`
+  - `server/apps/api/docs/ai-context/observability-conventions.md`
 - **Approach:** Document concrete query shapes: from user id to recent failed requests, from request id to Loki logs, from trace id to upstream span, from product event to request log, and from provider/status to aggregate Prometheus trends. Include the TTS 400-to-502 incident as the worked example.
-- **Patterns to follow:** Existing server docs under `apps/server/docs/ai-context/`.
+- **Patterns to follow:** Existing server docs under `server/apps/api/docs/ai-context/`.
 - **Test scenarios:** Documentation-only unit; verify manually during implementation by running the queries against a staging or production time window after deployment.
 
 ---
@@ -271,13 +271,13 @@ The request-log migration must be backward compatible with existing rows. New co
 
 ## Sources / Research
 
-- `apps/server/src/app.ts` currently has global `onError` logging, but route-level upstream diagnostics are not guaranteed.
-- `apps/server/src/services/domain/openai-speech/index.ts` already emits TTS request logs and product events, but failure metadata only carries final status/duration/trigger.
-- `apps/server/src/routes/openai/v1/operations/chat-completions/index.ts` emits chat lifecycle product events, but router failures do not expose upstream diagnostics in product metadata.
-- `apps/server/src/routes/audio-speech-ws/session.ts` has WebSocket product events and request logs, but upstream errors do not consistently include request id or input diagnostics.
-- `apps/server/src/services/domain/llm-router/router.ts` already captures chat upstream `bodySnippet`; the TTS path mostly collapses adapter errors into strings and can skip logging non-fallback 400s.
-- `apps/server/src/services/adapters/tts/unspeech.ts` sees `UnSpeechAPIError.responseBody`, but does not expose parsed upstream code/message as structured fields.
-- `apps/server/src/services/domain/llm-router/error-mapping.ts` keeps upstream attempts server-side in `ApiError.cause`, which is the right place to preserve detail while sanitizing client responses.
-- `apps/server/src/schemas/product-events.ts` stores product event metadata as primitive jsonb values and already has indexes for feature/action/time and user/time queries.
-- `apps/server/src/schemas/llm-request-log.ts` is currently too thin for incident drilldown: no request id, operation/source, provider, reason, upstream status, or diagnostics jsonb.
-- `apps/server/src/utils/observability.ts`, `apps/server/src/otel/index.ts`, and `apps/server/docs/ai-context/observability-conventions.md` define the existing OTel and metric conventions this plan should extend.
+- `server/apps/api/src/app.ts` currently has global `onError` logging, but route-level upstream diagnostics are not guaranteed.
+- `server/apps/api/src/services/domain/openai-speech/index.ts` already emits TTS request logs and product events, but failure metadata only carries final status/duration/trigger.
+- `server/apps/api/src/routes/openai/v1/operations/chat-completions/index.ts` emits chat lifecycle product events, but router failures do not expose upstream diagnostics in product metadata.
+- `server/apps/api/src/routes/audio-speech-ws/session.ts` has WebSocket product events and request logs, but upstream errors do not consistently include request id or input diagnostics.
+- `server/apps/api/src/services/domain/llm-router/router.ts` already captures chat upstream `bodySnippet`; the TTS path mostly collapses adapter errors into strings and can skip logging non-fallback 400s.
+- `server/apps/api/src/services/adapters/tts/unspeech.ts` sees `UnSpeechAPIError.responseBody`, but does not expose parsed upstream code/message as structured fields.
+- `server/apps/api/src/services/domain/llm-router/error-mapping.ts` keeps upstream attempts server-side in `ApiError.cause`, which is the right place to preserve detail while sanitizing client responses.
+- `server/apps/api/src/schemas/product-events.ts` stores product event metadata as primitive jsonb values and already has indexes for feature/action/time and user/time queries.
+- `server/apps/api/src/schemas/llm-request-log.ts` is currently too thin for incident drilldown: no request id, operation/source, provider, reason, upstream status, or diagnostics jsonb.
+- `server/apps/api/src/utils/observability.ts`, `server/apps/api/src/otel/index.ts`, and `server/apps/api/docs/ai-context/observability-conventions.md` define the existing OTel and metric conventions this plan should extend.

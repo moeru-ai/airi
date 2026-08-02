@@ -1358,7 +1358,7 @@ importers:
         specifier: 'catalog:'
         version: 2.8.3
 
-  apps/auth-server:
+  server/apps/auth:
     dependencies:
       '@better-auth/drizzle-adapter':
         specifier: 'catalog:'
@@ -1431,7 +1431,7 @@ importers:
         version: link:../../packages/auth-shared
       '@proj-airi/server-node-shared':
         specifier: workspace:*
-        version: link:../../packages/server-node-shared
+        version: link:../../packages/node-shared
       better-auth:
         specifier: 'catalog:'
         version: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
@@ -1531,7 +1531,7 @@ importers:
         specifier: 'catalog:'
         version: 3.2.6(typescript@5.9.3)
 
-  apps/server:
+  server/apps/api:
     dependencies:
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
@@ -1622,13 +1622,13 @@ importers:
         version: 0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
       '@proj-airi/server-node-shared':
         specifier: workspace:*
-        version: link:../../packages/server-node-shared
+        version: link:../../packages/node-shared
       '@proj-airi/server-schema':
         specifier: workspace:*
-        version: link:../../packages/server-schema
+        version: link:../../packages/schema
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
-        version: link:../../packages/server-sdk-shared
+        version: link:../../../packages/server-sdk-shared
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
@@ -3379,7 +3379,7 @@ importers:
         specifier: 'catalog:'
         version: 0.1.3
 
-  packages/auth-shared:
+  server/packages/auth-shared:
     dependencies:
       drizzle-orm:
         specifier: 'catalog:'
@@ -3787,7 +3787,7 @@ importers:
         specifier: 'catalog:'
         version: 1.60.0
 
-  packages/server-node-shared:
+  server/packages/node-shared:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
@@ -3839,7 +3839,7 @@ importers:
         specifier: 'catalog:'
         version: 1.3.1(typescript@5.9.3)
 
-  packages/server-schema:
+  server/packages/schema:
     devDependencies:
       '@proj-airi/unplugin-drizzle-orm-migrations':
         specifier: 'catalog:'

@@ -30,7 +30,7 @@
 | 2 | `useCharacterStore` ([`stores/characters.ts`](../../../packages/stage-ui/src/stores/characters.ts)) | 关系化 (character + i18n + capabilities + avatar + cover) | server `/characters` API + `@pinia/colada` | **孤岛**：仅 [`apps/stage-web/src/pages/settings/characters/`](../../../apps/stage-web/src/pages/settings/characters/) |
 | 3 | `useCharacterStore` ([`stores/character/index.ts`](../../../packages/stage-ui/src/stores/character/index.ts)) ← 同名！| facade of #1 | — | [v2/index.vue](../../../packages/stage-pages/src/pages/v2/index.vue) / devtools/context-flow |
 
-Server `characters` 表（[`apps/server/src/schemas/characters.ts`](../../../apps/server/src/schemas/characters.ts)）已经是 marketplace 形态（`likesCount` / `forksCount` / `priceCredit` / `character_i18n` 多语言 / `character_capabilities` / `avatar_model` / `character_covers`），跟 client AiriCard CCv3 schema 完全不同。
+Server `characters` 表（[`server/apps/api/src/schemas/characters.ts`](../../../server/apps/api/src/schemas/characters.ts)）已经是 marketplace 形态（`likesCount` / `forksCount` / `priceCredit` / `character_i18n` 多语言 / `character_capabilities` / `avatar_model` / `character_covers`），跟 client AiriCard CCv3 schema 完全不同。
 
 ## 3. 终态（Phase 1 完成后）
 
@@ -57,7 +57,7 @@ Server `characters` 表（[`apps/server/src/schemas/characters.ts`](../../../app
 
 ### 5.1 Server Schema
 
-新建文件 `apps/server/src/schemas/user-characters.ts`：
+新建文件 `server/apps/api/src/schemas/user-characters.ts`：
 
 ```ts
 import type { AiriCard } from '@proj-airi/stage-ui/types/airi-card'
@@ -69,7 +69,7 @@ import { nanoid } from '../utils/id'
 
 // NOTICE: bare ownerId is intentional — no FK to user.id. better-auth hard-deletes
 // the user row; a cascade would wipe these soft-delete archive rows.
-// See `apps/server/docs/ai-context/account-deletion.md`.
+// See `server/apps/api/docs/ai-context/account-deletion.md`.
 export const userCharacters = pgTable(
   'user_characters',
   {
@@ -126,7 +126,7 @@ interface SyncState {
 
 ## 6. API 设计
 
-新建 `apps/server/src/routes/user-characters/`：
+新建 `server/apps/api/src/routes/user-characters/`：
 
 | Method | Path | 用途 | Body |
 |--------|------|------|------|

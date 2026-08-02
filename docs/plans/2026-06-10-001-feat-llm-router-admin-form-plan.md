@@ -2,7 +2,7 @@
 title: "feat: Replace LLM Router JSON editor with admin form"
 type: feat
 date: 2026-06-10
-origin: apps/server/docs/brainstorms/2026-05-15-llm-router-replacement-requirements.md
+origin: server/apps/api/docs/brainstorms/2026-05-15-llm-router-replacement-requirements.md
 ---
 
 # feat: Replace LLM Router JSON editor with admin form
@@ -97,7 +97,7 @@ The form state is the primary editing model. The request builder is the single b
   - `apps/ui-admin/src/modules/router-config-form.test.ts`
 - **Approach:** Replace `Array<Record<string, unknown>>` for router slices with a discriminated union mirroring the admin route's existing slice kinds. Add form-facing state that can represent editable drafts, provider defaults, validation errors, and the compiled request payload. Keep plaintext keys out of previews and summaries.
 - **Execution note:** Start with request-builder tests before replacing the page, because payload drift is the main regression risk.
-- **Patterns to follow:** `apps/server/src/routes/admin/config/router/index.ts` for required fields and URL rules; `apps/server/src/services/domain/admin/router-config/index.ts` for default key entry ids and provider defaults; `apps/ui-admin/src/pages/VoicePackFormPage.vue` for form-state normalization.
+- **Patterns to follow:** `server/apps/api/src/routes/admin/config/router/index.ts` for required fields and URL rules; `server/apps/api/src/services/domain/admin/router-config/index.ts` for default key entry ids and provider defaults; `apps/ui-admin/src/pages/VoicePackFormPage.vue` for form-state normalization.
 - **Test scenarios:**
   - OpenRouter draft with model alias, override model, plaintext key, default base URL, and chat default compiles to one `openrouter` slice and `defaults.chatModel`.
   - Azure draft compiles region, default voice, key entry id, and TTS default without adding OpenRouter-only fields.
@@ -143,7 +143,7 @@ The form state is the primary editing model. The request builder is the single b
   - `apps/ui-admin/src/pages/LlmRouterPage.test.ts`
   - `apps/ui-admin/src/modules/router-config-form.test.ts`
 - **Approach:** Submit built form payloads through `adminApi.applyRouterConfig`. Render `applied`, `invalidatedKeys`, and `preview` as separate scan-friendly sections before the raw JSON block. Add advanced JSON export/import and an explicit advanced preview/apply path for cases the typed form cannot represent yet.
-- **Patterns to follow:** Existing `formatJson` panels in `LlmRouterPage.vue` and `FluxPage.vue`; server response shape in `apps/server/src/services/domain/admin/router-config/index.ts`.
+- **Patterns to follow:** Existing `formatJson` panels in `LlmRouterPage.vue` and `FluxPage.vue`; server response shape in `server/apps/api/src/services/domain/admin/router-config/index.ts`.
 - **Test scenarios:**
   - Preview sends `dryRun: true`, stores preview result, leaves last apply untouched, and renders invalidated keys as empty for dry run.
   - Apply sends `dryRun: false`, updates both preview and last apply state, and renders invalidated keys from the server.
@@ -185,7 +185,7 @@ The form state is the primary editing model. The request builder is the single b
 | Surface | Impact |
 |---|---|
 | `apps/ui-admin` | Primary user-facing change; LLM Router page becomes form-first with typed request building. |
-| `apps/server` | No planned runtime changes; route schemas and service builders remain the contract the UI mirrors. |
+| `server/apps/api` | No planned runtime changes; route schemas and service builders remain the contract the UI mirrors. |
 | ConfigKV / Redis invalidation | No behavior change; preview/apply still goes through the existing admin endpoint. |
 | Public web, Electron, mobile | No direct product UI change; only admin app responsive behavior is in scope. |
 
@@ -203,8 +203,8 @@ The form state is the primary editing model. The request builder is the single b
 ## Sources & Research
 
 - `apps/ui-admin/src/pages/LlmRouterPage.vue` currently owns the raw JSON textarea, preview, and apply flow.
-- `apps/server/src/routes/admin/config/router/index.ts` defines the Valibot body schema and supported slice kinds.
-- `apps/server/src/services/domain/admin/router-config/index.ts` defines provider defaults, request application semantics, redacted previews, and invalidated key behavior.
+- `server/apps/api/src/routes/admin/config/router/index.ts` defines the Valibot body schema and supported slice kinds.
+- `server/apps/api/src/services/domain/admin/router-config/index.ts` defines provider defaults, request application semantics, redacted previews, and invalidated key behavior.
 - `apps/ui-admin/src/pages/VoicePackFormPage.vue` shows the current admin form pattern with `@proj-airi/ui` primitives and responsive class arrays.
 - `apps/ui-admin/src/pages/FluxPage.vue` shows the preview-first admin mutation pattern.
 - `docs/ai/context/ui-components.md` documents the UI primitives to reuse if implementation touches shared components.

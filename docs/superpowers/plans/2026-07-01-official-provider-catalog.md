@@ -24,11 +24,11 @@
 ### Task 1: Catalog Schema and Service
 
 **Files:**
-- Create: `apps/server/src/schemas/official-catalog.ts`
-- Modify: `apps/server/src/schemas/index.ts`
-- Create: `apps/server/src/services/domain/official-catalog/index.ts`
-- Test: `apps/server/src/services/domain/official-catalog/index.test.ts`
-- Create: `apps/server/drizzle/0016_official_provider_catalog.sql`
+- Create: `server/apps/api/src/schemas/official-catalog.ts`
+- Modify: `server/apps/api/src/schemas/index.ts`
+- Create: `server/apps/api/src/services/domain/official-catalog/index.ts`
+- Test: `server/apps/api/src/services/domain/official-catalog/index.test.ts`
+- Create: `server/apps/api/drizzle/0016_official_provider_catalog.sql`
 
 **Interfaces:**
 - Produces: `createOfficialCatalogService(db, deps)` with methods:
@@ -45,16 +45,16 @@
 - [ ] Add schema tables for aliases, alias routes, TTS models, and TTS voices.
 - [ ] Implement service with explicit methods instead of leaking Drizzle query details into routes.
 - [ ] Add manual migration SQL matching the schema.
-- [ ] Run `pnpm exec vitest run apps/server/src/services/domain/official-catalog/index.test.ts`.
+- [ ] Run `pnpm exec vitest run server/apps/api/src/services/domain/official-catalog/index.test.ts`.
 
 ### Task 2: Public TTS Listing and Request Gate
 
 **Files:**
-- Modify: `apps/server/src/routes/openai/v1/types.ts`
-- Modify: `apps/server/src/routes/openai/v1/operations/speech-catalog/index.ts`
-- Modify: `apps/server/src/routes/openai/v1/operations/speech-generation/index.ts`
-- Modify: `apps/server/src/app.ts`
-- Test: `apps/server/src/routes/openai/v1/route.test.ts`
+- Modify: `server/apps/api/src/routes/openai/v1/types.ts`
+- Modify: `server/apps/api/src/routes/openai/v1/operations/speech-catalog/index.ts`
+- Modify: `server/apps/api/src/routes/openai/v1/operations/speech-generation/index.ts`
+- Modify: `server/apps/api/src/app.ts`
+- Test: `server/apps/api/src/routes/openai/v1/route.test.ts`
 
 **Interfaces:**
 - Consumes: `OfficialCatalogService`
@@ -70,8 +70,8 @@
 ### Task 3: LLM Alias Gate
 
 **Files:**
-- Modify: `apps/server/src/routes/openai/v1/operations/chat-completions/index.ts`
-- Test: `apps/server/src/routes/openai/v1/route.test.ts`
+- Modify: `server/apps/api/src/routes/openai/v1/operations/chat-completions/index.ts`
+- Test: `server/apps/api/src/routes/openai/v1/route.test.ts`
 
 **Interfaces:**
 - Consumes: `officialCatalogService.resolveEnabledAlias('llm', aliasId)`
@@ -85,9 +85,9 @@
 ### Task 4: Admin API
 
 **Files:**
-- Create: `apps/server/src/routes/admin/official-catalog/index.ts`
-- Create: `apps/server/src/routes/admin/official-catalog/route.test.ts`
-- Modify: `apps/server/src/app.ts`
+- Create: `server/apps/api/src/routes/admin/official-catalog/index.ts`
+- Create: `server/apps/api/src/routes/admin/official-catalog/route.test.ts`
+- Modify: `server/apps/api/src/app.ts`
 
 **Interfaces:**
 - Consumes: `OfficialCatalogService`, `LlmRouterService`, `ConfigKVService`
@@ -152,7 +152,7 @@
 - All touched files.
 
 - [ ] Run server focused tests:
-  `pnpm exec vitest run apps/server/src/services/domain/official-catalog/index.test.ts apps/server/src/routes/admin/official-catalog/route.test.ts apps/server/src/routes/openai/v1/route.test.ts`
+  `pnpm exec vitest run server/apps/api/src/services/domain/official-catalog/index.test.ts server/apps/api/src/routes/admin/official-catalog/route.test.ts server/apps/api/src/routes/openai/v1/route.test.ts`
 - [ ] Run admin focused tests:
   `pnpm exec vitest run apps/ui-admin/src/pages/ProvidersPage.test.ts apps/ui-admin/src/pages/TtsCatalogPage.test.ts apps/ui-admin/src/pages/VoicePackFormPage.test.ts`
 - [ ] Run typechecks:

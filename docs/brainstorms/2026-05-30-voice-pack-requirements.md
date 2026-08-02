@@ -14,7 +14,7 @@ topic: voice-pack
 
 ## Problem Frame
 
-**号池并发约束。** 上游 TTS 服务按 `app_id` 限制并发（典型 10），扩并发额度很贵。绕开的办法是同一账号注册多个 app 拿到多个 `app_id` 凑并发。但当前服务端 `routeTts` 的 `createKeyRotator`（`apps/server/src/services/.../router.ts:429`）是**盲轮转**：不追踪每个号的在途请求数，会把某个号打爆到并发上限、别的号还闲着；跨 upstream 更是固定顺序、不分摊。结果是 100 并发的理论容量用不满，还会因为单号超限触发 429。
+**号池并发约束。** 上游 TTS 服务按 `app_id` 限制并发（典型 10），扩并发额度很贵。绕开的办法是同一账号注册多个 app 拿到多个 `app_id` 凑并发。但当前服务端 `routeTts` 的 `createKeyRotator`（`server/apps/api/src/services/.../router.ts:429`）是**盲轮转**：不追踪每个号的在途请求数，会把某个号打爆到并发上限、别的号还闲着；跨 upstream 更是固定顺序、不分摊。结果是 100 并发的理论容量用不满，还会因为单号超限触发 429。
 
 **音色被动漂移。** 当前音色是全局 UI 状态：`active-provider` + `active-model` + `voice` 三个独立 localStorage key（`packages/stage-ui/src/stores/modules/speech.ts:32-35`），不绑定角色卡、不是快照。voice catalog 是 per-model 的，上游 model 下线、默认音色被改、目录调整时，用户选好的音色会悄悄变成另一个甚至失效。`DEFAULT_TTS_VOICES`（commit `95915923e`）已把 per-model 默认音色配置化、并要求 caller 必须显式传 voice，但「绑定后永不变」这层语义还不存在。
 
@@ -102,10 +102,10 @@ topic: voice-pack
 
 ## Sources / Research
 
-- `apps/server/src/services/.../router.ts:413-617` — `routeTts` 主循环、`dispatchOneTtsUpstream`、`createKeyRotator`（盲轮转，号池 LB 的改造点）。
-- `apps/server/src/app.ts:616-632` — `ttsMeter` = `createFluxMeter`（Redis 用法，号池并发计数可复用的 Redis pattern）。
-- `apps/server/src/services/adapters/config-kv.ts:57-61, 83-87` — `ttsUpstreamSchema` / `ttsModelSchema`（多 upstreams/keys 结构，号池建模点）。
-- `apps/server/src/routes/openai/v1/index.ts:489-642, 738` — `handleTTS`、`/audio/voices` catalog、`ttsGuard`。
+- `server/apps/api/src/services/.../router.ts:413-617` — `routeTts` 主循环、`dispatchOneTtsUpstream`、`createKeyRotator`（盲轮转，号池 LB 的改造点）。
+- `server/apps/api/src/app.ts:616-632` — `ttsMeter` = `createFluxMeter`（Redis 用法，号池并发计数可复用的 Redis pattern）。
+- `server/apps/api/src/services/adapters/config-kv.ts:57-61, 83-87` — `ttsUpstreamSchema` / `ttsModelSchema`（多 upstreams/keys 结构，号池建模点）。
+- `server/apps/api/src/routes/openai/v1/index.ts:489-642, 738` — `handleTTS`、`/audio/voices` catalog、`ttsGuard`。
 - `packages/stage-ui/src/stores/modules/airi-card.ts:161-215` — 角色卡 speech 快照写入/读取（冻结快照落点）。
 - `packages/stage-ui/src/stores/modules/speech.ts:32-35, 298-338` — 当前全局 voice 状态、`generateSSML`（pitch/rate/volume）。
 - `packages/ccc/src/export/types/extensions.ts:1` — 开放 extensions。

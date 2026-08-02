@@ -1,11 +1,11 @@
 ---
 name: server-gateway-refactor
-description: Use when refactoring AIRI apps/server routes that mix Hono route wiring, business operation orchestration, external gateway calls, billing, rate limiting, telemetry, or websocket session state. Applies especially to OpenAI-compatible, speech, Stripe, and websocket gateway surfaces.
+description: Use when refactoring AIRI server/apps/api routes that mix Hono route wiring, business operation orchestration, external gateway calls, billing, rate limiting, telemetry, or websocket session state. Applies especially to OpenAI-compatible, speech, Stripe, and websocket gateway surfaces.
 ---
 
 # Server Gateway Refactor
 
-Use this skill when an `apps/server` route file has grown into a mixed transport/business/infra module and the user wants it engineered rather than merely split by line count.
+Use this skill when an `server/apps/api` route file has grown into a mixed transport/business/infra module and the user wants it engineered rather than merely split by line count.
 
 ## First Read
 
@@ -81,7 +81,7 @@ Do not force this pattern when:
 After changes, run targeted validation before broader checks:
 
 ```sh
-pnpm exec vitest run apps/server/src/routes/<route>/route.test.ts
+pnpm exec vitest run server/apps/api/src/routes/<route>/route.test.ts
 pnpm -F @proj-airi/server typecheck
 pnpm exec eslint <changed files>
 ```

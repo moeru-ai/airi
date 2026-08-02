@@ -3,8 +3,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     projects: [
-      'apps/auth-server',
-      'apps/server',
+      'server/apps/auth',
+      'server/apps/api',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi',
       'packages/cap-vite',

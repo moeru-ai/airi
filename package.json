@@ -19,7 +19,7 @@
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
     "dev:web:https": "pnpm -rF @proj-airi/stage-web run dev:https",
     "dev:server-auth": "pnpm -rF @proj-airi/ui-server-auth run dev",
-    "dev:backend": "docker compose up --build",
+    "dev:backend": "docker compose -f server/docker-compose.yaml up --build",
     "dev:pocket:ios": "pnpm -rF @proj-airi/stage-pocket run dev:ios",
     "dev:pocket:android": "pnpm -rF @proj-airi/stage-pocket run dev:android",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
@@ -27,7 +27,7 @@
     "dev:tamagotchi:xwayland": "pnpm -rF @proj-airi/stage-tamagotchi run dev:xwayland",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
     "dev:packages": "pnpm -rF=\"./packages/*\" --parallel run dev",
-    "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\"",
+    "build": "turbo run build -F=\"./packages/*\" -F=\"./apps/*\" -F=\"./server/**\"",
     "build:web": "turbo run build -F @proj-airi/stage-web",
     "build:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run app:build",
     "build:apps": "turbo run build -F=\"./apps/*\"",
@@ -43,7 +43,7 @@
     "capture:tamagotchi": "pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif",
     "to-avif": "tsx docs/scripts/avif.ts",
     "sponsors:generate": "sponsorkit --output-dir docs/content/public/assets/sponsors",
-    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./docs\" --parallel typecheck",
+    "typecheck": "pnpm -rF=\"./packages/*\" -F=\"./apps/*\" -F=\"./server/**\" -F=\"./docs\" --parallel typecheck",
     "typecheck:engines": "pnpm -rF=\"./engines/*\" --parallel typecheck",
     "up": "taze -w -r -I && pnpm prune && pnpm dedupe",
     "nolyfill": "pnpm dlx nolyfill",
@@ -104,7 +104,8 @@
     "examples/**",
     "docs/**",
     "engines/**",
-    "apps/**"
+    "apps/**",
+    "server/**"
   ],
   "simple-git-hooks": {
     "pre-commit": "pnpm nano-staged"

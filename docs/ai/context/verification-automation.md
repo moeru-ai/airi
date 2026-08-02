@@ -10,7 +10,7 @@
 
 ## 背景
 
-`apps/server/docs/ai-context/verifications/` 下 5 份文档，结构基本统一：
+`server/apps/api/docs/ai-context/verifications/` 下 5 份文档，结构基本统一：
 
 - `场景 / 用户路径`：写明用户敲 X，预期得到 Y
 - `命令 / 步骤`：手工敲的 curl、SQL、UI 操作
@@ -54,14 +54,14 @@ feature: flux-unbilled-exploit-fix
 owner: rbxin2003@gmail.com
 automated_by:
   - kind: unit
-    path: apps/server/src/services/billing/tests/billing-service.test.ts
+    path: server/apps/api/src/services/billing/tests/billing-service.test.ts
     cases:
       - 'rejects pre-flight when balance is below FLUX_PER_REQUEST'
       - 'non-streaming completion drains partial balance and logs charged'
   - kind: integration
-    path: apps/server/tests/verifications/flux-unbilled.integration.test.ts
+    path: server/apps/api/tests/verifications/flux-unbilled.integration.test.ts
   - kind: live
-    path: apps/server/tests/verifications/flux-unbilled.verifier.ts
+    path: server/apps/api/tests/verifications/flux-unbilled.verifier.ts
     schedule: post-deploy
 last_verified:
   unit: 2026-05-15
@@ -81,7 +81,7 @@ expires_after_days: 30
 
 ### 二、集成测试 harness
 
-放在每个 app 下的 `tests/verifications/` 目录，例如 `apps/server/tests/verifications/`。harness 提供：
+放在每个 app 下的 `tests/verifications/` 目录，例如 `server/apps/api/tests/verifications/`。harness 提供：
 
 1. testcontainers 起 Postgres 16 + Redis 7，注入与 `.env.example` 同 schema 的环境变量
 2. `createApp()` 直接 mount，不走真实端口，调用 `app.request(...)`
@@ -125,7 +125,7 @@ describe('verification: flux-unbilled-exploit-fix', () => {
 })
 ```
 
-`MatchMetric` 与 `scrapeMetrics` 这两个 helper 放在 `packages/server-runtime` 或 `apps/server/src/testing/`，由集成测试和 live verifier 共用。
+`MatchMetric` 与 `scrapeMetrics` 这两个 helper 放在 `packages/server-runtime` 或 `server/apps/api/src/testing/`，由集成测试和 live verifier 共用。
 
 ### 三、live verifier
 
@@ -152,7 +152,7 @@ describe('live verifier: flux-unbilled-exploit-fix', () => {
 三条 GitHub Actions workflow：
 
 1. **`verification-unit.yml`**：PR 触发，跑全部 `*.test.ts`。现状已有，作为 baseline。
-2. **`verification-integration.yml`**：PR 触发，跑全部 `*.integration.test.ts`。预计单跑 60 至 180 秒（testcontainers 启动），用 matrix 拆分到多个 worker。仅在改动触及 `apps/server/**` 或 `packages/server-*/**` 时跑，其他改动 skip。
+2. **`verification-integration.yml`**：PR 触发，跑全部 `*.integration.test.ts`。预计单跑 60 至 180 秒（testcontainers 启动），用 matrix 拆分到多个 worker。仅在改动触及 `server/apps/api/**` 或 `packages/server-*/**` 时跑，其他改动 skip。
 3. **`verification-live.yml`**：post-deploy 触发（Railway deploy hook → GitHub repository_dispatch），针对 staging URL 跑全部 `*.verifier.ts`。跑通后自动 PR 一份更新 `last_verified.live` 的提交，或者直接 commit 回 main（按团队偏好选）。
 
 第 2 类必要的 secret：testcontainers 自身不需要 secret，只需要 docker daemon，GitHub Actions runner 默认带。第 3 类需要 `PROM_URL`、`PROM_TOKEN`、`STRIPE_TEST_KEY`、`RESEND_API_KEY` 等，放到 GitHub Actions secrets。
@@ -194,7 +194,7 @@ CI 失败时输出形如：
 | 单测时间 | 不变 |
 | PR CI 时间 | 新增 60 至 180 秒（取决于 testcontainers 并发 + matrix 拆分） |
 | 本地开发 | 默认 `pnpm exec vitest run` 不跑 integration，要显式跑 `pnpm verify:integration` |
-| docker 依赖 | 本地跑 integration 需要 docker daemon，已有 `docker-compose.otel.yml` 范式 |
+| docker 依赖 | 本地跑 integration 需要 docker daemon；完整 OTel/Grafana 栈由 `proj-airi/airi-railway/otel/docker-compose.yaml` 维护 |
 | Secret 管理 | live verifier 需要 4 至 6 个 staging secret，放 GitHub Actions secrets |
 | 文档维护 | verification 文档新增 frontmatter，原有 markdown 正文不变 |
 | AGENTS.md | 加一段「如何写 verification artifact」，引用本文 |

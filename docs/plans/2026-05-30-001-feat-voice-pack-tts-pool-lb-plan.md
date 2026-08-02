@@ -14,7 +14,7 @@ origin: docs/brainstorms/2026-05-30-voice-pack-requirements.md
 
 ## Problem Frame
 
-号池侧：上游按 `app_id` 限并发（典型 10），扩额贵，绕法是一账号开多 app 凑并发。但现有 `routeTts` 的 `createKeyRotator`（`apps/server/src/services/.../router.ts:429`）是无状态盲轮转，每请求新建、纯按 config 顺序遍历；upstream 主循环（`router.ts:559`）也是固定顺序，永远先打满第一个再降级。结果是 100 并发理论容量用不满，且单号越界触发 429。这层不是负载均衡，是 failover 顺序表。
+号池侧：上游按 `app_id` 限并发（典型 10），扩额贵，绕法是一账号开多 app 凑并发。但现有 `routeTts` 的 `createKeyRotator`（`server/apps/api/src/services/.../router.ts:429`）是无状态盲轮转，每请求新建、纯按 config 顺序遍历；upstream 主循环（`router.ts:559`）也是固定顺序，永远先打满第一个再降级。结果是 100 并发理论容量用不满，且单号越界触发 429。这层不是负载均衡，是 failover 顺序表。
 
 音色侧：当前音色是全局 localStorage 状态（`packages/stage-ui/src/stores/modules/speech.ts:32-35`），不绑角色卡、不是快照。voice catalog per-model，上游变化时已选音色会被动漂移。用户还被迫理解 provider 拓扑。
 
@@ -22,7 +22,7 @@ origin: docs/brainstorms/2026-05-30-voice-pack-requirements.md
 
 ## Key Technical Decisions
 
-- **并发计数放 Redis，按多副本设计。** 代码已有多副本假设（`apps/server/src/.../gauges/active-sessions.ts:23-26` 明确 cluster-wide gauge、必须 `avg()` 不 `sum()`；`otel/index.ts:76-90` 选 ObservableGauge 避免多副本重复计数）。进程内内存会让各副本各算、号池超卖。复用 flux meter 的 Lua 原子模式（`flux-meter.ts:23-31` INCRBY+EXPIRE+条件 DECRBY），TTL 兜底防崩溃副本永久占槽。(see origin: docs/brainstorms/2026-05-30-voice-pack-requirements.md R1/R2)
+- **并发计数放 Redis，按多副本设计。** 代码已有多副本假设（`server/apps/api/src/.../gauges/active-sessions.ts:23-26` 明确 cluster-wide gauge、必须 `avg()` 不 `sum()`；`otel/index.ts:76-90` 选 ObservableGauge 避免多副本重复计数）。进程内内存会让各副本各算、号池超卖。复用 flux meter 的 Lua 原子模式（`flux-meter.ts:23-31` INCRBY+EXPIRE+条件 DECRBY），TTL 兜底防崩溃副本永久占槽。(see origin: docs/brainstorms/2026-05-30-voice-pack-requirements.md R1/R2)
 
 - **建模：一个 app_id = 一个 upstream。** volcengine 的 `appid` 取自 `ctx.adapterParams.appid`（`adapters/tts/volcengine.ts:49-51`，upstream 级），token 走 `keys[].ciphertext`。要表达 10 个 app_id 就配 10 个 `upstreams[]`（每个一个 appid + 它的 token）。这样 appid 已在路由层可见（`upstream.adapterParams.appid`），并发计数 key 自然是 `pool:inflight:<appid>`，且直接落在 routeTts 已有的 upstream 遍历上。否决「appid 下沉到 key 级」方案：要改 adapter 取值位置且注入面更大。
 
@@ -81,10 +81,10 @@ flowchart LR
 - **Requirements:** R1, R2, R3（origin）
 - **Dependencies:** 无
 - **Files:**
-  - `apps/server/src/services/tts/concurrency-ledger.ts`（新建，命名待 review，避免 `manager`/`pool` 泛词；候选 `concurrency-ledger` / `inflight-slots`）
-  - `apps/server/src/services/tts/concurrency-ledger.test.ts`（新建）
+  - `server/apps/api/src/services/tts/concurrency-ledger.ts`（新建，命名待 review，避免 `manager`/`pool` 泛词；候选 `concurrency-ledger` / `inflight-slots`）
+  - `server/apps/api/src/services/tts/concurrency-ledger.test.ts`（新建）
 - **Approach:** 仿 `flux-meter.ts:23-31` 的 Lua 原子脚本：`tryAcquire(appId, maxConcurrency)` = Lua 内 `GET pool:inflight:<appId>`，未超上限则 `INCR` + `EXPIRE`(短 TTL 防泄漏) 返回成功，超上限返回失败；`release(appId)` = `DECR`(下限 0)。另出 `markSaturated(appId, ttl)`（429 熔断用，set 一个 `pool:saturated:<appId>` 短 TTL flag）与 `currentInflight(appId)` 读数。复用现有 Redis client injeca（与 `createFluxMeter` 同源，`app.ts:616` 附近）。
-- **Patterns to follow:** `apps/server/src/services/.../flux-meter.ts:23-31`（Lua INCRBY+EXPIRE+条件 DECRBY）、:106（`redis.eval` 用法）、:18（TTL survives 注释思路）。
+- **Patterns to follow:** `server/apps/api/src/services/.../flux-meter.ts:23-31`（Lua INCRBY+EXPIRE+条件 DECRBY）、:106（`redis.eval` 用法）、:18（TTL survives 注释思路）。
 - **Test scenarios:**
   - tryAcquire 在未达上限时 INCR 并返回成功；达上限返回失败且不 INCR。
   - tryAcquire + release 配对后计数回到原值。
@@ -100,8 +100,8 @@ flowchart LR
 - **Requirements:** R1, R4, R7（origin）
 - **Dependencies:** U1
 - **Files:**
-  - `apps/server/src/services/.../router.ts`（改 `routeTts` upstream 选择 :559、`dispatchOneTtsUpstream` 槽位获取/释放 :413-534）
-  - `apps/server/src/services/.../router.test.ts`（新增/扩展号池路由用例）
+  - `server/apps/api/src/services/.../router.ts`（改 `routeTts` upstream 选择 :559、`dispatchOneTtsUpstream` 槽位获取/释放 :413-534）
+  - `server/apps/api/src/services/.../router.test.ts`（新增/扩展号池路由用例）
 - **Approach:** 路由前查 U1 账本各 `upstream.adapterParams.appid` 的在途数与 saturated flag，过滤掉满号/熔断号，按剩余余量排序后遍历（替代 :559 的 `for i in 0..length` 固定顺序）。进入 `adapter.send`（:450）前 `tryAcquire`；失败（该号刚好满）则跳到下一个候选。槽释放放 `dispatchOneTtsUpstream` 已有的 finally（:527-529，与 `key.plaintext.fill(0)` 同块）。所有候选都满/耗尽 → 现有 exhaustion 路径 `mapUpstreamError`（:591-616）fail-fast。key 级 `createKeyRotator` 不动（appid 在 upstream 级）。
 - **Patterns to follow:** `router.ts:559`（upstream 遍历）、:527-529（finally 释放点）、:591-616（exhaustion fail-fast）、`mapUpstreamError`（`error-mapping.ts:62`）。
 - **Test scenarios:**
@@ -118,8 +118,8 @@ flowchart LR
 - **Requirements:** R6（origin）
 - **Dependencies:** U1, U2
 - **Files:**
-  - `apps/server/src/services/.../router.ts`（429 fallback 分支 :506-524 处调用 `markSaturated`）
-  - `apps/server/src/services/.../router.test.ts`（扩展）
+  - `server/apps/api/src/services/.../router.ts`（429 fallback 分支 :506-524 处调用 `markSaturated`）
+  - `server/apps/api/src/services/.../router.test.ts`（扩展）
 - **Approach:** 现有 fallback 判断（:518 `fallbackHttpCodes.includes(rawStatus)`）命中 429 时，除继续切号外，调用 U1 的 `markSaturated(appid, shortTtl)`。U2 的候选过滤已读 saturated flag，自然跳过。区分 429（并发/限流，熔断该号）与其它 fallback 码（如 500/502，按现有逻辑切号但不必熔断），避免把临时网络错误误判成号满。
 - **Patterns to follow:** `router.ts:506-524`（fallback 分支与状态判断）、`fallbackHttpCodes`（:549）。
 - **Test scenarios:**
@@ -135,10 +135,10 @@ flowchart LR
 - **Requirements:** R5（origin）
 - **Dependencies:** U1
 - **Files:**
-  - `apps/server/src/.../otel/index.ts`（`GatewayMetrics` 接口 :202-244 加字段 + 实例化 :442-458）
-  - `apps/server/src/.../gauges/tts-pool.ts`（新建，仿 active-sessions gauge）
-  - `apps/server/src/app.ts`（注册 gauge，仿 :695-712 `registerActiveSessionsGauge`）
-  - `apps/server/src/.../gauges/tts-pool.test.ts`（新建）
+  - `server/apps/api/src/.../otel/index.ts`（`GatewayMetrics` 接口 :202-244 加字段 + 实例化 :442-458）
+  - `server/apps/api/src/.../gauges/tts-pool.ts`（新建，仿 active-sessions gauge）
+  - `server/apps/api/src/app.ts`（注册 gauge，仿 :695-712 `registerActiveSessionsGauge`）
+  - `server/apps/api/src/.../gauges/tts-pool.test.ts`（新建）
 - **Approach:** counter：在 `GatewayMetrics` 加 `poolSaturationCount`（429-as-full 次数）、`slotAcquireFailCount`（主动层判满拒派次数），打点位置复用 router 现有 counter 打点处（U2/U3 内）。gauge：池水位 ObservableGauge，回调读 Redis 各 `pool:inflight:<appid>`，仿 `gauges/active-sessions.ts:42-102`（10s 缓存 + in-flight 去重 + 失败不 observe 让 staleness 报警）。给 gauge 加 `app_id` label。
 - **Patterns to follow:** `otel/index.ts:202-244`（GatewayMetrics 定义与打点）、`gauges/active-sessions.ts:42-102`（cluster-wide ObservableGauge 模板）、`app.ts:695-712`（注册）。
 - **Test scenarios:**
@@ -158,7 +158,7 @@ flowchart LR
 - **Files:**
   - server 端 DB schema / migration（路径按现有迁移工具，见 Approach 待确认项）
   - 对应 schema/migration 测试或快照
-- **Approach:** 表列：`id`、`name`、`provider`、`model`、`voice_id`、`params`(jsonb：pitch/rate/volume 等)、`tier`(picklist lite/standard/pro/premium)、`enabled`(bool 软禁用)、`created_at`/`updated_at`。参数覆盖入 jsonb（同 voice 不同参数 = 不同行 = 不同 pack）。**待确认（实现期）：** apps/server 的迁移工具与既有表定义位置（cloud-sync 设计提到 `characters` 表，沿用同一 ORM/迁移机制）；确认后按现有 migration 约定落表。
+- **Approach:** 表列：`id`、`name`、`provider`、`model`、`voice_id`、`params`(jsonb：pitch/rate/volume 等)、`tier`(picklist lite/standard/pro/premium)、`enabled`(bool 软禁用)、`created_at`/`updated_at`。参数覆盖入 jsonb（同 voice 不同参数 = 不同行 = 不同 pack）。**待确认（实现期）：** server/apps/api 的迁移工具与既有表定义位置（cloud-sync 设计提到 `characters` 表，沿用同一 ORM/迁移机制）；确认后按现有 migration 约定落表。
 - **Patterns to follow:** 现有 server 表/迁移定义（与 `characters` 表同机制）；列命名贴近域、复数表名（`voice_packs`）。
 - **Test scenarios:**
   - 迁移可正向应用建表，列与约束符合预期（enabled 默认值、tier 枚举约束、jsonb 默认）。
@@ -171,10 +171,10 @@ flowchart LR
 - **Requirements:** R8, R9, R10, R11（origin）
 - **Dependencies:** U5
 - **Files:**
-  - `apps/server/src/services/domain/voice-packs/`（新建域服务 + valibot schema）
+  - `server/apps/api/src/services/domain/voice-packs/`（新建域服务 + valibot schema）
   - 对应 `*.test.ts`
 - **Approach:** valibot schema 定义 pack 形状（provider/model/voice/params/tier/enabled），在外部边界（API 入参、DB 行）各做一次校验，内部不重复防御。域服务出 `create/update/disable/list/listEnabled`，injeca 注入 DB（仅 DB 边界用 DI，不建 pass-through service）。复用现有 admin router-config 服务的组织方式（`services/domain/admin/router-config`）。
-- **Patterns to follow:** `apps/server/src/services/adapters/config-kv.ts:25-153`（valibot 用法）、`services/domain/admin/router-config`（域服务 + injeca）。
+- **Patterns to follow:** `server/apps/api/src/services/adapters/config-kv.ts:25-153`（valibot 用法）、`services/domain/admin/router-config`（域服务 + injeca）。
 - **Test scenarios:**
   - create 持久化一行并通过 schema 校验；非法 tier / 缺字段被 schema 拒绝。
   - update 改 params 产生新形状；不影响其它行。
@@ -189,11 +189,11 @@ flowchart LR
 - **Requirements:** R10, R11（origin）
 - **Dependencies:** U6
 - **Files:**
-  - `apps/server/src/routes/admin/voice-packs/`（新建路由）
+  - `server/apps/api/src/routes/admin/voice-packs/`（新建路由）
   - 路由挂载处（仿现有 admin config 路由注册）
   - 对应 `*.test.ts`
-- **Approach:** 复用现有 admin 鉴权/路由 pattern（`apps/server/src/routes/admin/config/`），路由调 U6 域服务。入参 valibot 校验（外部边界）。列表接口供最小绑定入口读 enabled pack。
-- **Patterns to follow:** `apps/server/src/routes/admin/config/router/index.ts`（admin 路由 + body schema）、injeca 服务注入（`app.ts:648` adminRouterConfig）。
+- **Approach:** 复用现有 admin 鉴权/路由 pattern（`server/apps/api/src/routes/admin/config/`），路由调 U6 域服务。入参 valibot 校验（外部边界）。列表接口供最小绑定入口读 enabled pack。
+- **Patterns to follow:** `server/apps/api/src/routes/admin/config/router/index.ts`（admin 路由 + body schema）、injeca 服务注入（`app.ts:648` adminRouterConfig）。
 - **Test scenarios:**
   - POST 新增返回创建的 pack；非法 body 返回 400（schema 拒绝）。
   - PATCH 编辑、POST/PATCH 禁用置 enabled=false。
@@ -246,7 +246,7 @@ flowchart LR
 - **Dependencies:** U8；（路由经 U2 号池 LB）
 - **Files:**
   - `packages/stage-ui/src/stores/modules/speech.ts`（读快照构造合成请求；参数 → `generateSSML` prosody :298-338 或 adapter options）
-  - server 合成入参处理（`apps/server/src/routes/openai/v1/index.ts:489-614` handleTTS，参数透传/校验）
+  - server 合成入参处理（`server/apps/api/src/routes/openai/v1/index.ts:489-614` handleTTS，参数透传/校验）
   - 对应 `*.test.ts`
 - **Approach:** 绑定卡合成时读 `voicePack` 快照，用 `ttsModelId` 作为 model（经服务端 routeTts → 号池 LB）。参数覆盖：SSML-capable provider 走 `generateSSML`（pitch/rate/volume）；其它走 adapter `speed`/`extraOptions`。目标后端无法应用某参数时 fail-fast 报带上下文错误（可 grep），不静默丢参数（符合禁止静默降级）。
 - **Patterns to follow:** `speech.ts:280-296`（合成入口）、:298-338（generateSSML prosody）、`adapters/tts/types.ts:12-30`（TtsInput speed/extraOptions）、`errorMessageFrom`（`speech.ts:113`）。
@@ -285,22 +285,22 @@ flowchart LR
 ## Risks & Dependencies
 
 - **Redis 计数与上游实际并发不同步**：主动层估算可能偏差，靠 429 兜底 + 熔断反哺（U3）收敛；TTL 防泄漏。风险可控但需监控（U4）验证实际命中率。
-- **迁移工具未确认（U5）**：实现期需先定位 apps/server 迁移机制（与 `characters` 表同源），再落表。
+- **迁移工具未确认（U5）**：实现期需先定位 server/apps/api 迁移机制（与 `characters` 表同源），再落表。
 - **app_id 落位假设（建模）**：基于 volcengine `adapterParams.appid`（`volcengine.ts:49`）；若实际有 provider 把 app 凭据放别处，需在 U2 路由前确认 appid 提取统一。
 - **云同步对齐（U8）**：快照 schema 改动需与 cloud-sync 设计联动，避免 LWW 整卡同步破坏。
 - **`tts-billing-tiers.md` 不在本分支**：tier 命名来源文档当前在 main worktree 未提交，引用时同步。
 
 ## Sources & Research
 
-- `apps/server/src/services/.../router.ts:413-617` — routeTts、dispatchOneTtsUpstream、createKeyRotator、upstream 遍历（号池 LB 改造点）、exhaustion fail-fast。
-- `apps/server/src/services/.../flux-meter.ts:18, 23-31, 106` — Lua INCRBY+EXPIRE+条件 DECRBY + redis.eval（并发账本复用模式）。
-- `apps/server/src/.../gauges/active-sessions.ts:23-26, 42-102` — cluster-wide ObservableGauge 模板 + 多副本 avg 约束。
-- `apps/server/src/.../otel/index.ts:76-90, 202-244, 442-458` — GatewayMetrics、ObservableGauge 选型。
-- `apps/server/src/services/adapters/tts/volcengine.ts:49-55, 90` — appid 取自 adapterParams、token 走 keyPlaintext。
-- `apps/server/src/services/adapters/config-kv.ts:33-40, 57-61, 83-87, 118, 134` — keyEntry/ttsUpstream/ttsModel schema、FLUX_PER_1K_CHARS_TTS、DEFAULT_TTS_VOICES。
-- `apps/server/src/routes/openai/v1/index.ts:489-642, 738, 759` — handleTTS、/audio/voices、ttsGuard、/speech 路由挂载。
-- `apps/server/src/app.ts:616-632, 695-712` — ttsMeter（Redis）、registerActiveSessionsGauge。
-- `apps/server/railway.toml:1-11` — Railway 部署（无 replicas 字段，副本数控制台侧）。
+- `server/apps/api/src/services/.../router.ts:413-617` — routeTts、dispatchOneTtsUpstream、createKeyRotator、upstream 遍历（号池 LB 改造点）、exhaustion fail-fast。
+- `server/apps/api/src/services/.../flux-meter.ts:18, 23-31, 106` — Lua INCRBY+EXPIRE+条件 DECRBY + redis.eval（并发账本复用模式）。
+- `server/apps/api/src/.../gauges/active-sessions.ts:23-26, 42-102` — cluster-wide ObservableGauge 模板 + 多副本 avg 约束。
+- `server/apps/api/src/.../otel/index.ts:76-90, 202-244, 442-458` — GatewayMetrics、ObservableGauge 选型。
+- `server/apps/api/src/services/adapters/tts/volcengine.ts:49-55, 90` — appid 取自 adapterParams、token 走 keyPlaintext。
+- `server/apps/api/src/services/adapters/config-kv.ts:33-40, 57-61, 83-87, 118, 134` — keyEntry/ttsUpstream/ttsModel schema、FLUX_PER_1K_CHARS_TTS、DEFAULT_TTS_VOICES。
+- `server/apps/api/src/routes/openai/v1/index.ts:489-642, 738, 759` — handleTTS、/audio/voices、ttsGuard、/speech 路由挂载。
+- `server/apps/api/src/app.ts:616-632, 695-712` — ttsMeter（Redis）、registerActiveSessionsGauge。
+- `server/apps/api/railway.toml:1-11` — Railway 部署（无 replicas 字段，副本数控制台侧）。
 - `packages/stage-ui/src/stores/modules/airi-card.ts:19-74, 161-215` — speech 快照读写（冻结快照落点）。
 - `packages/stage-ui/src/stores/modules/speech.ts:32-35, 280-296, 298-338` — 全局 voice 状态、合成入口、generateSSML。
 - `packages/ccc/src/export/types/extensions.ts:1` — 开放 extensions。
