@@ -827,7 +827,7 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
   if (ttsChunk) {
     currentSession?.appendText(ttsChunk)
   }
-  if (captionChunk) {
+  if (bilingualStore.enabled && captionChunk) {
     assistantCaption.value += captionChunk
     try {
       postCaption({ type: 'caption-assistant', text: captionChunk })
@@ -849,7 +849,7 @@ chatHookCleanups.push(onStreamEnd(async () => {
   if (ttsChunk) {
     currentSession?.appendText(ttsChunk)
   }
-  if (captionChunk) {
+  if (bilingualStore.enabled && captionChunk) {
     assistantCaption.value += captionChunk
     try {
       postCaption({ type: 'caption-assistant', text: captionChunk })
