@@ -10,15 +10,15 @@ import { useAiriCardStore } from '../modules/airi-card'
 import { useConsciousnessStore } from '../modules/consciousness'
 import { useSettingsAnalytics } from '../settings/analytics'
 import {
-  capturePosthogEvent,
-  identifyPosthogUser,
-  isPosthogAvailableInBuild,
-  registerPosthogBuildInfo,
-  resetPosthog,
-  syncPosthogCapture,
-} from './posthog'
+  captureAnalyticsEvent,
+  identifyAnalyticsUser,
+  isAnalyticsAvailableInBuild,
+  registerAnalyticsBuildInfo,
+  resetAnalyticsIdentity,
+  syncAnalyticsCapture,
+} from './client'
 
-export * from './posthog'
+export * from './client'
 export * from './privacy-policy'
 
 function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
@@ -45,8 +45,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
   const firstMessageTracked = ref(false)
   // In-memory only, intentionally — matches `firstMessageTracked` semantics
   // (resets on reload). PostHog can compute true "first time across all
-  // sessions" with `posthog.capture('first_*', ..., { send_instantly: true })`
-  // + person-level dedup at query time.
+  // sessions" with provider-side person-level dedup at query time.
   const firstModelSelectedTracked = ref(false)
 
   watch(analyticsEnabled, (enabled, previousEnabled) => {
@@ -54,7 +53,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       return
 
     if (previousEnabled && !enabled) {
-      capturePosthogEvent('settings_changed', {
+      captureAnalyticsEvent('settings_changed', {
         setting_name: 'analytics_enabled',
         previous_value: previousEnabled,
         new_value: enabled,
@@ -63,10 +62,10 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       })
     }
 
-    const shouldCapture = syncPosthogCapture(enabled)
+    const shouldCapture = syncAnalyticsCapture(enabled)
     if (shouldCapture) {
       if (!previousEnabled && enabled) {
-        capturePosthogEvent('settings_changed', {
+        captureAnalyticsEvent('settings_changed', {
           setting_name: 'analytics_enabled',
           previous_value: previousEnabled,
           new_value: enabled,
@@ -83,7 +82,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         markFirstMessageTracked()
       }
 
-      registerPosthogBuildInfo(buildInfo.value)
+      registerAnalyticsBuildInfo(buildInfo.value)
       // If a user enabled analytics mid-session while already authenticated,
       // identify them now — `initialize()`'s identify only fires once at
       // app startup and at auth-state changes, neither of which trigger
@@ -92,7 +91,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
       // anonymous funnel events.
       const authStore = useAuthStore()
       if (authStore.isAuthenticated && authStore.user?.id)
-        identifyPosthogUser(authStore.user.id)
+        identifyAnalyticsUser(authStore.user.id)
     }
   })
 
@@ -102,12 +101,12 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
 
     appStartTime.value = Date.now()
 
-    if (isPosthogAvailableInBuild()) {
-      const shouldCapture = syncPosthogCapture(analyticsEnabled.value)
+    if (isAnalyticsAvailableInBuild()) {
+      const shouldCapture = syncAnalyticsCapture(analyticsEnabled.value)
       if (shouldCapture) {
-        registerPosthogBuildInfo(buildInfo.value)
+        registerAnalyticsBuildInfo(buildInfo.value)
         const platform = analyticsSurface()
-        capturePosthogEvent('app_loaded', {
+        captureAnalyticsEvent('app_loaded', {
           platform,
           version: buildInfo.value.version,
         })
@@ -117,18 +116,17 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
     // Wire PostHog identity to auth state. Without this server-side events
     // (`payment_completed` keyed on Better Auth `user.id`) and browser-side
     // funnel events (anonymous `distinct_id` until identify) live on
-    // different person profiles and the funnel never joins. See
-    // `apps/server/docs/ai-context/metrics-ownership.md`.
+    // different person profiles and the funnel never joins.
     const authStore = useAuthStore()
     if (authStore.isAuthenticated && authStore.user?.id)
-      identifyPosthogUser(authStore.user.id)
+      identifyAnalyticsUser(authStore.user.id)
 
     authStore.onAuthenticated(() => {
       if (authStore.user?.id)
-        identifyPosthogUser(authStore.user.id)
+        identifyAnalyticsUser(authStore.user.id)
     })
     authStore.onLogout(() => {
-      resetPosthog()
+      resetAnalyticsIdentity()
     })
 
     // Wire model-selection events. The consciousness store holds the
@@ -160,7 +158,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
             // when the capture actually went out (PostHog initialised + user
             // not opted out); otherwise an early opt-in or delayed init
             // would never get the chance to emit `first_model_selected`.
-            const captured = capturePosthogEvent('first_model_selected', { model_id: next.model, provider: next.provider })
+            const captured = captureAnalyticsEvent('first_model_selected', { model_id: next.model, provider: next.provider })
             if (captured)
               firstModelSelectedTracked.value = true
           }
@@ -173,7 +171,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         if (!firstModelSelectedTracked.value) {
           // Same gating as the baseline branch: only mark first-selection
           // as tracked when capture actually shipped.
-          const captured = capturePosthogEvent('first_model_selected', { model_id: next.model, provider: next.provider })
+          const captured = captureAnalyticsEvent('first_model_selected', { model_id: next.model, provider: next.provider })
           if (captured)
             firstModelSelectedTracked.value = true
           return
@@ -183,7 +181,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         // Provider transitions without a prior model (e.g. user clears then
         // re-selects) skip the switch event; the next clean A → B will fire.
         if (prev.provider && prev.provider !== next.provider) {
-          capturePosthogEvent('provider_switched', {
+          captureAnalyticsEvent('provider_switched', {
             from_provider: prev.provider,
             to_provider: next.provider,
             from_provider_type: providerMode(prev.provider),
@@ -194,12 +192,12 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         }
 
         if (prev.model) {
-          capturePosthogEvent('model_switched', {
+          captureAnalyticsEvent('model_switched', {
             from_model: prev.model,
             to_model: next.model,
             reason: 'manual',
           })
-          capturePosthogEvent('model_changed', {
+          captureAnalyticsEvent('model_changed', {
             from_model: prev.model,
             to_model: next.model,
             provider: next.provider,
@@ -222,7 +220,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
         // not a switch — skip emit; the first real A→B will fire.
         if (!next || !prev || prev === next)
           return
-        capturePosthogEvent('character_switched', {
+        captureAnalyticsEvent('character_switched', {
           from_character_id: prev,
           to_character_id: next,
         })

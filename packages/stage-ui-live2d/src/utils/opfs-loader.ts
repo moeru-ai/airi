@@ -46,12 +46,6 @@ function blobFromBytes(data: Uint8Array): Blob {
   return new Blob([buffer])
 }
 
-declare global {
-  interface FileSystemDirectoryHandle {
-    values: () => FileSystemDirectoryHandleAsyncIterator<FileSystemHandle>
-  }
-}
-
 export class OPFSCache {
   static async clearAll(): Promise<void> {
     try {
