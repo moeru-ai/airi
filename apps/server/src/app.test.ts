@@ -46,6 +46,7 @@ function createTestDeps() {
     fluxTransactionService: {} as any,
     stripeService: {} as any,
     billingService: {} as any,
+    communitySurveyService: {} as any,
     adminFluxGrantsService: {} as any,
     adminRouterConfigService: {} as any,
     adminUsersService: {} as any,

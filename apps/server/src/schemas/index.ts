@@ -1,6 +1,7 @@
 export * from './accounts'
 export * from './characters'
 export * from './chats'
+export * from './community'
 export * from './flux'
 export * from './flux-transaction'
 export * from './llm-request-log'

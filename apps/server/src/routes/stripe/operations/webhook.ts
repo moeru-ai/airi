@@ -2,6 +2,7 @@ import type Stripe from 'stripe'
 
 import type { RevenueMetrics } from '../../../otel'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
+import type { CommunitySurveyService } from '../../../services/domain/community-survey'
 import type { FluxService } from '../../../services/domain/flux'
 import type { ProductAction, ProductEventService } from '../../../services/domain/product-events'
 import type { StripeService } from '../../../services/domain/stripe'
@@ -31,6 +32,7 @@ export interface WebhookOperationDeps {
   billingService: BillingService
   metrics?: RevenueMetrics | null
   productEventService?: ProductEventService
+  communitySurveyService?: CommunitySurveyService | null
 }
 
 export interface WebhookOperationInput {
@@ -86,6 +88,7 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
         // processed the checkout. Malformed sessions (missing userId,
         // invalid fluxAmount) take the early-return path above.
         if (result.processed) {
+          await sendPaidSurveyInviteSafely(deps.communitySurveyService, event.data.object)
           const userId = event.data.object.metadata?.userId
           if (userId) {
             const fluxAmount = Number(event.data.object.metadata?.fluxAmount)
@@ -169,6 +172,24 @@ export function createWebhookOperation(deps: WebhookOperationDeps) {
     }
 
     return { received: true }
+  }
+}
+
+/**
+ * Sends the paid survey invite without failing Stripe fulfillment.
+ */
+async function sendPaidSurveyInviteSafely(
+  communitySurveyService: CommunitySurveyService | null | undefined,
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (!communitySurveyService)
+    return
+
+  try {
+    await communitySurveyService.sendPaidSurveyInviteForCheckout(session)
+  }
+  catch (error) {
+    logger.withFields({ sessionId: session.id }).warn(`Paid survey invite failed after checkout fulfillment: ${errorMessageFromUnknown(error)}`)
   }
 }
 
