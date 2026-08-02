@@ -13,6 +13,7 @@ packages:
   - '!**/dist/**'
 
 overrides:
+  '@better-auth/oauth-provider>@better-auth/core': 1.6.5
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
