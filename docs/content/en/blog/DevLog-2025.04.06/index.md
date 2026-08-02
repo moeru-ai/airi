@@ -56,7 +56,7 @@ Such beautiful, and empowers me to continue to improve her.
 ### Memory system
 
 I was working on the refactoring over
-[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot),
+[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/integrations/telegram-bot),
 for the upcoming memory update for Project AIRI. Which we were planning to implement
 for months.
 

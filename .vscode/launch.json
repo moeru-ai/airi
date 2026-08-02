@@ -25,7 +25,7 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["-F", "@proj-airi/minecraft-bot", "exec", "tsx"],
       "args": ["--env-file=.env", "--env-file-if-exists=.env.local", "src/main.ts"],
-      "envFile": "${workspaceFolder}/services/minecraft/.env",
+      "envFile": "${workspaceFolder}/integrations/minecraft/.env",
       // Open terminal when debugging starts (Optional)
       // Useful to see console.logs
       // "console": "integratedTerminal",

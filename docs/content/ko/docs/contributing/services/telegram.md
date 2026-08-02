@@ -8,7 +8,7 @@ description: Project AIRI 에 기여하기
 Postgres 데이터베이스가 필요합니다.
 
 ```shell
-cd services/telegram-bot
+cd integrations/telegram-bot
 docker compose up -d
 ```
 

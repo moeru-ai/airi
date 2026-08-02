@@ -22,7 +22,7 @@ ollama pull nomic-embed-text
 Create a `.env.local` file:
 
 ```shell
-cd services/telegram-bot
+cd integrations/telegram-bot
 cp .env .env.local
 ```
 

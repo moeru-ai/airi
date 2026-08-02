@@ -27,7 +27,7 @@ for newly created bots, click "Reset Token" to generate a new token, and copy th
 Create a `.env.local` file:
 
 ```shell
-cd services/discord-bot
+cd integrations/discord-bot
 cp .env .env.local
 ```
 

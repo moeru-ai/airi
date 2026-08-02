@@ -56,7 +56,7 @@ import ReLUStickerWow from '../../../en/blog/DevLog-2025.04.06/assets/relu-stick
 ### 기억 시스템
 
 Project AIRI 의 다가오는 기억 업데이트를 위해
-[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot) 리팩터링 작업을
+[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/integrations/telegram-bot) 리팩터링 작업을
 하고 있었습니다. 몇 달 전부터 구현을 계획해 온 것입니다.
 
 저희는 기억 시스템을 가장 진보되고 견고하며 신뢰할 수 있게 만들 계획이며, 인간 뇌의 기억 작동

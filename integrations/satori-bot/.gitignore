@@ -1,7 +1,6 @@
-# Database Persistence (DO NOT COMMIT)
-data/
-data/pglite-db/
-data/db.json
+# Database persistence (generated locally; do not commit)
+data/*
+!data/.gitkeep
 
 # Environment Secrets
 .env

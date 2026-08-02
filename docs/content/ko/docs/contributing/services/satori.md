@@ -6,7 +6,7 @@ description: Project AIRI 에 기여하기
 ### Satori 봇
 
 ```shell
-cd services/satori-bot
+cd integrations/satori-bot
 ```
 
 `.env` 파일 설정하기:

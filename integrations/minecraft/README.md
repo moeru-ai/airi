@@ -27,10 +27,10 @@ Treat this service as a local-development and trusted-server tool only.
 2. Copy the template:
 
    ```bash
-   cp services/minecraft/.env services/minecraft/.env.local
+   cp integrations/minecraft/.env integrations/minecraft/.env.local
    ```
 
-3. Edit `services/minecraft/.env.local`.
+3. Edit `integrations/minecraft/.env.local`.
 
 4. Start the service:
 
@@ -38,7 +38,7 @@ Treat this service as a local-development and trusted-server tool only.
    pnpm -F @proj-airi/minecraft-bot dev
    ```
 
-   Or, from `services/minecraft/`:
+   Or, from `integrations/minecraft/`:
 
    ```bash
    pnpm dev

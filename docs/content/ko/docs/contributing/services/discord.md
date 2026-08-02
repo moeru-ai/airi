@@ -6,7 +6,7 @@ description: Project AIRI 에 기여하기
 ### Discord 봇 연동
 
 ```shell
-cd services/discord-bot
+cd integrations/discord-bot
 ```
 
 `.env` 설정하기

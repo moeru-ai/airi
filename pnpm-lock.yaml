@@ -4380,6 +4380,9 @@ importers:
       '@pinia/testing':
         specifier: 'catalog:'
         version: 1.0.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))
+      '@proj-airi/api-server':
+        specifier: workspace:*
+        version: link:../../server/apps/api
       '@proj-airi/lobe-icons':
         specifier: 'catalog:'
         version: 1.0.19
@@ -5105,7 +5108,7 @@ importers:
         specifier: 'catalog:'
         version: 8.18.1
 
-  services/discord-bot:
+  integrations/discord-bot:
     dependencies:
       '@discordjs/voice':
         specifier: 'catalog:'
@@ -5159,7 +5162,7 @@ importers:
         specifier: 'catalog:'
         version: 11.0.0
 
-  services/minecraft:
+  integrations/minecraft:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
@@ -5268,7 +5271,7 @@ importers:
         specifier: 'catalog:'
         version: 8.18.1
 
-  services/satori-bot:
+  integrations/satori-bot:
     dependencies:
       '@electric-sql/pglite':
         specifier: 'catalog:'
@@ -5317,7 +5320,7 @@ importers:
         specifier: 'catalog:'
         version: 0.31.10
 
-  services/telegram-bot:
+  integrations/telegram-bot:
     dependencies:
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
@@ -5429,7 +5432,7 @@ importers:
         specifier: 'catalog:'
         version: 4.21.0
 
-  services/twitter-services:
+  integrations/twitter-services:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'

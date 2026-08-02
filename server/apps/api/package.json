@@ -3,6 +3,9 @@
   "type": "module",
   "version": "0.11.3",
   "private": true,
+  "exports": {
+    "./app-type": "./src/app-type.ts"
+  },
   "scripts": {
     "apply:env": "dotenvx run -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "auth:generate": "pnpm run apply:env -- better-auth generate --config src/scripts/auth.ts --output src/schemas/accounts.ts -y",
