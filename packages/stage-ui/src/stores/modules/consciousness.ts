@@ -39,6 +39,16 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return providersStore.modelLoadError[activeProvider.value] || null
   })
 
+  const activeTemperature = useLocalStorageManualReset<number>(
+    'settings/consciousness/active-temperature',
+    0.7,
+  )
+
+  const activeTopP = useLocalStorageManualReset<number>(
+    'settings/consciousness/active-top-p',
+    1.0,
+  )
+
   const filteredModels = computed(() => {
     if (!modelSearchQuery.value.trim()) {
       return providerModels.value
@@ -100,6 +110,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   function resetState() {
     activeProvider.reset()
     resetModelSelection()
+    activeTemperature.reset()
+    activeTopP.reset()
   }
 
   return {
@@ -107,6 +119,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     configured,
     activeProvider,
     activeModel,
+    activeTemperature,
+    activeTopP,
     customModelName: activeCustomModelName,
     expandedDescriptions,
     modelSearchQuery,

@@ -34,6 +34,17 @@ export interface StreamOptions {
     conversationId: string
     roundId: string
   }
+  /**
+   * The temperature parameter controls the randomness of the model's output.
+   * A lower value results in more deterministic and focused output, while a
+   * higher value increases creativity and diversity.
+   */
+  temperature?: number
+  /**
+   * The top_p parameter controls nucleus sampling. A value of 0.1 means only
+   * the tokens comprising the top 10% probability mass are considered.
+   */
+  topP?: number
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean

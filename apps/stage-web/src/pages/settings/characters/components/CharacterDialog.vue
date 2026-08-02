@@ -40,6 +40,7 @@ const form = reactive({
   // Capability: LLM
   llmModel: '',
   llmTemperature: 0.7,
+  llmTopP: 1.0,
 
   // Capability: TTS
   ttsVoiceId: '',
@@ -61,6 +62,7 @@ watch(() => props.character, (char) => {
 
     form.llmModel = llm?.config.llm?.model || ''
     form.llmTemperature = llm?.config.llm?.temperature || 0.7
+    form.llmTopP = llm?.config.llm?.topP || 1.0
 
     form.ttsVoiceId = tts?.config.tts?.voiceId || ''
     form.ttsSpeed = tts?.config.tts?.speed || 1.0
@@ -74,6 +76,7 @@ watch(() => props.character, (char) => {
     form.description = ''
     form.llmModel = 'gpt-4o-mini'
     form.llmTemperature = 0.7
+    form.llmTopP = 1.0
     form.ttsVoiceId = ''
     form.ttsSpeed = 1.0
   }
@@ -108,6 +111,7 @@ async function handleSubmit() {
           llm: {
             model: form.llmModel,
             temperature: form.llmTemperature,
+            topP: form.llmTopP,
           },
         },
       },
@@ -263,6 +267,18 @@ const isOpen = computed({
                       step="0.1"
                       min="0"
                       max="2"
+                      class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 focus:border-primary-500 dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20"
+                    >
+                  </div>
+                  <!-- Use number input for top_p properly -->
+                  <div class="flex flex-col gap-1.5">
+                    <label class="text-sm text-neutral-700 font-medium dark:text-neutral-300">Top P</label>
+                    <input
+                      v-model.number="form.llmTopP"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="1"
                       class="w-full border border-neutral-200 rounded-lg bg-white px-3 py-2 text-sm outline-none dark:border-neutral-700 focus:border-primary-500 dark:bg-neutral-800 focus:ring-2 focus:ring-primary-500/20"
                     >
                   </div>

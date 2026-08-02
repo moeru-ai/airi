@@ -52,7 +52,7 @@ const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribe
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
+const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
 
 /** Identifies this page in the shared streaming transcription session. */
@@ -91,7 +91,12 @@ async function startAudioInteraction() {
         if (!provider || !activeChatModel.value)
           return
 
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+        await chatStore.ingest(text, {
+          model: activeChatModel.value,
+          chatProvider: provider as ChatProvider,
+          temperature: activeTemperature.value,
+          topP: activeTopP.value,
+        })
       }
       catch (err) {
         console.error('Failed to send chat from voice:', err)
@@ -121,7 +126,12 @@ async function handleSpeechStart() {
             if (!provider || !activeChatModel.value)
               return
 
-            await chatStore.ingest(finalText, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+            await chatStore.ingest(finalText, {
+              model: activeChatModel.value,
+              chatProvider: provider as ChatProvider,
+              temperature: activeTemperature.value,
+              topP: activeTopP.value,
+            })
           }
           catch (err) {
             console.error('Failed to send chat from voice:', err)
