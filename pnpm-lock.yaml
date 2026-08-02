@@ -1410,7 +1410,7 @@ importers:
         specifier: 'catalog:'
         version: 3.2.6(typescript@5.9.3)
 
-  apps/server:
+  server/apps/api:
     dependencies:
       '@better-auth/drizzle-adapter':
         specifier: 'catalog:'
@@ -1502,12 +1502,12 @@ importers:
       '@proj-airi/drizzle-orm-browser-migrator':
         specifier: 'catalog:'
         version: 0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
-      '@proj-airi/server-schema':
+      '@proj-airi/drizzle-migration':
         specifier: workspace:*
-        version: link:../../packages/server-schema
+        version: link:../../packages/drizzle-migration
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
-        version: link:../../packages/server-sdk-shared
+        version: link:../../../packages/server-sdk-shared
       better-auth:
         specifier: 'catalog:'
         version: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
@@ -3705,7 +3705,7 @@ importers:
         specifier: 'catalog:'
         version: 1.3.1(typescript@5.9.3)
 
-  packages/server-schema:
+  server/packages/drizzle-migration:
     devDependencies:
       '@proj-airi/unplugin-drizzle-orm-migrations':
         specifier: 'catalog:'

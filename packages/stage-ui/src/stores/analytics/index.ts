@@ -116,8 +116,7 @@ export const useSharedAnalyticsStore = defineStore('analytics-shared', () => {
     // Wire PostHog identity to auth state. Without this server-side events
     // (`payment_completed` keyed on Better Auth `user.id`) and browser-side
     // funnel events (anonymous `distinct_id` until identify) live on
-    // different person profiles and the funnel never joins. See
-    // `apps/server/docs/ai-context/metrics-ownership.md`.
+    // different person profiles and the funnel never joins.
     const authStore = useAuthStore()
     if (authStore.isAuthenticated && authStore.user?.id)
       identifyAnalyticsUser(authStore.user.id)

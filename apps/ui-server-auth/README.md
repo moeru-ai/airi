@@ -1,6 +1,6 @@
 # AIRI Server Auth UI
 
-Auth UI for the hosted AIRI server. It is a Vue/Vite app deployed separately from `apps/server` and used for Better Auth sign-in, email verification, password reset, profile, and Electron OIDC callback relay flows.
+Auth UI for the hosted AIRI server. It is a Vue/Vite app deployed separately from `server/apps/api` and used for Better Auth sign-in, email verification, password reset, profile, and Electron OIDC callback relay flows.
 
 ## Use When
 
