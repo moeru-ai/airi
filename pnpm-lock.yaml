@@ -1194,9 +1194,6 @@ overrides:
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
-  '@mediapipe/tasks-vision':
-    hash: 2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66
-    path: patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2':
     hash: 306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6
     path: patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -3697,7 +3694,7 @@ importers:
     dependencies:
       '@mediapipe/tasks-vision':
         specifier: 'catalog:'
-        version: 0.10.34(patch_hash=2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66)
+        version: 0.10.34
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -22318,7 +22315,7 @@ snapshots:
     optionalDependencies:
       markdown-it: 14.1.1
 
-  '@mediapipe/tasks-vision@0.10.34(patch_hash=2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66)': {}
+  '@mediapipe/tasks-vision@0.10.34': {}
 
   '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)':
     dependencies:
