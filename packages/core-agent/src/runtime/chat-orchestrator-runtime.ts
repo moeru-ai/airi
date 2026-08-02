@@ -411,7 +411,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]) {
     const nowTs = now()
 
-    return sessionMessagesForSend.map((msg) => {
+    return sessionMessagesForSend.filter((msg) => {
+      return msg.role !== 'assistant' || !msg.isHiddenUserMessageResponse
+    }).map((msg) => {
       const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 

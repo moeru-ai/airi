@@ -1030,8 +1030,10 @@ describe('createChatOrchestratorRuntime', () => {
   it('keeps hidden companion turns out of telemetry and preserves the first visible activation', async () => {
     const harness = createHarness()
     let visibleTurnMessages: Message[] = []
+    let streamCallCount = 0
     harness.stream.mockImplementation(async (_model, _chatProvider, messages, options) => {
-      if (messages.some(message => message.role === 'assistant'))
+      streamCallCount += 1
+      if (streamCallCount === 2)
         visibleTurnMessages = messages
 
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'assistant reply' })
@@ -1097,7 +1099,8 @@ describe('createChatOrchestratorRuntime', () => {
       expect.objectContaining({ turnIndex: 1 }),
     ])
     expect(harness.telemetry.messageRoundFailed).toEqual([])
-    expect(visibleTurnMessages.find(message => message.role === 'assistant')).not.toHaveProperty('isHiddenUserMessageResponse')
+    expect(visibleTurnMessages.map(message => message.role)).toEqual(['system', 'user'])
+    expect(visibleTurnMessages.some(message => message.role === 'assistant')).toBe(false)
   })
 
   it('does not emit user telemetry when a hidden companion turn fails', async () => {
