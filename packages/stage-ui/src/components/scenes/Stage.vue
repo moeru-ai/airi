@@ -12,7 +12,6 @@ import { sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
-import { BILINGUAL_LANGUAGES } from '@proj-airi/stage-shared'
 import { Live2DScene, useLive2dParams } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -45,7 +44,7 @@ import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
-import { useBilingualStore } from '../../stores/modules/bilingual'
+import { BILINGUAL_KNOWN_TAGS, BILINGUAL_TAG_TTS, useBilingualStore } from '../../stores/modules/bilingual'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
@@ -178,8 +177,8 @@ const { activeCard } = storeToRefs(useAiriCardStore())
 const bilingualStore = useBilingualStore()
 let bilingualParser = new BilingualStreamParser({
   enabled: bilingualStore.enabled,
-  ttsTag: bilingualStore.ttsLangInfo.tag,
-  knownTags: BILINGUAL_LANGUAGES.map(l => l.tag),
+  ttsTag: BILINGUAL_TAG_TTS,
+  knownTags: BILINGUAL_KNOWN_TAGS,
 })
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -813,8 +812,8 @@ chatHookCleanups.push(onBeforeMessageComposed(async () => {
 
   bilingualParser = new BilingualStreamParser({
     enabled: bilingualStore.enabled,
-    ttsTag: bilingualStore.ttsLangInfo.tag,
-    knownTags: BILINGUAL_LANGUAGES.map(l => l.tag),
+    ttsTag: BILINGUAL_TAG_TTS,
+    knownTags: BILINGUAL_KNOWN_TAGS,
   })
 
   currentSession?.cancel('new-message')
@@ -833,7 +832,8 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
   if (bilingualStore.enabled && captionChunk) {
     assistantCaption.value += captionChunk
     try {
-      postCaption({ type: 'caption-assistant', text: captionChunk })
+      postCaption({ type: 'caption-assistant', text: '' })
+      postCaption({ type: 'caption-assistant', text: assistantCaption.value })
     }
     catch {}
     try {
@@ -855,7 +855,8 @@ chatHookCleanups.push(onStreamEnd(async () => {
   if (bilingualStore.enabled && captionChunk) {
     assistantCaption.value += captionChunk
     try {
-      postCaption({ type: 'caption-assistant', text: captionChunk })
+      postCaption({ type: 'caption-assistant', text: '' })
+      postCaption({ type: 'caption-assistant', text: assistantCaption.value })
     }
     catch {}
     try {
