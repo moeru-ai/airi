@@ -1,9 +1,9 @@
 export interface BilingualParserOptions {
   enabled: boolean
-  /** The tag whose content should be routed to TTS, e.g. "[EN]" */
+  /** The tag whose content should be routed to TTS, e.g. "[TTS]" */
   ttsTag: string
   /**
-   * The complete set of known language tags (e.g. ["[EN]", "[ZH]", "[JA]"]).
+   * The complete set of known language tags (e.g. ["[TTS]", "[SUB1]", "[SUB2]"]).
    * Only brackets whose content matches one of these will trigger a section
    * switch; all other bracketed text (Markdown links, product names, etc.)
    * is treated as normal prose and is NOT consumed as a tag.
@@ -14,7 +14,7 @@ export interface BilingualParserOptions {
 export class BilingualStreamParser {
   private enabled: boolean
   private ttsTag: string
-  /** Normalised set of known tags for fast lookup, e.g. {"[EN]", "[ZH]"} */
+  /** Normalised set of known tags for fast lookup, e.g. {"[TTS]", "[SUB1]"} */
   private knownTagSet: Set<string>
   private currentTag: string | null = null
   private buffer = ''
@@ -32,7 +32,7 @@ export class BilingualStreamParser {
 
     this.buffer += chunk
     let ttsChunk = ''
-    const captionChunk = chunk
+    let captionChunk = ''
 
     while (this.buffer.length > 0) {
       // Try to match a known language tag at the current buffer head.
@@ -40,7 +40,7 @@ export class BilingualStreamParser {
       if (tagMatch) {
         const fullTag = tagMatch[0].toUpperCase()
         if (this.knownTagSet.has(fullTag)) {
-          // It's a real language tag — switch sections and discard it.
+          // It's a real language tag — switch sections and discard it from both TTS and caption output.
           this.currentTag = fullTag
           this.buffer = this.buffer.slice(tagMatch[0].length)
           continue
@@ -49,6 +49,7 @@ export class BilingualStreamParser {
         // Treat the opening bracket as literal text and advance past it.
         const char = this.buffer[0]
         this.buffer = this.buffer.slice(1)
+        captionChunk += char
         if (this.isTtsActive()) {
           ttsChunk += char
         }
@@ -65,15 +66,25 @@ export class BilingualStreamParser {
       if (nextTagIdx === -1) {
         const textSegment = this.buffer
         this.buffer = ''
+        captionChunk += textSegment
+        if (this.isTtsActive()) {
+          ttsChunk += textSegment
+        }
+      }
+      else if (nextTagIdx > 0) {
+        const textSegment = this.buffer.slice(0, nextTagIdx)
+        this.buffer = this.buffer.slice(nextTagIdx)
+        captionChunk += textSegment
         if (this.isTtsActive()) {
           ttsChunk += textSegment
         }
       }
       else {
-        const textSegment = this.buffer.slice(0, nextTagIdx)
-        this.buffer = this.buffer.slice(nextTagIdx)
+        const char = this.buffer[0]
+        this.buffer = this.buffer.slice(1)
+        captionChunk += char
         if (this.isTtsActive()) {
-          ttsChunk += textSegment
+          ttsChunk += char
         }
       }
     }
