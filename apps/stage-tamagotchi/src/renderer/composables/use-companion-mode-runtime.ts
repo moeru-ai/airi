@@ -4,6 +4,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useVisionInference } from '@proj-airi/stage-ui/composables/vision/use-vision-inference'
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -113,11 +114,13 @@ export function useCompanionModeRuntime() {
   const chatSyncStore = useChatSyncStore()
   const chatSessionStore = useChatSessionStore()
   const chatOrchestratorStore = useChatOrchestratorStore()
+  const consciousnessStore = useConsciousnessStore()
   const settingsGeneralStore = useSettingsGeneral()
   const { runVisionInference } = useVisionInference()
 
   const { enabled, intervalMs, sourceId, sourceKind, promptTemplate } = storeToRefs(companionModeStore)
   const { sending, pendingQueuedSendCount } = storeToRefs(chatOrchestratorStore)
+  const { configured: chatConfigured } = storeToRefs(consciousnessStore)
   const { language } = storeToRefs(settingsGeneralStore)
 
   const videoRef = ref<HTMLVideoElement | null>(null)
@@ -418,6 +421,17 @@ export function useCompanionModeRuntime() {
 
       if (!isCurrentRun())
         return
+
+      // A vision summary is useful only if this tick can submit its hidden
+      // companion turn. Check before source selection and capture so an
+      // unconfigured chat model never receives a screen frame through vision.
+      if (!chatConfigured.value) {
+        companionModeStore.recordSkip(
+          Date.now(),
+          'Skipped because no active chat provider or model is configured.',
+        )
+        return
+      }
 
       runAbortController = new AbortController()
       activeRunAbortController = runAbortController

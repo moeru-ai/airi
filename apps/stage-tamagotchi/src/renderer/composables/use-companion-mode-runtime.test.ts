@@ -29,6 +29,7 @@ let runtimeVideoRef: Ref<HTMLVideoElement | null> | null = null
 let capturedSourcesOptions: MaybeRefOrGetter<SourcesOptions> | null = null
 let chatSending: Ref<boolean>
 let chatPendingQueuedSendCount: Ref<number>
+let chatConfigured: Ref<boolean>
 
 const requestIngest = vi.fn()
 const runVisionInference = vi.fn()
@@ -96,6 +97,10 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     isReady: true,
     initialize: vi.fn(),
   }),
+}))
+
+vi.mock('@proj-airi/stage-ui/stores/modules/consciousness', () => ({
+  useConsciousnessStore: () => ({ configured: chatConfigured }),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/settings', () => ({
@@ -179,6 +184,7 @@ describe('useCompanionModeRuntime', async () => {
     capturedSourcesOptions = null
     chatSending = ref(false)
     chatPendingQueuedSendCount = ref(0)
+    chatConfigured = ref(true)
     requestIngest.mockReset().mockResolvedValue(undefined)
     runVisionInference.mockReset().mockResolvedValue('The user is viewing a code editor.')
   })
@@ -236,6 +242,32 @@ describe('useCompanionModeRuntime', async () => {
     await mountRuntime()
 
     expect(companionStore.recordError).toHaveBeenCalledWith(null)
+  })
+
+  // ROOT CAUSE:
+  //
+  // The runtime previously checked whether chat was configured only after
+  // submitting the captured frame to the vision provider. A configured vision
+  // model could therefore receive a screenshot even though no companion reply
+  // could be generated.
+  //
+  // Keep the readiness check ahead of source capture so this tick performs no
+  // visual inference or hidden chat ingest until chat is configured.
+  it('skips capture and vision inference when no chat provider or model is configured', async () => {
+    chatConfigured.value = false
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(companionStore.recordSkip).toHaveBeenCalledWith(
+      expect.any(Number),
+      'Skipped because no active chat provider or model is configured.',
+    ))
+
+    expect(screenCapture.startStream).not.toHaveBeenCalled()
+    expect(screenCapture.captureFrame).not.toHaveBeenCalled()
+    expect(runVisionInference).not.toHaveBeenCalled()
+    expect(requestIngest).not.toHaveBeenCalled()
+    expect(companionStore.recordCapture).not.toHaveBeenCalled()
+    expect(companionStore.enabled.value).toBe(true)
   })
 
   it('does not start vision or chat after being disabled during capture', async () => {
