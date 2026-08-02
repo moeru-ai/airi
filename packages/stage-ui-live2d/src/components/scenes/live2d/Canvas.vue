@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { errorMessageFrom } from '@moeru/std'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
@@ -15,6 +16,18 @@ const props = withDefaults(defineProps<{
   resolution: 2,
   maxFps: 0,
 })
+
+const emits = defineEmits<{
+  /**
+   * Human-readable reason the Pixi stage could not be brought up — in practice a
+   * Cubism core script that 404s or a runtime bundle that fails to evaluate.
+   *
+   * Nothing downstream can report this: the default slot only renders once the
+   * canvas exists, so `Model.vue` never mounts and its own `error` emit — the
+   * one the stage and preview overlays listen to — never runs.
+   */
+  (e: 'error', message: string): void
+}>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
@@ -114,7 +127,28 @@ watch(() => props.maxFps, (limit) => {
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
 })
 
-onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
+onMounted(async () => {
+  if (!containerRef.value)
+    return
+
+  try {
+    await initLive2DPixiStage(containerRef.value)
+  }
+  catch (error) {
+    // Bringing the stage up spans a <script> injection, a dynamic import and a
+    // WebGL context creation, any of which can reject. Left uncaught it becomes
+    // an unhandled rejection with no visible symptom other than a blank scene
+    // parked in 'loading', because the canvas never renders the slot that would
+    // let `Model.vue` report it.
+    console.error('[Live2D] Failed to initialize the Pixi stage.', error)
+    // Back to 'pending': nothing was constructed, so this component has no
+    // canvas, no ticker and nothing to destroy on unmount. Consumers stop
+    // waiting on the parent's terminal state, decided in `Live2D.vue`.
+    componentState.value = 'pending'
+    isPixiCanvasReady.value = false
+    emits('error', errorMessageFrom(error) ?? 'Failed to initialize the Live2D canvas.')
+  }
+})
 onUnmounted(() => {
   isDisposed = true
   pixiApp.value?.destroy()
