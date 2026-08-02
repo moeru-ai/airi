@@ -298,11 +298,13 @@ export interface ChatOrchestratorRuntimeDeps {
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
     messageText: string
+    /** Chronological session history safe to forward; excludes hidden-user assistant replies. */
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
     messageText: string
+    /** Chronological session history safe to forward; excludes hidden-user assistant replies. */
     sessionMessages: ChatHistoryItem[]
   }) => void
 }
@@ -408,12 +410,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
+  // Companion replies generated from internal observations remain in local
+  // session state, but must not cross provider or downstream hook boundaries.
+  function isForwardableHistoryMessage(message: ChatHistoryItem) {
+    return message.role !== 'assistant' || !message.isHiddenUserMessageResponse
+  }
+
   function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]) {
     const nowTs = now()
 
-    return sessionMessagesForSend.filter((msg) => {
-      return msg.role !== 'assistant' || !msg.isHiddenUserMessageResponse
-    }).map((msg) => {
+    return sessionMessagesForSend.filter(isForwardableHistoryMessage).map((msg) => {
       const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 
@@ -612,11 +618,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const sessionMessagesForSend = hiddenUserMessage
         ? [...visibleSessionMessagesBeforeUser, userMessage]
         : deps.session.getSessionMessages(sessionId)
+      const sessionMessagesForHooks = sessionMessagesForSend.filter(isForwardableHistoryMessage)
 
       if (!hiddenUserMessage) {
         deps.onUserTurnReady?.({
           messageText: sendingMessage,
-          sessionMessages: sessionMessagesForSend,
+          sessionMessages: sessionMessagesForHooks,
         })
       }
 
@@ -904,16 +911,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
-      // Hidden Companion Mode turns carry a synthetic screen-observation
-      // userMessage inside sessionMessagesForSend that is intentionally never
-      // persisted. Skip assistant-turn hooks for those turns so downstream
-      // consumers (e.g. the Artistry autonomous assistant-target task) do not
-      // receive the hidden visual summary in their forwarded history. Mirrors
-      // the onUserTurnReady skip above.
+      // Hidden Companion Mode turns carry a synthetic screen-observation user
+      // message inside sessionMessagesForSend that is intentionally never
+      // persisted. Skip assistant-turn hooks for those synthetic turns;
+      // persisted hidden replies are removed from hook history above.
       if (!hiddenUserMessage) {
         deps.onAssistantTurnReady?.({
           messageText: fullText,
-          sessionMessages: sessionMessagesForSend,
+          sessionMessages: sessionMessagesForHooks,
         })
       }
 
