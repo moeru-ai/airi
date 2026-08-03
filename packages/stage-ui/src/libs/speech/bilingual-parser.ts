@@ -11,16 +11,30 @@ export interface BilingualParserOptions {
   knownTags: string[]
 }
 
+export function isBilingualResponse(text: string): boolean {
+  if (!text)
+    return false
+
+  const lineStartTags = [...text.matchAll(/^\[(TTS|SUB1|SUB2)\]/gm)]
+  if (lineStartTags.length === 0)
+    return false
+
+  const distinctTags = new Set(lineStartTags.map(m => m[1]))
+  const startsWithTag = /^\s*\[(?:TTS|SUB1|SUB2)\]/.test(text)
+
+  return startsWithTag || distinctTags.size >= 2
+}
+
 /**
  * Strips internal bilingual routing tags ([TTS], [SUB1], [SUB2]) and deduplicates
  * identical subtitle sections for display in the chat transcript and persistence.
  */
 export function cleanBilingualMessageText(text: string): string {
-  if (!text || (!text.includes('[TTS]') && !text.includes('[SUB1]') && !text.includes('[SUB2]'))) {
+  if (!isBilingualResponse(text)) {
     return text
   }
 
-  const tagRegex = /\[(TTS|SUB1|SUB2)\]/g
+  const tagRegex = /^\[(TTS|SUB1|SUB2)\]/gm
   const matches = [...text.matchAll(tagRegex)]
   if (matches.length === 0) {
     return text

@@ -146,15 +146,26 @@ export interface ChatOrchestratorPromptProjection {
   composedMessage?: Message[]
 }
 
+function isBilingualResponse(text: string): boolean {
+  if (!text)
+    return false
+
+  const lineStartTags = [...text.matchAll(/^\[(TTS|SUB1|SUB2)\]/gm)]
+  if (lineStartTags.length === 0)
+    return false
+
+  const distinctTags = new Set(lineStartTags.map(m => m[1]))
+  const startsWithTag = /^\s*\[(?:TTS|SUB1|SUB2)\]/.test(text)
+
+  return startsWithTag || distinctTags.size >= 2
+}
+
 function cleanBilingualRoutingTags(text: string): string {
-  if (!text || (!text.includes('[TTS]') && !text.includes('[SUB1]') && !text.includes('[SUB2]'))) {
+  if (!isBilingualResponse(text)) {
     return text
   }
 
-  const matches = [...text.matchAll(/\[(TTS|SUB1|SUB2)\]/g)]
-  if (matches.length === 0)
-    return text
-
+  const matches = [...text.matchAll(/^\[(TTS|SUB1|SUB2)\]/gm)]
   const sections: Record<string, string> = {}
   let lastIndex = 0
   let currentTag: string | null = null
@@ -653,18 +664,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           }
 
           const cleanedText = cleanBilingualRoutingTags(buildingMessage.content)
-          buildingMessage.content = cleanedText
-          if (buildingMessage.slices.length > 0) {
-            const textSlices = buildingMessage.slices.filter(s => s.type === 'text')
-            if (textSlices.length === 1) {
-              textSlices[0].text = cleanedText
-            }
-            else if (textSlices.length > 1) {
-              buildingMessage.slices = [
-                ...buildingMessage.slices.filter(s => s.type !== 'text'),
-                { type: 'text', text: cleanedText },
-              ]
-            }
+          if (cleanedText !== buildingMessage.content) {
+            buildingMessage.content = cleanedText
+            let hasReplacedFirstText = false
+            buildingMessage.slices = buildingMessage.slices.filter((slice) => {
+              if (slice.type === 'text') {
+                if (!hasReplacedFirstText) {
+                  slice.text = cleanedText
+                  hasReplacedFirstText = true
+                  return true
+                }
+                return false
+              }
+              return true
+            })
           }
 
           patchForegroundStream(sessionId, buildingMessage)

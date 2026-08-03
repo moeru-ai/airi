@@ -87,4 +87,9 @@ describe('cleanBilingualMessageText', () => {
     const raw = 'Normal assistant message [docs](https://example.com)'
     expect(cleanBilingualMessageText(raw)).toBe('Normal assistant message [docs](https://example.com)')
   })
+
+  it('leaves prose mentioning [TTS] mid-sentence untouched when not formatted as a bilingual response', () => {
+    const raw = 'The tag [TTS] means Text-To-Speech in AIRI.'
+    expect(cleanBilingualMessageText(raw)).toBe('The tag [TTS] means Text-To-Speech in AIRI.')
+  })
 })
