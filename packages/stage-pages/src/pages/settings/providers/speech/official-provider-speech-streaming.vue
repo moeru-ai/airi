@@ -78,7 +78,7 @@ watch(model, async () => {
 })
 
 // Synthesize via the streaming session helper. The page uses the SAME
-// transport the runtime pipeline uses (ws → apps/server proxy → unspeech
+// transport the runtime pipeline uses (ws → API proxy → unspeech
 // bridge → Volcengine v3 bidirectional) so the preview faithfully
 // represents what the user hears in actual chat. The session is opened
 // per-preview because there's no LLM token stream here — we just send

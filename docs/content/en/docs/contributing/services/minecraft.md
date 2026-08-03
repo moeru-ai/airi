@@ -6,7 +6,7 @@ description: Contribute to Project AIRI
 ### Minecraft agent
 
 ```shell
-cd services/minecraft
+cd integrations/minecraft
 ```
 
 Start a Minecraft client, export your world with desired port, and fill-in the port number in `.env.local`.
