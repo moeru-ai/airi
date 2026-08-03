@@ -3,9 +3,10 @@
  * 情绪状态管理测试
  */
 
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+
+import { clampEmotionState, DEFAULT_EMOTION_STATE, EMOTION_BASELINE } from '../types/emotion'
 import { applyDelta, applyTimeDecay, createEmotionState, emotionStateEquals, resetEmotionState } from './emotionState'
-import { DEFAULT_EMOTION_STATE, EMOTION_BASELINE, clampEmotionState, summarizeEmotionState } from '../types/emotion'
 
 describe('emotionState', () => {
   describe('createEmotionState', () => {
