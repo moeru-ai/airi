@@ -18,11 +18,13 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/analytics-headers'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { evaluateTurn } from '../utils/emotionEvaluator'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useEmotionStore } from './emotion'
 import { useLLM } from './llm'
 import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
@@ -51,6 +53,7 @@ export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } f
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
+  const emotionStore = useEmotionStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   // Instantiate the web-search store eagerly so its `configured` watcher registers
   // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
@@ -381,6 +384,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
+    const sessionId = targetSessionId ?? activeSessionId.value
+    const evaluation = evaluateTurn(sendingMessage)
+    emotionStore.setCurrentSession(sessionId)
+    emotionStore.applyEmotionDelta(sessionId, evaluation.delta, evaluation.reason)
+    chatSession.refreshSessionSystemMessage(sessionId)
+
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 

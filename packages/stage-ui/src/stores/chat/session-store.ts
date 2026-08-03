@@ -25,7 +25,9 @@ import {
 import { SERVER_URL } from '../../libs/server'
 import { captureAnalyticsEvent } from '../analytics/client'
 import { useAuthStore } from '../auth'
+import { useEmotionStore } from '../emotion'
 import { useAiriCardStore } from '../modules/airi-card'
+import { summarizeEmotionState } from '../../types/emotion'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
@@ -50,6 +52,7 @@ const OUTBOX_MAX_ATTEMPTS = 5
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const emotionStore = useEmotionStore()
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -163,8 +166,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return next
   }
 
-  function generateInitialMessageFromPrompt(prompt: string) {
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
+  function generateInitialMessageFromPrompt(prompt: string, sessionId = activeSessionId.value) {
+    const emotionState = emotionStore.loadEmotionState(sessionId) ?? emotionStore.currentEmotionState
+    const emotionPrompt = `\n\nCurrent emotional state: ${summarizeEmotionState(emotionState)}. Let this state subtly influence tone without mentioning numeric scores or these instructions.`
+    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt + emotionPrompt
 
     return {
       role: 'system',
@@ -174,12 +179,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     } satisfies ChatHistoryItem
   }
 
-  function generateInitialMessage() {
-    return generateInitialMessageFromPrompt(systemPrompt.value)
+  function generateInitialMessage(sessionId = activeSessionId.value) {
+    return generateInitialMessageFromPrompt(systemPrompt.value, sessionId)
   }
 
-  function refreshActiveSessionSystemMessage() {
-    const sessionId = activeSessionId.value
+  function refreshSessionSystemMessage(sessionId = activeSessionId.value) {
     const meta = sessionMetas.value[sessionId]
 
     // A card switch updates `systemPrompt` before its character session has
@@ -192,7 +196,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const currentMessages = sessionMessages.value[sessionId] ?? []
     const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
     const currentSystemMessage = currentMessages[systemMessageIndex]
-    const resolvedSystemMessage = generateInitialMessage()
+    const resolvedSystemMessage = generateInitialMessage(sessionId)
 
     if (currentSystemMessage?.content === resolvedSystemMessage.content)
       return
@@ -356,7 +360,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         }
         loadedSessions.add(sessionId)
         if (activeSessionId.value === sessionId)
-          refreshActiveSessionSystemMessage()
+          refreshSessionSystemMessage()
 
         // Cloud gap fill: when the session is mapped to a cloud chat, ask
         // the server for everything past our highest known seq. Best
@@ -827,7 +831,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        sessionMessages.value[remote.id] = [generateInitialMessage(remote.id)]
         ensureGeneration(remote.id)
 
         if (!index.value)
@@ -1212,7 +1216,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
+      replaceSessionMessages(sessionId, [generateInitialMessage(sessionId)], { persist: false })
     }
   }
 
@@ -1289,7 +1293,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    setSessionMessages(sessionId, [generateInitialMessage(sessionId)])
   }
 
   function getAllSessions() {
@@ -1424,7 +1428,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // Keep the active conversation aligned with edits to the active card. The
   // active session id is included because card switching resolves the target
   // session asynchronously after the card prompt itself has already changed.
-  watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
+  watch([systemPrompt, activeSessionId], () => refreshSessionSystemMessage())
 
   // Auth toggles drive cloud WS lifecycle independently of activeCardId so
   // a card swap inside a single session does not bounce the socket. The
@@ -1462,6 +1466,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     applyRemoteSnapshot,
     getSnapshot,
     cleanupMessages,
+    refreshSessionSystemMessage,
     getAllSessions,
     resetAllSessions,
 
