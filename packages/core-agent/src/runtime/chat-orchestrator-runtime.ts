@@ -60,6 +60,11 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /**
+   * Whether this turn's system prompt requires bilingual routing sections.
+   * When enabled, routing tags are removed from the persisted assistant text.
+   */
+  bilingualResponse?: boolean
 }
 
 interface QueuedSend {
@@ -160,8 +165,8 @@ function isBilingualResponse(text: string): boolean {
   return startsWithTag || distinctTags.size >= 2
 }
 
-function cleanBilingualRoutingTags(text: string): string {
-  if (!isBilingualResponse(text)) {
+function cleanBilingualRoutingTags(text: string, isBilingualTurn: boolean): string {
+  if (!isBilingualTurn || !isBilingualResponse(text)) {
     return text
   }
 
@@ -668,7 +673,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
 
-          const cleanedText = cleanBilingualRoutingTags(buildingMessage.content)
+          const cleanedText = cleanBilingualRoutingTags(buildingMessage.content, options.bilingualResponse === true)
           if (cleanedText !== buildingMessage.content) {
             buildingMessage.content = cleanedText
             let hasReplacedFirstText = false

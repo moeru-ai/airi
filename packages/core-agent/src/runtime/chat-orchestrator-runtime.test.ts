@@ -359,6 +359,44 @@ describe('createChatOrchestratorRuntime', () => {
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
   })
 
+  it('preserves role-tag documentation when the turn did not request bilingual output', async () => {
+    const harness = createHarness()
+    const tagDocumentation = '[TTS] Text-to-speech output.\n[SUB1] Primary subtitle output.'
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: tagDocumentation })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('Explain the role tags.', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: tagDocumentation,
+    })
+  })
+
+  it('removes routing tags only for a turn that requested bilingual output', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '[TTS] Hello\n[SUB1] Hello\n[SUB2] 你好' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('Reply bilingually.', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      bilingualResponse: true,
+    })
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: 'Hello\n你好',
+    })
+  })
+
   /**
    * @example
    * Runtime telemetry callbacks expose client-visible latency milestones.

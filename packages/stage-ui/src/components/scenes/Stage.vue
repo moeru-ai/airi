@@ -190,6 +190,9 @@ let bilingualParser = new BilingualStreamParser({
   ttsTag: BILINGUAL_TAG_TTS,
   knownTags: BILINGUAL_KNOWN_TAGS,
 })
+// Capture the routing policy when a response begins. Store changes are for the
+// next response and must not change caption behavior for queued audio tokens.
+let bilingualCaptionsEnabledForTurn = bilingualStore.enabled
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
@@ -591,8 +594,8 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
       nowSpeaking.value = true
   },
   onStart: ({ item }) => {
-    // If bilingualStore is enabled, captions are streamed live via onTokenLiteral/onStreamEnd.
-    if (bilingualStore.enabled)
+    // Bilingual captions are streamed by token hooks for this response.
+    if (bilingualCaptionsEnabledForTurn)
       return
 
     // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
@@ -832,8 +835,9 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
+  bilingualCaptionsEnabledForTurn = bilingualStore.enabled
   bilingualParser = new BilingualStreamParser({
-    enabled: bilingualStore.enabled,
+    enabled: bilingualCaptionsEnabledForTurn,
     ttsTag: BILINGUAL_TAG_TTS,
     knownTags: BILINGUAL_KNOWN_TAGS,
   })
@@ -858,7 +862,7 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
   if (ttsChunk) {
     currentSession?.appendText(ttsChunk)
   }
-  if (bilingualStore.enabled && captionChunk) {
+  if (bilingualCaptionsEnabledForTurn && captionChunk) {
     assistantCaption.value += captionChunk
     try {
       postCaption({ type: 'caption-assistant', text: '' })
@@ -888,7 +892,7 @@ chatHookCleanups.push(onStreamEnd(async () => {
   if (ttsChunk) {
     currentSession?.appendText(ttsChunk)
   }
-  if (bilingualStore.enabled && captionChunk) {
+  if (bilingualCaptionsEnabledForTurn && captionChunk) {
     assistantCaption.value += captionChunk
     try {
       postCaption({ type: 'caption-assistant', text: '' })

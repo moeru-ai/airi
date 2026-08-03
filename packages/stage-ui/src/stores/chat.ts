@@ -27,6 +27,7 @@ import { useLLM } from './llm'
 import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
+import { useBilingualStore } from './modules/bilingual'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
 
@@ -81,6 +82,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
+  const { enabled: bilingualEnabled } = storeToRefs(useBilingualStore())
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
@@ -381,7 +383,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
-    return runtime.ingest(sendingMessage, options, targetSessionId)
+    return runtime.ingest(sendingMessage, {
+      ...options,
+      // Keep transcript cleanup aligned with the response-format instruction
+      // that is active when this turn begins, even if the user toggles it mid-stream.
+      bilingualResponse: bilingualEnabled.value,
+    }, targetSessionId)
   }
 
   async function ingestOnFork(
