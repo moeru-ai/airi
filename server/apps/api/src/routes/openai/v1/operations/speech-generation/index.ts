@@ -7,6 +7,8 @@ export interface SpeechGenerationOperationRequest {
   userId: string
   body: Record<string, unknown>
   sessionId?: string
+  analyticsEnabled: boolean
+  contentCaptureAllowed: boolean
   abortSignal?: AbortSignal
 }
 

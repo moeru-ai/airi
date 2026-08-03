@@ -6,9 +6,11 @@ import type { LlmTracingDeps, V1RouteDeps } from './types'
 import { authGuard } from '../../../middlewares/auth'
 import { configGuard } from '../../../middlewares/config-guard'
 import {
+  AIRI_ANALYTICS_CONSENT_HEADER,
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
+  resolveAnalyticsConsent,
   resolveChatAnalyticsSurface,
 } from './analytics'
 import { createV1Gateway } from './gateway'
@@ -43,13 +45,15 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
       async (c) => {
         const user = c.get('user')!
         const body = await c.req.json() as Record<string, unknown>
+        const appSurface = resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER))
 
         return {
           userId: user.id,
           body,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
           roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
-          appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),
+          appSurface,
+          analyticsEnabled: resolveAnalyticsConsent(c.req.header(AIRI_ANALYTICS_CONSENT_HEADER), appSurface),
           abortSignal: c.req.raw.signal,
         }
       },
@@ -70,11 +74,14 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
       async (c) => {
         const user = c.get('user')!
         const body = await c.req.json() as Record<string, unknown>
+        const appSurface = resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER))
 
         return {
           userId: user.id,
           body,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
+          analyticsEnabled: resolveAnalyticsConsent(c.req.header(AIRI_ANALYTICS_CONSENT_HEADER), appSurface),
+          contentCaptureAllowed: appSurface !== 'mobile',
           abortSignal: c.req.raw.signal,
         }
       },

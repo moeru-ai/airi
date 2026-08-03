@@ -61,6 +61,8 @@ function extractSseDeltaText(sseLine: string): string {
 
 /** Parameters identifying a request a Langfuse generation traces. */
 interface GenerationInput {
+  /** Whether this request may export prompt or generated content to Langfuse. */
+  contentCaptureAllowed: boolean
   /** Provider-domain input payload, recorded verbatim as trace input. */
   input: unknown
   /** Resolved upstream model id (after `auto` aliases are replaced). */
@@ -181,7 +183,7 @@ function startGeneration(input: GenerationInput): {
   succeed: (result: GenerationResult) => void
   fail: (statusMessage: string) => void
 } | null {
-  if (!tracingActive())
+  if (!input.contentCaptureAllowed || !tracingActive())
     return null
 
   const baseMetadata = { requestId: input.requestId, ...input.metadata }
@@ -237,6 +239,7 @@ function startGeneration(input: GenerationInput): {
  */
 export function startChatGeneration(input: ChatGenerationInput): ChatGenerationTrace {
   const generation = startGeneration({
+    contentCaptureAllowed: input.contentCaptureAllowed,
     input: input.input,
     model: input.model,
     requestId: input.requestId,
@@ -299,6 +302,7 @@ export function startChatGeneration(input: ChatGenerationInput): ChatGenerationT
  */
 export function startTtsGeneration(input: TtsGenerationInput): TtsGenerationTrace {
   const generation = startGeneration({
+    contentCaptureAllowed: input.contentCaptureAllowed,
     input: input.input,
     model: input.model,
     requestId: input.requestId,

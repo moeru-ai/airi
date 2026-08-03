@@ -15,6 +15,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createV1Routes } from '.'
 import { ApiError } from '../../../utils/error'
 import {
+  AIRI_ANALYTICS_CONSENT_HEADER,
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
@@ -985,6 +986,104 @@ describe('v1CompletionsRoutes', () => {
       })
     })
 
+    it('fails closed for mobile chat analytics until the app grants consent', async () => {
+      const llmRouter = createMockLlmRouter({
+        route: vi.fn(async (_req, ctx) => {
+          if (ctx) {
+            ctx.provider = 'openrouter'
+            ctx.upstreamModel = 'openai/gpt-4o-mini'
+          }
+          return new Response(JSON.stringify({
+            choices: [],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }) as any,
+      })
+      const llmTracing = createMockLlmTracing()
+      const productEventService = createMockProductEventService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        llmTracing,
+        productEventService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            [AIRI_CHAT_APP_SURFACE_HEADER]: 'mobile',
+          },
+          body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'private' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({ contentCaptureAllowed: false }),
+      )
+      expect(productEventService.track).not.toHaveBeenCalled()
+      expect(productEventService.trackGeneration).not.toHaveBeenCalled()
+    })
+
+    it('captures content-free mobile generation metadata after explicit consent without exporting chat content', async () => {
+      const llmRouter = createMockLlmRouter({
+        route: vi.fn(async (_req, ctx) => {
+          if (ctx) {
+            ctx.provider = 'openrouter'
+            ctx.upstreamModel = 'openai/gpt-4o-mini'
+          }
+          return new Response(JSON.stringify({
+            choices: [],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }) as any,
+      })
+      const llmTracing = createMockLlmTracing()
+      const productEventService = createMockProductEventService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV(),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        llmTracing,
+        productEventService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            [AIRI_CHAT_APP_SURFACE_HEADER]: 'mobile',
+            [AIRI_ANALYTICS_CONSENT_HEADER]: 'granted',
+          },
+          body: JSON.stringify({ model: 'chat-auto', messages: [{ role: 'user', content: 'private' }] }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(llmTracing.startChatGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({ contentCaptureAllowed: false }),
+      )
+      expect(productEventService.trackGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({ appSurface: 'mobile', captureSurface: 'server' }),
+      )
+    })
+
     it('uses request-level correlation for server-captured generations without chat headers', async () => {
       const llmRouter = createMockLlmRouter({
         route: vi.fn(async (_req, ctx) => {
@@ -1234,6 +1333,45 @@ describe('v1CompletionsRoutes', () => {
           body: expect.stringContaining('"model":"tts-1-hd"'),
         }),
       )
+    })
+
+    it('does not export mobile speech content or product events without consent', async () => {
+      const llmRouter = createMockLlmRouter({
+        routeTts: vi.fn(async () => new Response(new Uint8Array([1]), {
+          status: 200,
+          headers: { 'Content-Type': 'audio/mpeg' },
+        })),
+      })
+      const llmTracing = createMockLlmTracing()
+      const productEventService = createMockProductEventService()
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        undefined,
+        undefined,
+        undefined,
+        llmRouter,
+        llmTracing,
+        productEventService,
+      )
+
+      await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            [AIRI_CHAT_APP_SURFACE_HEADER]: 'mobile',
+            [AIRI_ANALYTICS_CONSENT_HEADER]: 'denied',
+          },
+          body: JSON.stringify({ model: 'auto', input: 'private reply', voice: 'alloy' }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(llmTracing.startTtsGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({ contentCaptureAllowed: false }),
+      )
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
 
     it('rejects disabled provider catalog TTS models before billing or upstream routing', async () => {

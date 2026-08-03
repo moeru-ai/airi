@@ -16,6 +16,7 @@ vi.mock('@langfuse/tracing', () => ({
 }))
 
 const BASE_INPUT = {
+  contentCaptureAllowed: true,
   input: [{ role: 'user', content: 'hi' }],
   model: 'openai/gpt-5-mini',
   requestId: 'req-1',
@@ -69,6 +70,15 @@ describe('startChatGeneration', () => {
       )
       expect(generationStub.otelSpan.setAttribute).toHaveBeenCalledWith('langfuse.user.id', 'user-1')
       expect(generationStub.otelSpan.setAttribute).toHaveBeenCalledWith('langfuse.session.id', 'sess-9')
+    })
+
+    it('returns a no-op trace when request consent forbids content capture', () => {
+      const trace = startChatGeneration({ ...BASE_INPUT, contentCaptureAllowed: false })
+      trace.succeed({ output: 'private', promptTokens: 1, completionTokens: 1 })
+
+      expect(startObservation).not.toHaveBeenCalled()
+      expect(generationStub.update).not.toHaveBeenCalled()
+      expect(generationStub.end).not.toHaveBeenCalled()
     })
 
     it('omits session attribute when no sessionId is supplied', () => {
@@ -160,6 +170,7 @@ describe('startChatGeneration', () => {
     it('creates a TTS generation and records character usage without buffering audio', () => {
       // @example /audio/speech request: text in, content-type metadata out
       const trace = startTtsGeneration({
+        contentCaptureAllowed: true,
         input: { text: 'hello', voice: 'alloy', responseFormat: 'mp3' },
         model: 'tts-1',
         requestId: 'tts-1',

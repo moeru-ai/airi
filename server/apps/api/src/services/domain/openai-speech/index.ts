@@ -62,6 +62,8 @@ export interface OpenAiSpeechRequest {
   userId: string
   body: Record<string, unknown>
   sessionId?: string
+  analyticsEnabled: boolean
+  contentCaptureAllowed: boolean
   abortSignal?: AbortSignal
 }
 
@@ -127,19 +129,21 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: requestVoice,
     }).log('tts speech request')
 
-    void deps.productEventService.track({
-      userId: input.userId,
-      feature: 'tts',
-      action: 'speech_requested',
-      status: 'started',
-      source: analytics.source,
-      model: requestModel,
-      metadata: {
-        input_chars: inputText.length,
-        trigger: analytics.trigger,
-        ...voiceMetadata,
-      },
-    })
+    if (input.analyticsEnabled) {
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'tts',
+        action: 'speech_requested',
+        status: 'started',
+        source: analytics.source,
+        model: requestModel,
+        metadata: {
+          input_chars: inputText.length,
+          trigger: analytics.trigger,
+          ...voiceMetadata,
+        },
+      })
+    }
 
     const flux = await deps.fluxService.getFlux(input.userId)
     try {
@@ -149,24 +153,26 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       if (!(err instanceof ApiError) || err.statusCode !== 402)
         throw err
 
-      void deps.productEventService.track({
-        userId: input.userId,
-        feature: 'tts',
-        action: 'speech_blocked',
-        status: 'blocked',
-        source: analytics.source,
-        model: requestModel,
-        reason: 'insufficient_balance',
-        metadata: {
-          input_chars: inputText.length,
-          billing_units: billingUnits,
-          block_reason: 'insufficient_balance',
-          balance_state: 'insufficient',
-          flux_balance_bucket: fluxBalanceBucket(flux.flux),
-          trigger: analytics.trigger,
-          ...voiceMetadata,
-        },
-      })
+      if (input.analyticsEnabled) {
+        void deps.productEventService.track({
+          userId: input.userId,
+          feature: 'tts',
+          action: 'speech_blocked',
+          status: 'blocked',
+          source: analytics.source,
+          model: requestModel,
+          reason: 'insufficient_balance',
+          metadata: {
+            input_chars: inputText.length,
+            billing_units: billingUnits,
+            block_reason: 'insufficient_balance',
+            balance_state: 'insufficient',
+            flux_balance_bucket: fluxBalanceBucket(flux.flux),
+            trigger: analytics.trigger,
+            ...voiceMetadata,
+          },
+        })
+      }
       logger.withError(err).withFields({
         requestId,
         userId: input.userId,
@@ -190,6 +196,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     }
 
     const generationTrace = deps.llmTracing.startTtsGeneration({
+      contentCaptureAllowed: input.analyticsEnabled && input.contentCaptureAllowed,
       input: ttsInput,
       model: requestModel,
       requestId,
@@ -227,23 +234,25 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         provider: routeCtx.provider,
         status: failure.status,
       })
-      void deps.productEventService.track({
-        userId: input.userId,
-        feature: 'tts',
-        action: 'speech_failed',
-        status: 'failed',
-        source: analytics.source,
-        model: requestModel,
-        provider: routeCtx.provider,
-        reason: failure.reason,
-        metadata: {
-          http_status: failure.status,
-          duration_ms: Date.now() - startedAt,
-          failure_reason: failure.reason,
-          trigger: analytics.trigger,
-          ...voiceMetadata,
-        },
-      })
+      if (input.analyticsEnabled) {
+        void deps.productEventService.track({
+          userId: input.userId,
+          feature: 'tts',
+          action: 'speech_failed',
+          status: 'failed',
+          source: analytics.source,
+          model: requestModel,
+          provider: routeCtx.provider,
+          reason: failure.reason,
+          metadata: {
+            http_status: failure.status,
+            duration_ms: Date.now() - startedAt,
+            failure_reason: failure.reason,
+            trigger: analytics.trigger,
+            ...voiceMetadata,
+          },
+        })
+      }
       throw err
     }
 
@@ -255,23 +264,25 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       span.end()
       generationTrace.fail(`Gateway ${response.status}`)
       recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      void deps.productEventService.track({
-        userId: input.userId,
-        feature: 'tts',
-        action: 'speech_failed',
-        status: 'failed',
-        source: analytics.source,
-        model: requestModel,
-        provider: routeCtx.provider,
-        reason: 'upstream_error',
-        metadata: {
-          http_status: response.status,
-          duration_ms: durationMs,
-          failure_reason: 'upstream_error',
-          trigger: analytics.trigger,
-          ...voiceMetadata,
-        },
-      })
+      if (input.analyticsEnabled) {
+        void deps.productEventService.track({
+          userId: input.userId,
+          feature: 'tts',
+          action: 'speech_failed',
+          status: 'failed',
+          source: analytics.source,
+          model: requestModel,
+          provider: routeCtx.provider,
+          reason: 'upstream_error',
+          metadata: {
+            http_status: response.status,
+            duration_ms: durationMs,
+            failure_reason: 'upstream_error',
+            trigger: analytics.trigger,
+            ...voiceMetadata,
+          },
+        })
+      }
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
@@ -306,25 +317,27 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     }
 
     recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed })
-    void deps.productEventService.track({
-      userId: input.userId,
-      feature: 'tts',
-      action: 'speech_succeeded',
-      status: 'succeeded',
-      source: analytics.source,
-      model: requestModel,
-      provider: routeCtx.provider,
-      metadata: {
-        http_status: response.status,
-        input_chars: inputText.length,
-        billing_units: billingUnits,
-        cost_multiplier: voicePackRequest.costMultiplier,
-        duration_ms: durationMs,
-        flux_consumed: fluxConsumed,
-        trigger: analytics.trigger,
-        ...voiceMetadata,
-      },
-    })
+    if (input.analyticsEnabled) {
+      void deps.productEventService.track({
+        userId: input.userId,
+        feature: 'tts',
+        action: 'speech_succeeded',
+        status: 'succeeded',
+        source: analytics.source,
+        model: requestModel,
+        provider: routeCtx.provider,
+        metadata: {
+          http_status: response.status,
+          input_chars: inputText.length,
+          billing_units: billingUnits,
+          cost_multiplier: voicePackRequest.costMultiplier,
+          duration_ms: durationMs,
+          flux_consumed: fluxConsumed,
+          trigger: analytics.trigger,
+          ...voiceMetadata,
+        },
+      })
+    }
     deps.requestLogService.logRequest({
       userId: input.userId,
       model: requestModel,
