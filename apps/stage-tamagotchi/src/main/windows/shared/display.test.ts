@@ -9,6 +9,7 @@ import {
   computeResizedBoundsAnchoredToDominantDisplay,
   heightFrom,
   mapForBreakpoints,
+  restoreWindowBounds,
   widthFrom,
 } from './display'
 
@@ -237,5 +238,32 @@ describe('centerWindowOnDisplay', () => {
       show: vi.fn(),
     })).toThrowError('Main AIRI window is not available.')
     expect(getBounds).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreWindowBounds', () => {
+  const primaryWorkArea = { x: 0, y: 25, width: 1440, height: 875 }
+
+  it('moves a fully off-screen window into the matching display work area', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: -2000, y: -900, width: 450, height: 600 },
+      matchingWorkArea: primaryWorkArea,
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 0, y: 25, width: 450, height: 600 })
+  })
+
+  it('keeps a partially off-screen window fully reachable', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: -200, y: 700, width: 450, height: 600 },
+      matchingWorkArea: primaryWorkArea,
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 0, y: 300, width: 450, height: 600 })
+  })
+
+  it('uses the fallback work area when the saved display is unavailable', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: 5000, y: 5000, width: 450, height: 600 },
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 990, y: 300, width: 450, height: 600 })
   })
 })
