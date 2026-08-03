@@ -17,6 +17,7 @@ import Godot from './godot.vue'
 import Live2D from './live2d.vue'
 import MMD from './mmd.vue'
 import Spine from './spine.vue'
+import Tachie from './tachie.vue'
 import VRM from './vrm.vue'
 
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
@@ -91,6 +92,9 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       <p>
         {{ t('settings.model-select.panel-callout.model-type-example') }}
       </p>
+      <p v-if="effectiveRenderer === 'tachie'">
+        {{ t('settings.tachie.archive-description') }}
+      </p>
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
       <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
@@ -123,6 +127,13 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     />
     <MMD
       v-if="effectiveRenderer === 'mmd'"
+      :allow-extract-colors="allowExtractColors"
+      :palette="palette"
+      :runtime-snapshot="runtimeSnapshot"
+      @extract-colors-from-model="emit('extractColorsFromModel')"
+    />
+    <Tachie
+      v-if="effectiveRenderer === 'tachie'"
       :allow-extract-colors="allowExtractColors"
       :palette="palette"
       :runtime-snapshot="runtimeSnapshot"

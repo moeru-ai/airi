@@ -23,7 +23,7 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
-import { capturePosthogEvent } from '../analytics/posthog'
+import { captureAnalyticsEvent } from '../analytics/client'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { useBilingualStore } from '../modules/bilingual'
@@ -443,7 +443,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
 
-    capturePosthogEvent('conversation_created', {
+    captureAnalyticsEvent('conversation_created', {
       conversation_id: sessionId,
       source: options?.messages?.length ? 'fork' : 'new_session',
       character_id: characterId,
@@ -487,11 +487,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     // Snapshot count before the in-memory wipe below zeroes it out.
     const messageCount = (sessionMessages.value[sessionId] ?? []).length
-    capturePosthogEvent('chat_session_deleted', {
+    captureAnalyticsEvent('chat_session_deleted', {
       session_id: sessionId,
       message_count: messageCount,
     })
-    capturePosthogEvent('conversation_deleted', {
+    captureAnalyticsEvent('conversation_deleted', {
       conversation_id: sessionId,
       message_count: messageCount,
       cloud_synced: !!meta.cloudChatId,

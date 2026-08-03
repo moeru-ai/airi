@@ -122,9 +122,9 @@ jobs:
       - name: Wrangler Pages Deploy
         uses: cloudflare/wrangler-action@v3.14.1
         with:
-          apiToken: ${{ secrets.MOERU_CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.MOERU_CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy ./apps/ui-server-auth/dist --project-name=moeru-ai-airi-auth --branch=server-dev
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./apps/ui-server-auth/dist --project-name=airi-accounts-ui --branch=server-dev
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Print preview URL

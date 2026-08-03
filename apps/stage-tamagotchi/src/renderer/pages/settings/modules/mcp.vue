@@ -42,7 +42,7 @@ import {
 } from './mcp-config'
 
 const { t } = useI18n()
-const { trackMcpServerAdded, trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
+const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
@@ -215,7 +215,6 @@ function formatJsonDraft() {
 function addServer() {
   const server = createServerForm()
   servers.value.push(server)
-  trackMcpServerAdded()
   if (!testRowId.value)
     testRowId.value = server.rowId
 }
@@ -476,6 +475,7 @@ onMounted(async () => {
       </article>
 
       <Button
+        v-track-button="{ name: 'mcp_server_added' }"
         variant="secondary-muted" size="md" block :disabled="isBusy"
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"

@@ -20,6 +20,9 @@ send-mode:
   enter: Entrée
   ctrl-enter: Ctrl + Entrée
   double-enter: Double Entrée
+speech-output:
+  mute: Couper la voix
+  unmute: Réactiver la voix
 operations:
   load-models: Charger les modèles
   load-models-status:

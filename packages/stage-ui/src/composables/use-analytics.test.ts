@@ -4,10 +4,10 @@ import { ref } from 'vue'
 import { useAnalytics } from './use-analytics'
 
 const analyticsMocks = vi.hoisted(() => ({
-  ensurePosthogInitializedMock: vi.fn(() => true),
+  ensureAnalyticsInitializedMock: vi.fn(() => true),
   isStageCapacitorMock: vi.fn(() => false),
   isStageTamagotchiMock: vi.fn(() => false),
-  isPosthogAvailableInBuildMock: vi.fn(() => true),
+  isAnalyticsAvailableInBuildMock: vi.fn(() => true),
   markFirstMessageTrackedMock: vi.fn(),
   posthogCaptureMock: vi.fn(),
 }))
@@ -15,12 +15,6 @@ const analyticsMocks = vi.hoisted(() => ({
 vi.mock('@proj-airi/stage-shared', () => ({
   isStageCapacitor: analyticsMocks.isStageCapacitorMock,
   isStageTamagotchi: analyticsMocks.isStageTamagotchiMock,
-}))
-
-vi.mock('posthog-js', () => ({
-  default: {
-    capture: analyticsMocks.posthogCaptureMock,
-  },
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -37,9 +31,10 @@ vi.mock('../stores/analytics', () => ({
   }),
 }))
 
-vi.mock('../stores/analytics/posthog', () => ({
-  ensurePosthogInitialized: analyticsMocks.ensurePosthogInitializedMock,
-  isPosthogAvailableInBuild: analyticsMocks.isPosthogAvailableInBuildMock,
+vi.mock('../stores/analytics/client', () => ({
+  captureAnalyticsEvent: analyticsMocks.posthogCaptureMock,
+  ensureAnalyticsInitialized: analyticsMocks.ensureAnalyticsInitializedMock,
+  isAnalyticsAvailableInBuild: analyticsMocks.isAnalyticsAvailableInBuildMock,
 }))
 
 vi.mock('../stores/analytics/privacy-policy', () => ({
@@ -62,12 +57,12 @@ describe('useAnalytics conversation product events', () => {
   beforeEach(() => {
     analyticsMocks.posthogCaptureMock.mockClear()
     analyticsMocks.markFirstMessageTrackedMock.mockClear()
-    analyticsMocks.ensurePosthogInitializedMock.mockClear()
+    analyticsMocks.ensureAnalyticsInitializedMock.mockClear()
     analyticsMocks.isStageCapacitorMock.mockReset()
     analyticsMocks.isStageTamagotchiMock.mockReset()
     analyticsMocks.isStageCapacitorMock.mockReturnValue(false)
     analyticsMocks.isStageTamagotchiMock.mockReturnValue(false)
-    analyticsMocks.isPosthogAvailableInBuildMock.mockClear()
+    analyticsMocks.isAnalyticsAvailableInBuildMock.mockClear()
   })
 
   it('uses app_surface for the web runtime without occupying the event entry surface', () => {
@@ -80,6 +75,21 @@ describe('useAnalytics conversation product events', () => {
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('tts_stop_clicked', {
       app_surface: 'web',
       reason: 'manual-chat',
+    })
+  })
+
+  it('captures speech mute state changes without conversation or audio content', () => {
+    const analytics = useAnalytics()
+
+    analytics.trackSpeechMuteToggled({
+      muted: true,
+      was_speaking: true,
+    })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenCalledWith('speech_mute_toggled', {
+      app_surface: 'web',
+      muted: true,
+      was_speaking: true,
     })
   })
 
@@ -498,10 +508,7 @@ describe('useAnalytics conversation product events', () => {
       currency: 'USD',
       entry_surface: 'settings_flux',
       plan_id: 'price-1',
-    }, {
-      send_instantly: true,
-      transport: 'sendBeacon',
-    })
+    }, { beforeNavigation: true })
   })
 
   /**
@@ -923,7 +930,7 @@ describe('useAnalytics conversation product events', () => {
       3,
       'oauth_provider_link_started',
       { app_surface: 'web', provider: 'github' },
-      { send_instantly: true, transport: 'sendBeacon' },
+      { beforeNavigation: true },
     )
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'oauth_provider_unlinked', {
       app_surface: 'web',
@@ -979,6 +986,28 @@ describe('useAnalytics conversation product events', () => {
     })
   })
 
+  it('emits stable controls-island actions and flushes reload actions immediately', () => {
+    analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
+    const analytics = useAnalytics()
+
+    analytics.trackControlsIslandAction({ action: 'toggle_chat' })
+    analytics.trackControlsIslandAction({ action: 'refresh_window' })
+
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'controls_island_action', {
+      action: 'toggle_chat',
+      app_surface: 'electron',
+    })
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(
+      2,
+      'controls_island_action',
+      {
+        action: 'refresh_window',
+        app_surface: 'electron',
+      },
+      { beforeNavigation: true },
+    )
+  })
+
   it('emits desktop differentiator events for spotlight, widgets, updater, MCP, and pairing', () => {
     analyticsMocks.isStageTamagotchiMock.mockReturnValue(true)
     const analytics = useAnalytics()
@@ -993,7 +1022,7 @@ describe('useAnalytics conversation product events', () => {
     analytics.trackMcpConnectionTestRun({ success: false })
     analytics.trackDevicePairingQrShown()
 
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'spotlight_used')
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'spotlight_used', {})
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'widget_opened', { widget_id: 'weather' })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(3, 'update_check_clicked', { channel: 'auto' })
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(4, 'update_downloaded', { channel: 'stable', version: '0.11.0' })
@@ -1001,11 +1030,11 @@ describe('useAnalytics conversation product events', () => {
       5,
       'update_install_clicked',
       { channel: 'stable', version: '0.11.0' },
-      { send_instantly: true, transport: 'sendBeacon' },
+      { beforeNavigation: true },
     )
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'mcp_server_added')
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'mcp_server_removed')
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(6, 'mcp_server_added', {})
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(7, 'mcp_server_removed', {})
     expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(8, 'mcp_connection_test_run', { success: false })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'device_pairing_qr_shown')
+    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(9, 'device_pairing_qr_shown', {})
   })
 })

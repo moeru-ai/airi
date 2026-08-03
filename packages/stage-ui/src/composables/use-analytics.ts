@@ -1,13 +1,13 @@
+import type { ControlsIslandAction } from '../stores/analytics/button-events'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
-
-import posthog from 'posthog-js'
 
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useSharedAnalyticsStore } from '../stores/analytics'
-import { ensurePosthogInitialized, isPosthogAvailableInBuild } from '../stores/analytics/posthog'
+import { captureTrackButtonEvent } from '../stores/analytics/button-events'
+import { captureAnalyticsEvent, ensureAnalyticsInitialized, isAnalyticsAvailableInBuild } from '../stores/analytics/client'
 import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
@@ -39,6 +39,8 @@ export type ProductAnalyticsEntry = 'app_start' | 'onboarding' | 'settings' | 'c
 export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
+/** Stable, low-cardinality actions emitted by the Electron controls island. */
+export type { ControlsIslandAction } from '../stores/analytics/button-events'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
@@ -129,21 +131,20 @@ export function useAnalytics() {
 
   const privacyPolicyUrl = computed(() => getAnalyticsPrivacyPolicyUrl(locale.value || settingsGeneral.language))
 
-  const isAnalyticsEnabled = computed(() => isPosthogAvailableInBuild() && settingsAnalytics.analyticsEnabled)
+  const isAnalyticsEnabled = computed(() => isAnalyticsAvailableInBuild() && settingsAnalytics.analyticsEnabled)
 
   function canCapture(): boolean {
     if (!isAnalyticsEnabled.value)
       return false
 
-    // Ensure PostHog is initialized before any capture call.
-    return ensurePosthogInitialized(true)
+    return ensureAnalyticsInitialized(true)
   }
 
   function trackProviderClick(providerId: string, module: string) {
     if (!canCapture())
       return
 
-    posthog.capture('provider_card_clicked', {
+    captureAnalyticsEvent('provider_card_clicked', {
       provider_id: providerId,
       module,
     })
@@ -164,7 +165,7 @@ export function useAnalytics() {
       ? Date.now() - analyticsStore.appStartTime
       : null
 
-    posthog.capture('first_message_sent', {
+    captureAnalyticsEvent('first_message_sent', {
       time_to_first_message_ms: timeToFirstMessageMs,
     })
   }
@@ -185,7 +186,7 @@ export function useAnalytics() {
   function trackPricingViewed(entrySurface: string, planPeriod?: 'monthly' | 'annual' | 'one_time') {
     if (!canCapture())
       return
-    posthog.capture('pricing_page_viewed', { entry_surface: entrySurface, ...(planPeriod && { plan_period: planPeriod }) })
+    captureAnalyticsEvent('pricing_page_viewed', { entry_surface: entrySurface, ...(planPeriod && { plan_period: planPeriod }) })
   }
 
   /**
@@ -195,7 +196,7 @@ export function useAnalytics() {
   function trackPlanSelected(planId: string, properties: { entry_surface: string, price_minor_unit?: number, currency?: string }) {
     if (!canCapture())
       return
-    posthog.capture('plan_selected', { plan_id: planId, ...properties })
+    captureAnalyticsEvent('plan_selected', { plan_id: planId, ...properties })
   }
 
   /**
@@ -205,23 +206,20 @@ export function useAnalytics() {
    *
    * Expects:
    * - Caller awaits or fire-and-forgets this call immediately before
-   *   `window.location.href = ...`. We pass `send_instantly: true` and
-   *   `transport: 'sendBeacon'` so the event survives page navigation —
-   *   the regular batched queue would race the redirect and drop the
-   *   event, which breaks the funnel.
+   *   `window.location.href = ...`. `beforeNavigation` lets the installed
+   *   adapter choose a delivery mechanism that survives document unload.
    *
    * The funnel terminator `payment_completed` is forwarded to PostHog
-   * server-side by the product-events service (allowlist in
-   * `apps/server/src/services/domain/product-events.ts`), keyed by the
-   * Better Auth user id.
+   * server-side by the product-events service, keyed by the Better Auth
+   * user id.
    */
   function trackCheckoutStarted(planId: string, properties: { entry_surface: string, checkout_session_id?: string, price_minor_unit?: number, currency?: string }) {
     if (!canCapture())
       return
-    posthog.capture(
+    captureAnalyticsEvent(
       'checkout_started',
       { plan_id: planId, ...properties },
-      { send_instantly: true, transport: 'sendBeacon' },
+      { beforeNavigation: true },
     )
   }
 
@@ -232,7 +230,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('paywall_seen', {
+    captureAnalyticsEvent('paywall_seen', {
       entry_surface: properties.entry_surface,
       app_surface: getConversationAnalyticsSurface(),
       reason: properties.reason,
@@ -250,7 +248,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('oauth_callback_failed', {
+    captureAnalyticsEvent('oauth_callback_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -262,13 +260,13 @@ export function useAnalytics() {
   function trackPasswordChanged() {
     if (!canCapture())
       return
-    posthog.capture('password_changed', { app_surface: getConversationAnalyticsSurface() })
+    captureAnalyticsEvent('password_changed', { app_surface: getConversationAnalyticsSurface() })
   }
 
   function trackPasswordResetRequested() {
     if (!canCapture())
       return
-    posthog.capture('password_reset_requested', { app_surface: getConversationAnalyticsSurface() })
+    captureAnalyticsEvent('password_reset_requested', { app_surface: getConversationAnalyticsSurface() })
   }
 
   function trackOauthProviderLinkStarted(properties: { provider: string }) {
@@ -277,20 +275,20 @@ export function useAnalytics() {
     // The only caller (`useLinkedAccounts.link`) navigates to the OAuth
     // consent page right after this hook — the batched queue would race
     // the unload and drop the event, same as `trackCheckoutStarted`.
-    posthog.capture(
+    captureAnalyticsEvent(
       'oauth_provider_link_started',
       {
         ...properties,
         app_surface: getConversationAnalyticsSurface(),
       },
-      { send_instantly: true, transport: 'sendBeacon' },
+      { beforeNavigation: true },
     )
   }
 
   function trackOauthProviderUnlinked(properties: { provider: string }) {
     if (!canCapture())
       return
-    posthog.capture('oauth_provider_unlinked', {
+    captureAnalyticsEvent('oauth_provider_unlinked', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -304,13 +302,13 @@ export function useAnalytics() {
   function trackAccountDeletionRequested() {
     if (!canCapture())
       return
-    posthog.capture('account_deletion_requested', { app_surface: getConversationAnalyticsSurface() })
+    captureAnalyticsEvent('account_deletion_requested', { app_surface: getConversationAnalyticsSurface() })
   }
 
   function trackOnboardingStarted(properties: { entry: ProductAnalyticsEntry }) {
     if (!canCapture())
       return
-    posthog.capture('onboarding_started', {
+    captureAnalyticsEvent('onboarding_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -319,7 +317,7 @@ export function useAnalytics() {
   function trackOnboardingCompleted(properties: OnboardingProviderProperties) {
     if (!canCapture())
       return
-    posthog.capture('onboarding_completed', {
+    captureAnalyticsEvent('onboarding_completed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -329,14 +327,14 @@ export function useAnalytics() {
   function trackCharacterCreated(properties: { character_type: 'built_in' | 'custom', voice_enabled: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('character_created', properties)
+    captureAnalyticsEvent('character_created', properties)
   }
 
   /** Feature adoption — voice mode is a candidate retention lever; cohort comparisons live in PostHog. */
   function trackVoiceModeActivated(characterId?: string) {
     if (!canCapture())
       return
-    posthog.capture('voice_mode_activated', characterId ? { character_id: characterId } : {})
+    captureAnalyticsEvent('voice_mode_activated', characterId ? { character_id: characterId } : {})
   }
 
   /**
@@ -347,8 +345,8 @@ export function useAnalytics() {
   function trackModelSwitched(fromModel: string, toModel: string, reason: 'manual' | 'auto' = 'manual') {
     if (!canCapture())
       return
-    posthog.capture('model_switched', { from_model: fromModel, to_model: toModel, reason })
-    posthog.capture('model_changed', {
+    captureAnalyticsEvent('model_switched', { from_model: fromModel, to_model: toModel, reason })
+    captureAnalyticsEvent('model_changed', {
       from_model: fromModel,
       to_model: toModel,
       reason,
@@ -364,12 +362,12 @@ export function useAnalytics() {
   function trackChatSessionStarted(modelId: string, sessionIndex?: number) {
     if (!canCapture())
       return
-    posthog.capture('chat_session_started', { model_id: modelId, ...(sessionIndex != null && { session_index: sessionIndex }) })
+    captureAnalyticsEvent('chat_session_started', { model_id: modelId, ...(sessionIndex != null && { session_index: sessionIndex }) })
   }
 
   // ─── LLM round events (client-known fields only) ──────────────────────
   // Source-of-truth for HTTP status / token usage / billing stage is the
-  // server (apps/server/src/routes/openai/v1), which records them as
+  // server, which records them as
   // Postgres `product_events` rows — deliberately NOT forwarded to PostHog
   // (per-request volume stays in DB/Grafana). These client emits supply the
   // user-facing latency picture (TTFT, render time) the server cannot see.
@@ -377,27 +375,27 @@ export function useAnalytics() {
   function trackMessageSendStarted(properties: ChatRoundCorrelationProperties & { source: 'text' | 'voice', model?: string }) {
     if (!canCapture())
       return
-    posthog.capture('message_send_started', properties)
+    captureAnalyticsEvent('message_send_started', properties)
   }
 
   function trackLlmRequestStarted(properties: ChatRoundCorrelationProperties & { model: string, provider: string, has_voice: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('llm_request_started', properties)
+    captureAnalyticsEvent('llm_request_started', properties)
   }
 
   /** First token from a streaming LLM response — perceived responsiveness anchor. */
   function trackLlmFirstToken(properties: ChatRoundCorrelationProperties & { model: string, ttfb_ms: number }) {
     if (!canCapture())
       return
-    posthog.capture('llm_first_token', properties)
+    captureAnalyticsEvent('llm_first_token', properties)
   }
 
   /** Stream finished and the UI has fully rendered the assistant message. */
   function trackAssistantResponseRendered(properties: ChatRoundCorrelationProperties & { model: string, latency_ms: number }) {
     if (!canCapture())
       return
-    posthog.capture('assistant_response_rendered', properties)
+    captureAnalyticsEvent('assistant_response_rendered', properties)
   }
 
   /** Cost-fact event for one custom-provider generation; content is intentionally excluded. */
@@ -420,7 +418,7 @@ export function useAnalytics() {
         ? properties.input_tokens + properties.output_tokens
         : undefined)
 
-    posthog.capture('$ai_generation', {
+    captureAnalyticsEvent('$ai_generation', {
       $ai_trace_id: properties.conversation_id,
       $ai_session_id: properties.conversation_id,
       $ai_span_id: properties.round_id,
@@ -455,7 +453,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('message_round', properties)
+    captureAnalyticsEvent('message_round', properties)
   }
 
   /** Canonical failure event for every user-to-assistant round, including post-activation turns. */
@@ -468,7 +466,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('message_round_failed', {
+    captureAnalyticsEvent('message_round_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -479,7 +477,7 @@ export function useAnalytics() {
   function trackChatActivationStarted(properties: ChatActivationBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('chat_activation_started', {
+    captureAnalyticsEvent('chat_activation_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -488,7 +486,7 @@ export function useAnalytics() {
   function trackChatActivationSucceeded(properties: ChatActivationBaseProperties & { time_to_first_message_ms?: number }) {
     if (!canCapture())
       return
-    posthog.capture('chat_activation_succeeded', {
+    captureAnalyticsEvent('chat_activation_succeeded', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -500,7 +498,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('chat_activation_failed', {
+    captureAnalyticsEvent('chat_activation_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -515,7 +513,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('official_provider_selected', {
+    captureAnalyticsEvent('official_provider_selected', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -532,7 +530,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('message_sent', {
+    captureAnalyticsEvent('message_sent', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -541,7 +539,7 @@ export function useAnalytics() {
   function trackSecondTurnStarted(properties: ChatActivationBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('second_turn_started', {
+    captureAnalyticsEvent('second_turn_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -555,7 +553,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('model_list_loaded', {
+    captureAnalyticsEvent('model_list_loaded', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -569,7 +567,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('model_list_failed', {
+    captureAnalyticsEvent('model_list_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -578,7 +576,7 @@ export function useAnalytics() {
   function trackProviderConfigStarted(properties: ProviderConfigBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('provider_config_started', {
+    captureAnalyticsEvent('provider_config_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -587,7 +585,7 @@ export function useAnalytics() {
   function trackProviderConfigSucceeded(properties: ProviderConfigBaseProperties & { duration_ms: number }) {
     if (!canCapture())
       return
-    posthog.capture('provider_config_succeeded', {
+    captureAnalyticsEvent('provider_config_succeeded', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -609,7 +607,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('provider_config_failed', {
+    captureAnalyticsEvent('provider_config_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -622,7 +620,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('provider_config_completed', {
+    captureAnalyticsEvent('provider_config_completed', {
       ...properties,
       provider_type: properties.provider_mode,
       provider_name: properties.provider_id,
@@ -637,7 +635,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('official_provider_enabled', {
+    captureAnalyticsEvent('official_provider_enabled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -648,7 +646,19 @@ export function useAnalytics() {
   function trackTtsStopClicked(properties: { reason: SpeechOutputStopReason }) {
     if (!canCapture())
       return
-    posthog.capture('tts_stop_clicked', {
+    captureAnalyticsEvent('tts_stop_clicked', {
+      ...properties,
+      app_surface: getConversationAnalyticsSurface(),
+    })
+  }
+
+  function trackSpeechMuteToggled(properties: {
+    muted: boolean
+    was_speaking: boolean
+  }) {
+    if (!canCapture())
+      return
+    captureAnalyticsEvent('speech_mute_toggled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -657,7 +667,7 @@ export function useAnalytics() {
   function trackChatSessionSelected(properties: { source: 'sessions_drawer', message_count: number, cloud_synced: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('chat_session_selected', {
+    captureAnalyticsEvent('chat_session_selected', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -666,7 +676,7 @@ export function useAnalytics() {
   function trackChatMessageDeleted(properties: { source: 'history', message_role: string }) {
     if (!canCapture())
       return
-    posthog.capture('chat_message_deleted', {
+    captureAnalyticsEvent('chat_message_deleted', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -675,7 +685,7 @@ export function useAnalytics() {
   function trackChatMessagesCleared(properties: { source: 'chat_controls', message_count: number }) {
     if (!canCapture())
       return
-    posthog.capture('chat_messages_cleared', {
+    captureAnalyticsEvent('chat_messages_cleared', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -684,7 +694,7 @@ export function useAnalytics() {
   function trackChatMessageRetried(properties: { source: 'history' }) {
     if (!canCapture())
       return
-    posthog.capture('chat_message_retried', {
+    captureAnalyticsEvent('chat_message_retried', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -698,7 +708,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('conversation_created', {
+    captureAnalyticsEvent('conversation_created', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -710,7 +720,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('conversation_renamed', {
+    captureAnalyticsEvent('conversation_renamed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -722,7 +732,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('conversation_shared', {
+    captureAnalyticsEvent('conversation_shared', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -735,7 +745,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('conversation_deleted', {
+    captureAnalyticsEvent('conversation_deleted', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -746,29 +756,29 @@ export function useAnalytics() {
   function trackSttStarted(provider: string) {
     if (!canCapture())
       return
-    posthog.capture('stt_started', { provider })
+    captureAnalyticsEvent('stt_started', { provider })
   }
 
   function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('stt_succeeded', properties)
+    captureAnalyticsEvent('stt_succeeded', properties)
   }
 
   function trackSttFailed(properties: { provider: string, error_code?: string }) {
     if (!canCapture())
       return
-    posthog.capture('stt_failed', properties)
+    captureAnalyticsEvent('stt_failed', properties)
   }
 
   function trackVoiceInputStarted(properties: VoiceInputBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('voice_input_started', {
+    captureAnalyticsEvent('voice_input_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
-    posthog.capture('voice_input_used', {
+    captureAnalyticsEvent('voice_input_used', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -777,7 +787,7 @@ export function useAnalytics() {
   function trackMicrophonePermissionRequested(properties: VoiceInputBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('microphone_permission_requested', {
+    captureAnalyticsEvent('microphone_permission_requested', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -786,7 +796,7 @@ export function useAnalytics() {
   function trackMicrophonePermissionDenied(properties: VoiceInputBaseProperties & { error_code?: 'permission_denied' | string }) {
     if (!canCapture())
       return
-    posthog.capture('microphone_permission_denied', {
+    captureAnalyticsEvent('microphone_permission_denied', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -795,7 +805,7 @@ export function useAnalytics() {
   function trackAudioDeviceUnavailable(properties: VoiceInputBaseProperties & { error_code?: 'device_unavailable' | string }) {
     if (!canCapture())
       return
-    posthog.capture('audio_device_unavailable', {
+    captureAnalyticsEvent('audio_device_unavailable', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -804,7 +814,7 @@ export function useAnalytics() {
   function trackVoiceInputCancelled(properties: VoiceInputBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('voice_input_cancelled', {
+    captureAnalyticsEvent('voice_input_cancelled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -819,7 +829,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('bug_report_submitted', {
+    captureAnalyticsEvent('bug_report_submitted', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -828,7 +838,7 @@ export function useAnalytics() {
   function trackFeedbackSubmitted(properties: FeedbackBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('feedback_submitted', {
+    captureAnalyticsEvent('feedback_submitted', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -839,13 +849,13 @@ export function useAnalytics() {
   function trackPttPressed() {
     if (!canCapture())
       return
-    posthog.capture('ptt_pressed')
+    captureAnalyticsEvent('ptt_pressed', {})
   }
 
   function trackPttReleased(holdMs: number) {
     if (!canCapture())
       return
-    posthog.capture('ptt_released', { hold_ms: holdMs })
+    captureAnalyticsEvent('ptt_released', { hold_ms: holdMs })
   }
 
   // ─── TTS events (forwarded from speech bus by use-speech-pipeline-analytics) ─
@@ -856,25 +866,25 @@ export function useAnalytics() {
   function trackTtsIntentStarted(properties: { intent_id: string, turn_id?: string }) {
     if (!canCapture())
       return
-    posthog.capture('tts_intent_started', properties)
+    captureAnalyticsEvent('tts_intent_started', properties)
   }
 
   function trackTtsIntentEnded(properties: { intent_id: string, turn_id?: string, duration_ms: number }) {
     if (!canCapture())
       return
-    posthog.capture('tts_intent_ended', properties)
+    captureAnalyticsEvent('tts_intent_ended', properties)
   }
 
   function trackTtsIntentCancelled(properties: { intent_id: string, turn_id?: string, reason?: string }) {
     if (!canCapture())
       return
-    posthog.capture('tts_intent_cancelled', properties)
+    captureAnalyticsEvent('tts_intent_cancelled', properties)
   }
 
   function trackTtsProviderSelected(properties: TtsVoiceBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('tts_provider_selected', {
+    captureAnalyticsEvent('tts_provider_selected', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -887,7 +897,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('voice_selected', {
+    captureAnalyticsEvent('voice_selected', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -900,7 +910,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('voice_preview_played', {
+    captureAnalyticsEvent('voice_preview_played', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -912,7 +922,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('voice_pack_bound', {
+    captureAnalyticsEvent('voice_pack_bound', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -926,7 +936,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('attachment_uploaded', {
+    captureAnalyticsEvent('attachment_uploaded', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -935,7 +945,7 @@ export function useAnalytics() {
   function trackOfficialTtsExposed(properties: OfficialTtsBaseProperties) {
     if (!canCapture())
       return
-    posthog.capture('official_tts_exposed', {
+    captureAnalyticsEvent('official_tts_exposed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -948,7 +958,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('preset_used', {
+    captureAnalyticsEvent('preset_used', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -962,7 +972,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('official_tts_preview_started', {
+    captureAnalyticsEvent('official_tts_preview_started', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -977,7 +987,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('official_tts_preview_succeeded', {
+    captureAnalyticsEvent('official_tts_preview_succeeded', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -992,7 +1002,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('provider_switched', {
+    captureAnalyticsEvent('provider_switched', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1006,7 +1016,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('settings_changed', {
+    captureAnalyticsEvent('settings_changed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1019,7 +1029,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('support_contacted', {
+    captureAnalyticsEvent('support_contacted', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1031,7 +1041,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('official_tts_auto_enabled', {
+    captureAnalyticsEvent('official_tts_auto_enabled', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1042,7 +1052,7 @@ export function useAnalytics() {
   function trackAutonomousGenerateText(properties: { model: string, reason?: string }) {
     if (!canCapture())
       return
-    posthog.capture('autonomous_generate_text', properties)
+    captureAnalyticsEvent('autonomous_generate_text', properties)
   }
 
   // ─── AIRI card (ccv3 character card) events ──────────────────────────
@@ -1055,7 +1065,7 @@ export function useAnalytics() {
   function trackCardEdited(properties: { card_id: string }) {
     if (!canCapture())
       return
-    posthog.capture('card_edited', {
+    captureAnalyticsEvent('card_edited', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1065,7 +1075,7 @@ export function useAnalytics() {
   function trackSceneBackgroundSet(properties: { source: 'scene_settings' | 'card_gallery', cleared: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('scene_background_set', {
+    captureAnalyticsEvent('scene_background_set', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1074,7 +1084,7 @@ export function useAnalytics() {
   function trackCharacterUpdated(properties: { character_id: string }) {
     if (!canCapture())
       return
-    posthog.capture('character_updated', properties)
+    captureAnalyticsEvent('character_updated', properties)
   }
 
   // ─── App lifecycle ───────────────────────────────────────────────────
@@ -1082,7 +1092,7 @@ export function useAnalytics() {
   function trackAppLoaded(properties: { platform: 'web' | 'desktop' | 'mobile', version: string, cold_start_ms?: number }) {
     if (!canCapture())
       return
-    posthog.capture('app_loaded', properties)
+    captureAnalyticsEvent('app_loaded', properties)
   }
 
   // ─── Feature usage / retention ───────────────────────────────────────
@@ -1090,31 +1100,31 @@ export function useAnalytics() {
   function trackCharacterDeleted(properties: { character_id: string }) {
     if (!canCapture())
       return
-    posthog.capture('character_deleted', properties)
+    captureAnalyticsEvent('character_deleted', properties)
   }
 
   function trackCharacterSwitched(properties: { from_character_id?: string, to_character_id: string }) {
     if (!canCapture())
       return
-    posthog.capture('character_switched', properties)
+    captureAnalyticsEvent('character_switched', properties)
   }
 
   function trackChatSessionDeleted(properties: { session_id: string, message_count: number }) {
     if (!canCapture())
       return
-    posthog.capture('chat_session_deleted', properties)
+    captureAnalyticsEvent('chat_session_deleted', properties)
   }
 
   function trackOnboardingStepCompleted(step: string) {
     if (!canCapture())
       return
-    posthog.capture('onboarding_step_completed', { step })
+    captureAnalyticsEvent('onboarding_step_completed', { step })
   }
 
   function trackOnboardingSkipped(at_step: string) {
     if (!canCapture())
       return
-    posthog.capture('onboarding_skipped', { at_step })
+    captureAnalyticsEvent('onboarding_skipped', { at_step })
   }
 
   // ─── Monetization (client side) ──────────────────────────────────────
@@ -1122,13 +1132,13 @@ export function useAnalytics() {
   function trackFluxLowWarningShown(properties: { balance: number, threshold: number }) {
     if (!canCapture())
       return
-    posthog.capture('flux_low_warning_shown', properties)
+    captureAnalyticsEvent('flux_low_warning_shown', properties)
   }
 
   function trackFluxTopupClicked(properties: { balance: number, entry_surface: string }) {
     if (!canCapture())
       return
-    posthog.capture('flux_topup_clicked', properties)
+    captureAnalyticsEvent('flux_topup_clicked', properties)
   }
 
   function trackQuotaLimitReached(properties: {
@@ -1139,7 +1149,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('quota_limit_reached', properties)
+    captureAnalyticsEvent('quota_limit_reached', properties)
   }
 
   function trackUpgradeClicked(properties: {
@@ -1149,7 +1159,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('upgrade_clicked', properties)
+    captureAnalyticsEvent('upgrade_clicked', properties)
   }
 
   function trackFeatureUsed(properties: {
@@ -1160,7 +1170,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('feature_used', {
+    captureAnalyticsEvent('feature_used', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1179,7 +1189,7 @@ export function useAnalytics() {
   }) {
     if (!canCapture())
       return
-    posthog.capture('data_action', {
+    captureAnalyticsEvent('data_action', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1191,60 +1201,56 @@ export function useAnalytics() {
   // server management. Input text never leaves the device — events carry
   // counts and low-cardinality ids only.
 
+  function trackControlsIslandAction(properties: { action: ControlsIslandAction }) {
+    captureTrackButtonEvent({ name: 'controls_island_action', ...properties })
+  }
+
   function trackSpotlightUsed() {
     if (!canCapture())
       return
-    posthog.capture('spotlight_used')
+    captureAnalyticsEvent('spotlight_used', {})
   }
 
   function trackWidgetOpened(properties: { widget_id: string }) {
     if (!canCapture())
       return
-    posthog.capture('widget_opened', properties)
+    captureAnalyticsEvent('widget_opened', properties)
   }
 
   function trackUpdateCheckClicked(properties: { channel: string }) {
-    if (!canCapture())
-      return
-    posthog.capture('update_check_clicked', properties)
+    captureTrackButtonEvent({ name: 'update_check_clicked', ...properties })
   }
 
   function trackUpdateDownloaded(properties: { channel: string, version?: string }) {
     if (!canCapture())
       return
-    posthog.capture('update_downloaded', properties)
+    captureAnalyticsEvent('update_downloaded', properties)
   }
 
   /** User confirmed restart-and-install; the app quits right after. */
   function trackUpdateInstallClicked(properties: { channel: string, version?: string }) {
-    if (!canCapture())
-      return
-    posthog.capture('update_install_clicked', properties, { send_instantly: true, transport: 'sendBeacon' })
+    captureTrackButtonEvent({ name: 'update_install_clicked', ...properties })
   }
 
   function trackMcpServerAdded() {
-    if (!canCapture())
-      return
-    posthog.capture('mcp_server_added')
+    captureTrackButtonEvent({ name: 'mcp_server_added' })
   }
 
   function trackMcpServerRemoved() {
-    if (!canCapture())
-      return
-    posthog.capture('mcp_server_removed')
+    captureTrackButtonEvent({ name: 'mcp_server_removed' })
   }
 
   function trackMcpConnectionTestRun(properties: { success: boolean }) {
     if (!canCapture())
       return
-    posthog.capture('mcp_connection_test_run', properties)
+    captureAnalyticsEvent('mcp_connection_test_run', properties)
   }
 
   /** Pairing QR revealed — the funnel start for `device_channel_connected`. */
   function trackDevicePairingQrShown() {
     if (!canCapture())
       return
-    posthog.capture('device_pairing_qr_shown')
+    captureAnalyticsEvent('device_pairing_qr_shown', {})
   }
 
   // ─── Voice clone (custom TTS voice) ──────────────────────────────────
@@ -1252,7 +1258,7 @@ export function useAnalytics() {
   function trackVoiceCloneCreated(properties: { provider: string }) {
     if (!canCapture())
       return
-    posthog.capture('voice_clone_created', properties)
+    captureAnalyticsEvent('voice_clone_created', properties)
   }
 
   // ─── Device pairing / channel (Electron / Tamagotchi) ─────────────────
@@ -1260,7 +1266,7 @@ export function useAnalytics() {
   function trackDeviceChannelConnected(properties: { channel: string }) {
     if (!canCapture())
       return
-    posthog.capture('device_channel_connected', properties)
+    captureAnalyticsEvent('device_channel_connected', properties)
   }
 
   return {
@@ -1305,6 +1311,7 @@ export function useAnalytics() {
     trackProviderConfigCompleted,
     trackOfficialProviderEnabled,
     trackTtsStopClicked,
+    trackSpeechMuteToggled,
     trackChatSessionSelected,
     trackChatMessageDeleted,
     trackChatMessagesCleared,
@@ -1367,6 +1374,7 @@ export function useAnalytics() {
     trackDeviceChannelConnected,
 
     trackDataAction,
+    trackControlsIslandAction,
     trackSpotlightUsed,
     trackWidgetOpened,
     trackUpdateCheckClicked,

@@ -26,18 +26,20 @@
     "./utils/mmd-loader": "./src/utils/mmd-loader.ts",
     "./utils/mmd-preview": "./src/utils/mmd-preview.ts",
     "./utils/mmd-validator": "./src/utils/mmd-validator.ts",
-    "./utils/mmd-zip-loader": "./src/utils/mmd-zip-loader.ts"
+    "./utils/mmd-zip-loader": "./src/utils/mmd-zip-loader.ts",
+    "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
     "@moeru/std": "catalog:",
+    "@moeru/three-mmd": "catalog:",
+    "@moeru/three-mmd-physics-ammo": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@vueuse/core": "catalog:",
     "@xsai/tool": "catalog:",
-    "ammojs-typed": "catalog:",
     "culori": "catalog:",
     "es-toolkit": "catalog:",
     "jszip": "catalog:",
@@ -51,6 +53,7 @@
   "devDependencies": {
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
+    "@vitest/browser-playwright": "catalog:vitest",
     "vitest": "catalog:vitest",
     "vue-tsc": "catalog:"
   }
