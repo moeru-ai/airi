@@ -60,11 +60,6 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
-  /**
-   * Whether this turn's system prompt requires bilingual routing sections.
-   * When enabled, routing tags are removed from the persisted assistant text.
-   */
-  bilingualResponse?: boolean
 }
 
 interface QueuedSend {
@@ -245,6 +240,8 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /** Returns whether the response format is bilingual when the queued turn begins. */
+  getBilingualResponse?: () => boolean
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -510,6 +507,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
+      bilingualResponse: deps.getBilingualResponse?.() ?? false,
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: streamContextMessageId },
       contexts: deps.context.snapshot(),
       composedMessage: [],
@@ -673,21 +671,23 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
 
-          const cleanedText = cleanBilingualRoutingTags(buildingMessage.content, options.bilingualResponse === true)
-          if (cleanedText !== buildingMessage.content) {
-            buildingMessage.content = cleanedText
-            let hasReplacedFirstText = false
-            buildingMessage.slices = buildingMessage.slices.filter((slice) => {
-              if (slice.type === 'text') {
-                if (!hasReplacedFirstText) {
-                  slice.text = cleanedText
-                  hasReplacedFirstText = true
-                  return true
+          if (typeof buildingMessage.content === 'string') {
+            const cleanedText = cleanBilingualRoutingTags(buildingMessage.content, streamingMessageContext.bilingualResponse)
+            if (cleanedText !== buildingMessage.content) {
+              buildingMessage.content = cleanedText
+              let hasReplacedFirstText = false
+              buildingMessage.slices = buildingMessage.slices.filter((slice) => {
+                if (slice.type === 'text') {
+                  if (!hasReplacedFirstText) {
+                    slice.text = cleanedText
+                    hasReplacedFirstText = true
+                    return true
+                  }
+                  return false
                 }
-                return false
-              }
-              return true
-            })
+                return true
+              })
+            }
           }
 
           patchForegroundStream(sessionId, buildingMessage)

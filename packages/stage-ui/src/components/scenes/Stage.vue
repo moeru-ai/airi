@@ -193,6 +193,32 @@ let bilingualParser = new BilingualStreamParser({
 // Capture the routing policy when a response begins. Store changes are for the
 // next response and must not change caption behavior for queued audio tokens.
 let bilingualCaptionsEnabledForTurn = bilingualStore.enabled
+let hasBilingualSubtitleForTurn = false
+
+function appendBilingualCaption(captionChunk: string) {
+  if (!hasBilingualSubtitleForTurn) {
+    // The [TTS] section can begin playback before the model emits subtitles.
+    // Replace that temporary spoken caption once the first subtitle arrives.
+    hasBilingualSubtitleForTurn = true
+    assistantCaption.value = ''
+    try {
+      postPresent({ type: 'assistant-reset' })
+    }
+    catch {}
+  }
+
+  assistantCaption.value += captionChunk
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+    postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+  }
+  catch {}
+  try {
+    postPresent({ type: 'assistant-append', text: captionChunk })
+  }
+  catch {}
+}
+
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
@@ -594,8 +620,9 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
       nowSpeaking.value = true
   },
   onStart: ({ item }) => {
-    // Bilingual captions are streamed by token hooks for this response.
-    if (bilingualCaptionsEnabledForTurn)
+    // Once subtitle text arrives it replaces this provisional spoken caption.
+    // Subsequent playback must not overwrite the requested subtitle tracks.
+    if (bilingualCaptionsEnabledForTurn && hasBilingualSubtitleForTurn)
       return
 
     // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
@@ -835,7 +862,8 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
-  bilingualCaptionsEnabledForTurn = bilingualStore.enabled
+  bilingualCaptionsEnabledForTurn = context.bilingualResponse
+  hasBilingualSubtitleForTurn = false
   bilingualParser = new BilingualStreamParser({
     enabled: bilingualCaptionsEnabledForTurn,
     ttsTag: BILINGUAL_TAG_TTS,
@@ -863,16 +891,7 @@ chatHookCleanups.push(onTokenLiteral(async (literal) => {
     currentSession?.appendText(ttsChunk)
   }
   if (bilingualCaptionsEnabledForTurn && captionChunk) {
-    assistantCaption.value += captionChunk
-    try {
-      postCaption({ type: 'caption-assistant', text: '' })
-      postCaption({ type: 'caption-assistant', text: assistantCaption.value })
-    }
-    catch {}
-    try {
-      postPresent({ type: 'assistant-append', text: captionChunk })
-    }
-    catch {}
+    appendBilingualCaption(captionChunk)
   }
 }))
 
@@ -893,16 +912,7 @@ chatHookCleanups.push(onStreamEnd(async () => {
     currentSession?.appendText(ttsChunk)
   }
   if (bilingualCaptionsEnabledForTurn && captionChunk) {
-    assistantCaption.value += captionChunk
-    try {
-      postCaption({ type: 'caption-assistant', text: '' })
-      postCaption({ type: 'caption-assistant', text: assistantCaption.value })
-    }
-    catch {}
-    try {
-      postPresent({ type: 'assistant-append', text: captionChunk })
-    }
-    catch {}
+    appendBilingualCaption(captionChunk)
   }
   currentSession?.finishInput()
 }))

@@ -196,6 +196,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getBilingualResponse: () => bilingualEnabled.value,
     runtimeContextProviders: [
       createMinecraftContext,
     ],
@@ -383,12 +384,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
-    return runtime.ingest(sendingMessage, {
-      ...options,
-      // Keep transcript cleanup aligned with the response-format instruction
-      // that is active when this turn begins, even if the user toggles it mid-stream.
-      bilingualResponse: bilingualEnabled.value,
-    }, targetSessionId)
+    return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
   async function ingestOnFork(

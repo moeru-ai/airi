@@ -52,6 +52,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: Context
 export interface ChatStreamEventContext {
   /** Stable correlation id shared by every hook emitted for one user turn. */
   turnId: string
+  /** Whether this turn was configured to use the bilingual response format. */
+  bilingualResponse: boolean
   message: ChatHistoryItem
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
