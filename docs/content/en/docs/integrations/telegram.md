@@ -19,15 +19,15 @@ Keep the Telegram Bot Token, database connection, and model API keys only in the
 ## Configure
 
 ```bash
-cp services/telegram-bot/.env services/telegram-bot/.env.local
+cp integrations/telegram-bot/.env integrations/telegram-bot/.env.local
 ```
 
-Edit **services/telegram-bot/.env.local** and provide **TELEGRAM_BOT_TOKEN**, the database connection, and the chat-model and embedding-model settings. The embedding service's output size must match `EMBEDDING_DIMENSION`; supported values are `768`, `1024`, and `1536`.
+Edit **integrations/telegram-bot/.env.local** and provide **TELEGRAM_BOT_TOKEN**, the database connection, and the chat-model and embedding-model settings. The embedding service's output size must match `EMBEDDING_DIMENSION`; supported values are `768`, `1024`, and `1536`.
 
 ## Initialize the database
 
 ```bash
-cd services/telegram-bot
+cd integrations/telegram-bot
 docker compose up -d --wait pgvector
 cd ../..
 pnpm -F @proj-airi/telegram-bot db:push

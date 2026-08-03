@@ -6,7 +6,7 @@ description: Configuring OpenAI or an OpenAI-compatible API as a speech recognit
 This page configures an OpenAI-compatible transcription API. After saving it, select the provider and model under **Settings → Modules → Hearing** and test microphone input.
 
 ::: info Why use an OpenAI-compatible API for ASR/STT?
-If your speech recognition service provider clearly provides an OpenAI-compatible transcription interface, you can access AIRI as described on this page. Merely having an API address ending with `/v1` or a key starting with `sk-` does not guarantee service compatibility.
+If your transcription provider implements the OpenAI transcription API, follow this guide to connect it to AIRI. An API address ending with `/v1` or a key starting with `sk-` does not by itself guarantee compatibility.
 :::
 
 ## Obtain API Key
@@ -29,7 +29,7 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 1. Select the configured service provider and model in **Settings → Modules → Hearing**, then select the audio input device.
 2. Click **Start Monitoring**, then speak into the microphone or play an audio clip.
-3. Confirm that the text can be output in real time in the transcription area; if the recognition result is inaccurate, you can adjust the sensitivity and test again.
+3. Confirm that text appears in the transcription area. If recognition is inaccurate, adjust the sensitivity and test again.
 
 ## Troubleshooting
 

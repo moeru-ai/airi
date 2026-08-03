@@ -32,4 +32,4 @@ After the key is leaked, please immediately revoke and recreate it in the Google
 
 ## Troubleshooting
 
-The provider validation checks the network, model list, and chat requests. When a permission or model unavailable error occurs, please first check the API activation status and regional availability of the project corresponding to the API Key. Do not rewrite the model names displayed in Google AI Studio to other formats; in AIRI, select from the model list first.
+Provider validation checks connectivity, model listing, and chat requests. If AIRI reports a permission error or an unavailable model, confirm that the Gemini API is enabled for the API key's project and that the model is available in the project's region. Use the model names returned in AIRI instead of rewriting names shown in Google AI Studio.

@@ -3,10 +3,10 @@ title: OpenAI Compatible API (TTS)
 description: Configuring OpenAI or an OpenAI-compatible API as a speech synthesis provider in AIRI
 ---
 
-This page is used to configure OpenAI or a service provider that provides an OpenAI-compatible voice interface. After completing the configuration, select the model and voice in **Settings → Modules → Speech**.
+This page configures a provider that implements the OpenAI speech API. After saving the provider, select its model and voice in **Settings → Modules → Speech**.
 
 ::: info Why use an OpenAI-compatible API for TTS?
-If your voice service provider explicitly provides an OpenAI-compatible speech synthesis interface, you can use the same configuration method to access AIRI. Merely having an API address ending with `/v1` or a key starting with `sk-` does not guarantee service compatibility.
+Use this provider when your speech service explicitly supports the OpenAI speech API. An API address ending with `/v1` or a key starting with `sk-` does not by itself guarantee compatibility.
 :::
 
 ## Obtain API Key
@@ -28,10 +28,10 @@ Do not commit the API key, include it in screenshots, or share it with anyone. O
 
 ## Verify configuration
 
-1. Select the configured service provider, model, and voice in **Settings → Modules → Speech**.
+1. Select the configured provider, model, and voice in **Settings → Modules → Speech**.
 2. Enter test text and click **Test Voice**.
 3. If the test audio plays, the provider is configured correctly. If AIRI displays an error, use its message to check the credentials, model ID, and Base URL.
 
 ## Troubleshooting
 
-When there is no sound, first make sure you have selected a model and voice supported by the service provider. When using a compatible service, confirm that it explicitly supports the OpenAI speech synthesis interface.
+If no audio plays, confirm that the selected model and voice are supported by the provider. For a compatible service, verify that it implements the OpenAI speech API.

@@ -22,7 +22,7 @@ Do not expose local service ports to untrusted public networks. If you change th
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Speech → Bilibili / IndexTTS**.
-2. Fill in the Base URL consistent with the local service.
+2. Enter the local service's Base URL.
 
 ## Verify configuration
 

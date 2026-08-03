@@ -19,10 +19,10 @@ Keep the Bot Token and AIRI Auth Token only in AIRI's local settings or the bot 
 ## Configure the bot service
 
 ```bash
-cp services/discord-bot/.env services/discord-bot/.env.local
+cp integrations/discord-bot/.env integrations/discord-bot/.env.local
 ```
 
-In AIRI Desktop, open **Settings → Connection**. Show and copy the **Auth Token**, then add these values to **services/discord-bot/.env.local**:
+In AIRI Desktop, open **Settings → Connection**. Show and copy the **Auth Token**, then add these values to **integrations/discord-bot/.env.local**:
 
 ```env
 AIRI_URL=ws://localhost:6121/ws
@@ -50,9 +50,14 @@ The authenticated bot service receives the enabled state and token through AIRI'
 
 ## Install and use the bot in Discord
 
-1. In the Discord Developer Portal, configure a **Guild Install** for the application and install the bot in your server. Request only the permissions required for the text and voice features you intend to use. The `bot` OAuth2 scope includes `applications.commands` by default.
+1. In the Discord Developer Portal, configure a **Guild Install** with the `bot` scope and install the bot in your server. The `bot` scope includes `applications.commands` by default. Grant only the permissions required by the features you use:
+   - Text replies: **View Channels** and **Send Messages**.
+   - Voice input: **View Channels** and **Connect**.
+   - Voice playback: **Speak**.
 2. For text chat, send the bot a direct message or mention it in a server channel. The bot does not respond to every server message.
 3. For voice input, join a voice channel and run `/summon`. The service registers `/ping` and `/summon` after the bot logs in.
+
+If the bot works in some channels but not others, check the channel-level permission overrides.
 
 ## Security notes
 

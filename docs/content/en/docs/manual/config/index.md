@@ -3,16 +3,16 @@ title: Provider configuration guide
 description: Configure Chat, Vision, Speech, Transcription, and Artistry providers for Project AIRI
 ---
 
-To let AIRI talk to you, you need to configure at least one chat service provider and one chat model. Speech synthesis (TTS) allows AIRI to speak; speech recognition (ASR/STT) allows it to understand microphone input. These two items are optional, but to obtain a complete voice interaction experience, it is recommended to configure them together.
+To chat with AIRI, configure at least one Chat provider and chat model. Speech synthesis (TTS) adds voice output, while automatic speech recognition (ASR/STT) adds microphone input. Voice input and output are optional and can be configured independently.
 
-## Complete the minimum available configuration first
+## Configure the minimum required setup
 
 1. Open AIRI’s **Settings → Providers**.
-2. Select the service provider in the **Chat** category, fill in the credentials and complete verification.
-3. Open **Settings → Modules → Consciousness** and select the service provider and model just configured.
+2. Select a provider in the **Chat** category, enter its credentials, and complete the available verification.
+3. Open **Settings → Modules → Consciousness** and select the provider and model you configured.
 4. Send a message to confirm that AIRI can reply.
 
-After completing the chat configuration, configure the voice as needed:
+After Chat is working, add voice input or output as needed:
 
 * **[General Instructions](./common.md)**: Understand the configuration process, field meanings, verification results and FAQs.
 * **[Configure Chat Model](./llm.md)**: Configure LLM and select the model in Consciousness.
@@ -22,7 +22,7 @@ After completing the chat configuration, configure the voice as needed:
 * **Providers**: Expand **Providers** in the sidebar and select **Chat**, **Vision**, **Speech**, **Transcription**, or **Artistry**. Provider pages save credentials; module pages select which provider and model AIRI actively uses.
 
 > [!TIP]
-> If you just want to verify that AIRI works first, configure the chat provider first. TTS and ASR can be added after the chat is working correctly, which makes it easier to locate the problem.
+> Configure Chat first if you want to verify the basic setup. Add TTS and ASR afterward to isolate any voice-configuration problems.
 
 ## Additional setup
 

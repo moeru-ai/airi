@@ -21,7 +21,7 @@ Do not expose local service ports to untrusted public networks.
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Speech → Player2**.
-2. Fill in the Base URL that is consistent with the service address.
+2. Enter the service's Base URL.
 
 ## Verify configuration
 

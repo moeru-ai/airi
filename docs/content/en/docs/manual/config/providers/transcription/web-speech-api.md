@@ -27,8 +27,8 @@ The Web Speech API is only available in browser environments and is not supporte
 
 1. Go to **Settings → Modules → Hearing** and select Web Speech API and Audio Input Device.
 2. Allow the browser to access the microphone and start a short voice input test.
-3. If the transcribed text can be displayed, the configuration is successful.
+3. Confirm that the transcription appears in AIRI.
 
 ## Troubleshooting
 
-When there are no text results, check browser microphone permissions, selected input device, and recognized language. If your browser does not support this API, please use local or cloud ASR instead.
+If no transcription appears, check the browser's microphone permission, the selected input device, and the recognition language. If your browser does not support this API, use a local or cloud transcription provider instead.

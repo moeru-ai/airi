@@ -18,10 +18,10 @@ Keep the Satori token, messaging-platform credentials, and model API keys only i
 ## Configure
 
 ```bash
-cp services/satori-bot/.env services/satori-bot/.env.local
+cp integrations/satori-bot/.env integrations/satori-bot/.env.local
 ```
 
-Edit **services/satori-bot/.env.local** and provide **SATORI_WS_URL**, **SATORI_API_BASE_URL**, the optional **SATORI_TOKEN**, and the LLM address, key, and model.
+Edit **integrations/satori-bot/.env.local** and provide **SATORI_WS_URL**, **SATORI_API_BASE_URL**, the optional **SATORI_TOKEN**, and the LLM address, key, and model.
 
 ## Start
 

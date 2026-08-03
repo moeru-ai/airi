@@ -19,8 +19,8 @@ Do not commit the Azure API key, include it in screenshots, or share it with any
 
 ## Configure in AIRI
 
-1. Open **Settings → Providers → Chat → Azure OpenAI**, fill in the **API Key** and Azure OpenAI endpoint.
-2. It is recommended to fill in the complete Chat Completions address provided by the console; if the address contains the deployment name and `api-version`, AIRI will identify the configuration accordingly.
+1. Open **Settings → Providers → Chat → Azure OpenAI** and enter the **API Key**.
+2. Enter the complete Chat Completions URL provided by Azure. AIRI extracts the deployment name and `api-version` from the URL.
 
 ## Verify configuration
 
@@ -29,4 +29,4 @@ Do not commit the Azure API key, include it in screenshots, or share it with any
 
 ## Troubleshooting
 
-When validation fails, check that the API Key, endpoint, deployment name, and `api-version` are all from the same Azure OpenAI resource. Please use the deployment name, not the model name which is for presentation only.
+If validation fails, confirm that the API Key, endpoint, deployment name, and `api-version` all belong to the same Azure OpenAI resource. Use the deployment name rather than the model's display name.

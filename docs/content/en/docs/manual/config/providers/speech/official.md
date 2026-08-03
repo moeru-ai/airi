@@ -3,7 +3,7 @@ title: Official Speech Provider (TTS)
 description: Use officially provided speech synthesis in AIRI
 ---
 
-Official speech synthesis will use your AIRI login status, and there is no need to fill in a third-party API Key separately.
+Official speech synthesis uses your active AIRI session; no third-party API Key is required.
 
 ::: info Why choose AIRI official speech synthesis?
 If you already use an official AIRI provider and want to reduce third-party credential configuration, try this option first.
@@ -11,8 +11,8 @@ If you already use an official AIRI provider and want to reduce third-party cred
 
 ## Log in to your account
 
-1. Use an AIRI account to complete the login; the official voice service depends on the current login status.
-2. There is no need to create or fill in a third-party API Key.
+1. Sign in with an AIRI account.
+2. Confirm that the official speech provider is available for the current session.
 
 ::: warning Account and service availability
 Available models, quotas, and regions are determined by the official service. Do not share account sessions or browser session data.

@@ -11,8 +11,8 @@ If you want to run models natively, reduce dependence on cloud APIs, or place mo
 
 ## Install Ollama
 
-1. Visit [Ollama official website](https://ollama.com/) and download and install the version for your operating system.
-2. Run the following command in the terminal (Terminal or PowerShell) to confirm that the installation is successful:
+1. Download and install Ollama for your operating system from the [official website](https://ollama.com/).
+2. Run this command in Terminal or PowerShell to verify the installation:
 
     ```bash
     ollama --version
@@ -20,18 +20,18 @@ If you want to run models natively, reduce dependence on cloud APIs, or place mo
 
 ## Download and run the model
 
-1. Execute the following command in the terminal to download and start a model:
+1. Run this command to download and start a model:
 
     ```bash
     ollama run qwen2
     ```
 
-2. If using another model, replace `qwen2` with the corresponding model ID. The time required to download a model for the first time depends on the model size and network environment.
+2. To use another model, replace `qwen2` with its model ID. The initial download time depends on the model size and network speed.
 
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Chat → Ollama**.
-2. Keep the default Base URL: `http://localhost:11434/v1/`; if Ollama is running on another device, fill in the address accessible by the device.
+2. Keep the default Base URL, `http://localhost:11434/v1/`. If Ollama runs on another device, enter a URL that the device running AIRI can reach.
 3. Select Ollama and the model you downloaded under **Settings → Modules → Consciousness**.
 
 ## Verify configuration
@@ -41,8 +41,8 @@ If you want to run models natively, reduce dependence on cloud APIs, or place mo
 
 ## Troubleshooting
 
-If you cannot connect, first confirm that Ollama is running and the port is consistent with the Base URL. If AIRI and Ollama are not on the same device, use a LAN address accessible from the AIRI device and only open the service on trusted networks.
+If AIRI cannot connect, confirm that Ollama is running and that the Base URL uses the correct port. If AIRI and Ollama run on different devices, use a LAN address reachable from the AIRI device and expose the service only on a trusted network.
 
 ::: warning AIRI cannot connect to local Ollama
-If Ollama is running but AIRI is showing network or CORS errors, set up `OLLAMA_ORIGINS` the way Ollama was started, allow AIRI's origin to access the service, and then restart Ollama. Do not expose local services directly to the public network to troubleshoot problems.
+If Ollama is running but AIRI reports a CORS error, add AIRI's exact origin to `OLLAMA_ORIGINS` and restart Ollama. Do not use a wildcard or expose Ollama to the public internet as a troubleshooting shortcut.
 :::

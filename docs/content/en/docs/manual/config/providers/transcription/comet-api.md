@@ -34,4 +34,4 @@ Open **Settings → Modules → Hearing**, select **Comet API** and an available
 
 ## Troubleshooting
 
-If the playground cannot complete a request, check the API Key, account permissions, and network connection. When there are no text results, confirm that AIRI has obtained the system microphone permission.
+If the playground cannot complete a request, check the API Key, account permissions, and network connection. If no text appears, confirm that AIRI has microphone access.

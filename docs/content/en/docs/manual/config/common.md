@@ -31,10 +31,10 @@ Credentials and provider settings are saved in the current device's local settin
 
 Chat-provider forms validate required fields automatically; providers that expose **Ping API** can also send a live request, which may consume a small amount of credit. Speech-provider playgrounds test synthesis and playback when available. Test transcription from **Settings → Modules → Hearing** with the selected microphone.
 
-When verification fails, please troubleshoot in the following order:
+When verification fails, troubleshoot in this order:
 
 1. Confirm that the account has access to the service and available credit or quota.
-2. Copy the API Key again and check whether extra spaces or line breaks are copied.
+2. Copy the API Key again and make sure you did not include leading or trailing spaces or line breaks.
 3. Restore the default Base URL, or compare it exactly with the provider's official documentation.
 4. Confirm that the network, proxy, and firewall allow access to the provider.
 5. Choose a model that is explicitly supported by the provider; do not use the display name as a model ID.

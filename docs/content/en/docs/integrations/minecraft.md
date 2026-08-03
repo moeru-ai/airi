@@ -18,10 +18,10 @@ Keep API keys, service addresses, and Minecraft server credentials only in the l
 ## Configure
 
 ```bash
-cp services/minecraft/.env services/minecraft/.env.local
+cp integrations/minecraft/.env integrations/minecraft/.env.local
 ```
 
-Edit **services/minecraft/.env.local** and provide the required Minecraft server, AIRI, and model-service settings.
+Edit **integrations/minecraft/.env.local** and provide the required Minecraft server, AIRI, and model-service settings.
 
 In AIRI Desktop, open **Settings → Connection**, show and copy the **Auth Token**, and add these AIRI channel settings:
 

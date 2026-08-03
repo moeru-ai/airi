@@ -452,7 +452,7 @@ Position, rotation, camera distance and gaze direction in the built-in stage are
 <a id="chapter-4-memory-bank"></a>
 ### Memory
 
-The function has not been released yet. If you have ideas for implementing this feature, please submit suggestions via issues or PR.
+This feature is not available yet. If you have ideas for its implementation, submit an issue or pull request.
 
 <a id="chapter-4-providers"></a>
 ### Providers
@@ -501,14 +501,14 @@ Deletion and reset operations in this section cannot be undone. Confirm the sele
 
 Use **Move desktop window to center** to restore the desktop stage to the center of the current screen.
 
-::: tip Web version feature description
-Opening the app data folder and resetting desktop settings and status are only available in the desktop version, not in the web/mobile version of the app.
+::: tip Desktop-only data controls
+Opening the app data folder and resetting desktop settings or status are available only in AIRI Desktop, not in the web or mobile apps.
 :::
 
 <a id="chapter-4-connection"></a>
 ### Connection
 
-**Connection** configures AIRI's service channel. You can set the **WebSocket Server Address** and enable **Enable Secure WebSocket (WSS)** when encrypted transport is required. On desktop, **Expose On Network** can be set to **This device**, **All**, or **Advanced**; the Advanced option reveals **Bind Hostname**. You can also set an **Auth Token** and use the QR code to connect Stage Pocket. Expose AIRI only on trusted networks and keep the token private.
+**Connection** configures AIRI's service channel. Set the **WebSocket Server Address** and turn on **Enable Secure WebSocket (WSS)** when encrypted transport is required. On desktop, **Expose On Network** can be set to **This device**, **All**, or **Advanced**; **Advanced** reveals **Bind Hostname**. You can also set an **Auth Token** and use the QR code to connect Stage Pocket. Expose AIRI only on trusted networks and keep the token private.
 
 ![AIRI Connection settings](./assets/manual-websocket-settings.avif)
 
@@ -538,10 +538,10 @@ Configure AIRI's theme colors here.
 
 ![AIRI color scheme settings](./assets/manual-system-color-scheme.avif)
 
-- You can activate the RGB option to make the theme colors change automatically like an RGB light strip.
-- You can also drag the black line below or click in the color bar to change the theme color.
-- Below it is a preview of the color effect.
-- You can also directly select the preset below to change the theme color.
+- Turn on **RGB** to cycle through theme colors automatically.
+- Drag the marker below the color bar or click the bar to choose a color.
+- Review the selected color in the preview.
+- Click a preset swatch to apply it directly.
 
 ::: tip Color presets
 Click a color swatch to apply its preset.
@@ -552,7 +552,7 @@ Here you can modify the **Spotlight** global shortcut. Spotlight is AIRI's float
 
 1. Click the current shortcut key.
 2. Press the new key combination you want to use; it must contain at least one modifier key: Cmd, Ctrl, Alt, or Super.
-3. If the shortcut key is occupied by other applications, AIRI will prompt a conflict; press Esc to cancel recording.
+3. If another application already uses the shortcut, AIRI reports a conflict. Press Esc to cancel recording.
 4. Click **Reset** to restore the default shortcut.
 
 ::: tip Use Spotlight

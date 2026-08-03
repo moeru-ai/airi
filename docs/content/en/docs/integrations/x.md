@@ -19,7 +19,7 @@ The AIRI module publishes configuration under the module name `twitter`, while t
 There is no supported end-user workaround. Contributors investigating the implementation can compare:
 
 - `packages/stage-ui/src/stores/modules/twitter.ts`
-- `services/twitter-services/src/adapters/airi-adapter.ts`
+- `integrations/twitter-services/src/adapters/airi-adapter.ts`
 
 ## Credential security
 

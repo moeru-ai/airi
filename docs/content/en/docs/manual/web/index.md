@@ -40,9 +40,9 @@ Open **Settings → Providers → Speech** to configure a speech provider. Then 
 
 Open **Settings → Providers → Transcription** to configure a transcription provider. Then open **Settings → Modules → Hearing**, select the provider and model, and choose an available microphone. The microphone button on the main page opens the hearing controls.
 
-### Let AIRI see you
+### Vision capture is currently desktop-only
 
-Vision support is still experimental. See [Configure vision](../config/vision.md) for the currently supported desktop capture workflow and provider setup.
+Screen and window capture are currently available in AIRI Desktop. See [Configure vision](../config/vision.md) for provider setup and the desktop Vision Capture workflow.
 
 ## Character Card
 

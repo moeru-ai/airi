@@ -3,7 +3,7 @@ title: Official Transcription Provider (ASR/STT)
 description: Use official real-time speech recognition in AIRI
 ---
 
-The official voice recognition will use your AIRI login status, and there is no need to fill in a third-party API Key separately.
+Official transcription uses your current AIRI session; no third-party API Key is required.
 
 ::: info Why choose AIRI official speech recognition?
 If you already use the official AIRI provider and want to quickly enable real-time voice input, you can try this option first.
@@ -11,8 +11,8 @@ If you already use the official AIRI provider and want to quickly enable real-ti
 
 ## Log in to your account
 
-1. Sign in with an AIRI account; official real-time transcription uses the current session.
-2. There is no need to create or fill in a third-party API Key.
+1. Sign in with an AIRI account.
+2. Confirm that the official transcription provider is available for the current session.
 
 ::: warning Account and audio data
 Real-time recognition will send the audio to the official service. Don't use test audio that contains sensitive information, and don't share account session information.
@@ -27,8 +27,8 @@ Real-time recognition will send the audio to the official service. Don't use tes
 ## Verify configuration
 
 1. Allow AIRI to use the microphone and perform a short voice input.
-2. If the transcribed text can be displayed, the configuration is successful.
+2. If the transcription appears, the provider is configured correctly.
 
 ## Troubleshooting
 
-When the model cannot be used, make sure the account is logged in, the network is normal, and there is available credit. When there are no text results, check the system microphone permissions.
+If the model is unavailable, confirm that you are signed in, AIRI can reach the service, and the account has available credit. If no transcription appears, check the operating system's microphone permission for AIRI.
