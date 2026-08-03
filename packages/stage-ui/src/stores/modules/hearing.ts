@@ -362,6 +362,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return true
   }
 
+  // Auth and other callers select a provider first and its model immediately after.
+  // Resolve the provider transition synchronously so the later model assignment wins.
   watch(activeTranscriptionProvider, async (providerId, previousProviderId) => {
     verboseJsonNotSupported.value = false
     pendingDestinationModelProvider = ''
@@ -375,7 +377,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       if (syncDestinationModel(providerId))
         pendingDestinationModelProvider = ''
     }
-  }, { immediate: true })
+  }, { flush: 'sync', immediate: true })
 
   watch(activeFunASRConfiguredModel, (model) => {
     if (activeTranscriptionProvider.value === 'funasr-audio-transcription' && activeTranscriptionModel.value !== model)

@@ -1,5 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { useProvidersStore } from '../providers'
 import { useHearingStore } from './hearing'
@@ -217,6 +218,17 @@ describe('funASR Hearing model synchronization', () => {
     await vi.waitFor(() => {
       expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2.5')
     })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3701729753
+  it('preserves a model selected with an auth-owned provider transition (GitHub #2122)', async () => {
+    const hearingStore = useHearingStore()
+
+    hearingStore.activeTranscriptionProvider = 'official-provider-transcription'
+    hearingStore.activeTranscriptionModel = 'auto'
+    await nextTick()
+
+    expect(hearingStore.activeTranscriptionModel).toBe('auto')
   })
 
   it('preserves a persisted model when Hearing starts with another provider', () => {
