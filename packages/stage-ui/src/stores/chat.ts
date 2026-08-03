@@ -34,12 +34,12 @@ import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useEmotionStore } from './emotion'
 import { useLLM } from './ai/chat-llm/llm'
-import { useRelationshipBondStore } from './relationship-bond'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
 import { useProviderStore } from './providers/provider'
+import { useRelationshipBondStore } from './relationship-bond'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -142,6 +142,7 @@ export const useChatStore = defineStore('chat', () => {
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
   const emotionStore = useEmotionStore()
+  const relationshipBondStore = useRelationshipBondStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   // Instantiate the web-search store eagerly so its `configured` watcher registers
   // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
@@ -324,9 +325,18 @@ export const useChatStore = defineStore('chat', () => {
   ) {
     const sessionId = targetSessionId ?? activeSessionId.value
     const evaluation = evaluateTurn(sendingMessage)
+    const sentimentScore = evaluation.delta.valence + evaluation.delta.trust + evaluation.delta.affection
     emotionStore.setCurrentSession(sessionId)
     emotionStore.applyEmotionDelta(sessionId, evaluation.delta, evaluation.reason)
-    chatSession.refreshSessionSystemMessage(sessionId)
+    relationshipBondStore.recordUserMessageInteraction({
+      characterId: chatSession.getSessionCharacterId?.(sessionId) ?? cardStore.activeCardId ?? 'default',
+      sessionId,
+      summary: evaluation.reason,
+      reason: evaluation.reason,
+      sentimentScore,
+      significant: evaluation.reason !== '普通对话',
+    })
+    chatSession.refreshSessionSystemMessage?.(sessionId)
 
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
