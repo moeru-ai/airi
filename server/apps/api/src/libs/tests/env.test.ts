@@ -1,6 +1,5 @@
 import { Buffer } from 'node:buffer'
 
-import { parseAdditionalTrustedOriginsEnv } from '@proj-airi/server-node-shared'
 import { describe, expect, it } from 'vitest'
 
 import { parseEnv } from '../env'
@@ -13,23 +12,6 @@ function baseEnv(): Record<string, string> {
     LLM_ROUTER_MASTER_KEY: Buffer.alloc(32, 0xAA).toString('base64'),
   }
 }
-
-describe('parseAdditionalTrustedOriginsEnv', () => {
-  it('normalizes comma-separated origins and dedupes', () => {
-    expect(parseAdditionalTrustedOriginsEnv('')).toEqual([])
-    expect(parseAdditionalTrustedOriginsEnv(' https://10.0.0.129:5273/ , https://198.18.0.1:5273 ')).toEqual([
-      'https://10.0.0.129:5273',
-      'https://198.18.0.1:5273',
-    ])
-    expect(parseAdditionalTrustedOriginsEnv('https://x.test:5273/,https://x.test:5273')).toEqual([
-      'https://x.test:5273',
-    ])
-  })
-
-  it('throws on invalid segments', () => {
-    expect(() => parseAdditionalTrustedOriginsEnv('not-a-url')).toThrow(/invalid URL origin segment/)
-  })
-})
 
 describe('parseEnv', () => {
   it('parses the API environment without Identity-provider credentials', () => {
@@ -47,7 +29,7 @@ describe('parseEnv', () => {
   it('parses ADDITIONAL_TRUSTED_ORIGINS into a normalized origin list', () => {
     const env = parseEnv({
       ...baseEnv(),
-      ADDITIONAL_TRUSTED_ORIGINS: 'https://10.0.0.129:5273/, https://198.18.0.1:5273',
+      ADDITIONAL_TRUSTED_ORIGINS: 'https://10.0.0.129:5273/, https://198.18.0.1:5273, https://10.0.0.129:5273',
     })
 
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([

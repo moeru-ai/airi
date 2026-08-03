@@ -10,12 +10,10 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY patches/ ./patches/
 COPY server/apps/auth server/apps/auth
 COPY server/packages/auth-shared server/packages/auth-shared
-COPY server/packages/node-shared server/packages/node-shared
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile --ignore-scripts --filter @proj-airi/auth-server...
 
-RUN pnpm -F @proj-airi/server-node-shared run build
 RUN pnpm -F @proj-airi/auth-server run build
 
 EXPOSE 3000

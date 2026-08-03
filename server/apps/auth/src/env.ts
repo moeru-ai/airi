@@ -3,8 +3,31 @@ import type { InferOutput } from 'valibot'
 import { exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
-import { optionalIntegerFromString, parseAdditionalTrustedOriginsEnv } from '@proj-airi/server-node-shared'
-import { nonEmpty, object, optional, parse, picklist, pipe, string, transform } from 'valibot'
+import { array, integer, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+
+function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
+  return optional(
+    pipe(
+      string(),
+      nonEmpty(`${envKey} must not be empty`),
+      transform(input => Number(input)),
+      integer(`${envKey} must be an integer`),
+      minValue(minimum, `${envKey} must be at least ${minimum}`),
+    ),
+    String(defaultValue),
+  )
+}
+
+const AdditionalTrustedOriginsSchema = pipe(
+  string(),
+  transform(raw => raw.split(',').map(origin => origin.trim()).filter(Boolean)),
+  array(pipe(
+    string(),
+    url('ADDITIONAL_TRUSTED_ORIGINS entries must be valid URLs'),
+    transform(origin => new URL(origin).origin),
+  )),
+  transform(origins => [...new Set(origins)]),
+)
 
 const AuthEnvSchema = object({
   HOST: optional(string(), '0.0.0.0'),
@@ -13,10 +36,7 @@ const AuthEnvSchema = object({
   RESOURCE_SERVER_URL: optional(string(), 'http://localhost:3001'),
   RATE_LIMIT_TRUSTED_PROXY: optional(picklist(['railway'])),
   AUTH_UI_URL: optional(string(), 'https://accounts.airi.build/ui'),
-  ADDITIONAL_TRUSTED_ORIGINS: optional(
-    pipe(string(), transform(raw => parseAdditionalTrustedOriginsEnv(raw))),
-    '',
-  ),
+  ADDITIONAL_TRUSTED_ORIGINS: optional(AdditionalTrustedOriginsSchema, ''),
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
   BETTER_AUTH_SECRET: pipe(string(), nonEmpty('BETTER_AUTH_SECRET is required')),

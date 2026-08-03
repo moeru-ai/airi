@@ -1,3 +1,5 @@
+import type { Logger } from '@guiiai/logg'
+
 import type { AuthInstance } from './auth'
 import type { AuthDatabase } from './db'
 import type { AuthEnv } from './env'
@@ -11,7 +13,7 @@ import Redis from 'ioredis'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
-import { initializeExternalDependency } from '@proj-airi/server-node-shared'
+import { withRetry } from '@moeru/std'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -35,6 +37,34 @@ import {
 import { createAuthConfigService } from './rate-limit'
 import { createResourceApi } from './resource-api'
 import { createAuthRoutes } from './routes'
+
+const EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS = 5
+const EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS = 5000
+
+/** Initializes an Auth dependency using the process startup retry policy. */
+async function initializeExternalDependency<T>(
+  dependencyName: string,
+  logger: Logger,
+  initialize: (attempt: number) => Promise<T>,
+): Promise<T> {
+  let attempt = 0
+
+  return await withRetry(
+    async () => {
+      attempt += 1
+      return await initialize(attempt)
+    },
+    {
+      retry: EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1,
+      retryDelay: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS,
+      retryDelayFactor: 2,
+      retryDelayMax: EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS * 2 ** (EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS - 1),
+      onError: (error) => {
+        logger.withError(error).warn(`${dependencyName} initialization failed on attempt ${attempt}/${EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS}`)
+      },
+    },
+  )()
+}
 
 export interface AuthAppDeps {
   auth: AuthInstance

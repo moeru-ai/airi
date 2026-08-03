@@ -11,7 +11,6 @@ COPY patches/ ./patches/
 COPY server/apps/api server/apps/api
 COPY server/packages/auth-shared server/packages/auth-shared
 COPY server/packages/drizzle-migration server/packages/drizzle-migration
-COPY server/packages/node-shared server/packages/node-shared
 COPY packages/server-sdk-shared packages/server-sdk-shared
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
@@ -36,7 +35,6 @@ RUN rm -rf server/packages/drizzle-migration/dist \
  && ls server/packages/drizzle-migration/dist/virtual_drizzle-migrations-*.mjs >/dev/null
 
 RUN pnpm -F @proj-airi/server-sdk-shared run build
-RUN pnpm -F @proj-airi/server-node-shared run build
 RUN pnpm -F @proj-airi/api-server run build
 
 EXPOSE 3000

@@ -63,4 +63,19 @@ describe('parseAuthEnv', () => {
 
     expect(env.RATE_LIMIT_TRUSTED_PROXY).toBe('railway')
   })
+
+  it('normalizes trusted origins and parses database pool settings', () => {
+    const env = parseAuthEnv({
+      ...baseAuthEnv(),
+      ADDITIONAL_TRUSTED_ORIGINS: 'https://desktop.test/, https://desktop.test, https://web.test:5273/',
+      DB_POOL_MAX: '8',
+    })
+
+    expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([
+      'https://desktop.test',
+      'https://web.test:5273',
+    ])
+    expect(env.DB_POOL_MAX).toBe(8)
+    expect(env.DB_POOL_IDLE_TIMEOUT_MS).toBe(30000)
+  })
 })

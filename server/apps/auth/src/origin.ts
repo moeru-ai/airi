@@ -49,7 +49,7 @@ const TRUSTED_ORIGIN_PATTERNS = [
  *
  * Expects:
  * - `origin` is the raw `Origin` header value or `new URL(referer).origin`.
- * - `additionalTrustedOrigins` entries are normalized origins (see {@link parseAdditionalTrustedOriginsEnv}).
+ * - `additionalTrustedOrigins` entries are normalized by the environment schema.
  *
  * Returns:
  * - The same origin string when trusted, or `''` when not trusted.

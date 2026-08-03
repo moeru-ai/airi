@@ -10,7 +10,6 @@ while production deployment configuration remains in `proj-airi/airi-railway`.
 - `apps/auth`: standalone Better Auth and OIDC service.
 - `packages/auth-shared`: Auth-owned database schema and principal contracts.
 - `packages/drizzle-migration`: bundled migration history consumed by the API migration owner.
-- `packages/node-shared`: Node.js infrastructure policies shared by API and Auth.
 - `dev/caddy`: local-only public edge routing for the shared Auth/API origin.
 - `docker-compose.yaml`: complete local API + Auth + PostgreSQL + Redis + Caddy stack.
 

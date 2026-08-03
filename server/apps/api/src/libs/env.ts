@@ -4,9 +4,32 @@ import { Buffer } from 'node:buffer'
 import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
-import { optionalIntegerFromString, parseAdditionalTrustedOriginsEnv } from '@proj-airi/server-node-shared'
 import { injeca } from 'injeca'
-import { check, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform } from 'valibot'
+import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform, url } from 'valibot'
+
+const AdditionalTrustedOriginsSchema = pipe(
+  string(),
+  transform(raw => raw.split(',').map(origin => origin.trim()).filter(Boolean)),
+  array(pipe(
+    string(),
+    url('ADDITIONAL_TRUSTED_ORIGINS entries must be valid URLs'),
+    transform(origin => new URL(origin).origin),
+  )),
+  transform(origins => [...new Set(origins)]),
+)
+
+function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
+  return optional(
+    pipe(
+      string(),
+      nonEmpty(`${envKey} must not be empty`),
+      transform(input => Number(input)),
+      integer(`${envKey} must be an integer`),
+      minValue(minimum, `${envKey} must be at least ${minimum}`),
+    ),
+    String(defaultValue),
+  )
+}
 
 function optionalNumberFromString(defaultValue: number, envKey: string, minimum: number, maximum: number) {
   return optional(
@@ -44,10 +67,7 @@ const EnvSchema = object({
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
-    pipe(
-      string(),
-      transform(raw => parseAdditionalTrustedOriginsEnv(raw)),
-    ),
+    AdditionalTrustedOriginsSchema,
     '',
   ),
 
