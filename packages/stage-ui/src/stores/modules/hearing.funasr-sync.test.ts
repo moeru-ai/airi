@@ -197,6 +197,28 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3694431137
+  it('resolves the destination model on every provider switch (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+
+    providersStore.providers['mimo-audio-transcription'].model = 'mimo-v2.5'
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2.5')
+    })
+  })
+
   it('preserves a persisted model when Hearing starts with another provider', () => {
     persistedSettings.set('settings/hearing/active-provider', 'openai-compatible-audio-transcription')
     persistedSettings.set('settings/hearing/active-model', 'whisper-1')

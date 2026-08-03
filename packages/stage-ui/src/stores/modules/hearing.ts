@@ -369,7 +369,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       activeTranscriptionModel.value = activeFunASRConfiguredModel.value
       await loadModelsForProvider(providerId)
     }
-    else if (previousProviderId === 'funasr-audio-transcription') {
+    else if (previousProviderId !== undefined) {
       activeTranscriptionModel.value = ''
       pendingDestinationModelProvider = providerId
       if (syncDestinationModel(providerId))
