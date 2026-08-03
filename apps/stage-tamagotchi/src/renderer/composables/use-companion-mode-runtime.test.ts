@@ -30,6 +30,7 @@ let capturedSourcesOptions: MaybeRefOrGetter<SourcesOptions> | null = null
 let chatSending: Ref<boolean>
 let chatPendingQueuedSendCount: Ref<number>
 let chatConfigured: Ref<boolean>
+let visionConfigured: Ref<boolean>
 
 const requestIngest = vi.fn()
 const runVisionInference = vi.fn()
@@ -101,6 +102,10 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/modules/consciousness', () => ({
   useConsciousnessStore: () => ({ configured: chatConfigured }),
+}))
+
+vi.mock('@proj-airi/stage-ui/stores/modules/vision', () => ({
+  useVisionStore: () => ({ configured: visionConfigured }),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/settings', () => ({
@@ -185,6 +190,7 @@ describe('useCompanionModeRuntime', async () => {
     chatSending = ref(false)
     chatPendingQueuedSendCount = ref(0)
     chatConfigured = ref(true)
+    visionConfigured = ref(true)
     requestIngest.mockReset().mockResolvedValue(undefined)
     runVisionInference.mockReset().mockResolvedValue('The user is viewing a code editor.')
   })
@@ -264,6 +270,26 @@ describe('useCompanionModeRuntime', async () => {
 
     expect(screenCapture.startStream).not.toHaveBeenCalled()
     expect(screenCapture.captureFrame).not.toHaveBeenCalled()
+    expect(runVisionInference).not.toHaveBeenCalled()
+    expect(requestIngest).not.toHaveBeenCalled()
+    expect(companionStore.recordCapture).not.toHaveBeenCalled()
+    expect(companionStore.enabled.value).toBe(true)
+  })
+
+  it('skips capture and releases the preview when no vision provider or model is configured', async () => {
+    visionConfigured.value = false
+
+    await mountRuntime()
+    await vi.waitFor(() => expect(companionStore.recordSkip).toHaveBeenCalledWith(
+      expect.any(Number),
+      'Skipped because no active vision provider or model is configured.',
+    ))
+
+    expect(screenCapture.startStream).not.toHaveBeenCalled()
+    expect(screenCapture.captureFrame).not.toHaveBeenCalled()
+    expect(screenCapture.stopStream).toHaveBeenCalled()
+    expect(runtimeVideoRef!.value?.pause).toHaveBeenCalled()
+    expect(runtimeVideoRef!.value?.srcObject).toBeNull()
     expect(runVisionInference).not.toHaveBeenCalled()
     expect(requestIngest).not.toHaveBeenCalled()
     expect(companionStore.recordCapture).not.toHaveBeenCalled()

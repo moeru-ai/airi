@@ -5,6 +5,7 @@ import { useVisionInference } from '@proj-airi/stage-ui/composables/vision/use-v
 import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useSettingsGeneral } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -115,12 +116,14 @@ export function useCompanionModeRuntime() {
   const chatSessionStore = useChatSessionStore()
   const chatOrchestratorStore = useChatOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
+  const visionStore = useVisionStore()
   const settingsGeneralStore = useSettingsGeneral()
   const { runVisionInference } = useVisionInference()
 
   const { enabled, intervalMs, sourceId, sourceKind, promptTemplate } = storeToRefs(companionModeStore)
   const { sending, pendingQueuedSendCount } = storeToRefs(chatOrchestratorStore)
   const { configured: chatConfigured } = storeToRefs(consciousnessStore)
+  const { configured: visionConfigured } = storeToRefs(visionStore)
   const { language } = storeToRefs(settingsGeneralStore)
 
   const videoRef = ref<HTMLVideoElement | null>(null)
@@ -429,6 +432,20 @@ export function useCompanionModeRuntime() {
         companionModeStore.recordSkip(
           Date.now(),
           'Skipped because no active chat provider or model is configured.',
+        )
+        return
+      }
+
+      // Do not open or retain a screen-capture stream when the frame cannot
+      // be sent through a configured vision provider/model. This also handles
+      // vision configuration being removed while an existing preview stream
+      // is still active.
+      if (!visionConfigured.value) {
+        screenCapture.stopStream()
+        stopVideoPreview()
+        companionModeStore.recordSkip(
+          Date.now(),
+          'Skipped because no active vision provider or model is configured.',
         )
         return
       }
