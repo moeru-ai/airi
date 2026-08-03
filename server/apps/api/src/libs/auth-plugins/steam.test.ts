@@ -102,8 +102,9 @@ describe('steam auth plugin', () => {
     expect(url.searchParams.get('openid.return_to')).toContain('/steam/callback?state=')
   })
 
-  it('creates a new user with a placeholder email on first sign-in', async () => {
+  it('creates a user with a placeholder email on first sign-in and reuses the same account on later sign-ins', async () => {
     mockSteamVerification(true)
+    const context = await auth.$context
 
     const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
@@ -121,33 +122,24 @@ describe('steam auth plugin', () => {
     expect(callbackResponse.headers.get('location')).toBe('http://localhost/ui/profile')
     expect(callbackResponse.headers.get('set-cookie')).toMatch(/better-auth\.session_token=/)
 
-    const context = await auth.$context
     const account = await context.internalAdapter.findAccountByProviderId(STEAM_ID, 'steam')
     expect(account).not.toBeNull()
-
     const user = await context.internalAdapter.findUserById(account!.userId)
     expect(user?.email).toBe(`${STEAM_ID}@steam.placeholder.local`)
     expect(user?.emailVerified).toBe(true)
-  })
 
-  it('signs an existing Steam user back into the same account (no duplicate user)', async () => {
-    mockSteamVerification(true)
-
-    const context = await auth.$context
-    const before = await context.internalAdapter.findAccountByProviderId(STEAM_ID, 'steam')
-
-    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+    const { response: secondStart, headers: secondStartHeaders } = await auth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
-    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+    const secondState = new URL(new URL(secondStart.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
 
-    await auth.handler(new Request(`http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState)}`, {
-      headers: { cookie: forwardableCookieHeader(startHeaders) },
+    await auth.handler(new Request(`http://localhost/api/auth/steam/callback?${buildCallbackQuery(secondState)}`, {
+      headers: { cookie: forwardableCookieHeader(secondStartHeaders) },
     }))
 
-    const after = await context.internalAdapter.findAccountByProviderId(STEAM_ID, 'steam')
-    expect(after?.userId).toBe(before?.userId)
+    const accountAfterSecondSignIn = await context.internalAdapter.findAccountByProviderId(STEAM_ID, 'steam')
+    expect(accountAfterSecondSignIn?.userId).toBe(account?.userId)
   })
 
   it('redirects to an error URL when Steam verification fails', async () => {
