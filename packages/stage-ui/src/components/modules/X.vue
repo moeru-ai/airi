@@ -57,7 +57,7 @@ function saveSettings() {
     <div>
       <Button
         :label="t('settings.common.save')"
-        variant="primary"
+
         @click="saveSettings"
       />
     </div>

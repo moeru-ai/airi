@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { clearModelCache, formatBytes, getModelCacheSize, isModelCached } from '@proj-airi/stage-ui/libs/inference'
-import { Button } from '@proj-airi/ui'
+import { Button, GhostButton } from '@proj-airi/ui'
 import { onMounted, ref } from 'vue'
 
 const cacheSize = ref(0)
@@ -109,8 +109,8 @@ onMounted(refresh)
 
     <!-- Actions -->
     <div flex items-center justify-between>
-      <Button
-        variant="secondary-muted"
+      <GhostButton
+
         size="sm"
         label="Refresh"
         icon="i-solar:refresh-linear"
@@ -119,13 +119,14 @@ onMounted(refresh)
       />
       <Button
         v-if="cacheSize > 0"
-        variant="danger"
+
         size="sm"
         :label="clearing ? 'Clearing...' : 'Clear All Cache'"
         icon="i-solar:trash-bin-trash-bold"
         :disabled="clearing || loading"
         :loading="clearing"
-        @click="handleClearCache"
+        color="red"
+        variant="primary" @click="handleClearCache"
       />
     </div>
   </div>

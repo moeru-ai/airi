@@ -430,7 +430,7 @@ mmdDialog.onChange(handleAddMMDModel)
                 <div>{{ mapFormatRenderer[model.format] }}</div>
               </div>
             </div>
-            <Button class="hidden md:block" variant="secondary" @click="handlePick(model)">
+            <Button class="hidden md:block" @click="handlePick(model)">
               {{ t('settings.model-select.select-model.select') }}
             </Button>
           </div>

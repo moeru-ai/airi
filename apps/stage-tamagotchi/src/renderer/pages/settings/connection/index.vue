@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ConnectionSettings } from '@proj-airi/stage-ui/components'
-import { Button, Callout, FieldCheckbox, FieldInput, Input, SelectTab } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldInput, IconButton, Input, SelectTab } from '@proj-airi/ui'
 import { refDebounced, useClipboard } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
@@ -130,22 +130,16 @@ watch(authTokenInputDebounced, (value) => {
                 :type="authTokenInputType"
                 :placeholder="t('settings.pages.connection.server-auth-token.placeholder')"
               />
-              <Button
+              <IconButton
                 type="button"
-                variant="secondary-muted"
-                size="sm"
-                shape="square"
                 :icon="authTokenVisible ? 'i-solar:eye-closed-bold-duotone' : 'i-solar:eye-bold-duotone'"
                 :aria-label="authTokenVisible ? 'Hide auth token' : 'Show auth token'"
                 :title="authTokenVisible ? 'Hide auth token' : 'Show auth token'"
                 data-testid="server-auth-token-visibility-toggle"
                 @click="authTokenVisible = !authTokenVisible"
               />
-              <Button
+              <IconButton
                 type="button"
-                variant="secondary-muted"
-                size="sm"
-                shape="square"
                 :icon="authTokenCopied ? 'i-solar:check-circle-bold-duotone' : 'i-solar:copy-line-duotone'"
                 :disabled="!canCopyAuthToken"
                 :aria-label="authTokenCopied ? 'Copied auth token' : 'Copy auth token'"

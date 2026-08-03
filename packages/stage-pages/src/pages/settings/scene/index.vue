@@ -103,7 +103,7 @@ function clearDefault() {
             @change="handleFileChange"
           >
           <Button
-            variant="primary"
+
             class="flex-1"
             @click="triggerUpload"
           >
@@ -112,7 +112,7 @@ function clearDefault() {
           </Button>
           <Button
             v-if="activeBackgroundId !== 'none'"
-            variant="secondary"
+
             @click="clearDefault"
           >
             <div :class="['i-solar:trash-bin-trash-bold-duotone', 'mr-2']" />
@@ -171,7 +171,7 @@ function clearDefault() {
               <Button
                 v-if="bg.id !== activeBackgroundId"
                 size="sm"
-                variant="primary"
+
                 @click="setAsBackground(bg.id)"
               >
                 <div :class="['i-solar:check-read-bold-duotone']" />
@@ -179,7 +179,7 @@ function clearDefault() {
               <Button
                 v-if="bg.type !== 'builtin'"
                 size="sm"
-                variant="secondary"
+
                 :class="['!bg-red-500 hover:!bg-red-600 !text-white']"
                 @click="removeBackground(bg.id)"
               >

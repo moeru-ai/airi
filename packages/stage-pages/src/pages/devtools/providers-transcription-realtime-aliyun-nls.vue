@@ -417,7 +417,7 @@ onBeforeUnmount(async () => {
         <div class="flex flex-wrap gap-3">
           <Button
             :disabled="!canStartRecording"
-            variant="primary"
+
             @click="startRecording"
           >
             Start Recording
@@ -425,7 +425,7 @@ onBeforeUnmount(async () => {
 
           <Button
             :disabled="!canStopRecording"
-            variant="primary"
+
             @click="stopRecording"
           >
             Stop Recording
@@ -434,7 +434,7 @@ onBeforeUnmount(async () => {
           <Button
             v-if="isTranscribing"
             :disabled="!canAbortTranscription"
-            variant="secondary"
+
             @click="abortTranscription"
           >
             Abort Transcription

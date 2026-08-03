@@ -315,7 +315,7 @@ onMounted(() => {
                 </div>
                 <div>
                   <Button
-                    variant="primary"
+
                     :loading="isBusy"
                     icon="i-solar:download-minimalistic-outline"
                     :label="t('tamagotchi.stage.about.update.actions.download')"
@@ -349,7 +349,8 @@ onMounted(() => {
                 </div>
                 <div>
                   <DoubleCheckButton
-                    variant="primary"
+                    color="neutral"
+                    variant="secondary"
                     @confirm="handleQuitAndInstall()"
                   >
                     {{ restartButtonLabel }}
@@ -379,7 +380,8 @@ onMounted(() => {
                 <div :class="['flex flex-wrap gap-2']">
                   <Button
                     v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
-                    :variant="isError ? 'caution' : 'secondary'"
+                    :color="isError ? 'orange' : 'neutral'"
+                    :variant="isError ? 'primary' : 'secondary'"
                     :loading="isBusy"
                     :disabled="isDisabled"
                     :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
@@ -419,10 +421,10 @@ onMounted(() => {
           </div>
 
           <div class="mt-6 flex justify-end gap-3">
-            <Button variant="secondary" @click="showChangelog = false">
+            <Button @click="showChangelog = false">
               {{ t('tamagotchi.stage.about.common.cancel') }}
             </Button>
-            <Button variant="primary" icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
+            <Button icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
               {{ t('tamagotchi.stage.about.update.actions.confirm-download') }}
             </Button>
           </div>
@@ -449,10 +451,10 @@ onMounted(() => {
             </div>
 
             <div class="mt-4 flex gap-3">
-              <Button variant="secondary" block @click="showChangelog = false">
+              <Button block @click="showChangelog = false">
                 {{ t('tamagotchi.stage.about.common.cancel') }}
               </Button>
-              <Button variant="primary" block icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
+              <Button block icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
                 {{ t('tamagotchi.stage.about.update.actions.download-short') }}
               </Button>
             </div>
