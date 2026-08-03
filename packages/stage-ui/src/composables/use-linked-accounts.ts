@@ -1,10 +1,13 @@
 import type { Ref } from 'vue'
 
+import type { SteamOAuthStartArgs, SteamOAuthStartResult } from '../libs/steam-auth-client'
+
 import { computed, onMounted, shallowRef, watch } from 'vue'
 
 /**
- * Provider key for the social-link / unlink endpoints. Matches the values
- * better-auth recognises on `/api/auth/link-social` and `/api/auth/unlink-account`.
+ * Provider key for the linked-account actions. OAuth2 providers go through
+ * better-auth's `/link-social`; Steam is OpenID 2.0 and is routed to the
+ * Steam client plugin's dedicated `linkSteam` method instead.
  */
 export type LinkedProviderId = 'google' | 'github' | (string & {})
 
@@ -45,6 +48,19 @@ export interface LinkedAccountsClient {
   }>
   linkSocial: (args: { provider: string, callbackURL: string, errorCallbackURL?: string }) => Promise<{
     data: { url?: string, redirect?: boolean, status?: boolean } | null
+    error: { message?: string, status?: number } | null
+  }>
+  /**
+   * Starts linking the current user to a Steam account.
+   *
+   * Steam's web login is OpenID 2.0, not OAuth2, so better-auth's
+   * `/link-social` can never resolve it as a `socialProviders` entry. The
+   * server steam plugin exposes `/link/steam` instead, and `steamClient()`
+   * surfaces that endpoint as this typed method — callers pass the raw
+   * client rather than wrapping `linkSocial`.
+   */
+  linkSteam: (args: SteamOAuthStartArgs) => Promise<{
+    data: SteamOAuthStartResult | null
     error: { message?: string, status?: number } | null
   }>
 }
@@ -91,62 +107,6 @@ export interface UseLinkedAccountsArgs {
    * from this page; treat this as "link attempt handed off".
    */
   onLinkStarted?: (providerId: string) => void
-}
-
-/**
- * Minimum surface {@link withSteamLinking} needs from a better-auth client.
- * Kept hand-rolled (not `Pick<ReturnType<typeof createAuthClient>, ...>`)
- * for the same reason {@link LinkedAccountsClient} is structural: it must
- * fit both the cookie-credentialed (ui-server-auth) and Bearer-only
- * (stage-web/stage-tamagotchi) client instances without this module
- * depending on the concrete better-auth client type.
- */
-export interface RawLinkedAccountsClient extends Pick<LinkedAccountsClient, 'listAccounts' | 'unlinkAccount' | 'linkSocial'> {
-  /**
-   * Generic request escape hatch mirroring better-auth's client `$fetch`.
-   * Only used to reach plugin endpoints (like Steam's `/link/steam`) that
-   * fall outside the standard `linkSocial` surface.
-   */
-  $fetch: <T>(path: string, options: { method: string, body: unknown }) => Promise<{
-    data: T | null
-    error: { message?: string, status?: number } | null
-  }>
-}
-
-/**
- * Adapts a raw better-auth client into a {@link LinkedAccountsClient} that
- * also supports linking a Steam account.
- *
- * Use when:
- * - Feeding {@link useLinkedAccounts} a client for a surface that lists
- *   `steam` in its provider set (ui-server-auth profile, stage-web /
- *   stage-tamagotchi account settings).
- *
- * Why Steam needs this: it's OpenID 2.0, not OAuth2, so it isn't a
- * registered `socialProviders` entry — better-auth's `/link-social`
- * validates `provider` against a fixed `SocialProviderListEnum` and would
- * reject `'steam'` before ever reaching a plugin. The `steam()` server
- * plugin exposes `/link/steam` instead, which this wrapper reaches through
- * the client's generic `$fetch`.
- *
- * `listAccounts` and `unlinkAccount` pass straight through unmodified:
- * `/unlink-account` takes a free-form `providerId: string` server-side, so
- * Steam accounts already unlink without special-casing.
- */
-export function withSteamLinking(client: RawLinkedAccountsClient): LinkedAccountsClient {
-  return {
-    listAccounts: () => client.listAccounts(),
-    unlinkAccount: args => client.unlinkAccount(args),
-    linkSocial: (args) => {
-      if (args.provider !== 'steam')
-        return client.linkSocial(args)
-
-      return client.$fetch<{ url?: string, redirect?: boolean, status?: boolean }>('/link/steam', {
-        method: 'POST',
-        body: { callbackURL: args.callbackURL, errorCallbackURL: args.errorCallbackURL },
-      })
-    },
-  }
 }
 
 /**
@@ -265,13 +225,15 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
 
     try {
       const callbackURL = args.buildCallbackURL ? args.buildCallbackURL() : window.location.href
-      const { data, error: apiError } = await args.client.linkSocial({
-        provider: providerId,
-        callbackURL,
-        errorCallbackURL: callbackURL,
-      })
+      // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes a
+      // dedicated `/link/steam` endpoint, surfaced as `linkSteam` by the
+      // client plugin. Every other provider uses `/link-social`.
+      const result = providerId === 'steam'
+        ? await args.client.linkSteam({ callbackURL, errorCallbackURL: callbackURL })
+        : await args.client.linkSocial({ provider: providerId, callbackURL, errorCallbackURL: callbackURL })
+      const { data, error: apiError } = result
       if (apiError)
-        throw new Error(apiError.message ?? 'linkSocial failed')
+        throw new Error(apiError.message ?? 'link failed')
       if (data?.url) {
         args.onLinkStarted?.(providerId)
         window.location.assign(data.url)

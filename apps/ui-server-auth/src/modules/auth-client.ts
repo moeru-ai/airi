@@ -29,6 +29,7 @@
  * one factory per credential mode is the cleanest contract.
  */
 
+import { steamClient } from '@proj-airi/stage-ui/libs/steam-auth-client'
 import { createAuthClient } from 'better-auth/vue'
 
 export interface AuthClientArgs {
@@ -40,13 +41,33 @@ export interface AuthClientArgs {
   fetchImpl?: typeof fetch
 }
 
-const cache = new Map<string, ReturnType<typeof createAuthClient>>()
+function createConfiguredClient(apiServerUrl: string, fetchImpl?: typeof fetch) {
+  const options = fetchImpl
+    ? {
+        baseURL: apiServerUrl,
+        plugins: [steamClient()],
+        fetchOptions: { customFetchImpl: fetchImpl },
+      }
+    : {
+        baseURL: apiServerUrl,
+        plugins: [steamClient()],
+      }
+  return createAuthClient(options)
+}
+
+type AuthClient = ReturnType<typeof createConfiguredClient>
+
+const clientCache = new Map<string, AuthClient>()
 
 /**
  * Build (or reuse) a better-auth client pointed at the given server.
  *
  * Use when:
  * - Any module needs to call `/api/auth/*` from the auth UI.
+ *
+ * The client is created with `steamClient()`, so Steam sign-in / linking
+ * are reachable as typed `signIn.steam` / `linkSteam` methods instead of
+ * hand-rolled `/sign-in/steam` / `/link/steam` requests.
  *
  * Expects:
  * - `apiServerUrl` is a fully-qualified origin (e.g. `https://api.airi.test`
@@ -55,24 +76,21 @@ const cache = new Map<string, ReturnType<typeof createAuthClient>>()
  *
  * Returns:
  * - A typed client whose methods (`getSession`, `updateUser`, `listAccounts`,
- *   etc.) match the better-auth endpoint surface. Tokens / cookies handled
- *   via `credentials: 'include'` defaults.
+ *   `linkSteam`, `signIn.steam`, etc.) match the better-auth endpoint
+ *   surface. Tokens / cookies handled via `credentials: 'include'` defaults.
  */
-export function getAuthClient(args: AuthClientArgs): ReturnType<typeof createAuthClient> {
+export function getAuthClient(args: AuthClientArgs): AuthClient {
   if (args.fetchImpl) {
     // Tests: never cache, never share. The injected fetchImpl is the whole
     // point of the call.
-    return createAuthClient({
-      baseURL: args.apiServerUrl,
-      fetchOptions: { customFetchImpl: args.fetchImpl },
-    })
+    return createConfiguredClient(args.apiServerUrl, args.fetchImpl)
   }
 
-  const cached = cache.get(args.apiServerUrl)
+  const cached = clientCache.get(args.apiServerUrl)
   if (cached)
     return cached
 
-  const client = createAuthClient({ baseURL: args.apiServerUrl })
-  cache.set(args.apiServerUrl, client)
+  const client = createConfiguredClient(args.apiServerUrl)
+  clientCache.set(args.apiServerUrl, client)
   return client
 }

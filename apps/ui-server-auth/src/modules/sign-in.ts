@@ -1,5 +1,6 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
+import { getAuthClient } from './auth-client'
 import { extractAuthError } from './auth-fetch'
 import { buildAuthUiPath } from './auth-ui-base'
 
@@ -100,36 +101,18 @@ function normalizeTrustedAdminRedirect(redirect: string): string | null {
 }
 
 export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
-  const fetchImpl = params.fetchImpl ?? fetch
+  const client = getAuthClient({ apiServerUrl: params.apiServerUrl, fetchImpl: params.fetchImpl })
 
-  // Steam is OpenID 2.0, not OAuth2 — better-auth's `/sign-in/social` only
-  // recognizes registered `socialProviders`, so it has its own endpoint
-  // (`libs/auth-plugins/steam.ts` on the server) that takes `callbackURL`
-  // without a `provider` field. Response shape (`{ url, redirect }`) matches
-  // `/sign-in/social`, so the branch below still applies to both.
-  const endpoint = params.provider === 'steam'
-    ? new URL('/api/auth/sign-in/steam', params.apiServerUrl)
-    : new URL('/api/auth/sign-in/social', params.apiServerUrl)
-  const body = params.provider === 'steam'
-    ? { callbackURL: params.callbackURL }
-    : { provider: params.provider, callbackURL: params.callbackURL }
+  // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
+  // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
+  // Other providers use the standard `/sign-in/social`.
+  const result = params.provider === 'steam'
+    ? await client.signIn.steam({ callbackURL: params.callbackURL })
+    : await client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL })
 
-  const response = await fetchImpl(endpoint.toString(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-    credentials: 'include',
-    redirect: 'manual',
-  })
+  const url = result.data?.url
+  if (typeof url === 'string')
+    return url
 
-  if (response.type === 'opaqueredirect' || response.status === 302) {
-    return response.headers.get('location') || '/'
-  }
-
-  const data = await response.json() as { url?: unknown }
-
-  if (typeof data.url === 'string')
-    return data.url
-
-  throw new Error(extractAuthError(data) ?? 'Unexpected response')
+  throw new Error(extractAuthError(result.data ?? result.error) ?? 'Unexpected response')
 }
