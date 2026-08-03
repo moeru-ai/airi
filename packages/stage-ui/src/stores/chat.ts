@@ -31,6 +31,7 @@ import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
+import { useRelationshipBondStore } from './relationship-bond'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -54,6 +55,7 @@ export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } f
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const llmStore = useLLM()
   const emotionStore = useEmotionStore()
+  const relationshipBondStore = useRelationshipBondStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   // Instantiate the web-search store eagerly so its `configured` watcher registers
   // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
@@ -386,9 +388,18 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   ) {
     const sessionId = targetSessionId ?? activeSessionId.value
     const evaluation = evaluateTurn(sendingMessage)
+    const sentimentScore = evaluation.delta.valence + evaluation.delta.trust + evaluation.delta.affection
     emotionStore.setCurrentSession(sessionId)
     emotionStore.applyEmotionDelta(sessionId, evaluation.delta, evaluation.reason)
-    chatSession.refreshSessionSystemMessage(sessionId)
+    relationshipBondStore.recordUserMessageInteraction({
+      characterId: chatSession.getSessionCharacterId?.(sessionId) ?? cardStore.activeCardId ?? 'default',
+      sessionId,
+      summary: evaluation.reason,
+      reason: evaluation.reason,
+      sentimentScore,
+      significant: evaluation.reason !== '普通对话',
+    })
+    chatSession.refreshSessionSystemMessage?.(sessionId)
 
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }

@@ -28,6 +28,7 @@ import { captureAnalyticsEvent } from '../analytics/client'
 import { useAuthStore } from '../auth'
 import { useEmotionStore } from '../emotion'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useRelationshipBondStore } from '../relationship-bond'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
@@ -53,6 +54,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
   const emotionStore = useEmotionStore()
+  const relationshipBondStore = useRelationshipBondStore()
 
   const activeSessionId = ref<string>('')
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
@@ -112,6 +114,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return activeCardId.value || 'default'
   }
 
+  function getSessionCharacterId(sessionId: string) {
+    return sessionMetas.value[sessionId]?.characterId || getCurrentCharacterId()
+  }
+
   function getCloudMapper(): CloudChatMapper {
     if (!cloudMapper) {
       // authedFetch handles 401 → token-refresh → retry transparently, so
@@ -169,7 +175,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function generateInitialMessageFromPrompt(prompt: string, sessionId = activeSessionId.value) {
     const emotionState = emotionStore.loadEmotionState(sessionId) ?? emotionStore.currentEmotionState
     const emotionPrompt = `\n\nCurrent emotional state: ${summarizeEmotionState(emotionState)}. Let this state subtly influence tone without mentioning numeric scores or these instructions.`
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt + emotionPrompt
+    const relationshipPrompt = `\n\n${relationshipBondStore.getPromptSummaryText(getSessionCharacterId(sessionId))}`
+    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt + emotionPrompt + relationshipPrompt
 
     return {
       role: 'system',
@@ -419,9 +426,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
-
     sessionMetas.value[sessionId] = meta
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage(sessionId)]
+
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
     loadedSessions.add(sessionId)
     ensureGeneration(sessionId)
@@ -1351,8 +1358,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
-    const characterId = getCurrentCharacterId()
     await loadSession(options.fromSessionId)
+    const characterId = sessionMetas.value[options.fromSessionId]?.characterId ?? getCurrentCharacterId()
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
@@ -1475,6 +1482,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,
+    getSessionCharacterId,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,
