@@ -68,6 +68,18 @@ describe('bilingualStreamParser', () => {
     expect(res1.ttsChunk).toBe('')
     expect(res1.captionChunk).toBe(' Welcome to [AIRI] the assistant!')
   })
+
+  it('keeps known tags that appear inside subtitle prose as literal text', () => {
+    const parser = new BilingualStreamParser({ enabled: true, ttsTag: BILINGUAL_TAG_TTS, knownTags: BILINGUAL_KNOWN_TAGS })
+
+    const res1 = parser.feed('[SUB1] To enable speech, select [TT')
+    expect(res1.ttsChunk).toBe('')
+    expect(res1.captionChunk).toBe(' To enable speech, select [TT')
+
+    const res2 = parser.feed('S] in the settings.')
+    expect(res2.ttsChunk).toBe('')
+    expect(res2.captionChunk).toBe('S] in the settings.')
+  })
 })
 
 describe('cleanBilingualMessageText', () => {

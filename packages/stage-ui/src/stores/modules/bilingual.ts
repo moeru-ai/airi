@@ -28,7 +28,7 @@ export const useBilingualStore = defineStore('bilingual', () => {
       `${BILINGUAL_TAG_SUB2} <subtitle 2 in ${sub2LangInfo.value.name}>`,
     ]
 
-    return `- Bilingual Subtitle Format Requirement:\n  You MUST structure your response into role-tagged sections using exactly these tags in this order:\n${sections.map(s => `  ${s}`).join('\n')}\n  Do NOT omit any of the above tags. Each tag must appear on its own line.\n\n`
+    return `- Bilingual Subtitle Format Requirement:\n  You MUST structure your response into role-tagged sections using exactly these tags in this order:\n${sections.join('\n')}\n  Do NOT omit any of the above tags. Each tag must appear at the beginning of its own line.\n\n`
   })
 
   return {

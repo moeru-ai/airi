@@ -88,6 +88,11 @@ export class BilingualStreamParser {
   private knownTagSet: Set<string>
   private currentTag: string | null = null
   private buffer = ''
+  /**
+   * Routing tags are protocol headers, not inline markup. This tracks whether
+   * the next buffered character begins a response line across stream chunks.
+   */
+  private isAtLineStart = true
 
   constructor(options: BilingualParserOptions) {
     this.enabled = options.enabled
@@ -104,31 +109,38 @@ export class BilingualStreamParser {
     let ttsChunk = ''
     let captionChunk = ''
 
+    const appendText = (text: string) => {
+      if (this.isCaptionActive()) {
+        captionChunk += text
+      }
+      if (this.isTtsActive()) {
+        ttsChunk += text
+      }
+      this.isAtLineStart = text.endsWith('\n')
+    }
+
     while (this.buffer.length > 0) {
-      // Try to match a known tag at the current buffer head.
-      const tagMatch = this.buffer.match(/^\[([\w-]+)\]/)
+      // Tags only act as routing headers at the start of a response line. A
+      // literal [TTS] in subtitle prose must remain visible and audible.
+      const tagMatch = this.isAtLineStart ? this.buffer.match(/^\[([\w-]+)\]/) : null
       if (tagMatch) {
         const fullTag = tagMatch[0].toUpperCase()
         if (this.knownTagSet.has(fullTag)) {
           // Real role tag — switch section and discard the tag from output
           this.currentTag = fullTag
           this.buffer = this.buffer.slice(tagMatch[0].length)
+          this.isAtLineStart = false
           continue
         }
         // Unknown bracketed text (e.g. [AIRI], [docs]).
         const char = this.buffer[0]
         this.buffer = this.buffer.slice(1)
-        if (this.isCaptionActive()) {
-          captionChunk += char
-        }
-        if (this.isTtsActive()) {
-          ttsChunk += char
-        }
+        appendText(char)
         continue
       }
 
       // Buffer starts with an incomplete potential tag — wait for more data.
-      if (/^\[[\w-]*$/.test(this.buffer)) {
+      if (this.isAtLineStart && /^\[[\w-]*$/.test(this.buffer)) {
         break
       }
 
@@ -137,32 +149,17 @@ export class BilingualStreamParser {
       if (nextTagIdx === -1) {
         const textSegment = this.buffer
         this.buffer = ''
-        if (this.isCaptionActive()) {
-          captionChunk += textSegment
-        }
-        if (this.isTtsActive()) {
-          ttsChunk += textSegment
-        }
+        appendText(textSegment)
       }
       else if (nextTagIdx > 0) {
         const textSegment = this.buffer.slice(0, nextTagIdx)
         this.buffer = this.buffer.slice(nextTagIdx)
-        if (this.isCaptionActive()) {
-          captionChunk += textSegment
-        }
-        if (this.isTtsActive()) {
-          ttsChunk += textSegment
-        }
+        appendText(textSegment)
       }
       else {
         const char = this.buffer[0]
         this.buffer = this.buffer.slice(1)
-        if (this.isCaptionActive()) {
-          captionChunk += char
-        }
-        if (this.isTtsActive()) {
-          ttsChunk += char
-        }
+        appendText(char)
       }
     }
 
@@ -191,6 +188,7 @@ export class BilingualStreamParser {
   public reset() {
     this.currentTag = null
     this.buffer = ''
+    this.isAtLineStart = true
   }
 
   private isTtsActive(): boolean {
