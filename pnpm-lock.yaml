@@ -4545,6 +4545,9 @@ importers:
       '@iconify-json/mingcute':
         specifier: 'catalog:'
         version: 1.2.7
+      '@iconify-json/ph':
+        specifier: 'catalog:'
+        version: 1.2.2
       '@iconify-json/simple-icons':
         specifier: 'catalog:'
         version: 1.2.78
