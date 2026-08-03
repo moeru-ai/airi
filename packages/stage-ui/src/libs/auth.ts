@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
+import { steamClient } from './steam-auth-client'
 
 export type OAuthProvider = 'google' | 'github' | 'steam'
 
@@ -20,6 +21,7 @@ export function getAuthToken(): string | null {
 
 export const authClient = createAuthClient({
   baseURL: SERVER_URL,
+  plugins: [steamClient()],
   fetchOptions: {
     // NOTICE: better-auth's client hardcodes `credentials: "include"` by default
     // (config.mjs L40), which causes cookies to be sent alongside the Authorization
