@@ -47,6 +47,9 @@ async function waitForContent(
   let el: HTMLElement | undefined
   let prevHeight = -1
   while (performance.now() - start < timeoutMs) {
+    // Bail out early if the dialog was closed while we were waiting.
+    if (!open.value)
+      return undefined
     await new Promise(resolve => requestAnimationFrame(resolve))
     el = getContent()
     if (!el)
@@ -64,8 +67,13 @@ async function waitForContent(
  * closing replays it in reverse via the `data-state=closed` CSS animation.
  * Stores --morph-* for the close animation and cancels the WAAPI object
  * afterwards, otherwise it keeps locking transform and suppresses it.
+ *
+ * A run awaiting waitForContent must not apply animations once the dialog
+ * has been closed (or reopened) in the meantime — guarded by `watchRun`.
  */
+let watchRun = 0
 watch(open, async (isOpen) => {
+  const run = ++watchRun
   contentAnim?.cancel()
   overlayAnim?.cancel()
   contentAnim = undefined
@@ -84,6 +92,11 @@ watch(open, async (isOpen) => {
   const content = await waitForContent(
     () => resolveElement(contentRef.value) ?? document.querySelector<HTMLElement>('.search-dialog') ?? undefined,
   )
+  // Stale guard: the dialog may have been closed (or reopened) while we were
+  // waiting — abort, so the opening animation never applies to a closing dialog.
+  if (run !== watchRun || !open.value)
+    return
+
   const trigger = resolveElement(triggerRef.value)
   if (!trigger || !content)
     return
