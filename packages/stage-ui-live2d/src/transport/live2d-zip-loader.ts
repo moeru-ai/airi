@@ -2,9 +2,16 @@ import type { JSONObject, ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import JSZip from 'jszip'
 
-import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
+import { FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
 
-import { decodeZipFileName } from './decode-zip-filename'
+import {
+  createCubism4FakeSettings,
+  isCubism4MocFile,
+  sanitizeCubism4ModelSettingsText,
+} from '../generations/cubism4/model-settings'
+import { decodeZipFileName } from '../utils/decode-zip-filename'
+
+export { basename } from '../generations/cubism4/model-settings'
 
 // Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
 // codepage; decode them so non-ASCII names (e.g. `手姿势切换.exp3.json`) don't become
@@ -32,7 +39,7 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   const settings = await (async () => {
     const settingsFilePath = filePaths.find(file => isSettingsFile(file))
     if (!settingsFilePath) {
-      return createFakeSettings(filePaths)
+      return createCubism4FakeSettings(filePaths)
     }
     return createModelSettings(await ZipLoader.readText(reader, settingsFilePath), settingsFilePath)
   })()
@@ -85,23 +92,6 @@ ZipLoader.createSettings = async (reader: JSZip) => {
  * After:
  * - `{ "FileReferences": {} }`
  */
-function sanitizeModelSettingsText(text: string): string {
-  const json = JSON.parse(text) as Record<string, unknown>
-  const refs = json.FileReferences
-
-  if (refs && typeof refs === 'object') {
-    const fileReferences = refs as Record<string, unknown>
-    if (fileReferences.Physics === null)
-      delete fileReferences.Physics
-    if (fileReferences.Pose === null)
-      delete fileReferences.Pose
-    if (fileReferences.DisplayInfo === null)
-      delete fileReferences.DisplayInfo
-  }
-
-  return JSON.stringify(json)
-}
-
 function createModelSettings(text: string, url: string): ModelSettings {
   if (!text) {
     throw new Error(`Empty settings file: ${url}`)
@@ -125,59 +115,7 @@ export function isSettingsFile(file: string) {
 }
 
 export function isMocFile(file: string) {
-  return file.endsWith('.moc3')
-}
-
-export function basename(path: string): string {
-  // https://stackoverflow.com/a/15270931
-  return path.split(/[\\/]/).pop()!
-}
-
-// copy and modified from https://github.com/guansss/live2d-viewer-web/blob/f6060b2ce52c2e26b6b61fa903c837fe343f72d1/src/app/upload.ts#L81-L142
-function createFakeSettings(files: string[]): ModelSettings {
-  const mocFiles = files.filter(file => isMocFile(file))
-
-  if (mocFiles.length !== 1) {
-    const fileList = mocFiles.length ? `(${mocFiles.map(f => `"${f}"`).join(',')})` : ''
-
-    throw new Error(`Expected exactly one moc file, got ${mocFiles.length} ${fileList}`)
-  }
-
-  const mocFile = mocFiles[0]
-  const modelName = basename(mocFile).replace(/\.moc3?/, '')
-
-  const textures = files.filter(f => f.endsWith('.png'))
-
-  if (!textures.length) {
-    throw new Error('Textures not found')
-  }
-
-  const motions = files.filter(f => f.endsWith('.mtn') || f.endsWith('.motion3.json'))
-  const physics = files.find(f => f.includes('physics'))
-  const pose = files.find(f => f.includes('pose'))
-
-  const settings = new Cubism4ModelSettings({
-    url: `${modelName}.model3.json`,
-    Version: 3,
-    FileReferences: {
-      Moc: mocFile,
-      Textures: textures,
-      Physics: physics,
-      Pose: pose,
-      Motions: motions.length
-        ? {
-            '': motions.map(motion => ({ File: motion })),
-          }
-        : undefined,
-    },
-  })
-
-  settings.name = modelName
-
-  // provide this property for FileLoader
-  Object.assign(settings, { _objectURL: `example://${settings.url}` })
-
-  return settings
+  return isCubism4MocFile(file)
 }
 
 ZipLoader.readText = async (jsZip: JSZip, path: string) => {
@@ -189,7 +127,7 @@ ZipLoader.readText = async (jsZip: JSZip, path: string) => {
 
   const text = await file.async('text')
 
-  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
+  return isSettingsFile(path) ? sanitizeCubism4ModelSettingsText(text) : text
 }
 
 const defaultFileLoaderReadText = FileLoader.readText
@@ -212,7 +150,7 @@ FileLoader.readText = async (file: File) => {
   const text = await defaultFileLoaderReadText(file)
   const path = file.webkitRelativePath || file.name
 
-  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
+  return isSettingsFile(path) ? sanitizeCubism4ModelSettingsText(text) : text
 }
 
 ZipLoader.getFilePaths = (jsZip: JSZip) => {
