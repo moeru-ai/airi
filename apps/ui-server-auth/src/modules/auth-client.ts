@@ -41,56 +41,31 @@ export interface AuthClientArgs {
   fetchImpl?: typeof fetch
 }
 
-function createConfiguredClient(apiServerUrl: string, fetchImpl?: typeof fetch) {
-  const options = fetchImpl
-    ? {
-        baseURL: apiServerUrl,
-        plugins: [steamClient()],
-        fetchOptions: { customFetchImpl: fetchImpl },
-      }
-    : {
-        baseURL: apiServerUrl,
-        plugins: [steamClient()],
-      }
-  return createAuthClient(options)
-}
-
-type AuthClient = ReturnType<typeof createConfiguredClient>
+type AuthClient = ReturnType<typeof createAuthClient<{
+  baseURL: string
+  plugins: ReturnType<typeof steamClient>[]
+}>>
 
 const clientCache = new Map<string, AuthClient>()
 
 /**
- * Build (or reuse) a better-auth client pointed at the given server.
- *
- * Use when:
- * - Any module needs to call `/api/auth/*` from the auth UI.
- *
- * The client is created with `steamClient()`, so Steam sign-in / linking
- * are reachable as typed `signIn.steam` / `linkSteam` methods instead of
- * hand-rolled `/sign-in/steam` / `/link/steam` requests.
- *
- * Expects:
- * - `apiServerUrl` is a fully-qualified origin (e.g. `https://api.airi.test`
- *   or `http://localhost:3000`). Trailing slash optional; better-auth
- *   normalises.
- *
- * Returns:
- * - A typed client whose methods (`getSession`, `updateUser`, `listAccounts`,
- *   `linkSteam`, `signIn.steam`, etc.) match the better-auth endpoint
- *   surface. Tokens / cookies handled via `credentials: 'include'` defaults.
+ * Cookie-credentialed better-auth client for the auth UI, with the Steam
+ * plugin wired in (`linkSteam` / `signIn.steam`). Unlike the Bearer-only
+ * stage-ui singleton, this client carries the session cookie.
  */
 export function getAuthClient(args: AuthClientArgs): AuthClient {
   if (args.fetchImpl) {
-    // Tests: never cache, never share. The injected fetchImpl is the whole
-    // point of the call.
-    return createConfiguredClient(args.apiServerUrl, args.fetchImpl)
+    return createAuthClient({
+      baseURL: args.apiServerUrl,
+      plugins: [steamClient()],
+      fetchOptions: { customFetchImpl: args.fetchImpl },
+    })
   }
 
-  const cached = clientCache.get(args.apiServerUrl)
-  if (cached)
-    return cached
-
-  const client = createConfiguredClient(args.apiServerUrl)
+  const client = clientCache.get(args.apiServerUrl) ?? createAuthClient({
+    baseURL: args.apiServerUrl,
+    plugins: [steamClient()],
+  })
   clientCache.set(args.apiServerUrl, client)
   return client
 }
