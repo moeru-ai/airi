@@ -7,26 +7,25 @@ import { steam } from './steam'
 
 import * as schema from '../../schemas'
 
+/** Test fixture: arbitrary valid-format SteamID64 used in fake OpenID callbacks. */
 const STEAM_ID = '76561198012345678'
 
-/**
- * The state-security check compares the `state` query param against a
- * signed cookie set on the /sign-in/steam response — real browsers carry it
- * automatically across the Steam round trip since it's same-site; tests
- * calling `auth.handler` directly (no shared cookie jar) must forward it.
- */
 /**
  * Merges `Set-Cookie` headers from one or more responses into a single
  * `Cookie` header value, later sources overriding earlier ones by name.
  *
+ * Tests call `auth.handler` directly with no shared cookie jar, so they
+ * must forward cookies themselves; real browsers carry them automatically
+ * across the Steam round trip since they're same-site.
+ *
  * `Headers.get('set-cookie')` comma-joins repeated headers, which breaks on
  * cookies whose own attributes contain commas (e.g. `Expires=Thu, 01...`);
- * `getSetCookie()` returns each header value un-mangled. Merging by name (not
- * just concatenating) matters here because the callback response both clears
- * the spent `better-auth.state` cookie (empty value) and, on a later
+ * `getSetCookie()` returns each header value un-mangled. Merging by name
+ * (not just concatenating) matters here because the callback response both
+ * clears the spent `better-auth.state` cookie (empty value) and, on a later
  * `/link/steam` call, sets a *new* `better-auth.state` for the next round
- * trip — a naive concatenation would send both, and cookie-header parsers are
- * free to keep whichever duplicate they see first.
+ * trip — a naive concatenation would send both, and cookie-header parsers
+ * are free to keep whichever duplicate they see first.
  */
 function forwardableCookieHeader(...headerSources: Headers[]): string {
   const cookies = new Map<string, string>()

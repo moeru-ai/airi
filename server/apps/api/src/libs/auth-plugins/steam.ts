@@ -24,37 +24,32 @@ const CallbackQuerySchema = z.looseObject({
 /**
  * Steam OpenID 2.0 sign-in / account-linking plugin.
  *
- * Use when:
- * - Users should be able to sign in with (or connect/disconnect) their Steam
- *   account from any AIRI surface, not just an Electron build launched
- *   through Steam. Steam's web login is plain OpenID 2.0, not OAuth2/OIDC, so
- *   it cannot be registered as a `socialProviders` entry — this plugin adds
- *   the two endpoints Steam's protocol needs directly.
+ * Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
+ * `socialProviders` entry — this plugin adds the endpoints its protocol
+ * needs: `POST /sign-in/steam`, `POST /link/steam`, `GET /steam/callback`.
  *
  * Identity model:
  * - Steam never exposes an email address. New sign-ups get a placeholder
- *   `<steamid64>@steam.placeholder.local` address (mirrors how Apple Sign In
- *   accounts without a real email get `<sub>@apple.placeholder.local`) and
- *   `emailVerified: true` — the placeholder can never receive mail, so
- *   "verification" is meaningless for it and would otherwise permanently
- *   block sign-in.
+ *   `<steamid64>@steam.placeholder.local` (mirrors Apple's
+ *   `<sub>@apple.placeholder.local`) with `emailVerified: true` — the
+ *   placeholder can never receive mail, so verification is meaningless and
+ *   would otherwise permanently block sign-in.
  * - No `CheckAppOwnership` call here: that check only makes sense for the
  *   ticket-based desktop sign-in path (a Steam client already launched the
- *   app), where it works as free anti-fraud you don't get from a web login.
- *   A browser-only OpenID login has no ticket to check ownership against.
+ *   app), where it works as free anti-fraud; a browser-only OpenID login
+ *   has no ticket to check.
  *
  * Mechanism:
- * - `POST /sign-in/steam` and `POST /link/steam` both build the same
- *   `checkid_setup` redirect URL, differing only in whether `generateState`
- *   records a `link: { userId, email }` (link requires an active session via
- *   `sessionMiddleware`). Reusing `generateState`/`parseState` from
- *   `better-auth/oauth2` gets us the same verification-table-backed CSRF
- *   state storage the built-in OAuth2 plugins use, without re-implementing it.
- * - `GET /steam/callback` verifies the response via OpenID's "dumb mode"
- *   (`openid.mode=check_authentication`, POSTed back to Steam) rather than
- *   validating the RSA signature ourselves — no association/session state to
- *   manage, at the cost of one extra HTTP round trip per login. Standard
- *   trade-off for OpenID 2.0 relying parties that don't need high QPS.
+ * - Both start endpoints build the same `checkid_setup` redirect URL,
+ *   differing only in whether `generateState` records a `link: { userId,
+ *   email }` (link requires an active session via `sessionMiddleware`).
+ *   Reusing `generateState`/`parseState` gets the same verification-table-
+ *   backed CSRF state storage the built-in OAuth2 plugins use, without
+ *   re-implementing it.
+ * - `GET /steam/callback` verifies via OpenID "dumb mode"
+ *   (`openid.mode=check_authentication`, POSTed back to Steam) instead of
+ *   validating the RSA signature ourselves — no association/session state
+ *   to manage, at the cost of one extra HTTP round trip per login.
  */
 export function steam() {
   function buildOpenIdRedirectURL(baseURL: string, state: string): string {
