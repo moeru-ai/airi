@@ -27,7 +27,7 @@ Ollama allows AIRI Desktop's local development and packaged-app origins by defau
 
 ## What will you see
 
-The desktop version is also called Stage Tamagotchi and usually consists of these interfaces:
+The Desktop ver. usually consists of these interfaces:
 
 - **Main Character Window**: A desktop-resident character stage supporting Live2D, Spine, VRM, MMD, and Tachie.
 - **Controls Island**: A small group of buttons in the lower-right corner of the main character window.

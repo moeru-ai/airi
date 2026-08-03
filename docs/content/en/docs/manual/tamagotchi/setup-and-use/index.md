@@ -508,7 +508,7 @@ Opening the app data folder and resetting desktop settings or status are availab
 <a id="chapter-4-connection"></a>
 ### Connection
 
-**Connection** configures AIRI's service channel. Set the **WebSocket Server Address** and turn on **Enable Secure WebSocket (WSS)** when encrypted transport is required. On desktop, **Expose On Network** can be set to **This device**, **All**, or **Advanced**; **Advanced** reveals **Bind Hostname**. You can also set an **Auth Token** and use the QR code to connect Stage Pocket. Expose AIRI only on trusted networks and keep the token private.
+**Connection** configures AIRI's service channel. Set the **WebSocket Server Address** and turn on **Enable Secure WebSocket (WSS)** when encrypted transport is required. On desktop, **Expose On Network** can be set to **This device**, **All**, or **Advanced**; **Advanced** reveals **Bind Hostname**. You can also set an **Auth Token** and use the QR code to connect the Mobile ver. Expose AIRI only on trusted networks and keep the token private.
 
 ![AIRI Connection settings](./assets/manual-websocket-settings.avif)
 
