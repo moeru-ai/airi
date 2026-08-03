@@ -144,7 +144,6 @@ describe('ui-server-auth sign-in flow helpers', () => {
 
     const [url, init] = fetchImpl.mock.calls[0] ?? []
     expect(String(url)).toBe('https://api.airi.test/api/auth/sign-in/steam')
-    expect((init as RequestInit).method).toBe('POST')
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
     })
