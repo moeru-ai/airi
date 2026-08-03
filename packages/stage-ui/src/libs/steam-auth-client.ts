@@ -31,18 +31,11 @@ type SteamAuthClientFetch = Parameters<NonNullable<BetterAuthClientPlugin['getAc
 /**
  * Client-side counterpart of the server `steam()` auth plugin.
  *
- * Use when:
- * - Creating a better-auth client for a surface whose server mounts the
- *   Steam plugin (ui-server-auth, stage-web, stage-tamagotchi). Adds typed
- *   `linkSteam` and `signIn.steam` actions so callers never hand-roll the
- *   `/link/steam` / `/sign-in/steam` requests.
- *
- * Why Steam needs its own actions: Steam's web login is OpenID 2.0, not
- * OAuth2, so better-auth's `/link-social` and `/sign-in/social` only
- * resolve registered OAuth2 `socialProviders` and can never reach Steam.
- * The server plugin therefore exposes dedicated endpoints; this plugin
- * surfaces them as first-class client methods instead of leaving every
- * consumer to dig through the generic `$fetch` escape hatch.
+ * Adds typed `linkSteam` / `signIn.steam` actions backed by the plugin's
+ * dedicated endpoints, so consumers don't hand-roll `/link/steam` /
+ * `/sign-in/steam` requests. Steam's web login is OpenID 2.0, not OAuth2,
+ * so better-auth's `/link-social` / `/sign-in/social` can never reach it —
+ * `socialProviders` is a fixed OAuth2 list.
  *
  * Removal condition: better-auth natively supports OpenID 2.0 / Steam as a
  * `socialProviders` entry — then both this plugin and the server plugin's

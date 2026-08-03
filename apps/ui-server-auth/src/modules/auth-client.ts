@@ -1,28 +1,17 @@
 /**
  * Better-auth client factory for the auth-only SPA (`apps/ui-server-auth`).
  *
- * Use when:
- * - Calling any `/api/auth/*` endpoint from the auth UI (profile read/write,
- *   sign-in / sign-up, password reset, linked accounts management). Lets us
- *   reuse better-auth's typed client surface instead of re-deriving response
- *   shapes from `unknown` JSON in N hand-written wrappers.
+ * Separate from the stage-ui singleton because that client is Bearer-only:
+ * it omits cookies and injects the auth-store token on every request, which
+ * makes no sense on the page the session cookie was just set on. This client
+ * uses better-auth's cookie defaults (`credentials: 'include'`) instead.
  *
- * Why a separate factory (vs. importing the singleton in
- * `packages/stage-ui/src/libs/auth.ts`):
- * - Stage-UI's client is configured for **Bearer-only** access (`credentials:
- *   'omit'` so cookies don't tag along with OIDC JWTs). It also injects a
- *   Bearer token from the auth store on every request — nonsense in this
- *   app, since the auth UI is the page the cookie was *just* set on.
- * - This client uses the better-auth defaults (cookies via
- *   `credentials: 'include'`) and skips the Bearer header. That matches
- *   what the auth UI actually has at hand.
- *
- * Test seam:
- * - Pass `fetchImpl` to substitute `globalThis.fetch`. Better-auth wires it
- *   as `customFetchImpl` (see node_modules/better-auth/dist/client/config.mjs
- *   L+: the spread of `restOfFetchOptions` happens after the default, so a
- *   user-supplied value wins). Production callers omit `fetchImpl` and we
- *   memoise per `apiServerUrl` so we don't rebuild on every render.
+ * Test seam: pass `fetchImpl` to substitute `globalThis.fetch` (wired as
+ * `customFetchImpl`; see node_modules/better-auth/dist/client/config.mjs L+
+ * — the `restOfFetchOptions` spread happens after the default, so a
+ * user-supplied value wins). With `fetchImpl` we don't memoise, so tests
+ * can't leak state between cases; production callers memoise per
+ * `apiServerUrl`.
  *
  * Removal condition: better-auth ships a hosted typed client for OIDC IdP
  * setups where one process is both IdP and resource server. Until then,
