@@ -146,6 +146,51 @@ export interface ChatOrchestratorPromptProjection {
   composedMessage?: Message[]
 }
 
+function cleanBilingualRoutingTags(text: string): string {
+  if (!text || (!text.includes('[TTS]') && !text.includes('[SUB1]') && !text.includes('[SUB2]'))) {
+    return text
+  }
+
+  const matches = [...text.matchAll(/\[(TTS|SUB1|SUB2)\]/g)]
+  if (matches.length === 0)
+    return text
+
+  const sections: Record<string, string> = {}
+  let lastIndex = 0
+  let currentTag: string | null = null
+
+  for (const match of matches) {
+    if (currentTag) {
+      const content = text.slice(lastIndex, match.index).trim()
+      if (content)
+        sections[currentTag] = content
+    }
+    currentTag = match[1]
+    lastIndex = match.index! + match[0].length
+  }
+
+  if (currentTag && lastIndex < text.length) {
+    const content = text.slice(lastIndex).trim()
+    if (content)
+      sections[currentTag] = content
+  }
+
+  const parts: string[] = []
+  const sub1 = sections.SUB1
+  const sub2 = sections.SUB2
+  const tts = sections.TTS
+
+  if (sub1)
+    parts.push(sub1)
+  else if (tts)
+    parts.push(tts)
+
+  if (sub2 && sub2 !== sub1 && sub2 !== tts)
+    parts.push(sub2)
+
+  return parts.length > 0 ? parts.join('\n') : text
+}
+
 /**
  * Reactive state mirrored by UI facades.
  */
@@ -606,6 +651,22 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             speech: finalCategorization.speech,
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
+
+          const cleanedText = cleanBilingualRoutingTags(buildingMessage.content)
+          buildingMessage.content = cleanedText
+          if (buildingMessage.slices.length > 0) {
+            const textSlices = buildingMessage.slices.filter(s => s.type === 'text')
+            if (textSlices.length === 1) {
+              textSlices[0].text = cleanedText
+            }
+            else if (textSlices.length > 1) {
+              buildingMessage.slices = [
+                ...buildingMessage.slices.filter(s => s.type !== 'text'),
+                { type: 'text', text: cleanedText },
+              ]
+            }
+          }
+
           patchForegroundStream(sessionId, buildingMessage)
         },
         minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,

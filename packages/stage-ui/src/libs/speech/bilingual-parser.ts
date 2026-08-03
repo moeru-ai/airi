@@ -3,7 +3,7 @@ export interface BilingualParserOptions {
   /** The tag whose content should be routed to TTS, e.g. "[TTS]" */
   ttsTag: string
   /**
-   * The complete set of known language tags (e.g. ["[TTS]", "[SUB1]", "[SUB2]"]).
+   * The complete set of known language/role tags (e.g. ["[TTS]", "[SUB1]", "[SUB2]"]).
    * Only brackets whose content matches one of these will trigger a section
    * switch; all other bracketed text (Markdown links, product names, etc.)
    * is treated as normal prose and is NOT consumed as a tag.
@@ -11,10 +11,66 @@ export interface BilingualParserOptions {
   knownTags: string[]
 }
 
+/**
+ * Strips internal bilingual routing tags ([TTS], [SUB1], [SUB2]) and deduplicates
+ * identical subtitle sections for display in the chat transcript and persistence.
+ */
+export function cleanBilingualMessageText(text: string): string {
+  if (!text || (!text.includes('[TTS]') && !text.includes('[SUB1]') && !text.includes('[SUB2]'))) {
+    return text
+  }
+
+  const tagRegex = /\[(TTS|SUB1|SUB2)\]/g
+  const matches = [...text.matchAll(tagRegex)]
+  if (matches.length === 0) {
+    return text
+  }
+
+  const sections: Record<string, string> = {}
+  let lastIndex = 0
+  let currentTag: string | null = null
+
+  for (const match of matches) {
+    if (currentTag) {
+      const content = text.slice(lastIndex, match.index).trim()
+      if (content) {
+        sections[currentTag] = content
+      }
+    }
+    currentTag = match[1]
+    lastIndex = match.index! + match[0].length
+  }
+
+  if (currentTag && lastIndex < text.length) {
+    const content = text.slice(lastIndex).trim()
+    if (content) {
+      sections[currentTag] = content
+    }
+  }
+
+  const resultParts: string[] = []
+  const sub1 = sections.SUB1
+  const sub2 = sections.SUB2
+  const tts = sections.TTS
+
+  if (sub1) {
+    resultParts.push(sub1)
+  }
+  else if (tts) {
+    resultParts.push(tts)
+  }
+
+  if (sub2 && sub2 !== sub1 && sub2 !== tts) {
+    resultParts.push(sub2)
+  }
+
+  return resultParts.join('\n')
+}
+
 export class BilingualStreamParser {
   private enabled: boolean
   private ttsTag: string
-  /** Normalised set of known tags for fast lookup, e.g. {"[TTS]", "[SUB1]"} */
+  /** Normalised set of known tags for fast lookup, e.g. {"[TTS]", "[SUB1]", "[SUB2]"} */
   private knownTagSet: Set<string>
   private currentTag: string | null = null
   private buffer = ''
@@ -35,21 +91,22 @@ export class BilingualStreamParser {
     let captionChunk = ''
 
     while (this.buffer.length > 0) {
-      // Try to match a known language tag at the current buffer head.
+      // Try to match a known tag at the current buffer head.
       const tagMatch = this.buffer.match(/^\[([\w-]+)\]/)
       if (tagMatch) {
         const fullTag = tagMatch[0].toUpperCase()
         if (this.knownTagSet.has(fullTag)) {
-          // It's a real language tag — switch sections and discard it from both TTS and caption output.
+          // Real role tag — switch section and discard the tag from output
           this.currentTag = fullTag
           this.buffer = this.buffer.slice(tagMatch[0].length)
           continue
         }
-        // It's some other bracketed word (e.g. [AIRI], [docs]).
-        // Treat the opening bracket as literal text and advance past it.
+        // Unknown bracketed text (e.g. [AIRI], [docs]).
         const char = this.buffer[0]
         this.buffer = this.buffer.slice(1)
-        captionChunk += char
+        if (this.isCaptionActive()) {
+          captionChunk += char
+        }
         if (this.isTtsActive()) {
           ttsChunk += char
         }
@@ -66,7 +123,9 @@ export class BilingualStreamParser {
       if (nextTagIdx === -1) {
         const textSegment = this.buffer
         this.buffer = ''
-        captionChunk += textSegment
+        if (this.isCaptionActive()) {
+          captionChunk += textSegment
+        }
         if (this.isTtsActive()) {
           ttsChunk += textSegment
         }
@@ -74,7 +133,9 @@ export class BilingualStreamParser {
       else if (nextTagIdx > 0) {
         const textSegment = this.buffer.slice(0, nextTagIdx)
         this.buffer = this.buffer.slice(nextTagIdx)
-        captionChunk += textSegment
+        if (this.isCaptionActive()) {
+          captionChunk += textSegment
+        }
         if (this.isTtsActive()) {
           ttsChunk += textSegment
         }
@@ -82,7 +143,9 @@ export class BilingualStreamParser {
       else {
         const char = this.buffer[0]
         this.buffer = this.buffer.slice(1)
-        captionChunk += char
+        if (this.isCaptionActive()) {
+          captionChunk += char
+        }
         if (this.isTtsActive()) {
           ttsChunk += char
         }
@@ -103,7 +166,10 @@ export class BilingualStreamParser {
     if (this.isTtsActive()) {
       ttsChunk = this.buffer
     }
-    const captionChunk = this.buffer
+    let captionChunk = ''
+    if (this.isCaptionActive()) {
+      captionChunk = this.buffer
+    }
     this.buffer = ''
     return { ttsChunk, captionChunk }
   }
@@ -117,5 +183,12 @@ export class BilingualStreamParser {
     if (this.currentTag === null)
       return true
     return this.currentTag === this.ttsTag
+  }
+
+  private isCaptionActive(): boolean {
+    if (this.currentTag === null)
+      return true
+    // Captions show SUB1 and SUB2 sections (ignoring TTS section to prevent duplicating SUB1)
+    return this.currentTag === '[SUB1]' || this.currentTag === '[SUB2]'
   }
 }
