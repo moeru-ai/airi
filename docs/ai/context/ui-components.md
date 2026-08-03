@@ -114,10 +114,14 @@ surface, border, shape, or color styling.
 | `label` | `string?` | — | Button text |
 | `disabled` | `boolean?` | `false` | Disabled state |
 | `loading` | `boolean?` | `false` | Loading state |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
+| `size` | `'sm' \| 'md' \| 'lg' \| 'unset'` | `'md'` | Preset size; `unset` leaves sizing to the caller |
 | `block` | `boolean?` | `false` | Full width |
 
 **Slots**: `default` (fallback when no `label`)
+
+`size="unset"` omits the preset padding and text-size classes in `BasicButton`,
+`Button`, and `GhostButton`. Callers must supply any required sizing, including
+fixed dimensions for circular buttons.
 
 ### Button
 
