@@ -1,4 +1,4 @@
-# `@proj-airi/server`
+# `@proj-airi/api-server`
 
 Project AIRI's resource API. Authentication is a separate workspace app at
 `server/apps/auth`; this package does not instantiate Better Auth or expose
@@ -15,10 +15,10 @@ auth/OIDC routes.
 ## Run locally
 
 ```sh
-pnpm -F @proj-airi/server dev
-pnpm -F @proj-airi/server typecheck
-pnpm -F @proj-airi/server exec vitest run
-pnpm -F @proj-airi/server build
+pnpm -F @proj-airi/api-server dev
+pnpm -F @proj-airi/api-server typecheck
+pnpm -F @proj-airi/api-server exec vitest run
+pnpm -F @proj-airi/api-server build
 ```
 
 Run the complete local backend from the repository root:
@@ -27,7 +27,7 @@ Run the complete local backend from the repository root:
 pnpm dev:backend
 ```
 
-For source-level debugging, start `@proj-airi/server` and
+For source-level debugging, start `@proj-airi/api-server` and
 `@proj-airi/auth-server` separately instead.
 
 `server/docker-compose.yaml` exposes the local Caddy gateway at `http://localhost:6112` and keeps
@@ -46,6 +46,3 @@ the API and Auth container ports private.
   under `server/apps/auth` is imported.
 - `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to
   `https://admin.airi.build`.
-
-For the complete extraction and Caddy boundary, see
-[`docs/ai-context/auth-service-extraction.md`](docs/ai-context/auth-service-extraction.md).

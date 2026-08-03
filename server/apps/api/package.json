@@ -1,8 +1,11 @@
 {
-  "name": "@proj-airi/server",
+  "name": "@proj-airi/api-server",
   "type": "module",
   "version": "0.11.3",
   "private": true,
+  "exports": {
+    "./app-type": "./src/app-type.ts"
+  },
   "scripts": {
     "apply:env": "dotenvx run -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "dev": "pnpm run apply:env -- tsx --import ./instrumentation.ts --watch src/main.ts",
@@ -41,9 +44,9 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
+    "@proj-airi/drizzle-migration": "workspace:*",
     "@proj-airi/drizzle-orm-browser-migrator": "catalog:",
     "@proj-airi/server-node-shared": "workspace:*",
-    "@proj-airi/server-schema": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",

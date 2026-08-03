@@ -82,7 +82,7 @@ After changes, run targeted validation before broader checks:
 
 ```sh
 pnpm exec vitest run server/apps/api/src/routes/<route>/route.test.ts
-pnpm -F @proj-airi/server typecheck
+pnpm -F @proj-airi/api-server typecheck
 pnpm exec eslint <changed files>
 ```
 

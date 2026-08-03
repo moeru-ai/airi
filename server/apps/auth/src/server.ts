@@ -149,7 +149,7 @@ export async function createAuthServer() {
         try {
           await candidate.db.execute('SELECT 1')
           logger.log(`Connected to database on attempt ${attempt}`)
-          // The one-shot server schema build owns the shared database history.
+          // The drizzle-migration build owns the shared database history.
           // Auth startup only checks connectivity and never races migrations.
           return candidate
         }

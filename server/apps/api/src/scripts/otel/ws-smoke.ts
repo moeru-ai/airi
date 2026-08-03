@@ -10,10 +10,10 @@
  * deployment/lifecycle issue, not a code bug.
  *
  * Usage:
- *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/ws-smoke.ts
+ *   pnpm -F @proj-airi/api-server exec node --import tsx ./src/scripts/otel/ws-smoke.ts
  *
  * With OTel diagnostic logs (verbose, includes export cycles):
- *   OTEL_DEBUG=true pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/ws-smoke.ts
+ *   OTEL_DEBUG=true pnpm -F @proj-airi/api-server exec node --import tsx ./src/scripts/otel/ws-smoke.ts
  */
 import { env, exit } from 'node:process'
 import { setTimeout as sleep } from 'node:timers/promises'

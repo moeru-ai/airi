@@ -143,3 +143,7 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 
 docs/ai/context/verifications/
 .playwright-mcp/
+
+# Generated from packages/i18n/glossary/terms.yaml at upload time. Never committed, so it
+# cannot drift from its source.
+packages/i18n/glossary/glossary.tbx

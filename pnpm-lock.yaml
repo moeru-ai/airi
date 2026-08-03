@@ -1180,6 +1180,7 @@ catalogs:
       version: 0.1.14
 
 overrides:
+  '@better-auth/oauth-provider>@better-auth/core': 1.6.5
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
@@ -1193,9 +1194,6 @@ overrides:
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
-  '@mediapipe/tasks-vision':
-    hash: 2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66
-    path: patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2':
     hash: 306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6
     path: patches/@xsai__generate-text@0.5.0-beta.2.patch
@@ -1358,127 +1356,6 @@ importers:
         specifier: 'catalog:'
         version: 2.8.3
 
-  server/apps/auth:
-    dependencies:
-      '@better-auth/drizzle-adapter':
-        specifier: 'catalog:'
-        version: 1.6.5(@better-auth/core@1.6.5(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.4.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
-      '@better-auth/oauth-provider':
-        specifier: 'catalog:'
-        version: 1.5.6(@better-auth/core@1.6.5(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3)))(better-call@1.3.5(zod@4.3.6))
-      '@dotenvx/dotenvx':
-        specifier: 'catalog:'
-        version: 1.61.1
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@hono/node-server':
-        specifier: 'catalog:'
-        version: 1.19.14(hono@4.11.3)
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@opentelemetry/api':
-        specifier: 'catalog:'
-        version: 1.9.1
-      '@opentelemetry/api-logs':
-        specifier: 'catalog:'
-        version: 0.215.0
-      '@opentelemetry/exporter-logs-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-metrics-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-trace-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-http':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-ioredis':
-        specifier: 'catalog:'
-        version: 0.63.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-pg':
-        specifier: 'catalog:'
-        version: 0.67.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-runtime-node':
-        specifier: 'catalog:'
-        version: 0.28.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-undici':
-        specifier: 'catalog:'
-        version: 0.25.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-logs':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-metrics':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-node':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-node':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions':
-        specifier: 'catalog:'
-        version: 1.40.0
-      '@proj-airi/auth-shared':
-        specifier: workspace:*
-        version: link:../../packages/auth-shared
-      '@proj-airi/server-node-shared':
-        specifier: workspace:*
-        version: link:../../packages/node-shared
-      better-auth:
-        specifier: 'catalog:'
-        version: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
-      hono:
-        specifier: 'catalog:'
-        version: 4.11.3
-      hono-rate-limiter:
-        specifier: 'catalog:'
-        version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
-      injeca:
-        specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
-      ioredis:
-        specifier: 'catalog:'
-        version: 5.10.1
-      jose:
-        specifier: 'catalog:'
-        version: 6.2.2
-      pg:
-        specifier: 'catalog:'
-        version: 8.20.0
-      resend:
-        specifier: 'catalog:'
-        version: 6.12.2
-      tsx:
-        specifier: 'catalog:'
-        version: 4.21.0
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
-    devDependencies:
-      '@better-auth/cli':
-        specifier: 'catalog:'
-        version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(drizzle-kit@0.31.10)(jose@6.2.2)(kysely@0.28.14)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.9)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
-      '@types/pg':
-        specifier: 'catalog:'
-        version: 8.20.0
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-
   apps/component-calling:
     dependencies:
       '@proj-airi/ui':
@@ -1530,166 +1407,6 @@ importers:
       vue-tsc:
         specifier: 'catalog:'
         version: 3.2.6(typescript@5.9.3)
-
-  server/apps/api:
-    dependencies:
-      '@dotenvx/dotenvx':
-        specifier: 'catalog:'
-        version: 1.61.1
-      '@electric-sql/pglite':
-        specifier: 'catalog:'
-        version: 0.4.4
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@hono/node-server':
-        specifier: 'catalog:'
-        version: 1.19.14(hono@4.11.3)
-      '@hono/node-ws':
-        specifier: 'catalog:'
-        version: 1.3.0(@hono/node-server@1.19.14(hono@4.11.3))(bufferutil@4.1.0)(hono@4.11.3)(utf-8-validate@5.0.10)
-      '@hono/otel':
-        specifier: 'catalog:'
-        version: 1.1.2(hono@4.11.3)
-      '@langfuse/otel':
-        specifier: 'catalog:'
-        version: 5.4.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.215.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.0(@opentelemetry/api@1.9.1))
-      '@langfuse/tracing':
-        specifier: 'catalog:'
-        version: 5.4.0(@opentelemetry/api@1.9.1)
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@opentelemetry/api':
-        specifier: 'catalog:'
-        version: 1.9.1
-      '@opentelemetry/api-logs':
-        specifier: 'catalog:'
-        version: 0.215.0
-      '@opentelemetry/exporter-logs-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-metrics-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-trace-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-http':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-ioredis':
-        specifier: 'catalog:'
-        version: 0.63.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-pg':
-        specifier: 'catalog:'
-        version: 0.67.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-runtime-node':
-        specifier: 'catalog:'
-        version: 0.28.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-undici':
-        specifier: 'catalog:'
-        version: 0.25.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-logs':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-metrics':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-node':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-node':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions':
-        specifier: 'catalog:'
-        version: 1.40.0
-      '@proj-airi/auth-shared':
-        specifier: workspace:*
-        version: link:../../packages/auth-shared
-      '@proj-airi/drizzle-orm-browser-migrator':
-        specifier: 'catalog:'
-        version: 0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
-      '@proj-airi/server-node-shared':
-        specifier: workspace:*
-        version: link:../../packages/node-shared
-      '@proj-airi/server-schema':
-        specifier: workspace:*
-        version: link:../../packages/schema
-      '@proj-airi/server-sdk-shared':
-        specifier: workspace:*
-        version: link:../../../packages/server-sdk-shared
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
-      drizzle-valibot:
-        specifier: 'catalog:'
-        version: 0.4.2(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(valibot@1.3.1(typescript@5.9.3))
-      es-toolkit:
-        specifier: 'catalog:'
-        version: 1.45.1
-      hono:
-        specifier: 'catalog:'
-        version: 4.11.3
-      hono-rate-limiter:
-        specifier: 'catalog:'
-        version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
-      injeca:
-        specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
-      ioredis:
-        specifier: 'catalog:'
-        version: 5.10.1
-      jose:
-        specifier: 'catalog:'
-        version: 6.2.2
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.11
-      ofetch:
-        specifier: 'catalog:'
-        version: 1.5.1
-      pg:
-        specifier: 'catalog:'
-        version: 8.20.0
-      posthog-node:
-        specifier: 'catalog:'
-        version: 5.39.4(rxjs@7.8.2)
-      stripe:
-        specifier: 'catalog:'
-        version: 22.0.2(@types/node@25.6.0)
-      unspeech:
-        specifier: catalog:xsai
-        version: 0.1.14
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
-      ws:
-        specifier: 'catalog:'
-        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
-    devDependencies:
-      '@types/pg':
-        specifier: 'catalog:'
-        version: 8.20.0
-      '@types/ws':
-        specifier: 'catalog:'
-        version: 8.18.1
-      drizzle-kit:
-        specifier: 'catalog:'
-        version: 0.31.10
 
   apps/stage-pocket:
     dependencies:
@@ -3315,6 +3032,354 @@ importers:
 
   engines/stage-tamagotchi-godot: {}
 
+  integrations/discord-bot:
+    dependencies:
+      '@discordjs/voice':
+        specifier: 'catalog:'
+        version: 0.19.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(bufferutil@4.1.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@huggingface/transformers':
+        specifier: 'catalog:'
+        version: 3.8.1
+      '@proj-airi/audio':
+        specifier: workspace:^
+        version: link:../../packages/audio
+      '@proj-airi/server-sdk':
+        specifier: workspace:^
+        version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:^
+        version: link:../../packages/server-shared
+      '@snazzah/davey':
+        specifier: 'catalog:'
+        version: 0.1.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@xsai-ext/providers':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+      '@xsai/generate-transcription':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      discord.js:
+        specifier: 'catalog:'
+        version: 14.26.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      libsodium-wrappers:
+        specifier: 'catalog:'
+        version: 0.8.3
+      opusscript:
+        specifier: 'catalog:'
+        version: 0.1.1
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
+      wavefile:
+        specifier: 'catalog:'
+        version: 11.0.0
+
+  integrations/minecraft:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/server-sdk':
+        specifier: workspace:*
+        version: link:../../packages/server-sdk
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      alien-signals:
+        specifier: 'catalog:'
+        version: 3.1.2
+      awilix:
+        specifier: 'catalog:'
+        version: 13.0.3
+      canvas:
+        specifier: 'catalog:'
+        version: 3.2.3
+      crossws:
+        specifier: 'catalog:'
+        version: 0.4.5(srvx@0.11.15)
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.45.1
+      eventemitter3:
+        specifier: 'catalog:'
+        version: 5.0.4
+      isolated-vm:
+        specifier: 'catalog:'
+        version: 7.0.0
+      minecraft-data:
+        specifier: 'catalog:'
+        version: 3.102.3
+      mineflayer:
+        specifier: 'catalog:'
+        version: 4.33.0(encoding@0.1.13)
+      mineflayer-armor-manager:
+        specifier: 'catalog:'
+        version: 2.0.1(mineflayer@4.33.0(encoding@0.1.13))
+      mineflayer-auto-eat:
+        specifier: 'catalog:'
+        version: 5.0.3(encoding@0.1.13)
+      mineflayer-collectblock:
+        specifier: 'catalog:'
+        version: 1.6.0(encoding@0.1.13)
+      mineflayer-pathfinder:
+        specifier: 'catalog:'
+        version: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
+      mineflayer-pvp:
+        specifier: 'catalog:'
+        version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
+      mineflayer-tool:
+        specifier: 'catalog:'
+        version: 1.2.0(encoding@0.1.13)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.11
+      prismarine-block:
+        specifier: 'catalog:'
+        version: 1.23.0
+      prismarine-entity:
+        specifier: 'catalog:'
+        version: 2.6.0
+      prismarine-item:
+        specifier: 'catalog:'
+        version: 1.18.0
+      prismarine-recipe:
+        specifier: 'catalog:'
+        version: 1.5.0(prismarine-registry@1.11.0)
+      prismarine-viewer:
+        specifier: 'catalog:'
+        version: 1.33.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      prismarine-windows:
+        specifier: 'catalog:'
+        version: 2.10.0
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+      vec3:
+        specifier: 'catalog:'
+        version: 0.2.0
+      ws:
+        specifier: 'catalog:'
+        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.8.3
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+      zod-to-json-schema:
+        specifier: 'catalog:'
+        version: 3.25.2(zod@4.3.6)
+    devDependencies:
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
+
+  integrations/satori-bot:
+    dependencies:
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.4.4
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@velin-dev/core':
+        specifier: 'catalog:'
+        version: 0.4.0(typescript@5.9.3)
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/utils-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      best-effort-json-parser:
+        specifier: 'catalog:'
+        version: 1.4.0
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.45.1
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.11
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+      ws:
+        specifier: 'catalog:'
+        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+    devDependencies:
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.10
+
+  integrations/telegram-bot:
+    dependencies:
+      '@dotenvx/dotenvx':
+        specifier: 'catalog:'
+        version: 1.61.1
+      '@ffmpeg-installer/ffmpeg':
+        specifier: 'catalog:'
+        version: 1.1.0
+      '@grammyjs/files':
+        specifier: 'catalog:'
+        version: 1.2.0(grammy@1.42.0(encoding@0.1.13))
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@napi-rs/image':
+        specifier: 'catalog:'
+        version: 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@opentelemetry/api':
+        specifier: 'catalog:'
+        version: 1.9.1
+      '@opentelemetry/auto-instrumentations-node':
+        specifier: 'catalog:'
+        version: 0.73.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))
+      '@opentelemetry/exporter-metrics-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-trace-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-pg':
+        specifier: 'catalog:'
+        version: 0.67.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/resources':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-metrics':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-node':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-node':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/semantic-conventions':
+        specifier: 'catalog:'
+        version: 1.40.0
+      '@velin-dev/core':
+        specifier: 'catalog:'
+        version: 0.4.0(typescript@5.9.3)
+      '@xsai/embed':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
+      '@xsai/tool':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
+      '@xsai/utils-chat':
+        specifier: 'catalog:'
+        version: 0.5.0-beta.2
+      best-effort-json-parser:
+        specifier: 'catalog:'
+        version: 1.4.0
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.45.1
+      fluent-ffmpeg:
+        specifier: 'catalog:'
+        version: 2.1.3
+      grammy:
+        specifier: 'catalog:'
+        version: 1.42.0(encoding@0.1.13)
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.11
+      p-limit:
+        specifier: 'catalog:'
+        version: 7.3.0
+      pg:
+        specifier: 'catalog:'
+        version: 8.20.0
+      telegram:
+        specifier: 'catalog:'
+        version: 2.26.22
+      uuid:
+        specifier: 'catalog:'
+        version: 13.0.0
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+    devDependencies:
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.20.0
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.10
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
+
+  integrations/twitter-services:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@proj-airi/server-sdk':
+        specifier: workspace:*
+        version: link:../../packages/server-sdk
+      h3:
+        specifier: 'catalog:'
+        version: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
+      playwright:
+        specifier: 'catalog:'
+        version: 1.60.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+
   integrations/vscode/airi-plugin-vscode:
     devDependencies:
       '@proj-airi/plugin-sdk':
@@ -3378,12 +3443,6 @@ importers:
       uncrypto:
         specifier: 'catalog:'
         version: 0.1.3
-
-  server/packages/auth-shared:
-    dependencies:
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
 
   packages/better-ws:
     dependencies:
@@ -3605,6 +3664,18 @@ importers:
       unplugin-yaml:
         specifier: 'catalog:'
         version: 4.1.0(@nuxt/kit@3.20.2(magicast@0.5.2))(esbuild@0.27.2)(rolldown@1.0.0-rc.17)(rollup@4.60.1)(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+      xast-util-to-xml:
+        specifier: 'catalog:'
+        version: 4.0.0
+      xastscript:
+        specifier: 'catalog:'
+        version: 4.0.0
+      yaml:
+        specifier: 'catalog:'
+        version: 2.8.3
 
   packages/memory-pgvector:
     dependencies:
@@ -3635,7 +3706,7 @@ importers:
     dependencies:
       '@mediapipe/tasks-vision':
         specifier: 'catalog:'
-        version: 0.10.34(patch_hash=2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66)
+        version: 0.10.34
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3787,25 +3858,6 @@ importers:
         specifier: 'catalog:'
         version: 1.60.0
 
-  server/packages/node-shared:
-    dependencies:
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      pg:
-        specifier: 'catalog:'
-        version: 8.20.0
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
-    devDependencies:
-      '@types/pg':
-        specifier: 'catalog:'
-        version: 8.20.0
-
   packages/server-runtime:
     dependencies:
       '@guiiai/logg':
@@ -3838,12 +3890,6 @@ importers:
       valibot:
         specifier: 'catalog:'
         version: 1.3.1(typescript@5.9.3)
-
-  server/packages/schema:
-    devDependencies:
-      '@proj-airi/unplugin-drizzle-orm-migrations':
-        specifier: 'catalog:'
-        version: 0.1.6(magicast@0.5.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/server-sdk:
     dependencies:
@@ -4514,6 +4560,9 @@ importers:
       '@pinia/testing':
         specifier: 'catalog:'
         version: 1.0.3(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))
+      '@proj-airi/api-server':
+        specifier: workspace:*
+        version: link:../../server/apps/api
       '@proj-airi/lobe-icons':
         specifier: 'catalog:'
         version: 1.0.19
@@ -5217,6 +5266,318 @@ importers:
         specifier: 'catalog:'
         version: 0.20.24(@types/node@25.6.0)(canvas@3.2.3)(eslint@10.2.1(jiti@2.6.1))(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(rollup@4.60.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
 
+  server/apps/api:
+    dependencies:
+      '@dotenvx/dotenvx':
+        specifier: 'catalog:'
+        version: 1.61.1
+      '@electric-sql/pglite':
+        specifier: 'catalog:'
+        version: 0.4.4
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 1.19.14(hono@4.11.3)
+      '@hono/node-ws':
+        specifier: 'catalog:'
+        version: 1.3.0(@hono/node-server@1.19.14(hono@4.11.3))(bufferutil@4.1.0)(hono@4.11.3)(utf-8-validate@5.0.10)
+      '@hono/otel':
+        specifier: 'catalog:'
+        version: 1.1.2(hono@4.11.3)
+      '@langfuse/otel':
+        specifier: 'catalog:'
+        version: 5.4.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.215.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.7.0(@opentelemetry/api@1.9.1))
+      '@langfuse/tracing':
+        specifier: 'catalog:'
+        version: 5.4.0(@opentelemetry/api@1.9.1)
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@opentelemetry/api':
+        specifier: 'catalog:'
+        version: 1.9.1
+      '@opentelemetry/api-logs':
+        specifier: 'catalog:'
+        version: 0.215.0
+      '@opentelemetry/exporter-logs-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-metrics-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-trace-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-http':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-ioredis':
+        specifier: 'catalog:'
+        version: 0.63.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-pg':
+        specifier: 'catalog:'
+        version: 0.67.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-runtime-node':
+        specifier: 'catalog:'
+        version: 0.28.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-undici':
+        specifier: 'catalog:'
+        version: 0.25.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/resources':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-logs':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-metrics':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-node':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-node':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/semantic-conventions':
+        specifier: 'catalog:'
+        version: 1.40.0
+      '@proj-airi/auth-shared':
+        specifier: workspace:*
+        version: link:../../packages/auth-shared
+      '@proj-airi/drizzle-migration':
+        specifier: workspace:*
+        version: link:../../packages/drizzle-migration
+      '@proj-airi/drizzle-orm-browser-migrator':
+        specifier: 'catalog:'
+        version: 0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+      '@proj-airi/server-node-shared':
+        specifier: workspace:*
+        version: link:../../packages/node-shared
+      '@proj-airi/server-sdk-shared':
+        specifier: workspace:*
+        version: link:../../../packages/server-sdk-shared
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
+      drizzle-valibot:
+        specifier: 'catalog:'
+        version: 0.4.2(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(valibot@1.3.1(typescript@5.9.3))
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.45.1
+      hono:
+        specifier: 'catalog:'
+        version: 4.11.3
+      hono-rate-limiter:
+        specifier: 'catalog:'
+        version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
+      injeca:
+        specifier: 'catalog:'
+        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
+      ioredis:
+        specifier: 'catalog:'
+        version: 5.10.1
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 5.1.11
+      ofetch:
+        specifier: 'catalog:'
+        version: 1.5.1
+      pg:
+        specifier: 'catalog:'
+        version: 8.20.0
+      posthog-node:
+        specifier: 'catalog:'
+        version: 5.39.4(rxjs@7.8.2)
+      stripe:
+        specifier: 'catalog:'
+        version: 22.0.2(@types/node@25.6.0)
+      unspeech:
+        specifier: catalog:xsai
+        version: 0.1.14
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+      ws:
+        specifier: 'catalog:'
+        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.20.0
+      '@types/ws':
+        specifier: 'catalog:'
+        version: 8.18.1
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.10
+
+  server/apps/auth:
+    dependencies:
+      '@better-auth/drizzle-adapter':
+        specifier: 'catalog:'
+        version: 1.6.5(@better-auth/core@1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.3.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+      '@better-auth/oauth-provider':
+        specifier: 'catalog:'
+        version: 1.5.6(@better-auth/core@1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3)))(better-call@1.1.8(zod@4.3.6))
+      '@dotenvx/dotenvx':
+        specifier: 'catalog:'
+        version: 1.61.1
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@hono/node-server':
+        specifier: 'catalog:'
+        version: 1.19.14(hono@4.11.3)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@opentelemetry/api':
+        specifier: 'catalog:'
+        version: 1.9.1
+      '@opentelemetry/api-logs':
+        specifier: 'catalog:'
+        version: 0.215.0
+      '@opentelemetry/exporter-logs-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-metrics-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/exporter-trace-otlp-proto':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-http':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-ioredis':
+        specifier: 'catalog:'
+        version: 0.63.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-pg':
+        specifier: 'catalog:'
+        version: 0.67.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-runtime-node':
+        specifier: 'catalog:'
+        version: 0.28.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/instrumentation-undici':
+        specifier: 'catalog:'
+        version: 0.25.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/resources':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-logs':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-metrics':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-node':
+        specifier: 'catalog:'
+        version: 0.215.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/sdk-trace-node':
+        specifier: 'catalog:'
+        version: 2.7.0(@opentelemetry/api@1.9.1)
+      '@opentelemetry/semantic-conventions':
+        specifier: 'catalog:'
+        version: 1.40.0
+      '@proj-airi/auth-shared':
+        specifier: workspace:*
+        version: link:../../packages/auth-shared
+      '@proj-airi/server-node-shared':
+        specifier: workspace:*
+        version: link:../../packages/node-shared
+      better-auth:
+        specifier: 'catalog:'
+        version: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
+      hono:
+        specifier: 'catalog:'
+        version: 4.11.3
+      hono-rate-limiter:
+        specifier: 'catalog:'
+        version: 0.5.3(hono@4.11.3)(unstorage@1.17.5(aws4fetch@1.0.20)(idb-keyval@6.2.2)(ioredis@5.10.1))
+      injeca:
+        specifier: 'catalog:'
+        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
+      ioredis:
+        specifier: 'catalog:'
+        version: 5.10.1
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.2
+      pg:
+        specifier: 'catalog:'
+        version: 8.20.0
+      resend:
+        specifier: 'catalog:'
+        version: 6.12.2
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+    devDependencies:
+      '@better-auth/cli':
+        specifier: 'catalog:'
+        version: 1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.10)(jose@6.2.2)(kysely@0.28.14)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.9)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.20.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+
+  server/packages/auth-shared:
+    dependencies:
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
+
+  server/packages/drizzle-migration:
+    devDependencies:
+      '@proj-airi/unplugin-drizzle-orm-migrations':
+        specifier: 'catalog:'
+        version: 0.1.6(magicast@0.5.2)(vite@6.4.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  server/packages/node-shared:
+    dependencies:
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.11
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      pg:
+        specifier: 'catalog:'
+        version: 8.20.0
+      valibot:
+        specifier: 'catalog:'
+        version: 1.3.1(typescript@5.9.3)
+    devDependencies:
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.20.0
+
   services/computer-use-mcp:
     dependencies:
       '@modelcontextprotocol/sdk':
@@ -5238,354 +5599,6 @@ importers:
       '@types/ws':
         specifier: 'catalog:'
         version: 8.18.1
-
-  services/discord-bot:
-    dependencies:
-      '@discordjs/voice':
-        specifier: 'catalog:'
-        version: 0.19.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(bufferutil@4.1.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@huggingface/transformers':
-        specifier: 'catalog:'
-        version: 3.8.1
-      '@proj-airi/audio':
-        specifier: workspace:^
-        version: link:../../packages/audio
-      '@proj-airi/server-sdk':
-        specifier: workspace:^
-        version: link:../../packages/server-sdk
-      '@proj-airi/server-shared':
-        specifier: workspace:^
-        version: link:../../packages/server-shared
-      '@snazzah/davey':
-        specifier: 'catalog:'
-        version: 0.1.11(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
-      '@xsai-ext/providers':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2
-      '@xsai/generate-speech':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
-      '@xsai/generate-transcription':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
-      discord.js:
-        specifier: 'catalog:'
-        version: 14.26.3(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      libsodium-wrappers:
-        specifier: 'catalog:'
-        version: 0.8.3
-      opusscript:
-        specifier: 'catalog:'
-        version: 0.1.1
-      tsx:
-        specifier: 'catalog:'
-        version: 4.21.0
-      wavefile:
-        specifier: 'catalog:'
-        version: 11.0.0
-
-  services/minecraft:
-    dependencies:
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@proj-airi/server-sdk':
-        specifier: workspace:*
-        version: link:../../packages/server-sdk
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
-      alien-signals:
-        specifier: 'catalog:'
-        version: 3.1.2
-      awilix:
-        specifier: 'catalog:'
-        version: 13.0.3
-      canvas:
-        specifier: 'catalog:'
-        version: 3.2.3
-      crossws:
-        specifier: 'catalog:'
-        version: 0.4.5(srvx@0.11.15)
-      es-toolkit:
-        specifier: 'catalog:'
-        version: 1.45.1
-      eventemitter3:
-        specifier: 'catalog:'
-        version: 5.0.4
-      isolated-vm:
-        specifier: 'catalog:'
-        version: 7.0.0
-      minecraft-data:
-        specifier: 'catalog:'
-        version: 3.102.3
-      mineflayer:
-        specifier: 'catalog:'
-        version: 4.33.0(encoding@0.1.13)
-      mineflayer-armor-manager:
-        specifier: 'catalog:'
-        version: 2.0.1(mineflayer@4.33.0(encoding@0.1.13))
-      mineflayer-auto-eat:
-        specifier: 'catalog:'
-        version: 5.0.3(encoding@0.1.13)
-      mineflayer-collectblock:
-        specifier: 'catalog:'
-        version: 1.6.0(encoding@0.1.13)
-      mineflayer-pathfinder:
-        specifier: 'catalog:'
-        version: 2.4.5(patch_hash=4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797)
-      mineflayer-pvp:
-        specifier: 'catalog:'
-        version: 1.3.2(encoding@0.1.13)(prismarine-registry@1.11.0)
-      mineflayer-tool:
-        specifier: 'catalog:'
-        version: 1.2.0(encoding@0.1.13)
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.11
-      prismarine-block:
-        specifier: 'catalog:'
-        version: 1.23.0
-      prismarine-entity:
-        specifier: 'catalog:'
-        version: 2.6.0
-      prismarine-item:
-        specifier: 'catalog:'
-        version: 1.18.0
-      prismarine-recipe:
-        specifier: 'catalog:'
-        version: 1.5.0(prismarine-registry@1.11.0)
-      prismarine-viewer:
-        specifier: 'catalog:'
-        version: 1.33.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      prismarine-windows:
-        specifier: 'catalog:'
-        version: 2.10.0
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
-      vec3:
-        specifier: 'catalog:'
-        version: 0.2.0
-      ws:
-        specifier: 'catalog:'
-        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-      yaml:
-        specifier: 'catalog:'
-        version: 2.8.3
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
-      zod-to-json-schema:
-        specifier: 'catalog:'
-        version: 3.25.2(zod@4.3.6)
-    devDependencies:
-      '@types/ws':
-        specifier: 'catalog:'
-        version: 8.18.1
-
-  services/satori-bot:
-    dependencies:
-      '@electric-sql/pglite':
-        specifier: 'catalog:'
-        version: 0.4.4
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@velin-dev/core':
-        specifier: 'catalog:'
-        version: 0.4.0(typescript@5.9.3)
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
-      '@xsai/utils-chat':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2
-      best-effort-json-parser:
-        specifier: 'catalog:'
-        version: 1.4.0
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
-      es-toolkit:
-        specifier: 'catalog:'
-        version: 1.45.1
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.11
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
-      ws:
-        specifier: 'catalog:'
-        version: 8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
-    devDependencies:
-      '@types/ws':
-        specifier: 'catalog:'
-        version: 8.18.1
-      drizzle-kit:
-        specifier: 'catalog:'
-        version: 0.31.10
-
-  services/telegram-bot:
-    dependencies:
-      '@dotenvx/dotenvx':
-        specifier: 'catalog:'
-        version: 1.61.1
-      '@ffmpeg-installer/ffmpeg':
-        specifier: 'catalog:'
-        version: 1.1.0
-      '@grammyjs/files':
-        specifier: 'catalog:'
-        version: 1.2.0(grammy@1.42.0(encoding@0.1.13))
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@napi-rs/image':
-        specifier: 'catalog:'
-        version: 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
-      '@opentelemetry/api':
-        specifier: 'catalog:'
-        version: 1.9.1
-      '@opentelemetry/auto-instrumentations-node':
-        specifier: 'catalog:'
-        version: 0.73.0(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.7.0(@opentelemetry/api@1.9.1))
-      '@opentelemetry/exporter-metrics-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-trace-otlp-proto':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/instrumentation-pg':
-        specifier: 'catalog:'
-        version: 0.67.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-metrics':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-node':
-        specifier: 'catalog:'
-        version: 0.215.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-node':
-        specifier: 'catalog:'
-        version: 2.7.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/semantic-conventions':
-        specifier: 'catalog:'
-        version: 1.40.0
-      '@velin-dev/core':
-        specifier: 'catalog:'
-        version: 0.4.0(typescript@5.9.3)
-      '@xsai/embed':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)
-      '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
-      '@xsai/tool':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2(zod-to-json-schema@3.25.2(zod@4.3.6))(zod@4.3.6)
-      '@xsai/utils-chat':
-        specifier: 'catalog:'
-        version: 0.5.0-beta.2
-      best-effort-json-parser:
-        specifier: 'catalog:'
-        version: 1.4.0
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
-      es-toolkit:
-        specifier: 'catalog:'
-        version: 1.45.1
-      fluent-ffmpeg:
-        specifier: 'catalog:'
-        version: 2.1.3
-      grammy:
-        specifier: 'catalog:'
-        version: 1.42.0(encoding@0.1.13)
-      nanoid:
-        specifier: 'catalog:'
-        version: 5.1.11
-      p-limit:
-        specifier: 'catalog:'
-        version: 7.3.0
-      pg:
-        specifier: 'catalog:'
-        version: 8.20.0
-      telegram:
-        specifier: 'catalog:'
-        version: 2.26.22
-      uuid:
-        specifier: 'catalog:'
-        version: 13.0.0
-      valibot:
-        specifier: 'catalog:'
-        version: 1.3.1(typescript@5.9.3)
-    devDependencies:
-      '@types/pg':
-        specifier: 'catalog:'
-        version: 8.20.0
-      drizzle-kit:
-        specifier: 'catalog:'
-        version: 0.31.10
-      tsx:
-        specifier: 'catalog:'
-        version: 4.21.0
-
-  services/twitter-services:
-    dependencies:
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.11
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)
-      '@moeru/std':
-        specifier: 'catalog:'
-        version: 0.1.0-beta.17
-      '@proj-airi/server-sdk':
-        specifier: workspace:*
-        version: link:../../packages/server-sdk
-      h3:
-        specifier: 'catalog:'
-        version: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
-      playwright:
-        specifier: 'catalog:'
-        version: 1.60.0
-      zod:
-        specifier: 'catalog:'
-        version: 4.3.6
 
 packages:
 
@@ -6447,7 +6460,7 @@ packages:
   '@better-auth/oauth-provider@1.5.6':
     resolution: {integrity: sha512-DSkdC4GLwUiDwwd4hxQZa+aqzFoMXQV0Im3k4igzGIW6VB2S0p0CIR+YCOxJP7lAP+1eepxvjTfG07sTXzu2Bw==}
     peerDependencies:
-      '@better-auth/core': 1.5.6
+      '@better-auth/core': 1.6.5
       '@better-auth/utils': 0.3.1
       '@better-fetch/fetch': 1.1.21
       better-auth: 1.5.6
@@ -20668,13 +20681,13 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@better-auth/cli@1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(drizzle-kit@0.31.10)(jose@6.2.2)(kysely@0.28.14)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.9)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))':
+  '@better-auth/cli@1.4.21(@better-fetch/fetch@1.1.21)(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(drizzle-kit@0.31.10)(jose@6.2.2)(kysely@0.28.14)(magicast@0.5.2)(nanostores@1.1.1)(postgres@3.4.9)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))':
     dependencies:
       '@babel/core': 7.29.0
       '@babel/preset-react': 7.28.5(@babel/core@7.29.0)
       '@babel/preset-typescript': 7.28.5(@babel/core@7.29.0)
-      '@better-auth/core': 1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
-      '@better-auth/telemetry': 1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))
+      '@better-auth/core': 1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
+      '@better-auth/telemetry': 1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))
       '@better-auth/utils': 0.3.0
       '@clack/prompts': 0.11.0
       '@mrleebo/prisma-ast': 0.13.1
@@ -20751,12 +20764,14 @@ snapshots:
       nanostores: 1.1.1
       zod: 4.3.6
 
-  '@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)':
+  '@better-auth/core@1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)':
     dependencies:
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
+      '@opentelemetry/api': 1.9.1
+      '@opentelemetry/semantic-conventions': 1.40.0
       '@standard-schema/spec': 1.1.0
-      better-call: 1.3.5(zod@4.3.6)
+      better-call: 1.1.8(zod@4.3.6)
       jose: 6.2.2
       kysely: 0.28.14
       nanostores: 1.1.1
@@ -20774,6 +20789,13 @@ snapshots:
       kysely: 0.28.14
       nanostores: 1.1.1
       zod: 4.3.6
+
+  '@better-auth/drizzle-adapter@1.6.5(@better-auth/core@1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.3.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))':
+    dependencies:
+      '@better-auth/core': 1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
+      '@better-auth/utils': 0.3.0
+    optionalDependencies:
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
 
   '@better-auth/drizzle-adapter@1.6.5(@better-auth/core@1.6.5(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.4.0)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))':
     dependencies:
@@ -20799,13 +20821,13 @@ snapshots:
       '@better-auth/core': 1.6.5(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
       '@better-auth/utils': 0.4.0
 
-  '@better-auth/oauth-provider@1.5.6(@better-auth/core@1.6.5(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3)))(better-call@1.3.5(zod@4.3.6))':
+  '@better-auth/oauth-provider@1.5.6(@better-auth/core@1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-auth@1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3)))(better-call@1.1.8(zod@4.3.6))':
     dependencies:
-      '@better-auth/core': 1.6.5(@better-auth/utils@0.4.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
-      '@better-auth/utils': 0.4.0
+      '@better-auth/core': 1.6.5(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(@opentelemetry/api@1.9.1)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
+      '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
       better-auth: 1.6.5(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
-      better-call: 1.3.5(zod@4.3.6)
+      better-call: 1.1.8(zod@4.3.6)
       jose: 6.2.2
       zod: 4.3.6
 
@@ -20816,9 +20838,9 @@ snapshots:
     optionalDependencies:
       '@prisma/client': 5.22.0
 
-  '@better-auth/telemetry@1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))':
+  '@better-auth/telemetry@1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))':
     dependencies:
-      '@better-auth/core': 1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
+      '@better-auth/core': 1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
 
@@ -22439,7 +22461,7 @@ snapshots:
     optionalDependencies:
       markdown-it: 14.1.1
 
-  '@mediapipe/tasks-vision@0.10.34(patch_hash=2014bd232d13f4bfac27f27d61105894bf54aca350379b2816fe05b6d3e27d66)': {}
+  '@mediapipe/tasks-vision@0.10.34': {}
 
   '@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.3.6)':
     dependencies:
@@ -27011,7 +27033,7 @@ snapshots:
   better-auth@1.4.21(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.41.0(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@better-auth/core': 1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1)
-      '@better-auth/telemetry': 1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.3.5(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))
+      '@better-auth/telemetry': 1.4.21(@better-auth/core@1.4.21(@better-auth/utils@0.3.0)(@better-fetch/fetch@1.1.21)(better-call@1.1.8(zod@4.3.6))(jose@6.2.2)(kysely@0.28.14)(nanostores@1.1.1))
       '@better-auth/utils': 0.3.0
       '@better-fetch/fetch': 1.1.21
       '@noble/ciphers': 2.1.1

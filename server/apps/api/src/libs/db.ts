@@ -1,6 +1,6 @@
+import { migrations } from '@proj-airi/drizzle-migration'
 import { migrate } from '@proj-airi/drizzle-orm-browser-migrator/pg'
 import { createDatabasePool } from '@proj-airi/server-node-shared'
-import { migrations } from '@proj-airi/server-schema'
 import { drizzle } from 'drizzle-orm/node-postgres'
 
 import * as fullSchema from '../schemas'

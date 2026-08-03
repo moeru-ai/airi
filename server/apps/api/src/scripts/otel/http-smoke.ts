@@ -11,7 +11,7 @@
  * InMemoryMetricExporter so the smoke can read back what was recorded.
  *
  * Usage:
- *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/http-smoke.ts
+ *   pnpm -F @proj-airi/api-server exec node --import tsx ./src/scripts/otel/http-smoke.ts
  */
 import { env, exit } from 'node:process'
 

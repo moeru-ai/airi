@@ -20,8 +20,7 @@ const RECONNECT_RETRIES = -1
  * Browsers swallow the HTTP 401 status when a WebSocket upgrade is rejected,
  * so the only way for the server to distinguish "wrong token, stop retrying"
  * from a transient network drop on the client is to accept the upgrade and
- * close with a custom application code. The server emits this from
- * `server/apps/api/src/app.ts` when `resolveRequestAuth` returns null.
+ * close with a custom application code after request authentication fails.
  */
 export const WS_CLOSE_UNAUTHORIZED = 4001
 
@@ -298,8 +297,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // retrying. When the server rejects auth, the only structured
       // signal we get is the close `code` (the close `reason` body is
       // also delivered but not used for routing here). 4001 is our
-      // contract with server/apps/api/src/app.ts for "this token will never
-      // succeed without rotation"; calling `ws.close()` here sets
+      // protocol signal for "this token will never succeed without
+      // rotation"; calling `ws.close()` here sets
       // useWebSocket's internal `explicitlyClosed` flag so the next
       // onclose path skips the reconnect schedule. The next time
       // `urlRef` changes (token refresh), `watch(urlRef, open)` calls

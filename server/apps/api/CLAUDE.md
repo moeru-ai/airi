@@ -1,6 +1,6 @@
 # Server CLAUDE.md
 
-Agent-facing guide for `server/apps/api`. Detailed topic docs live in `docs/ai-context/` — read the relevant file before modifying that area.
+Agent-facing guide for `server/apps/api`.
 
 ## Overview
 
@@ -22,12 +22,12 @@ Hono, Drizzle ORM, PostgreSQL, Redis, Stripe, OpenTelemetry, Valibot, injeca (DI
 ## Commands
 
 ```sh
-pnpm -F @proj-airi/server dev                # dev with dotenvx (.env.local)
-pnpm -F @proj-airi/server typecheck
-pnpm -F @proj-airi/server exec vitest run    # all server tests
+pnpm -F @proj-airi/api-server dev                # dev with dotenvx (.env.local)
+pnpm -F @proj-airi/api-server typecheck
+pnpm -F @proj-airi/api-server exec vitest run    # all server tests
 pnpm exec vitest run server/apps/api/src/...     # single test file
-pnpm -F @proj-airi/server db:generate        # drizzle-kit generate
-pnpm -F @proj-airi/server db:push            # drizzle-kit push
+pnpm -F @proj-airi/api-server db:generate        # drizzle-kit generate
+pnpm -F @proj-airi/api-server db:push            # drizzle-kit push
 pnpm -F @proj-airi/auth-server auth:generate # better-auth → server/packages/auth-shared/src/schema.ts
 ```
 
@@ -40,7 +40,7 @@ Local observability is maintained in `proj-airi/airi-railway`; run its `otel/doc
 **Layering**:
 - **Routes** (`src/routes/`): thin — param validation (Valibot), auth guards, error mapping. No business logic here.
 - **Services** (`src/services/`): core business logic and DB transactions.
-- **Schemas** (`src/schemas/`): Drizzle table definitions. Migrations in `@proj-airi/server-schema`.
+- **Schemas** (`src/schemas/`): Drizzle table definitions. Migrations in `@proj-airi/drizzle-migration`.
 
 **Middleware chain** (`/api/*`): CORS → hono/logger → optional otel → sessionMiddleware → bodyLimit(1MB) → per-route guards. WebSocket `/ws/chat` registered before bodyLimit.
 
@@ -54,17 +54,3 @@ Local observability is maintained in `proj-airi/airi-railway`; run its `otel/doc
 - **Redis is cache + pub/sub, not truth**: balance cache, app_settings read cache, WebSocket cross-instance pub/sub. Truth is always Postgres.
 - **Auth boundary**: `server/apps/auth` owns Better Auth + OIDC. The API's `sessionMiddleware` validates Auth-issued JWTs and fills context but doesn't block; `authGuard` returns 401.
 - **Multi-instance safe**: all writes go through Postgres transactions; cross-instance messaging uses Redis Pub/Sub. No async work, no in-process singletons — admin flux grants happen synchronously inside the POST that triggered them.
-
-## Detailed Context Docs
-
-See `docs/ai-context/README.md` for the full index. Key files:
-- `architecture-overview.md` — entry, DI, assembly, boundaries
-- `transport-and-routes.md` — API surface, route→service mapping
-- `data-model-and-state.md` — tables, state ownership, caching
-- `billing-architecture.md` — Flux/Stripe ledger
-- `redis-boundaries-and-pubsub.md` — Redis key/channel boundaries
-- `auth-and-oidc.md` — auth flows, OIDC, trusted clients
-- `config-and-naming-conventions.md` — configKV, naming rules
-- `workers-and-runtime.md` — single `api` role, no background loops, no fire-and-forget; everything is synchronous in-request
-- `admin-flux-grants.md` — synchronous one-shot flux grant endpoint (no batch tables, no state machine)
-- `observability-conventions.md` — OTel naming, custom attributes

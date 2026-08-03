@@ -16,7 +16,7 @@
  * this smoke installs as the global MeterProvider.
  *
  * Usage:
- *   pnpm -F @proj-airi/server exec node --import tsx ./src/scripts/otel/smoke.ts
+ *   pnpm -F @proj-airi/api-server exec node --import tsx ./src/scripts/otel/smoke.ts
  */
 import { Buffer } from 'node:buffer'
 import { env, exit } from 'node:process'

@@ -1,7 +1,6 @@
 {
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
-    "composite": true,
     "target": "ESNext",
     "jsx": "preserve",
     "lib": [
