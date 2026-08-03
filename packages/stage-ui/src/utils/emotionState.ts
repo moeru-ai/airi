@@ -4,7 +4,8 @@
  */
 
 import type { EmotionDelta, EmotionState } from '../types/emotion'
-import { EMOTION_BASELINE, clampEmotionState } from '../types/emotion'
+
+import { clampEmotionState, EMOTION_BASELINE } from '../types/emotion'
 
 /**
  * 应用情绪变化到状态
@@ -55,7 +56,7 @@ export function applyTimeDecay(
   // 计算衰减因子（基于半衰期）
   // 经过一个半衰期，情绪会衰减到基线距离的一半
   const halfLife = state.decayHalfLifeMinutes
-  const decayFactor = Math.pow(0.5, timeDiffMinutes / halfLife)
+  const decayFactor = 0.5 ** (timeDiffMinutes / halfLife)
 
   // 对每个维度应用衰减：current = baseline + (current - baseline) * decayFactor
   const newValence = EMOTION_BASELINE.valence! + (state.valence - EMOTION_BASELINE.valence!) * decayFactor

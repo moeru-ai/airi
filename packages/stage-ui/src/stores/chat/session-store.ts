@@ -24,10 +24,11 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
+import { summarizeEmotionState } from '../../types/emotion'
+import { captureAnalyticsEvent } from '../analytics/client'
 import { useAuthStore } from '../auth'
 import { useEmotionStore } from '../emotion'
 import { useAiriCardStore } from '../modules/airi-card'
-import { summarizeEmotionState } from '../../types/emotion'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
