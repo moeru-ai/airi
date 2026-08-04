@@ -95,6 +95,7 @@ export const messages = pgTable(
     deletedAt: timestamp('deleted_at'),
   },
   table => [
+    index('messages_chat_id_seq_idx').on(table.chatId, table.seq),
     index('messages_chat_id_seq_active_idx')
       .on(table.chatId, table.seq)
       .where(sql`${table.deletedAt} IS NULL`),
