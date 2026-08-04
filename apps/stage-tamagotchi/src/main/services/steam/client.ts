@@ -1,7 +1,5 @@
 import type { HAuthTicket } from 'steamworks-ffi-node'
 
-import type { SteamInitResult, SteamTicketResult } from './types'
-
 import process from 'node:process'
 
 import { dirname, join } from 'node:path'
@@ -10,9 +8,17 @@ import { is } from '@electron-toolkit/utils'
 import { useLogg } from '@guiiai/logg'
 import { app } from 'electron'
 
-import { STEAM_APP_ID } from './types'
-
 const log = useLogg('steam-client').useGlobalConfig()
+
+const STEAM_APP_ID = import.meta.env.VITE_STEAM_APP_ID || '3885340'
+
+export type SteamInitResult
+  = | { ok: true }
+    | { ok: false, reason: 'not_steam' | 'init_failed' | 'api_unavailable' }
+
+export type SteamTicketResult
+  = | { ok: true, authTicket: HAuthTicket, ticketHex: string }
+    | { ok: false, reason: string }
 
 type SteamworksModule = typeof import('steamworks-ffi-node')
 type SteamworksSdkClass = SteamworksModule['SteamworksSDK']
@@ -91,7 +97,7 @@ export async function initSteam(): Promise<SteamInitResult> {
   // the IPC handler.
   let initialized: boolean
   try {
-    initialized = instance.init({ appId: STEAM_APP_ID })
+    initialized = instance.init({ appId: Number(STEAM_APP_ID) })
   }
   catch (initError) {
     log.withError(initError).warn('SteamAPI init threw')
@@ -158,10 +164,4 @@ export function shutdownSteam(): void {
     steam = null
     steamInitialized = false
   }
-}
-
-/** @internal */
-export function resetSteamClientForTests(): void {
-  shutdownSteam()
-  steamModule = null
 }

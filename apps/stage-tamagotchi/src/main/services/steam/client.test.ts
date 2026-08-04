@@ -1,14 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  cancelWebApiTicket,
-  getWebApiTicket,
-  initSteam,
-  resetSteamClientForTests,
-  shutdownSteam,
-} from './client'
-import { STEAM_APP_ID } from './types'
-
 const steamMock = vi.hoisted(() => {
   const cancelAuthTicket = vi.fn()
   const getAuthTicketForWebApi = vi.fn()
@@ -63,31 +54,39 @@ vi.mock('@electron-toolkit/utils', () => ({
   is: { dev: false },
 }))
 
+type SteamClientModule = typeof import('./client')
+
+let client: SteamClientModule
+
+beforeEach(async () => {
+  // NOTICE:
+  // client.ts keeps module-level SDK state (steam/steamInitialized), so each
+  // test re-imports a fresh module instead of relying on a test-only reset
+  // export from production code.
+  vi.resetModules()
+  steamMock.init.mockReturnValue(true)
+  steamMock.getAuthTicketForWebApi.mockReset()
+  client = await import('./client')
+})
+
+afterEach(() => {
+  vi.clearAllMocks()
+})
+
 describe('initSteam', () => {
-  beforeEach(() => {
-    resetSteamClientForTests()
-    steamMock.init.mockReturnValue(true)
-    steamMock.getAuthTicketForWebApi.mockReset()
-  })
-
-  afterEach(() => {
-    resetSteamClientForTests()
-    vi.clearAllMocks()
-  })
-
   it('returns ok when SteamAPI_Init succeeds', async () => {
-    const result = await initSteam()
+    const result = await client.initSteam()
 
     expect(result).toEqual({ ok: true })
     expect(steamMock.getInstance).toHaveBeenCalled()
-    expect(steamMock.init).toHaveBeenCalledWith({ appId: STEAM_APP_ID })
+    expect(steamMock.init).toHaveBeenCalledWith({ appId: 3885340 })
   })
 
   // Regression: macOS .app bundles launch with cwd=/, so the library's cwd-based
   // search never found the SDK placed beside AIRI.app. initSteam now pins the
   // path via setSdkPath resolved from app.getPath('exe') before calling init.
   it('pins SDK path from the executable before init (macOS .app layout)', async () => {
-    await initSteam()
+    await client.initSteam()
 
     expect(steamMock.setSdkPath).toHaveBeenCalledWith('/fake/install/steamworks_sdk')
     expect(steamMock.init).toHaveBeenCalled()
@@ -96,7 +95,7 @@ describe('initSteam', () => {
   it('returns init_failed when SteamAPI_Init returns false', async () => {
     steamMock.init.mockReturnValue(false)
 
-    const result = await initSteam()
+    const result = await client.initSteam()
 
     expect(result).toEqual({ ok: false, reason: 'init_failed' })
   })
@@ -109,7 +108,7 @@ describe('initSteam', () => {
       user: {},
     } as ReturnType<typeof steamMock.getInstance>)
 
-    const result = await initSteam()
+    const result = await client.initSteam()
 
     expect(result).toEqual({ ok: false, reason: 'api_unavailable' })
   })
@@ -117,20 +116,13 @@ describe('initSteam', () => {
 
 describe('getWebApiTicket', () => {
   beforeEach(async () => {
-    resetSteamClientForTests()
-    steamMock.init.mockReturnValue(true)
     steamMock.cancelAuthTicket.mockReset()
     steamMock.getAuthTicketForWebApi.mockResolvedValue({
       success: true,
       authTicket: 73,
       ticketHex: 'deadbeef',
     })
-    await initSteam()
-  })
-
-  afterEach(() => {
-    resetSteamClientForTests()
-    vi.clearAllMocks()
+    await client.initSteam()
   })
 
   // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610725557
@@ -146,7 +138,7 @@ describe('getWebApiTicket', () => {
   // We fixed this by preserving the handle until the caller finishes the
   // `/desktop-sign-in` exchange and explicitly cancels it.
   it('returns the handle required to cancel a Web API ticket (PR #1966)', async () => {
-    const result = await getWebApiTicket()
+    const result = await client.getWebApiTicket()
 
     expect(result).toEqual({ ok: true, authTicket: 73, ticketHex: 'deadbeef' })
     expect(steamMock.getAuthTicketForWebApi).toHaveBeenCalledWith({
@@ -156,7 +148,7 @@ describe('getWebApiTicket', () => {
 
   // https://github.com/moeru-ai/airi/pull/1966#discussion_r3610725557
   it('cancels a Web API ticket through the initialized Steam SDK (PR #1966)', () => {
-    cancelWebApiTicket(73)
+    client.cancelWebApiTicket(73)
 
     expect(steamMock.cancelAuthTicket).toHaveBeenCalledWith(73)
   })
@@ -167,15 +159,15 @@ describe('getWebApiTicket', () => {
       error: 'not logged on',
     })
 
-    const result = await getWebApiTicket()
+    const result = await client.getWebApiTicket()
 
     expect(result).toEqual({ ok: false, reason: 'not logged on' })
   })
 
   it('returns not initialized when Steam was never started', async () => {
-    shutdownSteam()
+    client.shutdownSteam()
 
-    const result = await getWebApiTicket()
+    const result = await client.getWebApiTicket()
 
     expect(result).toEqual({ ok: false, reason: 'Steam is not initialized' })
   })
