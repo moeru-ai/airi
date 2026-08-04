@@ -7,7 +7,10 @@
 // auto-redirected and the manual choice is respected.
 
 const LANGUAGE_STORAGE_KEY = 'docs:settings/language'
-const LANGUAGE_PATH_PATTERN = /\/(en|zh-Hans|ja|ko)(\/|$)/
+// Matches the language segment of a base-stripped path (e.g. "zh-Hans/docs").
+const LANGUAGE_PREFIX_PATTERN = /^(en|zh-Hans|ja|ko)(?:\/|$)/
+// Matches the language segment of a VitePress route path (e.g. "/zh-Hans/docs").
+const LANGUAGE_PATH_PATTERN = /\/(en|zh-Hans|ja|ko)(?:\/|$)/
 
 let redirecting = false
 
@@ -25,10 +28,32 @@ function languageFromNavigator(): string | undefined {
   return undefined
 }
 
-/** Extracts the language prefix from a path; a prefix-less path belongs to the default language (en). */
+/** Extracts the language prefix from a VitePress route path; a prefix-less path belongs to the default language (en). */
 function languageFromPath(pathname: string): string {
   const match = pathname.match(LANGUAGE_PATH_PATTERN)
   return match?.[1] ?? 'en'
+}
+
+/**
+ * Computes the redirect target for a full window pathname (base included).
+ * Returns undefined when the path already matches the target language.
+ *
+ * The language segment lives right after the base path, e.g. `/airi/zh-Hans/`
+ * on GitHub Pages or `/zh-Hans/` locally. A path without a language segment
+ * belongs to the default language (en).
+ */
+export function computeLanguageRedirectPath(pathname: string, base: string, target: string): string | undefined {
+  const rest = pathname.startsWith(base) ? pathname.slice(base.length) : pathname
+  const restMatch = rest.match(LANGUAGE_PREFIX_PATTERN)
+  const current = restMatch?.[1] ?? 'en'
+  if (current === target)
+    return undefined
+
+  const targetRest = restMatch
+    ? rest.replace(new RegExp(`^${restMatch[1]}(?=/|$)`), target)
+    : `${target}/${rest}`
+
+  return `${base}${targetRest}`
 }
 
 /**
@@ -48,13 +73,9 @@ export function applyLanguageRedirect(): void {
     return
 
   const pathname = window.location.pathname
-  const current = languageFromPath(pathname)
-  if (current === target)
+  const targetPath = computeLanguageRedirectPath(pathname, import.meta.env.BASE_URL, target)
+  if (!targetPath)
     return
-
-  const targetPath = current === 'en'
-    ? `/${target}${pathname}`
-    : pathname.replace(new RegExp(`/(${current})(?=/|$)`), `/${target}`)
 
   redirecting = true
   window.location.replace(`${targetPath}${window.location.search}${window.location.hash}`)
