@@ -58,7 +58,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
   const providersStore = useProvidersStore()
-  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+  const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
   const streamingControl = useLlmStreamingControlStore()
 
   const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({ name: CONTEXT_CHANNEL_NAME })
@@ -677,6 +677,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               await chatOrchestrator.ingest(messageText, {
                 model: activeModel.value,
                 chatProvider,
+                temperature: activeTemperature.value,
+                topP: activeTopP.value,
                 input: {
                   type: 'input:text',
                   data: {
