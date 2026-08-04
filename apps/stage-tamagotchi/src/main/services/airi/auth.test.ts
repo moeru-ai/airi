@@ -104,15 +104,20 @@ describe('startSteamTicketSignIn', () => {
     })
   })
 
-  // A concurrent Steam gesture must not start a second ticket fetch — it waits
-  // for the in-flight exchange and relies on the same broadcast reaching every
-  // registered window.
-  it('waits for an in-flight Steam sign-in instead of starting a second ticket exchange', async () => {
-    let finishExchange: ((result: SteamExchangeResult) => void) | undefined
-    exchangeSteamTicketForTokensMock.mockImplementation(async () => {
-      return await new Promise<SteamExchangeResult>((resolve) => {
-        finishExchange = resolve
-      })
+  // ROOT CAUSE:
+  //
+  // The in-flight flag used to be set only after `await initSteam()`, so two
+  // concurrent calls that both passed the flag check during init would each
+  // fetch and exchange a ticket. The guard now claims the slot before the
+  // first await and resolves waiters with the first attempt's result.
+  it('serializes calls that start while initSteam is still running', async () => {
+    let finishInit!: () => void
+    initSteamMock.mockReturnValue(new Promise((resolve) => {
+      finishInit = () => resolve({ ok: true })
+    }))
+    exchangeSteamTicketForTokensMock.mockResolvedValue({
+      ok: true,
+      tokens: { accessToken: 'access-token', expiresIn: 3600 },
     })
 
     const windowAuthManager = {
@@ -123,20 +128,35 @@ describe('startSteamTicketSignIn', () => {
 
     const first = startSteamTicketSignIn(windowAuthManager)
     await vi.waitFor(() => {
-      expect(exchangeSteamTicketForTokensMock).toHaveBeenCalledTimes(1)
+      expect(initSteamMock).toHaveBeenCalledTimes(1)
     })
 
     const second = startSteamTicketSignIn(windowAuthManager)
+    finishInit()
 
-    finishExchange?.({
-      ok: true,
-      tokens: { accessToken: 'access-token', expiresIn: 3600 },
-    })
     expect(await Promise.all([first, second])).toEqual([true, true])
-
-    expect(exchangeSteamTicketForTokensMock).toHaveBeenCalledTimes(1)
     expect(getWebApiTicketMock).toHaveBeenCalledTimes(1)
+    expect(exchangeSteamTicketForTokensMock).toHaveBeenCalledTimes(1)
     expect(windowAuthManager.broadcastAuthCallback).toHaveBeenCalledTimes(1)
+  })
+
+  // A waiter must inherit the first attempt's failure instead of returning
+  // `true` unconditionally, which would tell the caller tokens were broadcast.
+  it('returns the first attempt result to a waiter when it fails', async () => {
+    initSteamMock.mockResolvedValue({ ok: false, reason: 'not_steam' })
+
+    const windowAuthManager = {
+      registerWindow: vi.fn(),
+      broadcastAuthCallback: vi.fn(),
+      broadcastAuthError: vi.fn(),
+    }
+
+    const first = startSteamTicketSignIn(windowAuthManager)
+    const second = startSteamTicketSignIn(windowAuthManager)
+
+    expect(await Promise.all([first, second])).toEqual([false, false])
+    expect(getWebApiTicketMock).not.toHaveBeenCalled()
+    expect(windowAuthManager.broadcastAuthError).not.toHaveBeenCalled()
   })
 
   it('returns false and broadcasts an error when the ticket exchange fails', async () => {

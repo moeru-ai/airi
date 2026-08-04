@@ -10,6 +10,7 @@ import {
   generateCodeChallenge,
   generateCodeVerifier,
   generateState,
+  oidcClientId,
 } from '@proj-airi/stage-shared/auth'
 import { shell } from 'electron'
 
@@ -29,7 +30,6 @@ const log = useLogg('auth-service').useGlobalConfig()
 type MainContext = ReturnType<typeof createContext>['context']
 
 // OIDC configuration for the Electron client.
-const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
 const OIDC_SCOPES = 'openid profile email offline_access'
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://api.airi.build'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
@@ -39,8 +39,8 @@ let closeLoopback: (() => void) | null = null
 let signingInFlight = false
 /** Serializes Steam ticket exchange across concurrent Steam gestures. */
 let steamSignInInFlight = false
-/** Resolves when the current in-flight Steam sign-in finishes (success or fail). */
-let steamSignInInFlightDone: Promise<void> = Promise.resolve()
+/** Resolves with the first attempt's result when the in-flight sign-in finishes. */
+let steamSignInInFlightDone: Promise<boolean> = Promise.resolve(false)
 
 export type { TokenExchangeResult }
 
@@ -80,13 +80,12 @@ export function createWindowAuthManagerService(): WindowAuthManager {
 }
 
 /**
- * Steam ticket sign-in for an explicit Steam choice (not used by the default
- * Login button — that opens browser OIDC and reuses ui-server-auth's existing
- * provider list, including Steam OpenID). Also used by {@link trySteamSignIn}
- * for silent startup on Steam depot builds.
+ * Runs the silent Steam ticket sign-in flow for Steam depot builds.
  *
- * Returns `true` when tokens were broadcast. Returns `false` when Steam is
- * unavailable or the ticket exchange failed.
+ * Used by {@link trySteamSignIn} at startup; the default Login button keeps
+ * using browser OIDC. Returns `true` when tokens were broadcast and `false`
+ * when Steam is unavailable or the ticket exchange failed. Concurrent callers
+ * receive the first attempt's result instead of starting a second exchange.
  *
  * Ticket exchange is single-flight: a concurrent Steam gesture waits for the
  * in-flight exchange instead of starting a second ticket fetch.
@@ -99,23 +98,24 @@ export async function startSteamTicketSignIn(
 
   if (steamSignInInFlight) {
     log.warn('Waiting for in-flight Steam sign-in instead of starting a new exchange')
-    await steamSignInInFlightDone
-    // First attempt owns success/error broadcast; suppress a duplicate fallback.
-    return true
+    return await steamSignInInFlightDone
   }
 
-  const initResult = await initSteam()
-  if (!initResult.ok) {
-    log.withFields({ reason: initResult.reason }).debug('Steam ticket sign-in unavailable')
-    return false
-  }
-
-  let releaseInFlight!: () => void
-  steamSignInInFlightDone = new Promise<void>((resolve) => {
-    releaseInFlight = resolve
+  // Claim the slot before any await so concurrent callers observe the
+  // in-flight promise even while initSteam is still running.
+  let finishInFlight!: (result: boolean) => void
+  steamSignInInFlightDone = new Promise<boolean>((resolve) => {
+    finishInFlight = resolve
   })
   steamSignInInFlight = true
+  let result = false
   try {
+    const initResult = await initSteam()
+    if (!initResult.ok) {
+      log.withFields({ reason: initResult.reason }).debug('Steam ticket sign-in unavailable')
+      return false
+    }
+
     const ticketResult = await getWebApiTicket()
     if (!ticketResult.ok) {
       if (notifyErrors)
@@ -146,11 +146,12 @@ export async function startSteamTicketSignIn(
 
     windowAuthManager.broadcastAuthCallback(exchangeResult.tokens)
     log.log('Steam ticket sign-in successful')
+    result = true
     return true
   }
   finally {
     steamSignInInFlight = false
-    releaseInFlight()
+    finishInFlight(result)
   }
 }
 
@@ -215,7 +216,7 @@ export function createAuthService(params: {
       // this, the OIDC flow auto-completes silently using the stale cookie.
       const url = new URL(OIDC_AUTHORIZE_PATH, SERVER_URL)
       url.searchParams.set('response_type', 'code')
-      url.searchParams.set('client_id', OIDC_CLIENT_ID)
+      url.searchParams.set('client_id', oidcClientId)
       url.searchParams.set('redirect_uri', redirectUri)
       url.searchParams.set('scope', OIDC_SCOPES)
       url.searchParams.set('state', stateWithPort)
@@ -230,7 +231,7 @@ export function createAuthService(params: {
         .then(async ({ code }) => {
           const tokens = await exchangeAuthorizationCode({
             serverUrl: SERVER_URL,
-            clientId: OIDC_CLIENT_ID,
+            clientId: oidcClientId,
             code,
             codeVerifier,
             redirectUri,
