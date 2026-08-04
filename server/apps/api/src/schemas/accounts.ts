@@ -80,7 +80,10 @@ export const account = pgTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  table => [index('account_userId_idx').on(table.userId)],
+  table => [
+    index('account_userId_idx').on(table.userId),
+    index('account_account_id_provider_id_idx').on(table.accountId, table.providerId),
+  ],
 )
 
 export const verification = pgTable(
