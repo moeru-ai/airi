@@ -136,6 +136,31 @@ describe('ui-server-auth sign-in flow helpers', () => {
     })
   })
 
+  it('posts only the callback URL (no provider field) to the Steam sign-in endpoint', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
+      return new Response(JSON.stringify({ url: 'https://steamcommunity.com/openid/login?...', redirect: true }), {
+        headers: { 'Content-Type': 'application/json' },
+      })
+    })
+
+    await expect(requestSocialSignInRedirect({
+      apiServerUrl: 'https://api.airi.test',
+      provider: 'steam',
+      callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
+      fetchImpl,
+    })).resolves.toBe('https://steamcommunity.com/openid/login?...')
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://api.airi.test/api/auth/sign-in/steam',
+      expect.objectContaining({ method: 'POST' }),
+    )
+
+    const init = fetchImpl.mock.calls[0]?.[1]
+    expect(JSON.parse(String(init?.body))).toEqual({
+      callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
+    })
+  })
+
   it('surfaces server-provided sign-in errors', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => {
       return new Response(JSON.stringify({

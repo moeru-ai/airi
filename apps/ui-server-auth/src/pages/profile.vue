@@ -17,7 +17,7 @@ import {
   trackPasswordResetRequested,
   trackSignedOut,
 } from '../modules/analytics'
-import { getAuthClient } from '../modules/auth-client'
+import { getAuthClient, toLinkedAccountsClient } from '../modules/auth-client'
 import { requestPasswordReset } from '../modules/email-password'
 import {
   changePassword,
@@ -95,7 +95,7 @@ const {
   unlink: unlinkLinkedProvider,
   link: linkLinkedProvider,
 } = useLinkedAccounts({
-  client: getAuthClient({ apiServerUrl }),
+  client: toLinkedAccountsClient(getAuthClient({ apiServerUrl })),
   isAuthenticated,
   describeError: describeProfileError,
   messages: {
@@ -285,7 +285,7 @@ function handleUnlinkProvider(providerId: string) {
   return unlinkLinkedProvider(providerId, providerName)
 }
 
-function handleLinkProvider(providerId: 'github' | 'google') {
+function handleLinkProvider(providerId: 'github' | 'google' | 'steam') {
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)
 }

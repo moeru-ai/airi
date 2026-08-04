@@ -7,7 +7,7 @@ import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
 
-export type OAuthProvider = 'google' | 'github'
+export type OAuthProvider = 'google' | 'github' | 'steam'
 
 // NOTICE: reads the same localStorage key ('auth/v1/token') that useAuthStore's
 // `token` ref writes via useLocalStorage. We bypass the store here because

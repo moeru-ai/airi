@@ -22,6 +22,7 @@ import { importPKCS8, SignJWT } from 'jose'
 import { ApiError } from '../utils/error'
 import { getAuthTrustedOrigins, getTrustedOrigin } from '../utils/origin'
 import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
+import { steam } from './auth-plugins/steam'
 
 import * as authSchema from '../schemas/accounts'
 
@@ -476,6 +477,10 @@ export function createAuth(
       // already handles. See libs/auth-plugins/oidc-jwt-bearer.ts for the
       // architectural mismatch this paves over.
       oidcJwtBearer(env),
+      // Steam's web login is OpenID 2.0, not OAuth2/OIDC, so it can't be a
+      // `socialProviders` entry — see libs/auth-plugins/steam.ts for why this
+      // needs to be its own plugin.
+      steam(),
       magicLink({
         // NOTICE: better-auth's magic-link callback receives a server-side
         // verification URL ({baseURL}/magic-link/verify?token=...&callbackURL=...).

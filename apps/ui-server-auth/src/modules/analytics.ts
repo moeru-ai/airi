@@ -17,7 +17,7 @@
 import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables'
 
 /** Login/signup credential kinds shown on the sign-in page. */
-export type AuthMethod = 'email' | 'github' | 'google'
+export type AuthMethod = 'email' | 'github' | 'google' | 'steam'
 
 interface CaptureOptions {
   /**
