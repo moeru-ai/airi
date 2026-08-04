@@ -191,6 +191,12 @@ describe('interactive area', () => {
       }))
     })
 
+    // Vue applies the optimistic input clear on its next render. Wait for that
+    // render before changing the mocked session so this assertion observes the
+    // failure recovery, rather than the still-unflushed original DOM value.
+    await nextTick()
+    expect(textarea!.value).toBe('')
+
     mockState.activeSessionId = 'session-a'
     mockState.messages.value = mockState.sessionMessages.value['session-a']!
     rejectSend?.(new Error('hydrate failed'))

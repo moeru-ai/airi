@@ -472,6 +472,21 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
+  async function executeCleanup(sessionId?: string) {
+    const targetSessionId = sessionId ?? activeSessionId.value
+    await requireSessionHydrated(targetSessionId)
+
+    if (targetSessionId === activeSessionId.value) {
+      cleanupMessages(targetSessionId)
+      return
+    }
+
+    // Maintenance cleanup resets the authority's global context and stream.
+    // A follower can target a different session, so only reset that session's
+    // history while the authority is actively streaming another conversation.
+    chatSession.cleanupMessages(targetSessionId)
+  }
+
   async function executeDeleteMessage(payload: { sessionId?: string, messageId?: string, index?: number }) {
     const sessionId = payload.sessionId || activeSessionId.value
     // A follower can target a persisted session that the authority has only
@@ -548,7 +563,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
           await executeToolCallRerunCommand(message.payload)
           break
         case 'cleanup':
-          cleanupMessages(message.payload.sessionId)
+          await executeCleanup(message.payload.sessionId)
           break
         case 'delete-message':
           await executeDeleteMessage(message.payload)
@@ -777,7 +792,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
   async function requestCleanup(sessionId?: string) {
     if (mode.value === 'authority') {
-      cleanupMessages(sessionId)
+      await executeCleanup(sessionId)
       return
     }
 

@@ -12,6 +12,7 @@ const mockResolveLlmTools = vi.hoisted(() => vi.fn<(options?: { customTools?: ((
 const mockWidgetsTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
 const mockWeatherTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
 const mockImageJournalTools = vi.hoisted(() => vi.fn<() => Promise<Tool[]>>(async () => []))
+const mockMaintenanceCleanup = vi.hoisted(() => vi.fn())
 
 interface MockBroadcastMessageEvent<T> {
   data: T
@@ -113,6 +114,7 @@ interface MockState {
   sessionMetas: Ref<Record<string, unknown>>
   applyRemoteSnapshot: ReturnType<typeof vi.fn>
   setSessionMessages: ReturnType<typeof vi.fn>
+  cleanupMessages: ReturnType<typeof vi.fn>
   getSessionMessages: ReturnType<typeof vi.fn>
   importSessions: MockImportSessions
   createSession: ReturnType<typeof vi.fn>
@@ -141,6 +143,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat/session-store', () => ({
     getSessionMessages: mockState.getSessionMessages,
     importSessions: mockState.importSessions,
     setSessionMessages: mockState.setSessionMessages,
+    cleanupMessages: mockState.cleanupMessages,
     createSession: mockState.createSession,
     loadSession: mockState.loadSession,
     deleteSession: mockState.deleteSession,
@@ -175,7 +178,7 @@ vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
 
 vi.mock('@proj-airi/stage-ui/stores/chat/maintenance', () => ({
   useChatMaintenanceStore: () => ({
-    cleanupMessages: vi.fn(),
+    cleanupMessages: mockMaintenanceCleanup,
   }),
 }))
 
@@ -256,6 +259,9 @@ describe('useChatSyncStore', async () => {
     const setSessionMessages = vi.fn((sessionId: string, next: MockChatMessage[]) => {
       sessionMessages.value[sessionId] = next
     })
+    const cleanupMessages = vi.fn((sessionId: string) => {
+      sessionMessages.value[sessionId] = [{ role: 'system', content: 'init' }]
+    })
 
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
     const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
@@ -279,6 +285,7 @@ describe('useChatSyncStore', async () => {
     mockWeatherTools.mockResolvedValue([])
     mockImageJournalTools.mockReset()
     mockImageJournalTools.mockResolvedValue([])
+    mockMaintenanceCleanup.mockReset()
 
     mockState = {
       activeSendSessionId,
@@ -290,6 +297,7 @@ describe('useChatSyncStore', async () => {
       sessionMetas,
       applyRemoteSnapshot,
       setSessionMessages,
+      cleanupMessages,
       getSessionMessages,
       importSessions,
       createSession,
@@ -433,6 +441,42 @@ describe('useChatSyncStore', async () => {
 
     store.dispose()
     vi.useRealTimers()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3714652669
+  it('keeps authority stream cleanup scoped to the follower-targeted session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A follower can clear session B while the authority is displaying A.
+    // Routing that request through maintenance cleanup reset the authority's
+    // global stream and context state, blanking A's in-progress response.
+    mockState.sessionMessages.value['session-2'] = [
+      { role: 'system', content: 'B history' },
+      { role: 'user', content: 'message in B' },
+    ]
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    const peer = new MockBroadcastChannel('airi:stage-tamagotchi:chat-sync')
+    peer.postMessage({
+      type: 'command',
+      requestId: 'req-cleanup-session-2',
+      senderId: 'follower',
+      command: 'cleanup',
+      payload: { sessionId: 'session-2' },
+    })
+
+    await vi.waitFor(() => {
+      expect(mockState.cleanupMessages).toHaveBeenCalledWith('session-2')
+    })
+    expect(mockMaintenanceCleanup).not.toHaveBeenCalled()
+    expect(mockState.sessionMessages.value['session-1']).toEqual([
+      { role: 'system', content: 'init' },
+    ])
+
+    peer.close()
+    store.dispose()
   })
 
   // https://github.com/moeru-ai/airi/issues/2085
