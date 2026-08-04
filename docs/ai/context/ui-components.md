@@ -10,6 +10,21 @@ Source: `packages/ui/src/components/`
 
 ## Animations
 
+### AnimatedContent
+
+Behavior-only primitive that animates height, opacity, vertical offset, and an
+inner content blur from an external `data-state="open|closed"` lifecycle. The
+lifecycle owner must keep the primitive mounted until the closing animation
+finishes. It can compose with Reka UI content primitives through `as-child`, but
+does not depend on a specific menu, popover, or presence implementation. Visual
+styling remains caller-owned.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `as` | `PrimitiveProps['as']?` | `'div'` | Element or component rendered as the animated outer container |
+
+**Slots**: `default`
+
 ### TransitionBidirectional
 
 Bidirectional Vue `<Transition>` wrapper with customizable CSS classes.
