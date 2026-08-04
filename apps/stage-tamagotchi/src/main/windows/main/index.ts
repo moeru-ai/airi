@@ -147,17 +147,10 @@ export async function setupMainWindow(params: {
     }
   }
 
-  function handleNewBounds(newBounds: Rectangle) {
-    const safeBounds = restoreMainWindowBounds(newBounds)
-    if (
-      safeBounds.x !== newBounds.x
-      || safeBounds.y !== newBounds.y
-      || safeBounds.width !== newBounds.width
-      || safeBounds.height !== newBounds.height
-    ) {
-      window.setBounds(safeBounds)
-    }
+  // Keep bounds unconstrained while a drag is in progress so the window can cross display boundaries.
+  const windowBoundsRecoveryDelayMs = 250
 
+  function persistWindowBounds(bounds: Rectangle) {
     const config = getConfig()
     if (!config.windows || !Array.isArray(config.windows)) {
       config.windows = []
@@ -169,19 +162,19 @@ export async function setupMainWindow(params: {
       config.windows.push({
         title: 'AIRI',
         tag: 'main',
-        x: safeBounds.x,
-        y: safeBounds.y,
-        width: safeBounds.width,
-        height: safeBounds.height,
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
       })
     }
     else {
       const mainWindowConfig = defu(config.windows[existingConfigIndex], { title: 'AIRI', tag: 'main' })
 
-      mainWindowConfig.x = safeBounds.x
-      mainWindowConfig.y = safeBounds.y
-      mainWindowConfig.width = safeBounds.width
-      mainWindowConfig.height = safeBounds.height
+      mainWindowConfig.x = bounds.x
+      mainWindowConfig.y = bounds.y
+      mainWindowConfig.width = bounds.width
+      mainWindowConfig.height = bounds.height
 
       config.windows[existingConfigIndex] = mainWindowConfig
     }
@@ -189,10 +182,45 @@ export async function setupMainWindow(params: {
     updateConfig(config)
   }
 
-  window.on('resize', () => handleNewBounds(window.getBounds()))
-  window.on('move', () => handleNewBounds(window.getBounds()))
+  function recoverMainWindowBounds() {
+    const currentBounds = window.getBounds()
+    const safeBounds = restoreMainWindowBounds(currentBounds)
+    if (
+      safeBounds.x !== currentBounds.x
+      || safeBounds.y !== currentBounds.y
+      || safeBounds.width !== currentBounds.width
+      || safeBounds.height !== currentBounds.height
+    ) {
+      window.setBounds(safeBounds)
+    }
+
+    persistWindowBounds(safeBounds)
+  }
+
+  let moveRecoveryTimer: ReturnType<typeof setTimeout> | undefined
+  function scheduleMainWindowBoundsRecovery() {
+    if (moveRecoveryTimer)
+      clearTimeout(moveRecoveryTimer)
+
+    moveRecoveryTimer = setTimeout(() => {
+      moveRecoveryTimer = undefined
+      recoverMainWindowBounds()
+    }, windowBoundsRecoveryDelayMs)
+  }
+
+  window.on('resize', () => persistWindowBounds(window.getBounds()))
+  window.on('move', () => {
+    persistWindowBounds(window.getBounds())
+    scheduleMainWindowBoundsRecovery()
+  })
   if (savedMainWindowBounds)
-    handleNewBounds(window.getBounds())
+    persistWindowBounds(window.getBounds())
+  window.on('closed', () => {
+    if (moveRecoveryTimer) {
+      clearTimeout(moveRecoveryTimer)
+      moveRecoveryTimer = undefined
+    }
+  })
   window.on('close', (event) => {
     if (allowClose) {
       return
