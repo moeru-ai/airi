@@ -210,7 +210,7 @@ as a first language.
 
 ## PR / Workflow Tips
 
-- When asked to create, open, publish, or prepare a pull request, always use the repo-local `create-pr` skill. It invokes `create-screenshots-of-ui` for user-visible changes and requires before/after screenshots to be uploaded as GitHub user assets in the PR body.
+- When asked to create, open, publish, or prepare a pull request, always use the repo-local `create-pr` skill. For user-visible changes it orchestrates `use-vishot` and the matching runtime variant, then uploads before/after screenshots as GitHub user assets in the PR body.
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.
