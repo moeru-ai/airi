@@ -74,6 +74,24 @@ async function waitForContent(
 let watchRun = 0
 watch(open, async (isOpen) => {
   const run = ++watchRun
+
+  if (!isOpen) {
+    // Snapshot the current computed state BEFORE cancelling the opening
+    // animation: cancelling reverts to the class defaults (opacity-0), which
+    // would make the closing animation jump to its `from` keyframe (full
+    // opacity) first. Writing the snapshot into CSS variables lets the
+    // closing keyframes start from the mid-flight state instead.
+    const content = resolveElement(contentRef.value)
+    if (content) {
+      const current = getComputedStyle(content)
+      content.style.setProperty('--morph-from-transform', current.transform)
+      content.style.setProperty('--morph-from-opacity', current.opacity)
+    }
+    const overlay = resolveElement(overlayRef.value)
+    if (overlay)
+      overlay.style.setProperty('--morph-from-opacity', getComputedStyle(overlay).opacity)
+  }
+
   contentAnim?.cancel()
   overlayAnim?.cancel()
   contentAnim = undefined

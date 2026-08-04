@@ -4,6 +4,7 @@ import type { DefaultTheme } from 'vitepress/theme'
 import type { Author } from '../functions/authors.data'
 
 import { tryCatch } from '@moeru/std'
+import { usePreferredReducedMotion } from '@vueuse/core'
 import { intlFormat } from 'date-fns'
 import { AvatarFallback, AvatarImage, AvatarRoot } from 'reka-ui'
 import { Content, useData, useRoute } from 'vitepress'
@@ -121,6 +122,10 @@ watch(path, () => {
 // and switch to "fade" only after the article height stabilizes.
 const transitionName = ref('')
 
+// Also honor the user's reduced-motion preference (system setting); the CSS
+// media query in theme-animations.css backs this up for live preference changes.
+const reducedMotion = usePreferredReducedMotion()
+
 onMounted(async () => {
   const article = document.querySelector<HTMLElement>('.docs-article')
   if (article) {
@@ -133,7 +138,8 @@ onMounted(async () => {
       prevHeight = height
     }
   }
-  transitionName.value = 'fade'
+  if (!reducedMotion.value)
+    transitionName.value = 'fade'
 })
 </script>
 

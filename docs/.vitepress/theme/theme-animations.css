@@ -24,15 +24,30 @@
 }
 
 @keyframes search-fade-out {
-  from { opacity: 1; }
+  from { opacity: var(--morph-from-opacity, 1); }
   to { opacity: 0; }
 }
 
+/* The `from` frame starts from the snapshot SearchTrigger.vue wrote before
+   cancelling the opening animation, so a mid-flight close does not flash the
+   full visible state first. */
 @keyframes search-morph-out {
-  from { transform: none; opacity: 1; }
+  from {
+    transform: var(--morph-from-transform, none);
+    opacity: var(--morph-from-opacity, 1);
+  }
   to {
     transform: translate(var(--morph-x, 0px), var(--morph-y, 0px))
       scale(var(--morph-sx, 1), var(--morph-sy, 1));
     opacity: 0;
+  }
+}
+
+/* Honor the user's reduced-motion preference for the route transition
+   (Docs.vue also keeps its transition name empty in that case). */
+@media (prefers-reduced-motion: reduce) {
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: none;
   }
 }
