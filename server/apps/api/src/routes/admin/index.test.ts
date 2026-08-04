@@ -18,6 +18,7 @@ describe('admin metrics', () => {
     vi.spyOn(Date, 'now').mockImplementation(() => now)
 
     const db = await mockDB(schema)
+    const recordUserMetrics = vi.fn()
     await db.insert(schema.user).values({
       id: 'admin-1',
       name: 'Admin',
@@ -48,11 +49,24 @@ describe('admin metrics', () => {
         db,
         billingService: {} as never,
         configKV: {} as never,
+        userMetricsRecorder: { record: recordUserMetrics },
       }))
 
     const firstResponse = await app.request('/api/admin/metrics')
     expect(firstResponse.status).toBe(200)
-    expect(await firstResponse.json()).toMatchObject({ totalUsers: 1, verifiedUsers: 1, adminSeats: 1 })
+    expect(await firstResponse.json()).toMatchObject({
+      totalUsers: 1,
+      verifiedUsers: 1,
+      adminSeats: 1,
+      activeSessions: 0,
+      distinctActiveUsers: 0,
+      rollingActiveUsers: { '24h': 0, '7d': 0, '30d': 0 },
+    })
+    expect(recordUserMetrics).toHaveBeenLastCalledWith(expect.objectContaining({
+      totalUsers: 1,
+      activeSessions: 0,
+      distinctActiveUsers: 0,
+    }))
 
     await db.insert(schema.user).values({
       id: 'user-2',
@@ -64,10 +78,12 @@ describe('admin metrics', () => {
     const cachedResponse = await app.request('/api/admin/metrics')
     expect(cachedResponse.status).toBe(200)
     expect(await cachedResponse.json()).toMatchObject({ totalUsers: 1, verifiedUsers: 1, adminSeats: 1 })
+    expect(recordUserMetrics).toHaveBeenCalledTimes(2)
 
     now += 60_001
     const refreshedResponse = await app.request('/api/admin/metrics')
     expect(refreshedResponse.status).toBe(200)
     expect(await refreshedResponse.json()).toMatchObject({ totalUsers: 2, verifiedUsers: 1, adminSeats: 1 })
+    expect(recordUserMetrics).toHaveBeenCalledTimes(3)
   })
 })

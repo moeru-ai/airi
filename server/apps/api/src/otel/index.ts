@@ -76,39 +76,40 @@ export interface AuthMetrics {
   userRegistered: Counter
   userLogin: Counter
   /**
-   * Pull-based gauge for total registered users.
+   * Gauge for the latest requested total registered-user snapshot.
    *
    * Use when:
    * - Reporting current account-base size. Pair with
    *   {@link AuthMetrics.userRegistered} for signup deltas over a time window.
    *
    * Expects:
-   * - Backed by `SELECT COUNT(*) FROM "user"`. Same cluster-wide truth as the
-   *   other DB-backed gauges; dashboards MUST aggregate with `max()`/`avg()`,
-   *   not `sum()`.
+   * - Refreshed when an authorized caller requests `/api/admin/metrics`.
+   *   OTel collection only reads the in-process snapshot and never queries
+   *   Postgres. Dashboards MUST aggregate with `max()`/`avg()`, not `sum()`.
    */
   totalUsers: ObservableGauge
   /**
-   * Cluster-wide active session count, sourced from Postgres (Better Auth
-   * `session` table where `expires_at > NOW()`).
+   * Latest requested active-session count from the Better Auth `session`
+   * table where `expires_at` is in the future.
    *
    * Why ObservableGauge instead of UpDownCounter:
    * - UpDownCounter drifts: TTL expiration never fires a -1, and multi-
    *   replica deploys split +1 / -1 across instances (signin on A, signout
    *   on B). The previous implementation went unboundedly positive.
-   * - Reading from the source-of-truth DB at scrape time makes the metric
-   *   self-correcting.
+   * - The admin metrics request refreshes this source-of-truth snapshot;
+   *   periodic OTel collection does no I/O, so telemetry cannot keep a
+   *   serverless database awake.
    *
    * Multi-replica note:
-   * - Every replica reads the same DB and reports the same value, so the
-   *   dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
-   *   Using sum() would multiply the real count by the replica count.
+   * - Only replicas that have handled an admin metrics request emit a point.
+   *   The dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
    * - See `server/apps/api/docs/ai-context/observability-conventions.md`,
    *   "Multi-Replica Considerations".
    */
   activeSessions: ObservableGauge
   /**
-   * Pull-based gauge for distinct users with ≥1 non-expired session.
+   * Gauge for the latest requested count of distinct users with at least one
+   * non-expired session.
    *
    * Use when:
    * - Querying real "active users" — not session rows. Better Auth creates a
@@ -117,13 +118,13 @@ export interface AuthMetrics {
    *   over time even when the actual user base is small.
    *
    * Expects:
-   * - Backed by `SELECT COUNT(DISTINCT user_id) FROM session WHERE expires_at > now()`.
-   *   Same cluster-wide truth as `activeSessions`; dashboards MUST aggregate
-   *   with `avg()`, not `sum()` — see observability-conventions.md.
+   * - Refreshed by `/api/admin/metrics` using `COUNT(DISTINCT user_id)`.
+   *   Periodic collection reads memory only; dashboards MUST aggregate with
+   *   `avg()`/`max()`, not `sum()`.
    */
   distinctActiveUsers: ObservableGauge
   /**
-   * Pull-based gauge for rolling-window distinct active users (DAU / WAU /
+   * Gauge for the latest requested rolling-window active users (DAU / WAU /
    * MAU).
    *
    * Use when:
@@ -133,13 +134,13 @@ export interface AuthMetrics {
    *   currently-live session.
    *
    * Expects:
-   * - Backed by `COUNT(*) FILTER (WHERE last_seen_at > now() - window)` over
-   *   the `user` table. `last_seen_at` is touched on sign-in and on every
+   * - Refreshed by `/api/admin/metrics` using `COUNT(*) FILTER` over the
+   *   `user` table. `last_seen_at` is touched on sign-in and on every
    *   OIDC access-token refresh (~hourly), so it is a per-user last-activity
    *   timestamp (see the `user.lastSeenAt` schema note).
    * - Observed once per window with a `window` attribute (`24h` / `7d` /
-   *   `30d`). Same cluster-wide truth as the other DB-backed gauges;
-   *   dashboards MUST aggregate with `max()`/`avg()`, not `sum()`.
+   *   `30d`). Periodic collection reads memory only; dashboards MUST
+   *   aggregate with `max()`/`avg()`, not `sum()`.
    */
   rollingActiveUsers: ObservableGauge
 }
@@ -325,10 +326,10 @@ export interface RateLimitMetrics {
 
 export interface ObservabilityMetrics {
   /**
-   * Counts failures inside metric-pipeline callbacks (e.g. a DB-backed
-   * ObservableGauge that couldn't read from Postgres). Use for self-monitoring
-   * — when this is rising, treat the affected gauge's reported value as
-   * potentially stale.
+   * Counts failures inside metric-pipeline callbacks (for example, a Redis-
+   * backed ObservableGauge that could not refresh). Use for self-monitoring —
+   * when this is rising, treat the affected gauge's value as potentially
+   * stale.
    *
    * Labels: `metric` (the failing gauge's logical name).
    */
@@ -402,16 +403,16 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'Number of user sign-ins',
     }),
     totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
-      description: 'Total registered users sourced from Postgres (cluster-wide; dashboard must use max(), not sum())',
+      description: 'Latest admin-requested total registered-user snapshot (OTel collection is memory-only; dashboard must use max(), not sum())',
     }),
     activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Active user sessions sourced from Postgres (cluster-wide; dashboard must use avg(), not sum())',
+      description: 'Latest admin-requested active-session snapshot (OTel collection is memory-only; dashboard must use max(), not sum())',
     }),
     distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
-      description: 'Distinct users with ≥1 non-expired session — true active-user count, immune to per-row session inflation (cluster-wide; dashboard must use avg(), not sum())',
+      description: 'Latest admin-requested distinct active-user snapshot, immune to per-row session inflation (dashboard must use max(), not sum())',
     }),
     rollingActiveUsers: meter.createObservableGauge(METRIC_USER_ACTIVE_ROLLING, {
-      description: 'Rolling-window distinct active users (DAU/WAU/MAU) from user.last_seen_at, labelled by window=24h|7d|30d (cluster-wide; dashboard must use max(), not sum())',
+      description: 'Latest admin-requested DAU/WAU/MAU snapshot from user.last_seen_at, labelled by window=24h|7d|30d (dashboard must use max(), not sum())',
     }),
   }
 
