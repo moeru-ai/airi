@@ -7,6 +7,7 @@ import type { EmailService } from './email'
 import type { AuthEnv } from './env'
 import type { AuthMetrics } from './otel'
 import type { ResourceApi } from './resource-api'
+import type { SocialAuthorizationRevoker } from './social-authorization'
 
 import { Buffer } from 'node:buffer'
 
@@ -18,13 +19,13 @@ import { createAuthMiddleware } from 'better-auth/api'
 import { deleteSessionCookie } from 'better-auth/cookies'
 import { admin, bearer, jwt, magicLink } from 'better-auth/plugins'
 import { eq } from 'drizzle-orm'
-import { importPKCS8, SignJWT } from 'jose'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
 import { ApiError } from './error'
 import { oidcJwtBearer } from './oidc-jwt-bearer'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
+import { createAppleClientSecret, createSocialAuthorizationRevoker } from './social-authorization'
 import { steam } from './steam'
 
 const logger = useLogger('auth').useGlobalConfig()
@@ -122,17 +123,7 @@ function createAppleProviderConfig(
 
   return {
     apple: async () => {
-      const key = await importPKCS8(env.AUTH_APPLE_PRIVATE_KEY_PEM, 'ES256')
-      const issuedAt = Math.floor(Date.now() / 1000)
-      const clientSecret = await new SignJWT({})
-        .setProtectedHeader({ alg: 'ES256', kid: env.AUTH_APPLE_KEY_ID })
-        .setIssuer(env.AUTH_APPLE_TEAM_ID)
-        .setSubject(env.AUTH_APPLE_CLIENT_ID)
-        .setAudience('https://appleid.apple.com')
-        .setIssuedAt(issuedAt)
-        // Apple caps client-secret JWT validity at six months.
-        .setExpirationTime(issuedAt + 180 * 24 * 60 * 60)
-        .sign(key)
+      const clientSecret = await createAppleClientSecret(env)
 
       return {
         clientId: env.AUTH_APPLE_CLIENT_ID,
@@ -442,6 +433,7 @@ export function createAuth(
   email?: EmailService,
   metrics?: AuthMetrics | null,
   resourceApi?: ResourceApi,
+  socialAuthorization: SocialAuthorizationRevoker = createSocialAuthorizationRevoker(db, env),
 ): AuthInstance {
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
@@ -587,14 +579,14 @@ export function createAuth(
       // Two-step deletion: POST /api/auth/delete-user with an authenticated
       // session triggers `sendDeleteAccountVerification`; clicking the link
       // hits GET /api/auth/delete-user/callback?token=..., which validates
-      // and calls `beforeDelete` BEFORE `internalAdapter.deleteUser`. Throw
-      // from `beforeDelete` to abort: the user row stays put, the
-      // verification token has already been consumed (single-use) so the
-      // user must re-initiate. Soft-delete handlers must be idempotent
-      // because retrying a partial deletion re-runs already-completed
-      // handlers as no-ops.
+      // and calls `beforeDelete` BEFORE `internalAdapter.deleteUser`. External
+      // authorizations are revoked first, then resource data is soft-deleted.
+      // Both operations are idempotent so a partial failure can be retried.
+      // Throw from `beforeDelete` to abort: the user row and verification
+      // token stay intact, so the same callback can resume the attempt.
+      // Soft-delete handlers must be idempotent because retrying a partial
+      // deletion re-runs already-completed handlers as no-ops.
       // Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-380
-      // Design: server/apps/api/docs/ai-context/account-deletion.md
       deleteUser: {
         enabled: true,
         async sendDeleteAccountVerification({ user, url }) {
@@ -604,6 +596,7 @@ export function createAuth(
           })
         },
         async beforeDelete(user) {
+          await socialAuthorization.revokeForUser(user.id)
           await requireResourceApi(resourceApi).softDeleteUserData({
             userId: user.id,
             reason: 'user-requested',
