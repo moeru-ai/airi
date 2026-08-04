@@ -9,6 +9,7 @@ RUN corepack enable
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY patches/ ./patches/
 COPY server/apps/api server/apps/api
+COPY server/packages/auth-shared server/packages/auth-shared
 COPY server/packages/drizzle-migration server/packages/drizzle-migration
 COPY packages/server-sdk-shared packages/server-sdk-shared
 

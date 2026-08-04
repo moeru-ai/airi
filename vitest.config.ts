@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     projects: [
+      'server/apps/auth',
       'server/apps/api',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi',

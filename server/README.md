@@ -1,29 +1,35 @@
-# AIRI server workspace
+# AIRI Backend
 
-Backend deployables and backend-only packages live under this directory. Keeping them in one workspace makes the deployment boundary explicit while the repository root remains the shared pnpm workspace.
+Project AIRI's hosted backend source lives under this folder. Workspace package
+names stay stable; the directory groups service source and database ownership
+while production deployment configuration remains in `proj-airi/airi-railway`.
 
-## Structure
+## Layout
 
-- `apps/api`: Hono HTTP and WebSocket API, including auth, billing, chat synchronization, model gateway routing, and observability.
-- `packages/drizzle-migration`: compiled Drizzle migrations consumed by the API at startup.
-- `docker-compose.yml`: local API, PostgreSQL, and Redis stack.
+- `apps/api`: resource API, business domains, database migrations, and API runtime.
+- `apps/auth`: standalone Better Auth and OIDC service.
+- `packages/auth-shared`: Auth-owned database schema and principal contracts.
+- `packages/drizzle-migration`: bundled migration history consumed by the API migration owner.
+- `dev/caddy`: local-only public edge routing for the shared Auth/API origin.
+- `docker-compose.yaml`: complete local API + Auth + PostgreSQL + Redis + Caddy stack.
 
-Packages shared with browser, desktop, integrations, or plugins remain in the root `packages/` directory because they are not backend-only.
-
-## Usage
+## Run locally
 
 From the repository root:
 
 ```sh
-pnpm -F @proj-airi/api-server dev
-pnpm -F @proj-airi/api-server typecheck
-pnpm -F @proj-airi/api-server exec vitest run
-pnpm -F @proj-airi/api-server build
 pnpm dev:backend
 ```
 
-Use the scoped package commands when PostgreSQL and Redis already exist. Use `pnpm dev:backend` to build and run the complete local Compose stack.
+The command uses `server/docker-compose.yaml` and exposes only Caddy at
+`http://localhost:6112`.
 
-## Boundaries
+## Not included
 
-Use `server/apps/api` for API-owned routes, services, schemas, and runtime composition. Use `server/packages` only for packages that are private to backend deployables. Cross-runtime contracts and SDKs belong in the root `packages/` workspace.
+Frontend applications remain under `apps/`. Cross-runtime server SDK and
+protocol packages remain under `packages/` because Web, Electron, plugins,
+and independent services consume them.
+
+Production Caddy routing, OpenTelemetry Collector configuration, observability
+storage, and Grafana dashboards live in `proj-airi/airi-railway` so deployment
+topology is not duplicated in the application repository.
