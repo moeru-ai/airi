@@ -221,13 +221,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="onboarding-step-container" min-h-0 w-full flex flex-1 flex-col overflow-hidden>
+  <div class="onboarding-step-container" min-h-0 flex flex-1 flex-col>
     <Transition :name="direction === 'next' ? 'slide-next' : 'slide-prev'" mode="out-in">
       <component
         :is="currentStep.component"
         v-if="currentStep"
         :key="currentStep.id"
-        class="min-h-0 min-w-0 flex flex-1 flex-col overflow-hidden"
+        class="flex flex-1 flex-col"
         v-bind="currentStepProps"
         :on-next="requestNextStep"
         :on-previous="requestPreviousStep"
@@ -237,10 +237,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.onboarding-step-container {
-  overflow-x: hidden;
-}
-
 .slide-next-enter-active,
 .slide-next-leave-active,
 .slide-prev-enter-active,
