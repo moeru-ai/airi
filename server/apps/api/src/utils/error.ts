@@ -27,14 +27,22 @@ export function createBadRequestError(message: string, errorCode = 'BAD_REQUEST'
 }
 
 /**
- * Creates an unauthorized error (401)
+ * Creates an unauthorized error (401).
+ *
+ * `errorCode` overrides the default `UNAUTHORIZED` machine-readable code (for
+ * example `STEAM_TICKET_INVALID`); `details` remains available for extra
+ * context but is not part of the code contract.
  */
 export function createUnauthorizedError(message = 'Unauthorized', errorCode = 'UNAUTHORIZED', details?: unknown) {
   return new ApiError(401, errorCode, message, details)
 }
 
 /**
- * Creates a forbidden error (403)
+ * Creates a forbidden error (403).
+ *
+ * `errorCode` overrides the default `FORBIDDEN` machine-readable code;
+ * `details` remains available for extra context but is not part of the code
+ * contract.
  */
 export function createForbiddenError(message = 'Forbidden', errorCode = 'FORBIDDEN', details?: unknown) {
   return new ApiError(403, errorCode, message, details)
