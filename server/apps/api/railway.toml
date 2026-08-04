@@ -1,0 +1,12 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "/server/apps/api/production/railway/Dockerfile"
+watchPatterns = [
+  "server/apps/api/**",
+  "server/packages/drizzle-migration/**",
+  "packages/**",
+  "pnpm-lock.yaml"
+]
+
+[deploy]
+startCommand = "pnpm -F @proj-airi/api-server start"

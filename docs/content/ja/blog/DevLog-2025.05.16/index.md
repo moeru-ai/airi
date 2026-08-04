@@ -241,7 +241,6 @@ npm install @velin-dev/core
     - キャラクター "Me" と "ReLU" の Live2D モデリング
   - コミュニティサポートとマーケティング
     - 日本語 README
-    - Plausible 分析統合
     - 包括的なドキュメント
 
 さようなら！

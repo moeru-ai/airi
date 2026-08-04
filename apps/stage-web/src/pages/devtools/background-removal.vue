@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createBackgroundRemovalAdapter } from '@proj-airi/stage-ui/libs/inference/adapters/background-removal'
-import { Button, Checkbox, InputFile } from '@proj-airi/ui'
+import { Button, Checkbox, GhostButton, InputFile } from '@proj-airi/ui'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const adapter = createBackgroundRemovalAdapter()
@@ -228,14 +228,14 @@ function hidePreview() {
           />
           <Button
             v-if="doneCount > 0"
-            variant="secondary"
+
             :label="`Download All (${doneCount})`"
             icon="i-solar:download-minimalistic-bold"
             @click="downloadAllImages"
           />
-          <Button
+          <GhostButton
             v-if="imageItems.length > 0"
-            variant="secondary-muted"
+
             label="Clear All"
             icon="i-solar:trash-bin-trash-line-duotone"
             @click="clearAllImages"
@@ -343,11 +343,12 @@ function hidePreview() {
                     @click="downloadImage(index)"
                   />
                   <Button
-                    variant="danger"
+
                     size="sm"
                     icon="i-solar:trash-bin-trash-bold"
                     :disabled="item.status === 'processing'"
-                    @click="removeImage(index)"
+                    color="red"
+                    variant="primary" @click="removeImage(index)"
                   />
                 </div>
               </td>

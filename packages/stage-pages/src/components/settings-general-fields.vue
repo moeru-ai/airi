@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -16,7 +16,7 @@ const props = withDefaults(defineProps<{
 const settings = useSettings()
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
-const showAnalyticsSettings = computed(() => isPosthogAvailableInBuild())
+const showAnalyticsSettings = computed(() => isAnalyticsAvailableInBuild())
 const analyticsToggleValue = computed({
   get: () => showAnalyticsSettings.value ? settings.analyticsEnabled : false,
   set: (value: boolean) => settings.analyticsEnabled = value,

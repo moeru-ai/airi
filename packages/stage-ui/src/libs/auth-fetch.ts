@@ -1,4 +1,4 @@
-import { getPosthogIdentitySnapshot } from '../stores/analytics/posthog'
+import { getAnalyticsIdentitySnapshot } from '../stores/analytics/client'
 import { useAuthStore } from '../stores/auth'
 import { getAuthToken } from './auth'
 import { SERVER_URL } from './server'
@@ -27,7 +27,7 @@ export async function authedFetch(
     const headers = new Headers(init?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
-    const posthogIdentity = shouldAttachPosthogIdentity(input) ? getPosthogIdentitySnapshot() : null
+    const posthogIdentity = shouldAttachPosthogIdentity(input) ? getAnalyticsIdentitySnapshot() : null
     if (posthogIdentity) {
       headers.set('x-posthog-distinct-id', posthogIdentity.distinctId)
       if (posthogIdentity.sessionId)

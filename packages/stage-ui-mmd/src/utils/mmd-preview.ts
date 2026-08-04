@@ -1,11 +1,8 @@
-import type { Object3D } from 'three'
-
 import {
   AmbientLight,
   Box3,
   DirectionalLight,
   Group,
-  Mesh,
   PerspectiveCamera,
   Scene,
   SRGBColorSpace,
@@ -14,19 +11,7 @@ import {
 } from 'three'
 
 import { loadMMDModelFromSource } from './mmd-loader'
-
-function disposeObject(root: Object3D) {
-  root.traverse((obj) => {
-    if (obj instanceof Mesh) {
-      obj.geometry?.dispose?.()
-      const material = obj.material
-      if (Array.isArray(material))
-        material.forEach(m => m.dispose())
-      else
-        material?.dispose?.()
-    }
-  })
-}
+import { disposeMMDObject } from './mmd-materials'
 
 /**
  * Renders an MMD model file to an offscreen canvas and returns a preview data
@@ -84,8 +69,10 @@ export async function loadMMDModelPreview(file: File): Promise<string | undefine
     return canvas.toDataURL()
   }
   finally {
+    // End runtime-owned state before releasing the GPU objects it references.
+    resolved?.mmd.dispose()
     if (group)
-      disposeObject(group)
+      disposeMMDObject(group)
     resolved?.dispose()
     scene.clear()
     renderer.renderLists.dispose()

@@ -7,24 +7,28 @@ const presetButtons = [
     name: 'success',
     label: 'Success',
     icon: 'i-solar:check-circle-bold-duotone',
-    variant: 'primary',
+    color: 'neutral',
+    variant: 'secondary',
   },
   {
     name: 'nudge',
     label: 'Nudge',
     icon: 'i-solar:hand-stars-bold-duotone',
-    variant: 'caution',
+    color: 'orange',
+    variant: 'primary',
   },
   {
     name: 'error',
     label: 'Error',
     icon: 'i-solar:danger-triangle-bold-duotone',
-    variant: 'danger',
+    color: 'red',
+    variant: 'primary',
   },
   {
     name: 'buzz',
     label: 'Buzz',
     icon: 'i-solar:alarm-bold-duotone',
+    color: 'neutral',
     variant: 'secondary',
   },
 ] as const
@@ -58,6 +62,7 @@ const { trigger, isSupported } = useWebHaptics({
           block
           size="md"
           shape="rounded"
+          :color="preset.color"
           :variant="preset.variant"
           :icon="preset.icon"
           @click="trigger(preset.name)"
