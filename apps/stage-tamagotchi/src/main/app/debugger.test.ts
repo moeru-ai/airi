@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { announceDebuggerEndpoint } from './debugger'
+import { openDebugger } from './debugger'
 
 const electronMocks = vi.hoisted(() => ({
   appendSwitch: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock('node:http', () => ({
   },
 }))
 
-describe('announceDebuggerEndpoint', () => {
+describe('openDebugger', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.APP_REMOTE_DEBUG = 'true'
@@ -52,7 +52,7 @@ describe('announceDebuggerEndpoint', () => {
       return request
     })
 
-    announceDebuggerEndpoint()
+    openDebugger()
 
     response.emit('data', JSON.stringify([{
       webSocketDebuggerUrl: 'ws://localhost:9250/devtools/page/renderer',

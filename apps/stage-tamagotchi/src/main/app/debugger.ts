@@ -18,12 +18,12 @@ export function setupDebugger() {
 }
 
 /**
- * Announces an inspector URL for the first available Electron renderer target.
+ * Opens the inspector for the first available Electron renderer target.
  *
  * Developers may keep CDP enabled without opening the system browser by
  * setting `APP_REMOTE_DEBUG_NO_OPEN=true`.
  */
-export function announceDebuggerEndpoint() {
+export function openDebugger() {
   if (/^true$/i.test(env.APP_REMOTE_DEBUG || '')) {
     const remoteDebugEndpoint = `http://localhost:${env.APP_REMOTE_DEBUG_PORT || '9222'}`
 

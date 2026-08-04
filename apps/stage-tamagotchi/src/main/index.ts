@@ -20,7 +20,7 @@ import { isLinux } from 'std-env'
 
 import icon from '../../resources/icon.png?asset'
 
-import { announceDebuggerEndpoint, setupDebugger } from './app/debugger'
+import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
@@ -275,7 +275,7 @@ app.whenReady().then(async () => {
   emitAppReady()
 
   // Extra
-  announceDebuggerEndpoint()
+  openDebugger()
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
