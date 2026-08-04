@@ -8,6 +8,7 @@ import type { Database } from './db'
 import type { Env } from './env'
 
 import { Buffer } from 'node:buffer'
+import { createHmac } from 'node:crypto'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
@@ -67,6 +68,22 @@ const OIDC_RESPONSE_TYPES = ['code'] as const
 export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'
 export const OIDC_CLIENT_ID_ELECTRON = 'airi-stage-electron'
 export const OIDC_CLIENT_ID_POCKET = 'airi-stage-pocket'
+export const ELECTRON_OIDC_REDIRECT_PATH = '/api/auth/oidc/electron-callback'
+
+/**
+ * Signs a better-auth session token for use in the session cookie.
+ *
+ * NOTICE:
+ * Mirrors the bearer()/oidc-jwt-bearer cookie format so `/oauth2/authorize`
+ * accepts the session. Originally an inline copy of `better-call`'s
+ * `signCookieValue` (node_modules/better-call/dist/crypto.mjs L27-32);
+ * better-call is a transitive dependency of better-auth, so it is not
+ * imported directly by server/apps/api.
+ */
+export function signSessionCookieValue(value: string, secret: string): string {
+  const signature = createHmac('sha256', secret).update(value).digest('base64')
+  return encodeURIComponent(`${value}.${signature}`)
+}
 
 const DEFAULT_WEB_REDIRECT_URIS = [
   'https://airi.moeru.ai/auth/callback',
@@ -183,10 +200,10 @@ function buildTrustedElectronRedirectUri(request: Request, redirectUri: string):
     if (parsed.origin !== requestUrl.origin)
       return null
 
-    if (parsed.pathname !== '/api/auth/oidc/electron-callback')
+    if (parsed.pathname !== ELECTRON_OIDC_REDIRECT_PATH)
       return null
 
-    return `${requestUrl.origin}/api/auth/oidc/electron-callback`
+    return `${requestUrl.origin}${ELECTRON_OIDC_REDIRECT_PATH}`
   }
   catch {
     return null
@@ -222,7 +239,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     type: 'native',
     public: true,
     redirectUris: [
-      `${env.API_SERVER_URL}/api/auth/oidc/electron-callback`,
+      `${env.API_SERVER_URL}${ELECTRON_OIDC_REDIRECT_PATH}`,
     ],
     scopes: [...OIDC_SCOPES],
     grantTypes: [...OIDC_GRANT_TYPES],

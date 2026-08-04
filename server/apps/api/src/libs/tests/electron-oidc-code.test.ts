@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { issueElectronOidcCode } from '../steam-oidc-tokens'
+import { issueElectronOidcCode } from '../electron-oidc-code'
 
 describe('issueElectronOidcCode', () => {
   it('rejects a banned user before creating a session', async () => {

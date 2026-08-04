@@ -3,11 +3,11 @@ import type { JSONWebKeySet } from 'jose'
 
 import type { Env } from '../env'
 
-import { createHmac } from 'node:crypto'
-
 import { createAuthMiddleware } from 'better-auth/api'
 import { createLocalJWKSet, jwtVerify } from 'jose'
 import { pipe, regex, safeParse, string, transform } from 'valibot'
+
+import { signSessionCookieValue } from '../auth'
 
 const JwtBearerTokenSchema = pipe(
   string(),
@@ -161,28 +161,6 @@ export function oidcJwtBearer(env: Env): BetterAuthPlugin {
     return cachedKeySet
   }
 
-  /**
-   * Inline copy of `better-call`'s `signCookieValue`.
-   *
-   * Use when:
-   * - Producing a session-token cookie value that the stock {@link bearer}
-   *   plugin would also accept on the verify path.
-   *
-   * Format:
-   * - HMAC-SHA-256 the raw value with `secret`, base64-encode the digest,
-   *   join as `value.signature`, then URI-encode. Mirrors the upstream
-   *   recipe at node_modules/better-call/dist/crypto.mjs L27-32.
-   *
-   * Why inline (not import from better-call): better-call is a transitive
-   * via better-auth, not a direct dep of server/apps/api. Inlining a 3-line
-   * helper avoids polluting package.json with what is, semantically, an
-   * internal of better-auth's bearer flow.
-   */
-  function signCookieValue(value: string, secret: string): string {
-    const signature = createHmac('sha256', secret).update(value).digest('base64')
-    return encodeURIComponent(`${value}.${signature}`)
-  }
-
   return {
     id: 'oidc-jwt-bearer',
     hooks: {
@@ -258,7 +236,7 @@ export function oidcJwtBearer(env: Env): BetterAuthPlugin {
 
             // Format the session token exactly like bearer() expects it
             // when the cookie comes back in (see plugin source above).
-            const signedValue = signCookieValue(bridgeSession.token, c.context.secret)
+            const signedValue = signSessionCookieValue(bridgeSession.token, c.context.secret)
 
             const cookieName = c.context.authCookies.sessionToken.name
             const newCookieEntry = `${cookieName}=${signedValue}`

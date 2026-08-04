@@ -1,29 +1,15 @@
 import type { AuthInstance } from './auth'
 import type { Env } from './env'
 
-import { createHmac } from 'node:crypto'
-
 import { generateRandomString } from 'better-auth/crypto'
 
 import { createForbiddenError } from '../utils/error'
-import { OIDC_CLIENT_ID_ELECTRON, OIDC_SCOPES } from './auth'
+import { ELECTRON_OIDC_REDIRECT_PATH, OIDC_CLIENT_ID_ELECTRON, OIDC_SCOPES, signSessionCookieValue } from './auth'
 import { isUserBannedNow } from './request-auth'
 
 /**
- * Signs a better-auth session token for use in the session cookie.
- *
- * NOTICE:
- * Mirrors `oidc-jwt-bearer` / bearer() cookie format so `/oauth2/authorize`
- * accepts the session. Source: apps/server/src/libs/auth-plugins/oidc-jwt-bearer.ts
- */
-function signSessionCookieValue(value: string, secret: string): string {
-  const signature = createHmac('sha256', secret).update(value).digest('base64')
-  return encodeURIComponent(`${value}.${signature}`)
-}
-
-/**
- * Issues a short-lived Electron OIDC authorization code via in-process
- * `/oauth2/authorize`, binding the caller's `code_challenge`.
+ * Issues a short-lived Electron OIDC authorization code via an in-process
+ * `/oauth2/authorize` call, binding the caller's `code_challenge`.
  *
  * The Electron client must complete PKCE at `/oauth2/token` with the matching
  * `code_verifier`. `redirect_uri` / scopes / `resource` are fixed to the
@@ -68,7 +54,7 @@ export async function issueElectronOidcCode(params: {
 
   // Throwaway CSRF state: the code is returned in JSON, not via browser redirect.
   const state = generateRandomString(32, 'A-Z', 'a-z')
-  const redirectUri = `${params.env.API_SERVER_URL}/api/auth/oidc/electron-callback`
+  const redirectUri = `${params.env.API_SERVER_URL}${ELECTRON_OIDC_REDIRECT_PATH}`
   const scopes = OIDC_SCOPES.join(' ')
 
   const cookieName = ctx.authCookies.sessionToken.name

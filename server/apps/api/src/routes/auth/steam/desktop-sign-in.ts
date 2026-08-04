@@ -8,7 +8,7 @@ import { Hono } from 'hono'
 import * as v from 'valibot'
 
 import { resolveOrCreateSteamUser } from '../../../libs/auth-plugins/steam'
-import { issueElectronOidcCode } from '../../../libs/steam-oidc-tokens'
+import { issueElectronOidcCode } from '../../../libs/electron-oidc-code'
 import { authenticateUserTicket } from '../../../libs/steam-web-api'
 import {
   createBadRequestError,
@@ -33,14 +33,11 @@ const DesktopSignInBodySchema = v.object({
   code_challenge_method: v.literal('S256'),
 })
 
-const STEAM_APP_ID = '3885340'
-
 interface SteamDesktopSignInRouteDeps {
   auth: AuthInstance
   env: Env
   collaborators?: Partial<{
     authenticateUserTicket: typeof authenticateUserTicket
-    resolveOrCreateSteamUser: typeof resolveOrCreateSteamUser
     issueElectronOidcCode: typeof issueElectronOidcCode
   }>
 }
@@ -67,7 +64,6 @@ interface SteamDesktopSignInRouteDeps {
 export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps) {
   const collaborators = {
     authenticateUserTicket,
-    resolveOrCreateSteamUser,
     issueElectronOidcCode,
     ...deps.collaborators,
   }
@@ -85,7 +81,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       try {
         steamId = await collaborators.authenticateUserTicket({
           publisherKey: deps.env.STEAM_PUBLISHER_KEY,
-          appId: STEAM_APP_ID,
+          appId: deps.env.STEAM_APP_ID,
           ticketHex: parsed.output.ticket,
         })
       }
@@ -97,7 +93,7 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       }
 
       const ctx = await deps.auth.$context
-      const { userId } = await collaborators.resolveOrCreateSteamUser(ctx.internalAdapter, steamId)
+      const { userId } = await resolveOrCreateSteamUser(ctx.internalAdapter, steamId)
 
       const code = await collaborators.issueElectronOidcCode({
         auth: deps.auth,
