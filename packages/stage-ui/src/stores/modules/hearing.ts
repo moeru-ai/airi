@@ -337,7 +337,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
   let pendingDestinationModelProvider = ''
 
-  function syncDestinationModel(providerId: string) {
+  function syncDestinationModel(providerId: string, freshlyListedModels: readonly { id: string }[] = []) {
     if (activeTranscriptionProvider.value !== providerId)
       return false
 
@@ -351,7 +351,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     const defaultOptions = providersStore.findProviderMetadata(providerId)?.defaultOptions?.()
     const defaultModel = typeof defaultOptions?.model === 'string' ? defaultOptions.model.trim() : ''
-    const listedModel = providersStore.getModelsForProvider(providerId)[0]?.id ?? ''
+    // A list-backed fallback must come from the current refresh. The runtime cache may still belong
+    // to credentials or an endpoint that the user has just replaced.
+    const listedModel = freshlyListedModels[0]?.id ?? ''
     const model = defaultModel || listedModel
     if (!model)
       return false
@@ -384,12 +386,25 @@ export const useHearingStore = defineStore('hearing-store', () => {
       activeTranscriptionModel.value = model
   })
 
+  // Provider resets replace every runtime state without changing the active Hearing provider.
+  // Rehydrate the cache owned by Hearing when FunASR remains selected across that transition.
+  watch(() => providersStore.providerRuntimeState['funasr-audio-transcription'], (runtimeState, previousRuntimeState) => {
+    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription'
+      || !runtimeState
+      || runtimeState === previousRuntimeState
+      || runtimeState.models.length > 0) {
+      return
+    }
+
+    void loadModelsForProvider('funasr-audio-transcription')
+  })
+
   watch(activeTranscriptionModel, (model) => {
-    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription')
+    const config = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+    if (!config || !Object.hasOwn(config, 'model') || typeof config.model !== 'string')
       return
 
-    const config = providersStore.getProviderConfig('funasr-audio-transcription')
-    if (config && config.model !== model)
+    if (config.model !== model)
       config.model = model
   })
 
@@ -414,11 +429,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
+    let freshlyListedModels: readonly { id: string }[] = []
     if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
-      await providersStore.fetchModelsForProvider(provider)
+      freshlyListedModels = await providersStore.fetchModelsForProvider(provider)
     }
 
-    if (pendingDestinationModelProvider === provider && syncDestinationModel(provider))
+    if (pendingDestinationModelProvider === provider && syncDestinationModel(provider, freshlyListedModels))
       pendingDestinationModelProvider = ''
   }
 

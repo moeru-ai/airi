@@ -100,6 +100,54 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3710847051
+  it('persists the active Hearing model for every model-backed provider (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+
+    hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2-omni')
+    })
+
+    hearingStore.activeTranscriptionModel = 'mimo-v2.5'
+    await vi.waitFor(() => {
+      expect(providersStore.getProviderConfig('mimo-audio-transcription')?.model).toBe('mimo-v2.5')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('mimo-v2.5')
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3710847062
+  it('rehydrates FunASR models when provider settings reset its runtime cache (GitHub #2122)', async () => {
+    persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')
+
+    const providersStore = useProvidersStore()
+    useHearingStore()
+
+    await vi.waitFor(() => {
+      expect(providersStore.getModelsForProvider('funasr-audio-transcription')).toHaveLength(3)
+    })
+
+    await providersStore.resetProviderSettings()
+
+    await vi.waitFor(() => {
+      expect(providersStore.getModelsForProvider('funasr-audio-transcription').map(model => model.id)).toEqual([
+        'sensevoice',
+        'fun-asr-nano',
+        'paraformer',
+      ])
+    })
+  })
+
   it('clears the FunASR model when another provider is selected', async () => {
     const hearingStore = useHearingStore()
 
@@ -196,6 +244,63 @@ describe('funASR Hearing model synchronization', () => {
       expect(listModels).toHaveBeenCalledTimes(1)
       expect(hearingStore.activeTranscriptionModel).toBe('en-US')
     })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3710898890
+  it('selects a list-backed fallback only from the fresh model response (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'browser-web-speech-api'
+    const browserProvider = providersStore.findProviderMetadata(providerId)
+
+    providersStore.providerRuntimeState[providerId].models = [{
+      id: 'stale-model',
+      name: 'Stale model',
+      provider: providerId,
+    }]
+    vi.spyOn(browserProvider!.capabilities, 'listModels').mockResolvedValue([{
+      id: 'fresh-model',
+      name: 'Fresh model',
+      provider: providerId,
+    }])
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = providerId
+    await hearingStore.loadModelsForProvider(providerId)
+
+    expect(hearingStore.activeTranscriptionModel).toBe('fresh-model')
+    expect(providersStore.getProviderConfig(providerId)?.model).toBe('fresh-model')
+  })
+
+  it('does not retain a stale fallback when the destination refresh fails (GitHub #2122)', async () => {
+    const providersStore = useProvidersStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'browser-web-speech-api'
+    const browserProvider = providersStore.findProviderMetadata(providerId)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    providersStore.providerRuntimeState[providerId].models = [{
+      id: 'stale-model',
+      name: 'Stale model',
+      provider: providerId,
+    }]
+    vi.spyOn(browserProvider!.capabilities, 'listModels').mockRejectedValue(new Error('refresh failed'))
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = providerId
+    await hearingStore.loadModelsForProvider(providerId)
+
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+    expect(providersStore.getProviderConfig(providerId)).not.toHaveProperty('model')
+    consoleError.mockRestore()
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3694431137
