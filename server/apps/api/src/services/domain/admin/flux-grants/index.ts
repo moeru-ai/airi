@@ -5,7 +5,8 @@ import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { inArray } from 'drizzle-orm'
 
-import * as accountsSchema from '../../../../schemas/accounts'
+import * as accountsSchema from '@proj-airi/auth-shared'
+
 import * as fluxSchema from '../../../../schemas/flux'
 
 const logger = useLogger('admin-flux-grants').useGlobalConfig()

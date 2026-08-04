@@ -38,7 +38,8 @@ const userAvatar = computed(() => user.value?.image ?? null)
 // Gravatar fallback is decorated server-side onto `user.image`. We detect
 // the fallback by URL prefix instead of carrying a redundant `imageSource`
 // flag — Gravatar URL format is stable and prefix-matching keeps the API
-// surface small. Keep this prefix aligned with the server-generated fallback.
+// surface small. If the avatar source ever changes, both this constant
+// and server/apps/auth/src/routes.ts must move together.
 const GRAVATAR_AVATAR_PREFIX = 'https://www.gravatar.com/avatar/'
 const usingGravatarFallback = computed(
   () => userAvatar.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false,

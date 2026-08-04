@@ -3,8 +3,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "/server/apps/api/production/railway/Dockerfile"
 watchPatterns = [
   "server/apps/api/**",
-  "server/packages/drizzle-migration/**",
-  "packages/**",
+  "server/packages/**",
   "pnpm-lock.yaml"
 ]
 
