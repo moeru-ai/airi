@@ -359,7 +359,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
               <!-- Action buttons -->
               <div flex="~ row" gap-2>
                 <Button
-                  variant="secondary"
+
                   icon="i-solar:download-minimalistic-bold-duotone"
                   :label="t('settings.pages.card.export')"
                   :disabled="isExportingCard"
@@ -367,7 +367,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                 />
                 <!-- Activation button -->
                 <Button
-                  variant="primary"
+
                   :icon="isActive ? 'i-solar:check-circle-bold-duotone' : 'i-solar:play-circle-broken'"
                   :label="isActive ? t('settings.pages.card.active') : t('settings.pages.card.activate')"
                   :disabled="isActive"
@@ -375,7 +375,7 @@ function getModuleDisplayValue(value: string | undefined, defaultValue: string |
                   @click="handleActivate"
                 />
                 <Button
-                  variant="secondary"
+
                   icon="i-solar:close-circle-bold-duotone"
                   :label="t('settings.pages.card.cancel')"
                   @click="emit('update:modelValue', false)"

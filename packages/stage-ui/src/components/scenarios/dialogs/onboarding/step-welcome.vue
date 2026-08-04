@@ -138,7 +138,7 @@ function handleLocalSetup() {
         :enter="{ opacity: 1 }"
         :duration="500"
         :delay="250"
-        variant="secondary"
+
         :label="t('settings.dialogs.onboarding.setupWithoutSigningIn')"
         :class="['flex-1']"
         @click="handleLocalSetup"

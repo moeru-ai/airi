@@ -20,7 +20,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderCatalogStore } from '@proj-airi/stage-ui/stores/provider-catalog'
-import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues } from '@proj-airi/ui'
+import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -361,7 +361,7 @@ function handleDeleteProvider() {
         <div :class="['flex', 'items-center', 'gap-2']">
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child :aria-label="t('settings.pages.providers.catalog.edit.actions.more-options')">
-              <Button size="sm" variant="secondary">
+              <Button size="sm">
                 <div :class="['i-solar:menu-dots-bold']" />
               </Button>
             </DropdownMenuTrigger>
@@ -510,7 +510,7 @@ function handleDeleteProvider() {
               <div :class="['text-xs', 'text-neutral-400']">
                 {{ t('settings.pages.providers.catalog.edit.validators.title') }}
               </div>
-              <Button size="sm" variant="secondary" :loading="isValidating" :disabled="isValidating" @click="runValidation">
+              <Button size="sm" :loading="isValidating" :disabled="isValidating" @click="runValidation">
                 {{ t('settings.pages.providers.catalog.edit.validators.actions.validate') }}
               </Button>
             </div>
@@ -532,9 +532,9 @@ function handleDeleteProvider() {
                       {{ step.label }}
                     </div>
                     <div :class="['flex', 'flex-col', 'items-end', 'gap-2']">
-                      <Button
+                      <GhostButton
                         size="sm"
-                        variant="ghost"
+
                         :title="
                           step.status === 'valid' ? t('settings.pages.providers.catalog.edit.validators.status.valid')
                           : step.status === 'invalid' ? t('settings.pages.providers.catalog.edit.validators.status.invalid')
@@ -552,7 +552,7 @@ function handleDeleteProvider() {
                             step.status === 'idle' ? 'i-solar:minus-circle-line-duotone text-neutral-300 dark:text-neutral-600' : '',
                           ]"
                         />
-                      </Button>
+                      </GhostButton>
                     </div>
                   </div>
                 </div>
@@ -573,7 +573,7 @@ function handleDeleteProvider() {
                     <span :class="['text-xs', 'text-neutral-600', 'dark:text-neutral-300']">
                       {{ t('settings.pages.providers.catalog.edit.validation.failed.description') }}
                     </span>
-                    <Button size="sm" variant="caution" @click="handleSaveAnyway">
+                    <Button size="sm" color="orange" variant="primary" @click="handleSaveAnyway">
                       {{ t('settings.pages.providers.catalog.edit.validation.failed.action') }}
                     </Button>
                   </div>

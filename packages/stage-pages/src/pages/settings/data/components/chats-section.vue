@@ -99,14 +99,14 @@ async function handleImport(event: Event) {
       </div>
       <div :class="['flex flex-col items-start gap-2 sm:items-end']">
         <div :class="['flex flex-wrap gap-2']">
-          <Button variant="secondary" @click="triggerExport">
+          <Button @click="triggerExport">
             {{ t('settings.pages.data.sections.chats.export') }}
           </Button>
-          <Button variant="primary" @click="triggerImportPicker">
+          <Button @click="triggerImportPicker">
             {{ t('settings.pages.data.sections.chats.import') }}
           </Button>
         </div>
-        <DoubleCheckButton variant="danger" @confirm="deleteChats">
+        <DoubleCheckButton @confirm="deleteChats">
           {{ t('settings.pages.data.sections.chats.delete') }}
           <template #confirm>
             {{ t('settings.pages.data.confirmations.yes') }}
