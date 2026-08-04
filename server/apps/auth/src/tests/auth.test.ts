@@ -193,6 +193,51 @@ describe('createAuth', () => {
     expect(await trustedOrigins(new Request('http://localhost:3000/api/auth/sign-in/social'))).toContain('https://appleid.apple.com')
   })
 
+  it('revokes external authorizations before deleting resource data', async () => {
+    const calls: string[] = []
+    const auth = createAuth(
+      {} as unknown as AuthDatabase,
+      {
+        PUBLIC_URL: 'http://localhost:3000',
+        AUTH_GOOGLE_CLIENT_ID: 'google-client',
+        AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+        AUTH_GITHUB_CLIENT_ID: 'github-client',
+        AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+        BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+        ADDITIONAL_TRUSTED_ORIGINS: [],
+      } as unknown as AuthEnv,
+      undefined,
+      undefined,
+      {
+        async softDeleteUserData() {
+          calls.push('resource-data')
+        },
+        async trackAuthEvent() {},
+      },
+      {
+        async revokeForUser() {
+          calls.push('external-authorizations')
+        },
+      },
+    )
+
+    const beforeDelete = auth.options.user?.deleteUser?.beforeDelete
+    if (!beforeDelete)
+      throw new TypeError('Expected account-deletion hook')
+
+    await beforeDelete({
+      id: 'user-1',
+      name: 'User One',
+      email: 'user@example.com',
+      emailVerified: true,
+      image: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, new Request('http://localhost:3000/api/auth/delete-user'))
+
+    expect(calls).toEqual(['external-authorizations', 'resource-data'])
+  })
+
   it('uses the Caddy public API origin as the Better Auth base URL', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
       PUBLIC_URL: 'https://api.airi.build',
