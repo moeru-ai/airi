@@ -235,8 +235,8 @@ catalogs:
       specifier: 0.1.0-beta.19
       version: 0.1.0-beta.19
     '@moeru/eventa':
-      specifier: 1.0.0-beta.8
-      version: 1.0.0-beta.8
+      specifier: 1.0.0-beta.9
+      version: 1.0.0-beta.9
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -1442,7 +1442,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1872,7 +1872,7 @@ importers:
         version: 11.3.2
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2353,7 +2353,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2738,7 +2738,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3475,7 +3475,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       crossws:
         specifier: 'catalog:'
         version: 0.4.5(srvx@0.11.15)
@@ -3608,7 +3608,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -3636,7 +3636,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3654,7 +3654,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3761,7 +3761,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3773,7 +3773,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
@@ -3782,7 +3782,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3804,7 +3804,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
@@ -3940,7 +3940,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
 
   packages/server-shared:
     dependencies:
@@ -3952,7 +3952,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4067,7 +4067,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4216,7 +4216,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -4240,7 +4240,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4935,7 +4935,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.2(@types/three@0.184.0)(three@0.184.0)
@@ -5167,7 +5167,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5264,7 +5264,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5330,7 +5330,7 @@ importers:
         version: 5.4.0(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -8039,8 +8039,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-beta.8':
-    resolution: {integrity: sha512-V7DTEi9waYxxVNWQbKTMnj0m4U2xyLmd//eZ12noLBYS8wUJJ8Lm0XXj6wc9KI0urrSjDFTBHlD4Ow1bEGw2sw==}
+  '@moeru/eventa@1.0.0-beta.9':
+    resolution: {integrity: sha512-UmV9em3ClQeNr0XJHY0lMeh6+bHgAlO3RP7RpsjyilwGFhwongpAtJKIAHjwVU3E28BnEWEZw+3r9NK7OJqptA==}
     peerDependencies:
       electron: '>=39'
       h3: '>=2.0.1-rc.22'
@@ -23222,7 +23222,7 @@ snapshots:
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0-beta.9(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
@@ -23231,7 +23231,7 @@ snapshots:
       hono: 4.12.2
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
@@ -23241,7 +23241,7 @@ snapshots:
       hono: 4.12.2
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
