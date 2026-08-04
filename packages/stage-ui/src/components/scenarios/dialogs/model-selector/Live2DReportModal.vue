@@ -84,8 +84,14 @@ function handleFix(err: string) {
             <div class="grid grid-cols-2 gap-2 rounded bg-neutral-100/50 p-2 dark:bg-neutral-800/50">
               <div>Structure: <span font-mono>{{ report.structureType }}</span></div>
               <div>Files: <span font-mono>{{ report.totalFiles }}</span></div>
+              <div v-if="report.runtimeFamily" class="col-span-2">
+                Runtime: <span font-mono>{{ report.runtimeFamily }}</span>
+              </div>
               <div v-if="report.mocInfo" class="col-span-2 border-t border-neutral-200 pt-1 dark:border-neutral-700">
-                MOC3: <span font-mono>v{{ report.mocInfo.ver }}</span> ({{ (report.mocInfo.size / 1024 / 1024).toFixed(2) }} MB)
+                {{ report.mocInfo.format.toUpperCase() }}<template v-if="report.mocInfo.ver !== null">
+                  : <span font-mono>v{{ report.mocInfo.ver }}</span>
+                </template>
+                ({{ (report.mocInfo.size / 1024 / 1024).toFixed(2) }} MB)
               </div>
             </div>
 

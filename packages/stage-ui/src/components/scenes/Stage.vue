@@ -28,6 +28,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
 import { useAnalytics } from '../../composables/use-analytics'
@@ -87,6 +88,19 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
+
+const { t } = useI18n()
+
+// Loader-authored reason the Live2D model failed to render, empty while healthy.
+// A failed load leaves the stage blank, so this is the only signal the user gets
+// for cases such as a Cubism 2 model in a build without the proprietary core.
+const live2dLoadError = ref('')
+
+// A new source means a new attempt: drop the previous failure so it cannot
+// outlive the model that produced it.
+watch([stageModelSelectedUrl, stageModelRenderer], () => {
+  live2dLoadError.value = ''
+})
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -149,6 +163,9 @@ const { post: postPresent } = useBroadcastChannel<PresentEvent, PresentEvent>({ 
 
 viewUpdateCleanups.push(live2dStore.onShouldUpdateView(async () => {
   showStage.value = false
+  // The scene remounts and reloads even when the source is unchanged, so the
+  // URL watcher above cannot cover this path.
+  live2dLoadError.value = ''
   await settingsStore.updateStageModel()
   setTimeout(() => {
     showStage.value = true
@@ -1057,6 +1074,36 @@ defineExpose({
       }"
     />
 
+    <!--
+      Live2D Load Failure Layer.
+
+      Shares the stacking context with the background and the scene so it paints
+      over both, and stays click-through so a failure never traps the stage.
+    -->
+    <div
+      v-if="stageModelRenderer === 'live2d' && live2dLoadError"
+      :class="[
+        'pointer-events-none absolute left-0 top-0 z-10 h-full w-full',
+        'flex items-center justify-center',
+        'px-4 py-6',
+      ]"
+    >
+      <Callout
+        theme="orange"
+        :class="['pointer-events-auto w-96 max-w-full']"
+      >
+        <template #label>
+          <div :class="['flex items-center gap-1.5']">
+            <div i-solar:warning-circle-line-duotone />
+            <span>{{ t('settings.live2d.load-error.title') }}</span>
+          </div>
+        </template>
+        <p :class="['text-sm break-words']">
+          {{ live2dLoadError }}
+        </p>
+      </Callout>
+    </div>
+
     <div relative h-full w-full>
       <Live2DScene
         v-if="stageModelRenderer === 'live2d' && showStage"
@@ -1075,6 +1122,7 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
+        @error="live2dLoadError = $event"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"

@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { errorMessageFrom } from '@moeru/std'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DModel } from 'pixi-live2d-display/cubism4'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+import { loadLive2DRuntime } from '../../../utils/live2d-runtime'
 
 const props = withDefaults(defineProps<{
   width: number
@@ -15,12 +17,28 @@ const props = withDefaults(defineProps<{
   maxFps: 0,
 })
 
+const emits = defineEmits<{
+  /**
+   * Human-readable reason the Pixi stage could not be brought up — in practice a
+   * Cubism core script that 404s or a runtime bundle that fails to evaluate.
+   *
+   * Nothing downstream can report this: the default slot only renders once the
+   * canvas exists, so `Model.vue` never mounts and its own `error` emit — the
+   * one the stage and preview overlays listen to — never runs.
+   */
+  (e: 'error', message: string): void
+}>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
-const pixiApp = ref<Application>()
+// Pixi owns a large mutable WebGL object graph. Deep Vue proxies add a getter
+// trap to every Cubism 2 core lookup and can consume most of a frame.
+const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
+// Not a ref: nothing renders from it, it only gates the async setup below.
+let isDisposed = false
 
 function resolveMaxFps(limit?: number) {
   if (!limit || limit <= 0)
@@ -48,6 +66,18 @@ function installRenderGuard(app: Application) {
 async function initLive2DPixiStage(parent: HTMLDivElement) {
   componentState.value = 'loading'
   isPixiCanvasReady.value = false
+
+  const { Live2DModel } = await loadLive2DRuntime()
+
+  // The first call here injects the Cubism 2 core <script> and waits on the
+  // network before the bundle import resolves, so this await can span seconds.
+  // A scene switch or route change inside that window already ran `onUnmounted`
+  // while `pixiApp` was still undefined, leaving it nothing to destroy. Without
+  // this guard the continuation would then build a WebGL context and a running
+  // ticker owned by a dead component, appended to a detached parent, with no
+  // remaining path to tear either down.
+  if (isDisposed)
+    return
 
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
@@ -97,8 +127,32 @@ watch(() => props.maxFps, (limit) => {
     pixiApp.value.ticker.maxFPS = resolveMaxFps(limit)
 })
 
-onMounted(async () => containerRef.value && await initLive2DPixiStage(containerRef.value))
-onUnmounted(() => pixiApp.value?.destroy())
+onMounted(async () => {
+  if (!containerRef.value)
+    return
+
+  try {
+    await initLive2DPixiStage(containerRef.value)
+  }
+  catch (error) {
+    // Bringing the stage up spans a <script> injection, a dynamic import and a
+    // WebGL context creation, any of which can reject. Left uncaught it becomes
+    // an unhandled rejection with no visible symptom other than a blank scene
+    // parked in 'loading', because the canvas never renders the slot that would
+    // let `Model.vue` report it.
+    console.error('[Live2D] Failed to initialize the Pixi stage.', error)
+    // Back to 'pending': nothing was constructed, so this component has no
+    // canvas, no ticker and nothing to destroy on unmount. Consumers stop
+    // waiting on the parent's terminal state, decided in `Live2D.vue`.
+    componentState.value = 'pending'
+    isPixiCanvasReady.value = false
+    emits('error', errorMessageFrom(error) ?? 'Failed to initialize the Live2D canvas.')
+  }
+})
+onUnmounted(() => {
+  isDisposed = true
+  pixiApp.value?.destroy()
+})
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {

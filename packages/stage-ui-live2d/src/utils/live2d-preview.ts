@@ -3,12 +3,15 @@ import cropImg from '@lemonneko/crop-empty-pixels'
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
+
+import { loadLive2DRuntime } from './live2d-runtime'
+import { adaptInternalModel, initializeCubism2Model } from './model-adapter'
 
 /**
  * Render a Live2D zip/file to an offscreen canvas and return a padded preview data URL.
  */
 export async function loadLive2DModelPreview(file: File) {
+  const { Live2DFactory, Live2DModel } = await loadLive2DRuntime()
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
 
@@ -56,6 +59,20 @@ export async function loadLive2DModelPreview(file: File) {
 
   try {
     await Live2DFactory.setupLive2DModel(modelInstance, [new File([blob], file.name)], { autoInteract: false })
+
+    // NOTICE:
+    // Without this, a Cubism 2 thumbnail is only correct by luck. `_render`
+    // runs `internalModel.update()` — the call that computes deformer output —
+    // solely when `deltaTime` is non-zero, and `deltaTime` accumulates from
+    // `Ticker.shared`, which rAF throttles to nothing while the document is
+    // hidden. Import the model with the tab backgrounded and the single render
+    // below draws raw, detached ArtMesh positions, then persists that frame as
+    // the model's thumbnail.
+    //
+    // Source/context: `Live2DModel._render` at
+    // `node_modules/pixi-live2d-display/dist/index.es.js:1303-1332`.
+    initializeCubism2Model(modelInstance.internalModel, app.renderer)
+    adaptInternalModel(modelInstance.internalModel)
     app.stage.addChild(modelInstance)
 
     modelInstance.x = 275

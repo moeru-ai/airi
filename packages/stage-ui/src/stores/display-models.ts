@@ -206,9 +206,6 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   }
 
   async function initialize() {
-    await import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader')
-    await import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration')
-
     const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
     const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
     const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')

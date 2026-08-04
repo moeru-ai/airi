@@ -186,6 +186,8 @@ live2d:
     shadow: Sombra proyectada.
     reset-parameters: Restablecer valores predeterminados
   clear-model-cache: Borrar la caché del modelo.
+  load-error:
+    title: Couldn't load this Live2D model
   expressions:
     title: Expresiones
     override-toggle: Sistema de Expresión

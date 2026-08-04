@@ -144,6 +144,10 @@ apps/stage-tamagotchi/electron.vite.config.*.mjs
 docs/ai/context/verifications/
 .playwright-mcp/
 
+# Proprietary Cubism 2 Web core (third-party, not redistributable): both the
+# local drop-in and the cache the Cubism2Core vite plugin downloads into
+packages/stage-ui-live2d/.cubism2/
+
 # Generated from packages/i18n/glossary/terms.yaml at upload time. Never committed, so it
 # cannot drift from its source.
 packages/i18n/glossary/glossary.tbx

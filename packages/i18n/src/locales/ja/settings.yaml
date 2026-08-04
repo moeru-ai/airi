@@ -186,6 +186,8 @@ live2d:
     shadow: Drop shadow
     reset-parameters: デフォルトのパラメータにリセット
   clear-model-cache: Clear model cache
+  load-error:
+    title: Couldn't load this Live2D model
   expressions:
     title: Expressions
     override-toggle: Expression system
