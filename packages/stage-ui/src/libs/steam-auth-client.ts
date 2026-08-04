@@ -1,4 +1,4 @@
-import type { BetterAuthClientPlugin } from 'better-auth'
+import type { BetterFetch } from '@better-fetch/fetch'
 
 /**
  * Request body for starting a Steam OpenID sign-in or account link.
@@ -22,13 +22,6 @@ export interface SteamOAuthStartResult {
 }
 
 /**
- * Structural view of the client's generic request helper, extracted from
- * the plugin contract so this module does not depend on the transitive
- * `@better-fetch/fetch` package directly.
- */
-type SteamAuthClientFetch = Parameters<NonNullable<BetterAuthClientPlugin['getActions']>>[0]
-
-/**
  * Client-side counterpart of the server `steam()` auth plugin.
  *
  * Adds typed `linkSteam` / `signIn.steam` actions backed by the plugin's
@@ -44,7 +37,7 @@ type SteamAuthClientFetch = Parameters<NonNullable<BetterAuthClientPlugin['getAc
 export function steamClient() {
   return {
     id: 'steam-client',
-    getActions: ($fetch: SteamAuthClientFetch) => ({
+    getActions: ($fetch: BetterFetch) => ({
       linkSteam: (args: SteamOAuthStartArgs) => $fetch<SteamOAuthStartResult>('/link/steam', {
         method: 'POST',
         body: args,
