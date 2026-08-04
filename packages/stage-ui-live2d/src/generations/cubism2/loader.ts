@@ -34,7 +34,7 @@ function references(json: JSONObject) {
 
 export const cubism2Loader: Live2DGenerationLoader = {
   generation: 'cubism2',
-  isSettingsPath: path => path.toLowerCase().endsWith('.model.json'),
+  isSettingsPath: path => path.toLowerCase().endsWith('model.json'),
   isSettingsJSON: (json) => {
     const candidate = json as { model?: unknown, textures?: unknown }
     return typeof candidate.model === 'string'
@@ -45,8 +45,13 @@ export const cubism2Loader: Live2DGenerationLoader = {
   createSettings: (runtime, json, url) => {
     const runtimeSettings = { ...json, url }
     const cubismRuntime = runtime.Live2DFactory.findRuntime(runtimeSettings)
-    if (!cubismRuntime)
-      throw new Error(`Cubism 2 model "${url}" is unsupported by the currently available runtime.`)
+    if (!cubismRuntime) {
+      throw new Error(
+        `Cubism 2 model "${url}" needs the proprietary live2d.min.js core, which is not present in this build. `
+        + `It is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, `
+        + `or supply your own copy at packages/stage-ui-live2d/.cubism2/live2d.min.js or through AIRI_CUBISM2_CORE_PATH.`,
+      )
+    }
     return cubismRuntime.createModelSettings(runtimeSettings)
   },
   sanitizeSettings: json => json,

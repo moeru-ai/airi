@@ -6,12 +6,12 @@ import JSZip from 'jszip'
 
 import { errorMessageFrom } from '@moeru/std'
 
+import { live2DGenerationLoaders, selectLive2DSettings } from '../generations/loader'
 import { decodeZipFileName } from '../utils/decode-zip-filename'
-import { isCubism2RuntimeConfigured } from '../utils/live2d-runtime'
 
 let configuredRuntime: Live2DRuntime | undefined
 
-function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
+export function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
   return filePath
     .split('/')
     .some(segment => segment === '__MACOSX' || segment.startsWith('._'))
@@ -20,7 +20,7 @@ function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
 export function isSettingsFile(file: string): boolean {
   return !shouldIgnoreLive2DArchiveEntry(file)
     && !file.endsWith('items_pinned_to_model.json')
-    && (file.endsWith('.model3.json') || file.endsWith('model.json'))
+    && live2DGenerationLoaders.some(loader => loader.isSettingsPath(file))
 }
 
 export function isMocFile(file: string): boolean {
@@ -31,81 +31,32 @@ export function basename(path: string): string {
   return path.split(/[\\/]/).pop()!
 }
 
-/**
- * Normalizes nullable Cubism 3+ references before upstream path resolution.
- *
- * Before:
- * - `{ "FileReferences": { "Physics": null } }`
- *
- * After:
- * - `{ "FileReferences": {} }`
- */
-function sanitizeModelSettingsText(text: string): string {
-  const json = JSON.parse(text) as Record<string, unknown>
-  const refs = json.FileReferences
-
-  if (refs && typeof refs === 'object') {
-    const fileReferences = refs as Record<string, unknown>
-    for (const key of ['Physics', 'Pose', 'DisplayInfo']) {
-      if (fileReferences[key] === null)
-        delete fileReferences[key]
-    }
-  }
-
-  return JSON.stringify(json)
-}
-
-/**
- * Mirrors upstream `Cubism2ModelSettings.isValidJSON`, the predicate
- * `Live2DFactory.findRuntime` uses to claim a settings file for Cubism 2.
- *
- * Reimplemented here because the Cubism 2 runtime class only exists in the
- * combined bundle, which cannot be imported in a build without the legacy core.
- * Source: `node_modules/pixi-live2d-display/dist/index.es.js:1916-1919`.
- */
-function isCubism2SettingsJSON(json: JSONObject): boolean {
-  const candidate = json as { model?: unknown, textures?: unknown }
-  return typeof candidate.model === 'string'
-    && Array.isArray(candidate.textures)
-    && candidate.textures.length > 0
-    && candidate.textures.every(texture => typeof texture === 'string')
-}
-
-/**
- * Explains why the core is absent, matching the provisioning story in this
- * package's README.
- *
- * The Vite plugin normally downloads the core, so reaching this message means
- * that download was disabled or failed — which it reports at build time. The
- * build log is named first because it holds the actual cause; supplying the
- * core by hand is the fallback, not the expected path.
- */
-function cubism2CoreMissingMessage(url: string): string {
-  return `Cubism 2 model "${url}" needs the proprietary live2d.min.js core, which is not present in this build. `
-    + `It is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, `
-    + `or supply your own copy at packages/stage-ui-live2d/.cubism2/live2d.min.js or through AIRI_CUBISM2_CORE_PATH.`
-}
-
-function createModelSettings(text: string, url: string): ModelSettings {
+function createModelSettings(json: JSONObject, url: string): ModelSettings {
   if (!configuredRuntime)
     throw new Error('Live2D runtime has not been configured.')
-  if (!text)
-    throw new Error(`Empty settings file: ${url}`)
+  const selected = selectLive2DSettings([{ path: url, json }])
+  return selected.loader.createSettings(configuredRuntime, selected.loader.sanitizeSettings(json), url)
+}
 
-  const settingsJSON = JSON.parse(text) as JSONObject & { url?: string }
-  settingsJSON.url = url
-  const runtime = configuredRuntime.Live2DFactory.findRuntime(settingsJSON)
-  if (!runtime) {
-    // A Cubism 2 model in a Cubism 3+-only build reaches here looking exactly
-    // like corrupt JSON, so classify it before falling back to the generic
-    // message; the build gate is the only difference between the two cases.
-    if (isCubism2SettingsJSON(settingsJSON) && !isCubism2RuntimeConfigured())
-      throw new Error(cubism2CoreMissingMessage(url))
+async function selectZipSettings(reader: JSZip) {
+  const paths = Object.keys(reader.files).filter(isSettingsFile)
+  const candidates = await Promise.all(paths.map(async path => ({
+    path,
+    json: JSON.parse(await reader.file(path)!.async('text')) as JSONObject,
+  })))
+  return selectLive2DSettings(candidates)
+}
 
-    throw new Error('Unknown Live2D settings JSON.')
-  }
-
-  return runtime.createModelSettings(settingsJSON)
+async function selectFileSettings(files: File[]) {
+  const candidates = await Promise.all(files
+    .filter(file => isSettingsFile(file.webkitRelativePath || file.name))
+    .map(async file => ({
+      path: file.webkitRelativePath || file.name,
+      json: JSON.parse(await file.text()) as JSONObject,
+      file,
+    })))
+  const selected = selectLive2DSettings(candidates)
+  return { ...selected, file: candidates.find(candidate => candidate.path === selected.path)!.file }
 }
 
 /**
@@ -210,14 +161,8 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
 
   ZipLoader.createSettings = async (reader: JSZip) => {
     const filePaths = Object.keys(reader.files)
-    const settingsPath = filePaths.find(isSettingsFile)
-    if (!settingsPath)
-      throw new Error('A Live2D .model.json or .model3.json entry point is required.')
-
-    const settings = createModelSettings(
-      sanitizeModelSettingsText(await reader.file(settingsPath)!.async('text')),
-      settingsPath,
-    )
+    const selected = await selectZipSettings(reader)
+    const settings = createModelSettings(selected.json, selected.path)
     // Raw ZIP entries still include macOS AppleDouble sidecars, which carry a
     // binary payload under a JSON-looking name. OPFS strips them before the
     // File[] path below ever sees one.
@@ -235,7 +180,11 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
     if (!file)
       throw new Error(`Cannot find file: ${path}`)
     const text = await file.async('text')
-    return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
+    if (!isSettingsFile(path))
+      return text
+    const json = JSON.parse(text) as JSONObject
+    const selected = selectLive2DSettings([{ path, json }])
+    return JSON.stringify(selected.loader.sanitizeSettings(json))
   }
 
   ZipLoader.getFilePaths = async (reader: JSZip) => {
@@ -256,12 +205,9 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
 
   const defaultReadText = FileLoader.readText
   FileLoader.createSettings = async (files: File[]) => {
-    const settingsFile = files.find(file => isSettingsFile(file.webkitRelativePath || file.name))
-    if (!settingsFile)
-      throw new TypeError('A Live2D .model.json or .model3.json entry point is required.')
-    const settingsUrl = settingsFile.webkitRelativePath || settingsFile.name
-    const settings = createModelSettings(await FileLoader.readText(settingsFile), settingsUrl)
-    Object.assign(settings, { _objectURL: URL.createObjectURL(settingsFile) })
+    const selected = await selectFileSettings(files)
+    const settings = createModelSettings(selected.json, selected.path)
+    Object.assign(settings, { _objectURL: URL.createObjectURL(selected.file) })
     Object.assign(settings, await collectMetadata(
       files.map(file => ({ path: file.webkitRelativePath || file.name, readText: () => file.text() })),
     ))
@@ -270,8 +216,11 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
   }
   FileLoader.readText = async (file: File) => {
     const text = await defaultReadText(file)
-    return isSettingsFile(file.webkitRelativePath || file.name)
-      ? sanitizeModelSettingsText(text)
-      : text
+    const path = file.webkitRelativePath || file.name
+    if (!isSettingsFile(path))
+      return text
+    const json = JSON.parse(text) as JSONObject
+    const selected = selectLive2DSettings([{ path, json }])
+    return JSON.stringify(selected.loader.sanitizeSettings(json))
   }
 }
