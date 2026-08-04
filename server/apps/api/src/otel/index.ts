@@ -49,6 +49,10 @@ import {
   METRIC_STRIPE_EVENTS,
   METRIC_STRIPE_PAYMENT_FAILED,
   METRIC_STRIPE_SUBSCRIPTION_EVENT,
+  METRIC_USER_ACTIVE_ROLLING,
+  METRIC_USER_ACTIVE_SESSIONS,
+  METRIC_USER_DISTINCT_ACTIVE,
+  METRIC_USER_TOTAL,
   METRIC_WS_CONNECTIONS_ACTIVE,
   METRIC_WS_MESSAGES_RECEIVED,
   METRIC_WS_MESSAGES_SENT,
@@ -56,6 +60,17 @@ import {
 } from '../utils/observability'
 
 const logger = useLogger('otel')
+
+export interface UserMetrics {
+  /** Latest admin-requested total-user snapshot; omitted after it becomes stale. */
+  totalUsers: ObservableGauge
+  /** Latest admin-requested active-session snapshot; omitted after it becomes stale. */
+  activeSessions: ObservableGauge
+  /** Latest admin-requested distinct active-user snapshot; omitted after it becomes stale. */
+  distinctActiveUsers: ObservableGauge
+  /** Latest admin-requested DAU, WAU, and MAU snapshot; omitted after it becomes stale. */
+  rollingActiveUsers: ObservableGauge
+}
 
 export interface EngagementMetrics {
   chatMessages: Counter
@@ -232,10 +247,10 @@ export interface RateLimitMetrics {
 
 export interface ObservabilityMetrics {
   /**
-   * Counts failures inside metric-pipeline callbacks (e.g. a DB-backed
-   * ObservableGauge that couldn't read from Postgres). Use for self-monitoring
-   * — when this is rising, treat the affected gauge's reported value as
-   * potentially stale.
+   * Counts failures inside metric-pipeline callbacks (for example, a Redis-
+   * backed ObservableGauge that could not refresh). Use for self-monitoring —
+   * when this is rising, treat the affected gauge's value as potentially
+   * stale.
    *
    * Labels: `metric` (the failing gauge's logical name).
    */
@@ -258,6 +273,7 @@ export interface ProductMetrics {
 }
 
 export interface ApiOtelInstance {
+  user: UserMetrics
   engagement: EngagementMetrics
   revenue: RevenueMetrics
   genAi: GenAiMetrics
@@ -313,6 +329,21 @@ export function initOtel(env: { OTEL_EXPORTER_OTLP_ENDPOINT?: string, OTEL_SERVI
   }
 
   const meter = metrics.getMeter(env.OTEL_SERVICE_NAME)
+
+  const user: UserMetrics = {
+    totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
+      description: 'Fresh admin-requested total registered-user snapshot (memory-only and expires when stale; dashboard must use max(), not sum())',
+    }),
+    activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
+      description: 'Fresh admin-requested active-session snapshot (memory-only and expires when stale; dashboard must use max(), not sum())',
+    }),
+    distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
+      description: 'Fresh admin-requested distinct active-user snapshot, immune to per-row session inflation and omitted when stale (dashboard must use max(), not sum())',
+    }),
+    rollingActiveUsers: meter.createObservableGauge(METRIC_USER_ACTIVE_ROLLING, {
+      description: 'Fresh admin-requested DAU/WAU/MAU snapshot from user.last_seen_at, omitted when stale and labelled by window=24h|7d|30d (dashboard must use max(), not sum())',
+    }),
+  }
 
   // Engagement metrics
   const engagement: EngagementMetrics = {
@@ -498,7 +529,7 @@ export function initOtel(env: { OTEL_EXPORTER_OTLP_ENDPOINT?: string, OTEL_SERVI
   ]
   for (const counter of counters) counter.add(0)
 
-  return { engagement, revenue, genAi, gateway, rateLimit, observability, product }
+  return { user, engagement, revenue, genAi, gateway, rateLimit, observability, product }
 }
 
 const severityMap: Record<string, SeverityNumber> = {

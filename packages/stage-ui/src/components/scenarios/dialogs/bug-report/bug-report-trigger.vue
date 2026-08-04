@@ -56,7 +56,7 @@ function onSubmit(payload: BugReportDialogSubmitPayload) {
     ]"
   >
     <Button
-      variant="danger"
+
       :class="[
         'w-fit',
       ]"
@@ -71,6 +71,7 @@ function onSubmit(payload: BugReportDialogSubmitPayload) {
           :class="[
             'i-solar:danger-circle-outline h-4 w-4',
           ]"
+          color="red" variant="primary"
         />
         {{ resolvedTriggerLabel }}
       </span>

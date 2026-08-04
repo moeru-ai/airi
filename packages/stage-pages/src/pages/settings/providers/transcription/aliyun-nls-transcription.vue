@@ -428,10 +428,10 @@ onBeforeUnmount(async () => {
         <div class="border border-neutral-200/80 rounded-xl bg-neutral-50/60 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div class="space-x-3">
-              <Button :disabled="!canStart" variant="primary" @click="startStreaming">
+              <Button :disabled="!canStart" @click="startStreaming">
                 {{ isRecording ? 'Streaming...' : 'Start Realtime Transcription' }}
               </Button>
-              <Button :disabled="!canStop" variant="secondary" @click="stopStreaming">
+              <Button :disabled="!canStop" @click="stopStreaming">
                 Stop
               </Button>
               <Button

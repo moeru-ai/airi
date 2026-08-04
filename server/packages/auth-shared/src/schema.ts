@@ -53,7 +53,10 @@ export const session = pgTable(
     // disabledPaths, but the column stays so the schema matches the plugin.
     impersonatedBy: text('impersonated_by'),
   },
-  table => [index('session_userId_idx').on(table.userId)],
+  table => [
+    index('session_userId_idx').on(table.userId),
+    index('session_expires_at_idx').on(table.expiresAt),
+  ],
 )
 
 export const account = pgTable(
@@ -137,25 +140,34 @@ export const oauthClient = pgTable('oauth_client', {
   metadata: jsonb('metadata'),
 })
 
-export const oauthRefreshToken = pgTable('oauth_refresh_token', {
-  id: text('id').primaryKey(),
-  token: text('token').notNull(),
-  clientId: text('client_id')
-    .notNull()
-    .references(() => oauthClient.clientId, { onDelete: 'cascade' }),
-  sessionId: text('session_id').references(() => session.id, {
-    onDelete: 'set null',
-  }),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  referenceId: text('reference_id'),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at'),
-  revoked: timestamp('revoked'),
-  authTime: timestamp('auth_time'),
-  scopes: text('scopes').array().notNull(),
-})
+export const oauthRefreshToken = pgTable(
+  'oauth_refresh_token',
+  {
+    id: text('id').primaryKey(),
+    token: text('token').notNull(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => oauthClient.clientId, { onDelete: 'cascade' }),
+    sessionId: text('session_id').references(() => session.id, {
+      onDelete: 'set null',
+    }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    referenceId: text('reference_id'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at'),
+    revoked: timestamp('revoked'),
+    authTime: timestamp('auth_time'),
+    scopes: text('scopes').array().notNull(),
+  },
+  table => [
+    index('oauth_refresh_token_token_idx').on(table.token),
+    index('oauth_refresh_token_user_id_idx').on(table.userId),
+    index('oauth_refresh_token_session_id_idx').on(table.sessionId),
+    index('oauth_refresh_token_client_id_idx').on(table.clientId),
+  ],
+)
 
 export const oauthAccessToken = pgTable('oauth_access_token', {
   id: text('id').primaryKey(),

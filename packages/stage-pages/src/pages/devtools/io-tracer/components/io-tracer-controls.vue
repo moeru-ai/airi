@@ -32,7 +32,8 @@ const subsystemFilters = SUBSYSTEM_CONFIGS.map(config => ({
       :class="[
         'flex items-center gap-1.5',
       ]"
-      :variant="isRecording ? 'danger' : 'primary'"
+      :color="isRecording ? 'red' : 'neutral'"
+      :variant="isRecording ? 'primary' : 'secondary'"
       @click="emit('toggleRecording')"
     >
       <div

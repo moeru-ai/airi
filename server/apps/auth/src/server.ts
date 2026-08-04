@@ -26,14 +26,7 @@ import { createEmailService } from './email'
 import { parseAuthEnv } from './env'
 import { ApiError, createInternalError } from './error'
 import { getTrustedOrigin } from './origin'
-import {
-  emitOtelLog,
-  initAuthOtel,
-  registerActiveSessionsGauge,
-  registerDistinctActiveUsersGauge,
-  registerRollingActiveUsersGauge,
-  registerTotalUsersGauge,
-} from './otel'
+import { emitOtelLog, initAuthOtel } from './otel'
 import { createAuthConfigService } from './rate-limit'
 import { createResourceApi } from './resource-api'
 import { createAuthRoutes } from './routes'
@@ -252,13 +245,6 @@ export async function createAuthServer() {
 
   await start(container)
   const dependencies = await resolve(container, { auth, authConfig, db, redis, env, otel })
-
-  if (dependencies.otel) {
-    registerTotalUsersGauge(dependencies.otel.auth.totalUsers, dependencies.db, dependencies.otel.observability.metricReadErrors)
-    registerActiveSessionsGauge(dependencies.otel.auth.activeSessions, dependencies.db, dependencies.otel.observability.metricReadErrors)
-    registerDistinctActiveUsersGauge(dependencies.otel.auth.distinctActiveUsers, dependencies.db, dependencies.otel.observability.metricReadErrors)
-    registerRollingActiveUsersGauge(dependencies.otel.auth.rollingActiveUsers, dependencies.db, dependencies.otel.observability.metricReadErrors)
-  }
 
   const { app } = await buildAuthApp({
     auth: dependencies.auth,

@@ -45,6 +45,7 @@ import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
+import { createDiscardingUserMetricsSnapshotRecorder, registerUserMetricsSnapshotGauges } from './otel/gauges/user-metrics-snapshot'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
@@ -117,6 +118,9 @@ interface AppDeps {
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const userMetricsRecorder = deps.otel
+    ? registerUserMetricsSnapshotGauges(deps.otel.user)
+    : createDiscardingUserMetricsSnapshotRecorder()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -437,6 +441,7 @@ export async function buildApp(deps: AppDeps) {
       db: deps.db,
       billingService: deps.billingService,
       configKV: deps.configKV,
+      userMetricsRecorder,
     }))
 
     /**
@@ -776,7 +781,8 @@ export async function createApp() {
     providerCatalogService,
     ttsConcurrencyLedger,
   })
-  // Auth owns account/session gauges; API only observes its business pools.
+  // User/account gauges are passive snapshots refreshed by the admin route;
+  // Auth owns authentication event counters and performs no periodic DB reads.
   if (resolved.otel) {
     registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
     registerWsOnlineUsersGauge(resolved.otel.engagement.wsUsersOnline, resolved.redis, resolved.otel.observability.metricReadErrors)

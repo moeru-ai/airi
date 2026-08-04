@@ -1,5 +1,14 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
+import { Button, GhostButton, IconButton, OverlayButton } from '@proj-airi/ui'
+import { computed, shallowRef } from 'vue'
+
+const buttonColors = ['neutral', 'primary', 'cyan', 'blue', 'green', 'lime', 'amber', 'red', 'orange', 'purple', 'pink'] as const
+
+const liked = shallowRef(false)
+const favorited = shallowRef(false)
+
+const heartIcon = computed(() => liked.value ? 'i-ph:heart-fill' : 'i-ph:heart')
+const starIcon = computed(() => favorited.value ? 'i-ph:star-fill' : 'i-ph:star')
 </script>
 
 <template>
@@ -12,109 +21,89 @@ import { Button } from '@proj-airi/ui'
       <ThemeColorsHueControl />
     </template>
 
-    <Variant
-      id="basic"
-      title="Basic Button"
-    >
-      <div flex flex-col>
-        <div class="flex flex-row gap-4 p-2">
-          <Button label="Primary Button" />
-          <Button label="Secondary Button" variant="secondary" />
-          <Button label="Caution Button" variant="caution" />
-          <Button label="Danger Button" variant="danger" />
-          <Button label="Ghost Button" variant="ghost" />
+    <Variant id="variant" title="Variant">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
+        <Button label="Primary" color="primary" variant="primary" />
+        <Button label="Secondary" color="primary" variant="secondary" />
+      </div>
+    </Variant>
+
+    <Variant id="color" title="Color">
+      <div :class="['grid grid-cols-2 gap-4 p-4 sm:grid-cols-4']">
+        <div
+          v-for="color in buttonColors"
+          :key="color"
+          :class="['flex flex-col gap-3']"
+        >
+          <Button :label="`${color} primary`" :color="color" variant="primary" />
+          <Button :label="`${color} secondary`" :color="color" variant="secondary" />
+          <Button :label="`${color} disabled`" :color="color" disabled />
         </div>
       </div>
     </Variant>
 
-    <Variant
-      id="disabled"
-      title="Disabled State"
-    >
-      <div class="flex flex-row gap-4 p-2">
-        <Button label="Disabled Primary" disabled />
-        <Button label="Disabled Secondary" variant="secondary" disabled />
-        <Button label="Disabled Caution" variant="caution" disabled />
-        <Button label="Disabled Danger" variant="danger" disabled />
-        <Button label="Disabled Ghost" variant="ghost" disabled />
+    <Variant id="shape" title="Shape">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
+        <Button label="Rect" shape="rect" />
+        <Button label="Rounded" shape="rounded" />
+        <Button label="Parallelogram" shape="parallelogram" />
+        <Button icon="i-ph:plus" shape="circle" aria-label="Circle" />
       </div>
     </Variant>
 
-    <Variant
-      id="loading"
-      title="Loading State"
-    >
-      <div class="flex flex-row gap-4 p-2">
-        <Button label="Loading Primary" loading />
-        <Button label="Loading Secondary" variant="secondary" loading />
-        <Button label="Loading Caution" variant="caution" loading />
-        <Button label="Loading Danger" variant="danger" loading />
-        <Button label="Loading Ghost" variant="ghost" loading />
+    <Variant id="states" title="States">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
+        <Button label="Default" />
+        <Button label="Disabled" disabled />
+        <Button label="Loading" loading />
       </div>
     </Variant>
 
-    <Variant
-      id="with-icon"
-      title="With Icon"
-    >
-      <div class="flex flex-row gap-4 p-2">
-        <Button label="Add Item" icon="i-solar:add-circle-line-duotone" />
-        <Button label="Warn" variant="caution" icon="i-solar:danger-triangle-line-duotone" />
-        <Button label="Delete Item" variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
-        <Button label="Settings" variant="secondary" icon="i-solar:settings-line-duotone" />
-        <Button label="Plain" variant="ghost" icon="i-solar:emoji-funny-circle-line-duotone" />
-      </div>
-    </Variant>
-
-    <Variant
-      id="icon-only"
-      title="Icon Only"
-    >
-      <div class="flex gap-4 p-2">
-        <Button icon="i-solar:add-circle-line-duotone" />
-        <Button variant="secondary" icon="i-solar:settings-line-duotone" />
-        <Button variant="caution" icon="i-solar:danger-triangle-line-duotone" />
-        <Button variant="danger" icon="i-solar:trash-bin-trash-line-duotone" />
-        <Button variant="ghost" icon="i-solar:neutral-face-outline" />
-      </div>
-    </Variant>
-
-    <Variant
-      id="sizes"
-      title="Button Sizes"
-    >
-      <div class="flex items-center gap-4 p-2">
+    <Variant id="size" title="Size">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
         <Button label="Small" size="sm" />
         <Button label="Medium" size="md" />
         <Button label="Large" size="lg" />
-        <Button label="Caution" variant="caution" />
       </div>
     </Variant>
 
-    <Variant
-      id="block"
-      title="Block Button"
-    >
-      <div class="flex flex-col gap-4 p-2">
-        <Button label="Block Primary" block />
-        <Button label="Block Secondary" variant="secondary" block />
-        <Button label="Block Caution" variant="caution" block />
-        <Button label="Block Danger" variant="danger" block />
+    <Variant id="ghost-button" title="Ghost Button">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
+        <GhostButton label="Action" icon="i-solar:pen-new-square-linear" />
+        <GhostButton label="Active" icon="i-solar:check-circle-linear" active />
+        <GhostButton label="Disabled" icon="i-solar:forbidden-circle-linear" disabled />
+        <GhostButton label="Loading" loading />
       </div>
     </Variant>
 
-    <Variant
-      id="slot"
-      title="Using Slot Content"
-    >
-      <div class="flex flex-row gap-4 p-2">
-        <Button>Custom Content</Button>
-        <Button variant="secondary">
-          <div class="flex items-center gap-2">
-            <div i-solar:star-line-duotone />
-            Complex Content
-          </div>
-        </Button>
+    <Variant id="icon-button" title="Icon Button">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
+        <IconButton
+          :icon="heartIcon"
+          :class="[liked && 'text-red', 'text-2xl']"
+          :aria-label="liked ? 'Unlike' : 'Like'"
+          :aria-pressed="liked"
+          size="unset"
+          @click="liked = !liked"
+        />
+        <IconButton
+          :icon="starIcon"
+          :class="[favorited && 'text-amber', 'text-2xl']"
+          :aria-label="favorited ? 'Remove favorite' : 'Favorite'"
+          :aria-pressed="favorited"
+          size="unset"
+          @click="favorited = !favorited"
+        />
+        <IconButton icon="i-ph:trash" disabled aria-label="Delete disabled" />
+        <IconButton loading aria-label="Loading" />
+      </div>
+    </Variant>
+
+    <Variant id="overlay-button" title="Overlay Button">
+      <div :class="['flex flex-wrap items-center gap-4 p-4']">
+        <OverlayButton label="Overlay" icon="i-solar:widget-2-linear" />
+        <OverlayButton label="Disabled" icon="i-solar:lock-linear" disabled />
+        <OverlayButton label="Loading" loading />
       </div>
     </Variant>
   </Story>
