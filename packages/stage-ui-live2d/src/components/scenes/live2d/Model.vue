@@ -30,8 +30,7 @@ import {
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useL2dViewControl, useLive2dParams } from '../../../stores'
-import { loadLive2DRuntime } from '../../../utils/live2d-runtime'
-import { adaptInternalModel, initializeCubism2Model } from '../../../utils/model-adapter'
+import { loadLive2DRuntime, setupLive2DModel } from '../../../utils/live2d-runtime'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -261,12 +260,15 @@ async function loadModel() {
       return
     }
 
-    const { Live2DFactory, Live2DModel, MotionPriority } = await loadLive2DRuntime()
+    const runtime = await loadLive2DRuntime()
+    const { Live2DModel, MotionPriority } = runtime
     forceMotionPriority.value = MotionPriority.FORCE
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
-    initializeCubism2Model(live2DModel.internalModel, pixiApp.value!.renderer)
-    adaptInternalModel(live2DModel.internalModel)
+    await setupLive2DModel(runtime, live2DModel, { url: modelSrcRef.value, id: props.modelId }, pixiApp.value!.renderer, { autoInteract: false })
+    if (isUnmounted) {
+      live2DModel.destroy()
+      return
+    }
 
     // --- Scene
 

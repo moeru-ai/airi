@@ -1,6 +1,9 @@
 import type * as Live2DDisplay from 'pixi-live2d-display'
+import type { InternalModel, Live2DFactoryOptions, Live2DModel } from 'pixi-live2d-display'
 
 import { errorMessageFrom } from '@moeru/std'
+
+import { loaderForModel } from '../generations/loader'
 
 /**
  * Path of the emitted Cubism 2 core relative to the app base, or `null` in a
@@ -137,4 +140,17 @@ export function loadLive2DRuntime(): Promise<Live2DRuntime> {
 export function isCubism2RuntimeConfigured(): boolean {
   return typeof __AIRI_CUBISM2_CORE_PATH__ === 'string'
     && __AIRI_CUBISM2_CORE_PATH__.length > 0
+}
+
+/** Sets up a model through the SDK, then runs exactly one generation-specific preparation pass. */
+export async function setupLive2DModel<IM extends InternalModel>(
+  runtime: Live2DRuntime,
+  model: Live2DModel<IM>,
+  source: string | object | IM['settings'],
+  renderer: object,
+  options?: Live2DFactoryOptions,
+): Promise<Live2DModel<IM>> {
+  await runtime.Live2DFactory.setupLive2DModel(model, source, options)
+  loaderForModel(model.internalModel).prepareModel(model.internalModel, renderer)
+  return model
 }
