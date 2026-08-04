@@ -88,30 +88,6 @@ function isCubism2CoreModel(coreModel: object): coreModel is Cubism2CoreModel {
 }
 
 /**
- * Which Cubism runtime backs a loaded model. `cubism4` covers Cubism 3 and 4
- * alike — they share the one core API `pixi-live2d-display` exposes as
- * `Cubism4InternalModel`.
- */
-export type Live2DGeneration = 'cubism2' | 'cubism4'
-
-/**
- * Identifies the Cubism runtime behind a loaded internal model.
- *
- * Callers need this because the two generations disagree on the units they push
- * through an otherwise identical `motionManager.update(model, now)` signature:
- * `Cubism4InternalModel.update` runs `dt /= 1e3; now /= 1e3` before delegating,
- * while `Cubism2InternalModel.update` forwards the raw milliseconds
- * (`dist/cubism4.es.js` and `dist/cubism2.es.js`, both `update(dt, now)`).
- *
- * Safe to call before or after {@link adaptInternalModel}: the adapter adds the
- * Cubism 3+ parameter accessors onto a Cubism 2 core model, but never removes
- * the native `getParamFloat`/`setParamFloat` pair this check keys on.
- */
-export function live2dGeneration(internalModel: AdaptableInternalModel): Live2DGeneration {
-  return isCubism2CoreModel(internalModel.coreModel) ? 'cubism2' : 'cubism4'
-}
-
-/**
  * Initializes Cubism 2's WebGL-backed deformer output before PIXI can draw it.
  *
  * Cubism 3+ initializes drawable vertices while loading. The legacy core waits

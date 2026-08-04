@@ -4,7 +4,7 @@ import type { Ref } from 'vue'
 import type { BeatSyncController } from './beat-sync'
 import type { useExpressionController } from './expression-controller'
 
-import { live2dGeneration } from '../../utils/model-adapter'
+import { loaderForModel } from '../../generations/loader'
 import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
@@ -120,7 +120,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   // `dist/cubism2.es.js`, both `update(dt, now)`.
   //
   // Removal condition: upstream passes the same unit to both generations.
-  const nowToMs = live2dGeneration(internalModel) === 'cubism2' ? 1 : 1000
+  const generationLoader = loaderForModel(internalModel)
 
   const prePlugins: MotionManagerPlugin[] = []
   const postPlugins: MotionManagerPlugin[] = []
@@ -144,7 +144,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   }
 
   function hookUpdate(model: CubismModel, now: number, hookedUpdate?: (model: CubismModel, now: number) => boolean) {
-    const nowMs = now * nowToMs
+    const nowMs = generationLoader.runtimeTimeToMilliseconds(now)
     const deltaMs = lastUpdateAtMs.value ? nowMs - lastUpdateAtMs.value : 0
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
     const isIdleMotion = !motionManager.state.currentGroup

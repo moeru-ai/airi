@@ -1,7 +1,10 @@
+import type { JSONObject } from 'pixi-live2d-display'
+
 import JSZip from 'jszip'
 
 import { errorMessageFrom } from '@moeru/std'
 
+import { selectLive2DSettings } from '../generations/loader'
 import { decodeZipFileName } from './decode-zip-filename'
 import { isCubism2RuntimeConfigured } from './live2d-runtime'
 import { isSettingsFile } from './live2d-zip-loader'
@@ -40,71 +43,6 @@ function normalizeArchivePath(baseDir: string, relativePath: string): string {
   return stack.join('/')
 }
 
-function cubism2References(json: Record<string, unknown>): Array<[string, string]> {
-  const references: Array<[string, string]> = []
-  if (typeof json.model === 'string')
-    references.push([json.model, 'MOC'])
-  if (typeof json.physics === 'string')
-    references.push([json.physics, 'Physics'])
-  if (typeof json.pose === 'string')
-    references.push([json.pose, 'Pose'])
-  if (Array.isArray(json.textures))
-    json.textures.forEach(path => typeof path === 'string' && references.push([path, 'Texture']))
-
-  const motions = json.motions
-  if (motions && typeof motions === 'object') {
-    for (const definitions of Object.values(motions)) {
-      if (!Array.isArray(definitions))
-        continue
-      for (const definition of definitions) {
-        if (definition && typeof definition === 'object' && 'file' in definition && typeof definition.file === 'string')
-          references.push([definition.file, 'Motion'])
-      }
-    }
-  }
-
-  if (Array.isArray(json.expressions)) {
-    for (const expression of json.expressions) {
-      if (expression && typeof expression === 'object' && 'file' in expression && typeof expression.file === 'string')
-        references.push([expression.file, 'Expression'])
-    }
-  }
-  return references
-}
-
-function cubism3References(json: Record<string, unknown>): Array<[string, string]> {
-  const references: Array<[string, string]> = []
-  const refs = json.FileReferences
-  if (!refs || typeof refs !== 'object')
-    return references
-  const fileReferences = refs as Record<string, unknown>
-
-  for (const [key, label] of [['Moc', 'MOC'], ['Physics', 'Physics'], ['Pose', 'Pose'], ['DisplayInfo', 'DisplayInfo']] as const) {
-    if (typeof fileReferences[key] === 'string')
-      references.push([fileReferences[key], label])
-  }
-  if (Array.isArray(fileReferences.Textures))
-    fileReferences.Textures.forEach(path => typeof path === 'string' && references.push([path, 'Texture']))
-  if (Array.isArray(fileReferences.Expressions)) {
-    for (const expression of fileReferences.Expressions) {
-      if (expression && typeof expression === 'object' && 'File' in expression && typeof expression.File === 'string')
-        references.push([expression.File, 'Expression'])
-    }
-  }
-  const motions = fileReferences.Motions
-  if (motions && typeof motions === 'object') {
-    for (const definitions of Object.values(motions)) {
-      if (!Array.isArray(definitions))
-        continue
-      for (const definition of definitions) {
-        if (definition && typeof definition === 'object' && 'File' in definition && typeof definition.File === 'string')
-          references.push([definition.File, 'Motion'])
-      }
-    }
-  }
-  return references
-}
-
 /** Validates Cubism 2 and Cubism 3+ model ZIPs without executing either runtime. */
 export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
   const zip = await JSZip.loadAsync(await file.arrayBuffer(), { decodeFileName: decodeZipFileName })
@@ -116,8 +54,6 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
   // the archive as having several entry points, which the model selector blocks
   // from being imported even though the runtime loads it fine.
   const settingsFiles = allPaths.filter(isSettingsFile)
-  const model3Files = settingsFiles.filter(path => path.endsWith('.model3.json'))
-  const model2Files = settingsFiles.filter(path => !path.endsWith('.model3.json'))
 
   const report: Live2DValidationReport = {
     fileName: (file as File).name || 'live2d-model.zip',
@@ -131,37 +67,39 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     checks: [],
   }
 
-  if (model2Files.length + model3Files.length !== 1) {
-    report.errors.push(`Invalid structure: expected exactly one .model.json or .model3.json entry point, found ${model2Files.length + model3Files.length}.`)
-  }
-  else if (model3Files.length === 1) {
-    report.entryPoint = model3Files[0]
-    report.runtimeFamily = 'cubism3-plus'
-    report.structureType = 'Cubism 3+ (model3.json)'
-  }
-  else {
-    report.entryPoint = model2Files[0]
-    report.runtimeFamily = 'cubism2'
-    report.structureType = 'Cubism 2 (model.json)'
+  let selectedSettings: ReturnType<typeof selectLive2DSettings> | undefined
+  try {
+    const candidates = await Promise.all(settingsFiles.map(async path => ({
+      path,
+      json: JSON.parse(await zip.file(path)!.async('text')) as JSONObject,
+    })))
+    selectedSettings = selectLive2DSettings(candidates)
+    report.entryPoint = selectedSettings.path
+    report.runtimeFamily = selectedSettings.loader.generation === 'cubism2' ? 'cubism2' : 'cubism3-plus'
+    report.structureType = selectedSettings.loader.generation === 'cubism2'
+      ? 'Cubism 2 (model.json)'
+      : 'Cubism 3+ (model3.json)'
+
+    if (selectedSettings.loader.generation === 'cubism2' && !isCubism2RuntimeConfigured()) {
     // Reported as an error, not a warning: this is the same gate the loader
     // checks, so a build without the core is guaranteed to reject the archive
     // with the missing-core message once it reaches the stage. A WARNING report
     // still offers "Import Anyway" in the audit modal, which would only defer
     // that failure past the point where the model was already persisted.
-    if (!isCubism2RuntimeConfigured()) {
       report.errors.push('Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.')
     }
   }
+  catch (error) {
+    report.errors.push(`Invalid structure: ${errorMessageFrom(error) ?? 'unable to select a Live2D settings entry point'}`)
+  }
 
-  if (report.entryPoint && report.runtimeFamily) {
+  if (report.entryPoint && report.runtimeFamily && selectedSettings) {
     try {
-      const json = JSON.parse(await zip.file(report.entryPoint)!.async('text')) as Record<string, unknown>
+      const json = JSON.parse(await zip.file(report.entryPoint)!.async('text')) as JSONObject
       const baseDir = report.entryPoint.split('/').slice(0, -1).join('/')
-      const references = report.runtimeFamily === 'cubism2'
-        ? cubism2References(json)
-        : cubism3References(json)
+      const references = selectedSettings.loader.assetReferences(json)
 
-      for (const [relativePath, label] of references) {
+      for (const { path: relativePath, kind: label } of references) {
         const expectedPath = normalizeArchivePath(baseDir, relativePath)
         if (allPaths.includes(expectedPath))
           continue
@@ -171,7 +109,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
           : `Missing reference: ${label} "${relativePath}" expected at "${expectedPath}".`)
       }
 
-      const mocReference = references.find(([, label]) => label === 'MOC')?.[0]
+      const mocReference = references.find(reference => reference.kind === 'MOC')?.path
       if (mocReference) {
         const mocPath = normalizeArchivePath(baseDir, mocReference)
         const mocFile = zip.file(mocPath)
