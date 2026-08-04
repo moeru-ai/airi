@@ -1350,6 +1350,20 @@ pages:
               description: App ID của dự án (lấy trong Console)
               label: App ID
         title: Volcano Engine
+      volcengine-streaming:
+        title: Volcengine Streaming TTS
+        description: Low-latency Volcengine TTS through the AIRI UnSpeech bridge
+        login-required: Sign in to AIRI so the browser can securely use the WebSocket proxy.
+        config-description: Configure the X-Api-Key from the Volcengine new console. The existing Volcengine V1 provider is unchanged.
+        model-placeholder: Choose a streaming model
+        privacy-title: How your key is used
+        privacy-description: Your key stays in this device's provider settings. AIRI only forwards it in memory for each WSS session and does not store it server-side.
+        preview-text: Hello, this is a preview of Volcengine bidirectional streaming speech synthesis.
+        fields:
+          api-key:
+            label: X-Api-Key
+            description: X-Api-Key from the Volcengine new console. App ID and old-console Access Key are not supported.
+            placeholder: Enter your X-Api-Key
       volcengine-coding-plan:
         description: Volcengine Coding Plan
         title: Volcengine Coding Plan

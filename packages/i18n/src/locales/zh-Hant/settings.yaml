@@ -1350,6 +1350,20 @@ pages:
               description: 可在控制台取得的 App ID
               label: 應用程式 ID
         title: 火山引擎
+      volcengine-streaming:
+        title: 火山引擎（雙向串流 TTS）
+        description: 透過 AIRI UnSpeech 代理使用低延遲火山引擎語音合成
+        login-required: 請先登入 AIRI，讓瀏覽器安全使用 WebSocket 代理。
+        config-description: 設定火山引擎新控制台的 X-Api-Key。現有火山引擎 V1 提供商不受影響。
+        model-placeholder: 選擇串流模型
+        privacy-title: 金鑰使用方式
+        privacy-description: 金鑰保存在目前裝置的提供商設定中。每次 WSS 工作階段中，AIRI 僅在記憶體轉發金鑰供 UnSpeech 驗證，不會儲存在伺服器。
+        preview-text: 你好，這是火山引擎雙向串流語音合成的試聽範例。
+        fields:
+          api-key:
+            label: X-Api-Key
+            description: 火山引擎新控制台提供的 X-Api-Key。此串流介面不支援 App ID 與舊控制台 Access Key。
+            placeholder: 輸入 X-Api-Key
       volcengine-coding-plan:
         description: Volcengine Coding Plan
         title: Volcengine Coding Plan

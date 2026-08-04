@@ -97,6 +97,10 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     throw new Error(`Streaming model id missing backend prefix: ${requestedModel}`)
   const apiResourceId = requestedModel.slice(slashIndex + 1)
   const result = await streamingSynthesize({
+    connection: {
+      credentialMode: 'official',
+      providerId,
+    },
     model: requestedModel,
     voice: voiceId,
     input,

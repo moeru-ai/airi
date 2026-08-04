@@ -95,6 +95,7 @@ const providerSourceMetadataById = {
   'speech-noop': false,
   'together-ai': paidCloud,
   'volcengine': paidCloud,
+  'volcengine-streaming': paidCloud,
   'volcengine-coding-plan': paidCloud,
   'xai': paidCloud,
   'zai': paidCloud,

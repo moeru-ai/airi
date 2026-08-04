@@ -9,13 +9,13 @@ import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
  * Dependencies required by the streaming speech websocket proxy.
  */
 export interface AudioSpeechWsHandlersOptions {
-  /** Reads upstream websocket URL and encrypted API keys. */
+  /** Reads the UnSpeech websocket URL and operator credentials for official sessions. */
   configKV: ConfigKVService
   /** Decrypts the selected upstream API key before the websocket handshake. */
   envelopeCrypto: EnvelopeCrypto
-  /** Reads the user's current Flux balance for pre-flight and final billing. */
+  /** Reads the user's current Flux balance for official-session billing. */
   fluxService: FluxService
-  /** Applies pre-flight affordability checks and final streaming TTS billing. */
+  /** Applies pre-flight checks and final billing to official sessions only. */
   ttsMeter: FluxMeter
   /** Persists request accounting after a stream finishes. */
   requestLogService: RequestLogService

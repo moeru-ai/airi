@@ -23,8 +23,9 @@ export type { AudioSpeechWsHandlersOptions } from './types'
  * Expects:
  * - The route handler has already resolved auth via the `?token=` query
  *   (see app.ts wiring) and passes a verified `userId` in.
- * - The client sends a `start` control frame first. The session validates the
- *   requested streaming model and voice before dialing upstream.
+ * - Official clients send a `start` control frame first. BYOK clients send an
+ *   AIRI-private `credentials` frame followed by `start`. The session consumes
+ *   credentials locally, then validates model and voice before dialing upstream.
  *
  * Returns:
  * - A function that takes `userId` and returns hono `WSEvents`. Each call

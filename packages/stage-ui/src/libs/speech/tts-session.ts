@@ -1,5 +1,6 @@
 import type { IntentHandle, IntentOptions, PlaybackItem } from '@proj-airi/pipelines-audio'
 
+import type { StreamingTtsConnection } from './streaming-connection'
 import type { StreamingTtsPipelineOptions } from './streaming-pipeline'
 
 import { createStreamingTtsPipeline } from './streaming-pipeline'
@@ -69,6 +70,7 @@ function fromIntent(intent: IntentHandleSubset): StageTtsSession {
  * for cancelling and re-opening.
  */
 export interface StreamingSessionSnapshot {
+  connection: StreamingTtsConnection
   model: string
   voice: string
   voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
@@ -157,6 +159,7 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
   let terminated = false
 
   const handle = pipelineFactory({
+    connection: snapshot.connection,
     model: snapshot.model,
     voice: snapshot.voice,
     ttsVoiceType: snapshot.voiceType,

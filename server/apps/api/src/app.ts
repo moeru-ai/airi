@@ -4,7 +4,7 @@ import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
-import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
+import type { StreamingTtsProviderId, StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import type { AdminRouterConfigService } from './services/domain/admin/router-config'
@@ -222,6 +222,8 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
+      credentialMode: c.req.query('tts_credential_mode') === 'byok' ? 'byok' : 'official',
+      providerId: parseStreamingTtsProviderId(c.req.query('tts_provider_id')),
     })
   }))
 
@@ -497,6 +499,19 @@ function parseTtsVoiceType(
     case 'official_selected':
     case 'custom_configured':
     case 'voice_pack':
+      return value
+    default:
+      return 'unknown'
+  }
+}
+
+/**
+ * Bounds client-provided provider identity before it reaches product events.
+ */
+function parseStreamingTtsProviderId(value: string | undefined): StreamingTtsProviderId {
+  switch (value) {
+    case 'official-provider-speech-streaming':
+    case 'volcengine-streaming':
       return value
     default:
       return 'unknown'
