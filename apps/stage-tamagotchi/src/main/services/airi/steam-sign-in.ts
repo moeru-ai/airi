@@ -1,12 +1,10 @@
 import type { TokenExchangeResult } from './oidc-token-exchange'
 
 import { errorMessageFrom } from '@moeru/std'
-import { generateCodeChallenge, generateCodeVerifier } from '@proj-airi/stage-shared/auth'
+import { generateCodeChallenge, generateCodeVerifier, oidcClientId } from '@proj-airi/stage-shared/auth'
 import { object, safeParse, string } from 'valibot'
 
 import { electronOidcRedirectUri, exchangeAuthorizationCode } from './oidc-token-exchange'
-
-const OIDC_CLIENT_ID = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
 
 const SteamAuthorizationCodeBodySchema = object({
   code: string(),
@@ -23,11 +21,6 @@ export type SteamExchangeResult
  * SteamID, and returns a short-lived authorization code bound to
  * `code_challenge` — this then completes the same client PKCE →
  * `/oauth2/token` exchange the browser loopback flow uses.
- *
- * Returns:
- * - `{ ok: true, tokens }` on success.
- * - `{ ok: false, reason }` for any non-2xx response or network failure —
- *   caller surfaces a toast and may fall back to browser OIDC / OpenID.
  */
 export async function exchangeSteamTicketForTokens(params: {
   serverUrl: string
@@ -62,7 +55,7 @@ export async function exchangeSteamTicketForTokens(params: {
 
     const tokens = await exchangeAuthorizationCode({
       serverUrl: params.serverUrl,
-      clientId: OIDC_CLIENT_ID,
+      clientId: oidcClientId,
       code: codeBody.output.code,
       codeVerifier,
       redirectUri,

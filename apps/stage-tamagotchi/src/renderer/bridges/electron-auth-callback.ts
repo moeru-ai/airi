@@ -1,5 +1,6 @@
 import { errorMessageFrom } from '@moeru/std'
 import { getElectronEventaContext } from '@proj-airi/electron-vueuse'
+import { oidcClientId } from '@proj-airi/stage-shared/auth'
 import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { toast } from 'vue-sonner'
@@ -34,7 +35,7 @@ export function initializeElectronAuthCallbackBridge() {
         authStore.idToken = tokens.idToken
       }
 
-      authStore.oidcClientId = import.meta.env.VITE_OIDC_CLIENT_ID || 'airi-stage-electron'
+      authStore.oidcClientId = oidcClientId
       authStore.tokenExpiry = Date.now() + tokens.expiresIn * 1000
       authStore.scheduleTokenRefresh(tokens.expiresIn)
 

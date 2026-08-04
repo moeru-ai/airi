@@ -343,7 +343,8 @@ async function handleAppExit() {
   await Promise.all([
     logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
     logIfError('stop injeca', () => injeca.stop()),
-    // https://github.com/moeru-ai/airi/pull/1966#discussion_r3622685118
+    // Steam SDK shutdown may emit logs, so run it before the file logger
+    // closes below to keep those messages in the final flush.
     logIfError('shut down Steam SDK', () => shutdownSteam()),
   ])
 
