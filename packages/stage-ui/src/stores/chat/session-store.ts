@@ -479,6 +479,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   reconcile `adopt` branch will not re-import the row on next login.
    */
   async function deleteSession(sessionId: string) {
+    // Keep a monotonic tombstone in memory so queued and streaming sends that
+    // captured the previous generation cannot become current again after the
+    // session record is removed.
+    bumpSessionGeneration(sessionId)
+
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
@@ -516,7 +521,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // fire-and-forget. Persistence races now read the post-deletion state.
     delete sessionMetas.value[sessionId]
     delete sessionMessages.value[sessionId]
-    delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
     loadingSessions.delete(sessionId)
 
@@ -1238,15 +1242,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     },
   })
 
-  function setActiveSession(sessionId: string) {
+  function activateSession(sessionId: string) {
     activeSessionId.value = sessionId
-
-    const characterId = getCurrentCharacterId()
-    const characterIndex = index.value?.characters[characterId]
-    if (characterIndex) {
-      characterIndex.activeSessionId = sessionId
-      void persistIndex()
-    }
 
     if (ready.value) {
       void loadSession(sessionId)
@@ -1254,6 +1251,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     else if (!hasKnownSession(sessionId)) {
       ensureSession(sessionId)
     }
+  }
+
+  function setActiveSession(sessionId: string) {
+    activateSession(sessionId)
+
+    const characterId = getCurrentCharacterId()
+    const characterIndex = index.value?.characters[characterId]
+    if (characterIndex) {
+      characterIndex.activeSessionId = sessionId
+      void persistIndex()
+    }
+  }
+
+  /**
+   * Activates a session only in this store instance. Use for secondary
+   * windows whose selection must not overwrite the persisted character index.
+   */
+  function setActiveSessionLocally(sessionId: string) {
+    activateSession(sessionId)
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1328,6 +1344,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function getSessionMessages(sessionId: string) {
     ensureSession(sessionId)
     return sessionMessages.value[sessionId] ?? []
+  }
+
+  /** Returns persisted/in-memory messages without creating an unloaded session fallback. */
+  function getSessionMessagesIfLoaded(sessionId: string) {
+    return sessionMessages.value[sessionId]
   }
 
   function getSessionGeneration(sessionId: string) {
@@ -1459,6 +1480,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages,
 
     setActiveSession,
+    setActiveSessionLocally,
     applyRemoteSnapshot,
     getSnapshot,
     cleanupMessages,
@@ -1470,6 +1492,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,
+    getSessionMessagesIfLoaded,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,
