@@ -1,4 +1,7 @@
+import type { UserConfig } from 'electron-vite'
+
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
@@ -14,12 +17,12 @@ import VueRouter from 'vue-router/vite'
 
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
-import { defineConfig } from 'electron-vite'
+import { defineConfig, loadEnv } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
-export default defineConfig({
+const electronConfig = {
   main: {
     build: {
       externalizeDeps: {
@@ -258,4 +261,13 @@ export default defineConfig({
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     ],
   },
+} satisfies UserConfig
+
+export default defineConfig(({ mode }) => {
+  // Main-process code reads runtime `process.env`, while electron-vite normally
+  // keeps file-based variables in `import.meta.env`. Load only APP_ values as
+  // soon as the Electron config is evaluated; shell values take priority.
+  Object.assign(env, loadEnv(mode, import.meta.dirname, 'APP_'))
+
+  return electronConfig
 })

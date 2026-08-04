@@ -1,2 +1,7 @@
-# Language redirects are now handled by the Netlify Edge Function
-# netlify/edge-functions/i18n-redirect.ts (see netlify.toml [[edge_functions]]).
+# Language redirects are handled client-side by
+# docs/.vitepress/composables/language-redirect.ts (respects the site base
+# path and the user's manual language choice in localStorage).
+#
+# The previous `Language=` rules below were Netlify-only syntax; the site is
+# deployed on Cloudflare Pages, which does not parse them, so they are
+# intentionally not kept.

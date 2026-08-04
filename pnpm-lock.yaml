@@ -235,8 +235,8 @@ catalogs:
       specifier: 0.1.0-beta.19
       version: 0.1.0-beta.19
     '@moeru/eventa':
-      specifier: 1.0.0-beta.8
-      version: 1.0.0-beta.8
+      specifier: 1.0.0-beta.9
+      version: 1.0.0-beta.9
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -502,17 +502,17 @@ catalogs:
       specifier: ^0.4.0
       version: 0.4.0
     '@vishot/cli':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vishot/mockup-desktop-vue':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vishot/renderer-browser':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vishot/source-electron':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vitejs/plugin-vue':
       specifier: ^6.0.6
       version: 6.0.6
@@ -1207,7 +1207,7 @@ patchedDependencies:
     hash: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
     path: patches/mineflayer-pathfinder.patch
   pixi-live2d-display:
-    hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
+    hash: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
     path: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0:
     hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
@@ -1255,7 +1255,7 @@ importers:
         version: 66.6.8
       '@vishot/cli':
         specifier: 'catalog:'
-        version: 0.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        version: 0.1.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@vitest/browser-playwright':
         specifier: catalog:vitest
         version: 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
@@ -1442,7 +1442,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1845,7 +1845,7 @@ importers:
         version: 11.3.2
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2326,7 +2326,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2711,7 +2711,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3448,7 +3448,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       crossws:
         specifier: 'catalog:'
         version: 0.4.5(srvx@0.11.15)
@@ -3581,7 +3581,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -3609,7 +3609,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3627,7 +3627,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3734,7 +3734,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3746,7 +3746,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
@@ -3755,7 +3755,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3777,7 +3777,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
@@ -3801,10 +3801,10 @@ importers:
         version: 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@vishot/mockup-desktop-vue':
         specifier: 'catalog:'
-        version: 0.0.3(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.1.1(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@vishot/renderer-browser':
         specifier: 'catalog:'
-        version: 0.0.3(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        version: 0.1.1(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
@@ -3853,7 +3853,7 @@ importers:
         version: 0.1.0-beta.17
       '@vishot/source-electron':
         specifier: 'catalog:'
-        version: 0.0.3
+        version: 0.1.1
       playwright:
         specifier: 'catalog:'
         version: 1.60.0
@@ -3913,7 +3913,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
 
   packages/server-shared:
     dependencies:
@@ -3925,7 +3925,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4040,7 +4040,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4189,7 +4189,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -4213,7 +4213,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4718,7 +4718,7 @@ importers:
         version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
       pixi-live2d-display:
         specifier: 'catalog:'
-        version: 0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e)
+        version: 0.4.0(patch_hash=7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d)(0736f5bd67d2e4de7e9fff36ad63fa2e)
       three:
         specifier: 'catalog:'
         version: 0.184.0
@@ -4908,7 +4908,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.2(@types/three@0.184.0)(three@0.184.0)
@@ -5140,7 +5140,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5237,7 +5237,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5303,7 +5303,7 @@ importers:
         version: 5.4.0(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
+        version: 1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -7996,8 +7996,8 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-beta.8':
-    resolution: {integrity: sha512-V7DTEi9waYxxVNWQbKTMnj0m4U2xyLmd//eZ12noLBYS8wUJJ8Lm0XXj6wc9KI0urrSjDFTBHlD4Ow1bEGw2sw==}
+  '@moeru/eventa@1.0.0-beta.9':
+    resolution: {integrity: sha512-UmV9em3ClQeNr0XJHY0lMeh6+bHgAlO3RP7RpsjyilwGFhwongpAtJKIAHjwVU3E28BnEWEZw+3r9NK7OJqptA==}
     peerDependencies:
       electron: '>=39'
       h3: '>=2.0.1-rc.22'
@@ -11351,26 +11351,26 @@ packages:
   '@vibrant/worker@4.0.4':
     resolution: {integrity: sha512-Q/R6PYhSMWCXEk/IcXbWIzIu7Z4b58ABkGvcdF8Y+q/7g+KnpxKW5x/jfQ/6ciyYSby13wZZoEdNr3QQVgsdBQ==}
 
-  '@vishot/cli@0.0.3':
-    resolution: {integrity: sha512-Yge2xFGq8BLCzRzXpNMX9w0oUoRsHzqt/xe1DQY1jWoi9PvldrfAulibxvLgvhPKA7y2ZzPN8kVQRUbOY/AdXA==}
+  '@vishot/cli@0.1.1':
+    resolution: {integrity: sha512-hqGZxCOeGFaVT5N2IGpnBEqdVeMgWU9oOIXT4Vc/rE1KSvTy6cz1LQn3CXdczeSZr0f8lFf3nEKeazeaoNEgfg==}
     hasBin: true
 
-  '@vishot/core@0.0.3':
-    resolution: {integrity: sha512-NydFb3Fr9LXGSs/c473LThsL1aBbhUWiSCeoWWvYCLZwPhMnZOvLmXwBcbp1ufVZgW1FJv1KeSti1yZDY57ZwQ==}
+  '@vishot/core@0.1.1':
+    resolution: {integrity: sha512-g3KgoIiEG2bqLdavec2JUokTbZHnCK0ZRRRLkb67bjyD9BXGkaFt09cPaGu6b0uDeSzMFQ5sBbnl+lxhAO7lhQ==}
 
-  '@vishot/mockup-desktop-vue@0.0.3':
-    resolution: {integrity: sha512-81zte5unPP0/Ej5beYrq4u5DqZDVxalgMcr1tFlFfn1NF9FijZtBaU7pmxEdY2p0UP9xGUsOLYw8UrnJdG9Yog==}
+  '@vishot/mockup-desktop-vue@0.1.1':
+    resolution: {integrity: sha512-9utr16BEn01UqOk/738FAIKJ/XFe09QIzMHKF8OE2k8xiRDjmbmzfXFpmuZaKLAxXMKy2PdVdSixyR/Nhe2MgA==}
     peerDependencies:
       '@vueuse/core': ^14.2.1
       reka-ui: ^2.6.1
       vue: ^3.5.26
       vue-router: ^4.6.4
 
-  '@vishot/renderer-browser@0.0.3':
-    resolution: {integrity: sha512-9A0HIrKtdGQnKlJ/H1yam3b4BXeEJGMilW9XTBUwgoY817H6XsMIWlderp0V0HKjssbegarAFTC1rlzSdmc0Zg==}
+  '@vishot/renderer-browser@0.1.1':
+    resolution: {integrity: sha512-zicjVCsQKQKIpH5pAXcoV5gzc0yN3Wfsh1KIpXax5f2O2GK+UNi/7g7e0EM5924tQWQFNsOHtnSZEjBkoXOmxA==}
 
-  '@vishot/source-electron@0.0.3':
-    resolution: {integrity: sha512-yqAW6yFX3NaoAYE/c4R8hC6qz23w7qczUzwRcvHCHcJKjD9KEdVUr+tBVQKFIsFSvINBS7JRdYs08Ow8VYztfg==}
+  '@vishot/source-electron@0.1.1':
+    resolution: {integrity: sha512-aE94x7FnY+Jo5J+yOmgcqXyOYpVSTg8xUB4m5AuDAWp28AwmxxbkF5h4ZzWnyux2S0BBwfKH+UGKrvJHdhY0HQ==}
 
   '@vitejs/devtools-kit@0.1.13':
     resolution: {integrity: sha512-8TqyrrPTB8KNGb2ukVHNo4aMhGYJgUypVNMnqOvxaWYln3QAXK6CFxifK3lZGOHWKAUqWAiTmZUsYzV4S0Kn7g==}
@@ -22412,7 +22412,7 @@ snapshots:
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0-beta.9(electron@40.8.5)(hono@4.12.2)(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
@@ -22421,7 +22421,7 @@ snapshots:
       hono: 4.12.2
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0-beta.9(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
@@ -22431,7 +22431,7 @@ snapshots:
       hono: 4.12.2
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.0-beta.9(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
@@ -25739,13 +25739,13 @@ snapshots:
     dependencies:
       '@vibrant/types': 4.0.4
 
-  '@vishot/cli@0.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/cli@0.1.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
       '@moeru/std': 0.1.0-beta.19
       '@napi-rs/image': 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
-      '@vishot/core': 0.0.3
-      '@vishot/renderer-browser': 0.0.3(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-      '@vishot/source-electron': 0.0.3
+      '@vishot/core': 0.1.1
+      '@vishot/renderer-browser': 0.1.1(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      '@vishot/source-electron': 0.1.1
       cac: 6.7.14
       playwright: 1.60.0
     transitivePeerDependencies:
@@ -25763,19 +25763,19 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/core@0.0.3': {}
+  '@vishot/core@0.1.1': {}
 
-  '@vishot/mockup-desktop-vue@0.0.3(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
+  '@vishot/mockup-desktop-vue@0.1.1(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
     dependencies:
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       '@vueuse/core': 14.2.1(vue@3.5.32(typescript@5.9.3))
       reka-ui: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue: 3.5.32(typescript@5.9.3)
       vue-router: 5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
 
-  '@vishot/renderer-browser@0.0.3(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/renderer-browser@0.1.1(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       playwright: 1.60.0
       vite: 7.3.2(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -25791,9 +25791,9 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/renderer-browser@0.0.3(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/renderer-browser@0.1.1(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       playwright: 1.60.0
       vite: 7.3.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -25809,10 +25809,10 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/source-electron@0.0.3':
+  '@vishot/source-electron@0.1.1':
     dependencies:
       '@moeru/std': 0.1.0-beta.19
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       playwright: 1.60.0
 
   '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(ws@8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))':
@@ -32163,7 +32163,7 @@ snapshots:
       - '@pixi/settings'
       - '@pixi/utils'
 
-  pixi-live2d-display@0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e):
+  pixi-live2d-display@0.4.0(patch_hash=7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d)(0736f5bd67d2e4de7e9fff36ad63fa2e):
     dependencies:
       '@pixi/core': 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/display': 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
