@@ -1,12 +1,10 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Event, Message, Usage } from '@xsai/shared-chat'
 
-import type { StreamFromOptions, StreamOptions } from '../types/llm'
+import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
-
-import { createToolErrorCapture } from './tool-error-capture'
 
 /**
  * Normalize chat messages so they match the wire format the active provider
@@ -103,6 +101,48 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
+/**
+ * Maps xsAI stream events onto the AIRI {@link StreamEvent} contract.
+ *
+ * xsAI 0.5.0-beta.8 marks failed tool executions with `isError: true` on
+ * `tool-result.done` instead of aborting the stream, so AIRI can distinguish
+ * `tool-error` from `tool-result` directly from the event payload.
+ */
+function toAiriStreamEvent(event: Event): StreamEvent | null {
+  switch (event.type) {
+    case 'text.delta':
+      return { type: 'text-delta', text: event.delta }
+    case 'reasoning.delta':
+      return { type: 'reasoning-delta', text: event.delta }
+    case 'tool-call.done':
+      return { ...event, type: 'tool-call' }
+    case 'tool-result.done':
+      if (event.isError === true)
+        return { ...event, type: 'tool-error', isError: true }
+      return {
+        type: 'tool-result',
+        toolCallId: event.toolCallId,
+        result: typeof event.result === 'string' || Array.isArray(event.result)
+          ? event.result
+          : JSON.stringify(event.result),
+      }
+    case 'error':
+      return {
+        type: 'error',
+        error: event.cause ?? new Error(event.message),
+      }
+    case 'text.start':
+    case 'text.done':
+    case 'reasoning.start':
+    case 'reasoning.done':
+    case 'step.start':
+    case 'step.done':
+    case 'tool-call.start':
+    case 'tool-call.delta':
+      return null
+  }
+}
+
 function normalizeUsage(usage: Usage | undefined) {
   if (usage?.inputTokens == null || usage.outputTokens == null || usage.totalTokens == null) {
     return { source: 'unavailable' as const }
@@ -134,8 +174,6 @@ export async function streamFrom({
   const customTools = supportedTools ? await resolveTools(options) : []
   const mergedTools = supportedTools ? [...builtinTools, ...customTools] : []
   const tools = mergedTools.length > 0 ? mergedTools : undefined
-  const toolErrorCapture = createToolErrorCapture(tools ?? [])
-  const streamTools = tools != null ? toolErrorCapture.tools : undefined
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -155,7 +193,7 @@ export async function streamFrom({
 
     const onEvent = async (event: Event) => {
       try {
-        const streamEvent = toolErrorCapture.toStreamEvent(event)
+        const streamEvent = toAiriStreamEvent(event)
         if (streamEvent != null)
           await options?.onStreamEvent?.(streamEvent)
         if (event.type === 'error')
@@ -174,9 +212,8 @@ export async function streamFrom({
         headers: options?.headers,
         streamOptions: { includeUsage: true },
         stopWhen: stepCountAtLeast(10),
-        tools: streamTools,
+        tools,
         toolChoice: options?.toolChoice,
-        preToolCall: streamTools != null ? toolErrorCapture.preToolCall : undefined,
         onEvent,
       })
 

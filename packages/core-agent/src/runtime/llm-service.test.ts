@@ -39,7 +39,7 @@ function createMockStreamResult(
   }
 }
 
-describe('streamFrom tool error capture', () => {
+describe('streamFrom tool errors', () => {
   beforeEach(() => {
     streamTextMock.mockReset()
   })
@@ -143,7 +143,7 @@ describe('streamFrom tool error capture', () => {
     })).resolves.toBeUndefined()
   })
 
-  it('always captures tool execute failures and maps them to tool-error events', async () => {
+  it('maps xsai tool-error results to AIRI tool-error events without wrapping tools', async () => {
     let resolveSteps: ((steps: unknown[]) => void) | undefined
     const events: unknown[] = []
     const failingTool = {
@@ -168,15 +168,11 @@ describe('streamFrom tool error capture', () => {
       })
 
       queueMicrotask(async () => {
-        const result = await options.tools?.[0]?.execute({}, {
-          messages: [],
-          toolCallId: 'call-1',
-        })
-
         await options.onEvent({
           type: 'tool-result.done',
           args: {},
-          result,
+          isError: true,
+          result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
           toolCallId: 'call-1',
           toolName: 'play_chess',
         })
@@ -200,16 +196,17 @@ describe('streamFrom tool error capture', () => {
     })
 
     const streamOptions = streamTextMock.mock.calls[0]?.[0]
-    expect(streamOptions.preToolCall).toEqual(expect.any(Function))
-    expect(streamOptions.tools?.[0]).not.toBe(failingTool)
-    expect(failingTool.execute).toHaveBeenCalledTimes(1)
-    expect(events).toContainEqual(expect.objectContaining({
+    expect(streamOptions.preToolCall).toBeUndefined()
+    expect(streamOptions.tools?.[0]).toBe(failingTool)
+    expect(failingTool.execute).not.toHaveBeenCalled()
+    expect(events).toContainEqual({
       type: 'tool-error',
+      args: {},
       isError: true,
+      result: 'Tool "play_chess" execution failed: Focus mode does not accept game-state mutation inputs.',
       toolCallId: 'call-1',
       toolName: 'play_chess',
-      result: expect.stringContaining('Focus mode does not accept game-state mutation inputs.'),
-    }))
+    })
     expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
     expect(events).toContainEqual({ type: 'finish' })
   })
