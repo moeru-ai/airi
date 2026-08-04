@@ -11,8 +11,7 @@ COPY patches/ ./patches/
 COPY server/apps/auth server/apps/auth
 COPY server/packages/auth-shared server/packages/auth-shared
 
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --ignore-scripts --filter @proj-airi/auth-server...
+RUN pnpm install --frozen-lockfile --ignore-scripts --filter @proj-airi/auth-server...
 
 RUN pnpm -F @proj-airi/auth-server run build
 
