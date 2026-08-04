@@ -1,11 +1,12 @@
 import type { Context } from 'hono'
 
 import type { Database } from '../../libs/db'
+import type { UserMetricsSnapshot, UserMetricsSnapshotRecorder } from '../../otel/gauges/user-metrics-snapshot'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { BillingService } from '../../services/domain/billing/billing-service'
 import type { HonoEnv } from '../../types/hono'
 
-import { and, asc, count, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, count, countDistinct, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { integer, maxLength, maxValue, minValue, nonEmpty, number, object, optional, pipe, safeParse, string } from 'valibot'
 
@@ -57,12 +58,11 @@ export interface AdminRoutesDeps {
   db: Database
   billingService: BillingService
   configKV: ConfigKVService
+  userMetricsRecorder: UserMetricsSnapshotRecorder
 }
 
-interface AdminMetricsSnapshot {
-  totalUsers: number
+interface AdminMetricsSnapshot extends UserMetricsSnapshot {
   verifiedUsers: number
-  activeSessions: number
   currentFlux: number
   issuedFlux: number
   llmRequests24h: number
@@ -71,14 +71,19 @@ interface AdminMetricsSnapshot {
   grafanaEmbedUrl: null
 }
 
-function createAdminMetricsReader(db: Database) {
-  let cached: { value: AdminMetricsSnapshot, expiresAt: number } | undefined
-  let inFlight: Promise<AdminMetricsSnapshot> | undefined
+interface AdminMetricsRead {
+  value: AdminMetricsSnapshot
+  refreshedAt: number
+}
 
-  return async function readAdminMetrics(): Promise<AdminMetricsSnapshot> {
+function createAdminMetricsReader(db: Database) {
+  let cached: (AdminMetricsRead & { expiresAt: number }) | undefined
+  let inFlight: Promise<AdminMetricsRead> | undefined
+
+  return async function readAdminMetrics(): Promise<AdminMetricsRead> {
     const now = Date.now()
     if (cached && cached.expiresAt > now)
-      return cached.value
+      return cached
 
     // A polling burst can arrive immediately after expiry. Share that refresh
     // within this API process so only one set of aggregate queries reaches DB.
@@ -86,47 +91,71 @@ function createAdminMetricsReader(db: Database) {
       return inFlight
 
     inFlight = (async () => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const currentTime = Date.now()
+      const yesterday = new Date(currentTime - 24 * 60 * 60 * 1000)
+      const weekAgo = new Date(currentTime - 7 * 24 * 60 * 60 * 1000)
+      const monthAgo = new Date(currentTime - 30 * 24 * 60 * 60 * 1000)
 
       const [
-        totalUsers,
-        verifiedUsers,
-        activeSessions,
+        users,
+        sessions,
         currentFlux,
         issuedFlux,
-        llmRequests24h,
-        llmFlux24h,
-        adminUsers,
+        llmUsage24h,
       ] = await Promise.all([
-        db.select({ count: count() }).from(userTable),
-        db.select({ count: count() }).from(userTable).where(eq(userTable.emailVerified, true)),
-        db.select({ count: count() }).from(sessionTable).where(gt(sessionTable.expiresAt, new Date())),
+        db.select({
+          totalUsers: count(),
+          verifiedUsers: sql<number>`count(*) filter (where ${userTable.emailVerified} = true)`,
+          adminSeats: sql<number>`count(*) filter (where 'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*')))`,
+          active24h: sql<number>`count(*) filter (where ${userTable.lastSeenAt} > ${yesterday})`,
+          active7d: sql<number>`count(*) filter (where ${userTable.lastSeenAt} > ${weekAgo})`,
+          active30d: sql<number>`count(*) filter (where ${userTable.lastSeenAt} > ${monthAgo})`,
+        }).from(userTable),
+        db
+          .select({
+            activeSessions: count(),
+            distinctActiveUsers: countDistinct(sessionTable.userId),
+          })
+          .from(sessionTable)
+          .where(gt(sessionTable.expiresAt, new Date(currentTime))),
         db.select({ total: sql<number>`coalesce(sum(${userFlux.flux}), 0)::int` }).from(userFlux).where(isNull(userFlux.deletedAt)),
         db.select({ total: sql<number>`coalesce(sum(${fluxTransaction.amount}) filter (where ${fluxTransaction.type} in ('credit', 'initial', 'promo')), 0)::int` }).from(fluxTransaction),
-        db.select({ count: count() }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
-        db.select({ total: sql<number>`coalesce(sum(${llmRequestLog.fluxConsumed}), 0)::int` }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
         db
-          .select({ count: count() })
-          .from(userTable)
-          .where(sql<boolean>`'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*'))`),
+          .select({
+            count: count(),
+            total: sql<number>`coalesce(sum(${llmRequestLog.fluxConsumed}), 0)::int`,
+          })
+          .from(llmRequestLog)
+          .where(gt(llmRequestLog.createdAt, yesterday)),
       ])
 
       const value: AdminMetricsSnapshot = {
-        totalUsers: Number(totalUsers[0]?.count ?? 0),
-        verifiedUsers: Number(verifiedUsers[0]?.count ?? 0),
-        activeSessions: Number(activeSessions[0]?.count ?? 0),
+        totalUsers: Number(users[0]?.totalUsers ?? 0),
+        verifiedUsers: Number(users[0]?.verifiedUsers ?? 0),
+        activeSessions: Number(sessions[0]?.activeSessions ?? 0),
+        distinctActiveUsers: Number(sessions[0]?.distinctActiveUsers ?? 0),
+        rollingActiveUsers: {
+          '24h': Number(users[0]?.active24h ?? 0),
+          '7d': Number(users[0]?.active7d ?? 0),
+          '30d': Number(users[0]?.active30d ?? 0),
+        },
         currentFlux: Number(currentFlux[0]?.total ?? 0),
         issuedFlux: Number(issuedFlux[0]?.total ?? 0),
-        llmRequests24h: Number(llmRequests24h[0]?.count ?? 0),
-        llmFlux24h: Number(llmFlux24h[0]?.total ?? 0),
-        adminSeats: Number(adminUsers[0]?.count ?? 0),
+        llmRequests24h: Number(llmUsage24h[0]?.count ?? 0),
+        llmFlux24h: Number(llmUsage24h[0]?.total ?? 0),
+        adminSeats: Number(users[0]?.adminSeats ?? 0),
         grafanaEmbedUrl: null,
       }
 
       // Expiry starts after the refresh finishes; slow aggregate queries should
       // not shorten the period during which the completed snapshot is reused.
-      cached = { value, expiresAt: Date.now() + ADMIN_METRICS_CACHE_TTL_MS }
-      return value
+      const refreshedAt = Date.now()
+      cached = {
+        value,
+        refreshedAt,
+        expiresAt: refreshedAt + ADMIN_METRICS_CACHE_TTL_MS,
+      }
+      return cached
     })()
 
     try {
@@ -244,7 +273,9 @@ export function createAdminRoutes(deps: AdminRoutesDeps) {
     })
 
     .get('/metrics', async (c) => {
-      return c.json(await readAdminMetrics())
+      const snapshot = await readAdminMetrics()
+      deps.userMetricsRecorder.record(snapshot.value, snapshot.refreshedAt)
+      return c.json(snapshot.value)
     })
 
     .get('/users', async (c) => {
