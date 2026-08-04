@@ -260,7 +260,7 @@ describe('useChatSyncStore', async () => {
     const getSessionMessages = vi.fn((sessionId: string) => sessionMessages.value[sessionId] ?? [])
     const importSessions = vi.fn<(payload: ChatSessionsExport) => Promise<void>>().mockResolvedValue(undefined)
     const createSession = vi.fn(async () => 'session-2')
-    const loadSession = vi.fn(async () => undefined)
+    const loadSession = vi.fn(async () => true)
     const deleteSession = vi.fn(async () => undefined)
     const cancelPendingSends = vi.fn()
     const setActiveSessionLocally = vi.fn((sessionId: string) => {
@@ -455,6 +455,7 @@ describe('useChatSyncStore', async () => {
     mockState.sessionMetas.value['session-1'] = { sessionId: 'session-1' }
     mockState.loadSession.mockImplementationOnce(async () => {
       mockState.sessionMessages.value['session-1'] = persistedMessages
+      return true
     })
     mockState.ingest.mockResolvedValueOnce(undefined)
 
@@ -794,6 +795,7 @@ describe('useChatSyncStore', async () => {
         finishHydration = resolve
       })
       mockState.sessionMessages.value['session-2'] = [{ role: 'system', content: 'persisted history' }]
+      return true
     })
 
     const { authorityStore, followerStore } = initializeAuthorityAndFollower()
@@ -817,6 +819,29 @@ describe('useChatSyncStore', async () => {
     followerStore.dispose()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3714523510
+  it('rejects targeted ingest when hydration fails for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // loadSession swallowed IndexedDB failures and resolved void. The authority
+    // continued into ingest, where a system-only fallback could overwrite the
+    // metadata-only conversation that failed to hydrate.
+    mockState.loadSession.mockResolvedValueOnce(false)
+
+    const store = useChatSyncStore()
+    store.initialize('authority')
+
+    await expect(store.requestIngest({
+      text: 'continue this chat',
+      sessionId: 'session-2',
+    })).rejects.toThrow('Failed to hydrate chat session "session-2"')
+
+    expect(mockState.ingest).not.toHaveBeenCalled()
+    expect(mockState.setSessionMessages).not.toHaveBeenCalled()
+
+    store.dispose()
+  })
+
   // https://github.com/moeru-ai/airi/issues/2085
   it('hydrates a metadata-only follower session before deleting a message for Issue #2085', async () => {
     // ROOT CAUSE:
@@ -836,6 +861,7 @@ describe('useChatSyncStore', async () => {
         { id: 'remove-me', role: 'user', content: 'remove this message' },
         { id: 'keep-me', role: 'assistant', content: 'keep this message' },
       ]
+      return true
     })
 
     const { authorityStore, followerStore } = initializeAuthorityAndFollower()
@@ -978,6 +1004,7 @@ describe('useChatSyncStore', async () => {
     mockState.sessionMetas.value['session-1'] = { sessionId: 'session-1' }
     mockState.loadSession.mockImplementationOnce(async () => {
       mockState.sessionMessages.value['session-1'] = initialMessages
+      return true
     })
 
     const store = useChatSyncStore()
