@@ -19,6 +19,7 @@ const sizeClasses: Record<ButtonSize, string> = {
   sm: 'min-h-7 px-2! py-1! text-xs',
   md: 'min-h-8 px-3! py-1.5! text-sm',
   lg: 'min-h-10 px-4! py-2! text-base',
+  unset: 'px-2 py-1',  // 只保留基础内边距，不限制高度
 }
 
 const basicProps = computed(() => ({
