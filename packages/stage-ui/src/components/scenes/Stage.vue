@@ -192,6 +192,7 @@ let bilingualParser = new BilingualStreamParser({
 })
 // Capture the routing policy when a response begins. Store changes are for the
 // next response and must not change caption behavior for queued audio tokens.
+let activeBilingualTurnId: string | null = null
 let bilingualCaptionsEnabledForTurn = bilingualStore.enabled
 let hasBilingualSubtitleForTurn = false
 
@@ -621,9 +622,15 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
   },
   onStart: ({ item }) => {
     // Once subtitle text arrives it replaces this provisional spoken caption.
-    // Subsequent playback must not overwrite the requested subtitle tracks.
-    if (bilingualCaptionsEnabledForTurn && hasBilingualSubtitleForTurn)
+    // Subsequent playback for this chat turn must not overwrite the requested subtitle tracks.
+    if (
+      bilingualCaptionsEnabledForTurn
+      && hasBilingualSubtitleForTurn
+      && activeBilingualTurnId
+      && item.turnId === activeBilingualTurnId
+    ) {
       return
+    }
 
     // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
     // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
@@ -862,6 +869,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
+  activeBilingualTurnId = context.turnId
   bilingualCaptionsEnabledForTurn = context.bilingualResponse
   hasBilingualSubtitleForTurn = false
   bilingualParser = new BilingualStreamParser({
