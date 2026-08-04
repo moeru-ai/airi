@@ -1,8 +1,12 @@
 import type { ObservableCallback, ObservableResult } from '@opentelemetry/api'
 
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { registerUserMetricsSnapshotGauges } from './user-metrics-snapshot'
+import { registerUserMetricsSnapshotGauges, USER_METRICS_SNAPSHOT_MAX_AGE_MS } from './user-metrics-snapshot'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 function createGaugeProbe() {
   let callback: ObservableCallback | undefined
@@ -27,6 +31,8 @@ function createGaugeProbe() {
 
 describe('registerUserMetricsSnapshotGauges', () => {
   it('keeps periodic collection passive and only observes an explicitly recorded snapshot', async () => {
+    const refreshedAt = Date.parse('2026-08-04T00:00:00.000Z')
+    vi.spyOn(Date, 'now').mockReturnValue(refreshedAt)
     const totalUsers = createGaugeProbe()
     const activeSessions = createGaugeProbe()
     const distinctActiveUsers = createGaugeProbe()
@@ -51,16 +57,19 @@ describe('registerUserMetricsSnapshotGauges', () => {
     expect(distinctActiveUsers.observe).not.toHaveBeenCalled()
     expect(rollingActiveUsers.observe).not.toHaveBeenCalled()
 
-    recorder.record({
-      totalUsers: 42,
-      activeSessions: 7,
-      distinctActiveUsers: 5,
-      rollingActiveUsers: {
-        '24h': 9,
-        '7d': 18,
-        '30d': 30,
+    recorder.record(
+      {
+        totalUsers: 42,
+        activeSessions: 7,
+        distinctActiveUsers: 5,
+        rollingActiveUsers: {
+          '24h': 9,
+          '7d': 18,
+          '30d': 30,
+        },
       },
-    })
+      refreshedAt,
+    )
 
     await Promise.all([
       totalUsers.collect(),
@@ -75,5 +84,44 @@ describe('registerUserMetricsSnapshotGauges', () => {
     expect(rollingActiveUsers.observe).toHaveBeenNthCalledWith(1, 9, { window: '24h' })
     expect(rollingActiveUsers.observe).toHaveBeenNthCalledWith(2, 18, { window: '7d' })
     expect(rollingActiveUsers.observe).toHaveBeenNthCalledWith(3, 30, { window: '30d' })
+  })
+
+  it('stops observing a snapshot after its bounded freshness interval', async () => {
+    const refreshedAt = Date.parse('2026-08-04T00:00:00.000Z')
+    vi.spyOn(Date, 'now').mockReturnValue(refreshedAt)
+    const totalUsers = createGaugeProbe()
+    const activeSessions = createGaugeProbe()
+    const distinctActiveUsers = createGaugeProbe()
+    const rollingActiveUsers = createGaugeProbe()
+
+    const recorder = registerUserMetricsSnapshotGauges({
+      totalUsers: totalUsers.gauge,
+      activeSessions: activeSessions.gauge,
+      distinctActiveUsers: distinctActiveUsers.gauge,
+      rollingActiveUsers: rollingActiveUsers.gauge,
+    })
+
+    recorder.record(
+      {
+        totalUsers: 42,
+        activeSessions: 7,
+        distinctActiveUsers: 5,
+        rollingActiveUsers: { '24h': 9, '7d': 18, '30d': 30 },
+      },
+      refreshedAt,
+    )
+
+    vi.mocked(Date.now).mockReturnValue(refreshedAt + USER_METRICS_SNAPSHOT_MAX_AGE_MS)
+    await Promise.all([
+      totalUsers.collect(),
+      activeSessions.collect(),
+      distinctActiveUsers.collect(),
+      rollingActiveUsers.collect(),
+    ])
+
+    expect(totalUsers.observe).not.toHaveBeenCalled()
+    expect(activeSessions.observe).not.toHaveBeenCalled()
+    expect(distinctActiveUsers.observe).not.toHaveBeenCalled()
+    expect(rollingActiveUsers.observe).not.toHaveBeenCalled()
   })
 })

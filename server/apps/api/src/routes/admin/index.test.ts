@@ -66,7 +66,7 @@ describe('admin metrics', () => {
       totalUsers: 1,
       activeSessions: 0,
       distinctActiveUsers: 0,
-    }))
+    }), now)
 
     await db.insert(schema.user).values({
       id: 'user-2',
@@ -75,15 +75,18 @@ describe('admin metrics', () => {
       emailVerified: false,
     })
 
+    now += 30_000
     const cachedResponse = await app.request('/api/admin/metrics')
     expect(cachedResponse.status).toBe(200)
     expect(await cachedResponse.json()).toMatchObject({ totalUsers: 1, verifiedUsers: 1, adminSeats: 1 })
     expect(recordUserMetrics).toHaveBeenCalledTimes(2)
+    expect(recordUserMetrics).toHaveBeenLastCalledWith(expect.anything(), Date.parse('2026-08-04T00:00:00.000Z'))
 
-    now += 60_001
+    now += 30_001
     const refreshedResponse = await app.request('/api/admin/metrics')
     expect(refreshedResponse.status).toBe(200)
     expect(await refreshedResponse.json()).toMatchObject({ totalUsers: 2, verifiedUsers: 1, adminSeats: 1 })
     expect(recordUserMetrics).toHaveBeenCalledTimes(3)
+    expect(recordUserMetrics).toHaveBeenLastCalledWith(expect.anything(), now)
   })
 })

@@ -2,6 +2,11 @@ import type { ObservableGauge } from '@opentelemetry/api'
 
 const ROLLING_WINDOWS = ['24h', '7d', '30d'] as const
 
+// The admin endpoint caches DB aggregates for 60 seconds. Two minutes keeps a
+// continuously refreshed dashboard stable across cache rollover and several
+// 15-second OTel collections, while still bounding stale replica dominance.
+export const USER_METRICS_SNAPSHOT_MAX_AGE_MS = 2 * 60_000
+
 type RollingWindow = (typeof ROLLING_WINDOWS)[number]
 
 export interface UserMetricsSnapshot {
@@ -12,7 +17,7 @@ export interface UserMetricsSnapshot {
 }
 
 export interface UserMetricsSnapshotRecorder {
-  record: (snapshot: UserMetricsSnapshot) => void
+  record: (snapshot: UserMetricsSnapshot, refreshedAt: number) => void
 }
 
 type ObservableGaugeRegistration = Pick<ObservableGauge, 'addCallback'>
@@ -27,39 +32,56 @@ export interface UserMetricsSnapshotGauges {
 /**
  * Export the latest explicitly refreshed user-metrics snapshot without doing
  * I/O from OTel's periodic collection callbacks. Until a request records the
- * first snapshot, the gauges intentionally emit no points.
+ * first snapshot, or after the last database refresh becomes stale, the
+ * gauges intentionally emit no points.
  */
 export function registerUserMetricsSnapshotGauges(
   gauges: UserMetricsSnapshotGauges,
 ): UserMetricsSnapshotRecorder {
-  let latest: UserMetricsSnapshot | undefined
+  let latest: { snapshot: UserMetricsSnapshot, refreshedAt: number } | undefined
+
+  function readFreshSnapshot(): UserMetricsSnapshot | undefined {
+    if (!latest)
+      return undefined
+
+    if (Date.now() - latest.refreshedAt >= USER_METRICS_SNAPSHOT_MAX_AGE_MS) {
+      latest = undefined
+      return undefined
+    }
+
+    return latest.snapshot
+  }
 
   gauges.totalUsers.addCallback((result) => {
-    if (latest)
-      result.observe(latest.totalUsers)
+    const snapshot = readFreshSnapshot()
+    if (snapshot)
+      result.observe(snapshot.totalUsers)
   })
 
   gauges.activeSessions.addCallback((result) => {
-    if (latest)
-      result.observe(latest.activeSessions)
+    const snapshot = readFreshSnapshot()
+    if (snapshot)
+      result.observe(snapshot.activeSessions)
   })
 
   gauges.distinctActiveUsers.addCallback((result) => {
-    if (latest)
-      result.observe(latest.distinctActiveUsers)
+    const snapshot = readFreshSnapshot()
+    if (snapshot)
+      result.observe(snapshot.distinctActiveUsers)
   })
 
   gauges.rollingActiveUsers.addCallback((result) => {
-    if (!latest)
+    const snapshot = readFreshSnapshot()
+    if (!snapshot)
       return
 
     for (const window of ROLLING_WINDOWS)
-      result.observe(latest.rollingActiveUsers[window], { window })
+      result.observe(snapshot.rollingActiveUsers[window], { window })
   })
 
   return {
-    record(snapshot) {
-      latest = snapshot
+    record(snapshot, refreshedAt) {
+      latest = { snapshot, refreshedAt }
     },
   }
 }

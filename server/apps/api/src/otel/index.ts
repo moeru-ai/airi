@@ -85,7 +85,9 @@ export interface AuthMetrics {
    * Expects:
    * - Refreshed when an authorized caller requests `/api/admin/metrics`.
    *   OTel collection only reads the in-process snapshot and never queries
-   *   Postgres. Dashboards MUST aggregate with `max()`/`avg()`, not `sum()`.
+   *   Postgres. The gauge stops emitting after the bounded freshness window
+   *   so an old replica can become stale. Dashboards MUST aggregate with
+   *   `max()`/`avg()`, not `sum()`.
    */
   totalUsers: ObservableGauge
   /**
@@ -101,8 +103,8 @@ export interface AuthMetrics {
    *   serverless database awake.
    *
    * Multi-replica note:
-   * - Only replicas that have handled an admin metrics request emit a point.
-   *   The dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
+   * - Only replicas with a fresh admin metrics snapshot emit a point. The
+   *   dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
    * - See `server/apps/api/docs/ai-context/observability-conventions.md`,
    *   "Multi-Replica Considerations".
    */
@@ -403,16 +405,16 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'Number of user sign-ins',
     }),
     totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
-      description: 'Latest admin-requested total registered-user snapshot (OTel collection is memory-only; dashboard must use max(), not sum())',
+      description: 'Fresh admin-requested total registered-user snapshot (memory-only and expires when stale; dashboard must use max(), not sum())',
     }),
     activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Latest admin-requested active-session snapshot (OTel collection is memory-only; dashboard must use max(), not sum())',
+      description: 'Fresh admin-requested active-session snapshot (memory-only and expires when stale; dashboard must use max(), not sum())',
     }),
     distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
-      description: 'Latest admin-requested distinct active-user snapshot, immune to per-row session inflation (dashboard must use max(), not sum())',
+      description: 'Fresh admin-requested distinct active-user snapshot, immune to per-row session inflation and omitted when stale (dashboard must use max(), not sum())',
     }),
     rollingActiveUsers: meter.createObservableGauge(METRIC_USER_ACTIVE_ROLLING, {
-      description: 'Latest admin-requested DAU/WAU/MAU snapshot from user.last_seen_at, labelled by window=24h|7d|30d (dashboard must use max(), not sum())',
+      description: 'Fresh admin-requested DAU/WAU/MAU snapshot from user.last_seen_at, omitted when stale and labelled by window=24h|7d|30d (dashboard must use max(), not sum())',
     }),
   }
 

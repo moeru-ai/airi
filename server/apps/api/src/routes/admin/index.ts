@@ -71,14 +71,19 @@ interface AdminMetricsSnapshot extends UserMetricsSnapshot {
   grafanaEmbedUrl: null
 }
 
-function createAdminMetricsReader(db: Database) {
-  let cached: { value: AdminMetricsSnapshot, expiresAt: number } | undefined
-  let inFlight: Promise<AdminMetricsSnapshot> | undefined
+interface AdminMetricsRead {
+  value: AdminMetricsSnapshot
+  refreshedAt: number
+}
 
-  return async function readAdminMetrics(): Promise<AdminMetricsSnapshot> {
+function createAdminMetricsReader(db: Database) {
+  let cached: (AdminMetricsRead & { expiresAt: number }) | undefined
+  let inFlight: Promise<AdminMetricsRead> | undefined
+
+  return async function readAdminMetrics(): Promise<AdminMetricsRead> {
     const now = Date.now()
     if (cached && cached.expiresAt > now)
-      return cached.value
+      return cached
 
     // A polling burst can arrive immediately after expiry. Share that refresh
     // within this API process so only one set of aggregate queries reaches DB.
@@ -144,8 +149,13 @@ function createAdminMetricsReader(db: Database) {
 
       // Expiry starts after the refresh finishes; slow aggregate queries should
       // not shorten the period during which the completed snapshot is reused.
-      cached = { value, expiresAt: Date.now() + ADMIN_METRICS_CACHE_TTL_MS }
-      return value
+      const refreshedAt = Date.now()
+      cached = {
+        value,
+        refreshedAt,
+        expiresAt: refreshedAt + ADMIN_METRICS_CACHE_TTL_MS,
+      }
+      return cached
     })()
 
     try {
@@ -264,8 +274,8 @@ export function createAdminRoutes(deps: AdminRoutesDeps) {
 
     .get('/metrics', async (c) => {
       const snapshot = await readAdminMetrics()
-      deps.userMetricsRecorder.record(snapshot)
-      return c.json(snapshot)
+      deps.userMetricsRecorder.record(snapshot.value, snapshot.refreshedAt)
+      return c.json(snapshot.value)
     })
 
     .get('/users', async (c) => {
