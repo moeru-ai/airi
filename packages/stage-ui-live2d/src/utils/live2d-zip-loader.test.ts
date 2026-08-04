@@ -47,6 +47,17 @@ function createShisihangshiSettingsText(): string {
   })
 }
 
+function createCjkPathSettingsText(): string {
+  return JSON.stringify({
+    Version: 3,
+    FileReferences: {
+      Moc: '测试角色.moc3',
+      Textures: ['中文纹理/texture_00.png'],
+    },
+    Groups: [],
+  })
+}
+
 const appleDoubleHeader = new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0, 77, 97, 99, 32, 79, 83, 32, 88])
 
 describe('live2d zip loader settings sanitization', () => {
@@ -81,6 +92,46 @@ describe('live2d zip loader settings sanitization', () => {
       '302301_shisihangshi/motions/t_idle.motion3.json',
       '302301_shisihangshi/textures/302301_shisihangshi_00.png',
     ])
+  })
+
+  it('loads a zip model whose settings and resources use CJK paths', async () => {
+    await import('./live2d-zip-loader')
+    const { FileLoader, Live2DModel, ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('中文路径模型/测试角色.model3.json', createCjkPathSettingsText())
+    zip.file('中文路径模型/测试角色.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('中文路径模型/中文纹理/texture_00.png', new Uint8Array([1, 2, 3]))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = Object.assign(await ZipLoader.unzip(reader, settings), { settings })
+    const objectUrl = `zip://test/${settings.url}`
+    Object.assign(settings, { _objectURL: objectUrl })
+
+    // ROOT CAUSE:
+    //
+    // FileLoader encoded each webkitRelativePath before comparing it with settings.resolveURL().
+    // CJK names therefore became percent-encoded on only one side of the comparison.
+    //
+    // settings.resolveURL('测试角色.moc3') !== encodeURI(file.webkitRelativePath)
+    //
+    // The loader now keeps both sides as decoded archive paths, matching its unzip and upload stages.
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
+
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+        URL.revokeObjectURL(resourceUrl)
+      delete FileLoader.filesMap[objectUrl]
+    }
   })
 
   it('loads a zip model when a macOS AppleDouble settings sidecar is present before the real settings file', async () => {
@@ -134,7 +185,51 @@ describe('live2d zip loader settings sanitization', () => {
     const settings = await FileLoader.createSettings(files)
 
     expect(settings.physics).toBeUndefined()
-    expect(() => settings.validateFiles(files.map(file => encodeURI(file.webkitRelativePath)))).not.toThrow()
+    expect(() => settings.validateFiles(files.map(file => file.webkitRelativePath))).not.toThrow()
+  })
+
+  it('loads an OPFS-restored file directory whose settings and resources use CJK paths', async () => {
+    await import('./live2d-zip-loader')
+    const { FileLoader, Live2DModel } = await import('pixi-live2d-display/cubism4')
+
+    const files = [
+      fileWithRelativePath(
+        createCjkPathSettingsText(),
+        '测试角色.model3.json',
+        '中文路径模型/测试角色.model3.json',
+      ),
+      fileWithRelativePath(
+        new Uint8Array([77, 79, 67, 51]),
+        '测试角色.moc3',
+        '中文路径模型/测试角色.moc3',
+      ),
+      fileWithRelativePath(
+        new Uint8Array([1, 2, 3]),
+        'texture_00.png',
+        '中文路径模型/中文纹理/texture_00.png',
+      ),
+    ]
+    const existingObjectUrls = new Set(Object.keys(FileLoader.filesMap))
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
+
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const objectUrl of Object.keys(FileLoader.filesMap)) {
+        if (existingObjectUrls.has(objectUrl))
+          continue
+
+        for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+          URL.revokeObjectURL(resourceUrl)
+        URL.revokeObjectURL(objectUrl)
+        delete FileLoader.filesMap[objectUrl]
+      }
+    }
   })
 
   it('loads an OPFS-restored file directory when a macOS AppleDouble settings sidecar is present before the real settings file', async () => {
