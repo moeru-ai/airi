@@ -60,6 +60,7 @@ fn list_tools() -> Vec<String> {
 Then write some utility functions to call them:
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
+
 export const mcp = [
   {
     name: 'list_tools',
@@ -142,6 +143,7 @@ async fn call_tool(state: State<'_, Mutex<Option<McpClient>>>, name: String, arg
 On the JavaScript side, we simply pass an object:
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
+
 invoke('call_tool', { name: 'input_swipe', args: { x1: 100, y1: 100, x2: 200, y2: 200, duration: 500 } })
 ```
 Super convenient!

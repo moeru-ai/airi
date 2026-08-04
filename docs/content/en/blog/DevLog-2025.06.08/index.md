@@ -52,11 +52,9 @@ Then the relative position of the cursor to the window is: `(G - E, H - F)`
 It seems very simple, right? Then let's write the code:
 
 ```typescript
-
 const live2dFocusAt = ref({ x: innerWidth / 2, y: innerHeight / 2 }) // initial position
 
 listen('tauri-app:window-click-through:mouse-location-and-window-frame', (event: { payload: [Point, WindowFrame] }) => {
-
   const [mouseLocation, windowFrame] = event.payload
 
   live2dFocusAt.value = {
@@ -66,9 +64,7 @@ listen('tauri-app:window-click-through:mouse-location-and-window-frame', (event:
     y: mouseLocation.y - windowFrame.origin.y,
 
   }
-
 })
-
 ```
 
 
@@ -81,15 +77,11 @@ listen('tauri-app:window-click-through:mouse-location-and-window-frame', (event:
 In the code, we pass the `live2dFocusAt` defined above to the Live2D model:
 
 ```typescript
-
 const model = ref(Live2DModel.from('url', { autoInteract: false }))
 
 watch(live2dFocusAt, (point) => {
-
   model.value.focus(point)
-
 })
-
 ```
 
 

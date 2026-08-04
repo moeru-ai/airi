@@ -20,21 +20,16 @@ The package is still fairly limited at the moment; we will add more capabilities
 Here is how to use it:
 
 ```ts
-
 import { check } from 'gpuu/webgpu'
-
 import { onMounted } from 'vue'
 
 onMounted(async () => {
-
   const result = await check()
 
   console.info(result)
 
   // Do something with the result
-
 })
-
 ```
 
 

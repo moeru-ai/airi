@@ -79,11 +79,9 @@ In this scenario, what counts as a "character"? In Unicode, the smallest meaning
 Don't worry — we also have the Web API [TextDecoder](https://developer.mozilla.org/en-US/docs/Web/API/TextDecoder). Using `TextDecoder.decode` with the `stream` option, the decoder will automatically handle streaming data and correctly restore the characters:
 
 ```javascript
-
 const decoder = new TextDecoder()
 
 const decoded = decoder.decode(chunk, { stream: true })
-
 ```
 
 
@@ -147,25 +145,19 @@ If we output 「👩‍👧」 early, we get an incomplete grapheme cluster, whi
 In some scenarios, we want to output these (of course, complete) grapheme clusters as early as possible. We still use `Intl.Segmenter`, but slightly adjust the dequeuing strategy: if we cannot be sure whether the current grapheme cluster is complete, we wait for the next one to appear and output all except the last one:
 
 ```ts
-
 declare let clusterBuffer: string
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
 while (true) {
-
   const segments = [...segmenter.segment(clusterBuffer)]
 
   segments.pop() // discard the last grapheme cluster
 
   for (const seg of segments) {
-
     yield seg.segment // output the complete grapheme cluster
-
   }
-
 }
-
 ```
 
 

@@ -5,9 +5,10 @@ import messages from '@proj-airi/i18n/locales'
 import { createI18n } from 'vue-i18n'
 
 import ThemedVideo from '../components/ThemedVideo.vue'
+import Layout from '../custom/Layout.vue'
+
 import { applyLanguageRedirect } from '../composables/language-redirect'
 import { applyReduceMotionDefaults } from '../composables/reduce-motion'
-import Layout from '../custom/Layout.vue'
 
 import '@unocss/reset/tailwind.css'
 import 'uno.css'

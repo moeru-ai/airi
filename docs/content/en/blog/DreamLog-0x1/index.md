@@ -383,7 +383,7 @@ Neuro-sama's history is actually quite complex. As far as I know, Neuro-sama —
 was not the first appearance of her and her creator `vedal987` (Vedal). Long before that, on May 6, 2019, Vedal showed the community his work on building an AI
 
 
-to play [osu!](https://osu.ppy.sh/)[^1].
+to play [osu!][https://osu.ppy.sh/](^1).
 
 
 At that time, she was actually not an online character or digital life; if you watch her initial videos, you will find that she did not even have a Live2D model.
@@ -704,12 +704,4 @@ So how many bytes can we store? **It depends on how much we can dream, and how m
 
 > Cover image by [@Rynco Maekawa](https://github.com/lynzrand)
 
-
-[^1]: https://neurosama.fandom.com/wiki/Osu!#cite_note-twitchtracker-1: Neuro-sama
-
-
-  was originally an AI that played osu!, long before further developing into an AI VTuber. The first osu! stream was on May 6, 2019,
-
-
-  when Vedal showed everyone the results.
 

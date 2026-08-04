@@ -117,7 +117,6 @@ CREATE EXTENSION vectors;
 But if, like in the Docker Compose example above, we directly start `pgvector.rs` and use the following Drizzle ORM table definition to generate the database...:
 
 ```yaml
-
 services:
 
   pgvector:
@@ -147,14 +146,12 @@ services:
       timeout: 5s
 
       retries: 5
-
 ```
 
 
 and then connect Drizzle directly to the `pgvector.rs` instance:
 
 ```typescript
-
 export const chatMessagesTable = pgTable('chat_messages', {
 
   id: uuid().primaryKey().defaultRandom(),
@@ -168,7 +165,6 @@ export const chatMessagesTable = pgTable('chat_messages', {
   index('chat_messages_content_vector_1024_index').using('hnsw', table.content_vector_1024.op('vector_cosine_ops')),
 
 ])
-
 ```
 
 
@@ -200,7 +196,6 @@ CREATE EXTENSION vectors;
 Then mount `init.sql` into the Docker container:
 
 ```yaml
-
 services:
 
   pgvector:
@@ -231,7 +226,6 @@ services:
       timeout: 5s
 
       retries: 5
-
 ```
 
 
@@ -317,7 +311,6 @@ We now have a vector database and an embedding model, but how do we query the da
 First, we need to define the table structure. The Drizzle code can reference the following:
 
 ```typescript
-
 import { index, pgTable, serial, text, vector } from 'drizzle-orm/pg-core'
 
 export const demoTable = pgTable(
@@ -345,7 +338,6 @@ export const demoTable = pgTable(
   ]
 
 )
-
 ```
 
 
@@ -385,7 +377,6 @@ In short, we need to specify the concrete vector dimension for the application b
 So how do we query? You can refer to this simplified code implementation from the Telegram Bot integration:
 
 ```typescript
-
 let similarity: SQL<number>
 switch (env.EMBEDDING_DIMENSION) {
   case '1536':

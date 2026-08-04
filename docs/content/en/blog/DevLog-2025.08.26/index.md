@@ -183,9 +183,7 @@ Now we can assemble the two parts above. I used:
 At first, inference was very slow — around 400ms — and it froze the UI, making it hard to even display VNC properly. I learned a bit of WebWorker usage on the fly and separated inference from display to solve the problem. I also discovered that I had not actually enabled WebGPU, so the speed was still slow.
 
 ```typescript
-
 ort.InferenceSession.create(model, { executionProviders: ['webgpu', 'wasm'] })
-
 ```
 
 
@@ -219,9 +217,7 @@ For IOU and NMS, you can refer to [this article](https://medium.com/@jesse419419
 I used a very simple NMS implementation: sort all boxes by confidence, iterate from high to low, and if a box's IOU with another is greater than 0.7, consider them the same object and filter it out.
 
 ```typescript
-
 function nms(boxes: Box[], iouThreshold: number): Box[] {
-
   // 1. Filter by confidence and sort in descending order
 
   const candidates = boxes
@@ -233,7 +229,6 @@ function nms(boxes: Box[], iouThreshold: number): Box[] {
   const result: Box[] = []
 
   while (candidates.length > 0) {
-
     // 2. Pick the box with the highest confidence
 
     const bestCandidate = candidates.shift()!
@@ -243,23 +238,16 @@ function nms(boxes: Box[], iouThreshold: number): Box[] {
     // 3. Compare with remaining boxes and remove ones with high IOU
 
     for (let i = candidates.length - 1; i >= 0; i--) {
-
       // The iou() function needs to be implemented separately, as described in the article.
 
       if (iou(bestCandidate, candidates[i]) > iouThreshold) {
-
         candidates.splice(i, 1)
-
       }
-
     }
-
   }
 
   return result
-
 }
-
 ```
 
 

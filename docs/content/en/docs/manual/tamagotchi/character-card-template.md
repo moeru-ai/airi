@@ -21,7 +21,6 @@ This template provides a minimal, usable Character Card V3 structure that can se
 ## Template
 
 ```json
-
 {
 
   "spec": "chara_card_v3",
@@ -65,6 +64,5 @@ This template provides a minimal, usable Character Card V3 structure that can se
   }
 
 }
-
 ```
 
