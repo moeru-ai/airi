@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { adaptInternalModel, initializeCubism2Model } from './model-adapter'
+import { adaptInternalModel, initializeCubism2Model } from './model'
 
 /**
  * Minimal stand-in for `Live2DModelWebGL`, backed by a plain map so tests can
@@ -45,7 +45,10 @@ describe('legacy Live2D model adapter', () => {
       ['PARAM_ANGLE_X', 3],
       ['PARAM_MOUTH_FORM_01', 0.25],
     ])
-    const internalModel = adaptInternalModel({ coreModel: createCubism2Core(values) })
+    const internalModel = adaptInternalModel({
+      coreModel: createCubism2Core(values),
+      settings: { initParams: [{ id: 'PARAM_MOUTH_FORM_01' }] },
+    })
 
     expect(internalModel.coreModel.getParameterValueById('ParamAngleX')).toBe(3)
     expect(internalModel.coreModel.getParameterValueById('PARAM_MOUTH_FORM_01')).toBe(0.25)
@@ -143,6 +146,27 @@ describe('legacy Live2D model adapter', () => {
     })
 
     expect(internalModel.eyeBlink).toBeNull()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197#discussion_r2255381307
+  it('pR #2197 uses the standard mouth-form ID by default', () => {
+    const values = new Map<string, number>([['PARAM_MOUTH_FORM', 0.25]])
+    const internalModel = adaptInternalModel({ coreModel: createCubism2Core(values) })
+
+    expect(internalModel.coreModel.getParameterValueById('ParamMouthForm')).toBe(0.25)
+    expect(values.has('PARAM_MOUTH_FORM_01')).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197#discussion_r2255381307
+  it('pR #2197 uses a model-specific mouth-form ID only when settings declare it', () => {
+    const values = new Map<string, number>([['PARAM_MOUTH_FORM_01', 0.75]])
+    const internalModel = adaptInternalModel({
+      coreModel: createCubism2Core(values),
+      settings: { initParams: [{ id: 'PARAM_MOUTH_FORM_01' }] },
+    })
+
+    expect(internalModel.coreModel.getParameterValueById('ParamMouthForm')).toBe(0.75)
+    expect(values.has('PARAM_MOUTH_FORM')).toBe(false)
   })
 
   it('leaves a Cubism 3+ core model unchanged', () => {
