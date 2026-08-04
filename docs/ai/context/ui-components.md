@@ -10,6 +10,21 @@ Source: `packages/ui/src/components/`
 
 ## Animations
 
+### AnimatedContent
+
+Behavior-only primitive that animates height, opacity, vertical offset, and an
+inner content blur from an external `data-state="open|closed"` lifecycle. The
+lifecycle owner must keep the primitive mounted until the closing animation
+finishes. It can compose with Reka UI content primitives through `as-child`, but
+does not depend on a specific menu, popover, or presence implementation. Visual
+styling remains caller-owned.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `as` | `PrimitiveProps['as']?` | `'div'` | Element or component rendered as the animated outer container |
+
+**Slots**: `default`
+
 ### TransitionBidirectional
 
 Bidirectional Vue `<Transition>` wrapper with customizable CSS classes.
@@ -114,10 +129,14 @@ surface, border, shape, or color styling.
 | `label` | `string?` | — | Button text |
 | `disabled` | `boolean?` | `false` | Disabled state |
 | `loading` | `boolean?` | `false` | Loading state |
-| `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
+| `size` | `'sm' \| 'md' \| 'lg' \| 'unset'` | `'md'` | Preset size; `unset` leaves sizing to the caller |
 | `block` | `boolean?` | `false` | Full width |
 
 **Slots**: `default` (fallback when no `label`)
+
+`size="unset"` omits the preset padding and text-size classes in `BasicButton`,
+`Button`, and `GhostButton`. Callers must supply any required sizing, including
+fixed dimensions for circular buttons.
 
 ### Button
 

@@ -39,6 +39,7 @@ const {
 } = useAnalytics()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
+const isStoreManaged = import.meta.env.VITE_DISTRIBUTION === 'steam'
 const isLatestVersion = computed(() => {
   return updateState.value.status === 'not-available' && !isDisabled.value
 })
@@ -279,6 +280,7 @@ onMounted(() => {
             </div>
 
             <FieldSelect
+              v-if="!isStoreManaged"
               :model-value="selectedUpdateChannel"
               :disabled="isUpdateChannelUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"
@@ -390,7 +392,9 @@ onMounted(() => {
                       : isLatestVersion
                         ? t('tamagotchi.stage.about.update.actions.latest-version')
                         : isDisabled
-                          ? t('tamagotchi.stage.about.update.actions.disabled-dev')
+                          ? t(isStoreManaged
+                            ? 'tamagotchi.stage.about.update.actions.managed-by-store'
+                            : 'tamagotchi.stage.about.update.actions.disabled-dev')
                           : isError
                             ? t('tamagotchi.stage.about.update.actions.retry-check')
                             : t('tamagotchi.stage.about.update.actions.check-for-updates')"

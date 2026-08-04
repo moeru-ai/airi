@@ -19,6 +19,7 @@ import { createBadRequestError, createNotFoundError } from '../../utils/error'
 import { createQueryIntegerSchema } from '../../utils/http-query'
 
 const MAX_FLUX_ADJUSTMENT = 1_000_000_000
+const ADMIN_METRICS_CACHE_TTL_MS = 60_000
 
 const ListUsersQuerySchema = object({
   limit: createQueryIntegerSchema({
@@ -56,6 +57,86 @@ export interface AdminRoutesDeps {
   db: Database
   billingService: BillingService
   configKV: ConfigKVService
+}
+
+interface AdminMetricsSnapshot {
+  totalUsers: number
+  verifiedUsers: number
+  activeSessions: number
+  currentFlux: number
+  issuedFlux: number
+  llmRequests24h: number
+  llmFlux24h: number
+  adminSeats: number
+  grafanaEmbedUrl: null
+}
+
+function createAdminMetricsReader(db: Database) {
+  let cached: { value: AdminMetricsSnapshot, expiresAt: number } | undefined
+  let inFlight: Promise<AdminMetricsSnapshot> | undefined
+
+  return async function readAdminMetrics(): Promise<AdminMetricsSnapshot> {
+    const now = Date.now()
+    if (cached && cached.expiresAt > now)
+      return cached.value
+
+    // A polling burst can arrive immediately after expiry. Share that refresh
+    // within this API process so only one set of aggregate queries reaches DB.
+    if (inFlight)
+      return inFlight
+
+    inFlight = (async () => {
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+      const [
+        totalUsers,
+        verifiedUsers,
+        activeSessions,
+        currentFlux,
+        issuedFlux,
+        llmRequests24h,
+        llmFlux24h,
+        adminUsers,
+      ] = await Promise.all([
+        db.select({ count: count() }).from(userTable),
+        db.select({ count: count() }).from(userTable).where(eq(userTable.emailVerified, true)),
+        db.select({ count: count() }).from(sessionTable).where(gt(sessionTable.expiresAt, new Date())),
+        db.select({ total: sql<number>`coalesce(sum(${userFlux.flux}), 0)::int` }).from(userFlux).where(isNull(userFlux.deletedAt)),
+        db.select({ total: sql<number>`coalesce(sum(${fluxTransaction.amount}) filter (where ${fluxTransaction.type} in ('credit', 'initial', 'promo')), 0)::int` }).from(fluxTransaction),
+        db.select({ count: count() }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
+        db.select({ total: sql<number>`coalesce(sum(${llmRequestLog.fluxConsumed}), 0)::int` }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
+        db
+          .select({ count: count() })
+          .from(userTable)
+          .where(sql<boolean>`'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*'))`),
+      ])
+
+      const value: AdminMetricsSnapshot = {
+        totalUsers: Number(totalUsers[0]?.count ?? 0),
+        verifiedUsers: Number(verifiedUsers[0]?.count ?? 0),
+        activeSessions: Number(activeSessions[0]?.count ?? 0),
+        currentFlux: Number(currentFlux[0]?.total ?? 0),
+        issuedFlux: Number(issuedFlux[0]?.total ?? 0),
+        llmRequests24h: Number(llmRequests24h[0]?.count ?? 0),
+        llmFlux24h: Number(llmFlux24h[0]?.total ?? 0),
+        adminSeats: Number(adminUsers[0]?.count ?? 0),
+        grafanaEmbedUrl: null,
+      }
+
+      // Expiry starts after the refresh finishes; slow aggregate queries should
+      // not shorten the period during which the completed snapshot is reused.
+      cached = { value, expiresAt: Date.now() + ADMIN_METRICS_CACHE_TTL_MS }
+      return value
+    })()
+
+    try {
+      return await inFlight
+    }
+    finally {
+      // Failed refreshes are intentionally not cached, so the next poll retries.
+      inFlight = undefined
+    }
+  }
 }
 
 function serializeUser(row: {
@@ -142,6 +223,8 @@ async function ensureUserExists(db: Database, userId: string) {
 }
 
 export function createAdminRoutes(deps: AdminRoutesDeps) {
+  const readAdminMetrics = createAdminMetricsReader(deps.db)
+
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .use('*', adminGuard)
@@ -161,42 +244,7 @@ export function createAdminRoutes(deps: AdminRoutesDeps) {
     })
 
     .get('/metrics', async (c) => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
-      const [
-        totalUsers,
-        verifiedUsers,
-        activeSessions,
-        currentFlux,
-        issuedFlux,
-        llmRequests24h,
-        llmFlux24h,
-        adminUsers,
-      ] = await Promise.all([
-        deps.db.select({ count: count() }).from(userTable),
-        deps.db.select({ count: count() }).from(userTable).where(eq(userTable.emailVerified, true)),
-        deps.db.select({ count: count() }).from(sessionTable).where(gt(sessionTable.expiresAt, new Date())),
-        deps.db.select({ total: sql<number>`coalesce(sum(${userFlux.flux}), 0)::int` }).from(userFlux).where(isNull(userFlux.deletedAt)),
-        deps.db.select({ total: sql<number>`coalesce(sum(${fluxTransaction.amount}) filter (where ${fluxTransaction.type} in ('credit', 'initial', 'promo')), 0)::int` }).from(fluxTransaction),
-        deps.db.select({ count: count() }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
-        deps.db.select({ total: sql<number>`coalesce(sum(${llmRequestLog.fluxConsumed}), 0)::int` }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
-        deps.db
-          .select({ count: count() })
-          .from(userTable)
-          .where(sql<boolean>`'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*'))`),
-      ])
-
-      return c.json({
-        totalUsers: Number(totalUsers[0]?.count ?? 0),
-        verifiedUsers: Number(verifiedUsers[0]?.count ?? 0),
-        activeSessions: Number(activeSessions[0]?.count ?? 0),
-        currentFlux: Number(currentFlux[0]?.total ?? 0),
-        issuedFlux: Number(issuedFlux[0]?.total ?? 0),
-        llmRequests24h: Number(llmRequests24h[0]?.count ?? 0),
-        llmFlux24h: Number(llmFlux24h[0]?.total ?? 0),
-        adminSeats: Number(adminUsers[0]?.count ?? 0),
-        grafanaEmbedUrl: null,
-      })
+      return c.json(await readAdminMetrics())
     })
 
     .get('/users', async (c) => {
