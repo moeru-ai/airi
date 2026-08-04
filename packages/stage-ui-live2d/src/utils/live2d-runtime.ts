@@ -1,33 +1,12 @@
+/// <reference types="@proj-airi/unplugin-live2d-sdk/types" />
+
 import type * as Live2DDisplay from 'pixi-live2d-display'
 import type { InternalModel, Live2DFactoryOptions, Live2DModel } from 'pixi-live2d-display'
 
 import { errorMessageFrom } from '@moeru/std'
+import { cubism2Core } from 'virtual:live2d-sdk/cores'
 
 import { loaderForModel } from '../generations/loader'
-
-/**
- * Path of the emitted Cubism 2 core relative to the app base, or `null` in a
- * build that carries no core. Injected by the `Cubism2Core` Vite plugin.
- */
-declare const __AIRI_CUBISM2_CORE_PATH__: string | null
-
-/**
- * Resolves the emitted core against the base URL the app was built for.
- *
- * NOTICE:
- * The join is what makes packaged stage-tamagotchi work. Its renderer builds
- * with `base: './'` and loads over `file://`, so a root-anchored `/assets/...`
- * would resolve against the filesystem root rather than the renderer directory
- * holding the asset. Because the plugin's define is a plain runtime string
- * assigned to `script.src`, Vite cannot rewrite it the way it rewrites the same
- * path in `index.html`, so the base has to be applied here.
- *
- * Vite normalises a resolved base to end in `/` (`./` for a relative base, `/`
- * in dev and for the web and pocket apps), so concatenation is enough.
- */
-function coreUrlFrom(path: string): string {
-  return `${import.meta.env.BASE_URL}${path}`
-}
 
 declare global {
   interface Window {
@@ -40,17 +19,19 @@ export type Live2DRuntime = typeof Live2DDisplay
 let runtimePromise: Promise<Live2DRuntime> | undefined
 let coreScriptPromise: Promise<void> | undefined
 
-function loadCubism2Core(url: string): Promise<void> {
-  if (window.Live2D)
+function loadCubism2Core(url: string, sri: string, expectedGlobal: string): Promise<void> {
+  if (expectedGlobal in window)
     return Promise.resolve()
 
   coreScriptPromise ??= new Promise<void>((resolve, reject) => {
     const script = document.createElement('script')
     script.src = url
+    script.integrity = sri
+    script.crossOrigin = 'anonymous'
     script.async = true
     script.addEventListener('load', () => {
-      if (!window.Live2D) {
-        reject(new Error('The configured Cubism 2 core loaded without exposing window.Live2D.'))
+      if (!(expectedGlobal in window)) {
+        reject(new Error(`The configured Cubism 2 core loaded without exposing window.${expectedGlobal}.`))
         return
       }
 
@@ -93,10 +74,6 @@ async function importCombinedRuntime(): Promise<Live2DRuntime> {
  */
 export function loadLive2DRuntime(): Promise<Live2DRuntime> {
   runtimePromise ??= (async () => {
-    const cubism2CoreUrl = typeof __AIRI_CUBISM2_CORE_PATH__ === 'string'
-      ? coreUrlFrom(__AIRI_CUBISM2_CORE_PATH__)
-      : null
-
     // NOTICE:
     // The combined bundle needs BOTH Cubism cores on `window` before it is
     // imported, not before a model is created, so ordering here is load-bearing.
@@ -121,8 +98,8 @@ export function loadLive2DRuntime(): Promise<Live2DRuntime> {
     //
     // Removal condition: pixi-live2d-display (0.4.0 today) moves core detection
     // out of module scope, or this package loads the modern core itself.
-    const runtime = cubism2CoreUrl
-      ? await loadCubism2Core(cubism2CoreUrl).then(importCombinedRuntime)
+    const runtime = cubism2Core.available
+      ? await loadCubism2Core(cubism2Core.url, cubism2Core.sri, cubism2Core.expectedGlobal).then(importCombinedRuntime)
       : await import('pixi-live2d-display/cubism4')
 
     const { configureLive2DLoaders } = await import('./live2d-zip-loader')
@@ -138,8 +115,7 @@ export function loadLive2DRuntime(): Promise<Live2DRuntime> {
 }
 
 export function isCubism2RuntimeConfigured(): boolean {
-  return typeof __AIRI_CUBISM2_CORE_PATH__ === 'string'
-    && __AIRI_CUBISM2_CORE_PATH__.length > 0
+  return cubism2Core.available
 }
 
 /** Sets up a model through the SDK, then runs exactly one generation-specific preparation pass. */

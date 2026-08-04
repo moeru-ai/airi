@@ -86,7 +86,7 @@ export async function validateLive2DZip(file: File | Blob): Promise<Live2DValida
     // with the missing-core message once it reaches the stage. A WARNING report
     // still offers "Import Anyway" in the audit modal, which would only defer
     // that failure past the point where the model was already persisted.
-      report.errors.push('Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.')
+      report.errors.push('Cubism 2 runtime is not present in this build. Configure it through the Live2D SDK Vite plugin, then check the build log if provisioning was skipped or failed.')
     }
   }
   catch (error) {

@@ -17,9 +17,9 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
-import { Cubism2Core } from '@proj-airi/stage-ui-live2d/vite'
+import { createCubism2CoreOptions } from '@proj-airi/stage-ui-live2d/vite'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
+import { Cubism2Core, DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -239,7 +239,7 @@ export default defineConfig({
     VueDevTools(),
 
     DownloadLive2DSDK(),
-    Cubism2Core(),
+    Cubism2Core(createCubism2CoreOptions({ distribution: 'bundle' })),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

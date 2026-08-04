@@ -35,14 +35,9 @@ async function createCubism2Zip(): Promise<Blob> {
   return blobFromBytes(await zip.generateAsync({ type: 'uint8array' }))
 }
 
-/**
- * Every case here runs without the `__AIRI_CUBISM2_CORE_PATH__` define, so
- * `isCubism2RuntimeConfigured()` is false and Cubism 2 archives always carry the
- * missing-core error. Vitest has no build-time define to flip, and stubbing the
- * identifier would only assert the stub, so the core-present branch is covered
- * where the gate is produced instead: `cubism2-core.test.ts`.
- */
-const CUBISM2_CORE_MISSING_ERROR = 'Cubism 2 runtime is not present in this build. The core is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, or supply your own copy through AIRI_CUBISM2_CORE_PATH.'
+// The test Vite config registers the real upstream plugin with no sources, so
+// this exercises its supported Cubism-4-only capability state.
+const CUBISM2_CORE_MISSING_ERROR = 'Cubism 2 runtime is not present in this build. Configure it through the Live2D SDK Vite plugin, then check the build log if provisioning was skipped or failed.'
 
 describe('live2D ZIP validator', () => {
   it('recognizes a complete DORI-style Cubism 2 archive', async () => {

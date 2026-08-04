@@ -48,8 +48,7 @@ export const cubism2Loader: Live2DGenerationLoader = {
     if (!cubismRuntime) {
       throw new Error(
         `Cubism 2 model "${url}" needs the proprietary live2d.min.js core, which is not present in this build. `
-        + `It is normally downloaded when AIRI is built, so check the build log for the reason it was skipped, `
-        + `or supply your own copy at packages/stage-ui-live2d/.cubism2/live2d.min.js or through AIRI_CUBISM2_CORE_PATH.`,
+        + `Configure it through the Live2D SDK Vite plugin, then check the build log if provisioning was skipped or failed.`,
       )
     }
     return cubismRuntime.createModelSettings(runtimeSettings)

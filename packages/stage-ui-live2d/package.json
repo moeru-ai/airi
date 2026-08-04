@@ -31,7 +31,7 @@
     "./utils/live2d-zip-loader": "./src/utils/live2d-zip-loader.ts",
     "./utils/live2d-opfs-registration": "./src/utils/live2d-opfs-registration.ts",
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts",
-    "./vite": "./src/vite/cubism2-core.ts"
+    "./vite": "./src/vite/index.ts"
   },
   "scripts": {
     "typecheck": "vue-tsc --noEmit"
@@ -68,6 +68,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@proj-airi/unplugin-live2d-sdk": "catalog:",
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
     "vite": "catalog:",
