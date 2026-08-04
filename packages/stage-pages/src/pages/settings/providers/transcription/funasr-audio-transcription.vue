@@ -117,7 +117,7 @@ onMounted(() => providersStore.initializeProvider(providerId))
           <template #title>
             <div class="w-full flex items-center justify-between">
               <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <Button class="ml-2 flex-shrink-0" size="sm" variant="danger" @click="forceValid">
+              <Button class="ml-2 flex-shrink-0" size="sm" color="orange" variant="primary" @click="forceValid">
                 {{ t('settings.pages.providers.common.continueAnyway') }}
               </Button>
             </div>
