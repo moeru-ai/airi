@@ -785,6 +785,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
   return {
+    turnId,
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),

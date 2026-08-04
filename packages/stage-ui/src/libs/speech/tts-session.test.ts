@@ -182,7 +182,7 @@ describe('createStreamingTtsSession (adapter)', () => {
   it('schedules sentences into playbackManager with monotonic sequence', () => {
     const playback = makePlaybackManagerStub()
     const pipe = makePipelineStub()
-    const snap = makeStreamingSnapshot()
+    const snap = makeStreamingSnapshot({ turnId: 'turn-123' })
 
     createStreamingTtsSession({
       intentId: 'stream-abc',
@@ -203,6 +203,7 @@ describe('createStreamingTtsSession (adapter)', () => {
     expect(playback.scheduled).toHaveLength(2)
     expect(playback.scheduled[0]).toMatchObject({
       id: 'stream-abc-0',
+      turnId: 'turn-123',
       streamId: 'stream-abc',
       intentId: 'stream-abc',
       segmentId: 'stream-abc-0',
