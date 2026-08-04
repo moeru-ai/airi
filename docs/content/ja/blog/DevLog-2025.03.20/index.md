@@ -104,7 +104,7 @@ OKLCH パレット全体を一度にキャンバスに展開して参照する�
 それは、Neuro-sama の最初のバージョンでは、テキスト読み上げサービスが Microsoft によって提供されており、`Ashley` という声を使用し、`+20%` のピッチを加えることで、Neuro-sama の最初のバージョンと同じ声を得ることができるからです。自分で試してみてください：
 
 <audio controls style="width: 100%;">
-  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
+  <source src="./assets/ashley-pitch-test.mp3" />
 </audio>
 
 完全に同じではありませんか、これは本当にクレイジーです！つまり、私たちはついに新しい**音声**機能を通じて、Neuro-sama ができることに近づくことができるのです！

@@ -203,8 +203,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  :light="airiDemoOnboardingLight"
-  :dark="airiDemoOnboardingDark"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
 />
 
 #### VRM
@@ -223,8 +223,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  :light="airiDemoOnboardingMobileLight"
-  :dark="airiDemoOnboardingMobileDark"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
 />
 
 #### 씬
@@ -310,8 +310,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  :light="airiDocsLight"
-  :dark="airiDocsDark"
+  light="/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4"
 />
 
 정말 멋져 보입니다. [Reka UI](https://reka-ui.com) 의 작업을 바탕으로 완전히 새로 쓰면서

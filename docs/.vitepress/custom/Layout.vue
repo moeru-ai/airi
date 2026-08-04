@@ -33,8 +33,8 @@ onMounted(() => updateThemeColor())
 
 watch(lang, () => locale.value = lang.value, { immediate: true })
 
-// 记录用户实际访问的语言（localStorage），applyLanguageRedirect 据此在
-// 后续访问时尊重手动选择，不再按浏览器语言自动跳转。
+// Record the language of the page the user actually visited (localStorage);
+// applyLanguageRedirect uses this to respect the manual choice on later visits.
 onMounted(() => rememberLanguageFromPath(route.path))
 watch(() => route.path, path => rememberLanguageFromPath(path))
 </script>

@@ -122,7 +122,7 @@ Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microso
 여기에 피치를 `+20%` 하면 Neuro-sama 첫 버전과 같은 목소리를 얻을 수 있기 때문입니다. 직접 들어 보세요:
 
 <audio controls style="width: 100%;">
-  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
+  <source src="./assets/ashley-pitch-test.mp3" />
 </audio>
 
 똑같지 않나요, 정말 대단합니다! 즉 새로운 **음성** 능력으로 마침내 Neuro-sama 가 하는 일에

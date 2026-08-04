@@ -1,15 +1,17 @@
-// 根据浏览器语言将无前缀/其他语言路径重定向到对应语言版本。
+// Redirects prefix-less or mismatched language paths to the matching language
+// version based on the browser language.
 //
-// 跳转仅在用户从未"选择"过语言（localStorage 无记录）时按浏览器语言执行；
-// 用户访问过任何语言页面后，由 rememberLanguageFromPath 记录其语言，
-// 后续访问不再自动跳转，避免与手动选择冲突。
+// The redirect only happens while the user has never "chosen" a language
+// (no localStorage entry). Once any language page has been visited,
+// rememberLanguageFromPath records that language, so later visits are not
+// auto-redirected and the manual choice is respected.
 
 const LANGUAGE_STORAGE_KEY = 'docs:settings/language'
 const LANGUAGE_PATH_PATTERN = /\/(en|zh-Hans|ja|ko)(\/|$)/
 
 let redirecting = false
 
-/** 把浏览器首选语言映射到站点的语言版本（与 config.ts 的 locales 一致）。 */
+/** Maps the browser's preferred language to a site language version (aligned with the locales in config.ts). */
 function languageFromNavigator(): string | undefined {
   const first = navigator.language.toLowerCase()
   if (first.startsWith('zh'))
@@ -23,16 +25,17 @@ function languageFromNavigator(): string | undefined {
   return undefined
 }
 
-/** 从路径中提取语言前缀；无语言前缀的路径属于默认语言（en）。 */
+/** Extracts the language prefix from a path; a prefix-less path belongs to the default language (en). */
 function languageFromPath(pathname: string): string {
   const match = pathname.match(LANGUAGE_PATH_PATTERN)
   return match?.[1] ?? 'en'
 }
 
 /**
- * 在客户端 app 初始化时调用（早于页面组件挂载）：
- * 用户未手动选择过语言、且浏览器语言与当前路径语言不一致时，
- * 302 等效地重定向到目标语言路径。en 为默认语言，无需跳转。
+ * Called during client app initialization (before page components mount).
+ * Redirects to the target language path when the user has never chosen a
+ * language and the browser language differs from the current path's language.
+ * en is the default language and is never redirected.
  */
 export function applyLanguageRedirect(): void {
   if (typeof window === 'undefined')
@@ -58,8 +61,10 @@ export function applyLanguageRedirect(): void {
 }
 
 /**
- * 记录用户实际访问的语言（Layout 在挂载与路由变化时调用）。
- * 正在执行自动重定向时不记录，避免把被跳走页面的语言误记为用户选择。
+ * Records the language of the page the user actually visited (called by Layout
+ * on mount and on route changes). Skips recording while an automatic redirect
+ * is in flight, so the redirected-away page's language is not mistaken for the
+ * user's choice.
  */
 export function rememberLanguageFromPath(pathname: string): void {
   if (typeof window === 'undefined' || redirecting)

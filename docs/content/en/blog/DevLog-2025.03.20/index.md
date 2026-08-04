@@ -141,7 +141,7 @@ Because for the first version of Neuro-sama, the text-to-speech service was powe
 
 
 <audio controls style="width: 100%;">
-  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
+  <source src="./assets/ashley-pitch-test.mp3" />
 </audio>
 
 
