@@ -4,7 +4,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Button, Callout, Collapsible } from '@proj-airi/ui'
+import { Callout, Collapsible, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
@@ -145,9 +145,9 @@ watch([hostname, tlsConfig, authToken], () => {
           :class="['h-48 w-48']"
         >
 
-        <Button
+        <GhostButton
           size="sm"
-          variant="secondary-muted"
+
           :loading="loading"
           :label="t('settings.pages.connection.qr.refresh')"
           @click="refreshPayload"

@@ -9,12 +9,7 @@ import type { ServerForm } from './mcp-config'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import {
-  Button,
-  Callout,
-  Checkbox,
-  TransitionVertical,
-} from '@proj-airi/ui'
+import { Button, Callout, Checkbox, GhostButton, TransitionVertical } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -42,7 +37,7 @@ import {
 } from './mcp-config'
 
 const { t } = useI18n()
-const { trackMcpServerAdded, trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
+const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
@@ -215,7 +210,6 @@ function formatJsonDraft() {
 function addServer() {
   const server = createServerForm()
   servers.value.push(server)
-  trackMcpServerAdded()
   if (!testRowId.value)
     testRowId.value = server.rowId
 }
@@ -359,8 +353,8 @@ onMounted(async () => {
         <span class="font-medium">{{ tn('config-path') }}:</span> {{ configPath || '-' }}
       </div>
       <div class="flex justify-end">
-        <Button
-          variant="secondary" size="sm" :toggled="jsonOpen"
+        <GhostButton
+          size="sm" :active="jsonOpen"
           :icon="jsonOpen ? 'i-solar:close-square-bold-duotone' : 'i-solar:document-text-bold-duotone'"
           :label="jsonOpen ? tn('actions.close-json') : tn('actions.edit-json')"
           @click="toggleJsonPanel"
@@ -475,15 +469,16 @@ onMounted(async () => {
         <McpServerForm :model-value="server" @remove="removeServer(server.rowId)" />
       </article>
 
-      <Button
-        variant="secondary-muted" size="md" block :disabled="isBusy"
+      <GhostButton
+        v-track-button="{ name: 'mcp_server_added' }"
+        size="md" block :disabled="isBusy"
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"
       />
     </section>
 
     <Button
-      variant="primary" size="md" block :disabled="isBusy" :loading="isBusy"
+      size="md" block :disabled="isBusy" :loading="isBusy"
       icon="i-solar:rocket-2-bold-duotone" :label="restartActionLabel"
       @click="applyRestartAction"
     />
