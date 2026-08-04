@@ -210,6 +210,22 @@ describe('streamFrom tool errors', () => {
     expect(events).toContainEqual({ type: 'text-delta', text: 'ok' })
     expect(events).toContainEqual({ type: 'finish' })
   })
+
+  it('rejects when the finish listener throws instead of leaving the stream pending', async () => {
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+
+    await expect(streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+      options: {
+        onStreamEvent: async (event) => {
+          if (event.type === 'finish')
+            throw new Error('finish listener failed')
+        },
+      },
+    })).rejects.toThrow('finish listener failed')
+  })
 })
 
 describe('sanitizeMessages', () => {
