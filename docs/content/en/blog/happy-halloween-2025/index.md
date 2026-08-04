@@ -1,15 +1,19 @@
 ---
 title: 'Happy Halloween! 🎃'
-description: 'Happy Halloween celebration'
+description: 'Halloween celebration'
 date: 2025-10-30
-excerpt: 'Trick or treat! Join us for a spooky night filled with candy, costumes, and Halloween magic! 🍭👻'
+excerpt: 'Trick or treat! Come enjoy a spooky night full of candy, costumes, and Halloween magic! 🍭👻'
 preview-cover:
-  light: "@assets('./assets/halloween-airi.avif')"
-  dark: "@assets('./assets/halloween-airi.avif')"
+  light: "/blog/happy-halloween-2025/assets/halloween-airi.avif"
+  dark: "/blog/happy-halloween-2025/assets/halloween-airi.avif"
 ---
+
 
 Welcome to our magical Halloween celebration! 🎃✨
 
-Get ready for a night filled with spooky fun, delicious candy, amazing costumes, and Halloween magic. Whether you're here for the treats or planning some harmless tricks, this is going to be an unforgettable Halloween adventure! 🍭👻🦇
 
-![Halloween Art](./assets/halloween-airi.avif)
+Get ready for a night of surprising fun, delicious candy, amazing costumes, and Halloween magic. Whether you are here for treats or up to a little harmless mischief, this will be an unforgettable Halloween adventure! 🍭👻🦇
+
+
+![](/blog/happy-halloween-2025/assets/halloween-airi.avif)
+

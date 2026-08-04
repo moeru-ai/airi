@@ -20,7 +20,7 @@ import NmsIou from '../../../en/blog/DevLog-2025.08.26/components/nms-iou.vue'
 
 まずは成果をお見せします：
 
-<ThemedVideo src="/en/blog/DevLog-2025.08.26/assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
+<ThemedVideo src="/blog/DevLog-2025.08.26/assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
 
 動画では、Web ページ内で VNC に接続して Factorio をプレイしています。右側は物体検出の結果で、ほぼリアルタイムです。[HuggingFace Space](https://huggingface.co/spaces/proj-airi/factorio-yolo-v0-playground) にもデプロイしたので、ぜひ遊んでみてください。
 
@@ -98,7 +98,7 @@ sudo apt install -y websockify novnc
 
 画像と注釈データが収集されたら、[YOLO 公式の形式](https://docs.ultralytics.com/datasets/detect/)に従ってデータセットを整理し、[Ultralytics Hub](https://www.ultralytics.com/hub) にアップロードして効果を確認できます：
 
-![Ultralytics Hub](/en/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.jpg)
+![](/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.jpg)
 
 悪くないでしょう？では、トレーニングを始めましょう！
 

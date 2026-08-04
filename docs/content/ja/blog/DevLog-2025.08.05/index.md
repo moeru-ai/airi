@@ -5,8 +5,8 @@ description: |
 date: 2025-08-04
 excerpt: お待たせしました！<br/> v0.7 は当初7月初旬にリリース予定でしたが、Windows でのいくつかの重要なバグ発見と、さらなる適応作業のため、今まで延期されていました。
 preview-cover:
-  light: "@assets('/en/blog/DevLog-2025.08.05/assets/cover-light.avif')"
-  dark: "@assets('/en/blog/DevLog-2025.08.05/assets/cover-dark.avif')"
+  light: "/blog/DevLog-2025.08.05/assets/cover-light.avif"
+  dark: "/blog/DevLog-2025.08.05/assets/cover-dark.avif"
 ---
 
 <script setup lang="ts">
@@ -85,7 +85,7 @@ Tamagotchi は AIRI デスクトップ版の名前です。
 
 <br />
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4" />
 
 多くのユーザーは、カーソルがキャラクターの上に止まるたびにウィンドウ全体がフェードアウトすることに混乱していました。
 この機能と、なぜ私たちが AI コンパニオンにとって重要だと考えているのかを説明するドキュメントが不足していたことをお詫びします。
@@ -130,7 +130,7 @@ UI/UX に多くの改善を加え、より使いやすくするための機能�
 
 <br />
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4" />
 
 移動モードに入るとドラッグ可能領域が表示されます。マウスで位置を移動する以外に、
 トレイメニューの位置 > 中央 / 左下 / 右下を使用するのも別の選択肢です。
@@ -148,7 +148,7 @@ UI/UX に多くの改善を加え、より使いやすくするための機能�
 
 <br />
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4" />
 
 #### リソースアイランド
 
@@ -161,7 +161,7 @@ Steam や Battle.net のように、さまざまなモジュールと必要な�
 
 実際の動作をご覧ください：
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-resource-island.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-resource-island.mp4" />
 
 これには準備中のモジュールへのリンクが含まれているため、モジュールリンクをクリックして
 ターゲットモジュールの設定ページを開き、なぜこのモデルやファイルが必要なのかを知ることができます。
@@ -172,7 +172,7 @@ Steam や Battle.net のように、さまざまなモジュールと必要な�
 [candle-examples](https://github.com/proj-airi/candle-examples) で行った実験のおかげで、
 Windows、macOS、Linux で動作するローカル ASR/STT エンジンができました。
 
-<ThemedVideo autoplay src="/en/blog/DevLog-2025.08.05/assets/airi-demo-settings-hearing.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-settings-hearing.mp4" />
 
 <br />
 
@@ -198,15 +198,15 @@ Web 版にオンボーディングサポートが追加されました。これ�
 
 彼らは Pull Request がマージされた後、Project AIRI に貢献した経験を共有するためにブログ記事を書きました：[AIRIプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.avif" alt="オンボーディング ライトモード" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.avif" alt="オンボーディング ダークモード" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.avif" alt="オンボーディング ライトモード" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.avif" alt="オンボーディング ダークモード" />
 
 実際の動作をご覧ください：
 
 <ThemedVideo
   autoplay
-  light="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
-  dark="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
 />
 
 #### VRM
@@ -214,8 +214,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 [Lilia-Chen (Lilia_Chen)](https://github.com/Lilia-Chen) の尽力のおかげで、
 正確なカメラ実装とレンダリングメカニズムにより、VRM モデルがより良く表示されるようになりました。
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-vrm-light.avif" alt="時系列チャート ライトモード" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-vrm-dark.avif" alt="時系列チャート ダークモード" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-light.avif" alt="時系列チャート ライトモード" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-dark.avif" alt="時系列チャート ダークモード" />
 
 ### モバイル Web
 
@@ -225,8 +225,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 
 <ThemedVideo
   autoplay
-  light="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
-  dark="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
 />
 
 #### シーン
@@ -247,8 +247,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 
 <ThemedVideo
   autoplay
-  light="/en/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-light.mp4"
-  dark="/en/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-dark.mp4"
 />
 
 ### 両方のバージョン
@@ -264,12 +264,12 @@ Web 版にオンボーディングサポートが追加されました。これ�
 実際の動作をご覧ください：
 
 <video class="light" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-clustr-light.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-light.mp4" type="video/mp4">
   お使いのブラウザは動画タグをサポートしていません。
 </video>
 
 <video class="dark" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-clustr-dark.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-dark.mp4" type="video/mp4">
   お使いのブラウザは動画タグをサポートしていません。
 </video>
 
@@ -279,8 +279,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 
 検出された音声入力レベルやリアルタイムのシステム負荷を表示する場合に便利です：
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-light.avif" alt="レベルメーター ライトモード" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-dark.avif" alt="レベルメーター ダークモード" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-light.avif" alt="レベルメーター ライトモード" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-dark.avif" alt="レベルメーター ダークモード" />
 
 #### 時系列チャート
 
@@ -288,8 +288,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 
 変化する値のレベルメーターに似ていますが、特に履歴データに役立ちます。
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-light.avif" alt="時系列チャート ライトモード" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-dark.avif" alt="時系列チャート ダークモード" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-light.avif" alt="時系列チャート ライトモード" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-dark.avif" alt="時系列チャート ダークモード" />
 
 さらに多くのコンポーネントを追加しました...
 
@@ -308,12 +308,12 @@ Web 版にオンボーディングサポートが追加されました。これ�
 現在、新しいドキュメントサイトがあります：
 
 <video class="light" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4" type="video/mp4">
   お使いのブラウザは動画タグをサポートしていません。
 </video>
 
 <video class="dark" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4" type="video/mp4">
   お使いのブラウザは動画タグをサポートしていません。
 </video>
 
@@ -325,8 +325,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 
 ブログページも素敵です。さらに良いことに、[@lynzrand (Rynco Maekawa)](https://github.com/lynzrand) がデザインした新しいカバーがあります。
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-docs-blogs-light.avif" alt="ブログ ライトモード" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-docs-blogs-dark.avif" alt="ブログ ダークモード" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-light.avif" alt="ブログ ライトモード" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-dark.avif" alt="ブログ ダークモード" />
 
 ### 翻訳ワークフローの変更
 
@@ -335,8 +335,8 @@ Web 版にオンボーディングサポートが追加されました。これ�
 新しいローカリゼーションの貢献、新しい翻訳の追加、または既存の翻訳の修正を行う場合は、
 まず https://github.com/moeru-ai/airi/tree/main/packages/i18n/src/locales に移動してください。
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-packages-i18n-light.avif" alt="i18n パッケージ ライトモード" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-packages-i18n-dark.avif" alt="i18n パッケージ ダークモード" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-light.avif" alt="i18n パッケージ ライトモード" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-dark.avif" alt="i18n パッケージ ダークモード" />
 
 ここでは、さまざまな言語のさまざまなディレクトリがあります。必要な言語を選択して続行します。
 
@@ -534,7 +534,7 @@ NVIDIA CUDA に依存していたため、ビルドは本当に混乱してお�
 ロードマップ上の [Roadmap v0.7](https://github.com/moeru-ai/airi/issues/200) を追跡および確認できます。
 
 <div class="w-full flex flex-col items-center justify-center gap-3 py-3">
-  <img src="/en/blog/DevLog-2025.08.05/assets/relu-sticker-thinks.avif" alt="ReLU 思考中ステッカー" class="w-30!" />
+  <img src="/blog/DevLog-2025.08.05/assets/relu-sticker-thinks.avif" alt="ReLU 思考中ステッカー" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">ここまで読んでいただきありがとうございます！</span>
   </div>

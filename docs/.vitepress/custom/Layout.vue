@@ -11,6 +11,7 @@ import SearchTrigger from '../components/SearchTrigger.vue'
 import Docs from './Docs.vue'
 import Showcase from './Showcase.vue'
 
+import { rememberLanguageFromPath } from '../composables/language-redirect'
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
 const { site, theme, frontmatter, lang, isDark } = useData<{ logo: string }>()
@@ -31,6 +32,11 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 watch(lang, () => locale.value = lang.value, { immediate: true })
+
+// 记录用户实际访问的语言（localStorage），applyLanguageRedirect 据此在
+// 后续访问时尊重手动选择，不再按浏览器语言自动跳转。
+onMounted(() => rememberLanguageFromPath(route.path))
+watch(() => route.path, path => rememberLanguageFromPath(path))
 </script>
 
 <template>

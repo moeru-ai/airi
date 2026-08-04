@@ -100,8 +100,19 @@ export default createContentLoader('**/blog/**/*.md', {
 
           const parsed = parse(file)
           try {
+            // Shared media moved to `content/public` is referenced by its
+            // site-root URL (e.g. /en/blog/...); fall back to public when the
+            // file is no longer under srcDir.
+            const srcPath = join(config.srcDir, file)
+            let content: Buffer
+            try {
+              content = await readFile(srcPath)
+            }
+            catch {
+              content = await readFile(join(config.srcDir, 'public', file))
+            }
             const hash = createHash('sha256')
-              .update(await readFile(join(config.srcDir, file)))
+              .update(content)
               .digest('hex')
               .slice(0, 8)
 

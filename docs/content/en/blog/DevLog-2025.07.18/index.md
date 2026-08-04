@@ -3,83 +3,110 @@ title: DevLog @ 2025.07.18
 category: DevLog
 date: 2025-07-18
 excerpt: |
-  We would love to share how we plan to improve our Factorio AI agent project, `airi-factorio`, based on the Factorio Learning Environment paper.
+  After reading the paper about a Factorio reinforcement learning environment, we want to share how we plan to improve the Factorio agent project `airi-factorio`.
 preview-cover:
-  light: "@assets('./assets/factorio-belt.gif')"
-  dark: "@assets('./assets/factorio-belt.gif')"
+  light: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
+  dark: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
 ---
 
-Hello, I'm [@LemonNeko](https://github.com/LemonNekoGH), one of the maintainers of AIRI.
 
-## Review
+Hello everyone, I am [@LemonNeko](https://github.com/LemonNekoGH), one of the maintainers of AIRI.
 
-Half a year ago, I first tried to write an AI Agent that can play the famous automation production simulation game [Factorio](https://www.factorio.com/) called [`airi-factorio`](https://github.com/moeru-ai/airi-factorio), and I did the following things:
 
-- Writing Factorio Mods in TypeScript: Using [tstl](https://github.com/TypeScriptToLua/TypeScriptToLua) to compile TypeScript code into Lua code.
-- Using RCON to interact with Factorio Mods: Using [factorio-rcon-api](https://github.com/nekomeowww/factorio-rcon-api) to communicate with Factorio, calling `/c` commands to execute functions registered by the mod. Many thanks to [@nekomeowww](https://github.com/nekomeowww).
-- Using LLM for decision-making and generating Lua code to control the player: Through prompt engineering to tell the LLM how to operate the game, how to plan, and encapsulating the RCON interaction code into tools that the LLM can call.
-- Interacting with the LLM through the game's built-in chat system: By reading the game's standard output, using regular expressions to parse player chat content in the game, and sending it to the LLM for processing.
-- Hot reloading of Factorio Mods: By writing a plugin for tstl to monitor code changes in real-time and send new mod content to the game via RCON. When receiving new mod code, unload all interfaces and execute the mod code once to achieve hot reloading. However, how to properly handle the existing state of the mod became a major challenge.
-- Development in DevContainer: Making the environment more controllable and project startup simpler.
-- Using symbolic links to link the `tstl` output directory to the game directory, so we can directly see the compiled Lua code in the game directory, making debugging easier.
+## Retrospective
 
-This taught me a lot of knowledge ~~(especially that Lua array indices start from 1)~~.
 
-However, I also encountered many problems. Since our main operations were written in the mod, debugging became very troublesome. We needed to exit the map, return to the game's main interface, and re-enter to apply mod changes. If our mod was slightly more complex with `data.lua`, we needed to restart the game.
+Half a year ago, I made my first attempt at writing an AI agent [`airi-factorio`](https://github.com/moeru-ai/airi-factorio) that can play the famous automation production/management game [Factorio](https://www.factorio.com/), and I practiced the following along the way:
 
-We let the LLM generate Lua code, then execute it by calling the game command `/c` through RCON. However, Factorio has a length limit for each command. If our code was too long, we needed to execute it multiple times.
 
-The current code has poor robustness and maintainability. If new friends want to participate in development, or even just try it out, starting this project is very difficult.
+- Writing a Factorio mod in TypeScript: using [tstl](https://github.com/TypeScriptToLua/TypeScriptToLua) to compile TypeScript code into Lua code.
+- Interacting with the Factorio mod via RCON: using [factorio-rcon-api](https://github.com/nekomeowww/factorio-rcon-api) to communicate with Factorio and call the `/c` command to execute functions registered by the mod. Many thanks to [@nekomeowww](https://github.com/nekomeowww).
+- Using an LLM to make decisions and generate Lua code to operate the player: using prompt engineering to tell the LLM how to operate the game and how to plan, and wrapping the RCON interaction code into tools that the LLM can call.
+- Interacting with the LLM through the in-game chat system: reading the game's standard output and using regex to parse the chat content of players in the game, then sending it to the LLM for processing.
+- Hot-reloading the Factorio mod: writing a plugin for tstl to watch code changes in real time and send the new mod content to the game via RCON; when new mod code arrives, unload all interfaces and execute the mod code once to achieve hot reload. However, correctly handling the mod's existing state became a major challenge.
+- Developing in a DevContainer: making the environment more controllable and the project startup simpler.
+- Symlinking tstl's output directory into the game directory, so the compiled Lua code can be seen directly in the game directory for easier debugging.
+
+
+This taught me a lot ~~(especially that Lua array indexing starts from 1)~~.
+
+
+But we also ran into many problems. Since our main operations were written in the mod, debugging was very troublesome: we had to exit the map, return to the game's main menu, and re-enter to apply mod changes. If our mod was a bit more complex and had a `data.lua`, we had to restart the game.
+
+
+We let the LLM generate Lua code and execute it by calling the game command `/c` via RCON. However, Factorio limits the length of a single command, so if our code was too long, it had to be executed in multiple parts.
+
+
+The current code is very fragile and hard to maintain. If new friends want to join development, or even just try it, starting this project is very difficult.
+
 
 ## Factorio Learning Environment
 
-Fast forward to now, I plan to properly organize this project, but I don't know where to start. Coincidentally, someone mentioned a paper called [Factorio Learning Environment](https://arxiv.org/abs/2503.09617). Let me give you a simple read-through.
 
-In this paper, the authors proposed a framework called Factorio Learning Environment (FLE), where they tested AI's capabilities in long-term planning, program synthesis, resource management, and spatial reasoning.
+Now, I plan to sort out this project properly, but I did not know where to start. Just then, someone mentioned the paper [Factorio Learning Environment](https://arxiv.org/abs/2503.09617). Let me walk you through it briefly.
+
+
+In this paper, the authors propose a framework called the Factorio Learning Environment (FLE), where they test AI's abilities in long-term planning, program synthesis, resource management, and spatial reasoning.
+
 
 FLE has two modes:
 
-- Lab-play: Testing in 24 manually designed levels with limited resources, examining whether AI can efficiently build production lines with limited resources.
-- Open-play: Unlimited large maps, with the goal of building the largest factory on procedurally generated maps, testing AI's long-term autonomous goal setting, exploration, and expansion capabilities.
 
-They evaluated mainstream LLMs like Claude 3.5 Sonnet, GPT-4o, Deepseek-v3, Gemini-2, etc., but in Lab-play, even the strongest Claude 3.5 at the time only completed 7 levels.
+- Lab-play: tests on 24 hand-designed levels with limited resources, examining whether the AI can build efficient production lines under limited resources.
+- Open-play: an unlimited large map where the goal is to build the biggest factory on a procedurally generated map, testing the AI's long-term autonomous goal-setting, exploration, and expansion abilities.
 
-Reading this, I became curious. Their evaluation was so complex, so they must have also ensured technical maintainability. How did they achieve this? Continuing to read, I found that their implementation method was very similar to `airi-factorio`, but had many advantages compared to `airi-factorio`:
 
-- Written in Python, the LLM generates Python code and executes it directly in a Python REPL, and can read results directly from standard output. Since Python has far more datasets than Lua, the generation accuracy is higher and can generate more complex code.
-- The Lua mod only contains primitive operations for execution, such as place_entity for placing entities. More complex logic is written in Python, which can reduce the possibility of bugs in the Lua mod, so we don't need to restart the game so frequently.
-- Using `/sc` commands instead of `/c` commands to execute Lua code, which doesn't output code to the console, keeping the console clean and only leaving the necessary content, simplifying the difficulty of parsing standard input.
+They evaluated several mainstream LLMs including Claude 3.5 Sonnet, GPT-4o, Deepseek-v3, and Gemini-2, but in Lab-play even the then-strongest Claude 3.5 only completed 7 levels.
 
-To better evaluate LLM capabilities, they also carefully analyzed all the required recipe production processes and difficulties, summarizing some formulas, such as the cost of producing an item, how to calculate LLM scores, etc.
 
-They also posted their [system prompt](https://arxiv.org/html/2503.09617v1#A8.SS4), which specifies the environment structure, response format, best practices, how to understand game output, etc.
+At this point, I became curious: their evaluation is so complex — how do they ensure maintainability in the technical implementation? Reading on, I found that their implementation is very similar to `airi-factorio`, but has many advantages over it:
+
+
+- Written in Python: the LLM generates Python code and executes it directly in a Python REPL, and the results can be read directly from standard output. Since Python's dataset is far larger than Lua's, the generated code is more accurate and can generate more complex code.
+- The Lua mod only contains primitives for performing operations, such as `place_entity` for placing entities; more complex logic is written in Python, which reduces the chance of bugs in the Lua mod, so the game does not need to be restarted as often.
+- Using the `/sc` command instead of `/c` to execute Lua code: the code is not printed to the console, keeping the console clean and leaving only what is needed, which simplifies parsing standard input.
+
+
+To better evaluate the LLMs' abilities, they also carefully analyzed the production flows and difficulty of all needed recipes and summarized some formulas, such as the cost to produce an item and how to calculate an LLM's score.
+
+
+They also published the [system prompt](https://arxiv.org/html/2503.09617v1#A8.SS4) they used, which specifies the environment structure, response format, best practices, how to understand the game output, and more.
+
 
 ## Back to `airi-factorio`
 
-Compared to FLE, our implementation seems quite naive. So how should we improve `airi-factorio`?
 
-I don't want to write Python, I'm familiar with TypeScript and Golang, only. Coincidentally, we made [mcp-launcher](https://github.com/moeru-ai/mcp-launcher) just a few ago, a builder suitable for all possible MCP servers. We can use it with Golang to implement an MCP server, then let the LLM call it.
+Compared with FLE, our implementation looks quite naive. So how should we improve `airi-factorio`?
 
-With that, the structure diagram has changed:
+
+I do not want to write Python; I am only familiar with TypeScript and Golang. Coincidentally, we recently also wrote [mcp-launcher](https://github.com/moeru-ai/mcp-launcher), a builder for all possible MCP servers. We can use it to implement an MCP server in Golang and let the LLM call it.
+
+
+So the structure diagram changed:
 
 <div class="flex flex-row gap-4">
-
-![Before](./assets/structure-before.avif)
-
-![After](./assets/structure-after.avif)
-
+![](/blog/DevLog-2025.07.18/assets/structure-before.avif)
+![](/blog/DevLog-2025.07.18/assets/structure-after.avif)
 </div>
 
-Player chat content will no longer be sent to the LLM, rather stored in the [RconChat](https://gitlab.com/FishBus/rconchat) mod, while LLM reads this content through the MCP server. With the potential MCP server approach, we don't need to let the LLM generate Lua code anymore.
 
-Regarding system prompts, currently our prompts are AI-generated, but they're still not clear enough, with unclear priorities. I plan to improve them by referencing FLE's system prompt.
+The players' chat content is no longer pushed to the LLM; instead it is stored in the [RconChat](https://gitlab.com/FishBus/rconchat) mod, and the LLM reads it through the MCP server. With the MCP server in place, the LLM no longer needs to generate Lua code.
 
-Alright, we've basically overturned all the previous designs again. Time to start over.
 
-## Conclusion
+As for the system prompt, although our current prompt is AI-generated, it is still not clear enough and lacks clear priorities. I plan to reference FLE's system prompt to improve it.
 
-Thank you for reading. If you're interested, you can read through FLE's paper and [code](https://github.com/JackHopkins/factorio-learning-environment). Maybe my understanding is incorrect; corrections are welcome! This reading might not be deep enough, but when I follow my ideas to improve `airi-factorio` next, I'll need to read repeatedly and update when there's progress.
 
-That's it for this DevLog. Have a great weekend!
+Well, basically all the previous designs have been overturned again. Time to start over.
+
+
+## Ending
+
+
+Thanks for reading. If you are interested, you can check out the FLE paper and its [code](https://github.com/JackHopkins/factorio-learning-environment). My understanding may be wrong — corrections are welcome! This reading may not be deep enough, but as I improve `airi-factorio` according to my own ideas, I will need to read it repeatedly and will update you when there is progress.
+
+
+That's it for this DevLog. Have a nice weekend!
+
 
 > Cover artwork by [@anrew10](https://es.pixilart.com/art/factorio-yellow-belt-132272fb3d727dd)
+

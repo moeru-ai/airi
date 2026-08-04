@@ -5,8 +5,8 @@ date: 2025-07-18
 excerpt: |
   在阅读完有关 Factorio 强化学习环境的论文后，我们想和大家分享我们如何计划改进 Factorio agent 项目 `airi-factorio`。
 preview-cover:
-  light: "@assets('../../../en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
-  dark: "@assets('../../../en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
+  light: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
+  dark: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
 ---
 
 大家好，我是 [@LemonNeko](https://github.com/LemonNekoGH)，AIRI 的维护者之一。

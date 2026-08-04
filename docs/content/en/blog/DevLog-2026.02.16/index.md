@@ -3,84 +3,129 @@ title: DevLog @ 2026.02.16
 category: DevLog
 date: 2026-02-16
 excerpt: |
-  Sharing LemonNeko’s recent progress on the Dome Keeper direction.
+  Sharing some progress by LemonNeko on the Dome Keeper game direction.
 ---
 
-Happy Lunar New Year’s Eve! This is [@LemonNekoGH](https://github.com/LemonNekoGH) — I’ll be writing the last DevLog before Spring Festival.
 
-## Recap
+Happy New Year's Eve! This is [@LemonNekoGH](https://github.com/LemonNekoGH)~ Let me write the last DevLog before the Spring Festival!
 
-In last year’s [DevLog](../DevLog-2025.08.26/index.md), we shared progress on the pure-vision direction of `airi-factorio`. Today I want to share what we’ve been doing on the Dome Keeper direction.
 
-Wait, LemonNeko? Why not keep going on `airi-factorio`?
+## Retrospective
 
-Honestly, I chickened out — Factorio is too open-ended and complex for me to control, so I switched to [Dome Keeper](https://store.steampowered.com/app/1637320/Dome_Keeper/), a relatively simple game.
 
-![Dome Keeper](https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1637320/334439c379674a719de3f12028f76977aeb176c6/header.jpg?t=1770751169)
+In last year's [DevLog](../DevLog-2025.08.26/index.md), we shared some progress on the pure-vision direction of `airi-factorio`. Today I want to share our progress in the Dome Keeper game direction...
 
-So what have we done so far?
 
-1. Wrote a mod to collect data. After installing the mod, you’ll see a `Start YOLO Data Collection` button in the pause menu. Click it to start collecting.
+Wait, LemonNeko? Why aren't you continuing with `airi-factorio`?
 
-    ![add-button-to-menu](./assets/add-button-to-menu.avif)
 
-2. Collected a small amount of data.
+Actually, I chickened out. Because Factorio is too free and too complex — I really could not handle it — so I turned to [Dome Keeper](https://store.steampowered.com/app/1637320/Dome_Keeper/), a relatively simpler game.
 
-    ![some-collected-data](./assets/some-collected-data.avif)
 
-It’s not much yet, but we already hit quite a few pitfalls and details worth recording — hence this DevLog.
+![Dome Keeper](https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1637320/1ebdc10a01b4d0cf0999ae6021ca171a6f816c50/header_schinese.jpg?t=1770751169)
+
+
+So what have I done so far?
+
+
+1. Wrote a mod to collect data. After installing the mod, you can find a `Start YOLO Data Collection` button in the pause menu; click it to start collecting.
+
+
+    /blog/DevLog-2026.02.16/assets/add-button-to-menu.png
+
+
+2. Simply collected a bit of data.
+
+
+    /blog/DevLog-2026.02.16/assets/some-collected-data.png
+
+
+Seems not much? But I have already hit quite a few pitfalls and detailed issues, so I need to write a DevLog to record them.
+
 
 ### Details
 
-- Repository structure.
 
-    Developing a Dome Keeper mod requires decompiling the game, but we cannot publish the source code. So we had to design the repo structure carefully. I put the decompiled game under the top‑level `external/` folder and ignored it in `.gitignore`, while the mod code is linked into the game’s source directory.
+- Organizing the repository structure.
+
+
+    Developing a Dome Keeper mod requires decompiling the game, but we cannot publish the source code, so we needed to think about the repository structure. I put the decompiled game into an `external` folder at the repository root, added the whole folder to `.gitignore`, and linked the mod code into the game source directory.
+
 
 - Sampling strategy.
 
-    Our initial strategy was to capture one frame every 0.5s, but often there are no targets in the frame. That produced too many “negative samples” — the dataset size grows, but the effective information density drops.
 
-    We later changed the rule: only frames containing `enemy` or `ore_*` count as “target frames”, and **we only allow 1 no‑target frame after 5 target frames**. This keeps a bit of background while avoiding a diluted dataset.
+    Our current sampling strategy captures one frame every 0.5s. But often there may be no target in the frame at all, resulting in an excessive number of "negative samples". The data volume looks bigger, but the effective information density drops.
 
-- UI overlay causing “wrong labels”.
 
-    When the pause menu or upgrade panel (TechTree) is open, the UI covers the scene, but our labels still mark ores and enemies. This is tricky to notice because the label files look normal, and you only see the issue during visualization.
+    Later we changed the rule: only when an `enemy` or `ore_*` appears is it considered a "frame with targets", and **we must first collect 5 frames with targets before allowing 1 frame without targets**. This keeps some background while not diluting the training set too much.
 
-    We solved it by tagging PauseMenu / TechTreePopup with a group and skipping capture whenever a visible node from that group exists.
 
-- Coordinate mismatch caused global offset.
+- UI overlay causing "mislabeling".
 
-    This was the most painful bug: every bbox was offset in the same direction, like the entire image was scaled incorrectly.
 
-    The root cause was a mismatch between the **logical view size** and the **actual texture pixel size**. We used `viewport.get_visible_rect().size` for bbox calculation, but the screenshot was taken from the texture. The fix was to scale bboxes from view-space to image-space first, then apply the letterbox scale + offset.
+    If the pause menu or the upgrade panel (TechTree) was open during collection, the screen was covered by UI, but our labels still marked ores and enemies. This problem is very subtle, because you cannot tell from the label txt files; you only notice it during visualization.
 
-- Letterbox affects labels.
 
-    We normalize output to `640×640` and add centered padding (gray `114/255`). Without applying the same transform to bboxes, labels will be wrong.
+    Later we used a simple approach: add a `group` tag to PauseMenu / TechTreePopup, and skip collection entirely whenever a visible node is detected in that group.
 
-    So the fix is a two‑step transform: scale + offset, then normalize to `640×640`.
+
+- Inconsistent coordinate systems causing overall offset.
+
+
+    This was the most headache-inducing pitfall: all target bboxes were offset as a whole, but in the same direction, looking like "the overall scaling was wrong".
+
+
+    The reason is that the **logical size of the view** and the **real texture pixel size** are inconsistent. We previously used `viewport.get_visible_rect().size` to compute bboxes, but screenshots use the texture's pixel size, causing the coordinate spaces to mismatch. The fix: first scale the bboxes from view coordinates to image pixel coordinates, then apply the letterbox scaling and offset.
+
+
+- Letterbox affecting labels.
+
+
+    We normalized the output to `640×640` with centered padding (gray `114/255`). If the bboxes are not transformed the same way, the labels will definitely be misaligned.
+
+
+    So it became two steps: first compute the bbox scaling + offset, and finally normalize to `640×640`.
+
 
 - Dataset split strategy.
 
-    We initially wanted to split by session, but a single session can include multiple runs and can be quite long. We switched to time‑based splits: **30 seconds per segment**, cycling **4/1/1** into `train/val/test`. That gives a full split cycle in 3 minutes, which is much cheaper for validation.
 
-- Performance and stutter.
+    Previously I wanted to split by session, but a single run can be very long, and you can also play multiple runs in the same session. So I switched to splitting by time — **segments of 30 seconds** — and cyclically assigning them to `train/val/test` in a **4/1/1** ratio. This way, three minutes covers one full round, and the validation cost is much lower.
 
-    `Image.resize()` and `save_png()` are CPU/IO heavy. Capturing too frequently causes stutters. We prefer reducing no‑target frames rather than jumping straight to multithreading.
+
+- Performance and jank.
+
+
+    `Image.resize()` and `save_png()` are both CPU/IO-intensive operations; too high a sampling frequency causes jank. We try to reduce IO pressure by "reducing frames without targets" rather than jumping straight to threading.
+
 
 ### Summary
 
-At this point, we have a **stable and fast-to-validate pipeline**:
-Capture → filter negatives → auto split → auto generate `data.yaml` → train directly.
 
-The training logs already show progress:
-ore classes (ore_*) achieve decent mAP, which means the pipeline is correct;
-dome / enemy / player are still sparse and need more samples.
+So far, we have completed a closed loop that **collects stably and validates quickly**:
+
+
+collect → filter out targetless frames → auto-split → auto-generate `data.yaml` → train directly.
+
+
+The training logs also show the effect:
+
+
+the ore classes (ore_*) have higher mAP, indicating the collection pipeline is correct;
+
+
+`dome` / `enemy` / `player` are still scarce and need more samples later.
+
 
 ## Next Steps
 
-Remember the pure‑vision Playground in the `airi-factorio` repo? I plan to extend it for Dome Keeper so the entire `proj-airi` org can reuse it. We also need more samples, especially for `dome`, `enemy`, and `player`.
 
-Stay tuned for the next update. Oh — the mod code is already open‑sourced, feel free to [try it out](https://github.com/proj-airi/game-playing-ai-dome-keeper)!
+Remember the pure-vision Playground in the `airi-factorio` repository? I plan to extend it to support Dome Keeper, so the whole `proj-airi` organization can reuse it. Also, we need more samples, especially for the `dome`, `enemy`, and `player` classes.
 
-Happy Lunar New Year’s Eve!
+
+Let's look forward to the next progress! Oh, by the way, the mod code is already open source — everyone is welcome to [play with it](https://github.com/proj-airi/game-playing-ai-dome-keeper)!
+
+
+Happy New Year's Eve!
+

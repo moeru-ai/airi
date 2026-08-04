@@ -1,820 +1,473 @@
 ---
 title: Project AIRI Manual
 authors:
-  - name: MuGewRayce
+  - name: 沐玖芸萱
+    aliases:
+      - 沐玖芸萱
+      - MuGewRayce
     role: Lead writing team
     kind: person
   - name: JhIcefair
     role: Contributing editor (primary)
     kind: person
-publishedAt: 2026-05-11
-publishedAtOverride: May 11, 2026 – afternoon (UTC+8)
+  - name: 0xSelenicDove
+    githubUsername: 0xSelenicDove
+    role: Contributing editor
+    kind: person
 ---
 
-Corresponding version: AIRI-0.10.2
 
-::: warning Before You Start
-- Some technical functions and operations of AIRI will not be explained in detail in this manual.
-- The main editor is only responsible for the Chinese version of the manual. Other language versions are currently handled using AI translation with simple manual corrections, and may not match the actual displayed content. Please refer to the actual content.
-- Most of the content in this manual has been explored and researched by the editor-in-chief’s team members themselves, as well as other participants. It may not be consistent with the facts or may contain deviations. Please rely on your own actual experience as the final reference.
-- This manual may not be updated in a timely manner.
-- Due to limitations in capability and time, this manual currently only includes the Windows installation package version and some detailed tutorials for the web version.
-- Some parts of the software use English without translation. This manual attempts to translate those parts, but the final interpretation should follow the actual software.
-- The version updates of AIRI may change some content. This manual only introduces the features of the latest version at the time of writing. For other versions before or after, this manual may retain some feature descriptions; if there are differences, please handle them yourself.
-- If you have any questions about this manual, please @jhicefair and leave a message on the official Project AIRI Discord channel.
-- For any other questions, please leave a message on the official Project AIRI Discord channel.
-- Have fun! AwA
+This manual corresponds to version: AIRI-0.11.3
+
+
+::: warning Before You Read
+
+
+- Some of AIRI's more technical features and operations are not covered in detail in this manual.
+- The lead editors are only responsible for the Chinese version of this manual. Other language versions are currently produced by AI translation with light manual correction, and may differ from the actual content — please treat the actual app as the source of truth.
+- Most of the manual's content was researched by the lead writing team and other contributors through exploration; it may not match reality or may contain inaccuracies. Please rely on your own actual experience.
+- This manual may not be updated promptly.
+- Due to length constraints, this manual currently covers only part of the detailed tutorials for the desktop and web clients. (The manual focuses on desktop features; most web features can be referenced from the desktop version, but note that the two differ in some places — please treat the actual app as the source of truth.)
+- Some parts of the software are in English and have no translation. This manual tries to translate the relevant content; the final translation should be treated as unofficial.
+- AIRI version updates may change some content. This manual only describes the features of the latest version at the time of writing. For earlier or later versions, the manual may keep descriptions of some features; if you encounter differences, please resolve them yourself.
+- If you have questions about this manual, feel free to leave a message in the [Project AIRI official Discord](https://discord.gg/TgQ3Cu2F7A) by mentioning @jhicefair or @0x_selenic_dove.
+- To join the WeChat group: open the [WeChat group instructions](https://github.com/moeru-ai/airi/blob/main/docs/wechat.md) in the repository, scan the QR code to add the assistant, and note `AIRI`; an admin will invite you to the group. You can also mention 爱吃吃的哥伦比娅 in the group, or contact them via the WeChat ID `0xColumbina`.
+- To join the QQ group: open the [QQ group invite link](https://qun.qq.com/universal-share/share?ac=1&authKey=9g00d%2BZS7nORzcJugNNddJ7rCghZTIR7fhXabGwch2S%2BG%2BKGIKwlN1N2nIqkh2jg&busi_data=eyJncm91cENvZGUiOiIxMDU4MTU2Njk3IiwidG9rZW4iOiJmcnkra1hWNFIxNytEcG0zcHRUdVJIaldlRDFxN0dzK080QWtvTEdOQjJkNEY2eUFta1g1clNpbkxSMS9FQWFYIiwidWluIjoiMTI2MDkwNzMzNSJ9&data=b1eJrwn3GVOUh7YIxZ7l9vHQo99HPmRxKPpMKlDCmfzx8Y57IXb2EZCMaOC9rVTd2U558qpNjwUYUWlPHxVHvg&svctype=4&tempid=h5_group_info) provided in the repository README and confirm your join with QQ; if the link is expired, use the latest link from the repository README.
+- For other usage questions, you are also welcome to discuss them with the community in AIRI's Discord, WeChat group, or QQ group.
+- Enjoy! AwA
+
+
 :::
 
-## Table Of Contents
-
-- [Chapter 1 – Installation](#chapter-1-installation)
-- [Chapter 2 – Initial Configuration](#chapter-2-initial-configuration)
-  - [Section 1 – Preparation](#chapter-2-prerequisites)
-  - [Section 2 – Launch Airi!](#chapter-2-launch)
-- [Chapter 3 – Airi Interface Overview](#chapter-3-interface-overview)
-  - [Main Window](#chapter-3-main-window)
-  - [System Tray Other Options](#chapter-3-system-tray)
-  - [Settings Window](#chapter-3-settings-overview)
-  - [Chat Window](#chapter-3-chat-window)
-- [Chapter 4 – Settings](#chapter-4-settings)
-  - [AIRI Character Card](#chapter-4-airi-card)
-  - [Body Modules](#chapter-4-modules)
-  - [Scene](#chapter-4-stage)
-  - [Character Model](#chapter-4-character-model)
-  - [Memory Bank](#chapter-4-memory-bank)
-  - [Service Sources](#chapter-4-providers)
-  - [Data](#chapter-4-data)
-  - [Connection](#chapter-4-connection)
-  - [System](#chapter-4-system)
-- [Web Version Feature Additions](#web-features)
-- [Historical Characteristics & Common Issues](#features-issues)
-- [Written at the End](#chapter-ed-toeveryeditor)
 
 <a id="chapter-1-installation"></a>
-## Chapter 1 – Installation
 
-Go to the Project AIRI GitHub homepage: [moeru-ai/airi](https://github.com/moeru-ai/airi)
 
-Follow these steps:
+## Chapter 1 · Installation
 
-1. Find the "**Releases**" option on the right side of the page.
-2. Click "+ 68 releases".
-3. Pick a version, find "**Assets**" below it, and expand.
-4. Choose the version suitable for your computer and download it.
-5. Locate the downloaded installer and double-click to install.
 
-::: tip Download Page Notes
-- The number in "+ 68 releases" only shows how many other releases exist, so yours may differ.
-- You may also need to click "Show all 19 assets" at the bottom; that number may also vary.
-- The following sections use the Windows installer version as an example.
-- Due to time constraints, the installation walkthrough itself is skipped — you can handle it.
+Go to the [latest Project AIRI release](https://github.com/moeru-ai/airi/releases/latest), download the file matching your device from **Assets**, then open the installer and follow the prompts to complete the installation. The `<version>` in the table changes with the latest release; please treat the actual release as the source of truth.
+| Platform | Device | File to download |
+| --- | --- | --- |
+| Windows | x64 or Windows 11 ARM64 | `AIRI-<version>-windows-x64-setup.exe` |
+| macOS | Apple silicon (M series) | `AIRI-<version>-darwin-arm64.dmg` |
+| macOS | Intel | `AIRI-<version>-darwin-x64.dmg` |
+| Linux | x64 Debian-based systems, e.g. Ubuntu | `AIRI-<version>-linux-amd64.deb` |
+| Linux | x64 RPM-based systems, e.g. Fedora, openSUSE | `AIRI-<version>-linux-x86_64.rpm` |
+| Linux | ARM64 Debian-based systems, e.g. Ubuntu | `AIRI-<version>-linux-arm64.deb` |
+| Linux | ARM64 RPM-based systems, e.g. Fedora, openSUSE | `AIRI-<version>-linux-aarch64.rpm` |
+| Android |  Huawei HarmonyOS and other Android devices | `AIRI-<version>-android.apk` |
+| iOS/iPadOS |  iPhone, iPad | `AIRI-<version>-ios.ipa`|
+::: info About the Windows installer
+The installer offers two installation modes: for yourself or for all users.
+Choosing to install for yourself does not require administrator privileges, but only the current user can access it; choosing to install for all users requires administrator privileges, but every user on this computer can use the software.
 :::
-
+::: info About the iPhone and iPad installer
+Only an ipa file is currently provided; it must be signed and installed manually. No detailed installation tutorial is available yet.
+The project team will publish a TestFlight beta link in the future — stay tuned!
+:::
+::: info About Huawei HarmonyOS
+There is no native HarmonyOS build yet. If you use HarmonyOS NEXT (pure-blood HarmonyOS), install the Android version via Zhuoyitong (卓易通).
+:::
 <a id="chapter-2-initial-configuration"></a>
-## Chapter 2 – Initial Configuration
-
-<a id="chapter-2-prerequisites"></a>
-### Section 1 – Preparation
-
-Before you begin, you need to prepare at least one API from an LLM service provider.
-
-::: info Terminology
-* LLM
-
-LLM stands for Large Language Model.
-Simply put, an AI.
-
-* API
-
-API stands for Application Programming Interface.
-It is a set of predefined rules that allow different software applications to communicate, exchange data, and share functions.
-You don't need to understand it deeply, just know how to obtain one.
+## Chapter 2 · Initial Configuration
+Before you start using AIRI, you need at least one chat provider and a usable model. Cloud services usually require creating an API key or signing in; local services require starting the model service first.
+Complete the initial configuration with the steps below:
+1. Open AIRI and enter the first-run setup wizard.
+2. Select your language.
+3. If you want to use your own AI model, click "**Configure your own AI service provider**". To use the official AI model, click "**Sign in**". If you are not sure which provider to use, we recommend starting with the [AIRI official provider](../../config/providers/consciousness/official.md), [OpenRouter](../../config/providers/consciousness/openrouter.md), an [OpenAI-compatible provider](../../config/providers/consciousness/openai.md), or local [Ollama](../../config/providers/consciousness/ollama.md).
+4. If using your own AI model (see "Configuration → Providers → Chat Providers" in the sidebar for how to configure):
+   1. Select the provider you prepared, then click "**Next**";
+   2. Enter your API key (change the Base URL if necessary), then click "**Next**";
+   3. Click "**Next**" once more;
+   4. Select the model you plan to use, then click "**Save and Continue**".
+5. If using the official AI model: refer to [AIRI Official Provider](../../config/providers/consciousness/official.md).
+Congratulations — barring any surprises, you have completed AIRI's initial configuration!
+::: tip Only Chat Configuration Is Needed First
+Once the chat provider and model are configured successfully, AIRI can reply to messages. Afterwards, you can add text-to-speech (TTS), speech recognition (ASR/STT), vision understanding, artistry, and other capabilities. See [Voice Input and Output](../../config/audio.md), [Vision Understanding](../../config/vision.md), or [Artistry](#chapter-4-art) for how to configure them.
 :::
-
-::: tip Getting An API
-There are many LLM providers, and the method for obtaining an API varies. Due to time constraints, no tutorial or example is provided here. Please search online or ask an AI.
+::: warning API Key Security
+API keys, AccessKey Secrets, and other service credentials should only be stored on your device. Do not commit them to the repository, post them in issues, screenshot them, or share them with others.
 :::
-
-::: warning Keep Your API Key Safe
-Once you have your API, keep it safe and do not share it with others.
-:::
-
-<a id="chapter-2-launch"></a>
-### Section 2 – Launch Airi!
-
-::: info Example
-The steps below use Deepseek as the example provider.
-:::
-
-[Historical Characteristics: Bugs at Startup](#h2-2-1)
-
-Follow these steps to finish the first-time setup:
-
-1. Open Airi (normally it opens automatically after installation).
-2. Select your language in the main window.
-3. Click "**setup with your provider**", alternatively, click on "**Login**" (A brief note on the process of choosing to log in).
-4. Select your service source and click "**Next**".
-5. Enter your API Key and click "**Next**".
-6. Click "**Next**" again.
-7. Select the model you wish to use, then click "**Save and continue**".
-
-Congratulations! You have completed the initial configuration of Airi.
-
 <a id="chapter-3-interface-overview"></a>
-## Chapter 3 – Airi Interface Overview
-
+## Chapter 3 · AIRI Interface Overview
 <a id="chapter-3-main-window"></a>
 ### > Main Window
-
-[Introduction to the Main Interface of the Web Version](#chapter-3-main-web)
-
-This window displays the virtual character. There are three buttons: [Historical characteristics](#h3-1-1)
-
-- "Expand" – bottom right, click to reveal more options (see below).
-- "Open hearing control" – bottom right, allows you to speak to Airi. Requires an STT service.
-- "Move" – bottom right, long-press and drag to reposition the main window.
-
-![Airi main window overview](./assets/manual-main-window.avif)
-
-::: info About Hearing Control
-It seems you also need to open the chat window first. Since this feature has not worked for the editor yet, the tutorial is omitted.
-:::
-
-::: info Terminology
-* STT
-
-STT stands for Speech-to-Text, also known as automatic speech recognition (ASR).
-Its goal is to enable computers to understand human speech and convert it into text.
-:::
-
-Click "Expand" to reveal nine options: **(Login button & Eight small buttons)**
-
-- "Login" – You can log in to your own Airi account.
-- "Open settings" – opens the settings window.
-- "Switch character" – switch character cards.
-- "Open chat" – opens the chat window.
-- "Refresh" – refreshes the main window.
-- "Switch to dark mode" – toggles light/dark theme.
-- "Unpin" – makes the main window not always on top.
-- "Always show" / "Hide on hover" – allows clicking through the window.
-- "Close" – closes Airi.
-
-![Airi expanded controls menu](./assets/manual-controls-island-expanded.avif)
-
+This section mainly covers the desktop client. The web/mobile clients can refer to this section; other web/mobile-only features are covered [here](#chapter-3-main-web).
+This window displays the virtual character and has three controls:
+- "Expand ⌃" — located at the bottom right; click to expand more options (see below).
+- "Hearing Control &#x1F3A4;&#xFE0E;" — located at the bottom right; click to talk with AIRI.
+    ::: info About Hearing Control
+    Clicking it opens the "Hearing Input" panel. First enable microphone input and select a microphone; if the system asks for permission, allow AIRI to use the microphone. Once a speech recognition service is configured, what you say is transcribed and sent to the current chat session. While AIRI is speaking, it pauses listening so its own voice is not recognized again.
+    :::
+- "Move &#x2725;" — located at the bottom right; press and hold the left mouse button and drag to change the main window's position on the desktop.
+After clicking "Expand ⌃", nine sub-options appear, in order from top to bottom and left to right:
+- "Sign in" — sign in to your own AIRI account.
+- "Open Settings" — open the AIRI settings interface.
+- "Switch Character" — switch character cards.
+- "Open Chat" — open the chat window.
+- "Refresh" — refresh the main window.
+- "Move to screen center" — move the window to the center of the screen.
+- "Switch to dark mode" — toggle AIRI's interface background between light/dark.
+- "Unpin" — stop keeping the AIRI character model pinned on top.
+- "Always show" / "Hide on hover" — keep the AIRI main window from blocking mouse clicks on the content behind it, so it does not interrupt your work.
+- "Close" — close AIRI with one click.
+![](./assets/manual-overlay-panel.avif)
 <a id="chapter-3-system-tray"></a>
-### > System Tray Other Options
-
-First, locate the Airi icon in the system tray.
-
-::: tip Windows Taskbar Tip
-On Windows, you may need to click "Show hidden icons" in the taskbar to find the Airi icon.
+### > Other System Tray Options
+First, find AIRI's small icon in the taskbar.
+::: tip If you cannot find the taskbar/menu bar icon...
+On Windows, you may need to click "Show hidden icons (⌃)" in the taskbar to reveal the AIRI icon.
+On macOS, the icon may be hidden behind the notch (especially on MacBook built-in displays). In that case, hide some existing menu bar icons — open System Settings → Menu Bar and show or hide menu icons.
 :::
-
-Right-click the Airi icon to see ten options:
-
-- "Show" – brings up the main window, usually not needed.
-- "Adjust size" – adjusts the main window size and centers it. Includes four sub-options:
-  - "Recommended (450x600)" – sets the window to the recommended 450x600 size.
-  - "Full height" – makes the window's height span the full desktop height.
-  - "Half height" – makes the window's height span half the desktop height.
-  - "Full screen" – makes the window fill the entire desktop.
-- "Align to" – aligns the main window to a specific screen position. Includes five sub-options:
-  - "Center" – aligns to the center of the desktop.
-  - "Top left" – aligns to the top-left corner.
-  - "Top right" – aligns to the top-right corner.
-  - "Bottom left" – aligns to the bottom-left corner.
-  - "Bottom right" – aligns to the bottom-right corner.
-- "Settings" – opens the settings window.
-- "About" – details omitted.
-- "Open quick actions" – details omitted.
-- "Open widgets" – details omitted.
-- "Open caption" – opens subtitles. Requires TTS service to display text when Airi speaks; hidden on hover by default.
-- "Caption overlay" – includes two sub-options:
-  - "Follow window" – default; caption position follows the main window.
-  - "Reset position" – resets the caption position.
-- "Quit" – closes Airi.
-
-::: info Terminology
-* TTS
-
-TTS stands for Text-to-Speech, which converts written text into natural-sounding spoken output.
-:::
-
+Right-click AIRI's small icon to see ten options:
+- "Show" — summon the main window; usually not needed.
+- "Resize" — resize the main window; this also centers it. Contains four sub-options:
+  - "Recommended (450x600)" — set to the recommended size 450x600.
+  - "Full Height" — make the main window's height fill the desktop height.
+  - "Half Height" — make the main window's height half of the desktop height.
+  - "Full Screen" — make the main window fill the entire desktop.
+- "Align to" — align the main window to a specific position on the desktop. Contains five sub-options:
+  - "Center" — align to the center of the desktop.
+  - "Top Left" — align to the top-left corner of the desktop.
+  - "Top Right" — align to the top-right corner of the desktop.
+  - "Bottom Left" — align to the bottom-left corner of the desktop.
+  - "Bottom Right" — align to the bottom-right corner of the desktop.
+- "Settings" — open the settings interface.
+- "About" — open the About window to view the version number, visit the project homepage, update AIRI, and choose the update channel.
+- "Open Quick Action" — open a floating input box. Enter a short request for AIRI and press Enter; the window hides and shows the processing result as a notification; press Esc to cancel.
+- "Open Widgets" — open the widgets window. Widgets provided by maps, weather, artistry, or extensions are shown here; the window may be empty when the related tools or extensions are not running.
+- "Open Captions" — open the captions. Text is shown while AIRI speaks only when a TTS service is enabled; by default, captions hide when the mouse cursor hovers over them.
+- "Caption Overlay" — contains two sub-options:
+  - "Follow Window" — selected by default; the caption window position follows the main window. Uncheck to make the caption position independent.
+  - "Reset Position" — reset the caption position.
+- "Quit" — close AIRI with one click.
 <a id="chapter-3-settings-overview"></a>
-### > Settings Window
-
-::: info Scope
-This section only describes what the window contains. Detailed functions are explained in Chapter 4.
+### > Settings Interface
+::: info Scope of This Section
+This part only introduces what is in the interface; the detailed feature descriptions are in Chapter 4.
 :::
-
-You can open settings in either of these ways:
-
-- Click "Expand" on the main window, then select "Open settings".
-- Right-click the Airi tray icon and select "Settings".
-
-The settings window contains nine sections:
-
-- "AIRI Character Card" – configure character personality.
-- "Body Modules" – configure various functions: Consciousness, Vocalization, Hearing, Vision, Short-term Memory, Long-term Memory, Discord, X/Twitter, Minecraft, Factorio, MCP Server, Rhythm Game.
-- "Scene" – Configure Airi's scene (background).
-- "Character Model" – choose and configure the character's model.
-- "Memory Bank" – not yet released.
-- "Service Sources" – configure LLM, TTS, STT, Artistry services.
-- "Data" – manage Airi's data.
-- "Connection" – configure WebSocket server address.
-- "System" – includes four sub-sections:
-  - "General" – theme, language, etc.
-  - "Color Scheme" – change the theme color.
-  - "Window Shortcuts" – currently empty, no back button.
-  - "Developer" – advanced features, see Chapter 4.
-
-::: warning Do Not Open "Window Shortcuts"
-This option currently has no content and no back button. Once you enter it, you must close and reopen the settings window to exit.
-:::
-
-![Airi settings window overview](./assets/manual-settings-window.avif)
-
+You can open the settings interface in either of two ways:
+- Click "Expand" in the main window, then select "Open Settings".
+- Right-click the AIRI small icon in the system tray and select "Settings".
+The settings interface includes the following nine sections:
+- "AIRI Character Card" — select and configure the character's persona.
+- "Modules" — configure AIRI's various features, including Consciousness, Speech, Hearing, Vision, Short-term Memory, Long-term Memory, Discord, X / Twitter, Web Search, Minecraft, Factorio, MCP Servers, and Beat Sync.
+- "Scenes" — configure AIRI's scene (background).
+- "Models" — select and set the character's model.
+- "Memory" — feature not yet released.
+- "Providers" — configure the sources for LLM, TTS, STT, and Artistry services.
+- "Data" — manage AIRI's various data.
+- "Connection" — configure your WebSocket server address.
+- "System" — includes four sub-options:
+  - "General" — set the program theme, language, and more.
+  - "Color Scheme" — set the theme color.
+  - "Window Shortcut" — set the global shortcut for Spotlight.
+  - "Developer" — advanced tools for development and troubleshooting; no configuration is needed for daily use. See the [developer tools](../../../contributing/desktop-developer-tools) for details.
+![](./assets/manual-settings-window.avif)
 <a id="chapter-3-chat-window"></a>
 ### > Chat Window
-
-You can open the chat window by clicking "Expand" on the main window and selecting "Open chat".
-
-![Airi chat window interface](./assets/manual-chat-window.avif)
-
-Here you can chat with Airi.
-
+You can click "Expand" in the main window and select "Open Chat" to open the chat window.
+![](./assets/manual-chat-window.avif)
+Here you can chat with AIRI. When text-to-speech is enabled and AIRI is reading a reply aloud, a "Stop Reading" button appears in the input area; clicking it only stops the current speech playback, not the already-generated text reply.
+Click the "Conversations" button on the left of the input area, or click the chat window title, to open the conversation list. The list shows a preview and sync status for each conversation, ordered by last update time; you can switch, delete, or start a new conversation for the current character. Deleted conversations usually cannot be recovered, so confirm you no longer need the content first.
 <a id="chapter-4-settings"></a>
-## Chapter 4 – Settings
-
-You can open settings in either of these ways:
-
-- Click "Expand" on the main window, then select "Open settings".
-- Right-click the Airi tray icon and select "Settings".
-
+## Chapter 4 · Settings
+You can open the settings interface in either of two ways:
+- Click "Expand" in the main window, then select "Open Settings".
+- Right-click the AIRI small icon in the system tray and select "Settings".
 <a id="chapter-4-airi-card"></a>
 ### > AIRI Character Card
-
-Here you can upload, create, or modify the default character card.
-
-![Airi character card settings window](./assets/manual-airi-card.avif)
-
-::: info About Uploading
-The upload dialog suggests any file type is supported, but the editor has not actually used it, and there is no export function either, so details are omitted.
+Here you can upload, create, or directly modify the default character card.
+![](./assets/manual-airi-card.avif)
+::: info About Import and Export
+Character cards can be imported or exported as AIRI character card packages. A package uses Character Card V3 data and may optionally include a Live2D, Spine, or VRM display model. On import, AIRI validates the manifest and character card data in the package; packages with an incorrect format or missing required files cannot be imported.
 :::
-
-About creating a new character card, the recommended order is:
-
-1. Fill out **Identity**, including name, nickname, description, and creator's notes.
-2. Then adjust **Behavior**, including personality, scenario, and greeting.
-3. If needed, configure **Modules** for character-specific body modules.
-4. Configure the **Artistry** section as needed to set up the image generation function for the character.
-5. Finally, review **Settings**, including system prompt, history prompt instructions, and version.
-6. When you are ready, click "**Create**" to create the character card.
-7. After creation, click the circle in the bottom-right corner of the card, or select the card and click Activate, to enable it.
-
-The most important fields in **Identity** are name and description:
-
-- Name is the official name; if a nickname is set, the nickname will be used first.
-- Description is the detailed personality. You can be creative or refer to the default character card.
-
-::: info Editor Notes
-- If you refer to the default character card, you may omit the part about ACT tags.
-- The editor has not used creator's notes, so details are omitted.
-- The editor has not fully tested Behavior, Modules, Artistry, or Settings yet — only the rough purpose is documented above.
+To create a new character card, we recommend configuring in the following order:
+1. Fill in the identity section, including name, nickname, description, and creator notes.
+2. Fill in the behavior section as needed, including personality, scenario (think of it as the surrounding environment, background, or situation), and greeting.
+3. Adjust the modules section as needed to assign specific body modules to the character.
+4. Configure the Artistry section as needed to enable image generation for the character.
+5. Finally, review the settings section, including system prompt, post-history instructions, and version.
+6. Once the content is correct, click "**Create**" to finish creating the character card.
+7. After creation, click the circle at the bottom right of the character card, or click the card and then activate it, to officially enable it.
+The most important parts of the identity section are the name and description:
+- The name is the character's official name; if a nickname is set, the nickname takes priority.
+- The description contains the concrete details of the persona; you can write freely or reference the default character card.
+::: info Editor's Notes
+- If you reference the default character card when writing your own character's settings, the ACT-tag related content in the latter half does not need to be included.
 :::
-
-::: warning Activation Required
-Newly created cards are not enabled by default. You must activate them manually.
+- The behavior section supplements personality, scenario, and greeting; the modules section assigns chat, vision, speech, and display models to the character; the Artistry section sets the character's image generation preferences; the settings section contains the system prompt, post-history instructions, and version information.
 :::
-
+::: warning Manual Activation Required
+A newly created character card is not enabled by default; you must activate it manually to use it. Click the play button below to enable it.
+:::
 <a id="chapter-4-modules"></a>
-### > Body Modules
-
-Here you can configure various Airi functions, as follows:
-
-![Airi body modules settings window](./assets/manual-modules.avif)
-
+### > Modules
+Here you can configure AIRI's various features, as follows:
+![](./assets/manual-modules.avif)
 #### > Consciousness
-
-Recommended order:
-
-1. First select a service source, or add a new one and select it.
-2. Then select a model.
-
-::: tip Too Many Service Sources
-If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
+Refer to [Chat Model](../../config/llm.md) for configuration.
+![](./assets/manual-provider.avif)
+#### > Speech
+Refer to [Voice Input and Output](../../config/audio.md) for configuration. If you do not want AIRI to speak, select "None".
+::: tip Additional Notes on the Speech Page
+- Select the provider and model first, then choose a voice offered by that model; the fields shown differ between providers.
+- Pitch only takes effect for providers and models that support this parameter.
 :::
-
-![Airi consciousness settings window](./assets/manual-consciousness.avif)
-
-#### > Vocalization
-
-::: tip Vocalization Notes
-- The configuration process may vary slightly for different service sources. This section uses Alibaba Bailian as an example; follow the actual interface.
-- For some services, the Pitch control may not work.
-- If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
-:::
-
-Recommended order:
-
-1. First select a service source, or add a new one and select it.
-2. Then select a model.
-3. Next select a voice.
-4. If you do not want Airi to speak, choose "None".
-5. After the basic setup, you can enter text at the bottom of this page and click "**Test voice**" to generate a sample.
-
-![Airi vocalization settings window](./assets/manual-speech.avif)
-
+![](./assets/manual-speech.avif)
 #### > Hearing
-
-::: tip Too Many Service Sources
-If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
+Refer to [Voice Input and Output](../../config/audio.md) for configuration. If you are not using voice input for now, select "None".
+::: info Terminology: Speech Recognition STT
+STT stands for "Speech-to-Text", also known as automatic speech recognition (ASR).
+Its goal is to let the computer understand human speech and convert it into the corresponding text.
 :::
-
-Recommended order:
-
-1. First select your audio input device.
-2. Then select a service source, or add a new one and select it.
-3. Then select a model.
-
-![Airi hearing settings window](./assets/manual-hearing.avif)
-
+::: info When using on macOS
+The first time you use AIRI's voice input on macOS, a one-time microphone permission prompt appears. When you see the following prompt, choose Allow; otherwise the feature will not work properly.
+![](./assets/manual-permission-microphone.avif)
+:::
+![](./assets/manual-hearing.avif)
 In addition, you can:
-
-- Enable "Auto-send transcribed text" to send transcripts automatically.
+- Enable Auto-send transcribed text to send automatically.
 - Disable it to adjust the transcription result before sending.
-- Configure "Auto-send delay" to tune the send delay.
-
-::: info Editor Note
-The claim that "disabling auto-send lets you adjust the transcription" is the editor's guess — the editor has not successfully used the Hearing feature.
+- Adjust the send delay via Auto-send delay.
+::: info Auto-send
+With auto-send enabled, recognized text is sent to the chat session after the configured delay; with it disabled, you can review or edit the text and send it manually.
 :::
-
-If you want to test the microphone:
-
-1. Click "**start monitoring**" in the middle of the page.
-2. If needed, adjust Sensitivity.
-
-If you want to test STT:
-
-1. Click "**start speech-to-text**" at the bottom of the page.
-2. Check the result under "Transcription Result".
-
+To test the microphone:
+1. Click "**start monitoring**" in the middle of the interface to start listening.
+2. Adjust the Sensitivity if needed.
+To test the STT feature:
+1. Click "**start speech-to-text**" at the bottom of the interface to start the test.
+2. Check the recognition result under Transcription Result.
 #### > Vision
-
-::: tip Too Many Service Sources
-If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
+Refer to [Vision Understanding](../../config/vision.md) for configuration.
+![](./assets/manual-vision.avif)
+::: warning Vision Capture must be started before using screen vision
+You do not need to enable this tool just to configure a vision provider and model.
+To let AIRI analyze the screen or a window, go to "System → Developer → Vision Capture": grant screen recording permission, choose the window or display to capture, and click "Start ticker". To feed the recognition results into AIRI conversations, enable "Publish to character" as well.
+Vision Capture is the current desktop debugging/development workflow; leaving the page stops the capture loop. See the [desktop developer tools](../../../contributing/desktop-developer-tools#vision-capture) for the full instructions.
 :::
-
-Recommended order:
-
-1. First select a service source, or add a new one and select it.
-2. Then select a model.
-3. Optionally set "Capture interval" to control the capture frequency.
-
-![Airi vision settings window](./assets/manual-vision.avif)
-
-::: warning Requires Vision Capture
-This function requires enabling `vision capture` in `System → Developer → vision capture`. See that section for details.
-:::
-
+<a id="chapter-4-art"></a>
 #### > Artistry
-
-::: tip Too Many Service Sources
-If there are too many sources and you cannot click the ones at the back, move the mouse over a tab, press the middle mouse button, and drag left or right.
+Here you can configure AIRI's artistry capability.
+Refer to "Configuration → Providers → Artistry Providers" in the sidebar for how to configure and use different AI providers to create works.
+::: warning Use a chat model that supports tool calling
+Artistry does not generate images directly from the character: AIRI provides the current **chat model** with tools for the configured image service, and the model invokes that tool to submit the generation task. Therefore, the chat model and provider must support **Tool Calling / Function Calling**.
+After selecting a provider under "Settings → Consciousness", choose a model that the provider explicitly marks as supporting tool calling. Models that only support plain text chat, or providers that do not pass through tool calls, may only reply in text, refuse to generate, or never submit a task to the selected image service.
+After configuration, first have the character make a simple image request. Confirm AIRI has initiated a tool call; if the provider offers task status, history, or a console, you can also confirm the task was received there. AIRI only shows the result after the task finishes and returns an image. For each provider's specific verification method, see the corresponding page under "Configuration → Providers → Artistry Providers" in the sidebar.
 :::
-
-Here, you can configure Airi's artistic creation capability.
-
-Please note: This feature is different from **Neuro's drawing logic** — it generates images using a third-party AI service, allowing you to obtain highly detailed **AI-generated images**.
-
-Due to time constraints, this section will not be explained in detail for now.
-
-
 #### > Short-term Memory
-
-Not yet released.
-
+Under development — stay tuned. If you have ideas for implementing this feature, you are welcome to suggest them via issues or PRs.
 #### > Long-term Memory
-
-Not yet released.
-
+Under development — stay tuned. If you have ideas for implementing this feature, you are welcome to suggest them via issues or PRs.
 #### > Discord
-
-Here you can configure a Discord bot so that Airi can join your Discord server and interact.
-
-Recommended order:
-
-1. Obtain your Discord bot token.
-2. Enter it into the appropriate field.
-3. Finish the rest of the configuration based on the page.
-
-::: warning About The Discord Bot
-This function requires a Discord bot, which is not included in the installer version. You need to extract the relevant files from the GitHub page. Since the editor's schedule for this is a low priority, the full tutorial is omitted.
+The Discord integration requires running the bot service from source so AIRI can join the message and voice channels of a Discord server.
+1. Create a Discord application, enable the required intents, and configure the Bot Token in the [Discord bot integration guide](../../../integrations/discord.md).
+2. Configure model and speech service credentials locally.
+3. Start the Discord bot service from the repository root.
+::: warning Credential Security
+Discord Bot Tokens, model API keys, and speech service credentials should only be stored in local configuration files. Do not commit, screenshot, or share these configurations.
 :::
-
-#### > X/Twitter
-
-Similar to Discord; requires a bot. Tutorial omitted.
-
+#### > X / Twitter
+Read the [X / Twitter integration guide](../../../integrations/x.md) and create/fill in the X Developer Platform app credentials. Do not expose the API Key, API Secret, or access tokens.
+#### > Web Search
+Read the [web search configuration guide](../../config/web-search.md), configure a Tavily API key, and learn about usage, privacy notes, and common issues.
 #### > Minecraft
-
-Requires a bot. Tutorial omitted.
-
+The Minecraft integration requires running a local agent service from source. Follow the [Minecraft agent integration guide](../../../integrations/minecraft.md) to configure a trusted server, AIRI, and the model service, then start the agent.
+::: warning Security Reminder
+Do not connect the Minecraft agent to untrusted public servers. It drives a local Minecraft session and network connection; a malicious server could cause unexpected behavior.
+:::
+::: tip Integration Service Documentation
+The run-from-source instructions for Discord, Minecraft, Satori, and Telegram are all located under "Integration Services" in the sidebar.
+:::
 #### > Factorio
-
-Requires a bot. Tutorial omitted.
-
-#### > MCP Server
-
-The editor has not used this. Tutorial omitted.
-
-#### > Rhythm Game
-
-The editor is still exploring this. Tutorial omitted.
-
+Read the [Factorio integration guide](../../../integrations/factorio.md) and fill in the trusted server's address, port, and in-game username in AIRI. AIRI does not ship with a directly deployable Factorio server integration.
+#### > MCP Integration
+MCP (Model Context Protocol) lets AIRI use external tools through local processes. On the desktop client, open this page to add a server, fill in its command, arguments, and environment variables, run a connection test first, then click "Apply and Restart" to start or restart the MCP service. You can also open the config file or use the JSON editor to maintain the configuration in bulk. Only run MCP servers you trust: they can execute commands on your machine and access the environment variables you grant them.
+#### > Beat Sync
+Beat Sync analyzes the audio captured from the screen to detect beats and sends beat signals to stage effects. Click "Start Screen Capture" and choose a screen or window that contains audio; use "Stop" to end the capture. The page provides sensitivity, minimum beat interval, and advanced filter parameters, and shows a real-time spectrum and beat visualization. The first use may require granting system screen recording permission.
 <a id="chapter-4-stage"></a>
-### > Scene
-
-Here, you can configure Airi's main interface scene—simply put, the background of Airi's main interface.
-
-Two presets are included. To enable a scene, click the checkmark in the middle of one of the presets (it will appear only when you hover your mouse over it).
-
-You can also click "**Upload to Gallery**" to import your own image scene.
-
-If you need to clear the scene, click "**Clear Default**".
-
+### > Scenes
+Here you can configure the scene of the AIRI main interface — you can simply think of it as the background of the AIRI main interface.
+There are two presets; click the **checkmark** in the center of a preset (it only appears when you move the mouse cursor over it) to enable that scene.
+You can also click "**Upload to Scene Library**" to import your own image scene.
+To clear the scene, click "**Clear Default**".
 <a id="chapter-4-character-model"></a>
-### > Character Model
-
-Here you can choose and set the character's model.
-
-![Airi character model settings window](./assets/manual-models.avif)
-
-Airi supports Live2D models and VRM 3D models.
-
-If you only want to switch to an existing model:
-
-1. Click "**select model**" to open the model picker.
-2. In this version, there are two Live2D and two VRM models by default.
-3. Select one and click "**confirm**" to switch.
-
-If you want to import your own model, click "**add**" to import a Live2D or VRM model.
-
-::: info Editor Note
-Regarding the "Switch to Godot Stage (Experimental)" option—since the manual's editorial team has not yet fully understood this feature and it appears to be in an experimental stage, relevant introduction is omitted for now.
+### > Models
+Here you can select and configure the character's model.
+![](./assets/manual-models.avif)
+AIRI supports Live2D, Spine 2D, and VRM 3D models.
+If you just want to switch between existing models, follow the steps below:
+1. Click "**select model**" to open the model selection interface.
+2. In the current version, two Live2D models and two VRM 3D models are available by default.
+3. After selecting a model, click "**confirm**" to finish switching.
+To import your own model, click "**add**" and choose the Live2D, Spine, or VRM format.
+::: info Godot Stage (Experimental)
+"Switch to Godot Stage (Experimental)" starts a separate Godot stage renderer; click "Back to Built-in Stage" again to switch back. Godot Stage currently only supports VRM models. After starting it and selecting a VRM, you can adjust camera X/Y/Z, yaw, pitch, and field of view in the Godot View; state or model loading errors are shown in this area.
 :::
-
-::: warning Before Importing A Model
-- Old Live2D models are not supported. You must use files that include "\*.moc3".
-- Before importing a Live2D model, compress the model folder into a "\*.zip" file.
+::: warning Before Importing a Model
+- Old Live2D models are not supported; choose files that include "*.moc3".
+- Before importing a Live2D model, you must compress the "model folder" into a "*.zip" file.
+- Spine models must also be imported as "*.zip"; VRM uses a single "*.vrm" file.
 :::
-
-#### > If you choose a Live2D model
-
-You can continue in this order:
-
-1. Expand "Zoom & Position" to adjust the model's size and position in the main window. x is horizontal (left/right), y is vertical (up/down).
-2. Expand "parameters" to set mouse tracking, Idle Animation, frame rate, Auto Blink, Force Auto Blink (fallback timer), Shadow, reset to default parameters, clear model cache, and all model-specific parameters.
-3. If you want idle animation, make sure the model zip includes animation files.
-4. If needed, expand "Expressions" to enable the Expression System.
-
-::: info Editor Note
-The editor has not fully tested this part yet, so details are still limited.
+#### > If You Chose a Live2D Model
+You can continue adjusting in the following order:
+1. Expand "Scale and Position" to adjust the model's size and position in the main window. `x` is the horizontal (left/right) position, `y` is the vertical (up/down) position.
+2. Expand "Model Parameters" to configure mouse tracking, Idle Animation, frame rate, Auto Blink, Force Auto Blink (fallback timer), Shadow, reset to default parameters, clear model cache, and all parameters involved in the model.
+3. To set an idle animation, make sure the model package contains animation files.
+4. If you also need expressions, expand "Expressions" and enable the Expression System.
+When text-to-speech is enabled, AIRI automatically restores the Live2D mouth state after it finishes reading aloud.
+::: info Model Parameters and Expressions
+The parameters, idle animations, and expressions available for a model are determined by the model file itself. After enabling the Expression System, only the expressions the model actually provides are shown; if there are no expression or animation files, the corresponding options have no effect.
 :::
-
-#### > If you choose a VRM 3D model
-
-Expand "Scene" and then set Model Position, camera angle (degrees), camera distance (zoom), model orientation (Y-axis rotation), model gaze direction, and related values.
-
-::: info Editor Note
-This section, including "Change model", is omitted due to time constraints.
+#### > If You Chose a Spine 2D Model
+Spine models provide a dedicated settings panel. You can adjust scale, X/Y position, skins, variants, idle animation, animation blend time, and playback speed, and limit the frame rate or adjust the render scale. If the model contains usable skins, variants, or animations, they appear in the corresponding dropdown options; missing resources are not shown.
+#### > If You Chose a VRM 3D Model
+Expand "Scene" first, then configure Model Position, view angle (degrees), camera distance (zoom), model facing (Y-axis rotation), and model look direction.
+::: info VRM View
+Position, rotation, camera distance, and look direction in the built-in stage are saved to the current settings.
 :::
-
 <a id="chapter-4-memory-bank"></a>
-### > Memory Bank
-
-Not yet released.
-
+### > Memory
+Feature not yet released. If you have ideas for implementing it, you are welcome to suggest them via issues or PRs.
 <a id="chapter-4-providers"></a>
-### > Service Sources
-
-Here you can configure Chat(LLM), Speech(TTS), Transcription(STT), Artistry service sources.
-
-Select an option, choose a service source you have already prepared, and fill in the required information on the corresponding interface to complete the configuration.
-
-In addition, you can filter all services by criteria such as Pricing and Deployment.
-
-* Regarding Pricing, there are three options:
-
-  - All
-  - Free
-  - Paid
-
-* Regarding Deployment, there are three options:
-
-  - All
-  - Local
-  - Cloud
-
-![Airi service sources settings window](./assets/manual-providers.avif)
-
-::: warning Please pay attention
-The configuration interfaces for some services may not function properly due to a lack of timely maintenance. If you encounter a similar issue, please submit an issue on GitHub, or try configuring via the "OpenAI Compatible API" option (if your chosen service source supports it).
+### > Providers
+"Providers" is the entry point where AIRI connects to model and voice capabilities. Save the provider credentials here first, then select the provider and model on the corresponding feature page.
+You can choose a category by purpose:
+- **Chat**: configure the LLM that lets AIRI reply to messages; this is the required configuration to start using AIRI.
+- **Text-to-Speech (TTS)**: let AIRI read replies aloud; then select a model and voice under "Modules → Speech".
+- **Speech Recognition (ASR/STT)**: convert microphone speech into text; then select a model under "Modules → Hearing".
+- **Artistry**: configure an image generation service; then use it under "Modules → Artistry".
+If you skipped the initial setup wizard, we recommend configuring a chat provider first: select a provider, fill in its API key or sign in; if the provider requires it, fill in advanced fields such as Base URL and region; then use **Ping API** to verify connectivity. After verification, go to "Modules → Consciousness", select the provider and model, and send a message to confirm AIRI can reply.
+After switching chat providers, the previously selected chat model is cleared; return to "Modules → Consciousness" and select a model for the new provider again.
+::: warning Credential Security
+API keys, AccessKey Secrets, and other service credentials should only be stored in the settings of the current device. Do not commit them to the repository, paste them in issues, screenshot them, or share them with others.
 :::
-
-::: tip Technical advice
-There are currently many AI models on the market. While AIRI cannot provide individual support for all of them, nor can it guarantee real-time maintenance, it is recommended that you consider the **OpenAI compatible API** option. If your model supports OpenAI's compatible API, you can choose to configure it here.
+::: tip Configuration Guides
+- If you are unsure about a provider's fields, verification method, or error messages, read [General Configuration Instructions](../../config/common.md).
+- To configure a chat model, read [Chat Model](../../config/llm.md); see "Configuration → Providers → Chat Providers" to learn how to configure different chat providers.
+- To configure voice input and output, read [Voice Input and Output](../../config/audio.md); text-to-speech, speech recognition, and artistry providers are also located under the "Providers" menu in the sidebar.
+- Vision understanding reuses the same credentials as the chat provider and requires selecting a chat model that supports image input; see [Vision Understanding](../../config/vision.md) for details.
 :::
-
+![](./assets/manual-providers-list.avif)
+::: tip Technical Advice
+The provider list follows the current AIRI version. If your provider is not in the list but supports the OpenAI-compatible interface, use the **OpenAI-compatible API** configuration; the Base URL and model ID must be filled in per that provider's official documentation.
+:::
 <a id="chapter-4-data"></a>
 ### > Data
-
-Here you can manage Airi's various data.
-
-![Airi data settings window](./assets/manual-data-settings.avif)
-
-::: warning Destructive Actions
-This section allows deletion and clearing of data, which cannot be undone. Please operate with caution, and double-check before running any delete or reset action.
+Here you can manage AIRI's various data.
+::: warning Irreversible Operations
+This section can delete or clear related data, and the action cannot be undone — proceed with caution. Before performing delete and reset operations, we recommend double-checking the content.
 :::
-
-::: tip Known Issue
-"Open app data folder" currently has a bug where it may open the folder multiple times at once.
+![](./assets/manual-data-management.avif)
+"Move desktop window to center" moves the desktop window to the center.
+::: tip Web Client Notes
+"Open app data folder" and "Reset desktop settings and state" are only available on the desktop client; they are not available on the web/mobile clients.
 :::
-
-This page is organized into boxes:
-
-1. The first box contains "Open app data folder". Click "**Open folder**" to open it.
-2. The second box allows you to import/export chat history or delete all chat sessions.
-3. The third box allows you to delete all imported models or reset module preferences and credentials.
-4. The fourth box allows you to reset desktop settings and state.
-5. The fifth box allows you to reset all provider settings and credentials, or clear every local setting, provider configuration, and model.
-
-::: tip Web Version Feature Description
-The above parts 1 and 4 do not exist on the web page.
-:::
-
 <a id="chapter-4-connection"></a>
 ### > Connection
-
-Here you can configure your WebSocket server address.
-
-![Airi connection settings window](./assets/manual-websocket-settings.avif)
-
-::: info Editor Note
-Details omitted.
+"Connection" configures AIRI's service channel. You can set the WebSocket address and enable TLS when encrypted transport is needed. On the desktop client, you can also choose local-only access, allow LAN access, or fill in an advanced hostname (currently unavailable), and set an access token; the page shows a QR code for other devices to connect. Only enable LAN access on trusted networks and keep the access token safe.
+![](./assets/manual-connection.avif)
+::: tip macOS may require administrator verification
+When enabling secure WebSocket, AIRI adds a local certificate to the macOS login keychain. The system may ask you to authorize this with Touch ID or your Mac login password. Verify with your fingerprint or Mac login password to continue.
+![](./assets/manual-security-auth.avif)
 :::
-
 <a id="chapter-4-system"></a>
 ### > System
-
 #### > General
-
-Here you can set the program theme, language, etc.
-
-![Airi general system settings window](./assets/manual-system-general.avif)
-
-- Theme defaults to light; click the button to switch to dark mode.
-- Language sets the interface language.
-- Control island icon size changes the size of the three buttons at the bottom-right of the main window.
-- Finally, you can choose whether to allow collection of usage data and crash reports, or read the privacy policy (click "Privacy Policy" to open).
-
+Here you can set the program theme, language, and more.
+![](./assets/manual-system-general.avif)
+- The theme option defaults to light; click the button next to it to switch to dark mode.
+- The language option sets the interface language; the choice persists after restarting AIRI.
+- The control island icon size option changes the size of the three buttons at the bottom right of the main window.
+- Finally, you can also choose whether to allow usage data and crash analytics collection, or read the privacy policy (click "Privacy Policy" to open it).
 #### > Color Scheme
-
 Here you can change the theme color.
-
-![Airi color scheme settings window](./assets/manual-system-color-scheme.avif)
-
-- Enable the RGB option to make the theme color cycle like an RGB strip.
-- Drag the black line or click on the color bar to change the theme color.
-- Below that is a color preview.
-- You can also select a preset below to change the theme color.
-
+![](./assets/manual-system-color-scheme.avif)
+- You can enable the RGB option(I Want It Dynamic!) to make the theme color cycle automatically like an RGB light strip.
+- You can also drag the black line below or click in the color bar to change the theme color.
+- Below it is a color effect preview.
+- You can also directly select one of the presets below to change the theme color.
 ::: tip Color Presets
-Click on one of the circles, not the square box.
+Click any circle here, not the box.
 :::
-
-#### > Window Shortcuts
-
-::: warning Do Not Open
-This option has no content and no back button. Once you enter it, you must close and reopen the settings window. Do not click it.
+#### > Window Shortcut
+Here you can change the **Spotlight** global shortcut. Spotlight is the floating input box used by "Open Quick Action".
+1. Click the current shortcut.
+2. Press the new key combination you want; it must include at least one modifier key from Cmd, Ctrl, Alt, or Super.
+3. If the shortcut is already used by another app, AIRI warns about the conflict; press Esc to cancel recording.
+4. Click "Reset" to restore the default shortcut.
+::: tip Using Spotlight
+Pressing the configured shortcut opens the quick-action input box. Enter a request and press Enter to send it to AIRI; press Esc to close it.
 :::
-
 #### > Developer
-
-Here you can use some advanced features.
-
-![Airi developer settings window](./assets/manual-system-developer.avif)
-
-::: info Advanced Features
-Most of this content is in English and consists of advanced features that are rarely needed, so this section is for reference only.
-:::
-
-First box and its related options:
-
-- In the first box, you can click "**Open**" to open the developer tools window (like F12 in a browser).
-- The second "Markdown stress test" – details omitted.
-- The third "IO Tracer" — function introduction omitted for now.
-- The fourth "Lag visualization" – details omitted.
-- The fifth "Enable stage transition animation" – details omitted.
-- The sixth "Use page-specific cutscenes" – details omitted.
-
-##### > useMagicKeys tool
-
-::: info Editor Note
-The page is currently blank; details omitted.
-:::
-
-##### > useElectronWindowMouse
-
-Here you can detect the mouse cursor position on the screen.
-
-![Airi useElectronWindowMouse tool window](./assets/manual-devtools-use-window-mouse.avif)
-
-##### > Displays
-
-Here you can visualize the mouse cursor position on the screen.
-
-![Airi Displays tool window](./assets/manual-devtools-displays.avif)
-
-##### > widgets calling
-
-![Airi widgets calling tool window](./assets/manual-devtools-widgets-calling.avif)
-
-##### > Context Flow
-
-Real-time inspection of incoming context updates (server + broadcast) and outgoing chat hooks. Use this to verify how plugin context (e.g., VSCode coding context) flows into the chat pipeline and out to server events.
-
-![Airi Context Flow tool window](./assets/manual-devtools-context-flow.avif)
-
-##### > relative mouse
-
-Here you can visualize the mouse cursor position within this window.
-
-![Airi relative mouse tool window](./assets/manual-devtools-relative-mouse.avif)
-
-##### > beat sync visualizer
-
-![Airi beat sync visualizer tool window](./assets/manual-devtools-beat-sync.avif)
-
-##### > WebSocket Inspector
-
-![Airi WebSocket Inspector tool window](./assets/manual-devtools-websocket-inspector.avif)
-
-##### > Plugin Host Debug
-
-![Airi Plugin Host Debug tool window](./assets/manual-devtools-plugin-host.avif)
-
-##### > Updater
-
-Detailed introduction omitted for now.
-
-##### > Screen Capture
-
-If you have not granted system-level screen capture permission yet, you will first see a permission prompt like the screenshot below. After granting permission, you can capture any application window or the entire screen.
-
-There are four options at the top:
-
-- "applications" – select any open application window, click "**share window**" to view it at the top; move the mouse over the capture and click "stop" to stop.
-- "displays" – capture the whole screen, click "**share screen**" to view; move the mouse over the capture and click "stop" to stop.
-- "devices" – details omitted.
-- "refetch" – details omitted.
-
-![Airi Screen Capture tool window](./assets/manual-devtools-screen-capture.avif)
-
-##### > vision capture
-
-If screen capture permission has not been granted yet, this page will also show a permission prompt first. After granting permission, the page can start capturing frames and show the vision processing result.
-
-![Airi vision capture tool window](./assets/manual-devtools-vision-capture.avif)
-
+This page is for development, troubleshooting, and validating experimental features; regular users do not need to touch it. The full tool documentation has moved to [Developer Guide → Developer Tools](../../../contributing/desktop-developer-tools).
 <a id="web-features"></a>
-## > Web Version Feature Supplement
-
+## > Web Client Feature Supplement
 <a id="chapter-3-main-web"></a>
-### > Web Version Main Interface
-
-![Airi Web Interface](./assets/manual-main-web.avif)
-
-Here, you can see your character model and talk directly to it.
-
+### > Web Client Main Interface
+![](./assets/manual-main-web.avif)
+Here you can see your character model and talk to it directly.
 Broadly, it is divided into three parts:
-
-- Character model space
-- Chat box
+- The character model space
+- The chat box
 - Others
-
-Below, we focus on the chat box and the other parts.
-
+Below we focus on the chat box and the other parts of the interface.
 #### > Chat Box
-
-The chat box is divided into two sections:
-
-- The upper section is the area that displays and records the conversation history
-- The lower section is the input box, where you can type to converse with the character
-
-Below the lower section, there are three buttons: (text for reference only)
-
-- Conversations (manage conversations; conversations are independent of each other)
+The chat box is divided into two parts:
+- The upper part displays and records the chat history
+- The lower part is the input box, where you can type to talk to the character
+Below the lower part there are three buttons: (text content is for reference only)
+- Conversations (manage conversations; different conversations are independent of each other)
 - Send method (choose how to confirm sending a message)
 - Enable voice input
-
 #### > Other Parts
-
-##### > Top Area
-
+##### > Upper Area
 Includes three options:
-
 - About
 - Character Card
 - Account & Settings
-
-The third option contains three main sections:
-
-- Account info
+The third option contains three blocks:
+- Account information
 - Profile, Flux, Settings
-- Log out
-
+- Sign out
 ###### > Profile
-
-If you are logged into Airi, you can manage your account information here.
-
-Details omitted.
-
+If you are signed in to AIRI, you can manage your account information here.
+You can view and change the display name, manage the password and linked sign-in methods (e.g. GitHub, Google), and deactivate or delete the account in the danger zone. The avatar is currently taken from the account profile; uploading a new avatar here is not supported yet.
 ###### > Flux
-
-Relevant instructions omitted for now.
-
+Flux is the balance unit used by AIRI official services. After signing in, you can view the current balance, usage statistics, and transaction history; in regions or versions where purchase is available, you can also choose a plan and proceed to checkout here. Requests that use the official chat, vision, or speech services may consume Flux; fees for third-party providers are still billed separately by those providers.
 ###### > Settings
-
-Same as the desktop version settings; see [Chapter 4](#chapter-4-settings) for details.
-
-##### > Bottom Area
-
-Includes four options: (text for reference only)
-
+Same as the desktop settings; see [Chapter 4](#chapter-4-settings).
+##### > Lower Area
+Includes four options: (text content is for reference only)
 - Position & Size
 - Delete Chat History
 - Toggle Light/Dark
 - Background
-
 ###### > Position & Size
-
-After clicking, you will see three new options on the left side of the option: x, y, scale, as well as a vertical bar on the left side of the web interface. Here, x refers to the model's x-axis position, y refers to the model's y-axis position, and scale refers to the model's zoom (size). You can adjust these three parameters by **clicking and dragging** the vertical bar on the left side of the web interface.
-
-![Adjust position and size on the main interface](./assets/web-position-size.avif)
-
+After clicking, you will see three new options to the left of the option — x, y, and scale — plus a vertical bar on the left of the web interface. `x` is the model's X-axis position, `y` is the model's Y-axis position, and `scale` is the model's scale (size). You can **click and drag** the vertical bar on the left of the web interface to adjust these three parameters.
+![](./assets/manual-web-position-size.avif)
 ###### > Delete Chat History
-
-Click to clear all chat history with one click.
-
-::: warning Proceed with caution
-Deleted chats cannot be recovered, so please operate with care!
+Click to clear all chat history in one go.
+::: warning Proceed with Caution
+Deletion cannot be undone — proceed with caution!
 :::
-
 ###### > Toggle Light/Dark
-
-Switch the interface between "Light" or "Dark" theme.
-
+Switch the interface between "light" and "dark".
 ###### > Background
-
 Change the background of the main interface.
-
 <a id="features-issues"></a>
-## > Historical Characteristics & Common Issues
-
-### > Common Issues
-
-- When upgrading from an older version to version 0.10.2, if you have previously changed the size and position of the model, your model may 'disappear'. If you encounter this problem, please do not worry. You can solve it by resetting the model's scale and position in the model settings interface.
-
-<a id="h2-2-1"></a>
-### > Characteristics H2-2-1
-
-The first time you start the application, you may encounter this bug: the main interface border flickers, and when you click to expand the pop-up menu, it quickly retracts…
-
-If you encounter this bug, don't worry—you can resolve it by following the steps below (but you'll need to be quick with your clicks):
-
-First, click to expand at the exact moment when the flickering border goes dark.
-
-Then quickly find the first option in the second row, 'Refresh', and click it. This will solve the problem.
-
-* This feature has been fixed!
-
+## > Historical Features & FAQ
+### > FAQ
+- After upgrading from an early version, if you previously changed the model's size and position, the model may "disappear". If this happens, reset the model's scale and position in the model settings.
 <a id="h3-1-1"></a>
-### > Characteristics H3-1-1
-
-In some of the past versions, an option could also be seen in the top right corner of the main window:
-
-- "websocket status" – top right, click to open connection settings where you can configure your WebSocket server address.
-
+### > Feature H3-1-1
+In some past versions, an additional option could be seen in the top-right corner of the main window:
+- "websocket status" — located at the top right; click to open the connection settings, where you can configure your WebSocket server address.
 <a id="chapter-ed-toeveryeditor"></a>
-## > Written at the End
-
-This manual is primarily written by non-official personnel but submitted to the official website. Although content maintenance is usually handled by members of the Mujiu Yunxuan Studio, we sincerely hope that all friends who wish to edit this document or have already edited it will leave your name in the author section at the beginning. Whether you make content changes or formatting adjustments, we welcome everyone to join us in enriching and optimizing this manual, contributing your own strength—from anyone—to the Airi project and to this manual!
-
-Furthermore, if you are a non-official user and have ideas for editing this manual, please do not have any additional concerns—simply make the changes and submit a pull request. However, we remind you again not to forget to leave your name!
-
+## > A Final Note — To Every Friend Who Wants to Contribute to This Manual
+Although this manual is mostly maintained by unofficial writers yet published on the official website, and its content is usually maintained by the MuGewRayce studio team, we very much hope that every friend who wants to edit this document, or has already edited it, will leave their name in the author section at the top — whether your contribution is to the content or to the formatting. We welcome everyone to enrich and improve this manual together, contributing your own **strength** to the AIRI project and to this manual!
+Also, if you, as a non-official person, want to make changes to this manual, you do not need to have any extra concerns — just make the changes and submit a pull request. But again, do not forget to leave your name!
 Thank you all for your support and cooperation!
-
-Sincerely,
-JhIceFair
+—— Ling Ling (凌柃)

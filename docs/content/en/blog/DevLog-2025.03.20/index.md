@@ -4,47 +4,40 @@ category: DevLog
 date: 2025-03-20
 ---
 
+
 <script setup>
-import Gelbana from './assets/steins-gate-gelnana-from-elpsycongrooblog.avif'
-import NewUIV3 from '../DevLog-2025.03.10/assets/new-ui-v3.avif'
-import NewUIV3Dark from '../DevLog-2025.03.10/assets/new-ui-v3-dark.avif'
-import HistoireColorSlider from './assets/histoire-color-slider.avif'
-import HistoireColorSliderDark from './assets/histoire-color-slider-dark.avif'
-import HistoireLogo from './assets/histoire-logo.avif'
-import HistoireLogoDark from './assets/histoire-logo-dark.avif'
-import NewUIV4Speech from './assets/new-ui-v4-speech.avif'
-import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.avif'
-import SteinsGateMayori from './assets/steins-gate-mayori.avif'
 </script>
 
-Hello again! It has been 10 days since the last post of DevLog
 
-We made a lot of improvements to our user interface, we made it possible
-to integrate more LLM providers, and speech providers, first time to post
-AIRI on Discord, bilibili, and many other social media platforms.
+Long time no see! It has been 10 days since the last DevLog.
 
-There is so much more that we can't wait to tell you about.
 
-## Dejavu
+We made a lot of improvements to the user interface to integrate more LLM providers and speech providers, and for the first time released AIRI on Discord, bilibili, and many other social media platforms.
 
-Let's rewind the time a little bit!
 
-<img :src="Gelbana" alt="Gelbana" />
+There is still a lot we cannot wait to tell you about.
 
-> Ahh, don't worry, our beloved [AIRI](https://github.com/moeru-ai/airi) will
-> not turn into GEL-NANA like this. BUT, if you haven't watched the
-> [_Steins;Gate_](https://myanimelist.net/anime/9253/Steins_Gate) anime series,
-> try it~!
 
-We were working on the initial settings UI design, and animation has been
-improved, customizable theme coloring has been achieved for 10 days ago.
-It was indeed a busy week for any of us (especially we are all part-time on
-this project, haha, join us if you will. 🥺 (PLEASED FACE)).
+## Deja Vu
 
-And this was the final result we got at that time:
 
-<img class="light" :src="NewUIV3" alt="new ui" />
-<img class="dark" :src="NewUIV3Dark" alt="new ui" />
+Let's turn the clock back a bit!
+
+
+<img src="/blog/DevLog-2025.03.20/assets/steins-gate-gelnana-from-elpsycongrooblog.avif" alt="Gelbana" />
+
+> Ah, don't worry, our beloved [AIRI](https://github.com/moeru-ai/airi) won't become a GEL-NANA like this. But if you haven't watched the [_Steins;Gate_](https://myanimelist.net/anime/9253/Steins_Gate) anime series yet, we highly recommend giving it a try~!
+
+
+We have been working on the initial setup UI design, the animations were improved, and 10 days ago we implemented customizable theme coloring. It has indeed been a busy week for any of us (especially since we are all part-time contributors to this project, haha. If you would like, you are welcome to join us. 🥺 (pleading face)).
+
+
+This is the final result we got at the time:
+
+
+<img class="light" src="/blog/DevLog-2025.03.10/assets/new-ui-v3.avif" alt="new ui" />
+
+<img class="dark" src="/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif" alt="new ui" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">0</span>
@@ -57,100 +50,105 @@ And this was the final result we got at that time:
   <span class="nixie-digit">4</span>
 </h2>
 
-~~Welcome to the β sekaisen.~~
 
-Since we have the colored card for model radio group, and navigation items,
-with the customizable themes, it's obvious that we will definitely suffer
-in debugging the UI components within the business workflows, clearly it
-will slow us down.
+~~Welcome to the β worldline.~~
 
-This is where we made the decision to introduce the amazing tool called
-[`Histoire`](https://histoire.dev), basically a
-[Storybook](https://storybook.js.org/) but much more native to
-[Vite](https://vitejs.dev) and [Vue.js](https://vuejs.org) combination.
 
-Here's the first look that [@sumimakito](https://github.com/sumimakito)
-recorded once done:
+Since we now have colored cards for model radio groups and nav items, as well as customizable themes, it is clear that debugging UI components in the business workflow would definitely become difficult, which would visibly slow down our development.
 
-<ThemedVideo muted autoplay src="./assets/histoire-first-look.mp4" />
 
-The entire OKLCH color palette can spread on to the canvas all at once
-for us to take as reference. But it wasn't perfect to tryout the colors
-and have the same scheme of feelings of Project AIRI's theme, was it?
+That is why we decided to introduce the amazing tool called [`Histoire`](https://histoire.dev), which is basically a [Storybook](https://storybook.js.org/), but more native to the [Vite](https://vitejs.dev) and [Vue.js](https://vuejs.org) stack.
 
-So I first re-implemented the color slider, which feels much more suitable:
 
-<img class="light" :src="HistoireColorSlider" alt="color slider" />
-<img class="dark" :src="HistoireColorSliderDark" alt="color slider" />
+This is the first look recorded by [@sumimakito](https://github.com/sumimakito) after finishing it:
 
-This does make the slider a bit more professional.
 
-The logo and the default greenish color can be replaced to align the theme
-of AIRI, that's why I designed another dedicated logo for the UI page:
+<ThemedVideo muted autoplay src="/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4" />
 
-<img class="light" :src="HistoireLogo" alt="project airi logo for histoire" />
-<img class="dark" :src="HistoireLogoDark" alt="project airi logo for histoire" />
 
-Oh, right, the entire UI component has been deployed to Netlify as usual
-under the path `/ui/`, feel free to take a look at it if you ever wondered
-how does the UI elements look like:
+The entire OKLCH palette can be expanded onto the canvas at once for our reference. But a scheme for trying colors and getting the same feel as the Project AIRI theme was not perfect, was it?
+
+
+So I first reimplemented the color slider, and it feels more fitting:
+
+
+<img class="light" src="/blog/DevLog-2025.03.20/assets/histoire-color-slider.avif" alt="color slider" />
+
+<img class="dark" src="/blog/DevLog-2025.03.20/assets/histoire-color-slider-dark.avif" alt="color slider" />
+
+
+That indeed makes the slider more professional.
+
+
+The logo and the default green can be replaced to stay consistent with the AIRI theme, which is why I designed another logo specifically for the UI page:
+
+
+<img class="light" src="/blog/DevLog-2025.03.20/assets/histoire-logo.avif" alt="project airi logo for histoire" />
+
+<img class="dark" src="/blog/DevLog-2025.03.20/assets/histoire-logo-dark.avif" alt="project airi logo for histoire" />
+
+
+Oh, right, the entire UI component library has been deployed to Netlify as usual at the `/ui/` path. If you want to see what the UI elements look like, feel free to check it out:
+
+
 [https://airi.moeru.ai/ui/](https://airi.moeru.ai/ui/)
 
-There are tons of other features that we cannot cover in this DevLog entirely:
 
-- [x] Supported for all of the LLM providers.
-- [x] Improved the animation and transition of menu navigation UI.
-- [x] Improved the spacing of the fields, new form!
-- [x] Component for (almost all the todo components on the [Roadmap](https://github.com/moeru-ai/airi/issues/42))
+There are many other features that we cannot fully cover in this DevLog:
+
+
+- [x] Support all LLM providers.
+- [x] Improved animations and transitions for the menu navigation UI.
+- [x] Improved field spacing, new forms!
+- [x] Components (almost all the to-do components on the [roadmap](https://github.com/moeru-ai/airi/issues/42))
   - [x] Form
     - [x] Radio
-    - [x] Radio Group
-    - [x] Model Catalog
+    - [x] Radio group
+    - [x] Model catalog
     - [x] Range
     - [x] Input
-    - [x] Key Value Input
-  - [x] Data Gui
-    - [x]  Range
+    - [x] Key-value input
+  - [x] Data GUI
+    - [x] Range
   - [x] Menu
-    - [x] Menu Item
-    - [x] Menu Status Item
+    - [x] Menu item
+    - [x] Menu state item
   - [x] Graphics
     - [x] 3D
   - [x] Physics
-    - [x] Cursor Momentum
-  - [x] And more...
+    - [x] Cursor momentum
+  - [x] More...
 
-We did some other experiment over the momentum and 3D too.
 
-Check this out:
+We also did some other experiments with momentum and 3D.
 
-<img class="light" :src="NewUIV4Speech" alt="brand new speech design" />
-<img class="dark" :src="NewUIV4SpeechDark" alt="brand new speech design" />
 
-We finally supported speech models configurations 🎉! (Previously was
-only capable to configure for ElevenLabs) Since the
-[new `v0.1.2` version](https://github.com/moeru-ai/unspeech/releases/tag/v0.1.2)
-of another amazing project we were working on called `unspeech`, it's possible
-to request the Microsoft Speech service (a.k.a. Azure AI Speech service, or
-Cognitive Speech service) through
-[`@xsai/generate-speech`](https://xsai.js.org/docs/packages/generate/speech), which
-means we finally got a OpenAI API compatible TTS for Microsoft.
+Take a look at this:
 
-But why was this so important to support?
 
-It's because that for the very first version of Neuro-sama, the text-to-speech
-service was powered by Microsoft, with the voice named `Ashley`, along with a
-`+20%` of pitch, you can get the same voice as Neuro-sama's first version, try it
-yourself:
+<img class="light" src="/blog/DevLog-2025.03.20/assets/new-ui-v4-speech.avif" alt="brand new speech design" />
+
+<img class="dark" src="/blog/DevLog-2025.03.20/assets/new-ui-v4-speech-dark.avif" alt="brand new speech design" />
+
+
+We finally support speech model configuration 🎉! (Previously only ElevenLabs could be configured.) Since the new [`v0.1.2` release](https://github.com/moeru-ai/unspeech/releases/tag/v0.1.2) of `unspeech` — another amazing project we are developing — Microsoft Speech services (i.e. Azure AI Speech, or Cognitive Speech) can be requested through [`@xsai/generate-speech`](https://xsai.js.org/docs/packages/generate/speech). This means we finally have an OpenAI API-compatible TTS service for Microsoft.
+
+
+But why is supporting this so important?
+
+
+Because for the first version of Neuro-sama, the text-to-speech service was powered by Microsoft, using a voice named `Ashley`, and with a `+20%` pitch you get the exact same voice as the first version of Neuro-sama. Try it yourself:
+
 
 <audio controls style="width: 100%;">
-  <source src="./assets/ashley-pitch-test.mp3" />
+  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
 </audio>
 
-Isn't it the same, this is insane! That's means, we can finally approach to
-what Neuro-sama can do with the new **Speech** ability!
 
-<img :src="SteinsGateMayori" alt="character from anime Steins;Gate" />
+Isn't it exactly the same? This is insane! It means we can finally get closer to what Neuro-sama can do with the new **speech** capability!
+
+
+<img src="/blog/DevLog-2025.03.20/assets/steins-gate-mayori.avif" alt="character from anime Steins;Gate" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">1</span>
@@ -163,27 +161,32 @@ what Neuro-sama can do with the new **Speech** ability!
   <span class="nixie-digit">3</span>
 </h2>
 
-With all of those, we can get this result:
 
-<ThemedVideo controls muted autoplay src="./assets/airi-demo.mp4" />
+With all of this, we can get this result:
 
-Nearly the same. But our story doesn't end here, currently, we haven't
-achieved memory, and better motion control, and the transcription settings
-UI was missing too. Hopefully we can get this done before the end of the
-month.
 
-We are planning to have
+<ThemedVideo controls muted autoplay src="/blog/DevLog-2025.03.20/assets/airi-demo.mp4" />
+
+
+Almost exactly the same. But our story does not end here. At the moment, we have not implemented memory features or better motion control, and the transcription settings UI is still missing. We hope to finish these by the end of the month.
+
+
+We plan to have
+
 
 - [ ] Memory Postgres + Vector
 - [ ] Embedding settings UI
 - [ ] Transcription settings UI
 - [ ] Memory DuckDB WASM + Vector
 - [ ] Motion embedding
-- [ ] Speaches settings UI
+- [ ] Speech settings UI
 
-That's all for today's DevLog, thank you to everyone that read the DevLog
-all the way down here.
 
-I'll see you all tomorrow.
+That's it for today's DevLog. Thank you to everyone who joined the DevStream and stayed with us to the very end.
+
+
+See you tomorrow.
+
 
 > El Psy Congroo.
+

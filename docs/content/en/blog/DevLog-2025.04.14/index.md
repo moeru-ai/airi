@@ -4,232 +4,355 @@ category: DevLog
 date: 2025-04-14
 ---
 
-## Introduction
 
-[Last time](../DevLog-2025.04.06/#memory-system-memory-system) we discussed AIRI's memory system. Today, let's dive deeper into how to implement such a complex memory system and explore future prospects.
+## Intro
 
-## Starting with Search Engines
 
-Search engines have high requirements for retrieval performance. To address this, the system implements a two-stage sorting process:
+[Last time](../DevLog-2025.04.06/#memory-system) we talked about AIRI's memory system. This time, let's go deeper: how to implement such a complex memory system, and our outlook for the future.
 
-- **Basic Sorting (Coarse Ranking)**
-- **Business Sorting (Fine Ranking)**
 
-Basic sorting serves as the initial screening, quickly identifying high-quality documents from search results, extracting the top N results, and then performing detailed scoring through fine ranking to ultimately return the optimal results to users.
+## Start with Search Engines
 
-**This shows that basic sorting has a significant impact on performance, while business sorting affects the final ranking effectiveness.**
 
-Therefore, basic sorting should be as simple and effective as possible, extracting only the key factors from business sorting. Currently, both basic and business sorting are configured through sorting expressions.
+Search engines have high requirements for retrieval performance. For this reason, the system offers a two-stage ranking process:
 
-### OpenSearch / Wentian Engine DSL [^1]
 
-Let's use Alibaba Cloud OpenSearch, which Neko has extensively used, as an example. Search engines have built-in functions for reordering:
+- **Basic ranking (coarse ranking)**
+- **Business ranking (fine ranking)**
+
+
+Basic ranking is the mass screening: quickly find high-quality documents from the retrieval results, take the TOP N results, and then score them in detail with fine ranking, finally returning the best results to the user.
+
+
+**As you can see, basic ranking has a bigger impact on performance, while business ranking has a bigger impact on the final ranking quality.**
+
+
+Therefore, basic ranking should be as simple and effective as possible — it only needs to extract the key factors of business ranking. Currently, both basic and business ranking are configured through ranking expressions.
+
+
+### OpenSearch / WenTian Engine DSL [^1]
+
+
+Let me use Alibaba Cloud OpenSearch, which Neko used extensively, as an example. Search engines have some built-in functions for re-ranking:
+
 
 #### `static_bm25`
 
-Static text relevance, traditional NLP, used to measure the match between query and document.
-Similar to RAG's _similarity score_
-Value range: 0～1
+
+Static text relevance, traditional NLP, used to measure how well a query matches a document.
+
+
+Similar to RAG's _similarity score_.
+
+
+Ranges from 0 to 1.
+
 
 #### `exact_match_boost`
 
-Gets the maximum weight of user-specified query terms, also known as score boost function.
-If the input keywords, before tokenization, hit the "content" in document fields (such as title, body).
-For example, when searching "How to make Neurosama", documents and pages containing the exact phrase "Neurosama" should score higher than those with "Neuro" and "sama" appearing separately.
+
+Gets the maximum weight of the user-specified query terms, also called the score boost function.
+
+
+If the input keyword matches the "content" in the document (for example, in the title or body fields) before tokenization.
+
+
+For example, when searching "how to make Neurosama", documents and pages where "Neurosama" appears as a whole should score higher than where "Neuro" and "sama" appear separately.
+
 
 #### `timeliness`, `timeliness_ms`
 
-Timeliness score, newer content is more relevant.
 
-### How is Data Stored?
+Recency score: the newer, the more relevant.
 
-Search engines, whether Alibaba Cloud's OpenSearch, Grafana's built-in Loki, or earlier ElasticSearch engines (some video websites were developed based on ElasticSearch), all require data to be **reprocessed in separate data structures** within these search engines before they can be used.
 
-How is this reprocessing implemented? This requires DTS.
+### How Is the Data Stored?
+
+
+Whether it is Alibaba Cloud OpenSearch, a search engine like Grafana's built-in Loki, or the earlier ElasticSearch engine from before the Grafana era (a certain video site was built by customizing ElasticSearch), all search engines require data to be **reprocessed into a separate data structure** before it can be used.
+
+
+How is the reprocessing implemented? This requires DTS.
+
 
 #### DTS [^2]
 
-Let's further introduce the concept of **DTS**.
 
-Data Transformation Services is a system for **communication and data synchronization** between business databases and Search Engine Instances.
+Let me introduce the concept of **DTS**.
 
-Implementation principle: Uses MySQL and Postgres's native watch and subscribe event capabilities to monitor table modifications, then synchronizes data to the search engine. During this process, data is serialized into the desired format, undergoing data structure transformation (ETL: extract, transform, load).
 
-When performing coarse ranking searches, is it somewhat like searching in a database _view_? Like a virtual table? This understanding is somewhat correct, except that views typically use the same underlying data structure as the database (B+ trees), while search engines can have many other specialized data structures, such as graphs or specialized index key-value databases.
+Data Transformation Services is a system used for **communication and data synchronization** between business databases and Search Engine Instances.
+
+
+Implementation principle: use MySQL and Postgres's native watch and subscribe event capabilities to listen for table modifications, then sync the data to the search engine. During this process, the data is serialized into the expected format and undergoes structural transformation (ETL — extract, transform, load).
+
+
+So when a search engine does a coarse-ranked search, is it in some sense like looking for things in a database _view_? Like a virtual table? You can think of it that way — except that views usually use the same underlying data structure as the database, i.e. a B+ tree, while search engines can have many other specialized data structures, such as graphs or specialized index KV stores.
+
 
 ### Tokenization?
 
-For traditional search engines, a Chinese document input goes through this process:
 
-- Sentence segmentation (breaking large paragraphs into sentences)
-- Word segmentation (breaking sentences into words/characters, nouns, verbs, etc.)
+For traditional search engines, a Chinese document goes through this process:
+
+
+- Sentence splitting (breaking large passages into sentences)
+- Word segmentation (splitting sentences into words, nouns, verbs, etc.)
 - Pinyin conversion
-- Can map and override previous results based on current dictionary coverage configuration
-- Perform basic vectorization and feature extraction
-- Write to storage layer
+- Optionally mapping and overriding previous results based on the current dictionary coverage configuration
+- Basic vectorization and feature extraction
+- Writing to the storage layer
 
-English also requires tokenization, but it's much simpler - spaces serve as word boundaries.
+
+English also needs tokenization, but it is very simple: spaces are the tokenization.
+
 
 ### How to Optimize Performance?
 
+
 - Compute-intensive
-- Multiple internal task schedulers to slowly index data
-- Traditional NLP techniques like Hamming distance and cosine distance can be precomputed and stored
-- Hot words can cache tokenization and sorting results
-- Data lakehouse? Commonly used on AWS, generally for aggregate queries across multiple databases or data sources, very slow, basically only used for data analysis and BI
+- Multiple internal task schedulers index the data slowly
+- In traditional NLP, Hamming distance and cosine distance can be computed simply first and pre-stored
+- Hot words: cache the tokenization results and ranking results
+- Data lakehouse? Commonly used on AWS, generally for aggregation queries that can query several databases or several data sources; it is quite slow and basically only used for data analysis and BI
 
-### What is Recall?
 
-Recall (retrieval) means whether the expected document can be retrieved when keywords are input.
+### What Is Retrieval?
 
-Difference from search? Search is "user-initiated operation", while recall is "what the machine does to respond to search".
 
-### What is Reranking?
+Retrieval means: after a keyword is entered, can the expected documents be retrieved back.
 
-The significance of reranking is that if we only rely on vector distance sorting using ANN (Approximate Nearest Neighbor) and KNN (K-Nearest Neighbor) based on embedding model vectors, there will actually be biases.
 
-Because the exact_match_boost and timeliness functions introduced earlier in OpenSearch would no longer exist.
+What is the difference from search? Search is "an operation issued by the user", while retrieval is "what the machine does to respond to the search".
 
-What if you want to add sorting based on other fields and steps to the retrieved documents?
 
-RAG now popularizes a new process called reranking model, which essentially **uses a separate expert model to automatically re-sort the first round of retrieved data**.
+### What Is Re-ranking?
 
-However, reranking still cannot solve many problems of the memory layer: forgetting curves, memory reinforcement, random memory recall, and emotionally influenced reranking scores - these are not things reranking models can handle.
 
-To build a good memory layer for AIRI, we need to establish a good reranking mechanism, combining RAG basic capabilities with past search engine reranking experience.
+The point of reranking is that if we only use the vectors from an embedding model for ANN (Approximate Nearest Neighbor) and KNN (K-Nearest Neighbor) vector distance ranking, the results would actually be biased.
 
-## Memory Layer Experimental Platform
+
+Because functions like `exact_match_boost` and `timeliness` introduced earlier in the OpenSearch section no longer exist.
+
+
+What if you want to rank the retrieved documents based on other fields and other ranking steps?
+
+
+RAG now has a popular new flow: the reranking model — essentially **using a separate expert model to automatically re-rank the first-round retrieved data**.
+
+
+But reranking still cannot solve many problems of the memory layer: the forgetting curve, memory reinforcement, random recall of memories, and emotion-interfered ranking scores — none of these are things a reranking model can do.
+
+
+If we want to build a good memory layer for AIRI, we need to build a good reranking mechanism, blending the basic RAG capabilities with past search-engine reranking experience.
+
+
+## Memory Layer Experiment Platform
+
 
 [Project AIRI Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
 
-![](./assets/memory-driver.avif)
+
+![](/blog/DevLog-2025.04.14/assets/memory-driver.avif)
+
 
 The highlighted "half life" on the left is the memory's half-life.
 
-By default, time passes at 1 second = 1 day, so after 7 seconds, the memory score will be halved.
 
-What is memory score? Memory score is primarily controlled by this:
-![](./assets/memory-controler.avif)
+By default, time flows at 1 second = 1 day, so after 7 seconds, the memory score halves.
+
+
+What is a memory score? It is basically controlled by this:
+
+
+![](/blog/DevLog-2025.04.14/assets/memory-controler.avif)
+
 
 The resulting score is the current score.
 
-What is original? It's the score at initialization.
 
-Example: Original score is 523, its current score is actually gradually decreasing:
-![](./assets/memory-decay.avif)
+What is "original"? It is the score at initialization.
 
-Before continuing, let me explain that this forgetting curve SQL is stateless.
 
-What does stateless mean? Stateless means it doesn't require real-time database task execution to update scores, but directly applies a forgetting function based on "current time" to calculate the score.
+Example: with an original score of 523, its current score actually decreases slowly:
 
-So, what if the current score drops? To solve this problem, we need ways to **reinforce memory**.
 
-## Analogous to Human Memory Systems
+![](/blog/DevLog-2025.04.14/assets/memory-decay.avif)
 
-Based on the forgetting curve mentioned in spaced repetition and the basic working principles of memory systems in psychology [^3]
 
-We know that human memory can be divided into several types:
+Before continuing, let me explain: this forgetting-curve SQL is stateless.
+
+
+What does stateless mean? It means there is no need to run tasks in the database in real time to update scores; instead, a forgetting function is computed directly from "the current time" and the score is applied to it.
+
+
+So what happens when the current score drops? To solve this, we need a way to **reinforce memory**.
+
+
+## An Analogy to the Human Memory System
+
+
+According to the forgetting curve mentioned in spaced repetition and the basic way the memory system works in psychology [^3],
+
+
+we know that human memory can be divided into several types:
+
 
 - Working memory
 - Short-term memory
 - Long-term memory
 - Muscle memory
 
-Working memory is the least important to remember.
 
-Short-term memory gradually decays in strength (score) according to the forgetting curve. At this point, we need a short-term memory simulation function to model this process.
+Working memory is what we need to remember the least.
 
-Long-term memory is important, with a long half-life, evolved from short-term memory.
 
-Finally, muscle memory - rather than calling it a type of memory, it's more like a conditioned reflex that has been formed.
+Short-term memory slowly decays in strength, i.e. score, according to the forgetting curve. At this point, we need a simulation function for short-term memory to model this process.
+
+
+Long-term memory is very important; its half-life is very long, and it evolves from short-term memory.
+
+
+Finally, muscle memory — rather than being a memory, it has already formed a conditioned reflex.
+
 
 ## How Should AIRI Be Designed?
 
-From this, we can glimpse AIRI's implementation principles:
 
-- Working memory is like the messages array
-- Short-term memory is like RAG memory entries that are less easily recalled, newer ones are easier to recall
-- Long-term memory is like RAG entries that are easily recalled but become fuzzy, with higher recall counts from the past being easier to recall
-- Muscle memory is like fixed patterns - when A appears, ActionA and MemoryA appear together, more like an exact matching mechanism
+In fact, we can get a glimpse of AIRI's implementation principles:
 
-But is this design correct?
 
-Clearly, we've only introduced two dimensions here: temporal relevance and retrieval count. When you start pursuing more complex systems, this will become limiting.
+- Working memory is like the messages array.
+- Short-term memory is like RAG memory entries that are not so easy to recall, but the newer the easier to recall.
+- Long-term memory is like RAG entries that are easy to recall but become fuzzy; the more they were recalled in the past, the easier to recall.
+- Muscle memory is like a fixed pairing: when A appears, ActionA and MemoryA appear too — more like an exact-match mechanism.
 
-### Quick Review
 
-Let's review the sorting expressions mentioned in the DevLog, which should help understanding.
+But is this design right?
 
-![](./assets/review-1.avif)
+
+Obviously, we have actually only introduced two dimensions: temporal relevance and retrieval count. If you start pursuing more complex systems, you will be limited.
+
+
+### A Quick Review
+
+
+Let's review the ranking expressions mentioned in the DevLog; it should help understanding.
+
+
+![](/blog/DevLog-2025.04.14/assets/review-1.avif)
+
 
 Cosine distance is "relevance", the most basic coarse ranking:
-![](./assets/review-2.avif)
 
-Now we need time to participate, so we add another field to store time distance, then create a separate field to store the combined score `(1.2 * similarity) + (0.2 * time_relevance)`, where semantic relevance has 1.2x weight (amplification factor, not required to be less than 1), and time distance relevance has 0.2x weight.
 
-This cleverly implements stateless multi-field relevance sorting SQL while making it parameter-adjustable (1.2 and 0.2).
+![](/blog/DevLog-2025.04.14/assets/review-2.avif)
 
-On the memory detail card, you can click "simulate retrieval", which actively triggers a memory recall.
-![](./assets/memory-retrieval.avif)
 
-In the current demo, this is implemented by simply using UPDATE statements to add +1 to the retrieval count field in the original table.
+Now we need time to participate. We just add another field to store the time distance, and then create a separate field to store the merged score `(1.2 * similarity) + (0.2 * time_relevance)`, where semantic relevance takes a 1.2x weight (a multiplier factor, not required to be less than 1) and time-distance relevance takes a 0.2x weight.
 
-There's an implicit pitfall here: this is still single-dimensional calculation, equivalent to recalling equals reinforcing.
 
-But the real world isn't like this. Memories can be sad, happy - sadness brings negative feedback, happiness brings positive feedback.
+This way, we cleverly implemented a stateless multi-field relevance ranking SQL, and made its parameters (1.2 and 0.2) adjustable.
 
-So this is the part I haven't completed yet.
 
-## Emotions?
+On the memory detail card, you can click "simulate retrieval", which proactively triggers a memory recall.
+
+
+![](/blog/DevLog-2025.04.14/assets/memory-retrieval.avif)
+
+
+In the current demo, this is done by directly writing a +1 to the retrieval count field of the original table with an UPDATE statement.
+
+
+There is an implicit pitfall here: this is still a single-dimension calculation — recalling is equivalent to reinforcing.
+
+
+But the real world is not like that. Memories can be sad or happy; sad ones bring negative feedback, happy ones bring positive feedback.
+
+
+So that is the part I have not finished yet.
+
+
+## Emotion?
+
 
 https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 
-This new simulator includes emotion-related simulations:
-![](./assets/memory-emotional-simulator.avif)
+
+This new simulator includes emotion-related simulation:
+
+
+![](/blog/DevLog-2025.04.14/assets/memory-emotional-simulator.avif)
+
 
 ### Are Emotions Related to Memory?
 
-Wanting to eat candy but not getting it is a straightforward problem - not getting it definitely makes one unhappy.
 
-Then you'll discover that emotions are actually related to memory.
+Wanting a lollipop but not getting one is a very direct problem — not getting it is bound to make you unhappy.
 
-If "happy about a past memory and hoping to experience it again", but "temporarily unable to recreate the scenario from that memory", so feeling "unhappy about not getting it".
 
-Can store "joy" and "disgust" scores in the memory database:
-![](./assets/memory-emotional-score.avif)
+Then you will find that emotions are actually related to memory.
+
+
+If you are "happy about a past memory and want to experience it again", but "the scenario in that memory cannot be realized for now", you feel "sad because you cannot have it".
+
+
+You can store "joy" and "aversion" scores in the memory database:
+
+
+![](/blog/DevLog-2025.04.14/assets/memory-emotional-score.avif)
+
 
 ### PTSD?
 
-PTSD typically involves two words: "trigger" and "flashback". Clearly, PTSD-related memories should be suppressed, with high disgust and trauma scores.
 
-But actually, PTSD-related memories can suddenly emerge. From a bionic and data simulation perspective, we can implement this effect using random numbers.
+PTSD usually involves two words: "trigger" and "flashback". Clearly, PTSD-related memories should be repressed, and their aversion and trauma scores should be very high.
 
-Can reference the emotional model at https://yutsuki.moe/2019/09/a0d0fa1b/
 
-![](./assets/memory-emotional-model.avif)
+But in reality, PTSD-related memories suddenly surface. From a biomimetic and data-simulation perspective, we can use random numbers to achieve this effect.
 
-## Still Much Work to Do...
 
-For example, what are ReLU's current emotions? Does ReLU have any bad memories about anyone?
+You can refer to the emotion model in https://yutsuki.moe/2019/09/a0d0fa1b/.
 
-Do memories appear as polarized entries of happiness and sadness together?
 
-What about desires? Would we need to create a wish system?
+![](/blog/DevLog-2025.04.14/assets/memory-emotional-model.avif)
 
-Create a dreaming agent or subconscious agent, similar to _background tasks_, processing and indexing each occurred memory one by one, and modifying various scores of past memories based on recent experiences.
 
-But we don't necessarily need a "dreaming" process, just a "background task".
+## There Is Still a Lot to Do…
 
-From a re-indexing perspective, dreaming agents and subconscious agents are like rebuilding indexes.
 
-At this point, you'll find that libraries like [Mem0](https://docs.mem0.ai/overview) or [Zep Memory](https://help.getzep.com/memory) are completely useless in role-playing and emotional AI :(
+For example, what is ReLU's current emotion? What bad memories does ReLU have about anyone?
 
-The road ahead is long, and we still need to continue working hard.
+
+Do memories come up in pairs of happy and sad poles?
+
+
+What about desires? Will we need a wish system?
+
+
+Build a dreaming agent or a subconscious agent — like a _background task_ — that processes and indexes past memories one by one, and modifies the various scores of past memories based on recent experiences.
+
+
+But we do not necessarily need a "dreaming" process; it is just a "background task".
+
+
+From a re-indexing perspective, the dreaming agent and the subconscious agent are like rebuilding an index.
+
+
+At this point, you will find that libraries like [Mem0](https://docs.mem0.ai/overview) or [Zep Memory](https://help.getzep.com/memory) are completely useless for roleplay and emotional AI :(
+
+
+The road is long, and we still need to keep working.
+
 
 ## References
 
+
 [^1]: https://help.aliyun.com/zh/open-search/industry-algorithm-edition/rough-sort-functions
+
 
 [^2]: https://help.aliyun.com/zh/open-search/industry-algorithm-edition/configure-dts-real-time-synchronization
 
+
 [^3]: https://zh.wikipedia.org/wiki/%E9%81%97%E5%BF%98%E6%9B%B2%E7%BA%BF
+

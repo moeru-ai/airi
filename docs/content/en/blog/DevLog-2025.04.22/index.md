@@ -4,68 +4,98 @@ category: DevLog
 date: 2025-04-22
 ---
 
-## Day time Daily
 
-Hello everyone, I'm [@LemonNeko](https://github.com/LemonNekoGH), and this time I'm participating in writing the DevLog to share development stories with you.
+## Daytime
 
-Two months ago, we ported AIRI's web interface to Electron [#7](https://github.com/moeru-ai/airi/pull/7) (which has now been refactored using Tauri 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)), allowing it to appear as a desktop pet on our screens. At the same time, I had the idea of allowing AIRI to use mobile phones, but I kept putting it off.
 
-Last weekend (2025.04.20), I spent some time creating an MCP server demo [airi-android](https://github.com/LemonNekoGH/airi-android) that can interact with ADB, providing AIRI with basic mobile interaction capabilities (in fact, most LLMs can interact with phones through it). Here's a demo video:
+Hello everyone, I am [@LemonNeko](https://github.com/LemonNekoGH), and this time I am writing the DevLog to share development stories with you.
 
-<ThemedVideo controls muted src="./assets/cursor-open-settings.mp4" />
 
-I also packaged it as a Docker image and submitted it to the [MCP server list](https://mcp.so/server/airi-android/lemonnekogh). Feel free to try it if you're interested.
+Two months ago, we ported AIRI's web client to Electron [#7](https://github.com/moeru-ai/airi/pull/7) (which has since been rebuilt with Tauri 🤣 [#90](https://github.com/moeru-ai/airi/pull/90)). It can appear on our screen as a desktop pet. Around the same time, the idea of letting AIRI use a phone came to me, but I kept putting it off.
 
-Actually, my initial idea was to write some Tool Calling code, modify the prompts, and tell the LLM that we can use these tools to interact with the phone, and that would be it. ~~But recently MCP has been so popular that I had some FOMO, so I chose MCP to implement it.~~
 
-To write an MCP server, I had to first understand what MCP is (although I'm not the type to study theory before practice—I prefer to dive right in and let Cursor try to use it). MCP (Model Context Protocol) is a protocol that attempts to standardize how applications provide context to LLMs. It proposes several core concepts:
+Last weekend (2025.04.20), I spent some time building an MCP server demo that can interact with ADB — [airi-android](https://github.com/LemonNekoGH/airi-android) — giving AIRI the most basic ability to interact with a phone (in fact, most LLMs can use it to interact with a phone). Here is the demo video:
 
-1. Resources: Servers can provide data and content as context to LLMs.
-2. Prompts: Create reusable prompt templates and workflows.
-3. Tools: Allow LLMs to perform actions through your server.
 
-Ah, resources—I know this! In Ruby on Rails, users are a type of resource. So are ADB devices also resources? If I want the LLM to view the list of connected devices, could I write it like this:
+<ThemedVideo controls muted src="/blog/DevLog-2025.04.22/assets/cursor-open-settings.mp4" />
+
+
+I also packaged it into a Docker image and submitted it to the [MCP server list](https://mcp.so/server/airi-android/lemonnekogh). If you are interested, feel free to try it.
+
+
+Actually, my initial idea was to write some Tool Calling code, tweak the prompt, and tell the LLM we can use these tools to interact with the phone — and that would be it. ~~But MCP has become so popular recently that I had some FOMO, so I chose MCP to implement it.~~
+
+
+To write an MCP server, you first have to understand what MCP is (although I am never the type to study theory properly before practicing; I chose to jump right in and let Cursor try to use it). MCP (Model Context Protocol) is a protocol that attempts to standardize how applications provide context to LLMs. It introduces a few core concepts:
+
+
+1. Resources: the server can provide data and content as context to the LLM.
+2. Prompts: create reusable prompt templates and workflows.
+3. Tools: allow the LLM to perform actions through your server.
+
+
+Ah, resources — I know about those! In Ruby on Rails, a user is a resource. So are ADB devices also resources? Letting the LLM view the connected device list could be written as:
 
 ```python
+
 from mcp.server.fastmcp import FastMCP
+
 from ppadb.client import Client
 
 mcp = FastMCP("airi-android")
+
 adb_client = Client()
 
 @mcp.resource("adb://devices")
+
 def get_devices():
+
     return adb_client.devices()
+
 ```
 
-Wrong! When I asked Cursor to get the device list, it didn't know how to operate. It said it wanted to actively check which devices were connected, so it's a tool. Hmm, it seems I didn't fully understand.
 
-I haven't figured out exactly how to let LLMs operate phones yet, and I'd like to discuss it with everyone. But here's how Cursor operates:
+Wrong. When I asked Cursor to get the device list, it did not know how to operate; it said it wanted to actively check which devices were connected — so it is a tool. Well, it seems I did not fully understand it.
 
-1. Use screenshot functionality to get a general understanding of what's on the phone screen.
-2. Use UI automation tools to get the precise position of the element you want to operate.
-3. Click or swipe it.
+
+I have not decided yet how exactly to let the LLM operate the phone, and I would like to discuss it with you. But this is how Cursor does it:
+
+
+1. Use the screenshot feature to roughly understand what is on the phone screen.
+2. Use UI automation tools to get the precise position of the element to operate.
+3. Tap or swipe it.
 4. Repeat the above steps.
 
-It seems to work well so far, but I have some small questions:
 
-1. If the screen shows a game that uses graphics APIs to draw content directly on the screen rather than UI components, UI automation tools can't get the element positions and thus can't operate them.
-2. LLM responses have length limits. If the operation is complex, it might need to be completed in steps. Can we automatically notify it after each step is completed to trigger the next step, like in [airi-factorio](https://github.com/moeru-ai/airi-factorio)?
-3. If some apps have cool animations, taking a screenshot immediately after an operation might not show the effect. Would we need to wait a while after the operation before taking a screenshot, or use screen recording directly?
-4. What about the security of letting AI directly operate phones? What risks might there be?
+It seems to work well so far, but I have a few small questions:
 
-Some reflections.
 
-This is the first time I've felt like coding with a human while working with AI. I'm not sure if it's because my goal was to let AI use my tools, so it became my client—I constantly had to adjust my code based on its feedback. It also became my colleague—I needed to think and solve problems together with it. Look at this screenshot, doesn't it really look like that?
+1. If the screen contains a game that draws content directly with a graphics API instead of using UI components, the UI automation tools cannot get element positions, so they cannot operate on it.
+2. An LLM response has a length limit. If the operation is complex, it may need to be completed in steps. Can we automatically tell the LLM to trigger the next step after a step is completed, like we do in [airi-factorio](https://github.com/moeru-ai/airi-factorio)?
+3. If some apps have flashy animations, taking a screenshot immediately after an operation may not show the effect. Do we need to wait a while after the operation before screenshotting, or just use screen recording?
+4. How safe is it to let the AI operate the phone directly, and what are the risks?
 
-![](./assets/develop-with-cursor.avif)
 
-During development, I also learned some small tricks, like using the command line to start Android emulators so we don't need to open Android Studio, which reduces memory pressure significantly.
+Some thoughts.
+
+
+This is the first time I felt like I was writing code with an AI the same way humans write code together. Maybe it is because my goal was to let the AI use my tool, so it became my customer — I need to keep adjusting my code based on its feedback — and it also became my colleague — I need to think and solve problems together with it. Looking at this screenshot, doesn't it really look like that?
+
+
+![](/blog/DevLog-2025.04.22/assets/develop-with-cursor.avif)
+
+
+I also learned some tricks during development, such as starting the Android emulator from the command line, so you do not need to open Android Studio, and memory pressure is much lower too.
 
 ```bash
+
 emulator -avd Pixel_6_Pro_API_34
+
 ```
 
-Next, I plan to connect the AIRI desktop pet to the MCP server and see what it wants to do. Maybe it will open Telegram and chat with us, just like ReLU does now, but without using Telegram's API.
 
-Thank you for reading this possibly somewhat rambling and not very substantial DevLog. See you next time!
+Next, I plan to connect the AIRI desktop pet to an MCP server and see what it wants to do. Maybe it will open Telegram and chat with us, just like ReLU does now — except not using the Telegram API.
+
+
+Thank you for reading this DevLog that might be a bit verbose and light on substance. See you next time!
+

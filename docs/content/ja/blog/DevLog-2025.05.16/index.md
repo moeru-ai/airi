@@ -5,24 +5,6 @@ date: 2025-05-16
 ---
 
 <script setup>
-import VelinLight from '../../../en/blog/DevLog-2025.05.16/assets/velin-light.avif'
-import VelinDark from '../../../en/blog/DevLog-2025.05.16/assets/velin-dark.avif'
-
-import CharacterCardMenuLight from '../../../en/blog/DevLog-2025.05.16/assets/character-card-menu-light.avif'
-import CharacterCardMenuDark from '../../../en/blog/DevLog-2025.05.16/assets/character-card-menu-dark.avif'
-
-import CharacterCardSettingsLight from '../../../en/blog/DevLog-2025.05.16/assets/character-card-settings-light.avif'
-import CharacterCardSettingsDark from '../../../en/blog/DevLog-2025.05.16/assets/character-card-settings-dark.avif'
-
-import CharacterCardShowcaseLight from '../../../en/blog/DevLog-2025.05.16/assets/character-card-showcase-light.avif'
-import CharacterCardShowcaseDark from '../../../en/blog/DevLog-2025.05.16/assets/character-card-showcase-dark.avif'
-
-import VelinPlaygroundLight from '../../../en/blog/DevLog-2025.05.16/assets/velin-playground-light.avif'
-import VelinPlaygroundDark from '../../../en/blog/DevLog-2025.05.16/assets/velin-playground-dark.avif'
-
-import DemoDayHangzhou1 from '../../../en/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-1.avif'
-import DemoDayHangzhou2 from '../../../en/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-2.avif'
-import DemoDayHangzhou3 from '../../../en/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-3.avif'
 </script>
 
 こんにちは！[Project AIRI](https://github.com/moeru-ai/airi) の発起人、[Neko](https://github.com/nekomeowww) です！
@@ -58,18 +40,18 @@ Project AIRI の DevLog 更新が遅れてしまい申し訳ありません。�
 
 > キャラクターカードを使用するには、設定ページ（アプリケーションの右上隅、またはデスクトップアプリで歯車アイコンをホバー）に移動し、「Airi Card」ボタンを見つけてクリックします。
 
-<img class="light" :src="CharacterCardMenuLight" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
-<img class="dark" :src="CharacterCardMenuDark" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
+<img class="light" src="/blog/DevLog-2025.05.16/assets/character-card-menu-light.avif" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
+<img class="dark" src="/blog/DevLog-2025.05.16/assets/character-card-menu-dark.avif" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
 
 > これにより「Airi Card エディタインターフェース」に移動し、そこでキャラクターカードをアップロードして編集し、人格のカスタマイズを行うことができます。
 
-<img class="light" :src="CharacterCardSettingsLight" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
-<img class="dark" :src="CharacterCardSettingsDark" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
+<img class="light" src="/blog/DevLog-2025.05.16/assets/character-card-settings-light.avif" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
+<img class="dark" src="/blog/DevLog-2025.05.16/assets/character-card-settings-dark.avif" alt="Airi Card メニューボタンを提供するメニューのスクリーンショット" />
 
 キャラクターカードの展示についても、いくつかの方法を試しました...
 
-<img class="light" :src="CharacterCardShowcaseLight" alt="ReLU という名前の青い髪のキャラクターのカード式ユーザーインターフェースデザイン" />
-<img class="dark" :src="CharacterCardShowcaseDark" alt="ReLU という名前の青い髪のキャラクターのカード式ユーザーインターフェースデザイン" />
+<img class="light" src="/blog/DevLog-2025.05.16/assets/character-card-showcase-light.avif" alt="ReLU という名前の青い髪のキャラクターのカード式ユーザーインターフェースデザイン" />
+<img class="dark" src="/blog/DevLog-2025.05.16/assets/character-card-showcase-dark.avif" alt="ReLU という名前の青い髪のキャラクターのカード式ユーザーインターフェースデザイン" />
 
 これは私たちの UI コンポーネントライブラリでリアルタイムに動作しており、ここで遊ぶことができます：https://airi.moeru.ai/ui/#/story/src-components-menu-charactercard-story-vue 。
 
@@ -97,7 +79,7 @@ Project AIRI の DevLog 更新が遅れてしまい申し訳ありません。�
 
 最終的に、これを得ました：[WebAI リアルタイムボイスチャット例](https://github.com/proj-airi/webai-example-realtime-voice-chat)。私は、Web ブラウザで 300〜500 行の TypeScript コードを使用して ChatGPT ボイスチャットシステムを実装できることを証明しました。
 
-<ThemedVideo controls muted src="/en/blog/DevLog-2025.05.16/assets/webai-examples-demo.MP4" style="height: 640px;" />
+<ThemedVideo controls muted src="/blog/DevLog-2025.05.16/assets/webai-examples-demo.MP4" style="height: 640px;" />
 
 リアルタイムボイスチャットシステムをゼロから構築する方法をデモするのに役立つように、可能なすべてのステップを小さな再利用可能な断片に分解することに最善を尽くしました：
 
@@ -177,13 +159,13 @@ npm install xsai-transformers
 
 それがこれです：[**Velin**](https://github.com/luoling8192/velin)。
 
-<img class="light" :src="VelinLight" alt="Vue.js で LLM プロンプトを作成するツール" />
-<img class="dark" :src="VelinDark" alt="Vue.js で LLM プロンプトを作成するツール" />
+<img class="light" src="/blog/DevLog-2025.05.16/assets/velin-light.avif" alt="Vue.js で LLM プロンプトを作成するツール" />
+<img class="dark" src="/blog/DevLog-2025.05.16/assets/velin-dark.avif" alt="Vue.js で LLM プロンプトを作成するツール" />
 
 編集とリアルタイムレンダリング用のプレイグラウンドも作成しました。同時に npm パッケージのエコシステムを楽しむことができます（はい、どんなパッケージでもインポートできます！）。
 
-<img class="light" :src="VelinPlaygroundLight" alt="Vue.js で LLM プロンプトを作成するツール" />
-<img class="dark" :src="VelinPlaygroundDark" alt="Vue.js で LLM プロンプトを作成するツール" />
+<img class="light" src="/blog/DevLog-2025.05.16/assets/velin-playground-light.avif" alt="Vue.js で LLM プロンプトを作成するツール" />
+<img class="dark" src="/blog/DevLog-2025.05.16/assets/velin-playground-dark.avif" alt="Vue.js で LLM プロンプトを作成するツール" />
 
 ここで試してみてください：https://velin-dev.netlify.app
 
@@ -197,7 +179,7 @@ npm install @velin-dev/core
 
 最近中国の杭州で開催されたイベント、**Demo Day @ Hangzhou** の写真で DevLog を締めくくりましょう。
 
-<img :src="DemoDayHangzhou1" alt="Demo Day @ Hangzhou" />
+<img src="/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-1.avif" alt="Demo Day @ Hangzhou" />
 
 これは私です。他の参加者と AIRI プロジェクトを共有し、そこで素晴らしい時間を過ごしました！多くの才能ある開発者、プロダクトデザイナー、起業家に会いました。
 
@@ -205,8 +187,8 @@ npm install @velin-dev/core
 
 私が共有に使用したスライドはこんな感じです：
 
-<img :src="DemoDayHangzhou2" alt="Demo Day @ Hangzhou" />
-<img :src="DemoDayHangzhou3" alt="Demo Day @ Hangzhou" />
+<img src="/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-2.avif" alt="Demo Day @ Hangzhou" />
+<img src="/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-3.avif" alt="Demo Day @ Hangzhou" />
 
 スライド自体は完全にオープンソースで、ここでも遊ぶことができます：[https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1](https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1)
 

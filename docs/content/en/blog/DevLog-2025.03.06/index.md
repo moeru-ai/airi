@@ -4,95 +4,86 @@ category: DevLog
 date: 2025-03-06
 ---
 
-## Dejavu
 
-Previous day, I was on DevStream to show the progress of making the
-fundamental animations and transitions for AIRI.
+## Deja Vu
 
-The goal is to port and adapt the amazing work done by [@yui540](https://yui540.com/)
-into a reusable Vue component for any of the Vue project to be able to use it.
 
-> Details of yui540 and referenced libraries and work already were included
-> at the newly deployed documentation site at
+In the previous day's dev stream, I showed the progress I made on basic animations and transitions for AIRI.
+
+
+The main goal was to port and adapt the excellent work of [@yui540](https://yui540.com/) into reusable Vue components,
+
+
+so that any Vue project can easily use these beautiful animation effects.
+
+
+> More details about yui540, along with related reference libraries and work, have been organized into the newly deployed documentation website:
 > [https://airi.build/references/design-guidelines/resources/](../references/design-guidelines/resources/).
 
-The result is quite good, already deployed to
+
+The final ported results are quite good and have been deployed to
+
+
 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/).
 
-![](./assets/animation-transitions.gif)
 
-> And also, from now on, all of the playgrounds of each packages will use
-> "proj-airi" + "${subDirectory}" + "$｛packageName}" pattern for the Netlify
-> deployment.
+![](/blog/DevLog-2025.03.06/assets/animation-transitions.gif)
 
-While the goal of previous day was trying to split the implementation of
-CSS into Vue component, the actual part for reusable wasn't done yet,
-I'll still need to design a workflow and mechanism that extensible and
-flexible for other pages to use.
 
-## Day time
+> Also, from now on, all demo stages for each package will be deployed to Netlify using the
+> "proj-airi" + "${subDirectory}" + "${packageName}" pattern.
 
-I experimented with the [`definePage`](https://uvr.esm.is/guide/extending-routes.html#definepage)
-macro hook from [`unplugin-vue-router`](https://github.com/posva/unplugin-vue-router),
-found it quite worked well for my scenario and decided the path to follow
-on.
 
-And I ported 3 extra new animation transitions from
-[https://cowardly-witch.netlify.app/](https://cowardly-witch.netlify.app/),
-they were already available on
-[https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/) .
+Although the main goal of the previous day was to split CSS implementations into Vue components, the practical reusability part is not fully done yet.
 
-I deployed the official documentation site onto [https://airi.build](https://airi.build) yesterday,
-[@kwaa](https://github.com/kwaa) commented that he would suggest me try
-the `https://airi.more.ai/docs` approach instead, ~~but I couldn't figure out~~
-~~a way to make a 200 redirect proxy for /docs.~~
 
-EDIT: Finally learned. How to do this, will include the details in the future
-DevLogs.
+I still need to design a workflow and mechanism that is both flexible and extensible so that other pages can use it conveniently.
 
-I experimented it a little with like ten commits fighting against CI/CD
-pipeline (yes fighting against again), but still not made it work.
 
-Later on this day, I researched some of the technologies and
-[open source repositories](https://github.com/deepseek-ai/open-infra-index)
-that DeepSeek team has released for a week ago, as well as the so called
-ByteDance released [LLM gateway AIBrix](https://github.com/vllm-project/aibrix).
-And was researching whether the newly released and announced Phi-4-mini was
-capable of porting for AIRI to use, good news is,
-[Phi-4-mini](https://techcommunity.microsoft.com/blog/educatordeveloperblog/welcome-to-the-new-phi-4-models---microsoft-phi-4-mini--phi-4-multimodal/4386037)
-included the function calling abilities, that means we can finally build our
-agents with pre-trained support.
+## Daytime
 
-## DevStream
 
-I contacted another artist afternoon, saying that I am willing to pay
-for a customized pixel art commission for me to use it as an avatar
-for my next coming update accounts.
+I tried the [`definePage`](https://uvr.esm.is/guide/extending-routes.html#definepage) macro hook provided by [`unplugin-vue-router`](https://github.com/posva/unplugin-vue-router), found that it fits my use case very well, and decided to keep exploring in this direction.
 
-~~Yes I asked the artist to put some Easter eggs inside haha, good luck you folks finding it.~~
 
-The layout and setup of the live stream has been updated 😻 It was designed
-by myself almost a year ago, but it still looks great and feel calm when
-looking at it. Please leave comments in the chat for any suggestions, really
-appreciated.
+I ported 3 additional new animation transitions from [https://cowardly-witch.netlify.app/](https://cowardly-witch.netlify.app/), which are now available at [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/).
 
-![](./assets/live-stream-layout-update.avif)
 
-During the DevStream of today, I was trying to integrate the stage transition
-animation component into AIRI's website main stage, it wasn't that smooth,
-I found several bugs in my previous design for the animation component, good
-news is that I already fixed them, and the new animation transition is available
-already at our official deployment at [https://airi.moeru.ai](https://airi.moeru.ai).
+Yesterday I deployed the official documentation website to [https://airi.build](https://airi.build). [@kwaa](https://github.com/kwaa) commented that he suggested I try the `https://airi.more.ai/docs` approach, ~~but I could not figure out how to set up a 200 redirect proxy for /docs.~~
 
-I finally made the decision that coming from some random thoughts about the module
-configuration UI and settings page. They were all implemented, and went on live,
-should provide a better feeling when tweaking the settings now, I hope you
-like it.
 
-After I get off the stream and finally get on hands playing the result on my
-phone, while it does work on desktop and tablet devices, I found that I
-accidentally break the animation on mobile devices, will get this fixed tomorrow
-daytime 😹.
+Edit: I finally learned how to do it; details will be included in a future dev log.
 
-That's all for today's DevLog, thank you to everyone that joined the DevStream
-and stayed with me until the end. I'll see you all tomorrow.
+
+I gave it a try, and after about ten commits wrestling with the CI/CD pipeline (yes, wrestling again), I still could not get it to work properly.
+
+
+Later today, I researched some technologies and the [open-source repository](https://github.com/deepseek-ai/open-infra-index) released by the DeepSeek team a week ago, as well as the so-called [LLM gateway AIBrix](https://github.com/vllm-project/aibrix) released by ByteDance. I also looked into whether the newly released and announced Phi-4-mini could be ported for AIRI use. The good news is that [Phi-4-mini](https://techcommunity.microsoft.com/blog/educatordeveloperblog/welcome-to-the-new-phi-4-models---microsoft-phi-4-mini--phi-4-multimodal/4386037) includes function calling capabilities, which means we can finally build agents with pretrained support.
+
+
+## Dev Stream
+
+
+In the afternoon I contacted another artist, saying I would pay for a custom pixel-art commission to use as my upcoming account avatar.
+
+
+~~Yes, I asked the artist to hide some easter eggs in it, haha, good luck finding them.~~
+
+
+The stream layout and setup have been updated 😻 It was designed by myself almost a year ago, but it still looks great and feels calm to watch. Please leave any suggestions in the chat comments — thank you very much.
+
+
+![](/blog/DevLog-2025.03.06/assets/live-stream-layout-update.avif)
+
+
+In today's dev stream, I tried to integrate the stage transition animation components into the main stage of the AIRI website. It did not go so smoothly — I found several issues in my previous animation component designs — but the good news is I have fixed them, and the new animation transitions are now live on our official deployment [https://airi.moeru.ai](https://airi.moeru.ai).
+
+
+I eventually made a decision, born from some random ideas about the module configuration interface and settings pages. They have all been implemented and shipped; adjusting settings should now feel much better. I hope you like it.
+
+
+After I finished the stream, I finally tested the result on my phone. Although it works fine on desktop and tablet, I discovered I accidentally broke the animations on mobile devices; I will fix that during the day tomorrow 😹
+
+
+That's it for today's DevLog. Thank you to everyone who joined the DevStream and stayed with us to the very end. See you tomorrow.
+

@@ -4,107 +4,156 @@ category: DevLog
 date: 2025-03-05
 ---
 
-## Dejavu
 
-Yesterday I added one extra package called
-[`gpuu` (GPU utilities)](https://github.com/moeru-ai/gpuu)
-to help us work with WebGPU, and perhaps we can use it to interact with real
-GPU devices too. There is not that much capabilities it can do right now,
-we will add more capabilities for it in the future.
+## Deja Vu
 
-It feels like this:
+
+Yesterday I added a new package called [`gpuu` (GPU utilities)](https://github.com/moeru-ai/gpuu),
+
+
+to help us handle WebGPU-related features, and perhaps in the future use it to interact with real GPU devices.
+
+
+The package is still fairly limited at the moment; we will add more capabilities in upcoming versions.
+
+
+Here is how to use it:
 
 ```ts
+
 import { check } from 'gpuu/webgpu'
+
 import { onMounted } from 'vue'
 
 onMounted(async () => {
+
   const result = await check()
+
   console.info(result)
 
-  // do something with the result
+  // Do something with the result
+
 })
+
 ```
 
-Last week, our corporate designer/artist has submitted our commission for the
-basic/first version of Project AIRI logo. The feeling of the logo looks like
-this:
 
-![](./assets/airi-logos-v1.avif)
+Last week, our corporate designer/artist submitted the first draft of the Project AIRI logo.
 
-## Daytime
 
-From the perspective of designing, these were so complex and user unfriendly
-when scaled down to Home Screen app sizes. Therefore I added this version:
+The overall style of the logo looked like this:
 
-![](./assets/airi-logo-v2.avif)
 
-And edited with other variants:
+![](/blog/DevLog-2025.03.05/assets/airi-logos-v1.avif)
 
-![](./assets/airi-logos-v2.avif)
 
-All of those were only suitable for dark theme, "we need a dark theme version
-logo as well!" I thought, so I did this:
+## Daytime Work
 
-![](./assets/airi-logo-v2-dark.avif)
 
-[@kwaa](https://github.com/kwaa) said that we can try to swap the color schemes
-for both themes:
+From a design perspective, these logos were too complex and not friendly enough when scaled down to a main-screen app size.
 
-![](./assets/airi-logos-v3.avif)
 
-This indeed looks better.
+So I redesigned this version:
 
-We updated the Typography too:
 
-![](./assets/airi-logos-v4.avif)
+![](/blog/DevLog-2025.03.05/assets/airi-logo-v2.avif)
 
-And optimized the background colors:
 
-![](./assets/airi-logos-v5.avif)
+And edited other variants:
 
-So this is what we get finally:
 
-![](./assets/airi-logos-final.avif)
+![](/blog/DevLog-2025.03.05/assets/airi-logos-v2.avif)
 
-Later on today, I was working on publishing the
-[documentation site](https://airi.build) of Project AIRI online, for me,
-and other developers, artists to use it as a reference and guidelines.
 
-I did it! And the newly designed logo has been put into the
-[documentation site](https://airi.build) along with the color palette:
+However, these versions only suit the dark theme. "We also need a light theme version!" With that in mind, I immediately set out to make this:
 
-![](./assets/airi-build-light.avif)
-![](./assets/airi-build-dark.avif)
 
-[Basic guide](../guides/),
-[contribution guidelines](../references/contributing/guide/),
-and [designing guidelines](../references/design-guidelines/)
-were all included from this moment.
+![](/blog/DevLog-2025.03.05/assets/airi-logo-v2-dark.avif)
 
-I spent a whole noon to get a feel of the Text PV animations on YouTube,
-I really like them, I wish I can implement similar transitioning effect on
-browser too!
+
+[@kwaa](https://github.com/kwaa) suggested we could try swapping the color schemes for both themes:
+
+
+![](/blog/DevLog-2025.03.05/assets/airi-logos-v3.avif)
+
+
+It really does look better.
+
+
+We also updated the typography:
+
+
+![](/blog/DevLog-2025.03.05/assets/airi-logos-v4.avif)
+
+
+And refined the background colors:
+
+
+![](/blog/DevLog-2025.03.05/assets/airi-logos-v5.avif)
+
+
+So this is what we ended up with:
+
+
+![](/blog/DevLog-2025.03.05/assets/airi-logos-final.avif)
+
+
+Later today, I officially launched the Project AIRI [documentation website](https://airi.build),
+
+
+providing references and guides for myself and other developers and artists.
+
+
+Finally done! The newly designed logo and color schemes have been integrated into the [documentation website](https://airi.build):
+
+
+![](/blog/DevLog-2025.03.05/assets/airi-build-light.avif)
+
+
+![](/blog/DevLog-2025.03.05/assets/airi-build-dark.avif)
+
+
+The website now includes the [basic guides](../guides/),
+
+
+the [contribution guide](../references/contributing/guide/),
+
+
+and the [design guidelines](../references/design-guidelines/).
+
+
+I spent the entire noon studying the text-PV animation effects on YouTube,
+
+
+and I am fascinated by these animations, hoping to implement similar transitions in the browser!
+
 
 https://www.youtube.com/watch?v=_AIgv0EsOE4
 
-Luckily, I do know a developer & artist that really good at this:
-[yui540](https://github.com/yui540) (you can check his/her personal website
-here: [yui540.com](https://yui540.com)), and he/she just posted a brand new
-repository for demonstrating the fantastic transition effects he/she used.
 
-I added the related resources and website links into the
-[https://airi.build](https://airi.build) site, you can check them out.
+Fortunately, I know a developer and artist who is excellent in this area:
 
-## DevStream
 
-I ported many of the animation transitions from [yui540](https://github.com/yui540)'s
-[repository](https://github.com/yui540/css-animations) to
-[https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/).
+[yui540](https://github.com/yui540) (personal site: [yui540.com](https://yui540.com)),
 
-It worked really well:
 
-![](./assets/animation-transitions.gif)
+who just released a brand new repository showcasing those wonderful transition implementations.
 
-That's all for today's DevLog, thank you to everyone that joined the DevStream
-and stayed with me until the end. I'll see you all tomorrow.
+
+I have added these related resources and website links to [https://airi.build](https://airi.build) — feel free to check them out.
+
+
+## Dev Stream
+
+
+I ported many of the animation transitions from the [yui540](https://github.com/yui540) [repository](https://github.com/yui540/css-animations) to [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/).
+
+
+The ported results look quite good:
+
+
+![](/blog/DevLog-2025.03.05/assets/animation-transitions.gif)
+
+
+That's it for today's DevLog. Thank you to everyone who joined the DevStream and stayed with us to the very end. See you tomorrow.
+

@@ -5,8 +5,8 @@ date: 2025-07-18
 excerpt: |
   Factorio Learning Environment 논문을 바탕으로 저희 Factorio AI 에이전트 프로젝트 `airi-factorio` 를 어떻게 개선할 계획인지 나눠 봅니다.
 preview-cover:
-  light: "@assets('/en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
-  dark: "@assets('/en/blog/DevLog-2025.07.18/assets/factorio-belt.gif')"
+  light: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
+  dark: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
 ---
 
 안녕하세요, AIRI 메인테이너 중 한 명인 [@LemonNeko](https://github.com/LemonNekoGH) 입니다.
@@ -64,9 +64,9 @@ FLE 와 비교하면 저희 구현은 꽤 순진해 보입니다. 그럼 `airi-f
 
 <div class="flex flex-row gap-4">
 
-![이전](/en/blog/DevLog-2025.07.18/assets/structure-before.avif)
+![](/blog/DevLog-2025.07.18/assets/structure-before.avif)
 
-![이후](/en/blog/DevLog-2025.07.18/assets/structure-after.avif)
+![](/blog/DevLog-2025.07.18/assets/structure-after.avif)
 
 </div>
 

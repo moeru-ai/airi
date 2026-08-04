@@ -21,6 +21,7 @@ lerna-debug.log*
 # AI Agents
 .claude/worktrees/
 .superpowers/
+.reasonix/
 
 # Anything .local, especially for .env.local
 *.local
@@ -56,6 +57,7 @@ bundle/
 # WXT specified this too
 *.output
 .vfox.toml
+reasonix.toml
 
 # Vite
 dist

@@ -4,52 +4,62 @@ category: DevLog
 date: 2025-04-28
 ---
 
+
 <script setup>
-import airiMcpArch from './assets/airi-mcp-arch.avif'
 </script>
 
-Hello everyone, this is [@LemonNeko](https://github.com/LemonNekoGH), and today I'm here to share development stories with you.
 
-## Day time Daily
+Hello everyone, this is [@LemonNeko](https://github.com/LemonNekoGH). Today I am here to share development stories with you.
 
-A week ago, I wrote an MCP server [AIRI-android](https://github.com/LemonNekoGH/AIRI-android) for AIRI to connect to mobile phones, but this was only the first half of enabling AIRI to operate Android phones—AIRI also needed to be able to interact with MCP servers.
 
-Over the past two days, I completed the second half by writing a Tauri plugin [#144](https://github.com/moeru-ai/AIRI/pull/144). Now AIRI can interact with MCP servers and work with all existing MCP servers.
+## Daytime
 
-If you're interested, check out these two videos. The first demonstrates AIRI's MCP server setup, and the second shows AIRI interacting with an Android phone.
+
+A week ago, I wrote the MCP server [AIRI-android](https://github.com/LemonNekoGH/AIRI-android) for AIRI to connect to a phone. But that was only the first half of AIRI operating an Android phone; AIRI also needs to be able to interact with the MCP server.
+
+
+In the past two days I completed the second half, writing a plugin for Tauri [#144](https://github.com/moeru-ai/AIRI/pull/144). Now AIRI can interact with MCP servers — with all existing MCP servers.
+
+
+If you are interested, check out these two videos: the first demonstrates AIRI's MCP server settings, and the second demonstrates AIRI interacting with an Android phone.
+
 
 <details>
-  <summary>AIRI's MCP Server Setup</summary>
-  <ThemedVideo controls muted src="./assets/airi-mcp-settings.mp4" style="height: 640px;" />
+  <summary>AIRI's MCP server settings</summary>
+  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
-  <summary>AIRI Inputting `Hello World` on Phone</summary>
-  <ThemedVideo controls muted src="./assets/airi-mcp-input-text.mp4" />
+  <summary>AIRI typing `Hello World` on a phone</summary>
+  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
 </details>
 
-During development, to clarify my thinking, I drew a diagram showing how LLMs call Android phones:
 
-<img :src="airiMcpArch" alt="AIRI Operating Phone" :style="{ height: '640px', objectFit: 'contain' }" />
+While developing, to sort out my thoughts, I drew a diagram of calling the Android phone from the LLM:
+
+
+<img src="/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif" alt="AIRI operating a phone" :style="{ height: '640px', objectFit: 'contain' }" />
+
 
 Next, let me share my development process.
 
+
 ## Tauri Plugin Development
 
-Actually, I didn't initially plan to write a complete Tauri plugin—I just wanted to expose some commands to the JavaScript side:
+
+Actually, at first I did not plan to write a full Tauri plugin; I just wanted to expose some commands to the JavaScript side:
 
 ```rust
+
 #[Tauri::command]
+
 fn list_tools() -> Vec<String> {
-  // To be implemented later
+  // implement later
 }
 ```
-
 Then write some utility functions to call them:
-
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
-
 export const mcp = [
   {
     name: 'list_tools',
@@ -60,33 +70,26 @@ export const mcp = [
   }
 ]
 ```
-
-But soon I noticed that if I wanted to use the MCP client in commands, I needed to have the MCP client managed as part of the state by Tauri:
-
+But I quickly noticed that if I want to use an MCP client in commands, I need the MCP client to be part of the state managed by Tauri:
 ```rust
 // main.rs
 fn main() {
   Tauri::Builder::default()
     .setup(|app| {
-      app.manage(State::new(Mutex::new::<Option<McpClient>>(None))); // Manage state
+      app.manage(State::new(Mutex::new::<Option<McpClient>>(None))); // manage state
     })
     .run(Tauri::generate_context!())
 }
-
 // mcp.rs
 #[Tauri::command]
-async fn list_tools(state: State<'_, Mutex<Option<McpClient>>>) -> Result<Vec<Tool>, String> { // Can get state from parameters
+async fn list_tools(state: State<'_, Mutex<Option<McpClient>>>) -> Result<Vec<Tool>, String> { // the state can be retrieved from parameters
   // ...rest code
 }
 ```
-
-We had commands, we had state—we weren't far from a complete plugin. So I decided to make it a plugin, which would allow us to publish it publicly, ~~and potentially become the first Tauri MCP plugin on the entire internet~~.
-
-However, once it became a plugin, the way commands were called changed—they needed to be called through the plugin:
-
+With commands and state in place, a full plugin is not far away. So I decided to make it a plugin — then we could also publish it publicly, ~~and possibly become the first Tauri MCP plugin in the whole network~~.
+However, once it became a plugin, the way commands are called changed; they must be called through the plugin:
 ```diff
   import { invoke } from '@Tauri-apps/api/core'
-
   export mcp = [
     {
       name: "list_tools",
@@ -98,90 +101,62 @@ However, once it became a plugin, the way commands were called changed—they ne
     }
   ]
 ```
-
-This was fine—just one line changed. But Tauri 2 has a permission mechanism, so I needed to define the plugin's commands in `build.rs` to automatically generate the permission list:
-
+That was fine — just a one-line change. But Tauri 2 has a permission mechanism, so I needed to define the plugin's commands in `build.rs` to auto-generate the permission list:
 ```rust
 const COMMANDS: &[&str] = &[
   "list_tools",
 ];
-
 fn main() {
   Tauri_plugin::Builder::new(COMMANDS).build();
 }
 ```
-
-This way, during build, a `permissions` folder would be generated in the project root directory, containing permission declarations, descriptions, etc.
-
-> At this point, there was a small hiccup. When I built it the second time, I upgraded the `Tauri-plugin` version, and the new version had changes to the generation template—some spaces were removed, so it looked like it had been formatted. I spent an hour searching for what was "formatting" it before realizing the file had been regenerated. 🤡 In memory of that lost hour.
-
-According to the diagram above, when an LLM calls an MCP tool, the parameters eventually get passed to the Python-side MCP server. Taking `input_swipe` as an example:
-
+This way, during build, a `permissions` folder is generated at the project root, containing permission declarations, descriptions, etc.
+> A small incident happened here: on my second build, I upgraded the `Tauri-plugin` version, and the template generated by the new version changed — some spaces were removed — so it looked like it had been formatted. I searched everywhere for what was "formatting" it, and it took an hour to realize the file had simply been regenerated. 🤡 In memory of the hour I lost.
+According to the diagram above, when the LLM calls an MCP tool, the parameters are eventually passed to the MCP server on the Python side. Taking `input_swipe` as an example:
 ```python
 # mcp_server.py
 from mcp.server.fastmcp import FastMCP
 from ppadb.client import Client
-
 mcp = FastMCP("airi-android")
 adb_client = Client()
-
 @mcp.tool()
 def input_swipe(x1: int, y1: int, x2: int, y2: int, duration: int = 500):
     return adb_client.input_swipe(x1, y1, x2, y2, duration)
 ```
-
-How should I pass these parameters? The Rust SDK documentation has this [definition](https://docs.rs/rmcp/0.1.5/rmcp/model/struct.CallToolRequestParam.html):
-
+How do I pass these parameters? The Rust SDK documentation has this [definition](https://docs.rs/rmcp/0.1.5/rmcp/model/struct.CallToolRequestParam.html):
 ```rust
 pub struct CallToolRequestParam {
     pub name: Cow<'static, str>,
     pub arguments: Option<JsonObject>,
 }
 ```
-
-~~Wow, it's JsonObject—we're saved!~~ Since Tauri command parameters can be any object that can be serialized to JSON, why not just pass it a `Map<String, Value>`:
-
+~~Wow, it's a JsonObject — we are saved!~~ Since Tauri command parameters can be any object serializable to JSON, why not just pass a `Map<String, Value>` directly:
 ```rust
 #[Tauri::command]
 async fn call_tool(state: State<'_, Mutex<Option<McpClient>>>, name: String, args: Option<Map<String, Value>>) -> Result<(), ()> {
   let client = state.lock().await.unwrap();
-
   client.call_tool(CallToolRequestParam { name: name.into(), arguments: args }).await.unwrap();
-
   Ok(())
 }
 ```
-
-Then on the JavaScript side, we can simply pass an object:
-
+On the JavaScript side, we simply pass an object:
 ```javascript
 import { invoke } from '@Tauri-apps/api/core'
-
 invoke('call_tool', { name: 'input_swipe', args: { x1: 100, y1: 100, x2: 200, y2: 200, duration: 500 } })
 ```
-
 Super convenient!
-
-After passing parameters to the MCP tool, we also need to receive the MCP tool's return value. Since Tauri command return values can also be any object that can be serialized to JSON, I gave up and just threw the entire tool return to the LLM, trusting that the LLM would handle it properly.
-
-Great! Now we have a Tauri plugin! (Wait? That little example code, even pseudo-code, counts as completed?)
-
-The remaining content is some questions I'd like to discuss with everyone.
-
+After passing the parameters to the MCP tool, we also need to receive the return value of the MCP tool. Since Tauri command return values can also be any object serializable to JSON, I gave up and threw the whole tool return at the LLM, trusting that it would handle it.
+Great! Now we have the Tauri plugin! (Huh? Is it done with this little sample code, even pseudo-code?)
+There is still content where I want to discuss some questions with you.
 ## Some Questions
-
-1. From the demo videos, you can see that in the conversation, I first had AIRI get the tool list, then had it input text. Could we get the tool list during initialization and directly append it to the system prompt?
-   - Cursor does it this way. When I was developing the MCP server, every time I modified the tool list, I needed to restart Cursor for it to take effect.
-   - This might sacrifice flexibility, but do regular users frequently modify tool lists?
-
-2. Should we allow AIRI to connect to multiple phones simultaneously? Might AIRI want to use multiple phones? ~~Would she want to use them for telecom fraud?~~
-3. As you can see, the AIRI repository now has both Tauri applications and Tauri plugins. How should this be managed? How should CI be configured? How to synchronize version numbers between the Rust and JavaScript sides of Tauri plugins?
-
-## Future Plans
-
-- Support image return values, so AIRI can see what's on the phone through visual capabilities like Cursor demonstrated in the [previous DevLog](./DevLog-2025.04.22.md), then decide how to interact.
-- Let AIRI learn how to use devices itself? If we have to write separate prompts for each type of device, the workload would be enormous.
-- Multi-MCP server support. After all, MCP provides a universal interface that allows AIRI to do all sorts of things—AIRI probably won't be satisfied with just operating phones.
-- SSE support, so AIRI in the browser can also use MCP servers.
-
-That's all for now! I hope this DevLog isn't too dry! Looking forward to bringing you more fun content in the future!
+1. As you can see in the demo video, in the conversation I first had AIRI fetch the tool list, then asked it to type text. Can we fetch the tool list at initialization and append it directly to the system prompt?
+   - This is what Cursor does. While I was developing the MCP server, every time I changed the tool list, I had to restart Cursor for it to take effect.
+   - This might sacrifice flexibility, but will regular users change the tool list frequently?
+2. Should AIRI be allowed to connect to multiple phones at the same time? Might AIRI want to use multiple phones? ~~Could she use them for telecom fraud?~~
+3. As you can see, the AIRI repository now contains both a Tauri application and a Tauri plugin. How should they be managed? How should CI be configured? How do we keep the Rust-side and JavaScript-side version numbers of the Tauri plugin in sync?
+## Things We Want to Do in the Future
+- Support image return values, so AIRI can see the phone content directly through vision, like Cursor shown in the [previous DevLog](./DevLog-2025.04.22.md), and then decide how to interact.
+- Let AIRI learn how to use devices by itself? If we have to write a separate prompt for each device, the workload is enormous.
+- Multi-MCP-server support. After all, MCP provides a generic interface that allows AIRI to do all kinds of things; AIRI should not be satisfied with only operating a phone.
+- SSE support, so the AIRI in the browser can also use MCP servers.
+That's it for now! I hope this DevLog was not too dry! I also hope to bring you more fun content in the future!

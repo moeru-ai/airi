@@ -3,95 +3,133 @@ title: DevLog @ 2025.10.20
 category: DevLog
 date: 2025-10-20
 excerpt: |
-  Sharing the latest progress on the AIRI project, from Tauri to Electron migration, new Live2D models, and various open-source project updates.
+  Sharing the latest progress of the AIRI project: the migration from Tauri to Electron, a new Live2D model, and updates across various open-source projects.
 preview-cover:
 # TODO
 ---
 
-Long time no see, everyone!
 
-AI trading bots are super hot recently—we've got similar research to share, starting with development...
+AI-driven crypto trading is really hot these days, and we have similar research to share. Let's start with development...
 
-## From Tauri to Electron Migration
 
-Tauri went viral again a couple days ago. We were early adopters back in March, loved its plugin design and encapsulated tons of crates. Finally released v0.7.2 in June, but to deliver the voice chat everyone wanted, we struggled for 3 months... 3 months... wrestling with Tauri's WebKit + the painfully awkward Web Audio API and DevTools... all the way to September...
+## From Tauri to Electron
 
-...Finally couldn't hold out anymore—switched fully to Electron over National Day!
 
-<img src="./assets/electron.png" alt="electron.png" />
+Tauri became popular again a couple of days ago. We first tried it back in March, and because we liked the plugin design, we wrapped many crates around it. Although we finally released v0.7.2 in June, later, to implement the voice chat feature everyone wanted, we spent another 3 months wrestling with the WebKit used by Tauri plus the extremely hard-to-use Web Audio API and DevTools... 3 months... until September...
 
-Now, building on the original Electron foundation, we've added Linux support, introduced what we call the Control Island, and it can even overlay on the interface during full-screen mode on macOS.
 
-Compatibility is excellent—I absolutely love it. Yesterday, we finally got the caption overlay working, so now we can have subtitles like Neuro-sama to see what the AI is outputting!
+...In the end, we could not hold it in anymore, and during the National Day holiday we completely switched to Electron.
 
-<img src="./assets/control-island.png" alt="control-island.png" />
+
+<img src="/blog/DevLog-2025.10.20/assets/electron.png" alt="electron.png" />
+
+
+Now Electron, on top of the original features, has Linux support and what we call the Control Island. It can even overlay on the interface when the window is full screen on macOS.
+
+
+The compatibility is great — the kid really likes it. Yesterday we finally also got the caption overlay, so we can have captions showing what the AI outputs, just like Neuro-sama.
+
+
+<img src="/blog/DevLog-2025.10.20/assets/control-island.png" alt="control-island.png" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
 </div>
 
+
 ## New Live2D Model
 
-Sharp-eyed folks might've noticed—our model got updated! Yes, updated! I absolutely love this new model (sadly, not ready to shove it directly into the open-source repo just yet).
 
-This model was honorably improved through collaboration with an artist who's worked with Neuro-sama's official team and a super talented modeling expert—new animated expressions are incredibly rich too
+Sharp-eyed friends may have noticed that our model has been updated! Yes, it has been updated! I love the current model very much (sadly, we still do not want to put this model directly in the open-source repository).
 
-(whispering) Maybe if we get more sponsors, I'll be willing... (x
 
-<video src="./assets/airi.mp4" alt="airi.mp4" controls></video>
+This model was fortunately improved in collaboration with an artist who has also worked with the official Neuro-sama, plus a very skilled modeler. The new animated expressions are also very rich.
+
+
+(whisper) Maybe if we get more sponsors, we will be willing to (x
+
+
+<video src="/blog/DevLog-2025.10.20/assets/airi.mp4" alt="airi.mp4" controls playsinline></video>
+
 
 ## Three.js MMD Support
 
-The models you have on hand or can find might not all be Live2D/VRM—actually, the most abundant and best ones are still MMD models.
 
-We're also using Three.js for 3D rendering, but the reality is that Three.js no longer has a working MMD implementation. Thanks to kwaa's work, we now have a repo for this!
+The models you have or can find are not necessarily Live2D/VRM models; the most abundant and best models are probably still MMD ones.
 
-If you're interested too, come join us in maintaining it! [moeru-ai/three-mmd](https://github.com/moeru-ai/three-mmd)
 
-## Velin: Write Prompts with Vue
+Our 3D rendering is also based on Three.js. However, the current situation is that there is no properly working MMD implementation in the Three.js ecosystem. Thanks to kwaa's work, we now have a repository for this.
 
- >"You can write prompts with [Vue](https://velin-dev.netlify.app/#/)"!
 
-Remember back in May when we shared our own prompt library? Thanks to RainbowBird hard work and donation, Velin is now officially part of Moeru AI! Almost all of AIRI's prompts are powered by Velin—but no worries about cross-platform capabilities, Velin works great in Node.js environments too!
+If you are also interested, [come and maintain it together!](https://github.com/moeru-ai/three-mmd)
 
-<img src="./assets/velin.png" alt="velin.png" />
 
-## Eventa: Event-Driven IPC/RPC
+## Velin: Writing Prompts with Vue
 
->"Events are all you need"
 
-We once shared a project [netlify](https://velin-dev.netlify.app/#/) that lets you do pure local inference in the browser using Vercel AI SDK-like methods.
+> "You can write prompts with [Vue](https://velin-dev.netlify.app/#/)!"
 
-All these local inferences can only run in Web Workers / worker_threads, which communicate via events. Electron IPC works the same way, but we felt it wasn't elegant enough. Thanks to RainbowBird, we now have eventa—the library for driving event-based IPC/RPC implementation. [Eventa](https://github.com/moeru-ai/eventa) is now officially part of Moeru AI!
 
-## Project Development Status
+Remember the prompt library we shared in May? Thanks to RainbowBird's efforts and contributions, Velin is now part of Moeru AI, and almost all of AIRI's prompts are driven by Velin. But don't worry about cross-platform capability — Velin also works in the Node.js environment!
 
-Now both Moeru AI and Project AIRI have grown into massive organizations, with over 50 original repositories covering machine learning, data processing, frontend, backend, and more—using TypeScript/Python/Rust/Go and other languages.
 
-Total followers across all have exceeded 800 people. This was unimaginable when we first started a year ago—truly, thank you all so much for your support!
+<img src="/blog/DevLog-2025.10.20/assets/velin.png" alt="velin.png" />
 
-<img src="./assets/moeru.png" alt="moeru.png" />
+
+## Eventa: Event-driven IPC/RPC
+
+
+> "Events are all you need"
+
+
+We once shared [Netlify](https://velin-dev.netlify.app/#/), a project that allows pure local inference in the browser in a way similar to the Vercel AI SDK.
+
+
+These local inferences can only be implemented in Web Workers / worker_threads, and they all communicate via events; Electron IPC works the same way. But we felt that was not elegant enough. Thanks again to RainbowBird, the library for driving and implementing event-based IPC/RPC, [Eventa](https://github.com/moeru-ai/eventa), is now also part of Moeru AI.
+
+
+## Current State of the Project
+
+
+Moeru AI and Project AIRI are now very large organizations, with more than 50 original repositories covering machine learning, data processing, frontend, and backend, in languages such as TypeScript/Python/Rust/Go.
+
+
+Together, we have more than 800 followers. This was unimaginable when we were founded a year ago. We truly thank everyone for the love.
+
+
+<img src="/blog/DevLog-2025.10.20/assets/moeru.png" alt="moeru.png" />
+
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Moeru AI
 </div>
 
-<img src="./assets/project-airi.png" alt="project-airi.png" />
+<img src="/blog/DevLog-2025.10.20/assets/project-airi.png" alt="project-airi.png" />
+
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Project AIRI
 </div>
 
+
 ## Pure Rust TTS Implementation
 
-Little teaser: Recently teamed up with kwaa to port the well-known TTS model chatterbox to a pure Rust implementation—no more worrying about tricky Python environment setup!
 
-~5s inference per run on 4080S, absolutely love it.
+Small teaser: recently, together with kwaa, I ported the well-known TTS model chatterbox to a pure Rust implementation, so we no longer have to worry about Python environment setup issues.
 
-Basically 1:1 recreated the Python model architecture in Rust, hoping to build it into a super streamlined local TTS inference engine leveraging other SOTA TTS models.
 
-<img src="./assets/rust-tts.png" alt="rust-tts.png" />
+On a 4080S, it infers about once every 5 seconds — I like it very much.
 
-## Final Words
 
-That's all for today's "one more thing"—hope you enjoyed this long thread, one after another!
+It is almost a 1:1 implementation of the Python model architecture in Rust. I hope to turn it into a very lean local TTS inference engine built on other SOTA TTS models.
 
-We'll continue updating tomorrow, bringing you tons more goodies, introducing our explorations in VLA/VLM gaming, how we're approaching it, and what results we're seeing.
+
+<img src="/blog/DevLog-2025.10.20/assets/rust-tts.png" alt="rust-tts.png" />
+
+
+## Finally
+
+
+That's it for today's "one more thing". I hope you like such a long thread, one item after another.
+
+
+We will continue updating tomorrow, bringing you lots of great content, introducing our explorations in VLA / VLM gaming — what we did, how we did it, and how it worked.
+

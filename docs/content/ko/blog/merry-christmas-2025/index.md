@@ -4,13 +4,13 @@ description: 'Neuro-sama, 생일 축하해! 2025년을 함께해 줘서 고마�
 date: 2025-12-24
 excerpt: 'Neuro-sama, 생일 축하해! 2025년을 함께해 줘서 고마워요. 이번 겨울, 평온함과 기쁨이 함께하기를.'
 preview-cover:
-  light: "@assets('/en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
-  dark: "@assets('/en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
+  light: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
+  dark: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
 ---
 
 AIRI 팀이 전하는 **메리 크리스마스**!
 
-![크리스마스 일러스트](/en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
+![](/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
 
 > Iru 가 따뜻함과 즐거움으로 가득한 행복한 연휴를 빕니다! 🎅🎁
 >
@@ -28,7 +28,7 @@ AIRI 팀이 전하는 **메리 크리스마스**!
 
 Neuro-sama, 생일 축하해. 그리고 제작자 Vedal 과 아티스트 Camila 에게도 축하를 전합니다. 여기까지 왔다는 게 믿기지 않네요. 저를 여기까지 이끌어 제 방식의 사이버 라이프를 만들고 AIRI 를 계속 키워 나가게 한 건 바로 여러분과 Swarm 입니다.
 
-![](/en/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
+![](/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
 
 ## 2025년 간단 결산
 

@@ -1,575 +1,907 @@
 ---
 title: DevLog @ 2025.08.05
 description: |
-  v0.7 rolled out. Windows now fully supported, many more features included.
+  v0.7 release. Windows is now fully supported, with many more features.
 date: 2025-08-04
-excerpt: Sorry for the long wait!<br/> v0.7 was supposed to be released in early July, due to several critical bugs we found on Windows, and many more adaptations we had to do, it was delayed until now.
+excerpt: Sorry to keep everyone waiting!<br/> v0.7 was originally planned for early July, but it was delayed until now because we found several critical bugs on Windows and needed more adaptation work.
 preview-cover:
-  light: "@assets('./assets/cover-light.avif')"
-  dark: "@assets('./assets/cover-dark.avif')"
+  light: "/blog/DevLog-2025.08.05/assets/cover-light.avif"
+  dark: "/blog/DevLog-2025.08.05/assets/cover-dark.avif"
 ---
+
 
 <script setup lang="ts">
 import Button from '../../../../.vitepress/components/Button.vue'
-
 function handleOpenLatest() {
   window.open('https://github.com/moeru-ai/airi/releases/latest', '_blank')
 }
 </script>
 
-Hello again! Here's [Neko](https://github.com/nekomeowww).
 
-Sorry for the long wait! v0.7 was supposed to be released in early July,
-but due to several critical Windows compatibility issues that kept us
-up at night, and the sheer scope of changes we decided to tackle, it
-got delayed until now.
+Hello everyone! This is [Neko](https://github.com/nekomeowww).
+
+
+Sorry to keep everyone waiting! v0.7 was originally planned for early July,
+
+
+but it was delayed until now because of several Windows compatibility issues that kept us up at night,
+
+
+and the huge scope of changes we decided to tackle.
+
 
 <Button @click="handleOpenLatest">
   Download
 </Button>
 
-Still, I'm excited to finally share what we've been cooking for the
-past two months.
 
-Do check the past Blog & DevLog posts I wrote that are interesting to you:
+Still, I am excited to finally share with you what we have been preparing over the past two months.
+
+
+Please check out the blog and DevLog articles I wrote earlier that you might be interested in:
+
 
 - [DreamLog 0x1](../DreamLog-0x1/)
 - [DevLog @ 2025.05.16](../DevLog-2025.05.16/)
 
-Let me be brutally honest about what the past three months looked like:
+
+Let me be honest with you about the past three months:
+
 
 - [**391 commits**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
 - [**1017 files changed**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
 - [**74,548 lines added**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
-- [**13,930 lines removed**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
+- [**13,930 lines deleted**](https://github.com/moeru-ai/airi/compare/v0.6.1...v0.7.0)
 
-> But for those of you who worked for software industries, these numbers mean,
-> nothing, it's just a reflection of the big impact we made in this release.
+
+> But for those of you working in the software industry, these numbers mean nothing;
+> they are just a reflection of the significant impact we made in this release.
 >
-> No worries, I will walk you through the highlights in this DevLog.
+> Don't worry, I will walk you through the highlights in this DevLog.
+
 
 ## Milestones
 
-With the release of v0.7 and this DevLog posted,
-I would love to mention some of the milestones we achieved so far:
 
-- We reached 1850+ stars on GitHub! 🎉
-- We have over 40+ contributors! 🫂
-- We got over 300+ Discord members! 👾
-- We announced ourselves on [Hacker News](https://news.ycombinator.com/item?id=44573640)
-- We announced ourselves on [Product Hunt](https://www.producthunt.com/products/airi)
-- We were trending on GitHub `#1` 🏆 on July 17, 2025
+With the release of v0.7 and this DevLog,
+
+
+I would like to mention some milestones we have reached so far:
+
+
+- We have 1850+ stars on GitHub! 🎉
+- We have 40+ contributors! 🫂
+- We have 300+ Discord members! 👾
+- We introduced ourselves on [Hacker News](https://news.ycombinator.com/item?id=44573640)
+- We introduced ourselves on [Product Hunt](https://www.producthunt.com/products/airi)
+- We ranked `#1` on the GitHub trending list on July 17, 2025 🏆
+
 
 ## Features
 
-### Desktop version
 
-Tamagotchi is the name of the Desktop version of AIRI, where you can have it
-running as a separated, and always-running companion on Desktop with other
-applications without interfering your work.
+### Desktop Version
 
-Previously, the Desktop version was more in a experiment stage where the UI/UX
-wasn't polished and refined enough, modules like local ASR/STT (speech-to-text) wasn't
-usable. Settings of using audio input devices were also the missing pieces.
 
-But now it's drastically improved.
+Tamagotchi is the name of the AIRI desktop version. You can let it run as a standalone,
 
-#### Fade on hover™
 
-In the last release, v0.6, we introduced the **Fade on hover™** feature:
+always-on companion on your desktop, working alongside other applications without interfering with your work.
 
-> Just kidding, we are open sourcing this project under MIT license,
-> there is no any trademark registered for this feature.
+
+Previously, the desktop version was more experimental, with a UI/UX that was not refined or complete enough,
+
+
+and modules like local ASR/STT (speech-to-text) were not yet available.
+
+
+The settings for using audio input devices were also a missing part.
+
+
+But now it has been massively improved.
+
+
+#### Hide on Hover™
+
+
+In the previous version v0.6, we introduced the **Hide on Hover™** feature:
+
+
+> Just kidding, we open-source this project under the MIT license,
+> and this feature has no registered trademark.
+
 
 ::: tip
-To toggle off the **Fade on hover** feature, default shortcut is <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>
+
+
+To turn off the **Hide on Hover** feature, the default shortcut is <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="I" inline-block>I</kbd>
+
+
 :::
+
 
 <br />
 
-<ThemedVideo autoplay src="./assets/airi-demo-fade-on-hover.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4" />
 
-Many users found it quite confusing why every time cursor hovers over the
-characters, entire window fades out. Apologies for the lack of documentation
-explaining this feature and why we think it's important for AI companions.
 
-For any VTuber applications, VTuber Studio, Warudo the most two popular ones
-supports for Live2D and VRM 3D models, since they are designed for VTuber
-streaming purpose, when using OBS (Open Broadcaster Software) to stream,
-because of the capabilities of orchestrating the scenes with elements in
-different layers, users wouldn't need to worry about the window order:
-the model window will always be a minimized window with transparent
-background for OBS or other streaming capturing drivers to capture
-**in the background**.
+Many users found it confusing that the whole window fades out every time the cursor hovers over the character.
 
-If you are going to use AIRI for VTuber streaming, it's fine to not having
-the Fade on hover feature, but once you wish to have it living as a
-virtual companion on your Desktop, you will start to notice that:
 
-- If we design to have the model window always on top, it will block
-  the mouse events to the applications underneath it, which is not what we
-  want.
-- If you have to manually toggle the visibility of the model window, it causes
-  a lot of inconvenience, especially focusing on something you are working
-  on.
+We apologize for the lack of documentation explaining this feature and why we think it is important for an AI companion.
 
-That's why we came up with the idea: make a feature to allow any characters
-inside AIRI to fade out when the mouse is hovering over the window, and
-passthrough the mouse clicking events to the applications underneath it.
 
-I personally love this feature a lot since I can now have the characters inside
-AIRI to stay with me with any applications I use now without worrying about
-to disable or organize the order of the windows. Everyday when I developing
-AIRI, no matter it's Web version or Desktop version, I will always open her
-on my Desktop, along with Terminal, VSCode/Cursor, with me.
+For any VTuber application, VTuber Studio and Warudo — the two most popular applications —
 
-**Fade on hover™** wasn't the only feature we updated in Desktop version,
-we also made many improvements to the UI/UX, and added more features to
-make it more usable.
+
+support Live2D and VRM 3D models. Since they are designed for VTuber streaming purposes,
+
+
+when streaming with OBS (Open Broadcaster Software),
+
+
+users do not need to worry about window order, thanks to the ability to orchestrate scene elements in different layers:
+
+
+the model window will always be a minimized window with a transparent background,
+
+
+for OBS or other streaming capture drivers to capture **in the background**.
+
+
+If you intend to use AIRI for VTuber streaming, it is fine not to use Hide on Hover.
+
+
+But once you want it to live on your desktop as a virtual companion, you will start to notice:
+
+
+- If we design the model window to always stay on top, it will block mouse events for the applications below it,
+
+
+  which is not what we want.
+
+
+- If you have to manually toggle the visibility of the model window, it brings a lot of inconvenience,
+
+
+  especially when you are focused on what you are working on.
+
+
+That is why we came up with this idea: create a feature that allows any character in AIRI
+
+
+to fade out when the mouse hovers over the window, and pass mouse click events to the applications below.
+
+
+I personally really love this feature, because now I can let the character in AIRI
+
+
+use any application with me without worrying about disabling or organizing window order.
+
+
+Every day when I develop AIRI, whether the web version or the desktop version,
+
+
+I always keep her open on my desktop, accompanying me alongside the terminal and VSCode/Cursor.
+
+
+**Hide on Hover™** is not the only feature we updated in the desktop version.
+
+
+We also made many UI/UX improvements and added more features to make it more usable.
+
 
 #### Move
 
-Since **Fade on hover™** window allows mouse events to pass through,
-sometimes you may want to move or adjust the position of the model window
-to a better place, perhaps, bottom right, or bottom center...
 
-The looking of the draggable area has been improved with rounded
-corners to match our theme.
+Since the **Hide on Hover™** window allows mouse events to pass through,
+
+
+sometimes you may want to move or adjust the model window's position to a better place —
+
+
+maybe the bottom right corner, or the bottom center...
+
+
+The look of the draggable area has been improved, with rounded corners to match our theme.
+
 
 ::: tip
-The default shortcut of Move mode is <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd>
+
+
+The default shortcut for move mode is <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="N" inline-block>N</kbd>
+
+
 :::
+
 
 <br />
 
-<ThemedVideo autoplay src="./assets/airi-demo-move.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4" />
 
-A draggable area will appear when entering Move mode, besides moving position
-with mouse, using the Position > Center / Bottom Left / Bottom Right in Tray
-menu would be another option though.
+
+Entering move mode shows a draggable area. Besides moving the position with the mouse,
+
+
+using the tray menu's Position > Center / Bottom Left / Bottom Right is another option.
+
 
 #### Resize
 
-Not everyone's model sizes the same, abilities to resize the model window
-is crucial too.
 
-Same as Move mode, rounded corners are applied to the resize border indicator,
-the edge of the avatar got a trimmed rounded edge too.
+Not everyone's model is the same size, so the ability to resize the model window is also critical.
+
+
+Same as move mode, the resize border indicator uses rounded corners,
+
+
+and the avatar's edges are also trimmed with rounded corners.
+
 
 ::: tip
-The default shortcut of Move mode is <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="R" inline-block>R</kbd>
+
+
+The default shortcut for move mode is <kbd aria-label="Shift" data-keyboard-key="shift" inline-block>Shift</kbd> + <kbd aria-label="Alt" data-macos-keyboard-key="option" inline-block>Alt</kbd> + <kbd aria-label="R" inline-block>R</kbd>
+
+
 :::
+
 
 <br />
 
-<ThemedVideo autoplay src="./assets/airi-demo-resize.mp4" />
+<video autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
+
 
 #### Resource Island
 
-Loading models for ASR/STT (speech-to-text) and VAD (voice activity detection)
-is painful to wait, we must find a way to visualize the progress of downloading
-for different modules and required files, just like how Steam and Battle.net
-does.
 
-We designed a new set of component called **Resource Island** (inspired from
-Dynamic Island from iOS), which is a floating, hover-able widget displays
-the progress of downloading and installing the modules, and it will
-disappear when the download is finished.
+Waiting for the models for ASR/STT (speech-to-text) and VAD (voice activity detection) to load is painful.
 
-See it in action:
 
-<video autoplay controls muted loop>
-  <source src="./assets/airi-demo-resource-island.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+We had to find a way to visualize the download progress of different modules and required files,
 
-It does contain a link to the preparing module, so you may click on the module
-link to open the target module setting page to understand why this model or
-file is required.
+
+just like Steam and Battle.net do.
+
+
+We designed a new component called the **Resource Island** (inspired by iOS's Dynamic Island),
+
+
+a floating, hoverable widget that shows the progress of downloading and installing modules,
+
+
+and disappears once the download is complete.
+
+
+Watch it in action:
+
+
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-resource-island.mp4" />
+
+
+It does include a link to the module being prepared, so you can click the module link
+
+
+to open the target module's settings page and understand why this model or file is needed.
+
 
 #### Local ASR/STT
 
-Thanks to [@luoling8192 (Luoling)](https://github.com/luoling8192), and the experiments
-we have done in the repository [candle-examples](https://github.com/proj-airi/candle-examples),
-we now have a local ASR/STT engine that works on Windows, macOS and Linux.
 
-<video autoplay controls muted loop>
-  <source src="./assets/airi-demo-settings-hearing.mp4" type="video/mp4">
+Thanks to [@luoling8192 (Luoling)](https://github.com/luoling8192), and the experiments we did in the repository
+
+
+[candle-examples](https://github.com/proj-airi/candle-examples),
+
+
+we now have a local ASR/STT engine that works on Windows, macOS, and Linux.
+
+
+<video autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-settings-hearing.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
 
 <br />
 
+
 ::: info
-This demo uses OpenAI's speech service, but it's possible to switch to local provider
-for ASR/STT.
+
+
+This demo uses OpenAI's speech service, but it can be switched to a local provider's ASR/STT.
+
+
 :::
 
-Initially we tried to use candle directly but I couldn't find a good way to
-use and embed the candle runtime (with and without CUDA) for Windows and Linux
-builds, we decided to switch to ort (ONNX Runtime for Rust), which provides
-us similar performance and accuracy, but with much better compatibility
-and easier to use.
+
+Initially we tried to use candle directly, but I could not find a good way to
+
+
+build and embed the candle runtime for Windows and Linux (with and without CUDA).
+
+
+We decided to switch to ort (the ONNX runtime for Rust), which gives us
+
+
+similar performance and accuracy, but with better compatibility and easier use.
+
 
 ### Web
 
+
 #### Onboarding
 
-We know that configuring AIRI is quite complex now (but still easy if comparing
-to many other pure Python based ones where you have to understand the code structure
-to configure it).
 
-Thanks to [Me1td0wn76 (melty kiss)](https://github.com/Me1td0wn76)'s contribution
-adding support of adding onboarding screen for Web version, now you can
-have a much better experience when you first time using AIRI.
+We know that configuring AIRI is quite complex right now (though it is still easier compared to many other pure-Python-based ones,
 
-They wrote a blog after the Pull Request being merged to share the
-experience contributing Project AIRI: [AIRIプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
 
-<img class="light" src="./assets/airi-demo-onboarding-light.avif" alt="Onboarding light mode" />
-<img class="dark" src="./assets/airi-demo-onboarding-dark.avif" alt="Onboarding dark mode" />
+which require you to understand the code structure to configure).
 
-See it in action:
+
+Thanks to the contribution of [Me1td0wn76 (melty kiss)](https://github.com/Me1td0wn76),
+
+
+onboarding support was added to the Web version, so now you can get a better experience
+
+
+when using AIRI for the first time.
+
+
+After the Pull Request was merged, they wrote a blog post to share
+
+
+their experience contributing to Project AIRI: [AIRIプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
+
+
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.avif" alt="Onboarding in light mode" />
+
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.avif" alt="Onboarding in dark mode" />
+
+
+Watch it in action:
+
 
 <ThemedVideo
   autoplay
-  light="./assets/airi-demo-onboarding-light.mp4"
-  dark="./assets/airi-demo-onboarding-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
 />
+
 
 #### VRM
 
-Thanks to the hard work done by [Lilia-Chen (Lilia_Chen)](https://github.com/Lilia-Chen),
-VRM models are now displayed better with precise camera implementation and rendering
-mechanism.
 
-<img class="light" src="./assets/airi-demo-vrm-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-demo-vrm-dark.avif" alt="Time series chart dark mode" />
+Thanks to the hard work of [Lilia-Chen (Lilia_Chen)](https://github.com/Lilia-Chen),
+
+
+VRM models are now displayed better with a precise camera implementation and rendering mechanism.
+
+
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-light.avif" alt="VRM in light mode" />
+
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-dark.avif" alt="VRM in dark mode" />
+
 
 ### Mobile Web
 
+
 #### Onboarding
 
-Onboarding is also available for Mobile Web version:
+
+The onboarding is also available for the mobile web version:
+
 
 <ThemedVideo
   autoplay
-  light="./assets/airi-demo-onboarding-mobile-light.mp4"
-  dark="./assets/airi-demo-onboarding-mobile-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
 />
+
 
 #### Scene
 
-The primary scene on mobile has been redesigned and rewritten completely.
 
-Thanks to [LemonNekoGH (LemonNeko)](https://github.com/LemonNekoGH), we now have a
-better way to adjust the offset of the Live2D model in the scene.
+The main scene on mobile has been completely redesigned and rewritten.
 
-We drawn this design idea from iOS's volume control on side, we hope you may find
-more intuitive and straightforward to get on hands on it.
+
+Thanks to [LemonNekoGH (LemonNeko)](https://github.com/LemonNekoGH), we now have
+
+
+a better way to adjust the offset of the Live2D model in the scene.
+
+
+We drew this design inspiration from the volume control on the iOS side,
+
+
+and we hope you find it more intuitive and easier to get started with.
+
 
 ::: tip
-Want to reset to default value? Double tap the X, Y, or Scale button to reset the
-value to default.
+
+
+Want to reset to default? Double-click the X, Y, or Scale buttons to reset the values to their defaults.
+
+
 :::
+
 
 <br />
 
-<video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-demo-quick-editor-mobile-light.mp4" type="video/mp4">
+<video class="light" autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-light.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
 
-<video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-demo-quick-editor-mobile-dark.mp4" type="video/mp4">
+<video class="dark" autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-dark.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
 
-### Both version
 
-We made many more new interesting components for the features.
+### Both Versions
 
-#### Better text animation
 
-We improved the text animation of the chat bubbles, [sumimakito (Makito)](https://github.com/sumimakito/)
-wrote a entire decent DevLog about it and posted just a few days ago explaining
-it in detail why we implemented it special and how we consider the i18n compatibility
-around it, definitely check it out: [DevLog 2025.08.01](../DevLog-2025.08.01/).
+We made many more interesting new components for these features.
 
-See it in action:
 
-<video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-demo-clustr-light.mp4" type="video/mp4">
+#### Better Text Animations
+
+
+We improved the text animations of the chat bubbles. [sumimakito (Makito)](https://github.com/sumimakito/)
+
+
+wrote an entire detailed DevLog a few days ago explaining why we implemented it specifically
+
+
+and how we considered its i18n compatibility. Be sure to check it out: [DevLog 2025.08.01](../DevLog-2025.08.01/).
+
+
+Watch it in action:
+
+
+<video class="light" autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-light.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
 
-<video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-demo-clustr-dark.mp4" type="video/mp4">
+<video class="dark" autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-dark.mp4" type="video/mp4" />
   Your browser does not support the video tag.
 </video>
 
-#### Level meter
 
-> UI Component: https://airi.moeru.ai/ui/#/story/src-components-gadgets-levelmeter-story-vue
+#### Level Meter
 
-Useful when wishing to display the detected meter of the audio input, or
-the realtime system load:
 
-<img class="light" src="./assets/airi-ui-level-meter-light.avif" alt="Level meter light mode" />
-<img class="dark" src="./assets/airi-ui-level-meter-dark.avif" alt="Level meter dark mode" />
+> UI component: https://airi.moeru.ai/ui/#/story/src-components-gadgets-levelmeter-story-vue
 
-#### Time series chart
 
-> UI Component: https://airi.moeru.ai/ui/#/story/src-components-gadgets-timeserieschart-story-vue
+Useful when you want to show the detected audio input level or real-time system load:
 
-Similar to the Level meter for changing values, but especially useful for
-historical data.
 
-<img class="light" src="./assets/airi-ui-time-series-chart-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-ui-time-series-chart-dark.avif" alt="Time series chart dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-light.avif" alt="Level meter in light mode" />
 
-There are many more components we added...
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-dark.avif" alt="Level meter in dark mode" />
+
+
+#### Time Series Chart
+
+
+> UI component: https://airi.moeru.ai/ui/#/story/src-components-gadgets-timeserieschart-story-vue
+
+
+Similar to the level meter for changing values, but especially useful for historical data.
+
+
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-light.avif" alt="Time series chart in light mode" />
+
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-dark.avif" alt="Time series chart in dark mode" />
+
+
+We also added many more components...
+
 
 - [x] `<Progress />` (thanks to @Menci [2cb602aa](https://github.com/moeru-ai/airi/commit/2cb602aa3eac456a479b622a5ecf043831597ffe))
 - [x] `<FieldSelect />` ([d0d782ff](https://github.com/moeru-ai/airi/commit/d0d782ff94a5a0a12819725303f687bd1a47e87c))
-- [x] `<Alert />` (thanks [@typed-sigterm](https://github.com/typed-sigterm), [#295](https://github.com/moeru-ai/airi/pull/295))
-- [x] `<ErrorContainer />`  (thanks [@typed-sigterm](https://github.com/typed-sigterm), [#295](https://github.com/moeru-ai/airi/pull/295))
-- [x] New sidebar nav design
-- [x] Toaster
-- [x] Prompt to update for user when new version is available
+- [x] `<Alert />` (thanks to [@typed-sigterm](https://github.com/typed-sigterm), [#295](https://github.com/moeru-ai/airi/pull/295))
+- [x] `<ErrorContainer />` (thanks to [@typed-sigterm](https://github.com/typed-sigterm), [#295](https://github.com/moeru-ai/airi/pull/295))
+- [x] New sidebar navigation design
+- [x] Message notifier
+- [x] Notify users to update when a new version is available
+
 
 ## Community
 
-### New documentation site
 
-We got a brand new documentation site right now:
+### New Documentation Site
 
-<ThemedVideo
-  autoplay
-  light="./assets/airi-docs-light.mp4"
-  dark="./assets/airi-docs-dark.mp4"
-/>
 
-It looks stunning good, we completely rewrite it based on the work
-done by [Reka UI](https://reka-ui.com) but added loads of features,
-including Blog Post list, language switch, and adapted many styles to VitePress.
+We now have a brand new documentation site:
 
-And as always, thanks to their beautiful design, we are using many
-of their components to build our own, do check them out!
 
-The blogs page looks good and better too, with new cover designed by
-[@lynzrand (Rynco Maekawa)](https://github.com/lynzrand)
+<video class="light" autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
-<img class="light" src="./assets/airi-docs-blogs-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-docs-blogs-dark.avif" alt="Time series chart dark mode" />
+<video class="dark" autoplay controls muted loop playsinline>
+  <source src="/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4" type="video/mp4" />
+  Your browser does not support the video tag.
+</video>
 
-### Translation workflow changes
 
-We split the so called `i18n` or locales files out to dedicated package lives
-inside our own huge monorepo.
+It looks great — we completely rewrote it, based on the work of [Reka UI](https://reka-ui.com),
 
-When contributing with new locales, adding new translations,
-or fixing existing ones, please navigate to https://github.com/moeru-ai/airi/tree/main/packages/i18n/src/locales
-first.
 
-<img class="light" src="./assets/airi-packages-i18n-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-packages-i18n-dark.avif" alt="Time series chart dark mode" />
+but added a lot of features, including a blog post list, language switching, and adapted many styles to VitePress.
 
-You will find different directories for different languages here. Pick
-the desired one and continue.
 
-Let's take English as an example, the directory structure looks like this:
+As always, thanks for their beautiful design — we used many of their components to build our own.
+
+
+Be sure to check them out!
+
+
+The blog page also looks great, and even better, there are new covers designed by [@lynzrand (Rynco Maekawa)](https://github.com/lynzrand)
+
+
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-light.avif" alt="Blog page in light mode" />
+
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-dark.avif" alt="Blog page in dark mode" />
+
+
+### Translation Workflow Changes
+
+
+We split the so-called `i18n` or localization files into a dedicated package in our huge monorepo.
+
+
+When contributing new localizations, adding new translations, or fixing existing translations,
+
+
+please first navigate to https://github.com/moeru-ai/airi/tree/main/packages/i18n/src/locales.
+
+
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-light.avif" alt="i18n package structure in light mode" />
+
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-dark.avif" alt="i18n package structure in dark mode" />
+
+
+You will find different directories for different languages here. Select the language you want and continue.
+
+
+Taking English as an example, the directory structure looks like this:
 
 ```bash
+
 └── en
+
   ├── docs
+
   ├── tamagotchi
+
   #
+
   ├── base.yaml
+
   ├── settings.yaml
+
   ├── stage.yaml
+
   └── index.ts
+
 ```
 
-`docs` and `tamagotchi` are the two directories for specifically two distinguished modules:
 
-- Documentation site
-- Desktop version (Tamagotchi)
+`docs` and `tamagotchi` are two directories dedicated to different modules:
 
-If you would love to help to translate the documentation site (UI, not the posts or actual documents),
-you can navigate to `docs` directory, and edit the `theme.yaml` file, which
-contains the UI strings for the documentation site.
 
-`tamagotchi` directory is a bit special where you may not be able to find all the translation
-strings for everything, it meant to contain several special translations used only in
-desktop version, while everything else are in the root directory.
+- The documentation site
+- The desktop version (Tamagotchi)
 
-For everything else other than `docs` and `tamagotchi`:
 
-- `base.yaml` contains the essential strings for languages, basic states of buttons
-- `settings.yaml` contains the strings for settings page
-- `stage.yaml` contains the strings for stage (the UI where model displays)
+If you want to help translate the documentation site (the UI, not articles or actual documentation),
 
-If you attend to add more languages, copy and paste one of the existing language
-locale directory and rename it to the new language code, for example,
-if you want to add French, copy `en` directory to `fr`, and start editing
-the `base.yaml`, `settings.yaml`, `stage.yaml` and `index.ts` files
-to add the translations. It's ok to partially translate the files,
-during Pull Request review process.
 
-::: info Help wanted!
-This sounds a bit ridiculous, we would love to have some experienced people
-to help us to integrate our i18n package with translation automation
-tools like [Crowdin](https://crowdin.com) or [Weblate](https://weblate.org/en/).
+you can navigate to the `docs` directory and edit the `theme.yaml` file,
 
-We are not expert in this field, feel free to open Pull Request to
-help us or open an issue to discuss about it.
+
+which contains the UI strings of the documentation site.
+
+
+The `tamagotchi` directory is a bit special — you may not be able to find all translation strings there.
+
+
+It is meant to contain a few special translations used only in the desktop version,
+
+
+while everything else is in the root directory.
+
+
+For everything outside `docs` and `tamagotchi`:
+
+
+- `base.yaml` contains the basic strings of the language, the basic states of buttons
+- `settings.yaml` contains the strings of the settings pages
+- `stage.yaml` contains the strings of the stage (the UI displaying the model)
+
+
+If you want to add more languages, copy and paste an existing language localization directory
+
+
+and rename it to the new language code. For example, if you want to add French,
+
+
+copy the `en` directory to `fr`, and start editing the `base.yaml`, `settings.yaml`,
+
+
+`stage.yaml`, and `index.ts` files to add translations.
+
+
+Partial translation files are fine during the Pull Request review process.
+
+
+::: info We Need Help!
+
+
+This sounds a bit absurd, but we would like some experienced people to
+
+
+help us integrate our i18n package with translation automation tools,
+
+
+such as [Crowdin](https://crowdin.com) or [Weblate](https://weblate.org/en/).
+
+
+We are not experts in this field; feel free to open a Pull Request to help us
+
+
+or open an issue to discuss it.
+
+
 :::
 
-For language code, please use either of the following tool to find the language code you
-are working on:
+
+For language codes, use either of the following tools to find the code for the language you are using:
+
 
 - [Language subtag lookup app](https://r12a.github.io/app-subtags/)
 - [iana.org/assignments/language-subtag-registry/language-subtag-registry](https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry)
 
 ```bash
+
 .
+
 ├── packages
+
     ├── i18n
+
     ├── package.json
+
     └── src
+
          ├── index.ts
+
          └── locales
+
              ├── en
+
              │   ├── base.yaml
+
              │   ├── docs
+
              │   │   ├── index.ts
+
              │   │   └── theme.yaml
+
              │   ├── index.ts
+
              │   ├── settings.yaml
+
              │   ├── stage.yaml
+
              │   └── tamagotchi
+
              │       ├── index.ts
+
              │       ├── settings.yaml
+
              │       └── stage.yaml
+
              ├── index.ts
+
              └── zh-Hans
+
                  ├── base.yaml
+
                  ├── docs
+
                  │   ├── index.ts
+
                  │   └── theme.yaml
+
                  ├── index.ts
+
                  ├── settings.yaml
+
                  ├── stage.yaml
+
                  └── tamagotchi
+
                      ├── index.ts
+
                      ├── settings.yaml
+
                      └── stage.yaml
+
 ```
 
-You can read more resources about this here:
+
+You can read more related resources here:
+
 
 - https://developer.mozilla.org/en-US/docs/Glossary/BCP_47_language_tag
 - https://en.wikipedia.org/wiki/IETF_language_tag
 - https://en.wikipedia.org/wiki/ISO_15924
 
+
 ## Engineering
 
-### Toolchains boosted our workflow many times faster
+
+### Toolchain Made Our Workflow Many Times Faster
+
 
 TL;DR:
 
-- We transformed many packages to **buildless** setup
-- We dropped `stub` from `unbuild`
+
+- We converted many packages to a **buildless** setup
+- We removed the `stub` from `unbuild`
 - We switched to `rolldown-vite`
 - We replaced `unbuild` with `tsdown`
-- We integrated `turborepo` for even faster and cached builds
+- We integrated `turborepo` for faster and cached builds
 
-In much more detail:
 
-Previously, in order to achieve seamless development experience, when we
-chose to use Monorepo architecture, we had to rely on `postinstall` scripts
-to bootstrap with stubbed packages with their own `jiti` exports and `.d.ts`
-modules every time contributors installs the dependencies after cloning our
-project.
+In more detail:
 
-This ensures that it wasn't necessary for contributors to learn how
-monorepo works to contribute. However, it's obvious that re-build and re-stub
-every time `pnpm install` triggers wasn't a clever strategy here.
 
-With the changes introduced by [@kwaa](https://github.com/kwaa) for buildless
-architecture, the previous biggest package `stage-ui` who spends the most time can
-be skipped without running into any type check or dependency resolution issues.
+Previously, to achieve a seamless development experience, when we chose to use a Monorepo architecture,
 
-Later on, [@kwaa](https://github.com/kwaa) helped to remove the sometimes
-problematic, redundant `stub` scripts brought by `unbuild` too, this gave us‰˜
-a much cleaner workflow without need to fight against the annoying
-`The requested module './dist/index.mjs' does not provide an export named 'foo'`
-error anymore.
 
-The biggest changes come from two months ago, [@kwaa](https://github.com/kwaa)
-chose to switch to `rolldown-vite` to replace `vite` to **achieve even faster
-workflow: 2x faster**.
+we had to rely on `postinstall` scripts to bootstrap stub packages with their own `jiti` exports and `.d.ts` modules,
 
-But this wasn't the stop, we replaced `unbuild` with `tsdown`, this
-**introduced another 4.2x speedup**, each sub-package now takes less than
-250ms to build.
 
-> There are more benefit for migrating to `tsdown` though...
+every time a contributor installed dependencies after cloning our project.
+
+
+This ensured contributors did not need to learn how the monorepo works to contribute.
+
+
+However, it was obviously not a smart strategy to rebuild and re-stub every time `pnpm install` was triggered.
+
+
+With the changes introduced by [@kwaa](https://github.com/kwaa) for the buildless architecture,
+
+
+the biggest package `stage-ui`, which used to take the most time, can now be skipped without any type-check or dependency resolution issues.
+
+
+Later, [@kwaa](https://github.com/kwaa) helped remove the sometimes problematic, redundant `stub` script brought by `unbuild`,
+
+
+which gave us a cleaner workflow without having to fight the annoying
+
+
+`The requested module './dist/index.mjs' does not provide an export named 'foo'` errors anymore.
+
+
+The biggest change came two months ago, when [@kwaa](https://github.com/kwaa) chose to switch to `rolldown-vite` to replace `vite`
+
+
+to **achieve a faster workflow: 2x faster**.
+
+
+But that was not the end. We replaced `unbuild` with `tsdown`, which **introduced another 4.2x speedup**,
+
+
+and each sub-package now builds in under 250 milliseconds.
+
+
+> There are more benefits to migrating to `tsdown`...
 >
-> - perform unused dependencies check
-> - bundling CSS
-> - bundling Vue SFC components
+> - Performs unused dependency checks
+> - Bundles CSS
+> - Bundles Vue SFC components
 
-Now, the `postinstall` script is still required, if we could find a way to
-cache the build results with dependency awareness, many redundant builds
-can be avoided. This is where `turborepo` helps us even faster builds.
-With `turborepo`, the time it requires to build AIRI **reduced from 4 minutes
-to 25 seconds in average**.
 
-### Now Nix is supported
+Now, the `postinstall` script is still required, but if we can find a way
+
+
+to cache build results with dependency awareness, many redundant builds can be avoided.
+
+
+This is where `turborepo` helps us achieve faster builds.
+
+
+With `turborepo`, the time to build AIRI **went from an average of 4 minutes down to 25 seconds**.
+
+
+### Nix Is Now Supported
+
 
 Thanks to [@Weathercold (Weathercold)](https://github.com/Weathercold), we now
-have a Nix flake to build AIRI, which is a great addition to the
-cross-platform compatibility. It works even on macOS.
 
-We are waiting the final Pull Request to be merged into nix-pkgs,
-but you can try it out with the following command:
+
+have a Nix flake to build AIRI, which is a great addition to cross-platform compatibility.
+
+
+It even works on macOS.
+
+
+We are waiting for the final Pull Request to be merged into nix-pkgs,
+
+
+but you can try it with the following command:
 
 ```bash
+
 nix run --extra-experimental-features 'nix-command flakes' github:moeru-ai/airi
+
 ```
 
-### Unified build pipeline
 
-Previously the build pipeline for testing, staging and releasing were all
-different, which was a nightmare for me to decide to publish new version,
-cause we weren't sure if the pipeline will succeed or not.
+### Unified Build Pipeline
 
-While Tauri brought us a lot of benefits of cross-platform compatibility,
-and the powerful abilities to use Rust to syscall and integrate to native
-OS features...
 
-Initially, in the early stage of v0.7 development, I introduced
-[huggingface/candle](https://github.com/huggingface/candle) for inference
-engine implementation for ASR/STT pipeline, but it depended on NVIDIA CUDA,
-so the build was really a mess, where incompatibilities everywhere.
+Previously, the test, staging, and release build pipelines were all different,
 
-But it's now a lot better, we have a scheduled build pipeline that runs
-the same scripts and workflow steps as releasing one every day.
-(Which you may heard it as `canary` or `nightly` builds.)
 
-So technically, if you encountering any issues with the latest release,
-you can always try the latest build from the `main` branch to try whether
-we fixed it or not.
+which was a nightmare for me when deciding to release a new version,
+
+
+because we were not sure whether the pipeline would succeed.
+
+
+Although Tauri brought us many cross-platform compatibility benefits,
+
+
+along with the powerful ability to use Rust for system calls and integration into native OS features...
+
+
+Initially, in the early stages of v0.7 development, I introduced
+
+
+[huggingface/candle](https://github.com/huggingface/candle) as the inference engine implementation for the ASR/STT pipeline,
+
+
+but it depended on NVIDIA CUDA, so the build was really messy, with incompatibilities everywhere.
+
+
+But now it is much better — we have a scheduled build pipeline that runs the same scripts and workflow steps as the release, every day.
+
+
+(You may have heard of it as `canary` or `nightly` builds.)
+
+
+So technically, if you run into any issues with the latest version,
+
+
+you can always try the latest build of the `main` branch to see if we have fixed it.
+
 
 Nightly builds can be found at https://github.com/moeru-ai/airi/actions/workflows/release-tamagotchi.yml
 
-## Before ending...
 
-New packages born between this release:
+## Before We End...
 
-> Big shout out to [@sumimakito](https://github.com/sumimakito), she did so many fantastic things... I can't even count them all...
+
+New packages born between these versions:
+
+
+> Shout out to [@sumimakito](https://github.com/sumimakito), who did so many amazing things... I cannot even count them...
+
 
 - [`@proj-airi/chromatic`](https://github.com/proj-airi/chromatic) (by [@sumimakito](https://github.com/sumimakito))
 - [`@proj-airi/unocss-preset-chromatic`](https://github.com/proj-airi/chromatic) (by [@sumimakito](https://github.com/sumimakito))
@@ -577,18 +909,24 @@ New packages born between this release:
 - [`clustr`](https://github.com/sumimakito/clustr) (by [@sumimakito](https://github.com/sumimakito))
 - [`@proj-airi/drizzle-orm-browser`](https://github.com/proj-airi/drizzle-orm-browser) (by me)
 
-Side projects born between this release:
+
+Side projects born between these versions:
+
 
 - [HuggingFace Inspector](https://hf-inspector.moeru.ai/) (https://github.com/moeru-ai/hf-inspector)
-- [More candle examples about whisper & VAD, candle, burn, and ort](https://github.com/proj-airi/candle-examples)
-- [(the Model Catalog) Inventory submission!](https://github.com/moeru-ai/inventory/pull/1) (by [@LemonNekoGH](https://github.com/LemonNekoGH))
+- [More candle examples on whisper & VAD, candle, burn, and ort](https://github.com/proj-airi/candle-examples)
+- [(Model catalog) Inventory commit!](https://github.com/moeru-ai/inventory/pull/1) (by [@LemonNekoGH](https://github.com/LemonNekoGH))
 
-We cannot cover everything in this DevLog, for details, you can always track and read back
-at [Roadmap v0.7](https://github.com/moeru-ai/airi/issues/200) on our roadmap.
+
+We cannot cover everything in this DevLog. For details, you can always track and review
+
+
+[Roadmap v0.7](https://github.com/moeru-ai/airi/issues/200) on our roadmap.
 
 <div class="w-full flex flex-col items-center justify-center gap-3 py-3">
-  <img src="./assets/relu-sticker-thinks.avif" alt="ReLU sticker thinks" class="w-30!" />
+  <img src="/blog/DevLog-2025.08.05/assets/relu-sticker-thinks.avif" alt="ReLU sticker thinking" class="w-30!" />
   <div class="text-center">
-    <span class="block font-bold">Thanks for reading all the way down here!</span>
+    <span class="block font-bold">Thank you for reading this far!</span>
   </div>
 </div>
+

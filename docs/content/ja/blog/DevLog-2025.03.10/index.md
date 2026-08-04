@@ -16,13 +16,13 @@ date: 2025-03-10
 
 最初に私が設定デザインの基本バージョンを完成させました。こんな感じです：
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v1.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v1.avif)
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v1-dark.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v1-dark.avif)
 
 その後、[@sumimakito](https://github.com/sumimakito) がオンラインになり、ボタンにドット効果を実装するのを手伝ってくれました：
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v2.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v2.avif)
 
 > これでメニューからよりリズムを感じられるようになりましたね？！
 
@@ -55,7 +55,7 @@ date: 2025-03-10
 
 3月8日の終わりには、[@LemonNekoGH](https://github.com/LemonNekoGH) と [@junkwarrior87](https://github.com/junkwarrior87) がなんとステージ全体のカラーカスタマイズ機能を実装しました！（これがわずか数時間で完成するとは夢にも思いませんでした...）
 
-<ThemedVideo controls muted src="/en/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4" />
+<ThemedVideo controls muted src="/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4" />
 
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60
@@ -68,9 +68,9 @@ date: 2025-03-10
 
 これが最終的な結果です。試してみてください！
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v3.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v3.avif)
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif)
 
 いつものように、貢献は大歓迎です！私たちは誰に対しても、プログラミングやコーディングに詳しくない人たちに対しても、オープンでフレンドリーです！
 

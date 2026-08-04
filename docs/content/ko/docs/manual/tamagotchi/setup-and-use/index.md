@@ -135,7 +135,7 @@ API 를 얻으면 안전하게 보관하고 다른 사람과 공유하지 마세
 - "Open hearing control" – 오른쪽 아래. Airi 에게 말을 걸 수 있게 합니다. STT 서비스가 필요합니다.
 - "Move" – 오른쪽 아래. 길게 누른 뒤 끌어서 메인 창의 위치를 옮깁니다.
 
-![Airi main window overview](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-main-window.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-main-window.avif)
 
 ::: info 청각 제어에 대하여
 채팅 창을 먼저 열어야 하는 것 같습니다. 편집자에게는 아직 이 기능이 동작하지 않아 튜토리얼은 생략합니다.
@@ -160,7 +160,7 @@ STT 는 Speech-to-Text 의 약자로 자동 음성 인식(ASR)이라고도 합�
 - "Always show" / "Hide on hover" – 창을 클릭이 통과하도록 합니다.
 - "Close" – Airi 를 닫습니다.
 
-![Airi expanded controls menu](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-controls-island-expanded.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-controls-island-expanded.avif)
 
 <a id="chapter-3-system-tray"></a>
 ### > 시스템 트레이의 그 외 옵션
@@ -233,14 +233,14 @@ TTS 는 Text-to-Speech 의 약자로, 문자 텍스트를 자연스러운 음성
 이 옵션은 현재 내용도 없고 뒤로 가기 버튼도 없습니다. 한번 들어가면 설정 창을 닫고 다시 열어야 나올 수 있습니다.
 :::
 
-![Airi settings window overview](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-settings-window.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-settings-window.avif)
 
 <a id="chapter-3-chat-window"></a>
 ### > 채팅 창
 
 메인 창에서 "Expand" 를 클릭하고 "Open chat" 을 선택하면 채팅 창을 열 수 있습니다.
 
-![Airi chat window interface](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-chat-window.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-chat-window.avif)
 
 여기서 Airi 와 대화할 수 있습니다.
 
@@ -257,7 +257,7 @@ TTS 는 Text-to-Speech 의 약자로, 문자 텍스트를 자연스러운 음성
 
 여기서 기본 캐릭터 카드를 업로드하거나 새로 만들거나 수정할 수 있습니다.
 
-![Airi character card settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-airi-card.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-airi-card.avif)
 
 ::: info 업로드에 대하여
 업로드 대화상자는 어떤 파일 형식이든 지원한다고 하지만, 편집자가 실제로 써 본 적이 없고 내보내기 기능도 없어서 상세 설명은 생략합니다.
@@ -293,7 +293,7 @@ TTS 는 Text-to-Speech 의 약자로, 문자 텍스트를 자연스러운 음성
 
 여기서 Airi 의 여러 기능을 다음과 같이 설정할 수 있습니다:
 
-![Airi body modules settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-modules.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-modules.avif)
 
 #### > 의식 (Consciousness)
 
@@ -306,7 +306,7 @@ TTS 는 Text-to-Speech 의 약자로, 문자 텍스트를 자연스러운 음성
 소스가 너무 많아 뒤쪽 항목을 클릭할 수 없으면, 탭 위에 마우스를 올리고 가운데 버튼을 누른 채 좌우로 끌어 보세요.
 :::
 
-![Airi consciousness settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-consciousness.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-consciousness.avif)
 
 #### > 발화 (Vocalization)
 
@@ -324,7 +324,7 @@ TTS 는 Text-to-Speech 의 약자로, 문자 텍스트를 자연스러운 음성
 4. Airi 가 말하지 않게 하려면 "None" 을 선택합니다.
 5. 기본 설정을 마친 뒤에는 이 페이지 하단에 텍스트를 입력하고 "**Test voice**" 를 클릭해 샘플을 생성할 수 있습니다.
 
-![Airi vocalization settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-speech.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-speech.avif)
 
 #### > 청각 (Hearing)
 
@@ -338,7 +338,7 @@ TTS 는 Text-to-Speech 의 약자로, 문자 텍스트를 자연스러운 음성
 2. 그다음 서비스 소스를 선택하거나, 새로 추가한 뒤 선택합니다.
 3. 그다음 모델을 선택합니다.
 
-![Airi hearing settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-hearing.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-hearing.avif)
 
 추가로 다음을 할 수 있습니다:
 
@@ -372,7 +372,7 @@ STT 를 테스트하려면:
 2. 그다음 모델을 선택합니다.
 3. 필요하면 "Capture interval" 로 캡처 빈도를 조절합니다.
 
-![Airi vision settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-vision.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-vision.avif)
 
 ::: warning Vision Capture 가 필요합니다
 이 기능은 `System → Developer → vision capture` 에서 `vision capture` 를 활성화해야 합니다. 자세한 내용은 해당 절을 참고하세요.
@@ -449,7 +449,7 @@ Discord 와 비슷하며 봇이 필요합니다. 튜토리얼 생략.
 
 여기서 캐릭터 모델을 고르고 설정할 수 있습니다.
 
-![Airi character model settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-models.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-models.avif)
 
 Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
@@ -517,7 +517,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
   - Local
   - Cloud
 
-![Airi service sources settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-providers.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-providers.avif)
 
 ::: warning 주의해 주세요
 일부 서비스의 설정 화면은 제때 유지보수되지 못해 정상 동작하지 않을 수 있습니다. 비슷한 문제를 겪으면 GitHub 에 이슈를 제출하거나, (선택한 서비스 소스가 지원한다면) "OpenAI Compatible API" 옵션으로 설정을 시도해 보세요.
@@ -532,7 +532,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
 여기서 Airi 의 여러 데이터를 관리할 수 있습니다.
 
-![Airi data settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-data-settings.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-data-settings.avif)
 
 ::: warning 되돌릴 수 없는 동작
 이 섹션에서는 데이터를 삭제하고 초기화할 수 있으며, 되돌릴 수 없습니다. 신중히 조작하시고, 삭제나 초기화를 실행하기 전에 다시 확인하세요.
@@ -559,7 +559,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
 여기서 WebSocket 서버 주소를 설정할 수 있습니다.
 
-![Airi connection settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-websocket-settings.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-websocket-settings.avif)
 
 ::: info 편집자 노트
 상세 설명 생략.
@@ -572,7 +572,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
 여기서 프로그램 테마, 언어 등을 설정할 수 있습니다.
 
-![Airi general system settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-general.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-system-general.avif)
 
 - 테마는 기본이 라이트입니다. 버튼을 클릭하면 다크 모드로 전환됩니다.
 - Language 는 인터페이스 언어를 설정합니다.
@@ -583,7 +583,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
 여기서 테마 색상을 바꿀 수 있습니다.
 
-![Airi color scheme settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-color-scheme.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-system-color-scheme.avif)
 
 - RGB 옵션을 켜면 테마 색상이 RGB 스트립처럼 순환합니다.
 - 검은 선을 끌거나 색상 바를 클릭해 테마 색상을 바꿉니다.
@@ -604,7 +604,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
 여기서 몇 가지 고급 기능을 쓸 수 있습니다.
 
-![Airi developer settings window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-system-developer.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-system-developer.avif)
 
 ::: info 고급 기능
 이 내용 대부분은 영어이며 거의 필요하지 않은 고급 기능이므로, 이 절은 참고용입니다.
@@ -629,41 +629,41 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 
 여기서 화면상의 마우스 커서 위치를 감지할 수 있습니다.
 
-![Airi useElectronWindowMouse tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-use-window-mouse.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-use-window-mouse.avif)
 
 ##### > Displays
 
 여기서 화면상의 마우스 커서 위치를 시각화할 수 있습니다.
 
-![Airi Displays tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-displays.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-displays.avif)
 
 ##### > widgets calling
 
-![Airi widgets calling tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-widgets-calling.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-widgets-calling.avif)
 
 ##### > Context Flow
 
 들어오는 컨텍스트 갱신(서버 + 브로드캐스트)과 나가는 채팅 훅을 실시간으로 살펴봅니다. 플러그인 컨텍스트(예: VSCode 코딩 컨텍스트)가 채팅 파이프라인으로 흘러 들어가고 서버 이벤트로 나가는 과정을 확인하는 데 사용하세요.
 
-![Airi Context Flow tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-context-flow.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-context-flow.avif)
 
 ##### > relative mouse
 
 여기서 이 창 안에서의 마우스 커서 위치를 시각화할 수 있습니다.
 
-![Airi relative mouse tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-relative-mouse.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-relative-mouse.avif)
 
 ##### > beat sync visualizer
 
-![Airi beat sync visualizer tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-beat-sync.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-beat-sync.avif)
 
 ##### > WebSocket Inspector
 
-![Airi WebSocket Inspector tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-websocket-inspector.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-websocket-inspector.avif)
 
 ##### > Plugin Host Debug
 
-![Airi Plugin Host Debug tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-plugin-host.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-plugin-host.avif)
 
 ##### > Updater
 
@@ -680,13 +680,13 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 - "devices" – 상세 설명 생략.
 - "refetch" – 상세 설명 생략.
 
-![Airi Screen Capture tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-screen-capture.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-screen-capture.avif)
 
 ##### > vision capture
 
 화면 캡처 권한을 아직 부여하지 않았다면 이 페이지도 먼저 권한 요청을 보여 줍니다. 권한을 부여하면 페이지가 프레임 캡처를 시작하고 시각 처리 결과를 보여 줄 수 있습니다.
 
-![Airi vision capture tool window](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-vision-capture.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-devtools-vision-capture.avif)
 
 <a id="web-features"></a>
 ## > 웹 버전 기능 보충
@@ -694,7 +694,7 @@ Airi 는 Live2D 모델과 VRM 3D 모델을 지원합니다.
 <a id="chapter-3-main-web"></a>
 ### > 웹 버전 메인 인터페이스
 
-![Airi Web Interface](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-main-web.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/manual-main-web.avif)
 
 여기서 캐릭터 모델을 보고 직접 대화할 수 있습니다.
 
@@ -762,7 +762,7 @@ Airi 에 로그인한 상태라면 여기서 계정 정보를 관리할 수 있�
 
 클릭하면 옵션 왼쪽에 x, y, scale 세 옵션이 새로 나타나고, 웹 인터페이스 왼쪽에 수직 바가 생깁니다. 여기서 x 는 모델의 x축 위치, y 는 모델의 y축 위치, scale 은 모델의 줌(크기)입니다. 웹 인터페이스 왼쪽의 수직 바를 **클릭한 채 끌어서** 이 세 값을 조정할 수 있습니다.
 
-![Adjust position and size on the main interface](/en/docs/manual/tamagotchi/setup-and-use/assets/web-position-size.avif)
+![](/docs/manual/tamagotchi/setup-and-use/assets/web-position-size.avif)
 
 ###### > Delete Chat History
 

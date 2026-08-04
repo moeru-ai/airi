@@ -5,9 +5,6 @@ date: 2025-04-28
 ---
 
 <script setup>
-import airiMcpSettings from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4'
-import airiMcpInputText from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4'
-import airiMcpArch from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif'
 </script>
 
 안녕하세요 여러분, [@LemonNeko](https://github.com/LemonNekoGH) 입니다. 오늘도 개발 이야기를 나누러 왔습니다.
@@ -22,17 +19,17 @@ import airiMcpArch from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-arch
 
 <details>
   <summary>AIRI 의 MCP 서버 설정</summary>
-  <ThemedVideo controls muted :src="airiMcpSettings" style="height: 640px;" />
+  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI 가 휴대폰에 `Hello World` 를 입력하는 모습</summary>
-  <ThemedVideo controls muted :src="airiMcpInputText" />
+  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
 </details>
 
 개발 중 생각을 정리하려고 LLM 이 Android 폰을 호출하는 흐름을 그림으로 그려 봤습니다:
 
-<img :src="airiMcpArch" alt="AIRI 가 휴대폰을 조작하는 구조" :style="{ height: '640px', objectFit: 'contain' }" />
+<img src="/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif" alt="AIRI 가 휴대폰을 조작하는 구조" :style="{ height: '640px', objectFit: 'contain' }" />
 
 이제 개발 과정을 나눠 보겠습니다.
 

@@ -124,6 +124,8 @@ const transitionName = ref('')
 
 // Also honor the user's reduced-motion preference (system setting); the CSS
 // media query in theme-animations.css backs this up for live preference changes.
+// NOTE: usePreferredReducedMotion returns 'reduce' | 'no-preference' (string),
+// not a boolean, so test against the string.
 const reducedMotion = usePreferredReducedMotion()
 
 onMounted(async () => {
@@ -138,7 +140,7 @@ onMounted(async () => {
       prevHeight = height
     }
   }
-  if (!reducedMotion.value)
+  if (reducedMotion.value !== 'reduce')
     transitionName.value = 'fade'
 })
 </script>

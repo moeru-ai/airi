@@ -5,8 +5,8 @@ date: 2025-08-01
 excerpt: |
   Makito 가 AIRI 에서 텍스트 애니메이션을 구현하다가, UTF-8 바이트 스트림으로 들어오는 grapheme cluster 를 다루는 라이브러리를 만들기까지의 여정을 나눕니다.<br /> 유익하고 영감이 되기를 바랍니다!
 preview-cover:
-  light: "@assets('/en/blog/DevLog-2025.08.01/assets/cover-light.avif')"
-  dark: "@assets('/en/blog/DevLog-2025.08.01/assets/cover-dark.avif')"
+  light: "/blog/DevLog-2025.08.01/assets/cover-light.avif"
+  dark: "/blog/DevLog-2025.08.01/assets/cover-dark.avif"
 ---
 
 <script setup>
@@ -75,7 +75,7 @@ const trioCluster = ['👩‍👧', '‍', '👦']
 Project AIRI 에서는 [@nekomeowww](https://github.com/nekomeowww) 도 모션 효과가 들어간 애니메이션 채팅 말풍선 컴포넌트를 만들었습니다:
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
-  <source src="/en/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
+  <source src="/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
 </video>
 
 <div text-sm text-center>

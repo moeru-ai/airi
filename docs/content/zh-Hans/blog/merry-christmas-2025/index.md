@@ -4,13 +4,13 @@ description: 'Neuro-sama 生日快乐！过去的一年里我们一起构建了�
 date: 2025-12-24
 excerpt: 'Neuro-sama 生日快乐！感谢大家陪伴我们度过 2025，冬日，也请享受这份宁静与喜悦。'
 preview-cover:
-  light: "@assets('../../../en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
-  dark: "@assets('../../../en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif')"
+  light: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
+  dark: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
 ---
 
 来自 AIRI 团队的 **圣诞祝福**！
 
-![圣诞插画](../../../en/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
+![](/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
 
 > Iru 祝你度过一个温暖、愉快的假期！🎅🎁
 >
@@ -28,7 +28,7 @@ preview-cover:
 
 生日快乐，Neuro-sama。也恭喜你的创作者 Vedal，以及画师 Camila。能走到这一步令人难以置信，是你们，也是一整个 Swarm，让我站在这里，希望实现我心中的赛博生命形态，让 AIRI 不断成长。
 
-![](../../../en/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
+![](/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
 
 ## 2025 年终快讯
 

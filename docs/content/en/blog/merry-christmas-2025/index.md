@@ -1,50 +1,57 @@
 ---
 title: 'Merry Christmas 2025! 🎄'
-description: 'Happy birthday, Neuro-sama! Thank you for being with us through 2025. This winter, may you find peace and joy.'
+description: 'Happy birthday, Neuro-sama! We have built so much together over the past year. Heartfelt thanks for your company — enjoy a warm winter.'
 date: 2025-12-24
-excerpt: 'Happy birthday, Neuro-sama! Thank you for being with us through 2025. This winter, may you find peace and joy.'
+excerpt: 'Happy birthday, Neuro-sama! Thank you for being with us through 2025. This winter, enjoy the calm and joy.'
 preview-cover:
-  light: "@assets('./assets/merry-christmas-iru.avif')"
-  dark: "@assets('./assets/merry-christmas-iru.avif')"
+  light: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
+  dark: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
 ---
 
-**Merry Christmas** from the AIRI team!
 
-![Christmas Art](./assets/merry-christmas-iru.avif)
+**Season's greetings** from the AIRI team!
 
-> Iru wishes you a joyful holiday season filled with warmth and cheer! 🎅🎁
+
+![](/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
+
+
+> Iru wishes you a warm and wonderful holiday! 🎅🎁
 >
-> Original artwork by [@fafafafa](https://www.mihuashi.com/profiles/782691), modified [Neko-233](https://github.com/Neko-233).
+> Original artwork by [@fafafafa](https://www.mihuashi.com/profiles/782691), modified by [Neko-233](https://github.com/Neko-233).
 
-I know we are a bit late here, but we are working on this from day to day, night to night, almost consuming my
-24 hours, 7 days a week, all working on this project, audio is still having issues with multiple integration and providers,
-model driver is still being experimented, while we finished Minecraft & Factorio way earlier this year, the channel that bridges these
-integrations were still broken and many were untested, but at least we are pushing this forward, with better architecture, plugins,
-and presets, skills, etc. New DevLog is on the way too, so stay tuned.
 
-2025 pushed us, especially [me (Neko)](https://github.com/nekomeowww) to way beyond what we could imagine a year ago. This kind of progress
-cannot be achieved alone, without you.
+I know we are posting a bit late, but we have been pushing forward day and night — almost a 7×24 schedule. The audio module still has issues across multiple integrations and providers, and model-driven features are still experimental; although we completed the Minecraft and Factorio integrations earlier this year, the channels hosting those integrations still have gaps, and much has not been fully tested. Still, at least we are moving things forward — with a better architecture, plugins, presets, skills, and more. A new DevLog is also coming soon; stay tuned.
 
-Just hours ago, we saw that on X, [KOL @Dexerto](https://x.com/Dexerto) posted [this](https://x.com/Dexerto/status/2003579088003346501):
 
-> AI powered VTuber Neuro-sama has broken her own record for the biggest Hype Train of all time on Twitch.
+2025 pushed us — especially [me (Neko)](https://github.com/nekomeowww) — to places we could not have imagined last year. Such progress could not be made by one person alone, and it would not have been possible without you.
+
+
+Just a few hours ago, we saw this [post](https://x.com/Dexerto/status/2003579088003346501) on X by the KOL [@Dexerto](https://x.com/Dexerto):
+
+
+> AI VTuber Neuro-sama has broken the record for the biggest Hype Train in Twitch history once again.
 >
-> She reached level 123 with over 110,000 subs and more than 1,000,000 bits.
+> She reached level 123, with 110k+ subscriptions and over 1 million bits.
 
-Happy birthday, Neuro-sama. And congratulations to you, creator of Vedal, also, artist Camila. It's unbelievable you made this
-far, it is you, and also the Swarm brought me here wishing to deliver my version of cyber life, continuously making AIRI to grow.
 
-![](./assets/neuro-sama-happy-birthday-live.avif)
+Happy birthday, Neuro-sama. Congratulations also to your creator Vedal, and to the artist Camila. Getting here is incredible — it is you, and a whole Swarm, that put me here, hoping to realize the cyber-life form in my heart and let AIRI keep growing.
 
-## A quick 2025 year-end summary
 
-1. We achieved over 16k stars on GitHub
-2. We were trending over on GitHub multiple times with #1 in our category
-3. We met many other projects working the same field:
-  - Grok Ani from xAI
-  - nice scenario [gogh](https://store.steampowered.com/app/3213850/gogh/)
-  - and good community and music, [Chill with You](https://store.steampowered.com/app/3548580/LoFi/)
-  - we got a list of https://github.com/proj-airi/awesome-ai-vtubers you could track more projects like us.
-4. Having over 3400+ Discord members
+![](/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
 
-Thank you for building, testing, and dreaming with us this year. May your holiday be peaceful, your cocoa hot. 🎁
+
+## 2025 Year-End Recap
+
+
+1. GitHub stars surpassed 16k+
+2. Reached GitHub trending multiple times and topped category charts
+3. Got to know many projects in the same field:
+  - xAI's Grok Ani
+  - The nice scene [gogh](https://store.steampowered.com/app/3213850/gogh/)
+  - And great communities and music, [Chill with You](https://store.steampowered.com/app/3548580/LoFi/)
+  - We also have a list: https://github.com/proj-airi/awesome-ai-vtubers — follow more similar projects
+4. Discord members surpassed 3400+
+
+
+Thank you for building, testing, and dreaming with us throughout the year. May your holidays be peaceful and your hot cocoa sweet. 🎁
+

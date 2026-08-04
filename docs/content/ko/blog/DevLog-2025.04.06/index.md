@@ -5,13 +5,6 @@ date: 2025-04-06
 ---
 
 <script setup>
-import MemoryDecay from '../../../en/blog/DevLog-2025.04.06/assets/memory-decay.avif'
-import MemoryRetrieval from '../../../en/blog/DevLog-2025.04.06/assets/memory-retrieval.avif'
-import CharacterCard from '../../../en/blog/DevLog-2025.04.06/assets/character-card.avif'
-import CharacterCardDetail from '../../../en/blog/DevLog-2025.04.06/assets/character-card-detail.avif'
-import MoreThemeColors from '../../../en/blog/DevLog-2025.04.06/assets/more-theme-colors.avif'
-import AwesomeAIVTuber from '../../../en/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
-import ReLUStickerWow from '../../../en/blog/DevLog-2025.04.06/assets/relu-sticker-wow.avif'
 </script>
 
 ## 무엇보다 먼저
