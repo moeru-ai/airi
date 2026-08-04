@@ -5,7 +5,7 @@ import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccoun
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Avatar, Button, FieldInput } from '@proj-airi/ui'
+import { Avatar, Button, FieldInput, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
@@ -38,8 +38,7 @@ const userAvatar = computed(() => user.value?.image ?? null)
 // Gravatar fallback is decorated server-side onto `user.image`. We detect
 // the fallback by URL prefix instead of carrying a redundant `imageSource`
 // flag — Gravatar URL format is stable and prefix-matching keeps the API
-// surface small. If the avatar source ever changes, both this constant
-// and apps/server/src/libs/gravatar.ts must move together.
+// surface small. Keep this prefix aligned with the server-generated fallback.
 const GRAVATAR_AVATAR_PREFIX = 'https://www.gravatar.com/avatar/'
 const usingGravatarFallback = computed(
   () => userAvatar.value?.startsWith(GRAVATAR_AVATAR_PREFIX) ?? false,
@@ -439,18 +438,13 @@ async function handleConfirmDelete(event: Event) {
 
           <div :class="['my-2 border-t border-neutral-200/70 dark:border-neutral-800/60']" />
 
-          <button
-            type="button"
-            :class="[
-              'w-full text-left rounded-lg px-3 py-2 text-sm transition-colors cursor-pointer',
-              'flex items-center gap-2',
-              'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800/60',
-            ]"
+          <GhostButton
+            block
+            :class="['justify-start!']"
+            icon="i-solar:logout-3-bold-duotone"
+            :label="t('settings.pages.account.logout')"
             @click="emit('logout')"
-          >
-            <div :class="['i-solar:logout-3-bold-duotone', 'size-4 flex-shrink-0']" />
-            {{ t('settings.pages.account.logout') }}
-          </button>
+          />
         </aside>
 
         <!-- Main column. max-w-3xl keeps long lines (descriptions, the Flux
@@ -717,12 +711,13 @@ async function handleConfirmDelete(event: Event) {
               {{ t('settings.pages.account.connections.message.loading') }}
             </div>
 
-            <ul v-else :class="['flex flex-col gap-2 max-w-md']">
+            <ul v-else :class="['flex flex-col gap-2 max-w-unset md:max-w-md']">
               <li
                 v-for="provider in defaultSignInProviders"
                 :key="provider.id"
                 :class="[
-                  'flex items-center justify-between gap-3 rounded-lg border border-neutral-200 dark:border-neutral-700 px-3 py-2',
+                  'flex items-center justify-between gap-3 rounded-lg px-3 py-2',
+                  'bg-neutral-100 dark:bg-neutral-900',
                 ]"
               >
                 <div :class="['flex items-center gap-2 min-w-0']">
@@ -746,7 +741,7 @@ async function handleConfirmDelete(event: Event) {
 
                 <Button
                   v-if="linkedAccountsByProvider.get(provider.id)"
-                  variant="secondary"
+
                   :class="['shrink-0 px-3 py-1 text-xs']"
                   :loading="linkActionInFlight === provider.id"
                   :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
@@ -812,9 +807,9 @@ async function handleConfirmDelete(event: Event) {
               </div>
               <div :class="['flex-shrink-0']">
                 <Button
-                  variant="danger"
                   :label="t('settings.pages.account.danger.deleteAccount.action')"
-                  @click="openDeleteDialog"
+                  color="red"
+                  variant="primary" @click="openDeleteDialog"
                 />
               </div>
             </div>
@@ -878,17 +873,18 @@ async function handleConfirmDelete(event: Event) {
                     <DialogClose as-child>
                       <Button
                         type="button"
-                        variant="secondary"
+
                         :disabled="deleteLoading"
                         :label="t('settings.pages.account.danger.deleteAccount.modal.cancel')"
                       />
                     </DialogClose>
                     <Button
                       type="submit"
-                      variant="danger"
+
                       :loading="deleteLoading"
                       :disabled="!deleteEmailMatches"
                       :label="t('settings.pages.account.danger.deleteAccount.modal.confirm')"
+                      color="red" variant="primary"
                     />
                   </div>
                 </form>
@@ -902,18 +898,11 @@ async function handleConfirmDelete(event: Event) {
                reversible (just sign back in) — putting it in the destructive
                group would over-signal severity. -->
           <div :class="['md:hidden pt-2']">
-            <button
-              type="button"
-              :class="[
-                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm cursor-pointer',
-                'text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800/60',
-                'transition-colors',
-              ]"
+            <GhostButton
+              icon="i-solar:logout-3-bold-duotone"
+              :label="t('settings.pages.account.logout')"
               @click="emit('logout')"
-            >
-              <div :class="['i-solar:logout-3-bold-duotone', 'size-4']" />
-              {{ t('settings.pages.account.logout') }}
-            </button>
+            />
           </div>
         </div>
       </div>

@@ -67,7 +67,7 @@ const signOutError = shallowRef<string | null>(null)
 // set / provider URL or a Gravatar fallback URL. We detect the fallback by
 // URL prefix so the server doesn't need to ship a redundant `imageSource`
 // flag — gravatar URLs are stable enough that prefix-matching is fine.
-// See apps/server/src/routes/oidc/token-auth.ts for the server-side build.
+// See server/apps/api/src/routes/oidc/token-auth.ts for the server-side build.
 const GRAVATAR_AVATAR_PREFIX = 'https://www.gravatar.com/avatar/'
 const avatarUrl = computed(() => user.value?.image ?? null)
 const usingGravatarFallback = computed(
@@ -586,7 +586,7 @@ function formatLinkedSince(iso: string): string {
 
             <Button
               v-if="linkedAccountsByProvider.get(provider.id)"
-              variant="secondary"
+
               :class="['shrink-0 px-3 py-1 text-xs']"
               :loading="linkActionInFlight === provider.id"
               :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
@@ -627,7 +627,7 @@ function formatLinkedSince(iso: string): string {
       <div :class="['max-w-sm w-full flex flex-col gap-2']">
         <Button
           :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-          variant="secondary"
+
           :loading="signOutLoading"
           @click="handleSignOut"
         >

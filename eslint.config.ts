@@ -66,7 +66,7 @@ export default defineConfig({
     'markdown/require-alt-text': 'off',
   },
 }, {
-  files: ['apps/server/**/*.ts'],
+  files: ['server/apps/api/**/*.ts'],
   rules: {
     'no-restricted-syntax': [
       'error',

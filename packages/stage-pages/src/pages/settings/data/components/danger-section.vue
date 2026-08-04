@@ -61,7 +61,7 @@ async function deleteAll() {
               </p>
             </div>
             <div :class="['flex flex-col items-start gap-2']">
-              <DoubleCheckButton variant="danger" @confirm="resetProviders">
+              <DoubleCheckButton @confirm="resetProviders">
                 {{ t('settings.pages.data.sections.providers.reset') }}
                 <template #confirm>
                   {{ t('settings.pages.data.confirmations.yes') }}
@@ -83,7 +83,7 @@ async function deleteAll() {
               </p>
             </div>
             <div :class="['flex flex-col items-start gap-2']">
-              <DoubleCheckButton variant="danger" @confirm="deleteAll">
+              <DoubleCheckButton @confirm="deleteAll">
                 {{ t('settings.pages.data.sections.all.delete') }}
                 <template #confirm>
                   {{ t('settings.pages.data.confirmations.yes') }}

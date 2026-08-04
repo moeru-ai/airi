@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DValidationReport } from '@proj-airi/stage-ui-live2d'
 
-import { Button } from '@proj-airi/ui'
+import { Button, GhostButton } from '@proj-airi/ui'
 import { useMediaQuery, useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot } from 'vaul-vue'
@@ -55,7 +55,7 @@ function handleFix(err: string) {
           <DialogTitle class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
             Live2D Model Audit Report
           </DialogTitle>
-          <Button size="sm" variant="secondary" @click="handleClose">
+          <Button size="sm" @click="handleClose">
             Close
           </Button>
         </div>
@@ -102,9 +102,9 @@ function handleFix(err: string) {
               <ul class="list-none pl-0 space-y-1">
                 <li v-for="(err, i) in report.errors" :key="i" class="flex items-center justify-between gap-2 rounded bg-red-50/50 p-2 text-red-800 dark:bg-red-900/20 dark:text-red-300">
                   <span>{{ err }}</span>
-                  <Button v-if="canFixError(err)" size="sm" variant="secondary-muted" class="h-6 px-2 text-[10px] tracking-wider uppercase" @click="handleFix(err)">
+                  <GhostButton v-if="canFixError(err)" size="sm" class="h-6 px-2 text-[10px] tracking-wider uppercase" @click="handleFix(err)">
                     Quick Fix
-                  </Button>
+                  </GhostButton>
                 </li>
               </ul>
             </div>
@@ -123,7 +123,7 @@ function handleFix(err: string) {
 
           <!-- Footer -->
           <div class="mt-2 flex justify-end gap-2">
-            <Button variant="secondary" @click="handleClose">
+            <Button @click="handleClose">
               Cancel
             </Button>
             <Button v-if="report.status !== 'INVALID'" @click="handleConfirm">
@@ -151,7 +151,7 @@ function handleFix(err: string) {
           <div class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
             Model Audit Report
           </div>
-          <Button size="sm" variant="secondary" @click="handleClose">
+          <Button size="sm" @click="handleClose">
             Close
           </Button>
         </div>
@@ -176,9 +176,9 @@ function handleFix(err: string) {
               <ul class="list-none pl-0 space-y-1">
                 <li v-for="(err, i) in report.errors" :key="i" class="flex items-center justify-between gap-2 rounded bg-red-50/50 p-2 text-red-800 dark:bg-red-900/20 dark:text-red-300">
                   <span>{{ err }}</span>
-                  <Button v-if="canFixError(err)" size="sm" variant="secondary-muted" class="h-6 px-2 text-[10px] tracking-wider uppercase" @click="handleFix(err)">
+                  <GhostButton v-if="canFixError(err)" size="sm" class="h-6 px-2 text-[10px] tracking-wider uppercase" @click="handleFix(err)">
                     Fix
-                  </Button>
+                  </GhostButton>
                 </li>
               </ul>
             </div>
@@ -195,7 +195,7 @@ function handleFix(err: string) {
             <Button v-if="report.status !== 'INVALID'" @click="handleConfirm">
               {{ report.status === 'WARNING' ? 'Import Anyway' : 'Confirm Import' }}
             </Button>
-            <Button variant="secondary" @click="handleClose">
+            <Button @click="handleClose">
               Cancel
             </Button>
           </div>

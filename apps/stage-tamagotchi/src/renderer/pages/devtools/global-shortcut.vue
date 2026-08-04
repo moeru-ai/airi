@@ -211,17 +211,18 @@ onUnmounted(() => {
         />
       </div>
       <div class="flex flex-wrap gap-3">
-        <Button variant="primary" :disabled="busy" @click="handleRegister">
+        <Button :disabled="busy" @click="handleRegister">
           Register
         </Button>
-        <Button variant="secondary" :disabled="busy" @click="refreshList">
+        <Button :disabled="busy" @click="refreshList">
           Refresh List
         </Button>
         <Button
           class="ml-auto"
-          variant="danger"
+
           :disabled="busy"
-          @click="handleUnregisterAll"
+          color="red"
+          variant="primary" @click="handleUnregisterAll"
         >
           Unregister All
         </Button>
@@ -305,7 +306,7 @@ onUnmounted(() => {
               <td class="px-3 py-2 text-right">
                 <Button
                   size="sm"
-                  variant="secondary"
+
                   :disabled="busy"
                   @click="handleUnregister(b.id)"
                 >
@@ -325,7 +326,7 @@ onUnmounted(() => {
         </h3>
         <Button
           size="sm"
-          variant="secondary"
+
           :disabled="triggers.length === 0"
           @click="clearLog"
         >
