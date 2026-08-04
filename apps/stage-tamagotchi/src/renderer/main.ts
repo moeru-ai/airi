@@ -12,7 +12,7 @@ import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { routes } from 'vue-router/auto-routes'
+import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
@@ -50,6 +50,14 @@ const router = createRouter({
   // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
   routes: setupLayouts(routes as RouteRecordRaw[]),
 })
+
+if (import.meta.hot) {
+  handleHotUpdate(router, (updatedRoutes) => {
+    router.clearRoutes()
+    for (const route of setupLayouts(updatedRoutes))
+      router.addRoute(route)
+  })
+}
 
 createApp(App)
   .use(MotionPlugin)
