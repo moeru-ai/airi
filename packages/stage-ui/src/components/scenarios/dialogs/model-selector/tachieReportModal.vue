@@ -57,7 +57,7 @@ function confirm() {
           <DialogTitle class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
             Tachie Model Audit Report
           </DialogTitle>
-          <Button size="sm" variant="secondary" @click="close">
+          <Button size="sm" @click="close">
             Close
           </Button>
         </div>
@@ -133,7 +133,7 @@ function confirm() {
           </div>
 
           <div :class="['mt-2', 'flex justify-end gap-2']">
-            <Button variant="secondary" @click="close">
+            <Button @click="close">
               Cancel
             </Button>
             <Button v-if="report.status !== 'INVALID'" @click="confirm">
@@ -161,7 +161,7 @@ function confirm() {
           <div class="text-lg text-neutral-900 font-semibold dark:text-neutral-100">
             Tachie Model Audit Report
           </div>
-          <Button size="sm" variant="secondary" @click="close">
+          <Button size="sm" @click="close">
             Close
           </Button>
         </div>
@@ -199,7 +199,7 @@ function confirm() {
             <Button v-if="report.status !== 'INVALID'" @click="confirm">
               {{ report.status === 'WARNING' ? 'Import Anyway' : 'Confirm Import' }}
             </Button>
-            <Button variant="secondary" @click="close">
+            <Button @click="close">
               Cancel
             </Button>
           </div>

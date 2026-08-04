@@ -586,7 +586,7 @@ function formatLinkedSince(iso: string): string {
 
             <Button
               v-if="linkedAccountsByProvider.get(provider.id)"
-              variant="secondary"
+
               :class="['shrink-0 px-3 py-1 text-xs']"
               :loading="linkActionInFlight === provider.id"
               :disabled="!!linkActionInFlight && linkActionInFlight !== provider.id"
@@ -627,7 +627,7 @@ function formatLinkedSince(iso: string): string {
       <div :class="['max-w-sm w-full flex flex-col gap-2']">
         <Button
           :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-          variant="secondary"
+
           :loading="signOutLoading"
           @click="handleSignOut"
         >

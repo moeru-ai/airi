@@ -39,6 +39,7 @@ const {
 } = useAnalytics()
 
 const isDisabled = computed(() => updateState.value.status === 'disabled')
+const isStoreManaged = import.meta.env.VITE_DISTRIBUTION === 'steam'
 const isLatestVersion = computed(() => {
   return updateState.value.status === 'not-available' && !isDisabled.value
 })
@@ -279,6 +280,7 @@ onMounted(() => {
             </div>
 
             <FieldSelect
+              v-if="!isStoreManaged"
               :model-value="selectedUpdateChannel"
               :disabled="isUpdateChannelUpdating || isBusy"
               :label="t('tamagotchi.stage.about.update.lane.label')"
@@ -315,7 +317,7 @@ onMounted(() => {
                 </div>
                 <div>
                   <Button
-                    variant="primary"
+
                     :loading="isBusy"
                     icon="i-solar:download-minimalistic-outline"
                     :label="t('tamagotchi.stage.about.update.actions.download')"
@@ -349,7 +351,8 @@ onMounted(() => {
                 </div>
                 <div>
                   <DoubleCheckButton
-                    variant="primary"
+                    color="neutral"
+                    variant="secondary"
                     @confirm="handleQuitAndInstall()"
                   >
                     {{ restartButtonLabel }}
@@ -379,7 +382,8 @@ onMounted(() => {
                 <div :class="['flex flex-wrap gap-2']">
                   <Button
                     v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
-                    :variant="isError ? 'caution' : 'secondary'"
+                    :color="isError ? 'orange' : 'neutral'"
+                    :variant="isError ? 'primary' : 'secondary'"
                     :loading="isBusy"
                     :disabled="isDisabled"
                     :icon="isLatestVersion ? 'i-solar:check-circle-outline' : isDisabled ? 'i-solar:forbidden-circle-outline' : 'i-solar:refresh-outline'"
@@ -388,7 +392,9 @@ onMounted(() => {
                       : isLatestVersion
                         ? t('tamagotchi.stage.about.update.actions.latest-version')
                         : isDisabled
-                          ? t('tamagotchi.stage.about.update.actions.disabled-dev')
+                          ? t(isStoreManaged
+                            ? 'tamagotchi.stage.about.update.actions.managed-by-store'
+                            : 'tamagotchi.stage.about.update.actions.disabled-dev')
                           : isError
                             ? t('tamagotchi.stage.about.update.actions.retry-check')
                             : t('tamagotchi.stage.about.update.actions.check-for-updates')"
@@ -419,10 +425,10 @@ onMounted(() => {
           </div>
 
           <div class="mt-6 flex justify-end gap-3">
-            <Button variant="secondary" @click="showChangelog = false">
+            <Button @click="showChangelog = false">
               {{ t('tamagotchi.stage.about.common.cancel') }}
             </Button>
-            <Button variant="primary" icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
+            <Button icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
               {{ t('tamagotchi.stage.about.update.actions.confirm-download') }}
             </Button>
           </div>
@@ -449,10 +455,10 @@ onMounted(() => {
             </div>
 
             <div class="mt-4 flex gap-3">
-              <Button variant="secondary" block @click="showChangelog = false">
+              <Button block @click="showChangelog = false">
                 {{ t('tamagotchi.stage.about.common.cancel') }}
               </Button>
-              <Button variant="primary" block icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
+              <Button block icon="i-solar:download-minimalistic-outline" @click="confirmDownload">
                 {{ t('tamagotchi.stage.about.update.actions.download-short') }}
               </Button>
             </div>

@@ -7,7 +7,7 @@ description: 참고하고 영감을 얻을 수 있는 자료들
 
 제가 아는 최고의 CSS 화면 전환 제작자 중 한 명은 **[yui540](https://yui540.com/)** 입니다. 눈부신 ACG 웹사이트를 정말 많이 디자인했고, 그중 가장 유명한 작품은 [臆病な魔女](https://cowardly-witch.netlify.app/) 입니다 (소스 코드는 [yui540](https://github.com/yui540?tab=repositories) 에서 찾아볼 수 있습니다).
 
-위와 비슷한 전환 효과를 구현하고 싶다면 [yui540/css-animations: 俺流CSSアニメーション](https://github.com/yui540/css-animations) 저장소를 참고하세요. 직접 만져볼 수 있는 [라이브 데모](https://yui540.github.io/css-animations/2025-02-25/transitions/) 도 있습니다.
+위와 비슷한 전환 효과를 구현하고 싶다면 [yui540/css-animations: 俺流CSSアニメーション](https://github.com/yui540/css-animations) 저장소를 참고하세요.
 
 ### [Nihe Works](https://nihe.work/)
 

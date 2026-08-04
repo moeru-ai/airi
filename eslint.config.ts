@@ -48,7 +48,11 @@ export default defineConfig({
     // (where the consequent is the error itself, not its `.message`). Antfu's
     // default no-restricted-syntax patterns are preserved alongside.
     'no-restricted-syntax': [
-      'warn',
+      'error',
+      {
+        selector: 'TSImportType',
+        message: 'Do not use inline type imports. Import types explicitly from their owning module, or split a dedicated side-effect-free type module when a runtime import would pull in the wrong environment.',
+      },
       {
         selector: 'ConditionalExpression[test.type=\'BinaryExpression\'][test.operator=\'instanceof\'][test.right.name=\'Error\'][consequent.type=\'MemberExpression\'][consequent.property.name=\'message\']',
         message: 'Avoid `error instanceof Error ? error.message : ...`. Use `errorMessageFrom(error)` from \'@moeru/std\' (or `errorMessageFromUnknown(error, fallback)` from \'@proj-airi/stage-shared\'). Pair with `?? \'fallback\'` when a default is needed.',
