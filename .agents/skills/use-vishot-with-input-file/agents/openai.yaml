@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Vishot with Input Files"
+  short_description: "Capture file-upload states with Vishot"
+  default_prompt: "Use $use-vishot-with-input-file to upload this local file and capture the resulting UI state."
