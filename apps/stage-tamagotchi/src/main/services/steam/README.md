@@ -23,7 +23,7 @@ STEAM_APP_ID=3885340 pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-s
 ### 1. Server
 
 ```bash
-# apps/server/.env
+# server/apps/api/.env.local
 STEAM_PUBLISHER_KEY=<your publisher key>
 STEAM_APP_ID=3885340
 ```
@@ -46,5 +46,5 @@ copies the signed `.app` plus those sibling files.
 Local / manual depot assembly:
 
 ```bash
-pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
+STEAM_APP_ID=3885340 pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
 ```
