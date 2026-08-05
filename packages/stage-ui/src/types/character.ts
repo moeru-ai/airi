@@ -172,6 +172,10 @@ export const UpdateCharacterSchema = object({
   version: optional(string()),
   coverUrl: optional(string()),
   characterId: optional(string()),
+  capabilities: optional(array(object({
+    type: CharacterCapabilityTypeSchema,
+    config: CharacterCapabilityConfigSchema,
+  }))),
 })
 
 // --- Type Exports ---

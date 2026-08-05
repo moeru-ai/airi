@@ -190,16 +190,56 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
       return inserted
     },
 
-    async update(id: string, data: Partial<schema.NewCharacter>) {
-      // TODO: Return a stable single-object response shape for HTTP callers.
-      // leaking Drizzle returning() arrays across the service boundary makes route contracts drift.
-      const result = await db.update(schema.character)
-        .set({ ...data, updatedAt: new Date() })
-        .where(and(
-          eq(schema.character.id, id),
-          isNull(schema.character.deletedAt),
-        ))
-        .returning()
+    async update(id: string, data: {
+      version?: string
+      coverUrl?: string
+      characterId?: string
+      capabilities?: {
+        type: 'llm' | 'tts' | 'vlm' | 'asr'
+        config: any
+      }[]
+    }) {
+      const { capabilities, ...characterData } = data
+
+      const result = await db.transaction(async (tx) => {
+        let updatedChar
+        if (Object.keys(characterData).length > 0) {
+          const [res] = await tx.update(schema.character)
+            .set({ ...characterData, updatedAt: new Date() })
+            .where(and(
+              eq(schema.character.id, id),
+              isNull(schema.character.deletedAt),
+            ))
+            .returning()
+          updatedChar = res
+        }
+
+        if (capabilities) {
+          await tx.delete(schema.characterCapabilities)
+            .where(eq(schema.characterCapabilities.characterId, id))
+
+          if (capabilities.length > 0) {
+            await tx.insert(schema.characterCapabilities).values(
+              capabilities.map(c => ({ ...c, characterId: id })),
+            )
+          }
+        }
+
+        if (updatedChar) {
+          return updatedChar
+        }
+
+        const fallback = await tx.query.character.findFirst({
+          where: and(
+            eq(schema.character.id, id),
+            isNull(schema.character.deletedAt),
+          ),
+        })
+        if (!fallback)
+          throw new Error('Character not found')
+        return fallback
+      })
+
       logger.withFields({ id }).log('Updated character')
       return result
     },
