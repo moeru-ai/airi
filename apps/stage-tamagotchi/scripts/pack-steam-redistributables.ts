@@ -2,10 +2,9 @@
  * Writes `steam_appid.txt` from `STEAM_APP_ID` and copies the committed platform
  * Steam API library into a depot folder.
  *
- * Source is the committed `steamworks_sdk/` tree at the tamagotchi package root, so
- * builds no longer download Valve binaries from a public mirror at pack time. The
- * destination preserves the `steamworks_sdk/redistributable_bin/...` layout expected
- * by `steamworks-ffi-node` next to the executable.
+ * Source is the committed `steamworks_sdk/` tree at the tamagotchi package root;
+ * the destination preserves the `steamworks_sdk/redistributable_bin/...` layout
+ * expected by `steamworks-ffi-node` next to the executable.
  *
  * Steam CI injects these in electron-builder `afterPack` (before codesign/notarize)
  * so macOS Gatekeeper does not see a broken seal. Do not copy them into an already
@@ -14,10 +13,9 @@
  * Usage:
  *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
  *
- * Local dev does not need this script: `steamworks_sdk/` is committed at the package
- * root and `services/steam/client.ts` resolves it from `process.cwd()`. The script
- * writes `steam_appid.txt` from `STEAM_APP_ID`; the committed file remains the dev
- * default.
+ * Local dev must run this script once to generate `steam_appid.txt` next to the
+ * committed `steamworks_sdk/` tree, which `services/steam/client.ts` resolves from
+ * `process.cwd()`.
  */
 
 import process from 'node:process'
