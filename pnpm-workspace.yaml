@@ -40,6 +40,7 @@ catalog:
   '@better-auth/cli': ^1.4.21
   '@better-auth/drizzle-adapter': ^1.6.5
   '@better-auth/oauth-provider': 1.5.6
+  '@better-fetch/fetch': ^1.1.21
   '@capacitor/android': ^8.3.1
   '@capacitor/app': ^8.1.0
   '@capacitor/barcode-scanner': ^3.0.2

@@ -414,7 +414,7 @@ async function handleEmailSignUp(event: Event) {
           v-for="provider in defaultSignInProviders"
           :key="provider.id"
           :class="['w-full', 'py-2', 'flex', 'items-center', 'justify-center']"
-          :icon="provider.id === 'google' ? 'i-simple-icons-google' : provider.id === 'github' ? 'i-simple-icons-github' : undefined"
+          :icon="provider.icon"
           :loading="pendingProvider === provider.id"
           @click="handleProviderSelect(provider.id)"
         >

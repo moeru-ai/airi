@@ -207,7 +207,7 @@ function handleUnlinkProvider(providerId: string) {
   return unlinkLinkedProvider(providerId, providerName)
 }
 
-function handleLinkProvider(providerId: 'github' | 'google') {
+function handleLinkProvider(providerId: 'github' | 'google' | 'steam') {
   linkedAccountsRouteErrorKey.value = null
   const providerName = defaultSignInProviders.find(p => p.id === providerId)?.name ?? providerId
   return linkLinkedProvider(providerId, providerName)

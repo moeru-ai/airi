@@ -6,8 +6,9 @@ import { useAuthStore } from '../stores/auth'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
+import { steamClient } from './steam-auth-client'
 
-export type OAuthProvider = 'google' | 'github'
+export type OAuthProvider = 'google' | 'github' | 'steam'
 
 // NOTICE: reads the same localStorage key ('auth/v1/token') that useAuthStore's
 // `token` ref writes via useLocalStorage. We bypass the store here because
@@ -20,6 +21,7 @@ export function getAuthToken(): string | null {
 
 export const authClient = createAuthClient({
   baseURL: SERVER_URL,
+  plugins: [steamClient()],
   fetchOptions: {
     // NOTICE: better-auth's client hardcodes `credentials: "include"` by default
     // (config.mjs L40), which causes cookies to be sent alongside the Authorization
@@ -189,6 +191,12 @@ export async function signInOIDC(params: OIDCFlowParams) {
 
   if (!provider) {
     window.location.href = url
+    return
+  }
+
+  if (provider === 'steam') {
+    // Steam is OpenID 2.0; only the Steam plugin endpoint can start it.
+    await authClient.signIn.steam({ callbackURL: url.toString() })
     return
   }
 
