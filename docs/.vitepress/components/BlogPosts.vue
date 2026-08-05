@@ -4,7 +4,7 @@ import { chromaticPaletteFrom } from '@proj-airi/chromatic'
 import { computedAsync } from '@vueuse/core'
 import { subtle } from 'uncrypto'
 import { useData, withBase } from 'vitepress'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 interface Post {
@@ -163,6 +163,15 @@ const svgArts = computedAsync(async () => {
     }
   }))
 })
+
+// Same first-paint lock as Docs.vue: start with an empty transition name so
+// hydration does not replay the fade on the initial load, then activate it
+// after mount so category switches fade the grid in/out.
+const transitionName = ref('')
+
+onMounted(() => {
+  transitionName.value = 'fade'
+})
 </script>
 
 <template>
@@ -196,7 +205,8 @@ const svgArts = computedAsync(async () => {
       </div>
     </div>
 
-    <div class="grid mx-auto gap-8 lg:grid-cols-2">
+    <Transition :name="transitionName" mode="out-in">
+      <div v-if="posts.length > 0" :key="`grid-${category}`" class="grid mx-auto gap-8 lg:grid-cols-2">
       <a
         v-for="(post, index) of posts"
         :key="post.url"
@@ -241,12 +251,13 @@ const svgArts = computedAsync(async () => {
           </a>
         </div>
       </a>
-    </div>
-    <div v-if="posts.length === 0" class="py-16 text-center">
-      <p class="text-lg text-muted-foreground">
-        {{ t('docs.theme.blog.no-posts') }}
-      </p>
-    </div>
+      </div>
+      <div v-else :key="`empty-${category}`" class="py-16 text-center">
+        <p class="text-lg text-muted-foreground">
+          {{ t('docs.theme.blog.no-posts') }}
+        </p>
+      </div>
+    </Transition>
   </div>
 </template>
 
