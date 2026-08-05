@@ -3100,6 +3100,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:*
+        version: link:../../packages/server-shared
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(patch_hash=306bfb723913596b334140f0d6fa48063f336e3b44024efc1d72bf60d54b15e6)

@@ -30,9 +30,21 @@ Treat this service as a local-development and trusted-server tool only.
    cp integrations/minecraft/.env integrations/minecraft/.env.local
    ```
 
-3. Edit `integrations/minecraft/.env.local`.
+3. Open **Settings > Connection** in the AIRI desktop app.
 
-4. Start the service:
+4. Copy the **Auth Token**.
+
+5. Edit `integrations/minecraft/.env.local` and set the token:
+
+   ```dotenv
+   AIRI_WS_TOKEN='paste-the-desktop-auth-token-here'
+   ```
+
+   The desktop app generates this token by default. Keep the token private.
+
+   The default `AIRI_WS_BASEURL` is `ws://localhost:6121/ws`. Change itwhen the desktop server uses another address.
+
+6. Start the service:
 
    ```bash
    pnpm -F @proj-airi/minecraft-bot dev
@@ -44,7 +56,7 @@ Treat this service as a local-development and trusted-server tool only.
    pnpm dev
    ```
 
-5. The bot should automatically connect to both AIRI and the Minecraft server.
+7. The bot should automatically connect to both AIRI and the Minecraft server.
 
 ## Cognitive Architecture
 

@@ -86,8 +86,9 @@ async function main() {
     // the connection recovers immediately once the loop frees up.
     // Root cause (the periodic event-loop stall itself) is tracked separately.
     heartbeat: { readTimeout: 120_000, pingInterval: 20_000 },
-    onError: error => airiConnectionLifecycle?.reportUnavailable(error),
+    onError: error => airiConnectionLifecycle?.reportError(error),
     onClose: () => airiConnectionLifecycle?.reportDisconnected(),
+    onReady: () => airiConnectionLifecycle?.reportConnected(),
   })
   airiConnectionLifecycle = startAiriClientConnection(airiClient, {
     logger,

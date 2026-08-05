@@ -1,4 +1,5 @@
 import { errorMessageFrom } from '@moeru/std'
+import { parseServerErrorMessage } from '@proj-airi/server-shared'
 
 interface AiriClientLike {
   connect: () => Promise<void>
@@ -10,49 +11,75 @@ interface LoggerLike {
   withFields: (fields: Record<string, unknown>) => LoggerLike
 }
 
+type ReportedFailureKind = 'authentication-retrying' | 'authentication-terminal' | 'connection'
+
 export function startAiriClientConnection(client: AiriClientLike, deps: {
   logger: LoggerLike
   url: string
 }) {
-  let unavailableReported = false
+  let connectionInterrupted = false
+  let reportedFailureKind: ReportedFailureKind | undefined
 
-  const reportUnavailable = (error: unknown) => {
-    if (unavailableReported)
+  const reportError = (error: unknown) => {
+    const errorMessage = errorMessageFrom(error) ?? 'Unknown error'
+    const serverError = parseServerErrorMessage(errorMessage)
+    let failureKind: ReportedFailureKind = 'connection'
+    if (serverError.authentication) {
+      failureKind = serverError.terminal ? 'authentication-terminal' : 'authentication-retrying'
+    }
+
+    if (reportedFailureKind === failureKind)
       return
 
-    unavailableReported = true
+    connectionInterrupted = true
+    reportedFailureKind = failureKind
+
+    if (serverError.authentication) {
+      deps.logger.withFields({
+        url: deps.url,
+        error: errorMessage,
+        retrying: !serverError.terminal,
+      }).warn(
+        serverError.terminal
+          ? 'AIRI server authentication failed. Check AIRI_WS_TOKEN before restarting the service'
+          : 'AIRI server authentication failed. Set AIRI_WS_TOKEN to the desktop server Auth Token. The client will retry in background',
+      )
+      return
+    }
+
     deps.logger.withFields({
       url: deps.url,
-      error: errorMessageFrom(error) ?? 'Unknown error',
-    }).warn('AIRI server is unavailable; continuing startup without AIRI and retrying in background')
+      error: errorMessage,
+      retrying: true,
+    }).warn('AIRI server is unavailable. The service will continue startup and retry in background')
   }
 
   const reportDisconnected = () => {
+    connectionInterrupted = true
+    reportedFailureKind = 'connection'
     deps.logger.withFields({
       url: deps.url,
-    }).warn('AIRI server connection closed; retrying in background')
+      retrying: true,
+    }).warn('AIRI server connection closed. The client will retry in background')
   }
 
-  void client.connect()
-    .then(() => {
-      deps.logger.withFields({
-        url: deps.url,
-      }).log(
-        unavailableReported
-          ? 'Connected to AIRI server after background retry'
-          : 'Connected to AIRI server',
-      )
-      unavailableReported = false
-    })
-    .catch((error) => {
-      deps.logger.withFields({
-        url: deps.url,
-        error: errorMessageFrom(error) ?? 'Unknown error',
-      }).warn('AIRI client stopped retrying')
-    })
+  const reportConnected = () => {
+    deps.logger.withFields({
+      url: deps.url,
+    }).log(
+      connectionInterrupted
+        ? 'Connected to AIRI server after background retry'
+        : 'Connected to AIRI server',
+    )
+    connectionInterrupted = false
+    reportedFailureKind = undefined
+  }
+
+  void client.connect().catch(reportError)
 
   return {
-    reportUnavailable,
+    reportConnected,
     reportDisconnected,
+    reportError,
   }
 }

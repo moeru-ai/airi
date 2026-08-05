@@ -16,6 +16,7 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
+    "@proj-airi/server-shared": "workspace:*",
     "@xsai/generate-text": "catalog:",
     "@xsai/shared-chat": "catalog:",
     "alien-signals": "catalog:",
