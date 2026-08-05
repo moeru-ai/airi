@@ -28,9 +28,10 @@ import { errorMessageFrom } from '@moeru/std'
 import { ofetch } from 'ofetch'
 
 // NOTICE:
-// Keep in sync with apps/stage-tamagotchi/steam_appid.txt. Inlined here so the
-// packaging script does not depend on the (separate) Steamworks FFI/auth module.
-const STEAM_APP_ID = 3885340
+// Default must stay in sync with apps/stage-tamagotchi/steam_appid.txt and the
+// VITE_STEAM_APP_ID fallback in services/steam/client.ts. STEAM_APP_ID lets CI
+// override the app id without changing the committed dev file.
+const STEAM_APP_ID = process.env.STEAM_APP_ID?.trim() || '3885340'
 
 // NOTICE:
 // Temporary CI fallback is the public rlabrecque/SteamworksSDK mirror (Valve copyright).
