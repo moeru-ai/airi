@@ -23,10 +23,16 @@ const steamMock = vi.hoisted(() => {
   }
 })
 
+const readFileMock = vi.hoisted(() => vi.fn())
+
 vi.mock('steamworks-ffi-node', () => ({
   SteamworksSDK: {
     getInstance: steamMock.getInstance,
   },
+}))
+
+vi.mock('node:fs/promises', () => ({
+  readFile: readFileMock,
 }))
 
 vi.mock('@guiiai/logg', () => ({
@@ -64,14 +70,14 @@ beforeEach(async () => {
   // test re-imports a fresh module instead of relying on a test-only reset
   // export from production code.
   vi.resetModules()
-  vi.stubEnv('VITE_STEAM_APP_ID', '3885340')
+  readFileMock.mockReset()
+  readFileMock.mockResolvedValue('3885340\n')
   steamMock.init.mockReturnValue(true)
   steamMock.getAuthTicketForWebApi.mockReset()
   client = await import('./client')
 })
 
 afterEach(() => {
-  vi.unstubAllEnvs()
   vi.clearAllMocks()
 })
 
@@ -115,8 +121,8 @@ describe('initSteam', () => {
     expect(result).toEqual({ ok: false, reason: 'api_unavailable' })
   })
 
-  it('returns steam_app_id_missing when VITE_STEAM_APP_ID is not set', async () => {
-    vi.stubEnv('VITE_STEAM_APP_ID', '')
+  it('returns steam_app_id_missing when steam_appid.txt is missing', async () => {
+    readFileMock.mockRejectedValueOnce(new Error('ENOENT'))
 
     const result = await client.initSteam()
 

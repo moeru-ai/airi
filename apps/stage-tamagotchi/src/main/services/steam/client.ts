@@ -2,6 +2,7 @@ import type { HAuthTicket } from 'steamworks-ffi-node'
 
 import process from 'node:process'
 
+import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { is } from '@electron-toolkit/utils'
@@ -39,7 +40,7 @@ function getSteamworksSdk(module: SteamworksModule): SteamworksSdk | null {
  * by electron-builder `afterPack`. Windows/Linux keep cwd at the install dir, but we
  * resolve from the exe anyway for a single consistent rule.
  *
- * Dev keeps the package-root layout produced by `pack-steam-redistributables.ts`.
+ * Dev uses the committed package-root layout.
  */
 function resolveSteamworksSdkPath(): string {
   if (is.dev)
@@ -56,6 +57,17 @@ function resolveSteamworksSdkPath(): string {
 let steamModule: SteamworksModule | null = null
 let steam: SteamworksSdk | null = null
 let steamInitialized = false
+
+async function readSteamAppId(): Promise<number | null> {
+  try {
+    const text = (await readFile(join(dirname(resolveSteamworksSdkPath()), 'steam_appid.txt'), 'utf8')).trim()
+    const appId = Number(text)
+    return Number.isInteger(appId) && appId > 0 ? appId : null
+  }
+  catch {
+    return null
+  }
+}
 
 async function loadSteamModule(): Promise<SteamworksModule | null> {
   if (steamModule)
@@ -86,9 +98,8 @@ export async function initSteam(): Promise<SteamInitResult> {
   if (!instance.user?.getAuthTicketForWebApi)
     return { ok: false, reason: 'api_unavailable' }
 
-  const steamAppId = import.meta.env.VITE_STEAM_APP_ID
-  const appId = Number(steamAppId)
-  if (!steamAppId || !Number.isInteger(appId) || appId <= 0)
+  const appId = await readSteamAppId()
+  if (!appId)
     return { ok: false, reason: 'steam_app_id_missing' }
 
   // Pin the SDK location so we never depend on the library's cwd-based search
