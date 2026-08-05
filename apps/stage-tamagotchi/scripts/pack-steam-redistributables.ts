@@ -9,6 +9,9 @@
  * Steam CI injects these in electron-builder `afterPack` (before codesign/notarize)
  * so macOS Gatekeeper does not see a broken seal. Do not copy them into an already
  * signed `.app` in the depot packaging step.
+ * The Steam release workflow re-signs the copied macOS dylib with the app's
+ * Developer ID before depot packaging, so hardened-runtime library validation
+ * accepts the Valve-signed library without disabling it.
  *
  * Usage:
  *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
