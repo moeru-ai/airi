@@ -25,7 +25,6 @@ type SteamworksSdk = ReturnType<SteamworksSdkClass['getInstance']>
 
 function getSteamworksSdk(module: SteamworksModule): SteamworksSdk | null {
   const ctor = module.SteamworksSDK
-    ?? (module.default as { default?: SteamworksSdkClass }).default
   if (typeof ctor?.getInstance !== 'function')
     return null
   return ctor.getInstance()
