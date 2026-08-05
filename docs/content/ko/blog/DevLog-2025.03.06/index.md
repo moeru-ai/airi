@@ -19,7 +19,7 @@ date: 2025-03-06
 결과는 꽤 좋고, 이미
 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/) 에 배포되어 있습니다.
 
-![](/en/blog/DevLog-2025.03.06/assets/animation-transitions.gif)
+![](/blog/DevLog-2025.03.06/assets/animation-transitions.gif)
 
 > 그리고 앞으로 각 패키지의 플레이그라운드는 Netlify 배포 시
 > "proj-airi" + "${subDirectory}" + "$｛packageName}" 패턴을 사용합니다.
@@ -64,7 +64,7 @@ CI/CD 파이프라인과 싸우며(네, 또 싸웠습니다) 커밋 열 개쯤 �
 라이브 스트림의 레이아웃과 세팅을 업데이트했습니다 😻 거의 1년 전에 제가 직접 디자인한 건데,
 지금 봐도 훌륭하고 마음이 차분해집니다. 제안이 있으시면 채팅에 남겨 주세요. 정말 감사하겠습니다.
 
-![](/en/blog/DevLog-2025.03.06/assets/live-stream-layout-update.avif)
+![](/blog/DevLog-2025.03.06/assets/live-stream-layout-update.avif)
 
 오늘 DevStream 중에는 스테이지 전환 애니메이션 컴포넌트를 AIRI 웹사이트의 메인 스테이지에
 통합하려 했는데 그리 매끄럽지 않았습니다. 이전 애니메이션 컴포넌트 설계에서 버그를 몇 개

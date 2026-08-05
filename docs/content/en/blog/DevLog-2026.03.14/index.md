@@ -5,8 +5,8 @@ date: 2026-03-14
 excerpt: |
   A story about PR #1194: debugging AIRI's VRM 3D stage, redesigning its lifecycle, introducing a window-local cache, and laying the first foundation for ThreeScene observability.
 preview-cover:
-  light: "@assets('./assets/cover-light.avif')"
-  dark: "@assets('./assets/cover-dark.avif')"
+  light: "/blog/DevLog-2026.03.14/assets/cover-light.avif"
+  dark: "/blog/DevLog-2026.03.14/assets/cover-dark.avif"
 ---
 
 Hi, this is [@Lilia-Chen](https://github.com/Lilia-Chen).
@@ -147,11 +147,11 @@ Before this refactor, the dependencies between `ThreeScene`, `TresCanvas`, `Orbi
 
 This was how messy it looked before:
 
-![ThreeScene lifecycle before](./assets/ThreeScene-before.avif)
+![ThreeScene lifecycle before](/blog/DevLog-2026.03.14/assets/ThreeScene-before.avif)
 
 And this is how it moves phase by phase now:
 
-![ThreeScene lifecycle after](./assets/ThreeScene-after.avif)
+![ThreeScene lifecycle after](/blog/DevLog-2026.03.14/assets/ThreeScene-after.avif)
 
 The redesign introduced a few key ideas:
 

@@ -24,14 +24,14 @@ Including [@LemonNekoGH](https://github.com/LemonNekoGH),
 It was me that first finished the basic version of the settings' design, it feels
 like this:
 
-![](./assets/new-ui-v1.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v1.avif)
 
-![](./assets/new-ui-v1-dark.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v1-dark.avif)
 
 And later on [@sumimakito](https://github.com/sumimakito) went up online helped me
 implementing this dotted effect for the buttons:
 
-![](./assets/new-ui-v2.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v2.avif)
 
 > We can now feels more beats from the menu, isn't it?!
 
@@ -80,7 +80,7 @@ At the end of March 8th, [@LemonNekoGH](https://github.com/LemonNekoGH) and
 [@junkwarrior87](https://github.com/junkwarrior87) made it possible to have customizable
 colors for the entire stage! (I never thought this could be done within hours...)
 
-<ThemedVideo controls muted src="./assets/customizable-theme-colors.mp4" />
+<ThemedVideo controls muted src="/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4" />
 
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60
@@ -95,9 +95,9 @@ They even made it possible for the logo to follow the customizable colors 🤯.
 
 This was the final result we got, give it a try!
 
-![](./assets/new-ui-v3.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v3.avif)
 
-![](./assets/new-ui-v3-dark.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif)
 
 And as always, feel free to come and contribute to us! We are absolutely here open and
 friendly to everyone, even for those not familiar with programming and coding!

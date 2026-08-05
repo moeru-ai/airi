@@ -4,13 +4,13 @@ description: 'Happy birthday, Neuro-sama! Thank you for being with us through 20
 date: 2025-12-24
 excerpt: 'Happy birthday, Neuro-sama! Thank you for being with us through 2025. This winter, may you find peace and joy.'
 preview-cover:
-  light: "@assets('./assets/merry-christmas-iru.avif')"
-  dark: "@assets('./assets/merry-christmas-iru.avif')"
+  light: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
+  dark: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
 ---
 
 **Merry Christmas** from the AIRI team!
 
-![Christmas Art](./assets/merry-christmas-iru.avif)
+![Christmas Art](/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
 
 > Iru wishes you a joyful holiday season filled with warmth and cheer! 🎅🎁
 >
@@ -34,7 +34,7 @@ Just hours ago, we saw that on X, [KOL @Dexerto](https://x.com/Dexerto) posted [
 Happy birthday, Neuro-sama. And congratulations to you, creator of Vedal, also, artist Camila. It's unbelievable you made this
 far, it is you, and also the Swarm brought me here wishing to deliver my version of cyber life, continuously making AIRI to grow.
 
-![](./assets/neuro-sama-happy-birthday-live.avif)
+![](/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
 
 ## A quick 2025 year-end summary
 

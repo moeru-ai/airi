@@ -19,7 +19,7 @@ into a reusable Vue component for any of the Vue project to be able to use it.
 The result is quite good, already deployed to
 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/).
 
-![](./assets/animation-transitions.gif)
+![](/blog/DevLog-2025.03.06/assets/animation-transitions.gif)
 
 > And also, from now on, all of the playgrounds of each packages will use
 > "proj-airi" + "${subDirectory}" + "$｛packageName}" pattern for the Netlify
@@ -76,7 +76,7 @@ by myself almost a year ago, but it still looks great and feel calm when
 looking at it. Please leave comments in the chat for any suggestions, really
 appreciated.
 
-![](./assets/live-stream-layout-update.avif)
+![](/blog/DevLog-2025.03.06/assets/live-stream-layout-update.avif)
 
 During the DevStream of today, I was trying to integrate the stage transition
 animation component into AIRI's website main stage, it wasn't that smooth,

@@ -5,7 +5,6 @@ date: 2025-03-10
 ---
 
 <script setup>
-import customizableThemeColors from '../../../en/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4'
 </script>
 
 ## 데자뷔
@@ -25,13 +24,13 @@ DevStream 이 끝날 무렵에야 마침내 아이디어가 떠올랐습니다.
 
 설정 디자인의 기본 버전을 먼저 완성한 건 저였는데, 이런 느낌입니다:
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v1.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v1.avif)
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v1-dark.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v1-dark.avif)
 
 이후 [@sumimakito](https://github.com/sumimakito) 가 접속해서 버튼의 점선 효과 구현을 도와주었습니다:
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v2.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v2.avif)
 
 > 이제 메뉴에서 더 리듬감이 느껴지지 않나요?!
 
@@ -74,7 +73,7 @@ DevStream 이 끝날 무렵에야 마침내 아이디어가 떠올랐습니다.
 [@junkwarrior87](https://github.com/junkwarrior87) 덕분에 스테이지 전체의 색을 커스터마이즈할 수
 있게 됐습니다! (이게 몇 시간 만에 될 줄은 정말 몰랐습니다...)
 
-<ThemedVideo controls muted :src="customizableThemeColors" />
+<ThemedVideo controls muted src="/blog/DevLog-2025.03.10/assets/customizable-theme-colors.mp4" />
 
 - https://github.com/moeru-ai/airi/pull/53
 - https://github.com/moeru-ai/airi/pull/60
@@ -88,9 +87,9 @@ DevStream 이 끝날 무렵에야 마침내 아이디어가 떠올랐습니다.
 
 이것이 최종 결과입니다. 한번 써 보세요!
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v3.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v3.avif)
 
-![](/en/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif)
+![](/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif)
 
 그리고 언제나처럼, 저희에게 기여하러 오시는 걸 환영합니다! 프로그래밍과 코딩에 익숙하지
 않은 분들께도 저희는 열려 있고 친절합니다!

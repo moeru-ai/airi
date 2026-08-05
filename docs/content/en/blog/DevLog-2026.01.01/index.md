@@ -5,8 +5,8 @@ date: 2026-01-01
 excerpt: |
   Sharing AIRI's progress on the iOS platform, the problems we encountered and their solutions, as well as some achievements and implementation details of the memory layer experiments in FlowChat by LemonNeko.
 preview-cover:
-  light: "@assets('./assets/cover-light.png')"
-  dark: "@assets('./assets/cover-dark.png')"
+  light: "/blog/DevLog-2026.01.01/assets/cover-light.png"
+  dark: "/blog/DevLog-2026.01.01/assets/cover-dark.png"
 ---
 
 ::: info AI Translation
@@ -16,7 +16,7 @@ This article was translated from Chinese to English using AI. The original Chine
 Happy New Year! This is [@LemonNekoGH](https://github.com/LemonNekoGH), one of AIRI's maintainers. The first DevLog of the new year is mine, (pressing B key to select laughing emoji) hahahahaha!
 
 <p style="display: flex; justify-content: center;">
-    <img src="./assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
+    <img src="/blog/DevLog-2026.01.01/assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
 </p>
 
 Alright, let's get to the point.
@@ -28,7 +28,7 @@ Two days ago, we introduced [Capacitor](https://capacitorjs.com/) to build mobil
 We got iOS working and added notification capabilities to it. This means that if she wants to, she can proactively remind you to spend time with her through notifications.
 
 <p style="display: flex; justify-content: center;">
-    <video src="./assets/airi-notification-capability.mp4" alt="AIRI Pocket Notification" controls width="230" height="500"></video>
+    <video src="/blog/DevLog-2026.01.01/assets/airi-notification-capability.mp4" alt="AIRI Pocket Notification" controls width="230" height="500"></video>
 </p>
 
 Don't worry too much about that default Capacitor icon—we'll replace it later.
@@ -87,7 +87,7 @@ Note the `#if DEBUG` macro—this is to enable it during development, and it wil
 
 Let me show you the results of LemonNeko's memory layer experiments in FlowChat:
 
-<video src="./assets/flow-chat-basic-memory.mp4" alt="FlowChat Basic Memory" controls></video>
+<video src="/blog/DevLog-2026.01.01/assets/flow-chat-basic-memory.mp4" alt="FlowChat Basic Memory" controls></video>
 
 In the video, I asked the LLM to remember my name. After it generated its reply, I could see in the settings interface that it remembered, and even when I started a new conversation, it could still recall it.
 

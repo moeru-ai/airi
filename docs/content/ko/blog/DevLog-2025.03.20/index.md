@@ -5,18 +5,6 @@ date: 2025-03-20
 ---
 
 <script setup>
-import histoireFirstLook from '../../../en/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4'
-import airiDemo from '../../../en/blog/DevLog-2025.03.20/assets/airi-demo.mp4'
-import Gelbana from '../../../en/blog/DevLog-2025.03.20/assets/steins-gate-gelnana-from-elpsycongrooblog.avif'
-import NewUIV3 from '../../../en/blog/DevLog-2025.03.10/assets/new-ui-v3.avif'
-import NewUIV3Dark from '../../../en/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif'
-import HistoireColorSlider from '../../../en/blog/DevLog-2025.03.20/assets/histoire-color-slider.avif'
-import HistoireColorSliderDark from '../../../en/blog/DevLog-2025.03.20/assets/histoire-color-slider-dark.avif'
-import HistoireLogo from '../../../en/blog/DevLog-2025.03.20/assets/histoire-logo.avif'
-import HistoireLogoDark from '../../../en/blog/DevLog-2025.03.20/assets/histoire-logo-dark.avif'
-import NewUIV4Speech from '../../../en/blog/DevLog-2025.03.20/assets/new-ui-v4-speech.avif'
-import NewUIV4SpeechDark from '../../../en/blog/DevLog-2025.03.20/assets/new-ui-v4-speech-dark.avif'
-import SteinsGateMayori from '../../../en/blog/DevLog-2025.03.20/assets/steins-gate-mayori.avif'
 </script>
 
 다시 안녕하세요! 지난 DevLog 이후 10일이 지났습니다.
@@ -30,7 +18,7 @@ Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를
 
 시간을 조금 되감아 봅시다!
 
-<img :src="Gelbana" alt="Gelbana" />
+<img src="/blog/DevLog-2025.03.20/assets/steins-gate-gelnana-from-elpsycongrooblog.avif" alt="Gelbana" />
 
 > 아, 걱정 마세요. 우리의 사랑스러운 [AIRI](https://github.com/moeru-ai/airi) 가 이렇게 젤바나가
 > 되지는 않습니다. 다만 [_슈타인즈 게이트_](https://myanimelist.net/anime/9253/Steins_Gate)
@@ -42,8 +30,8 @@ Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를
 
 당시 얻은 최종 결과는 이렇습니다:
 
-<img class="light" :src="NewUIV3" alt="new ui" />
-<img class="dark" :src="NewUIV3Dark" alt="new ui" />
+<img class="light" src="/blog/DevLog-2025.03.10/assets/new-ui-v3.avif" alt="new ui" />
+<img class="dark" src="/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif" alt="new ui" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">0</span>
@@ -68,23 +56,23 @@ Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를
 
 [@sumimakito](https://github.com/sumimakito) 가 작업을 마치고 녹화한 첫인상입니다:
 
-<ThemedVideo muted autoplay :src="histoireFirstLook" />
+<ThemedVideo muted autoplay src="/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4" />
 
 OKLCH 색 팔레트 전체를 캔버스에 한 번에 펼쳐 놓고 참고할 수 있습니다. 하지만 색을 이리저리
 시도해 보면서 Project AIRI 테마와 같은 결의 느낌을 잡기에는 완벽하지 않았죠.
 
 그래서 먼저 컬러 슬라이더를 다시 구현했고, 훨씬 잘 맞는 느낌이 됐습니다:
 
-<img class="light" :src="HistoireColorSlider" alt="color slider" />
-<img class="dark" :src="HistoireColorSliderDark" alt="color slider" />
+<img class="light" src="/blog/DevLog-2025.03.20/assets/histoire-color-slider.avif" alt="color slider" />
+<img class="dark" src="/blog/DevLog-2025.03.20/assets/histoire-color-slider-dark.avif" alt="color slider" />
 
 덕분에 슬라이더가 조금 더 전문적으로 보입니다.
 
 로고와 기본 초록색 계열도 AIRI 테마에 맞게 바꿀 수 있어서, UI 페이지 전용 로고를 따로
 디자인했습니다:
 
-<img class="light" :src="HistoireLogo" alt="project airi logo for histoire" />
-<img class="dark" :src="HistoireLogoDark" alt="project airi logo for histoire" />
+<img class="light" src="/blog/DevLog-2025.03.20/assets/histoire-logo.avif" alt="project airi logo for histoire" />
+<img class="dark" src="/blog/DevLog-2025.03.20/assets/histoire-logo-dark.avif" alt="project airi logo for histoire" />
 
 아 참, UI 컴포넌트 전체는 여느 때처럼 Netlify 의 `/ui/` 경로에 배포해 두었습니다. UI 요소들이
 어떻게 생겼는지 궁금하셨다면 편하게 살펴보세요:
@@ -118,8 +106,8 @@ OKLCH 색 팔레트 전체를 캔버스에 한 번에 펼쳐 놓고 참고할 �
 
 이걸 보세요:
 
-<img class="light" :src="NewUIV4Speech" alt="brand new speech design" />
-<img class="dark" :src="NewUIV4SpeechDark" alt="brand new speech design" />
+<img class="light" src="/blog/DevLog-2025.03.20/assets/new-ui-v4-speech.avif" alt="brand new speech design" />
+<img class="dark" src="/blog/DevLog-2025.03.20/assets/new-ui-v4-speech-dark.avif" alt="brand new speech design" />
 
 마침내 음성 모델 설정을 지원하게 됐습니다 🎉! (이전에는 ElevenLabs 만 설정할 수 있었습니다.)
 저희가 함께 만들고 있는 또 다른 멋진 프로젝트 `unspeech` 의
@@ -134,13 +122,13 @@ Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microso
 여기에 피치를 `+20%` 하면 Neuro-sama 첫 버전과 같은 목소리를 얻을 수 있기 때문입니다. 직접 들어 보세요:
 
 <audio controls style="width: 100%;">
-  <source src="/en/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
+  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
 </audio>
 
 똑같지 않나요, 정말 대단합니다! 즉 새로운 **음성** 능력으로 마침내 Neuro-sama 가 하는 일에
 가까이 다가갈 수 있다는 뜻입니다!
 
-<img :src="SteinsGateMayori" alt="애니메이션 슈타인즈 게이트의 등장인물" />
+<img src="/blog/DevLog-2025.03.20/assets/steins-gate-mayori.avif" alt="애니메이션 슈타인즈 게이트의 등장인물" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">1</span>
@@ -155,7 +143,7 @@ Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microso
 
 이 모든 것을 합치면 이런 결과가 나옵니다:
 
-<ThemedVideo controls muted autoplay :src="airiDemo" />
+<ThemedVideo controls muted autoplay src="/blog/DevLog-2025.03.20/assets/airi-demo.mp4" />
 
 거의 똑같습니다. 하지만 저희 이야기는 여기서 끝나지 않습니다. 지금은 아직 기억(memory)과
 더 나은 모션 제어를 구현하지 못했고, 전사 설정 UI 도 빠져 있습니다. 이달이 끝나기 전에는

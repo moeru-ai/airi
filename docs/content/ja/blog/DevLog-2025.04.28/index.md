@@ -5,7 +5,6 @@ date: 2025-04-28
 ---
 
 <script setup>
-import airiMcpArch from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif'
 </script>
 
 こんにちは、[@LemonNeko](https://github.com/LemonNekoGH) です。今日は私が皆さんと開発ストーリーを共有します。
@@ -20,17 +19,17 @@ import airiMcpArch from '../../../en/blog/DevLog-2025.04.28/assets/airi-mcp-arch
 
 <details>
   <summary>AIRI の MCP サーバー設定</summary>
-  <ThemedVideo controls muted src="/en/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
+  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI が携帯電話で `Hello World` を入力</summary>
-  <ThemedVideo controls muted src="/en/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
+  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
 </details>
 
 開発中、考えを整理するために、LLM から Android 携帯を呼び出す図を描きました：
 
-<img :src="airiMcpArch" alt="AIRI 操作手机" :style="{ height: '640px', objectFit: 'contain' }" />
+<img src="/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif" alt="AIRI 操作手机" :style="{ height: '640px', objectFit: 'contain' }" />
 
 次に、私の開発プロセスを共有します。
 

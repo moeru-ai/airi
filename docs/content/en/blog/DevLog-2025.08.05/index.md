@@ -5,8 +5,8 @@ description: |
 date: 2025-08-04
 excerpt: Sorry for the long wait!<br/> v0.7 was supposed to be released in early July, due to several critical bugs we found on Windows, and many more adaptations we had to do, it was delayed until now.
 preview-cover:
-  light: "@assets('./assets/cover-light.avif')"
-  dark: "@assets('./assets/cover-dark.avif')"
+  light: "/blog/DevLog-2025.08.05/assets/cover-light.avif"
+  dark: "/blog/DevLog-2025.08.05/assets/cover-dark.avif"
 ---
 
 <script setup lang="ts">
@@ -87,7 +87,7 @@ To toggle off the **Fade on hover** feature, default shortcut is <kbd aria-label
 
 <br />
 
-<ThemedVideo autoplay src="./assets/airi-demo-fade-on-hover.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4" />
 
 Many users found it quite confusing why every time cursor hovers over the
 characters, entire window fades out. Apologies for the lack of documentation
@@ -142,7 +142,7 @@ The default shortcut of Move mode is <kbd aria-label="Shift" data-keyboard-key="
 
 <br />
 
-<ThemedVideo autoplay src="./assets/airi-demo-move.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4" />
 
 A draggable area will appear when entering Move mode, besides moving position
 with mouse, using the Position > Center / Bottom Left / Bottom Right in Tray
@@ -162,7 +162,7 @@ The default shortcut of Move mode is <kbd aria-label="Shift" data-keyboard-key="
 
 <br />
 
-<ThemedVideo autoplay src="./assets/airi-demo-resize.mp4" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4" />
 
 #### Resource Island
 
@@ -179,7 +179,7 @@ disappear when the download is finished.
 See it in action:
 
 <video autoplay controls muted loop>
-  <source src="./assets/airi-demo-resource-island.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-resource-island.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
@@ -194,7 +194,7 @@ we have done in the repository [candle-examples](https://github.com/proj-airi/ca
 we now have a local ASR/STT engine that works on Windows, macOS and Linux.
 
 <video autoplay controls muted loop>
-  <source src="./assets/airi-demo-settings-hearing.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-settings-hearing.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
@@ -226,15 +226,15 @@ have a much better experience when you first time using AIRI.
 They wrote a blog after the Pull Request being merged to share the
 experience contributing Project AIRI: [AIRIプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
 
-<img class="light" src="./assets/airi-demo-onboarding-light.avif" alt="Onboarding light mode" />
-<img class="dark" src="./assets/airi-demo-onboarding-dark.avif" alt="Onboarding dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.avif" alt="Onboarding light mode" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.avif" alt="Onboarding dark mode" />
 
 See it in action:
 
 <ThemedVideo
   autoplay
-  light="./assets/airi-demo-onboarding-light.mp4"
-  dark="./assets/airi-demo-onboarding-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
 />
 
 #### VRM
@@ -243,8 +243,8 @@ Thanks to the hard work done by [Lilia-Chen (Lilia_Chen)](https://github.com/Lil
 VRM models are now displayed better with precise camera implementation and rendering
 mechanism.
 
-<img class="light" src="./assets/airi-demo-vrm-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-demo-vrm-dark.avif" alt="Time series chart dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-light.avif" alt="Time series chart light mode" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-dark.avif" alt="Time series chart dark mode" />
 
 ### Mobile Web
 
@@ -254,8 +254,8 @@ Onboarding is also available for Mobile Web version:
 
 <ThemedVideo
   autoplay
-  light="./assets/airi-demo-onboarding-mobile-light.mp4"
-  dark="./assets/airi-demo-onboarding-mobile-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
 />
 
 #### Scene
@@ -276,12 +276,12 @@ value to default.
 <br />
 
 <video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-demo-quick-editor-mobile-light.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-light.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
 <video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-demo-quick-editor-mobile-dark.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-dark.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
@@ -299,12 +299,12 @@ around it, definitely check it out: [DevLog 2025.08.01](../DevLog-2025.08.01/).
 See it in action:
 
 <video class="light" autoplay controls muted loop>
-  <source src="./assets/airi-demo-clustr-light.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-light.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
 <video class="dark" autoplay controls muted loop>
-  <source src="./assets/airi-demo-clustr-dark.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-dark.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
@@ -315,8 +315,8 @@ See it in action:
 Useful when wishing to display the detected meter of the audio input, or
 the realtime system load:
 
-<img class="light" src="./assets/airi-ui-level-meter-light.avif" alt="Level meter light mode" />
-<img class="dark" src="./assets/airi-ui-level-meter-dark.avif" alt="Level meter dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-light.avif" alt="Level meter light mode" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-dark.avif" alt="Level meter dark mode" />
 
 #### Time series chart
 
@@ -325,8 +325,8 @@ the realtime system load:
 Similar to the Level meter for changing values, but especially useful for
 historical data.
 
-<img class="light" src="./assets/airi-ui-time-series-chart-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-ui-time-series-chart-dark.avif" alt="Time series chart dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-light.avif" alt="Time series chart light mode" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-dark.avif" alt="Time series chart dark mode" />
 
 There are many more components we added...
 
@@ -346,8 +346,8 @@ We got a brand new documentation site right now:
 
 <ThemedVideo
   autoplay
-  light="./assets/airi-docs-light.mp4"
-  dark="./assets/airi-docs-dark.mp4"
+  light="/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4"
 />
 
 It looks stunning good, we completely rewrite it based on the work
@@ -360,8 +360,8 @@ of their components to build our own, do check them out!
 The blogs page looks good and better too, with new cover designed by
 [@lynzrand (Rynco Maekawa)](https://github.com/lynzrand)
 
-<img class="light" src="./assets/airi-docs-blogs-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-docs-blogs-dark.avif" alt="Time series chart dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-light.avif" alt="Time series chart light mode" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-dark.avif" alt="Time series chart dark mode" />
 
 ### Translation workflow changes
 
@@ -372,8 +372,8 @@ When contributing with new locales, adding new translations,
 or fixing existing ones, please navigate to https://github.com/moeru-ai/airi/tree/main/packages/i18n/src/locales
 first.
 
-<img class="light" src="./assets/airi-packages-i18n-light.avif" alt="Time series chart light mode" />
-<img class="dark" src="./assets/airi-packages-i18n-dark.avif" alt="Time series chart dark mode" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-light.avif" alt="Time series chart light mode" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-dark.avif" alt="Time series chart dark mode" />
 
 You will find different directories for different languages here. Pick
 the desired one and continue.
@@ -587,7 +587,7 @@ We cannot cover everything in this DevLog, for details, you can always track and
 at [Roadmap v0.7](https://github.com/moeru-ai/airi/issues/200) on our roadmap.
 
 <div class="w-full flex flex-col items-center justify-center gap-3 py-3">
-  <img src="./assets/relu-sticker-thinks.avif" alt="ReLU sticker thinks" class="w-30!" />
+  <img src="/blog/DevLog-2025.08.05/assets/relu-sticker-thinks.avif" alt="ReLU sticker thinks" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">Thanks for reading all the way down here!</span>
   </div>

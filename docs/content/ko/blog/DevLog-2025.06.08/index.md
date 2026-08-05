@@ -5,8 +5,8 @@ date: 2025-06-08
 excerpt: |
   Live2D 모델이 커서 위치를 따라 시선을 옮기게 만드는 방법과, 여러 디스플레이에 걸쳐 좌표를 계산하는 일이 왜 까다로운지 이야기합니다.
 preview-cover:
-  light: "@assets('/en/blog/DevLog-2025.06.08/assets/250608-light.avif')"
-  dark: "@assets('/en/blog/DevLog-2025.06.08/assets/250608-dark.avif')"
+  light: "/blog/DevLog-2025.06.08/assets/250608-light.avif"
+  dark: "/blog/DevLog-2025.06.08/assets/250608-dark.avif"
 ---
 
 안녕하세요, AIRI 메인테이너 중 한 명인 LemonNeko 입니다. 오늘의 DevLog 주제는 AIRI 데스크톱 펫의 Live2D 모델이 마우스 위치를 바라보게 만드는 방법입니다.
@@ -17,7 +17,7 @@ preview-cover:
 
 먼저 알아야 할 것이 있습니다. Live2D 에는 **주시(focus)** 와 **터치(tap)** 라는 두 가지 기본 상호작용이 있습니다. Live2D 캔버스를 만들면 모델이 자동으로 커서 위치를 주시하며 머리와 몸이 커서 쪽을 향합니다. 구현 결과는 이렇습니다:
 
-![](/en/blog/DevLog-2025.06.08/assets/airi-tamagotchi-focus.gif)
+![](/blog/DevLog-2025.06.08/assets/airi-tamagotchi-focus.gif)
 
 하지만 커서가 웹 페이지 밖으로 나가면 Live2D 는 커서가 어디 있는지 알 수 없게 됩니다. 그래서 커서가 어디 있는지 직접 알려 줘야 합니다.
 
@@ -29,7 +29,7 @@ Live2D 에 커서 위치를 알려 주려면 Tauri 의 네이티브 코드 호�
 
 이런 화면이 있다고 가정해 봅시다:
 
-![](/en/blog/DevLog-2025.06.08/assets/screen.avif)
+![](/blog/DevLog-2025.06.08/assets/screen.avif)
 
 파란 상자가 화면, 분홍색이 AIRI 창, 보라색 화살표가 커서입니다. 다음과 같이 정의합니다:
 

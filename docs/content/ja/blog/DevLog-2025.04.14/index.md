@@ -102,21 +102,21 @@ RAG では現在、新しいフローが流行しています。それは rerank
 
 [Project AIRI Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
 
-![](/en/blog/DevLog-2025.04.14/assets/memory-driver.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-driver.avif)
 
 左側のハイライトされた half life は記憶の半減期です。
 
 デフォルトでは時間の経過速度は 1秒 = 1日 なので、7秒後には記憶のスコアが半分になります。
 
 記憶スコアとは何でしょうか？記憶スコアは基本的にこれによって制御されます：
-![](/en/blog/DevLog-2025.04.14/assets/memory-controler.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-controler.avif)
 
 得られたスコアが current score です。
 
 original とは何でしょうか。それは初期化時のスコアです。
 
 例：元のスコアが 523 の場合、現在のスコアは実際には徐々に減少しています：
-![](/en/blog/DevLog-2025.04.14/assets/memory-decay.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-decay.avif)
 
 説明を続ける前に、この忘却曲線の SQL はステートレスであることを説明しておきます。
 
@@ -160,17 +160,17 @@ original とは何でしょうか。それは初期化時のスコアです。
 
 DevLog で言及したランキング式をもう一度振り返ってみましょう。理解の助けになるはずです。
 
-![](/en/blog/DevLog-2025.04.14/assets/review-1.avif)
+![](/blog/DevLog-2025.04.14/assets/review-1.avif)
 
 コサイン距離は「関連度」であり、最も基本的な粗いランキングです：
-![](/en/blog/DevLog-2025.04.14/assets/review-2.avif)
+![](/blog/DevLog-2025.04.14/assets/review-2.avif)
 
 今、時間を参加させる必要があります。時間距離を保存するためのフィールドを追加し、統合スコア `(1.2 * similarity) + (0.2 * time_relevance)` を保存するための独立したフィールドを作成します。ここで、意味的関連度は 1.2 倍の重み（倍率係数、1未満である必要はありません）、時間距離関連度は 0.2 倍の重みを占めます。
 
 こうすることで、ステートレスな多フィールド関連度ランキング SQL 実装を巧みに作り出し、パラメータ（1.2 と 0.2）を調整できるようにしました。
 
 記憶詳細カードで simulate retrieval をクリックすると、記憶想起を能動的にトリガーできます。
-![](/en/blog/DevLog-2025.04.14/assets/memory-retrieval.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-retrieval.avif)
 
 現在のデモでは、元のテーブルの retrieval count（想起回数）フィールドに対して UPDATE 文を使用して +1 することで実装されています。
 
@@ -185,7 +185,7 @@ DevLog で言及したランキング式をもう一度振り返ってみまし�
 https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 
 この新しいシミュレーターには感情関連のシミュレーションが含まれています：
-![](/en/blog/DevLog-2025.04.14/assets/memory-emotional-simulator.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-emotional-simulator.avif)
 
 ### 感情と記憶は関係ありますか？
 
@@ -196,7 +196,7 @@ https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 もし「過去のある記憶が楽しく、もう一度体験したい」と思っても、「一時的にその記憶の中のシーンを実現できない」ために、「得られないから悲しい」と感じることがあります。
 
 記憶データベースに「喜び」と「嫌悪」のスコアを保存できます：
-![](/en/blog/DevLog-2025.04.14/assets/memory-emotional-score.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-emotional-score.avif)
 
 ### PTSD？
 
@@ -206,7 +206,7 @@ PTSD には通常「トリガー」と「フラッシュバック」という2�
 
 https://yutsuki.moe/2019/09/a0d0fa1b/ の感情モデルを参考にすることができます。
 
-![](/en/blog/DevLog-2025.04.14/assets/memory-emotional-model.avif)
+![](/blog/DevLog-2025.04.14/assets/memory-emotional-model.avif)
 
 ## まだやるべきことはたくさんあります……
 

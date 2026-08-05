@@ -2,23 +2,22 @@
 title: 'DreamLog 0x1'
 description: 'Project AIRI の舞台裏ストーリー！'
 date: '2025-06-16'
+category: DreamLog
 excerpt: 'Project AIRI の舞台裏ストーリー！なぜ私たちがこのようなプロジェクトを作りたかったのか？'
 preview-cover:
-  light: "@assets('/en/blog/DreamLog-0x1/assets/dreamlog1-light.avif')"
-  dark: "@assets('/en/blog/DreamLog-0x1/assets/dreamlog1-dark.avif')"
+  light: "/blog/DreamLog-0x1/assets/dreamlog1-light.avif"
+  dark: "/blog/DreamLog-0x1/assets/dreamlog1-dark.avif"
 ---
 
 <script setup>
-import EMOSYSLogo from '../../../en/blog/DreamLog-0x1/assets/emosys-logo.avif';
-import SteinsGateSticker1 from '../../../en/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif';
-import worldExecuteMeCover from '../../../en/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif';
-import buildingAVirtualMachineInsideImage from '../../../en/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.avif';
-import live2DIncHiyoriMomose from '../../../en/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif';
-import AwesomeAIVTuber from '../../../en/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
-import airisScreenshot1 from '../../../en/blog/DreamLog-0x1/assets/airis-screenshot-1.avif';
-import projectAIRIBannerLight from '../../../en/blog/DreamLog-0x1/assets/banner-light-1280x640.avif';
-import projectAIRIBannerDark from '../../../en/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif';
-import ReLUStickerWow from '../../../en/blog/DreamLog-0x1/assets/relu-sticker-wow.avif'
+;
+;
+;
+;
+;
+;
+;
+;
 </script>
 
 こんにちは、また私、Neko です！
@@ -67,7 +66,7 @@ Minecraft、Linux は私の旅の終着点ではありませんでした。[Fact
 [Overwatch（オーバーウォッチ）](https://overwatch.blizzard.com/en-us/)（残念ながら Blizzard は台無しにしてしまいましたが）
 はすべて私のお気に入りのゲームになりました。サーバーを立てたり、小さなことを自動化するための小さなスクリプトを書いたりすることは、確かに私を興奮させることでした。
 
-> <img :src="worldExecuteMeCover" alt="Cover of world.execute(me); (Mili)／DAZBEE COVER" class="rounded-lg overflow-hidden" />
+> <img src="/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif" alt="Cover of world.execute(me); (Mili)／DAZBEE COVER" class="rounded-lg overflow-hidden" />
 >
 > `Switch on the power line`<br />
 > `Remember to put on protection`<br />
@@ -119,7 +118,7 @@ Linux コマンドラインの使い方を少し知っていて、助けを求�
 
 <div class="w-full flex flex-col items-center justify-center gap-2">
   <div>
-    <img :src="EMOSYSLogo" alt="logo of EMOSYS" class="w-30!" />
+    <img src="/blog/DreamLog-0x1/assets/emosys-logo.avif" alt="logo of EMOSYS" class="w-30!" />
   </div>
   <div>
     <a href="https://github.com/emosys">EMOSYS</a> のロゴ
@@ -174,7 +173,7 @@ Linux コマンドラインの使い方を少し知っていて、助けを求�
 ## 2022年の ChatGPT、全く新しいランダムなオウム、結構賢い
 
 <div class="w-full flex items-center justify-center">
-  <img :src="SteinsGateSticker1" alt="Steins Gate sticker" class="w-80! rounded-lg overflow-hidden" />
+  <img src="/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif" alt="Steins Gate sticker" class="w-80! rounded-lg overflow-hidden" />
 </div>
 
 時間を2022年末に進めましょう。OpenAI が ChatGPT（当時は chatGPT という呼び方が使われていました）を発表しました。
@@ -197,7 +196,7 @@ ChatGPT や大規模言語モデル（LLM）の真の能力を初めて発見し
 内部で仮想 Linux マシンをシミュレートさせる方法を実証しました。
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img :src="buildingAVirtualMachineInsideImage" alt="Building a virtual machine inside ChatGPT" class="h-150! object-contain rounded-lg overflow-hidden" />
+  <img src="/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.avif" alt="Building a virtual machine inside ChatGPT" class="h-150! object-contain rounded-lg overflow-hidden" />
   <div>Docker build がどのように機能するかさえシミュレートできます...！</div>
 </div>
 
@@ -228,7 +227,7 @@ Neuro-sama の歴史は実際かなり複雑です。私の知る限り、Neuro-
 ChatGPT のリリース後、2022年12月19日頃、Vedal は Neuro-sama に Live2D Inc.
 の公式デモキャラクターモデルである桃瀬ひより（Hiyori Momose）を使用させて Twitch で配信を開始しました：
 
-<img :src="live2DIncHiyoriMomose" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
+<img src="/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
 
 その後の話は誰もが知っています。Vedal と Neuro-sama は人気になり、Neuro-sama は現在正式に VTuber となり、
 完全に大規模言語モデル（LLM）によって駆動され、Minecraft、Among Us、osu!、その他多くのゲームをプレイできます。
@@ -303,7 +302,7 @@ Neuro-sama が私にもたらした喜びを再現したいと思いました。
 ある意味で、**これが Project AIRI の誕生日です**。最初の未熟な赤ちゃんの意識がそこで生まれました。
 
 <div class="w-full flex flex-col items-center justify-center">
-  <ThemedVideo controls muted autoplay loop src="/en/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
+  <ThemedVideo controls muted autoplay loop src="/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       2024年12月7日に X（旧 Twitter）で初公開
@@ -327,7 +326,7 @@ Neuro-sama が私にもたらした喜びを再現したいと思いました。
 他の AI VTuber や AI waifu プロジェクトがどのように機能するかについて多くの研究を行いました。これらの研究は後に、この巨大な AI VTuber プロジェクトの awesome list を生み出しました：
 
 <div class="flex flex-col items-center">
-  <img class="px-30 md:px-40 lg:px-50" :src="AwesomeAIVTuber" alt="Awesome AI VTuber Logo" />
+  <img class="px-30 md:px-40 lg:px-50" src="/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber Logo" />
   <div class="text-center pb-4">
     <span class="block font-bold">Awesome AI VTuber</span>
     <span>精選された AI VTuber 及其関連プロジェクトリスト</span>
@@ -352,7 +351,7 @@ VR/AR 世界でバーチャルキャラクターを作ること、WebXR に基�
 
 ::: tip 知っていましたか？
 <a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" class="mb-2 inline-block">
-  <img :src="airisScreenshot1" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
+  <img src="/blog/DreamLog-0x1/assets/airis-screenshot-1.avif" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
 </a>
 
 興味深いことに、2023年3月25日にアップロードされた2年前の Vedal と Neuro-sama の Twitch 配信の切り抜き
@@ -378,8 +377,8 @@ VR/AR 世界でバーチャルキャラクターを作ること、WebXR に基�
 ## 前進し続け、夢を見続ける
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img class="light" :src="projectAIRIBannerLight" alt="new ui" />
-  <img class="dark" :src="projectAIRIBannerDark" alt="new ui" />
+  <img class="light" src="/blog/DreamLog-0x1/assets/banner-light-1280x640.avif" alt="new ui" />
+  <img class="dark" src="/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif" alt="new ui" />
   <div>
     最近更新されたバナー
   </div>
@@ -411,7 +410,7 @@ VR/AR 世界でバーチャルキャラクターを作ること、WebXR に基�
 では、私たちは一体どれだけのバイトを保存できるのでしょうか？**それは私たちがどれだけ夢を見ることができるか、そして一緒にどれだけ実現できるかにかかっています。**
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img :src="ReLUStickerWow" alt="ReLU sticker wow" class="w-30!" />
+  <img src="/blog/DreamLog-0x1/assets/relu-sticker-wow.avif" alt="ReLU sticker wow" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">ここまで読んでいただきありがとうございます！</span>
     <span>読んでくれてありがとう！ああ、それから、誕生日おめでとう、Project AIRI！</span>

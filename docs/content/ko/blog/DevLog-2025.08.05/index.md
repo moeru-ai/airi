@@ -5,20 +5,11 @@ description: |
 date: 2025-08-04
 excerpt: 오래 기다리게 해서 죄송합니다!<br/> v0.7 은 7월 초에 나올 예정이었지만, Windows 에서 발견한 몇 가지 치명적인 버그와 손봐야 할 것이 많아 지금까지 미뤄졌습니다.
 preview-cover:
-  light: "@assets('/en/blog/DevLog-2025.08.05/assets/cover-light.avif')"
-  dark: "@assets('/en/blog/DevLog-2025.08.05/assets/cover-dark.avif')"
+  light: "/blog/DevLog-2025.08.05/assets/cover-light.avif"
+  dark: "/blog/DevLog-2025.08.05/assets/cover-dark.avif"
 ---
 
 <script setup lang="ts">
-import airiDemoFadeOnHover from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4'
-import airiDemoMove from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4'
-import airiDemoResize from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4'
-import airiDemoOnboardingLight from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4'
-import airiDemoOnboardingDark from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4'
-import airiDemoOnboardingMobileLight from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4'
-import airiDemoOnboardingMobileDark from '../../../en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4'
-import airiDocsLight from '../../../en/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4'
-import airiDocsDark from '../../../en/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4'
 import Button from '../../../../.vitepress/components/Button.vue'
 
 function handleOpenLatest() {
@@ -90,7 +81,7 @@ Tamagotchi 는 AIRI 데스크톱 버전의 이름으로, 다른 애플리케이�
 
 <br />
 
-<ThemedVideo autoplay :src="airiDemoFadeOnHover" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-fade-on-hover.mp4" />
 
 많은 사용자가 커서를 캐릭터 위에 올릴 때마다 창 전체가 흐려지는 이유를 헷갈려 했습니다.
 이 기능을 설명하는 문서가 없었던 점, 그리고 이것이 AI 동반자에게 왜 중요하다고 생각하는지
@@ -132,7 +123,7 @@ AIRI 를 VTuber 방송에 쓴다면 Fade on hover 기능이 없어도 괜찮습�
 
 <br />
 
-<ThemedVideo autoplay :src="airiDemoMove" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-move.mp4" />
 
 이동 모드에 들어가면 드래그 가능한 영역이 나타납니다. 마우스로 옮기는 것 외에도 트레이 메뉴의
 Position > Center / Bottom Left / Bottom Right 를 쓰는 방법도 있습니다.
@@ -150,7 +141,7 @@ Position > Center / Bottom Left / Bottom Right 를 쓰는 방법도 있습니다
 
 <br />
 
-<ThemedVideo autoplay :src="airiDemoResize" />
+<ThemedVideo autoplay src="/blog/DevLog-2025.08.05/assets/airi-demo-resize.mp4" />
 
 #### 리소스 아일랜드
 
@@ -164,7 +155,7 @@ Steam 이나 Battle.net 처럼 모듈과 필요한 파일의 다운로드 진행
 동작하는 모습을 보세요:
 
 <video autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-resource-island.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-resource-island.mp4" type="video/mp4">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
@@ -178,7 +169,7 @@ Steam 이나 Battle.net 처럼 모듈과 필요한 파일의 다운로드 진행
 이제 Windows, macOS, Linux 에서 동작하는 로컬 ASR/STT 엔진을 갖게 됐습니다.
 
 <video autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-settings-hearing.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-settings-hearing.mp4" type="video/mp4">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
@@ -205,15 +196,15 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 이분은 Pull Request 가 머지된 뒤 Project AIRI 에 기여한 경험을 블로그로 나눠 주셨습니다:
 [AIRIプロジェクトに参加した話 - YAMA-blog](https://yama-pro.blog/posts/airi/)
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.avif" alt="온보딩 라이트 모드" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.avif" alt="온보딩 다크 모드" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.avif" alt="온보딩 라이트 모드" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.avif" alt="온보딩 다크 모드" />
 
 동작하는 모습을 보세요:
 
 <ThemedVideo
   autoplay
-  :light="airiDemoOnboardingLight"
-  :dark="airiDemoOnboardingDark"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-dark.mp4"
 />
 
 #### VRM
@@ -221,8 +212,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 [Lilia-Chen (Lilia_Chen)](https://github.com/Lilia-Chen) 님의 노고 덕분에 VRM 모델이 정밀한
 카메라 구현과 렌더링 메커니즘으로 더 잘 표시됩니다.
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-vrm-light.avif" alt="VRM 라이트 모드" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-demo-vrm-dark.avif" alt="VRM 다크 모드" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-light.avif" alt="VRM 라이트 모드" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-demo-vrm-dark.avif" alt="VRM 다크 모드" />
 
 ### 모바일 웹
 
@@ -232,8 +223,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  :light="airiDemoOnboardingMobileLight"
-  :dark="airiDemoOnboardingMobileDark"
+  light="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-demo-onboarding-mobile-dark.mp4"
 />
 
 #### 씬
@@ -252,12 +243,12 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 <br />
 
 <video class="light" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-light.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-light.mp4" type="video/mp4">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
 <video class="dark" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-dark.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-quick-editor-mobile-dark.mp4" type="video/mp4">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
@@ -274,12 +265,12 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 동작하는 모습을 보세요:
 
 <video class="light" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-clustr-light.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-light.mp4" type="video/mp4">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
 <video class="dark" autoplay controls muted loop>
-  <source src="/en/blog/DevLog-2025.08.05/assets/airi-demo-clustr-dark.mp4" type="video/mp4">
+  <source src="/blog/DevLog-2025.08.05/assets/airi-demo-clustr-dark.mp4" type="video/mp4">
   브라우저가 video 태그를 지원하지 않습니다.
 </video>
 
@@ -289,8 +280,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 감지된 오디오 입력 레벨이나 실시간 시스템 부하를 표시할 때 유용합니다:
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-light.avif" alt="레벨 미터 라이트 모드" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-dark.avif" alt="레벨 미터 다크 모드" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-light.avif" alt="레벨 미터 라이트 모드" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-level-meter-dark.avif" alt="레벨 미터 다크 모드" />
 
 #### 시계열 차트
 
@@ -298,8 +289,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 값이 변하는 것을 보여 준다는 점은 레벨 미터와 비슷하지만, 특히 과거 데이터에 유용합니다.
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-light.avif" alt="시계열 차트 라이트 모드" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-dark.avif" alt="시계열 차트 다크 모드" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-light.avif" alt="시계열 차트 라이트 모드" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-ui-time-series-chart-dark.avif" alt="시계열 차트 다크 모드" />
 
 이 밖에도 추가한 컴포넌트가 많습니다...
 
@@ -319,8 +310,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 
 <ThemedVideo
   autoplay
-  :light="airiDocsLight"
-  :dark="airiDocsDark"
+  light="/blog/DevLog-2025.08.05/assets/airi-docs-light.mp4"
+  dark="/blog/DevLog-2025.08.05/assets/airi-docs-dark.mp4"
 />
 
 정말 멋져 보입니다. [Reka UI](https://reka-ui.com) 의 작업을 바탕으로 완전히 새로 쓰면서
@@ -332,8 +323,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 블로그 페이지도 [@lynzrand (Rynco Maekawa)](https://github.com/lynzrand) 가 디자인한 새 커버와 함께
 더 보기 좋아졌습니다.
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-docs-blogs-light.avif" alt="문서 블로그 라이트 모드" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-docs-blogs-dark.avif" alt="문서 블로그 다크 모드" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-light.avif" alt="문서 블로그 라이트 모드" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-docs-blogs-dark.avif" alt="문서 블로그 다크 모드" />
 
 ### 번역 워크플로 변경
 
@@ -342,8 +333,8 @@ AIRI 설정이 지금 꽤 복잡하다는 걸 압니다 (그래도 코드 구조
 새 로케일을 추가하거나 번역을 추가·수정해 기여하실 때는 먼저
 https://github.com/moeru-ai/airi/tree/main/packages/i18n/src/locales 로 가 주세요.
 
-<img class="light" src="/en/blog/DevLog-2025.08.05/assets/airi-packages-i18n-light.avif" alt="packages/i18n 라이트 모드" />
-<img class="dark" src="/en/blog/DevLog-2025.08.05/assets/airi-packages-i18n-dark.avif" alt="packages/i18n 다크 모드" />
+<img class="light" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-light.avif" alt="packages/i18n 라이트 모드" />
+<img class="dark" src="/blog/DevLog-2025.08.05/assets/airi-packages-i18n-dark.avif" alt="packages/i18n 다크 모드" />
 
 여기서 언어별 디렉터리를 찾을 수 있습니다. 원하는 것을 골라 진행하세요.
 
@@ -534,7 +525,7 @@ v0.7 개발 초기에 저는 ASR/STT 파이프라인의 추론 엔진 구현으�
 [Roadmap v0.7](https://github.com/moeru-ai/airi/issues/200) 에서 언제든 확인하실 수 있습니다.
 
 <div class="w-full flex flex-col items-center justify-center gap-3 py-3">
-  <img src="/en/blog/DevLog-2025.08.05/assets/relu-sticker-thinks.avif" alt="ReLU 스티커 thinks" class="w-30!" />
+  <img src="/blog/DevLog-2025.08.05/assets/relu-sticker-thinks.avif" alt="ReLU 스티커 thinks" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">여기까지 읽어 주셔서 감사합니다!</span>
   </div>

@@ -5,8 +5,8 @@ date: 2026-03-23
 excerpt: |
   Initial investigation into improving AIRI mobile performance
 preview-cover:
-  light: "@assets('./assets/cover-light.avif')"
-  dark: "@assets('./assets/cover-dark.avif')"
+  light: "/blog/DevLog-2026.03.23/assets/cover-light.avif"
+  dark: "/blog/DevLog-2026.03.23/assets/cover-dark.avif"
 ---
 
 Hi, this is [@PurCHES5](https://github.com/PurCHES5).
@@ -151,18 +151,18 @@ GPU
 Three prototype configurations were built using Unity 3D, with compression applied to reduce export size.
 
 ### Unity WebGL Export Settings
-![Unity WebGL Export Settings](./assets/Unity-web-export.avif)
+![Unity WebGL Export Settings](/blog/DevLog-2026.03.23/assets/Unity-web-export.avif)
 
 ### Unity Android Renderer Settings
-![Unity Android Renderer Export Settings](./assets/Unity-android-export.avif)
+![Unity Android Renderer Export Settings](/blog/DevLog-2026.03.23/assets/Unity-android-export.avif)
 
 ### Screenshots
 
 **Android Renderer — Live2D:**
-![Android Renderer Live2D prototype](./assets/Screenshot-AIRI-Live2D.avif)
+![Android Renderer Live2D prototype](/blog/DevLog-2026.03.23/assets/Screenshot-AIRI-Live2D.avif)
 
 **Android Renderer — VRM:**
-![Android Renderer VRM prototype](./assets/Screenshot-AIRI-VRM.avif)
+![Android Renderer VRM prototype](/blog/DevLog-2026.03.23/assets/Screenshot-AIRI-VRM.avif)
 
 The same Vue.js front-end is consistently applied to all prototype builds to ensure consistency. For Unity WebGL export, the original contents in WebView are directly substituted with Unity WebGL using [`unity-webgl`](https://github.com/Marinerer/unity-webgl). For Unity Android Renderer, the original view containing Three.js and VRM modules is removed entirely, and Unity renders as a background layer while the Vue.js UI is rendered over it.
 
@@ -193,22 +193,22 @@ All measurements were taken on a Samsung A34 under equivalent conditions. A lowe
 ### Reference Screenshots
 
 **Three.js — Live2D (baseline):**
-![Original Three.js Live2D](./assets/Live2D-threejs.avif)
+![Original Three.js Live2D](/blog/DevLog-2026.03.23/assets/Live2D-threejs.avif)
 
 **Unity WebGL — Live2D:**
-![Unity WebGL Live2D](./assets/Live2D-webgl.avif)
+![Unity WebGL Live2D](/blog/DevLog-2026.03.23/assets/Live2D-webgl.avif)
 
 **Unity Android Renderer — Live2D:**
-![Unity Android Renderer Live2D](./assets/Live2D-android-renderer.avif)
+![Unity Android Renderer Live2D](/blog/DevLog-2026.03.23/assets/Live2D-android-renderer.avif)
 
 **Three.js — VRM (baseline):**
-![Original VRM Module from AIRI](./assets/VRM-airi.avif)
+![Original VRM Module from AIRI](/blog/DevLog-2026.03.23/assets/VRM-airi.avif)
 
 **Unity WebGL — VRM:**
-![Unity WebGL VRM](./assets/VRM-webgl.avif)
+![Unity WebGL VRM](/blog/DevLog-2026.03.23/assets/VRM-webgl.avif)
 
 **Unity Android Renderer — VRM:**
-![Unity Android Renderer VRM](./assets/VRM-android-renderer.avif)
+![Unity Android Renderer VRM](/blog/DevLog-2026.03.23/assets/VRM-android-renderer.avif)
 
 ### Key Observations
 

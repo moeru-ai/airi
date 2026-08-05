@@ -5,13 +5,13 @@ date: 2025-04-06
 ---
 
 <script setup>
-import MemoryDecay from './assets/memory-decay.avif'
-import MemoryRetrieval from './assets/memory-retrieval.avif'
-import CharacterCard from './assets/character-card.avif'
-import CharacterCardDetail from './assets/character-card-detail.avif'
-import MoreThemeColors from './assets/more-theme-colors.avif'
-import AwesomeAIVTuber from './assets/awesome-ai-vtuber-logo-light.avif'
-import ReLUStickerWow from './assets/relu-sticker-wow.avif'
+import MemoryDecay from '/blog/DevLog-2025.04.06/assets/memory-decay.avif'
+import MemoryRetrieval from '/blog/DevLog-2025.04.06/assets/memory-retrieval.avif'
+import CharacterCard from '/blog/DevLog-2025.04.06/assets/character-card.avif'
+import CharacterCardDetail from '/blog/DevLog-2025.04.06/assets/character-card-detail.avif'
+import MoreThemeColors from '/blog/DevLog-2025.04.06/assets/more-theme-colors.avif'
+import AwesomeAIVTuber from '/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
+import ReLUStickerWow from '/blog/DevLog-2025.04.06/assets/relu-sticker-wow.avif'
 </script>
 
 ## Before all the others

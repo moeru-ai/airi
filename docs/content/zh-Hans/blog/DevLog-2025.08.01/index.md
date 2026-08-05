@@ -5,8 +5,8 @@ date: 2025-08-01
 excerpt: |
   Makito 会分享她在 AIRI 中实现文本动画的过程，以及如何构建一个从 UTF-8 字节流中边接收边读出「字素簇」（grapheme cluster）的库。希望对你有所启发！
 preview-cover:
-  light: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-light.avif')"
-  dark: "@assets('../../../en/blog/DevLog-2025.08.01/assets/cover-dark.avif')"
+  light: "/blog/DevLog-2025.08.01/assets/cover-light.avif"
+  dark: "/blog/DevLog-2025.08.01/assets/cover-dark.avif"
 ---
 
 <script setup>
@@ -53,7 +53,7 @@ import RollingText from '../../../en/blog/DevLog-2025.08.01/RollingText.vue'
 在 Project AIRI 里，我们的伙伴 [@nekomeowww](https://github.com/nekomeowww) 也做了一个丝滑的聊天气泡组件：
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
-  <source src="../../../en/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
+  <source src="/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
 </video>
 
 <div text-sm text-center>

@@ -5,21 +5,20 @@ category: DreamLog
 date: 2025-06-16
 excerpt: 'The backstory of Project AIRI! Why this project?'
 preview-cover:
-  light: "@assets('./assets/dreamlog1-light.avif')"
-  dark: "@assets('./assets/dreamlog1-dark.avif')"
+  light: "/blog/DreamLog-0x1/assets/dreamlog1-light.avif"
+  dark: "/blog/DreamLog-0x1/assets/dreamlog1-dark.avif"
 ---
 
 <script setup>
-import EMOSYSLogo from './assets/emosys-logo.avif';
-import SteinsGateSticker1 from './assets/steins-gate-sticker-1.avif';
-import worldExecuteMeCover from './assets/world.execute(me); (Mili)／DAZBEE COVER.avif';
-import buildingAVirtualMachineInsideImage from './assets/building-a-virtual-machine-inside-image-1.avif';
-import live2DIncHiyoriMomose from './assets/live2d-inc-hiyori.avif';
-import AwesomeAIVTuber from '../DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif'
-import airisScreenshot1 from './assets/airis-screenshot-1.avif';
-import projectAIRIBannerLight from './assets/banner-light-1280x640.avif';
-import projectAIRIBannerDark from './assets/banner-dark-1280x640.avif';
-import ReLUStickerWow from './assets/relu-sticker-wow.avif'
+import EMOSYSLogo from '/blog/DreamLog-0x1/assets/emosys-logo.avif';
+import SteinsGateSticker1 from '/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif';
+import worldExecuteMeCover from '/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif';
+import buildingAVirtualMachineInsideImage from '/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.avif';
+import live2DIncHiyoriMomose from '/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif';
+import airisScreenshot1 from '/blog/DreamLog-0x1/assets/airis-screenshot-1.avif';
+import projectAIRIBannerLight from '/blog/DreamLog-0x1/assets/banner-light-1280x640.avif';
+import projectAIRIBannerDark from '/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif';
+import ReLUStickerWow from '/blog/DreamLog-0x1/assets/relu-sticker-wow.avif'
 </script>
 
 Hello, it's me, Neko again!
@@ -379,7 +378,7 @@ That was the day at **June 2, 2024**.
 Technically saying, **this is the birthday of Project AIRI** with first baby consciousness inside of it, naively.
 
 <div class="w-full flex flex-col items-center justify-center">
-  <ThemedVideo controls muted autoplay loop src="./assets/airi-demo-first-day.mp4" />
+  <ThemedVideo controls muted autoplay loop src="/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       First showcase on X (formerly Twitter) on December 7, 2024
@@ -410,7 +409,7 @@ on how other AI VTuber or AI waifu projects work. These researches later on
 produces this huge awesome list of AI VTuber projects:
 
 <div class="flex flex-col items-center">
-  <img class="px-30 md:px-40 lg:px-50" :src="AwesomeAIVTuber" alt="Awesome AI VTuber Logo" />
+  <img class="px-30 md:px-40 lg:px-50" src="/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber Logo" />
   <div class="text-center pb-4">
     <span class="block font-bold">Awesome AI VTuber</span>
     <span>A curated list of AI VTubers and their related projects</span>
