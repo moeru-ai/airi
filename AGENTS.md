@@ -82,6 +82,16 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
   - `pnpm -F <package.json name> build`
   - Example: `pnpm -F @proj-airi/stage-tamagotchi build` (typecheck + electron-vite build).
 
+## Before You Start
+
+## Enforced Repository Skills
+
+- For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
+- For UnoCSS, Vue styling, UI components, animations, icons, or color-mode work, always use [`enforce-rules-for-unocss` skill](.agents/skills/enforce-rules-for-unocss/SKILL.md).
+- For web or Electron workflows that upload a local file through an HTML input, a dynamically created input, or a file chooser, invoke [`$use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md). Also invoke `$agent-browser`, and invoke `$agent-browser-electron` when the target is Electron.
+- For AIRI Live2D, VRM, or MMD import and rendering tests across stage-web, stage-tamagotchi, or stage-pocket, invoke [`$use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md). It invokes `$use-agent-browser-with-input-file` for the upload mechanism and adds AIRI-specific routes, state preparation, format behavior, and renderer verification.
+- For editing, writing, refactoring, re-writing code, submitting issues, Pull Requests, and docs, comments, invoke [`$simple-english`](./agents/skills/simple-english/SKILL.md).
+
 ## Development Practices
 
 - Favor clear module boundaries; shared logic goes in `packages/`.
@@ -92,13 +102,6 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - Do not add backward-compatibility guards. If extended support is required, write refactor docs and spin up another Codex or Claude Code instance via shell command to complete the implementation with clear instructions and the expected post-refactor shape.
 - If the refactor scope is small, do a progressive refactor step by step.
 - For new feature requirements or requirement-related tasks involving `node:*` built-in modules, DOM operations, Vue composables, React hooks, Vite plugins, or GitHub Actions workflows, always do deep research for suitable existing libraries or open source modules first. Before choosing any library, always ask the user to choose and help judge which option is right. Never choose generalized utility libraries on your own (for example, `es-toolkit`, utilities from `github.com/unjs`, or tiny tools from `github.com/tinylib`) without explicit user confirmation. If the user is working spec-driven, list candidate choices in a clear and concise Markdown comparison table.
-
-## Enforced Repository Skills
-
-- For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
-- For UnoCSS, Vue styling, UI components, animations, icons, or color-mode work, always use [`enforce-rules-for-unocss` skill](.agents/skills/enforce-rules-for-unocss/SKILL.md).
-- For web or Electron workflows that upload a local file through an HTML input, a dynamically created input, or a file chooser, invoke [`$use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md). Also invoke `$agent-browser`, and invoke `$agent-browser-electron` when the target is Electron.
-- For AIRI Live2D, VRM, or MMD import and rendering tests across stage-web, stage-tamagotchi, or stage-pocket, invoke [`$use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md). It invokes `$use-agent-browser-with-input-file` for the upload mechanism and adds AIRI-specific routes, state preparation, format behavior, and renderer verification.
 
 ## TypeScript / IPC / Tools
 

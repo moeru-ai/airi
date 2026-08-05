@@ -22,6 +22,12 @@
       "sourceType": "github",
       "computedHash": "318f9fca2441a3e06fedc336e195dd18be5dbe901064e4fa71b76b40b096ab3a"
     },
+    "simple-english": {
+      "source": "AminBlg/SimpleEnglish",
+      "sourceType": "github",
+      "skillPath": "skills/simple-english/SKILL.md",
+      "computedHash": "8e1b7d3d2c20a34318c2971256f74fc6480bc317f07168d51ffad6b21469ec49"
+    },
     "tsdown": {
       "source": "antfu/skills",
       "sourceType": "github",
