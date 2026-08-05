@@ -157,15 +157,9 @@ async function handleSubmit() {
         characterId: form.characterId,
         version: form.version,
         coverUrl: form.coverUrl,
+        capabilities: payload.capabilities,
       })
       trackCharacterUpdated({ character_id: props.character.id })
-      // Capabilities/I18n update not supported in simple UpdateCharacterSchema yet?
-      // Checking types/character.ts: UpdateCharacterSchema only has version, coverUrl, characterId.
-      // So deep update is not supported by the simple endpoint yet?
-      // The plan said "update(id, payload)".
-      // The backend `update` endpoint only updates the `character` table fields.
-      // To update relations, we'd need specific endpoints or a smarter update endpoint.
-      // I will only update basic info for now.
     }
     else {
       await characterStore.create(payload)
