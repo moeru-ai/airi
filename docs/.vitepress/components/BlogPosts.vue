@@ -207,50 +207,50 @@ onMounted(() => {
 
     <Transition :name="transitionName" mode="out-in">
       <div v-if="posts.length > 0" :key="`grid-${category}`" class="grid mx-auto gap-8 lg:grid-cols-2">
-      <a
-        v-for="(post, index) of posts"
-        :key="post.url"
-        :href="post.url"
-        class="block flex flex-col overflow-hidden border-transparent rounded-xl border-solid bg-white/50 decoration-none shadow-sm outline-2 outline-transparent outline-offset-0 outline transition-all transition-all duration-200 duration-300 ease-in-out dark:bg-black/20 dark:shadow-slate-600/5 hover:shadow-md hover:outline-primary/5 hover:outline-offset-2 [&_.post-card-title]:hover:text-primary dark:hover:outline-primary/25"
-      >
-        <div class="rounded-t-xl">
-          <ClientOnly>
-            <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="relative mb-0 h-44 w-full md:h-68">
-              <div class="blur-lg" h-full w-full object-cover v-html="isDark ? svgArts?.[index]?.dark : svgArts?.[index]?.light" />
-            </div>
-            <div v-else class="relative mb-0 h-44 w-full md:h-68">
-              <div class="preview-card-art-image-overlay" />
-              <img
-                :src="post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']"
-                alt="Post Cover"
-                class="preview-card-art-image not-prose h-full w-full object-cover"
-              >
-            </div>
-          </ClientOnly>
-        </div>
-        <div class="relative z-1 flex-grow px-3 pb-3 pt-6 md:pt-6">
-          <div class="post-card-title z-1 text-xl text-card-foreground font-semibold transition-colors duration-200 md:text-2xl md:font-bold">
-            {{ post.title }}
+        <a
+          v-for="(post, index) of posts"
+          :key="post.url"
+          :href="post.url"
+          class="block flex flex-col overflow-hidden border-transparent rounded-xl border-solid bg-white/50 decoration-none shadow-sm outline-2 outline-transparent outline-offset-0 outline transition-all transition-all duration-200 duration-300 ease-in-out dark:bg-black/20 dark:shadow-slate-600/5 hover:shadow-md hover:outline-primary/5 hover:outline-offset-2 [&_.post-card-title]:hover:text-primary dark:hover:outline-primary/25"
+        >
+          <div class="rounded-t-xl">
+            <ClientOnly>
+              <div v-if="!post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']" class="relative mb-0 h-44 w-full md:h-68">
+                <div class="blur-lg" h-full w-full object-cover v-html="isDark ? svgArts?.[index]?.dark : svgArts?.[index]?.light" />
+              </div>
+              <div v-else class="relative mb-0 h-44 w-full md:h-68">
+                <div class="preview-card-art-image-overlay" />
+                <img
+                  :src="post.frontmatter?.['preview-cover']?.[isDark ? 'dark' : 'light']"
+                  alt="Post Cover"
+                  class="preview-card-art-image not-prose h-full w-full object-cover"
+                >
+              </div>
+            </ClientOnly>
           </div>
-          <div class="mb-4 flex items-center gap-4 text-sm text-muted-foreground">
-            <div class="flex items-center gap-2">
-              <Icon icon="lucide:calendar" />
-              <span>{{ post.date.string }}</span>
+          <div class="relative z-1 flex-grow px-3 pb-3 pt-6 md:pt-6">
+            <div class="post-card-title z-1 text-xl text-card-foreground font-semibold transition-colors duration-200 md:text-2xl md:font-bold">
+              {{ post.title }}
             </div>
-            <div v-if="post.frontmatter?.category" class="flex items-center gap-2">
-              <Icon icon="lucide:tag" />
-              <span class="font-medium">{{ post.frontmatter.category }}</span>
+            <div class="mb-4 flex items-center gap-4 text-sm text-muted-foreground">
+              <div class="flex items-center gap-2">
+                <Icon icon="lucide:calendar" />
+                <span>{{ post.date.string }}</span>
+              </div>
+              <div v-if="post.frontmatter?.category" class="flex items-center gap-2">
+                <Icon icon="lucide:tag" />
+                <span class="font-medium">{{ post.frontmatter.category }}</span>
+              </div>
             </div>
+            <p v-if="post.excerpt || post?.frontmatter?.excerpt" class="fade-out-text mt-3 h-[calc(75%-48px)] text-muted-foreground leading-relaxed" v-html="post.excerpt || post?.frontmatter?.excerpt" />
           </div>
-          <p v-if="post.excerpt || post?.frontmatter?.excerpt" class="fade-out-text mt-3 h-[calc(75%-48px)] text-muted-foreground leading-relaxed" v-html="post.excerpt || post?.frontmatter?.excerpt" />
-        </div>
-        <div class="mt-auto p-6 pt-0">
-          <a :href="post.url" class="inline-flex items-center text-primary font-semibold hover:underline">
-            {{ t('docs.theme.blog.card.post.read-more.title') }}
-            <Icon icon="lucide:arrow-right" class="ml-2" />
-          </a>
-        </div>
-      </a>
+          <div class="mt-auto p-6 pt-0">
+            <a :href="post.url" class="inline-flex items-center text-primary font-semibold hover:underline">
+              {{ t('docs.theme.blog.card.post.read-more.title') }}
+              <Icon icon="lucide:arrow-right" class="ml-2" />
+            </a>
+          </div>
+        </a>
       </div>
       <div v-else :key="`empty-${category}`" class="py-16 text-center">
         <p class="text-lg text-muted-foreground">
