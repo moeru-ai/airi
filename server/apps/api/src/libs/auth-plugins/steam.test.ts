@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../mock-db'
 import { steam } from './steam'
@@ -73,6 +73,8 @@ describe('steam auth plugin', () => {
   beforeAll(async () => {
     auth = await createTestAuth()
   })
+
+  afterEach(() => vi.unstubAllGlobals())
 
   // NOTICE:
   // We mock the module-global `fetch` for Steam's `check_authentication`
