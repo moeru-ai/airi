@@ -1,4 +1,4 @@
-import type { ManualCaptureSection } from '../shared/types.ts'
+import type { ManualCaptureSection } from '../shared/types'
 
 const websocketServerAddressPattern = /WebSocket Server Address|WebSocket 服务器地址/i
 
