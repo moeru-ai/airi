@@ -1,6 +1,6 @@
 import type { DefaultTheme } from 'vitepress'
 
-import type { ThemeConfig } from './theme/config.ts'
+import type { ThemeConfig } from './theme/config'
 
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
@@ -15,7 +15,7 @@ import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
-import { webLive } from './constants.ts'
+import { webLive } from './constants'
 import { teamMembers } from './contributors'
 import {
   discord,

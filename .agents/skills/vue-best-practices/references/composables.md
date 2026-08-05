@@ -23,7 +23,7 @@ tags: [vue3, composables, composition-api, code-organization, api-design, readon
 **BAD:**
 ```vue
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const x = ref(0)
 const y = ref(0)
@@ -33,11 +33,10 @@ const el = ref(null)
 function onMove(e) {
   x.value = e.pageX
   y.value = e.pageY
-  if (!el.value)
-    return
+  if (!el.value) return
   const r = el.value.getBoundingClientRect()
-  inside.value = x.value >= r.left && x.value <= r.right
-    && y.value >= r.top && y.value <= r.bottom
+  inside.value = x.value >= r.left && x.value <= r.right &&
+    y.value >= r.top && y.value <= r.bottom
 }
 
 onMounted(() => window.addEventListener('mousemove', onMove))
@@ -59,7 +58,6 @@ export function useEventListener(target, event, callback) {
 ```javascript
 // composables/useMouse.js
 import { ref } from 'vue'
-
 import { useEventListener } from './useEventListener'
 
 export function useMouse() {
@@ -78,18 +76,16 @@ export function useMouse() {
 ```javascript
 // composables/useMouseInElement.js
 import { computed } from 'vue'
-
 import { useMouse } from './useMouse'
 
 export function useMouseInElement(elementRef) {
   const { x, y } = useMouse()
 
   const isOutside = computed(() => {
-    if (!elementRef.value)
-      return true
+    if (!elementRef.value) return true
     const rect = elementRef.value.getBoundingClientRect()
-    return x.value < rect.left || x.value > rect.right
-      || y.value < rect.top || y.value > rect.bottom
+    return x.value < rect.left || x.value > rect.right ||
+      y.value < rect.top || y.value > rect.bottom
   })
 
   return { x, y, isOutside }
@@ -159,7 +155,7 @@ items.value.push({ id: 1, price: 10 })
 
 **GOOD:**
 ```javascript
-import { computed, readonly, ref } from 'vue'
+import { ref, computed, readonly } from 'vue'
 
 export function useCart() {
   const _items = ref([])
@@ -195,8 +191,8 @@ export function useCart() {
 **BAD:**
 ```javascript
 export function useFormatters() {
-  const formatDate = date => new Intl.DateTimeFormat('en-US').format(date)
-  const formatCurrency = amount =>
+  const formatDate = (date) => new Intl.DateTimeFormat('en-US').format(date)
+  const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
   return { formatDate, formatCurrency }
 }
@@ -222,7 +218,6 @@ export function formatCurrency(amount) {
 ```javascript
 // composables/useInvoiceSummary.js
 import { computed } from 'vue'
-
 import { formatCurrency } from '@/utils/formatters'
 
 export function useInvoiceSummary(invoiceRef) {
@@ -236,7 +231,7 @@ export function useInvoiceSummary(invoiceRef) {
 **BAD:**
 ```vue
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const searchQuery = ref('')
 const items = ref([])
@@ -274,7 +269,7 @@ const { selectedItem, isModalOpen, selectItem, closeModal } = useSelectionModal(
 
 ```javascript
 // composables/useItems.js
-import { onMounted, ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
 export function useItems() {
   const items = ref([])
@@ -284,8 +279,7 @@ export function useItems() {
     loading.value = true
     try {
       items.value = await api.getItems()
-    }
-    finally {
+    } finally {
       loading.value = false
     }
   }

@@ -41,14 +41,14 @@ export type UseTimeAgoFormatter<T = number> = (
   value: T,
   isPast: boolean,
 ) => string
-export type UseTimeAgoUnitNamesDefault
-  = | 'second'
-    | 'minute'
-    | 'hour'
-    | 'day'
-    | 'week'
-    | 'month'
-    | 'year'
+export type UseTimeAgoUnitNamesDefault =
+  | "second"
+  | "minute"
+  | "hour"
+  | "day"
+  | "week"
+  | "month"
+  | "year"
 export interface UseTimeAgoMessagesBuiltIn {
   justNow: string
   past: string | UseTimeAgoFormatter<string>
@@ -57,8 +57,8 @@ export interface UseTimeAgoMessagesBuiltIn {
 }
 export type UseTimeAgoMessages<
   UnitNames extends string = UseTimeAgoUnitNamesDefault,
-> = UseTimeAgoMessagesBuiltIn
-  & Record<UnitNames, string | UseTimeAgoFormatter<number>>
+> = UseTimeAgoMessagesBuiltIn &
+  Record<UnitNames, string | UseTimeAgoFormatter<number>>
 export interface FormatTimeAgoOptions<
   UnitNames extends string = UseTimeAgoUnitNamesDefault,
 > {
@@ -87,7 +87,7 @@ export interface FormatTimeAgoOptions<
    *
    * @default 'round'
    */
-  rounding?: 'round' | 'ceil' | 'floor' | number
+  rounding?: "round" | "ceil" | "floor" | number
   /**
    * Custom units
    */
@@ -119,11 +119,11 @@ export interface UseTimeAgoUnit<
   value: number
   name: Unit
 }
-export type UseTimeAgoReturn<Controls extends boolean = false>
-  = Controls extends true
+export type UseTimeAgoReturn<Controls extends boolean = false> =
+  Controls extends true
     ? {
-      timeAgo: ComputedRef<string>
-    } & Pausable
+        timeAgo: ComputedRef<string>
+      } & Pausable
     : ComputedRef<string>
 /**
  * Reactive time ago formatter.

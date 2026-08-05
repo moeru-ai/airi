@@ -83,7 +83,7 @@ shortcutsLayer: 'my-shortcuts-layer'
 - Shortcuts are expanded at build time, not runtime
 - All variants work with shortcuts (`hover:btn`, `dark:btn`, etc.)
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/config/shortcuts
 -->

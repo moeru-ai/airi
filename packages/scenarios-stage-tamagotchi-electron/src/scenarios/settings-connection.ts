@@ -1,4 +1,4 @@
-import { defineStageTamagotchiScenario } from '../context.ts'
+import { defineStageTamagotchiScenario } from '../context'
 
 const websocketServerAddressPattern = /WebSocket Server Address|WebSocket 服务器地址/i
 

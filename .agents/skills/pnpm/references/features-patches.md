@@ -42,22 +42,19 @@ pnpm patch-commit <path-from-step-1>
 pnpm patch-commit /tmp/abc123...
 ```
 
-This creates a `.patch` file in `patches/` and updates `package.json`:
+This creates a `.patch` file in `patches/` and records it in `pnpm-workspace.yaml`:
 
 ```
 patches/
 └── express@4.18.2.patch
 ```
 
-```json
-{
-  "pnpm": {
-    "patchedDependencies": {
-      "express@4.18.2": "patches/express@4.18.2.patch"
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+patchedDependencies:
+  express@4.18.2: patches/express@4.18.2.patch
 ```
+
+> `patchedDependencies` (like all pnpm settings) now lives in `pnpm-workspace.yaml`, not the `package.json#pnpm` field.
 
 ## Patch File Format
 
@@ -100,59 +97,48 @@ pnpm patch-commit <path>
 ```bash
 pnpm patch-remove <pkg>@<version>
 
-# Example
+# Example  
 pnpm patch-remove express@4.18.2
 ```
 
 Or manually:
 1. Delete the patch file from `patches/`
-2. Remove entry from `patchedDependencies` in `package.json`
+2. Remove the entry from `patchedDependencies` in `pnpm-workspace.yaml`
 3. Run `pnpm install`
 
 ## Patch Configuration
 
-### Custom Patches Directory
+### Multiple Packages / Workspaces
 
-```json
-{
-  "pnpm": {
-    "patchedDependencies": {
-      "express@4.18.2": "custom-patches/my-express-fix.patch"
-    }
-  }
-}
+Patches are shared across the whole workspace from the root `pnpm-workspace.yaml`:
+
+```yaml title="pnpm-workspace.yaml"
+patchedDependencies:
+  express@4.18.2: patches/express@4.18.2.patch
+  lodash@4.17.21: patches/lodash@4.17.21.patch
+  '@types/node@20.10.0': patches/@types__node@20.10.0.patch
 ```
 
-### Multiple Packages
+A version-less key (`express:`) patches every installed version. All workspace packages using a matching version get the patch.
 
-```json
-{
-  "pnpm": {
-    "patchedDependencies": {
-      "express@4.18.2": "patches/express@4.18.2.patch",
-      "lodash@4.17.21": "patches/lodash@4.17.21.patch",
-      "@types/node@20.10.0": "patches/@types__node@20.10.0.patch"
-    }
-  }
-}
+### Patches from a config dependency
+
+Patch files can live inside a shared config dependency and be referenced by path:
+
+```yaml title="pnpm-workspace.yaml"
+configDependencies:
+  my-patches: '1.0.0'
+patchedDependencies:
+  react: node_modules/.pnpm-config/my-patches/react.patch
 ```
 
-## Workspaces
+### allowUnusedPatches
 
-Patches are shared across the workspace. Define in the root `package.json`:
-
-```json
-// Root package.json
-{
-  "pnpm": {
-    "patchedDependencies": {
-      "express@4.18.2": "patches/express@4.18.2.patch"
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+allowUnusedPatches: true   # don't fail when a listed patch wasn't applied
 ```
 
-All workspace packages using `express@4.18.2` will have the patch applied.
+> `ignorePatchFailures` was **removed** in v11. A patch that fails to apply now always throws. When several patches are grouped, all errors are reported together at the end.
 
 ## Best Practices
 
@@ -197,5 +183,5 @@ Ensure:
 Source references:
 - https://pnpm.io/cli/patch
 - https://pnpm.io/cli/patch-commit
-- https://pnpm.io/package_json#pnpmpatcheddependencies
+- https://pnpm.io/config-dependencies
 -->

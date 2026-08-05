@@ -1,6 +1,5 @@
 ---
 category: Reactivity
-alias: resolveRef
 ---
 
 # toRef

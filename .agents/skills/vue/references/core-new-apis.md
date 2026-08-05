@@ -14,12 +14,12 @@ import { ref, shallowRef } from 'vue'
 
 // ref - deep reactivity (tracks nested changes)
 const user = ref({ name: 'John', profile: { age: 30 } })
-user.value.profile.age = 31 // Triggers reactivity
+user.value.profile.age = 31  // Triggers reactivity
 
 // shallowRef - only .value assignment triggers reactivity (better performance)
 const data = shallowRef({ items: [] })
-data.value.items.push('new') // Does NOT trigger reactivity
-data.value = { items: ['new'] } // Triggers reactivity
+data.value.items.push('new')  // Does NOT trigger reactivity
+data.value = { items: ['new'] }  // Triggers reactivity
 ```
 
 **Prefer `shallowRef`** for large data structures or when deep reactivity is unnecessary.
@@ -27,7 +27,7 @@ data.value = { items: ['new'] } // Triggers reactivity
 ### computed
 
 ```ts
-import { computed, ref } from 'vue'
+import { ref, computed } from 'vue'
 
 const count = ref(0)
 
@@ -47,10 +47,10 @@ const plusOne = computed({
 import { reactive, readonly } from 'vue'
 
 const state = reactive({ count: 0, nested: { value: 1 } })
-state.count++ // Reactive
+state.count++  // Reactive
 
 const readonlyState = readonly(state)
-readonlyState.count++ // Warning, mutation blocked
+readonlyState.count++  // Warning, mutation blocked
 ```
 
 Note: `reactive()` loses reactivity on destructuring. Use `ref()` or `toRefs()`.
@@ -72,7 +72,7 @@ watch(count, (newVal, oldVal) => {
 // Watch getter
 watch(
   () => props.id,
-  id => fetchData(id),
+  (id) => fetchData(id),
   { immediate: true }
 )
 
@@ -93,16 +93,16 @@ watch(source, callback, { once: true })
 Runs immediately and auto-tracks dependencies.
 
 ```ts
-import { onWatcherCleanup, ref, watchEffect } from 'vue'
+import { ref, watchEffect, onWatcherCleanup } from 'vue'
 
 const id = ref(1)
 
 watchEffect(async () => {
   const controller = new AbortController()
-
+  
   // Cleanup on re-run or unmount (Vue 3.5+)
   onWatcherCleanup(() => controller.abort())
-
+  
   const res = await fetch(`/api/${id.value}`, { signal: controller.signal })
   data.value = await res.json()
 })
@@ -122,23 +122,23 @@ stop()
 // 'sync' - immediate, use with caution
 
 watch(source, callback, { flush: 'post' })
-watchPostEffect(() => {}) // Alias for flush: 'post'
+watchPostEffect(() => {})  // Alias for flush: 'post'
 ```
 
 ## Lifecycle Hooks
 
 ```ts
 import {
-  onActivated, // KeepAlive
   onBeforeMount,
-  onBeforeUnmount,
-  onBeforeUpdate,
-  onDeactivated, // KeepAlive
-  onErrorCaptured,
   onMounted,
-  onServerPrefetch, // SSR only
+  onBeforeUpdate,
+  onUpdated,
+  onBeforeUnmount,
   onUnmounted,
-  onUpdated
+  onErrorCaptured,
+  onActivated,      // KeepAlive
+  onDeactivated,    // KeepAlive
+  onServerPrefetch  // SSR only
 } from 'vue'
 
 onMounted(() => {
@@ -152,7 +152,7 @@ onUnmounted(() => {
 // Error boundary
 onErrorCaptured((err, instance, info) => {
   console.error(err)
-  return false // Stop propagation
+  return false  // Stop propagation
 })
 ```
 
@@ -168,9 +168,9 @@ const scope = effectScope()
 scope.run(() => {
   const count = ref(0)
   const doubled = computed(() => count.value * 2)
-
+  
   watch(count, () => console.log(count.value))
-
+  
   // Cleanup when scope stops
   onScopeDispose(() => {
     console.log('Scope disposed')
@@ -193,7 +193,7 @@ Composables are functions that encapsulate stateful logic using Composition API.
 
 ```ts
 // composables/useMouse.ts
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 export function useMouse() {
   const x = ref(0)
@@ -216,9 +216,7 @@ export function useMouse() {
 Use `toValue()` (Vue 3.3+) to normalize refs, getters, or plain values.
 
 ```ts
-import type { MaybeRefOrGetter } from 'vue'
-
-import { ref, toValue, watchEffect } from 'vue'
+import { ref, watchEffect, toValue, type MaybeRefOrGetter } from 'vue'
 
 export function useFetch(url: MaybeRefOrGetter<string>) {
   const data = ref(null)
@@ -227,12 +225,11 @@ export function useFetch(url: MaybeRefOrGetter<string>) {
   watchEffect(async () => {
     data.value = null
     error.value = null
-
+    
     try {
       const res = await fetch(toValue(url))
       data.value = await res.json()
-    }
-    catch (e) {
+    } catch (e) {
       error.value = e
     }
   })
