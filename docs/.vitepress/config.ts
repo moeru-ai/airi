@@ -256,15 +256,18 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Desktop App', link: withBase('/en/docs/contributing/tamagotchi') },
                   { text: 'Web UI', link: withBase('/en/docs/contributing/webui') },
                   { text: 'Documentation Site', link: withBase('/en/docs/contributing/docs') },
+                  { text: 'Desktop Developer Tools', link: withBase('/en/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
                 text: 'Games & Social Platforms',
                 items: [
                   { text: 'Minecraft', link: withBase('/en/docs/integrations/minecraft') },
+                  { text: 'Factorio', link: withBase('/en/docs/integrations/factorio') },
                   { text: 'Satori Bot', link: withBase('/en/docs/integrations/satori') },
                   { text: 'Telegram Bot', link: withBase('/en/docs/integrations/telegram') },
                   { text: 'Discord Bot', link: withBase('/en/docs/integrations/discord') },
+                  { text: 'X / Twitter', link: withBase('/en/docs/integrations/x') },
                 ],
               },
               {
