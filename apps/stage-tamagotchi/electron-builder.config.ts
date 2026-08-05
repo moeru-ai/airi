@@ -131,7 +131,7 @@ export default {
         platform = 'linux'
         break
       default:
-        return
+        throw new Error(`Unsupported Steam packaging platform: ${electronPlatform}`)
     }
 
     // macOS: sibling of `.app` in appOutDir. Win/Linux: next to the executable.
