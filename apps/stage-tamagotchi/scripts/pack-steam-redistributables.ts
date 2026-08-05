@@ -54,19 +54,7 @@ function mirrorBaseUrl(): string {
 }
 
 async function downloadFile(url: string, dest: string): Promise<void> {
-  const response = await ofetch.raw(url, {
-    responseType: 'arrayBuffer',
-    ignoreResponseError: true,
-  })
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url}: HTTP ${response.status}`)
-  }
-
-  const data = response._data
-  if (!(data instanceof ArrayBuffer))
-    throw new Error(`Unexpected response type from ${url}`)
-
-  const bytes = Buffer.from(data)
+  const bytes = Buffer.from(await ofetch(url, { responseType: 'arrayBuffer' }))
   if (bytes.length === 0) {
     throw new Error(`Downloaded empty file from ${url}`)
   }
