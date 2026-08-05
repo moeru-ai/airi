@@ -12,14 +12,6 @@ const STEAM_OPENID_IDENTIFIER_SELECT = 'http://specs.openid.net/auth/2.0/identif
 /** Matches `https://steamcommunity.com/openid/id/<steamid64>`. */
 const STEAM_CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/
 
-// NOTICE:
-// Why Zod instead of the repo-default Valibot: better-auth's endpoint API and
-// OpenAPI generator are Zod-native. The generator introspects
-// `instanceof z.ZodObject` on `body`/`query` to emit request/query schemas
-// (node_modules/better-auth/dist/plugins/open-api/generator.mjs), so Valibot
-// schemas would validate at runtime (better-call uses Standard Schema) but
-// silently drop those OpenAPI fields. Keep these schemas in Zod until
-// better-auth's OpenAPI generation supports non-Zod schemas.
 /**
  * The slice of better-auth's `internalAdapter` that {@link resolveOrCreateSteamUser}
  * needs.
@@ -74,6 +66,14 @@ export async function resolveOrCreateSteamUser(
   return { userId: user.id }
 }
 
+// NOTICE:
+// Why Zod instead of the repo-default Valibot: better-auth's endpoint API and
+// OpenAPI generator are Zod-native. The generator introspects
+// `instanceof z.ZodObject` on `body`/`query` to emit request/query schemas
+// (node_modules/better-auth/dist/plugins/open-api/generator.mjs), so Valibot
+// schemas would validate at runtime (better-call uses Standard Schema) but
+// silently drop those OpenAPI fields. Keep these schemas in Zod until
+// better-auth's OpenAPI generation supports non-Zod schemas.
 const SignInBodySchema = z.object({
   callbackURL: z.string().meta({ description: 'The URL to redirect to after sign in' }),
   errorCallbackURL: z.string().meta({ description: 'The URL to redirect to if an error occurs' }).optional(),

@@ -6,12 +6,12 @@ describe('authenticateUserTicket', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('returns steamid when Steam API reports success', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        response: { params: { result: 'OK', steamid: '76561198000000000' } },
-      }),
-    }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      response: { params: { result: 'OK', steamid: '76561198000000000' } },
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })))
 
     const steamId = await authenticateUserTicket({
       publisherKey: 'test-key',
@@ -23,12 +23,12 @@ describe('authenticateUserTicket', () => {
   })
 
   it('throws when result is not OK', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        response: { params: { result: 'InvalidTicket' } },
-      }),
-    }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      response: { params: { result: 'InvalidTicket' } },
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })))
 
     await expect(authenticateUserTicket({
       publisherKey: 'test-key',

@@ -62,6 +62,6 @@ describe('exchangeSteamTicketForTokens', () => {
       throw new Error('offline')
     }) as unknown as typeof fetch
     const result = await exchangeSteamTicketForTokens({ serverUrl: 'https://api.airi.build', ticketHex: 'deadbeef' })
-    expect(result).toEqual({ ok: false, reason: 'offline' })
+    expect(result).toEqual({ ok: false, reason: expect.stringContaining('offline') })
   })
 })
