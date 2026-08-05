@@ -39,7 +39,12 @@ describe('createWidgetsService', () => {
     const widgetsManager = createWidgetsManager()
     const window = createWindow(1)
     createWidgetsService({
-      context: context as Parameters<typeof createWidgetsService>[0]['context'],
+      // NOTICE:
+      // eventa beta.14 widened EventContext generics so the direct cast no longer
+      // overlaps; Parameters<> keeps the target in sync with the service contract.
+      // Root cause: @moeru/eventa 1.0.0-beta.14 EventContext type change.
+      // Removal condition: when createContext() returns the service's context type.
+      context: context as unknown as Parameters<typeof createWidgetsService>[0]['context'],
       widgetsManager,
       window,
     })
@@ -70,7 +75,7 @@ describe('createWidgetsService', () => {
     const widgetsManager = createWidgetsManager()
     const window = createWindow(1)
     createWidgetsService({
-      context: context as Parameters<typeof createWidgetsService>[0]['context'],
+      context: context as unknown as Parameters<typeof createWidgetsService>[0]['context'],
       widgetsManager,
       window,
     })
