@@ -7,7 +7,7 @@ import { tryCatch } from '@moeru/std'
 import { usePreferredReducedMotion } from '@vueuse/core'
 import { intlFormat } from 'date-fns'
 import { AvatarFallback, AvatarImage, AvatarRoot } from 'reka-ui'
-import { Content, useData, useRoute } from 'vitepress'
+import { Content, useData, useRoute, withBase } from 'vitepress'
 import { computed, onMounted, ref, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -106,7 +106,11 @@ const publishedAt = computed(() => {
 
 const authors = computed(() => {
   const data = (authorsData as unknown as { data: Array<{ url: string, authors: Author[] }> }).data
-  return data.find(item => item.url === path.value)?.authors || []
+  const currentPath = normalizeDocumentPath(path.value)
+
+  return data.find(item =>
+    normalizeDocumentPath(withBase(item.url)) === currentPath,
+  )?.authors || []
 })
 
 // Title snapshot keyed by `path`: `frontmatter` updates before the article
