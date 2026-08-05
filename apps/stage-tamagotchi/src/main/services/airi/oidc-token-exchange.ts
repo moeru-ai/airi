@@ -1,3 +1,5 @@
+import { ofetch } from 'ofetch'
+
 export interface TokenExchangeResult {
   accessToken: string
   refreshToken?: string
@@ -32,18 +34,12 @@ export async function exchangeAuthorizationCode(params: {
     resource: params.serverUrl.replace(/\/+$/, ''),
   })
 
-  const response = await fetch(new URL('/api/auth/oauth2/token', params.serverUrl), {
+  const data = await ofetch<Record<string, unknown>>(new URL('/api/auth/oauth2/token', params.serverUrl).toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })
 
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Token exchange failed (${response.status}): ${text}`)
-  }
-
-  const data = await response.json() as Record<string, unknown>
   return {
     accessToken: data.access_token as string,
     refreshToken: data.refresh_token as string | undefined,

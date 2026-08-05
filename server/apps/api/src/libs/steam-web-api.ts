@@ -1,4 +1,4 @@
-import { errorMessageFrom } from '@moeru/std'
+import { ofetch } from 'ofetch'
 
 const STEAM_PARTNER_API = 'https://partner.steam-api.com'
 
@@ -9,21 +9,6 @@ interface AuthenticateUserTicketResponse {
       steamid?: string
     }
   }
-}
-
-async function fetchSteamJson<T>(url: URL, label: string): Promise<T> {
-  let res: Response
-  try {
-    res = await fetch(url)
-  }
-  catch (error) {
-    throw new Error(`${label} failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-  }
-
-  if (!res.ok)
-    throw new Error(`${label} HTTP ${res.status}`)
-
-  return await res.json() as T
 }
 
 /**
@@ -45,7 +30,7 @@ export async function authenticateUserTicket(params: {
   url.searchParams.set('ticket', params.ticketHex)
   url.searchParams.set('identity', 'airi-desktop')
 
-  const body = await fetchSteamJson<AuthenticateUserTicketResponse>(url, 'Steam AuthenticateUserTicket')
+  const body = await ofetch<AuthenticateUserTicketResponse>(url.toString())
   const result = body.response?.params?.result
   const steamId = body.response?.params?.steamid
   if (result !== 'OK' || !steamId)

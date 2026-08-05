@@ -2,6 +2,7 @@ import type { TokenExchangeResult } from './oidc-token-exchange'
 
 import { errorMessageFrom } from '@moeru/std'
 import { generateCodeChallenge, generateCodeVerifier, oidcClientId } from '@proj-airi/stage-shared/auth'
+import { ofetch } from 'ofetch'
 import { object, safeParse, string } from 'valibot'
 
 import { electronOidcRedirectUri, exchangeAuthorizationCode } from './oidc-token-exchange'
@@ -31,7 +32,7 @@ export async function exchangeSteamTicketForTokens(params: {
     const codeChallenge = await generateCodeChallenge(codeVerifier)
     const redirectUri = electronOidcRedirectUri(params.serverUrl)
 
-    const response = await fetch(new URL('/api/auth/steam/desktop-sign-in', params.serverUrl), {
+    const response = await ofetch<unknown>(new URL('/api/auth/steam/desktop-sign-in', params.serverUrl).toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -43,13 +44,7 @@ export async function exchangeSteamTicketForTokens(params: {
         code_challenge_method: 'S256',
       }),
     })
-
-    if (!response.ok) {
-      const text = await response.text()
-      return { ok: false, reason: `Steam sign-in failed (${response.status}): ${text}` }
-    }
-
-    const codeBody = safeParse(SteamAuthorizationCodeBodySchema, await response.json())
+    const codeBody = safeParse(SteamAuthorizationCodeBodySchema, response)
     if (!codeBody.success)
       return { ok: false, reason: 'Steam sign-in response missing authorization code' }
 
