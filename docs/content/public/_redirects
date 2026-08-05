@@ -5,13 +5,8 @@
 # The previous `Language=` rules below were Netlify-only syntax; the site is
 # deployed on Cloudflare Pages, which does not parse them, so they are
 # intentionally not kept.
-
-# Moved English service pages (docs/contributing/services -> docs/integrations)
-/docs/en/docs/contributing/services/discord /docs/en/docs/integrations/discord 301
-/docs/en/docs/contributing/services/discord.html /docs/en/docs/integrations/discord.html 301
-/docs/en/docs/contributing/services/minecraft /docs/en/docs/integrations/minecraft 301
-/docs/en/docs/contributing/services/minecraft.html /docs/en/docs/integrations/minecraft.html 301
-/docs/en/docs/contributing/services/satori /docs/en/docs/integrations/satori 301
-/docs/en/docs/contributing/services/satori.html /docs/en/docs/integrations/satori.html 301
-/docs/en/docs/contributing/services/telegram /docs/en/docs/integrations/telegram 301
-/docs/en/docs/contributing/services/telegram.html /docs/en/docs/integrations/telegram.html 301
+#
+# Moved English service page redirects live in
+# apps/stage-web/public/_redirects instead: the docs bundle is merged into
+# stage-web's dist/docs, so this file would end up at /docs/_redirects, which
+# Cloudflare Pages does not parse.

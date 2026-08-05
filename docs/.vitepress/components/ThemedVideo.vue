@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -21,11 +21,15 @@ const props = withDefaults(defineProps<{
 const { isDark } = useData()
 
 const currentSrc = computed(() => {
-  if (props.light && props.dark) {
-    return isDark.value ? props.dark : props.light
-  }
-  return props.src
+  const media = props.light && props.dark
+    ? (isDark.value ? props.dark : props.light)
+    : props.src
+  // Media props are site-root paths like /blog/...; the :src binding is
+  // dynamic so VitePress does not prefix the base automatically.
+  return media ? withBase(media) : undefined
 })
+
+const posterUrl = computed(() => props.poster ? withBase(props.poster) : undefined)
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 let observer: IntersectionObserver | null = null
@@ -84,7 +88,7 @@ watch(currentSrc, async () => {
     <video
       ref="videoRef"
       :src="currentSrc"
-      :poster="poster"
+      :poster="posterUrl"
       :controls="controls"
       :muted="muted"
       :loop="loop"

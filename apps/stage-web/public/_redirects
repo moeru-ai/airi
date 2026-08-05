@@ -5,3 +5,16 @@
 # This ensures legacy links like /docs/zh-hans/ still work
 /docs/zh-hans/*   /docs/zh-Hans/:splat   301
 /docs/zh-hans     /docs/zh-Hans/         301
+
+# Moved English service pages (docs/contributing/services -> docs/integrations)
+# Cloudflare Pages only parses _redirects at the output root, so these rules
+# must live here (apps/stage-web/public) rather than in the docs bundle.
+/docs/en/docs/contributing/services/discord /docs/en/docs/integrations/discord 301
+/docs/en/docs/contributing/services/discord.html /docs/en/docs/integrations/discord.html 301
+/docs/en/docs/contributing/services/minecraft /docs/en/docs/integrations/minecraft 301
+/docs/en/docs/contributing/services/minecraft.html /docs/en/docs/integrations/minecraft.html 301
+/docs/en/docs/contributing/services/satori /docs/en/docs/integrations/satori 301
+/docs/en/docs/contributing/services/satori.html /docs/en/docs/integrations/satori.html 301
+/docs/en/docs/contributing/services/telegram /docs/en/docs/integrations/telegram 301
+/docs/en/docs/contributing/services/telegram.html /docs/en/docs/integrations/telegram.html 301
+
