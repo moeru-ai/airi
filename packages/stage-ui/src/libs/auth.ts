@@ -1,4 +1,4 @@
-import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
+import type { OIDCFlowParams, SocialOAuthProvider, TokenResponse } from './auth-oidc'
 
 import { createAuthClient } from 'better-auth/vue'
 
@@ -8,7 +8,7 @@ import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
 import { steamClient } from './steam-auth-client'
 
-export type OAuthProvider = 'google' | 'github' | 'steam'
+export type OAuthProvider = SocialOAuthProvider | 'steam'
 
 // NOTICE: reads the same localStorage key ('auth/v1/token') that useAuthStore's
 // `token` ref writes via useLocalStorage. We bypass the store here because
@@ -194,12 +194,6 @@ export async function signInOIDC(params: OIDCFlowParams) {
     return
   }
 
-  if (provider === 'steam') {
-    // Steam is OpenID 2.0; only the Steam plugin endpoint can start it.
-    await authClient.signIn.steam({ callbackURL: url.toString() })
-    return
-  }
-
   await authClient.signIn.social({
     provider,
     callbackURL: url.toString(),
@@ -226,7 +220,7 @@ export async function signInOIDC(params: OIDCFlowParams) {
  * social provider. Omit to land on the project's hosted login page
  * (ui-server-auth) where the user can choose email/password or social.
  */
-export async function triggerSignIn(opts?: { provider?: OAuthProvider }): Promise<void> {
+export async function triggerSignIn(opts?: { provider?: SocialOAuthProvider }): Promise<void> {
   await signInOIDC({
     clientId: OIDC_CLIENT_ID,
     redirectUri: OIDC_REDIRECT_URI,

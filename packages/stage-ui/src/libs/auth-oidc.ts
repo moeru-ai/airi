@@ -7,6 +7,8 @@ import { SERVER_URL } from './server'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
 const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
+export type SocialOAuthProvider = 'google' | 'github'
+
 export interface OIDCFlowParams {
   clientId: string
   redirectUri: string
@@ -17,7 +19,7 @@ export interface OIDCFlowParams {
    */
   clientSecret?: string
   /** Social provider hint — skips the server-side picker page. */
-  provider?: 'google' | 'github' | 'steam'
+  provider?: SocialOAuthProvider
 }
 
 export interface OIDCFlowState {

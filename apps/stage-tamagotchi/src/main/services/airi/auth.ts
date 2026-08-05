@@ -97,9 +97,6 @@ export function createAuthService(params: {
     signingInFlight = true
 
     try {
-      // Clean up any previous in-flight login
-      closeLoopback?.()
-
       const codeVerifier = generateCodeVerifier()
       const codeChallenge = await generateCodeChallenge(codeVerifier)
       const state = generateState()

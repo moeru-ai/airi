@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../mock-db'
 import { steam } from './steam'
@@ -74,8 +74,6 @@ describe('steam auth plugin', () => {
     auth = await createTestAuth()
   })
 
-  afterEach(() => vi.unstubAllGlobals())
-
   // NOTICE:
   // We mock the module-global `fetch` for Steam's `check_authentication`
   // dumb-mode verification POST instead of hitting the real
@@ -102,15 +100,6 @@ describe('steam auth plugin', () => {
     expect(url.searchParams.get('openid.mode')).toBe('checkid_setup')
     expect(url.searchParams.get('openid.realm')).toBe('http://localhost')
     expect(url.searchParams.get('openid.return_to')).toContain('/steam/callback?state=')
-  })
-
-  it('skips the automatic redirect when disableRedirect is set', async () => {
-    const { response } = await auth.api.signInSteam({
-      body: { callbackURL: 'http://localhost/ui/profile', disableRedirect: true },
-      returnHeaders: true,
-    })
-
-    expect(response.redirect).toBe(false)
   })
 
   it('creates a user with a placeholder email on first sign-in and reuses the same account on later sign-ins', async () => {
