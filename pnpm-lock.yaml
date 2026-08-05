@@ -2026,6 +2026,9 @@ importers:
       nprogress:
         specifier: 'catalog:'
         version: 0.2.0
+      ofetch:
+        specifier: 'catalog:'
+        version: 1.5.1
       onnxruntime-web:
         specifier: npm:onnxruntime-web@^1.24.3
         version: 1.24.3

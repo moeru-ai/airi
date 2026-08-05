@@ -25,6 +25,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { errorMessageFrom } from '@moeru/std'
+import { ofetch } from 'ofetch'
 
 // NOTICE:
 // Keep in sync with apps/stage-tamagotchi/steam_appid.txt. Inlined here so the
@@ -53,12 +54,19 @@ function mirrorBaseUrl(): string {
 }
 
 async function downloadFile(url: string, dest: string): Promise<void> {
-  const response = await fetch(url)
+  const response = await ofetch.raw(url, {
+    responseType: 'arrayBuffer',
+    ignoreResponseError: true,
+  })
   if (!response.ok) {
     throw new Error(`Failed to download ${url}: HTTP ${response.status}`)
   }
 
-  const bytes = Buffer.from(await response.arrayBuffer())
+  const data = response._data
+  if (!(data instanceof ArrayBuffer))
+    throw new Error(`Unexpected response type from ${url}`)
+
+  const bytes = Buffer.from(data)
   if (bytes.length === 0) {
     throw new Error(`Downloaded empty file from ${url}`)
   }
