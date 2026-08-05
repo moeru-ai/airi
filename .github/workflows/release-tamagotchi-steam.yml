@@ -162,27 +162,21 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_DEVELOPER_APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_DEVELOPER_TEAM_ID }}
 
+      - name: Import Apple signing certificate
+        if: matrix.depot == 'macos'
+        uses: apple-actions/import-codesign-certs@v7
+        with:
+          p12-file-base64: ${{ secrets.CSC_CONTENT }}
+          p12-password: ${{ secrets.CSC_KEY_PASSWORD }}
+
       - name: Re-sign Steam API library for macOS
         if: matrix.depot == 'macos'
-        env:
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/steam-signing.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 3600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import apps/stage-tamagotchi/apple-developer-code-signing.p12 \
-            -k "$KEYCHAIN_PATH" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain-db
-
           # Valve signs the SDK library with its own team, so re-sign it with
           # the app's Developer ID to pass hardened-runtime library validation.
-          identity="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+          identity="$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
           dylib_path="apps/stage-tamagotchi/dist/mac-arm64/steamworks_sdk/redistributable_bin/osx/libsteam_api.dylib"
-          codesign --force --sign "$identity" --keychain "$KEYCHAIN_PATH" "$dylib_path"
+          codesign --force --sign "$identity" "$dylib_path"
           codesign --verify --verbose=2 "$dylib_path"
 
       - name: Build Linux app
