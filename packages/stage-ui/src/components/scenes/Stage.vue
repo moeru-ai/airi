@@ -27,7 +27,9 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { embed } from '@xsai/embed'
 import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+import StageRenderError from './stage-render-error.vue'
 
 import { useSettingsLive2d } from '../../../../stage-ui-live2d/src/composables/live2d/live2d'
 import { useAnalytics } from '../../composables/use-analytics'
@@ -133,7 +135,23 @@ const chatHookCleanups: Array<() => void> = []
 const providersStore = useProvidersStore()
 const live2dStore = useLive2dParams()
 const showStage = ref(true)
+const stageRenderError = shallowRef<Error>()
 const viewUpdateCleanups: Array<() => void> = []
+
+function handleStageRenderError(error: Error) {
+  stageRenderError.value = error
+}
+
+async function retryStageRenderer() {
+  stageRenderError.value = undefined
+  showStage.value = false
+  await nextTick()
+  showStage.value = true
+}
+
+watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
+  stageRenderError.value = undefined
+})
 
 // Caption + Presentation broadcast channels
 type CaptionChannelEvent
@@ -1075,6 +1093,7 @@ defineExpose({
         :live2d-shadow-enabled="live2dShadowEnabled"
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
+        @error="handleStageRenderError"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
@@ -1153,6 +1172,14 @@ defineExpose({
           </Callout>
         </div>
       </div>
+
+      <StageRenderError
+        v-if="stageRenderError"
+        :error="stageRenderError"
+        renderer="Live2D"
+        :model-id="stageModelSelected"
+        @retry="retryStageRenderer"
+      />
     </div>
   </div>
 </template>
