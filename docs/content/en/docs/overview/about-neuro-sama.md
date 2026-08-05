@@ -1,8 +1,10 @@
 ---
-title: Neuro-sama
+title: About Neuro-sama
 ---
 
-Hypes and thoughts:
+
+Discussions and insights:
+
 
 - [r/VirtualYoutubers --- Someone help me understand Neuro-sama : r/VirtualYoutubers](https://www.reddit.com/r/VirtualYoutubers/comments/1gi5ra0/someone_help_me_understand_neurosama/)
 - [How to Make an AI Vtuber. - YouTube](https://www.youtube.com/watch?v=WZ9JqlxQ6iQ)
@@ -12,13 +14,17 @@ Hypes and thoughts:
 - [Is it really Neuro-sama playing Minecraft? : r/NeuroSama](https://www.reddit.com/r/NeuroSama/comments/1ifhv0f/is_it_really_neurosama_playing_minecraft/)
 - [Is neuro custom coded from the ground up or does she have a base model? : r/NeuroSama](https://www.reddit.com/r/NeuroSama/comments/19481ow/is_neuro_custom_coded_from_the_ground_up_or_does/)
 
-We can use this plugin to allow AI/LLM to control the model:
+
+We can use this plugin to let the AI / LLM control the model:
+
 
 - [pladisdev/VTS-AI-Plugin](https://github.com/pladisdev/VTS-AI-Plugin)
-
 - [Plugins · DenchiSoft/VTubeStudio Wiki](https://github.com/DenchiSoft/VTubeStudio/wiki/Plugins)
 
-Some of the existing open sourced projects:
+
+Some existing open-source projects:
+
 
 - [JarodMica/open-neruosama](https://github.com/JarodMica/open-neruosama/tree/master)
 - [AIVTDevPKevin/AI-VTuber-System: A graphical system program that allows you to quickly create your own AI VTuber for free.](https://github.com/AIVTDevPKevin/AI-VTuber-System)
+

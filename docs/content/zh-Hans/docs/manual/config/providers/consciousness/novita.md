@@ -24,7 +24,7 @@ Novita AI 提供兼容 OpenAI 格式的聊天 API。完成本页配置后，AIRI
 
 1. 打开 **设置 → 服务商 → 聊天 → Novita AI**。
 2. 将 API Key 粘贴到基础设置。
-3. 保留默认 Base URL：`https://api.novita.ai/v1`。
+3. 保留默认 Base URL：`https://api.novita.ai/openai`。
 
 ## 第三步：验证配置
 

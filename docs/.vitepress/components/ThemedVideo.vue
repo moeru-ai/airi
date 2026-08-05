@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useData } from 'vitepress'
+import { useData, withBase } from 'vitepress'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -21,11 +21,20 @@ const props = withDefaults(defineProps<{
 const { isDark } = useData()
 
 const currentSrc = computed(() => {
-  if (props.light && props.dark) {
-    return isDark.value ? props.dark : props.light
-  }
-  return props.src
+  const media = props.light && props.dark
+    ? (isDark.value ? props.dark : props.light)
+    : props.src
+  // Only site-root paths (e.g. /blog/...) need the base prefix; relative
+  // paths like ./assets/... resolve against the page directory at build time
+  // and must stay unchanged (withBase would prefix them against the site root).
+  return media
+    ? (media.startsWith('/') ? withBase(media) : media)
+    : undefined
 })
+
+const posterUrl = computed(() => props.poster
+  ? (props.poster.startsWith('/') ? withBase(props.poster) : props.poster)
+  : undefined)
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 let observer: IntersectionObserver | null = null
@@ -84,7 +93,7 @@ watch(currentSrc, async () => {
     <video
       ref="videoRef"
       :src="currentSrc"
-      :poster="poster"
+      :poster="posterUrl"
       :controls="controls"
       :muted="muted"
       :loop="loop"
