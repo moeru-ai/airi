@@ -233,9 +233,9 @@ const EnvSchema = object({
   // instead of failing at boot.
   STEAM_PUBLISHER_KEY: optional(string(), ''),
 
-  // Steamworks app id used by the desktop ticket sign-in endpoint. Kept as an
-  // env so the server and the packaged desktop client never hardcode it twice.
-  STEAM_APP_ID: optional(string(), '3885340'),
+  // Steamworks app id used by the desktop ticket sign-in endpoint. Required
+  // (no default); when missing the endpoint responds 503 STEAM_NOT_CONFIGURED.
+  STEAM_APP_ID: optional(string()),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

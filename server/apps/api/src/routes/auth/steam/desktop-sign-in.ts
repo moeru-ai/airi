@@ -70,7 +70,8 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
 
   return new Hono<HonoEnv>()
     .post('/desktop-sign-in', async (c) => {
-      if (!deps.env.STEAM_PUBLISHER_KEY?.trim())
+      const { STEAM_APP_ID, STEAM_PUBLISHER_KEY } = deps.env
+      if (!STEAM_PUBLISHER_KEY?.trim() || !STEAM_APP_ID?.trim())
         throw createServiceUnavailableError('Steam sign-in is not configured', 'STEAM_NOT_CONFIGURED')
 
       const parsed = v.safeParse(DesktopSignInBodySchema, await c.req.json().catch(() => null))
@@ -80,8 +81,8 @@ export function createSteamDesktopSignInRoute(deps: SteamDesktopSignInRouteDeps)
       let steamId: string
       try {
         steamId = await collaborators.authenticateUserTicket({
-          publisherKey: deps.env.STEAM_PUBLISHER_KEY,
-          appId: deps.env.STEAM_APP_ID,
+          publisherKey: STEAM_PUBLISHER_KEY,
+          appId: STEAM_APP_ID,
           ticketHex: parsed.output.ticket,
         })
       }

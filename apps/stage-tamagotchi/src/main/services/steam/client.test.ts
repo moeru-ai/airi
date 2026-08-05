@@ -64,12 +64,14 @@ beforeEach(async () => {
   // test re-imports a fresh module instead of relying on a test-only reset
   // export from production code.
   vi.resetModules()
+  vi.stubEnv('VITE_STEAM_APP_ID', '3885340')
   steamMock.init.mockReturnValue(true)
   steamMock.getAuthTicketForWebApi.mockReset()
   client = await import('./client')
 })
 
 afterEach(() => {
+  vi.unstubAllEnvs()
   vi.clearAllMocks()
 })
 
@@ -111,6 +113,14 @@ describe('initSteam', () => {
     const result = await client.initSteam()
 
     expect(result).toEqual({ ok: false, reason: 'api_unavailable' })
+  })
+
+  it('returns steam_app_id_missing when VITE_STEAM_APP_ID is not set', async () => {
+    vi.stubEnv('VITE_STEAM_APP_ID', '')
+
+    const result = await client.initSteam()
+
+    expect(result).toEqual({ ok: false, reason: 'steam_app_id_missing' })
   })
 })
 

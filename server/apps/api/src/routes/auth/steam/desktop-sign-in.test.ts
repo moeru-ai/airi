@@ -103,4 +103,14 @@ describe('post /api/auth/steam/desktop-sign-in', () => {
     })
     expect(res.status).toBe(503)
   })
+
+  it('returns 503 when Steam app id is unset', async () => {
+    const { app } = await buildApp({ STEAM_PUBLISHER_KEY: 'test-key', STEAM_APP_ID: '' })
+    const res = await app.request('/api/auth/steam/desktop-sign-in', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: signInBody({ ticket: 'abc123' }),
+    })
+    expect(res.status).toBe(503)
+  })
 })

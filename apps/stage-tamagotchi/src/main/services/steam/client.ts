@@ -10,11 +10,9 @@ import { app } from 'electron'
 
 const log = useLogg('steam-client').useGlobalConfig()
 
-const STEAM_APP_ID = import.meta.env.VITE_STEAM_APP_ID || '3885340'
-
 export type SteamInitResult
   = | { ok: true }
-    | { ok: false, reason: 'not_steam' | 'init_failed' | 'api_unavailable' }
+    | { ok: false, reason: 'not_steam' | 'init_failed' | 'api_unavailable' | 'steam_app_id_missing' }
 
 export type SteamTicketResult
   = | { ok: true, authTicket: HAuthTicket, ticketHex: string }
@@ -88,6 +86,11 @@ export async function initSteam(): Promise<SteamInitResult> {
   if (!instance.user?.getAuthTicketForWebApi)
     return { ok: false, reason: 'api_unavailable' }
 
+  const steamAppId = import.meta.env.VITE_STEAM_APP_ID
+  const appId = Number(steamAppId)
+  if (!steamAppId || !Number.isInteger(appId) || appId <= 0)
+    return { ok: false, reason: 'steam_app_id_missing' }
+
   // Pin the SDK location so we never depend on the library's cwd-based search
   // (which fails on macOS where .app bundles launch with cwd=/).
   instance.setSdkPath(resolveSteamworksSdkPath())
@@ -97,7 +100,7 @@ export async function initSteam(): Promise<SteamInitResult> {
   // the IPC handler.
   let initialized: boolean
   try {
-    initialized = instance.init({ appId: Number(STEAM_APP_ID) })
+    initialized = instance.init({ appId })
   }
   catch (initError) {
     log.withError(initError).warn('SteamAPI init threw')
