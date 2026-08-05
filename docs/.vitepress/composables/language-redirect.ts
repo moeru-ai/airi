@@ -49,21 +49,22 @@ function languageFromPath(pathname: string): string {
  * Returns undefined when the path already matches the target language.
  *
  * The language segment lives right after the base path, e.g. `/airi/zh-Hans/`
- * on GitHub Pages or `/zh-Hans/` locally. A path without a language segment
- * belongs to the default language (en).
+ * on GitHub Pages or `/zh-Hans/` locally. A path without a language segment is
+ * not a real page (content lives under language prefixes), so the target is
+ * always built — including English, which restores legacy/root URLs like `/`
+ * to the `/en/` tree instead of leaving them on the generated 404 page.
  */
 export function computeLanguageRedirectPath(pathname: string, base: string, target: string): string | undefined {
   const rest = pathname.startsWith(base) ? pathname.slice(base.length) : pathname
   const restMatch = rest.match(LANGUAGE_PREFIX_PATTERN)
-  const current = restMatch?.[1] ?? 'en'
+  if (!restMatch)
+    return `${base}${target}/${rest}`
+
+  const current = restMatch[1]
   if (current === target)
     return undefined
 
-  const targetRest = restMatch
-    ? rest.replace(new RegExp(`^${restMatch[1]}(?=/|$)`), target)
-    : `${target}/${rest}`
-
-  return `${base}${targetRest}`
+  return `${base}${rest.replace(new RegExp(`^${current}(?=/|$)`), target)}`
 }
 
 /**
@@ -79,10 +80,13 @@ export function hasLocalizedPage(targetPath: string, base: string): boolean {
 
 /**
  * Called during client app initialization (before page components mount).
- * Redirects to the target language path when the user has never chosen a
- * language, the browser language differs from the current path's language,
- * and the target page has a localized counterpart. en is the default language
- * and is never redirected.
+ *
+ * Prefix-less paths (e.g. `/`, `/docs/overview/`) are not real pages — the
+ * content tree lives under language prefixes — so they always redirect:
+ * to the browser language when a localized counterpart exists, otherwise
+ * falling back to English. Prefixed paths only redirect when the browser
+ * language differs and a localized page exists. Redirects are skipped once
+ * the user has chosen a language (localStorage entry).
  */
 export function applyLanguageRedirect(): void {
   if (typeof window === 'undefined')
@@ -90,20 +94,26 @@ export function applyLanguageRedirect(): void {
   if (window.localStorage.getItem(LANGUAGE_STORAGE_KEY) !== null)
     return
 
-  const target = languageFromNavigator()
-  if (!target || target === 'en')
-    return
-
   const pathname = window.location.pathname
   const base = import.meta.env.BASE_URL
-  const targetPath = computeLanguageRedirectPath(pathname, base, target)
-  if (!targetPath)
-    return
-  if (!hasLocalizedPage(targetPath, base))
-    return
+  // Unsupported browser languages fall back to English.
+  const target = languageFromNavigator() ?? 'en'
+  const rest = pathname.startsWith(base) ? pathname.slice(base.length) : pathname
+  const restMatch = rest.match(LANGUAGE_PREFIX_PATTERN)
 
-  redirecting = true
-  window.location.replace(`${targetPath}${window.location.search}${window.location.hash}`)
+  const candidates = restMatch
+    ? [target]
+    : [...new Set([target, 'en'])]
+
+  for (const language of candidates) {
+    const targetPath = computeLanguageRedirectPath(pathname, base, language)
+    if (!targetPath || !hasLocalizedPage(targetPath, base))
+      continue
+
+    redirecting = true
+    window.location.replace(`${targetPath}${window.location.search}${window.location.hash}`)
+    return
+  }
 }
 
 /**
