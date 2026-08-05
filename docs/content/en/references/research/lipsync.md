@@ -1,8 +1,11 @@
 ## Index
 
+
 - [harlanhong/awesome-talking-head-generation](https://github.com/harlanhong/awesome-talking-head-generation?tab=readme-ov-file)
 
+
 ## Papers & Projects
+
 
 - [taherfattahi/nvidia-human-ai-lipsync](https://github.com/taherfattahi/nvidia-human-ai-lipsync)
 - [met4citizen/TalkingHead](https://github.com/met4citizen/TalkingHead)
@@ -22,7 +25,10 @@
 - [OpenTalker/SadTalker](https://github.com/OpenTalker/SadTalker)
 - [TMElyralab/MuseTalk](https://github.com/TMElyralab/MuseTalk)
 
+
 ## Related ones
+
 
 - [JingLi513/Audio2Gestures](https://github.com/JingLi513/Audio2Gestures)
 - [Digital Humans | Reply](https://www.reply.com/en/metaverse/digital-humans)
+
