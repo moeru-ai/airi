@@ -132,6 +132,14 @@ export default defineConfig<ThemeConfig>({
               { text: 'About AI VTuber', link: withBase('/en/docs/overview/about-ai-vtuber') },
               { text: 'About Neuro-sama', link: withBase('/en/docs/overview/about-neuro-sama') },
               { text: 'Other Similar Projects', link: withBase('/en/docs/overview/other-similar-projects') },
+              {
+                text: 'Chronicles',
+                collapsed: true,
+                items: [
+                  { text: 'Initial Publish v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
+                  { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
+                ],
+              },
             ],
           },
           {
@@ -246,28 +254,44 @@ export default defineConfig<ThemeConfig>({
             ],
           },
           {
-            text: 'Contributing',
-            icon: 'lucide:users',
+            text: 'Integrations',
+            icon: 'lucide:plug',
             items: [
               {
-                text: 'Basic Setup',
+                text: 'Games',
+                items: [
+                  { text: 'Minecraft', link: withBase('/en/docs/integrations/minecraft') },
+                  { text: 'Factorio', link: withBase('/en/docs/integrations/factorio') },
+                ],
+              },
+              {
+                text: 'Message Platforms',
+                items: [
+                  { text: 'Satori Bot', link: withBase('/en/docs/integrations/satori') },
+                  { text: 'Telegram Bot', link: withBase('/en/docs/integrations/telegram') },
+                  { text: 'Discord Bot', link: withBase('/en/docs/integrations/discord') },
+                  { text: 'X / Twitter', link: withBase('/en/docs/integrations/x') },
+                ],
+              },
+            ],
+          },
+          {
+            text: 'Contributing',
+            icon: 'lucide:code-2',
+            items: [
+              {
+                text: 'Getting Started',
                 items: [
                   { text: 'Environment Setup & Prerequisites', link: withBase('/en/docs/contributing/') },
                   { text: 'Desktop App', link: withBase('/en/docs/contributing/tamagotchi') },
                   { text: 'Web UI', link: withBase('/en/docs/contributing/webui') },
                   { text: 'Documentation Site', link: withBase('/en/docs/contributing/docs') },
-                  { text: 'Desktop Developer Tools', link: withBase('/en/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
-                text: 'Games & Social Platforms',
+                text: 'Desktop Debugging',
                 items: [
-                  { text: 'Minecraft', link: withBase('/en/docs/integrations/minecraft') },
-                  { text: 'Factorio', link: withBase('/en/docs/integrations/factorio') },
-                  { text: 'Satori Bot', link: withBase('/en/docs/integrations/satori') },
-                  { text: 'Telegram Bot', link: withBase('/en/docs/integrations/telegram') },
-                  { text: 'Discord Bot', link: withBase('/en/docs/integrations/discord') },
-                  { text: 'X / Twitter', link: withBase('/en/docs/integrations/x') },
+                  { text: 'Desktop Developer Tools', link: withBase('/en/docs/contributing/desktop-developer-tools') },
                 ],
               },
               {
@@ -278,14 +302,6 @@ export default defineConfig<ThemeConfig>({
                   { text: 'Tools', link: withBase('/en/docs/contributing/design-guidelines/tools') },
                 ],
               },
-            ],
-          },
-          {
-            text: 'Chronicles',
-            icon: 'lucide:calendar-days',
-            items: [
-              { text: 'Initial Publish v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
-              { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
             ],
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
