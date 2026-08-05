@@ -2,7 +2,7 @@ import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull, or, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 
 import * as schema from '../../schemas/characters'
 import * as userCharacterSchema from '../../schemas/user-character'
@@ -215,10 +215,14 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
         }
 
         if (capabilities) {
-          await tx.delete(schema.characterCapabilities)
-            .where(eq(schema.characterCapabilities.characterId, id))
+          const submittedTypes = capabilities.map(c => c.type)
+          if (submittedTypes.length > 0) {
+            await tx.delete(schema.characterCapabilities)
+              .where(and(
+                eq(schema.characterCapabilities.characterId, id),
+                inArray(schema.characterCapabilities.type, submittedTypes),
+              ))
 
-          if (capabilities.length > 0) {
             await tx.insert(schema.characterCapabilities).values(
               capabilities.map(c => ({ ...c, characterId: id })),
             )
