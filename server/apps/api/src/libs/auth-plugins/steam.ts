@@ -99,12 +99,6 @@ export function steam() {
     return typeof body === 'string' && body.split('\n').some(line => line.trim() === 'is_valid:true')
   }
 
-  function extractSteamId(claimedId: string | undefined): string | null {
-    if (!claimedId)
-      return null
-    return STEAM_CLAIMED_ID_PATTERN.exec(claimedId)?.[1] ?? null
-  }
-
   const signInSteam = createAuthEndpoint('/sign-in/steam', {
     method: 'POST',
     body: SignInBodySchema,
@@ -181,7 +175,8 @@ export function steam() {
     if (!isValid)
       return redirectOnError('steam_openid_verification_failed')
 
-    const steamId = extractSteamId(ctx.query['openid.claimed_id'] as string | undefined)
+    const claimedId = ctx.query['openid.claimed_id'] as string | undefined
+    const steamId = claimedId ? (STEAM_CLAIMED_ID_PATTERN.exec(claimedId)?.[1] ?? null) : null
     if (!steamId)
       return redirectOnError('steam_claimed_id_missing')
 
