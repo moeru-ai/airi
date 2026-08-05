@@ -58,7 +58,7 @@ export function packSteamRedistributables(
   const dest = join(resolvedDestDir, 'steamworks_sdk', 'redistributable_bin', relativePath)
   mkdirSync(dirname(dest), { recursive: true })
   copyFileSync(join(SDK_ROOT, 'redistributable_bin', relativePath), dest)
-  console.info(`[steam] copied ${relativePath} + steam_appid.txt -> ${resolvedDestDir}`)
+  console.info(`[steam] packed ${relativePath} + steam_appid.txt -> ${resolvedDestDir}`)
 }
 
 async function main(): Promise<void> {
