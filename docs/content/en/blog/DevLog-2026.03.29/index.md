@@ -38,7 +38,6 @@ Fortunately, I obtained the XML structure of the root View of the Activity hosti
 2. Use the search feature to find the file `GodotApp.java`, which is Godot's entry class. In this class, we can get the root View of the Activity hosting Godot.
 
     ```java
-
     public class GodotApp extends Application {
 
       // ...other code...
@@ -64,7 +63,6 @@ Fortunately, I obtained the XML structure of the root View of the Activity hosti
       // ...other code...
 
     }
-
     ```
 
 
@@ -74,7 +72,6 @@ Fortunately, I obtained the XML structure of the root View of the Activity hosti
 3. Create a WebView instance, set the relevant parameters, and load the URL.
 
     ```java
-
       var webview = new WebView(this);
 
       webview.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -92,7 +89,6 @@ Fortunately, I obtained the XML structure of the root View of the Activity hosti
       webview.loadUrl("https://lemonbookpro.local:5273/");
 
       rootView.addView(webview);
-
     ```
 
 
@@ -114,7 +110,6 @@ However, on the iOS side, we were not so lucky — we had to write a plugin.
 After creating the plugin on the iOS side, we could not find the AppDelegate-related code inside it; we could only define the plugin entry point in the plugin configuration file:
 
 ```gdip
-
 [config]
 
 name="GodotWebView"
@@ -124,14 +119,12 @@ binary="GodotWebView.xcframework"
 initialization="init_godot_webview"
 
 deinitialization="deinit_godot_webview"
-
 ```
 
 
 Here, `initialization` and `deinitialization` are the plugin's initialization and destruction callbacks, which need to be implemented in Objective-C. So in any case, we need this small bridge to connect Swift and Objective-C.
 
 ```objc
-
 #import <Foundation/Foundation.h>
 extern "C" void godot_webview_swift_init(void);
 extern "C" void godot_webview_swift_deinit(void);

@@ -50,7 +50,6 @@ Next, let me share my development process.
 Actually, at first I did not plan to write a full Tauri plugin; I just wanted to expose some commands to the JavaScript side:
 
 ```rust
-
 #[Tauri::command]
 
 fn list_tools() -> Vec<String> {

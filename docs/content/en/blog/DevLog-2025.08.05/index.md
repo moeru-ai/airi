@@ -576,7 +576,6 @@ You will find different directories for different languages here. Select the lan
 Taking English as an example, the directory structure looks like this:
 
 ```bash
-
 └── en
 
   ├── docs
@@ -592,7 +591,6 @@ Taking English as an example, the directory structure looks like this:
   ├── stage.yaml
 
   └── index.ts
-
 ```
 
 
@@ -672,7 +670,6 @@ For language codes, use either of the following tools to find the code for the l
 - [iana.org/assignments/language-subtag-registry/language-subtag-registry](https://www.iana.org/assignments/language-subtag-registry/language-subtag-registry)
 
 ```bash
-
 .
 
 ├── packages
@@ -736,7 +733,6 @@ For language codes, use either of the following tools to find the code for the l
                      ├── settings.yaml
 
                      └── stage.yaml
-
 ```
 
 
@@ -846,9 +842,7 @@ We are waiting for the final Pull Request to be merged into nix-pkgs,
 but you can try it with the following command:
 
 ```bash
-
 nix run --extra-experimental-features 'nix-command flakes' github:moeru-ai/airi
-
 ```
 
 

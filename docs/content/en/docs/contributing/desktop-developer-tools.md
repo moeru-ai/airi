@@ -29,29 +29,13 @@ Before choosing a tool, you can decide by problem type:
 
 
 | What you want to confirm | Prefer using |
-
-
 | --- | --- |
-
-
 | Page errors, element styles, or network requests | Open Developer Tools |
-
-
 | Page jank or abnormal transition animations | Lag Visualizer, animation toggles |
-
-
 | Keys, mouse, displays, or global shortcuts | useMagicKeys, mouse/display tools, Global Shortcut |
-
-
 | Chat context, WebSocket, or real-time transcription | Context Flow, WebSocket Inspector, Aliyun Real-time Transcriber |
-
-
 | Plugin discovery, loading, or unloading | Plugin Host Debug |
-
-
 | Update failures or abnormal update sources | Updater |
-
-
 | Screen sharing, vision input, or permission issues | Screen Capture, Vision Capture |
 
 

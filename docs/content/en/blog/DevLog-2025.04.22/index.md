@@ -37,7 +37,6 @@ To write an MCP server, you first have to understand what MCP is (although I am 
 Ah, resources — I know about those! In Ruby on Rails, a user is a resource. So are ADB devices also resources? Letting the LLM view the connected device list could be written as:
 
 ```python
-
 from mcp.server.fastmcp import FastMCP
 
 from ppadb.client import Client
@@ -51,7 +50,6 @@ adb_client = Client()
 def get_devices():
 
     return adb_client.devices()
-
 ```
 
 
@@ -88,9 +86,7 @@ This is the first time I felt like I was writing code with an AI the same way hu
 I also learned some tricks during development, such as starting the Android emulator from the command line, so you do not need to open Android Studio, and memory pressure is much lower too.
 
 ```bash
-
 emulator -avd Pixel_6_Pro_API_34
-
 ```
 
 

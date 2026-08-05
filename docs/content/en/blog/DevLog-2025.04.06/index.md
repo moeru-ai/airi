@@ -92,22 +92,18 @@ First, the syntax for activating the vector extension in SQL differs between `pg
 `pgvector`:
 
 ```sql
-
 DROP EXTENSION IF EXISTS vector;
 
 CREATE EXTENSION vector;
-
 ```
 
 
 `pgvector.rs`:
 
 ```sql
-
 DROP EXTENSION IF EXISTS vectors;
 
 CREATE EXTENSION vectors;
-
 ```
 
 
@@ -171,9 +167,7 @@ export const chatMessagesTable = pgTable('chat_messages', {
 you will get an error like this:
 
 ```txt
-
 ERROR: access method "hnsw" does not exist
-
 ```
 
 
@@ -183,13 +177,11 @@ Fortunately, this is still solvable: just follow the advice in [ERROR: access me
 Obviously, we want the options related to the vector space to be configured automatically for us when the container starts. So we can create an `init.sql` in a directory other than `docker-compose.yml`:
 
 ```sql
-
 ALTER SYSTEM SET vectors.pgvector_compatibility=on;
 
 DROP EXTENSION IF EXISTS vectors;
 
 CREATE EXTENSION vectors;
-
 ```
 
 
@@ -251,17 +243,9 @@ For the leaderboard of open-source and proprietary models:
 
 
 | Rank (Borda) | Model | Zero-shot | Memory (MB) | Parameters | Embedding dims | Max tokens | Avg (task) | Avg (task type) | Bitext Mining | Classification | Clustering | Instruction Retrieval | Multilabel Classification | Pair Classification | Reranking | Retrieval | STS |
-
-
 |--------------|-------|-----------|-------------------|----------------------|----------------------|------------|-------------|----------------|--------------|----------------|------------|------------------------|---------------------------|---------------------|-----------|-----------|-----|
-
-
 | 1 | gemini-embedding-exp-03-07 | 99% | Unknown | Unknown | 3072 | 8192 | 68.32 | 59.64 | 79.28 | 71.82 | 54.99 | 5.18 | 29.16 | 83.63 | 65.58 | 67.71 | 79.40 |
-
-
 | 2 | Linq-Embed-Mistral | 99% | 13563 | 7B | 4096 | 32768 | 61.47 | 54.21 | 70.34 | 62.24 | 51.27 | 0.94 | 24.77 | 80.43 | 64.37 | 58.69 | 74.86 |
-
-
 | 3 | gte-Qwen2-7B-instruct | ⚠️ NA | 29040 | 7B | 3584 | 32768 | 62.51 | 56.00 | 73.92 | 61.55 | 53.36 | 4.94 | 25.48 | 85.13 | 65.55 | 60.08 | 73.98 |
 
 
@@ -269,17 +253,9 @@ If we are talking about self-hosting:
 
 
 | Rank (Borda) | Model | Zero-shot | Memory (MB) | Parameters | Embedding dims | Max tokens | Avg (task) | Avg (task type) | Bitext Mining | Classification | Clustering | Instruction Retrieval | Multilabel Classification | Pair Classification | Reranking | Retrieval | STS |
-
-
 |--------------|-------|-----------|-------------------|----------------------|----------------------|------------|-------------|----------------|--------------|----------------|------------|------------------------|---------------------------|---------------------|-----------|-----------|-----|
-
-
 | 1 | gte-Qwen2-7B-instruct | ⚠️ NA | 29040 | 7B | 3584 | 32768 | 62.51 | 56 | 73.92 | 61.55 | 53.36 | 4.94 | 25.48 | 85.13 | 65.55 | 60.08 | 73.98 |
-
-
 | 2 | Linq-Embed-Mistral | 99% | 13563 | 7B | 4096 | 32768 | 61.47 | 54.21 | 70.34 | 62.24 | 51.27 | 0.94 | 24.77 | 80.43 | 64.37 | 58.69 | 74.86 |
-
-
 | 3 | multilingual-e5-large-instruct | 99% | 1068 | 560M | 1024 | 514 | 63.23 | 55.17 | 80.13 | 64.94 | 51.54 | -0.4 | 22.91 | 80.86 | 62.61 | 57.12 | 76.81 |
 
 
@@ -344,7 +320,6 @@ export const demoTable = pgTable(
 The SQL statement used to create the table is as follows:
 
 ```sql
-
 CREATE TABLE "chat_messages" (
 
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
@@ -360,7 +335,6 @@ CREATE TABLE "chat_messages" (
 );
 
 CREATE INDEX "embeddingIndex" ON "demo" USING hnsw ("embedding" vector_cosine_ops);
-
 ```
 
 

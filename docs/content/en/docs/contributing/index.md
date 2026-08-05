@@ -82,20 +82,17 @@ If you have not cloned this repository, you can skip this step.
 First fetch the upstream updates and rebase your branch onto the latest `main`:
 
 ```shell
-
 git fetch --all
 
 git switch main
 
 git pull upstream main --rebase
-
 ```
 
 
 If you have your own development/work branch, sync it to the main branch as follows:
 
 ```shell
-
 git switch <your-branch-name>
 git rebase main
 ```

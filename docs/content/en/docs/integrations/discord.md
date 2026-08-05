@@ -28,9 +28,7 @@ Discord Bot Tokens, Client IDs, and model API keys should only be stored in the 
 ## Configuration
 
 ~~~bash
-
 cp integrations/discord-bot/.env integrations/discord-bot/.env.local
-
 ~~~
 
 
@@ -40,9 +38,7 @@ Edit **integrations/discord-bot/.env.local** and fill in **DISCORD_TOKEN**, **DI
 ## Start
 
 ~~~bash
-
 pnpm -F @proj-airi/discord-bot start
-
 ~~~
 
 

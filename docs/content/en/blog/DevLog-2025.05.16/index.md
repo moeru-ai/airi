@@ -146,9 +146,7 @@ We also made a playground for it... play around at [https://xsai-transformers.ne
 You can install it via npm today!
 
 ```bash
-
 npm install xsai-transformers
-
 ```
 
 
@@ -249,9 +247,7 @@ Try it here: https://velin-dev.netlify.app
 It also supports a programming API, and Markdown (MDX is in development, with MDC support). You can install it via npm today!
 
 ```bash
-
 npm install @velin-dev/core
-
 ```
 
 

@@ -27,9 +27,7 @@ Satori tokens, messaging platform credentials, and model API keys should only be
 ## Configuration
 
 ~~~bash
-
 cp integrations/satori-bot/.env integrations/satori-bot/.env.local
-
 ~~~
 
 
@@ -39,9 +37,7 @@ Edit **integrations/satori-bot/.env.local** and fill in **SATORI_WS_URL**, **SAT
 ## Start
 
 ~~~bash
-
 pnpm -F @proj-airi/satori-bot dev
-
 ~~~
 
 

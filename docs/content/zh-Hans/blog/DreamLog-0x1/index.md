@@ -2,6 +2,7 @@
 title: 'DreamLog 0x1'
 description: 'Project AIRI 的幕后故事！'
 date: '2025-06-16'
+category: DreamLog
 excerpt: 'Project AIRI 的幕后故事！以及为什么我们会想要制作如此一个项目？'
 preview-cover:
   light: "/blog/DreamLog-0x1/assets/dreamlog1-light.avif"

@@ -28,9 +28,7 @@ Telegram Bot Tokens, database connections, and model API keys should only be sto
 ## Configuration
 
 ~~~bash
-
 cp integrations/telegram-bot/.env integrations/telegram-bot/.env.local
-
 ~~~
 
 
@@ -40,7 +38,6 @@ Edit **integrations/telegram-bot/.env.local** and fill in **TELEGRAM_BOT_TOKEN**
 ## Initialize the Database
 
 ~~~bash
-
 cd integrations/telegram-bot
 
 docker compose up -d
@@ -48,16 +45,13 @@ docker compose up -d
 cd ../..
 
 pnpm -F @proj-airi/telegram-bot db:push
-
 ~~~
 
 
 ## Start
 
 ~~~bash
-
 pnpm -F @proj-airi/telegram-bot start
-
 ~~~
 
 

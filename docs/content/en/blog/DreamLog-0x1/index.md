@@ -2,6 +2,7 @@
 title: 'DreamLog 0x1'
 description: 'The story behind the scenes of Project AIRI!'
 date: '2025-06-16'
+category: DreamLog
 excerpt: 'The story behind the scenes of Project AIRI! And why would we want to make such a project?'
 preview-cover:
   light: "/blog/DreamLog-0x1/assets/dreamlog1-light.avif"

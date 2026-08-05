@@ -78,19 +78,9 @@ Ollama and LM Studio can serve as local vision providers. First run a model that
 
 
 | Symptom | What to check first |
-
-
 | --- | --- |
-
-
 | The provider cannot be saved | Whether the same credential fields as the chat version are complete, e.g. API Key, Azure resource name, or Bedrock Region. |
-
-
 | The model cannot analyze images | Whether the model explicitly supports image input; switch to a vision model provided by the provider. |
-
-
 | Local model unreachable | Whether the local service is running, and the Base URL, port, CORS, and LAN access settings. |
-
-
 | Requests rejected or out of credits | Provider account permissions, model availability in the region, credits, and network connection. |
 

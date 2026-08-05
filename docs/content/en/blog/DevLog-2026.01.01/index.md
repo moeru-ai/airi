@@ -62,7 +62,6 @@ Did that solve it? Still no. Because although the certificate was installed on t
 What about directly modifying the native code to trust all certificates during development? That actually works:
 
 ```swift
-
 import UIKit
 
 import Capacitor
@@ -116,7 +115,6 @@ extension DevBridgeViewController: WKNavigationDelegate {
 }
 
 #endif
-
 ```
 
 
@@ -149,7 +147,6 @@ How to dynamically assemble the prompt? I used the [`@velin-dev/vue`](https://gi
 `prompt.velin.md`
 
 ```markdown
-
 <script setup lang="ts">
 const props = defineProps<{
   memory: string[]
@@ -163,7 +160,6 @@ const props = defineProps<{
     <li v-for="memory in props.memory">{{ memory }}</li>
 </ul>
 <!-- Other content -->
-
 ```
 
 

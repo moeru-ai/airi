@@ -14,6 +14,10 @@ authors:
     githubUsername: 0xSelenicDove
     role: Contributing editor
     kind: person
+  - name: MilkyWeighW
+    githubUsername: MilkyWeighW
+    role: Contributing editor
+    kind: person
 ---
 
 
@@ -151,7 +155,7 @@ You can open the settings interface in either of two ways:
 - Click "Expand" in the main window, then select "Open Settings".
 - Right-click the AIRI small icon in the system tray and select "Settings".
 The settings interface includes the following nine sections:
-- "AIRI Character Card" — select and configure the character's persona.
+- "AIRI Card" — select and configure the character's persona.
 - "Modules" — configure AIRI's various features, including Consciousness, Speech, Hearing, Vision, Short-term Memory, Long-term Memory, Discord, X / Twitter, Web Search, Minecraft, Factorio, MCP Servers, and Beat Sync.
 - "Scenes" — configure AIRI's scene (background).
 - "Models" — select and set the character's model.
@@ -177,7 +181,7 @@ You can open the settings interface in either of two ways:
 - Click "Expand" in the main window, then select "Open Settings".
 - Right-click the AIRI small icon in the system tray and select "Settings".
 <a id="chapter-4-airi-card"></a>
-### > AIRI Character Card
+### > AIRI Card
 Here you can upload, create, or directly modify the default character card.
 ![](./assets/manual-airi-card.avif)
 ::: info About Import and Export

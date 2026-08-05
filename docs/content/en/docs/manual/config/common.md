@@ -29,23 +29,11 @@ Credentials and provider settings are stored in the local settings of the curren
 
 
 | Field | Meaning | Recommended Entry |
-
-
 | --- | --- | --- |
-
-
 | API Key | The access token issued by the provider | Paste the complete key directly; do not add quotes or spaces. |
-
-
 | Base URL | The root address of the provider API | Only modify it when the provider documentation requires it. When using a custom address, enter the full `https://` or `http://` address. |
-
-
 | Model | The model ID used for chat, speech, or recognition | Prefer selecting from AIRI's list; if the list fails to load, enter it manually per the provider documentation. |
-
-
 | Voice | The voice ID used by TTS | Select a model first, then choose a voice supported by that model. |
-
-
 | Region | Used by some cloud services to determine the access node | Must match the project or service region in the provider's console. |
 
 

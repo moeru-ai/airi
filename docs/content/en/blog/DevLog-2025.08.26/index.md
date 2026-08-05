@@ -70,9 +70,7 @@ This step is a bit more involved, but not as complex as installing an entire des
 Very simple:
 
 ```bash
-
 sudo apt install -y xvfb x11-apps mesa-utils
-
 ```
 
 
@@ -90,9 +88,7 @@ Where:
 VNC stands for Virtual Network Computing. It is a remote desktop protocol that lets us remotely control another computer, as if we were sitting right in front of it.
 
 ```bash
-
 sudo apt install -y x11vnc
-
 ```
 
 
@@ -102,9 +98,7 @@ With these in place, we can run the Factorio client in Docker and control it wit
 But that is not enough. My goal was to play in the browser and run object detection inference in real time. However, browsers can only use the HTTP protocol, so we need a tool like `websockify` to convert the VNC protocol to HTTP. At the same time, for easier debugging, we also need a web interface to display the VNC screen, so we also need to install `novnc`.
 
 ```bash
-
 sudo apt install -y websockify novnc
-
 ```
 
 
@@ -152,7 +146,6 @@ Does it look okay? Then let's start training!
 Since I am a beginner, I started directly from [Get Started](https://docs.ultralytics.com/tasks/detect/) and copied these few lines of code:
 
 ```python
-
 from ultralytics import YOLO
 
 model = YOLO("yolo11n.pt")
@@ -160,7 +153,6 @@ model = YOLO("yolo11n.pt")
 model.train(data="./dataset/detect.yaml", epochs=100, imgsz=640, device="mps")
 
 model.export(format="onnx")
-
 ```
 
 

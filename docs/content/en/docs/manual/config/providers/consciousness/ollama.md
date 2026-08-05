@@ -23,9 +23,7 @@ If you want to run models on your machine, reduce reliance on cloud APIs, or val
 2. Run the following command in a terminal (Terminal or PowerShell) to confirm the installation succeeded:
 
     ```bash
-
     ollama --version
-
     ```
 
 
@@ -35,9 +33,7 @@ If you want to run models on your machine, reduce reliance on cloud APIs, or val
 1. Run the following command in the terminal to download and start a model:
 
     ```bash
-
     ollama run qwen2
-
     ```
 
 

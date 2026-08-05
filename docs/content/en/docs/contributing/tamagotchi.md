@@ -7,9 +7,7 @@ description: Run, check, and build the Electron desktop client
 The desktop client lives in `apps/stage-tamagotchi`. For development, run from the repository root:
 
 ```shell
-
 pnpm dev:tamagotchi
-
 ```
 
 
@@ -19,11 +17,9 @@ This starts the Electron development environment. Before modifying desktop pages
 ## Verification
 
 ```shell
-
 pnpm -F @proj-airi/stage-tamagotchi typecheck
 
 pnpm -F @proj-airi/stage-tamagotchi build
-
 ```
 
 
@@ -36,9 +32,7 @@ For the in-app "System → Developer" menu and the debugging purpose of each ite
 If you use [@antfu/ni](https://github.com/antfu-collective/ni), you can:
 
 ```shell
-
 nr dev:tamagotchi
-
 ```
 
 

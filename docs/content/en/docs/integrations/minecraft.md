@@ -27,9 +27,7 @@ API keys, service addresses, and Minecraft server credentials should only be sto
 ## Configuration
 
 ~~~bash
-
 cp integrations/minecraft/.env integrations/minecraft/.env.local
-
 ~~~
 
 
@@ -39,9 +37,7 @@ Edit **integrations/minecraft/.env.local** and fill in the configuration require
 ## Start
 
 ~~~bash
-
 pnpm -F @proj-airi/minecraft-bot dev
-
 ~~~
 
 

@@ -126,7 +126,7 @@ After your first chat, we recommend taking a look at these pages:
 - **Service Providers**: add or edit Chat, Speech, Transcription, and Artistry service providers.
 - **Modules**: select services for modules such as Consciousness, Speech, Hearing, Vision, Memory, Discord, Minecraft, Factorio, and MCP.
 - **Models**: switch Live2D / VRM models, or import your own model.
-- **AIRI Character Card**: switch the current character, or create a new character card.
+- **AIRI Card**: switch the current character, or create a new character card.
 - **System**: set language, theme, data analytics preferences, and desktop-only options.
 
 
