@@ -14,10 +14,11 @@ const LANGUAGE_PATH_PATTERN = /\/(en|zh-Hans|ja|ko)(?:\/|$)/
 
 // All site pages (content/**/*.md), normalized to base-less paths like
 // "/zh-Hans/docs/overview". Used to skip redirects to languages that have no
-// translated counterpart for the current path.
+// translated counterpart for the current path. The glob is relative to this
+// file (docs/.vitepress/composables/), hence the ../../content prefix.
 const PAGE_PATHS = new Set(
-  Object.keys(import.meta.glob('../content/**/*.md'))
-    .map(key => key.replace(/^\.\.\/content\//, '').replace(/\.md$/, ''))
+  Object.keys(import.meta.glob('../../content/**/*.md'))
+    .map(key => key.replace(/^\.\.\/\.\.\/content\//, '').replace(/\.md$/, ''))
     .map(relative => `/${relative}`.replace(/\/index$/, '').replace(/\/+$/, '')),
 )
 
