@@ -30,6 +30,9 @@ catalogs:
     '@better-auth/oauth-provider':
       specifier: 1.5.6
       version: 1.5.6
+    '@better-fetch/fetch':
+      specifier: ^1.1.21
+      version: 1.1.21
     '@capacitor/android':
       specifier: ^8.3.1
       version: 8.3.1
@@ -4202,6 +4205,9 @@ importers:
 
   packages/stage-ui:
     dependencies:
+      '@better-fetch/fetch':
+        specifier: 'catalog:'
+        version: 1.1.21
       '@date-fns/utc':
         specifier: 'catalog:'
         version: 2.1.1

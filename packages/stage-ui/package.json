@@ -65,6 +65,7 @@
     "test:run": "vitest run"
   },
   "dependencies": {
+    "@better-fetch/fetch": "catalog:",
     "@date-fns/utc": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@huggingface/transformers": "catalog:",
