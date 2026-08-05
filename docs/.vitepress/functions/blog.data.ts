@@ -100,12 +100,21 @@ export default createContentLoader('**/blog/**/*.md', {
           if (!file)
             return file
 
-          // Site-root URLs (e.g. /blog/...) refer to media moved to
-          // `content/public`; keep the public URL instead of emitting a
-          // hashed /assets/ URL, because frontmatterAssets only copies files
-          // referenced as @assets(...) and such hashed files never exist.
-          if (file.startsWith('/'))
-            return file
+          // Site-root URLs like /blog/... refer to media moved to
+          // content/public; keep the public URL instead of emitting a hashed
+          // /assets/ URL. Only bypass hashing when the file actually lives
+          // under content/public — @assets(...) covers resolve to page paths
+          // (e.g. /en/blog/.../assets/...) that must still be hashed, since
+          // frontmatterAssets registers them as /assets/<name>.<hash>.<ext>.
+          if (file.startsWith('/')) {
+            try {
+              await readFile(join(config.srcDir, 'public', file))
+              return file
+            }
+            catch {
+              // not a public file — fall through to hashing
+            }
+          }
 
           const parsed = parse(file)
           try {
