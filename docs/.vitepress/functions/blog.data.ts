@@ -100,6 +100,13 @@ export default createContentLoader('**/blog/**/*.md', {
           if (!file)
             return file
 
+          // Site-root URLs (e.g. /blog/...) refer to media moved to
+          // `content/public`; keep the public URL instead of emitting a
+          // hashed /assets/ URL, because frontmatterAssets only copies files
+          // referenced as @assets(...) and such hashed files never exist.
+          if (file.startsWith('/'))
+            return file
+
           const parsed = parse(file)
           try {
             // Shared media moved to `content/public` is referenced by its

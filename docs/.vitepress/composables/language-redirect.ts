@@ -12,6 +12,15 @@ const LANGUAGE_PREFIX_PATTERN = /^(en|zh-Hans|ja|ko)(?:\/|$)/
 // Matches the language segment of a VitePress route path (e.g. "/zh-Hans/docs").
 const LANGUAGE_PATH_PATTERN = /\/(en|zh-Hans|ja|ko)(?:\/|$)/
 
+// All site pages (content/**/*.md), normalized to base-less paths like
+// "/zh-Hans/docs/overview". Used to skip redirects to languages that have no
+// translated counterpart for the current path.
+const PAGE_PATHS = new Set(
+  Object.keys(import.meta.glob('../content/**/*.md'))
+    .map(key => key.replace(/^\.\.\/content\//, '').replace(/\.md$/, ''))
+    .map(relative => `/${relative}`.replace(/\/index$/, '').replace(/\/+$/, '')),
+)
+
 let redirecting = false
 
 /** Maps the browser's preferred language to a site language version (aligned with the locales in config.ts). */
@@ -57,10 +66,22 @@ export function computeLanguageRedirectPath(pathname: string, base: string, targ
 }
 
 /**
+ * Checks whether a redirect target exists among the site's pages. Newly added
+ * pages may only exist in one language; redirecting to a missing translation
+ * would turn valid deep links into 404s, so such paths must stay put.
+ */
+export function hasLocalizedPage(targetPath: string, base: string): boolean {
+  const rest = targetPath.startsWith(base) ? targetPath.slice(base.length) : targetPath
+  const normalized = `/${rest}`.replace(/\/+$/, '')
+  return PAGE_PATHS.has(normalized)
+}
+
+/**
  * Called during client app initialization (before page components mount).
  * Redirects to the target language path when the user has never chosen a
- * language and the browser language differs from the current path's language.
- * en is the default language and is never redirected.
+ * language, the browser language differs from the current path's language,
+ * and the target page has a localized counterpart. en is the default language
+ * and is never redirected.
  */
 export function applyLanguageRedirect(): void {
   if (typeof window === 'undefined')
@@ -73,8 +94,11 @@ export function applyLanguageRedirect(): void {
     return
 
   const pathname = window.location.pathname
-  const targetPath = computeLanguageRedirectPath(pathname, import.meta.env.BASE_URL, target)
+  const base = import.meta.env.BASE_URL
+  const targetPath = computeLanguageRedirectPath(pathname, base, target)
   if (!targetPath)
+    return
+  if (!hasLocalizedPage(targetPath, base))
     return
 
   redirecting = true
