@@ -1,6 +1,7 @@
 import { createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { generateState, parseState } from 'better-auth/oauth2'
+import { ofetch } from 'ofetch'
 
 import * as z from 'zod'
 
@@ -11,6 +12,14 @@ const STEAM_OPENID_IDENTIFIER_SELECT = 'http://specs.openid.net/auth/2.0/identif
 /** Matches `https://steamcommunity.com/openid/id/<steamid64>`. */
 const STEAM_CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/
 
+// NOTICE:
+// Why Zod instead of the repo-default Valibot: better-auth's endpoint API and
+// OpenAPI generator are Zod-native. The generator introspects
+// `instanceof z.ZodObject` on `body`/`query` to emit request/query schemas
+// (node_modules/better-auth/dist/plugins/open-api/generator.mjs), so Valibot
+// schemas would validate at runtime (better-call uses Standard Schema) but
+// silently drop those OpenAPI fields. Keep these schemas in Zod until
+// better-auth's OpenAPI generation supports non-Zod schemas.
 const SignInBodySchema = z.object({
   callbackURL: z.string().meta({ description: 'The URL to redirect to after sign in' }),
   errorCallbackURL: z.string().meta({ description: 'The URL to redirect to if an error occurs' }).optional(),
@@ -76,16 +85,18 @@ export function steam() {
     }
     verifyParams.set('openid.mode', 'check_authentication')
 
-    const response = await fetch(STEAM_OPENID_ENDPOINT, {
+    const response = await ofetch.raw(STEAM_OPENID_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: verifyParams.toString(),
+      responseType: 'text',
+      ignoreResponseError: true,
     })
     if (!response.ok)
       return false
 
-    const body = await response.text()
-    return body.split('\n').some(line => line.trim() === 'is_valid:true')
+    const body = response._data
+    return typeof body === 'string' && body.split('\n').some(line => line.trim() === 'is_valid:true')
   }
 
   function extractSteamId(claimedId: string | undefined): string | null {
