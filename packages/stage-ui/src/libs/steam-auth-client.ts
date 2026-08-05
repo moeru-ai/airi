@@ -9,6 +9,7 @@ import type { BetterFetch } from '@better-fetch/fetch'
 export interface SteamOAuthStartArgs {
   callbackURL: string
   errorCallbackURL?: string
+  disableRedirect?: boolean
 }
 
 /**

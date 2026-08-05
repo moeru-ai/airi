@@ -107,8 +107,8 @@ export async function requestSocialSignInRedirect(params: SocialSignInRedirectPa
   // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
   // Other providers use the standard `/sign-in/social`.
   const result = params.provider === 'steam'
-    ? await client.signIn.steam({ callbackURL: params.callbackURL })
-    : await client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL })
+    ? await client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
+    : await client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL, disableRedirect: true })
 
   const url = result.data?.url
   if (typeof url === 'string')

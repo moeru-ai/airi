@@ -23,6 +23,7 @@ const STEAM_CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\
 const SignInBodySchema = z.object({
   callbackURL: z.string().meta({ description: 'The URL to redirect to after sign in' }),
   errorCallbackURL: z.string().meta({ description: 'The URL to redirect to if an error occurs' }).optional(),
+  disableRedirect: z.boolean().optional(),
 })
 
 const CallbackQuerySchema = z.looseObject({
@@ -120,7 +121,7 @@ export function steam() {
     const { state } = await generateState(ctx, undefined, undefined)
     return ctx.json({
       url: buildOpenIdRedirectURL(ctx.context.baseURL, state),
-      redirect: true,
+      redirect: !ctx.body.disableRedirect,
     })
   })
 
@@ -144,7 +145,7 @@ export function steam() {
     const { state } = await generateState(ctx, { userId: session.user.id, email: session.user.email }, undefined)
     return ctx.json({
       url: buildOpenIdRedirectURL(ctx.context.baseURL, state),
-      redirect: true,
+      redirect: !ctx.body.disableRedirect,
     })
   })
 

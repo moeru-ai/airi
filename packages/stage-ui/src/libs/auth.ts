@@ -194,6 +194,12 @@ export async function signInOIDC(params: OIDCFlowParams) {
     return
   }
 
+  if (provider === 'steam') {
+    // Steam is OpenID 2.0; only the Steam plugin endpoint can start it.
+    await authClient.signIn.steam({ callbackURL: url.toString() })
+    return
+  }
+
   await authClient.signIn.social({
     provider,
     callbackURL: url.toString(),

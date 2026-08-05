@@ -125,6 +125,7 @@ describe('ui-server-auth sign-in flow helpers', () => {
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       provider: 'google',
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
+      disableRedirect: true,
     })
   })
 
@@ -146,6 +147,7 @@ describe('ui-server-auth sign-in flow helpers', () => {
     expect(String(url)).toBe('https://api.airi.test/api/auth/sign-in/steam')
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web',
+      disableRedirect: true,
     })
   })
 

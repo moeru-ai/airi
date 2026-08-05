@@ -102,6 +102,15 @@ describe('steam auth plugin', () => {
     expect(url.searchParams.get('openid.return_to')).toContain('/steam/callback?state=')
   })
 
+  it('skips the automatic redirect when disableRedirect is set', async () => {
+    const { response } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile', disableRedirect: true },
+      returnHeaders: true,
+    })
+
+    expect(response.redirect).toBe(false)
+  })
+
   it('creates a user with a placeholder email on first sign-in and reuses the same account on later sign-ins', async () => {
     mockSteamVerification(true)
     const context = await auth.$context
