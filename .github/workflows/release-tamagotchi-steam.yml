@@ -35,7 +35,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       VITE_DISTRIBUTION: steam
-      VITE_STEAM_APP_ID: '3885340'
       STEAM_APP_ID: '3885340'
       VITE_DISABLE_CUSTOM_PROVIDERS: 'true'
       VITE_DISABLE_FLUX_PURCHASE: 'true'

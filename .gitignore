@@ -48,8 +48,6 @@ cert*/
 coverage/
 
 # Steamworks SDK (download from Steamworks partner site; not redistributable in git)
-apps/stage-tamagotchi/steamworks_sdk/
-apps/stage-tamagotchi/steam_appid.txt
 
 # Build
 out/

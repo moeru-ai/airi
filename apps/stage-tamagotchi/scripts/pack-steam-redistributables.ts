@@ -1,10 +1,11 @@
 /**
- * Write `steam_appid.txt` and the platform Steam API library into a depot folder.
+ * Writes `steam_appid.txt` from `STEAM_APP_ID` and copies the committed platform
+ * Steam API library into a depot folder.
  *
- * Preserves `steamworks_sdk/redistributable_bin/...` next to the app executable,
- * as expected by `steamworks-ffi-node` when `process.cwd()` is that directory.
- *
- * Redistributables are fetched from the public mirror (`STEAMWORKS_SDK_MIRROR_*`).
+ * Source is the committed `steamworks_sdk/` tree at the tamagotchi package root, so
+ * builds no longer download Valve binaries from a public mirror at pack time. The
+ * destination preserves the `steamworks_sdk/redistributable_bin/...` layout expected
+ * by `steamworks-ffi-node` next to the executable.
  *
  * Steam CI injects these in electron-builder `afterPack` (before codesign/notarize)
  * so macOS Gatekeeper does not see a broken seal. Do not copy them into an already
@@ -13,27 +14,19 @@
  * Usage:
  *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts <windows|macos|linux> <destDir>
  *
- * Local dev (`destDir` is the tamagotchi package root):
- *   pnpm -F @proj-airi/stage-tamagotchi exec tsx scripts/pack-steam-redistributables.ts macos .
+ * Local dev does not need this script: `steamworks_sdk/` is committed at the package
+ * root and `services/steam/client.ts` resolves it from `process.cwd()`. The script
+ * writes `steam_appid.txt` from `STEAM_APP_ID`; the committed file remains the dev
+ * default.
  */
 
 import process from 'node:process'
 
-import { Buffer } from 'node:buffer'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { errorMessageFrom } from '@moeru/std'
-import { ofetch } from 'ofetch'
-
-const STEAM_APP_ID = process.env.STEAM_APP_ID?.trim()
-
-// NOTICE:
-// Temporary CI fallback is the public rlabrecque/SteamworksSDK mirror (Valve copyright).
-// Replace with an org-private artifact store fed from partner.steamgames.com before long-term production use.
-const DEFAULT_MIRROR_REPO = 'rlabrecque/SteamworksSDK'
-const DEFAULT_MIRROR_REF = 'be6107f4b75bf996531415c53a6488a33a2a1be3'
 
 /** Relative path under `steamworks_sdk/redistributable_bin/`. */
 const redistributables: Record<string, string> = {
@@ -42,46 +35,32 @@ const redistributables: Record<string, string> = {
   linux: 'linux64/libsteam_api.so',
 }
 
+/** Committed files live at the package root (`scripts/` -> package root). */
+const PACKAGE_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const SDK_ROOT = join(PACKAGE_ROOT, 'steamworks_sdk')
+const STEAM_APP_ID = process.env.STEAM_APP_ID?.trim()
+
 export type SteamRedistributablePlatform = keyof typeof redistributables
 
-function mirrorBaseUrl(): string {
-  const repo = process.env.STEAMWORKS_SDK_MIRROR_REPO ?? DEFAULT_MIRROR_REPO
-  const ref = process.env.STEAMWORKS_SDK_MIRROR_REF ?? DEFAULT_MIRROR_REF
-  return `https://raw.githubusercontent.com/${repo}/${ref}/redistributable_bin`
-}
-
-async function downloadFile(url: string, dest: string): Promise<void> {
-  const bytes = Buffer.from(await ofetch(url, { responseType: 'arrayBuffer' }))
-  if (bytes.length === 0) {
-    throw new Error(`Downloaded empty file from ${url}`)
-  }
-
-  mkdirSync(dirname(dest), { recursive: true })
-  writeFileSync(dest, bytes)
-}
-
 /**
- * Downloads the platform Steam API library and writes `steam_appid.txt` under `destDir`.
+ * Writes `steam_appid.txt` and copies the platform Steam API library into `destDir`.
  */
-export async function packSteamRedistributables(
+export function packSteamRedistributables(
   platform: SteamRedistributablePlatform,
   destDir: string,
-): Promise<void> {
+): void {
   if (!STEAM_APP_ID)
     throw new Error('STEAM_APP_ID environment variable is required')
 
   const relativePath = redistributables[platform]
-
-  // Resolve so relative dests are anchored to process.cwd() (pnpm -F exec uses the
-  // package root). Callers in CI should pass an absolute path into the depot tree.
   const resolvedDestDir = resolve(destDir)
   mkdirSync(resolvedDestDir, { recursive: true })
   writeFileSync(join(resolvedDestDir, 'steam_appid.txt'), `${STEAM_APP_ID}\n`, 'utf8')
 
   const dest = join(resolvedDestDir, 'steamworks_sdk', 'redistributable_bin', relativePath)
-  const url = `${mirrorBaseUrl()}/${relativePath}`
-  console.info(`[steam] downloading ${relativePath} from mirror -> ${dest}`)
-  await downloadFile(url, dest)
+  mkdirSync(dirname(dest), { recursive: true })
+  copyFileSync(join(SDK_ROOT, 'redistributable_bin', relativePath), dest)
+  console.info(`[steam] copied ${relativePath} + steam_appid.txt -> ${resolvedDestDir}`)
 }
 
 async function main(): Promise<void> {
@@ -98,7 +77,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  await packSteamRedistributables(platform as SteamRedistributablePlatform, destDir)
+  packSteamRedistributables(platform as SteamRedistributablePlatform, destDir)
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
