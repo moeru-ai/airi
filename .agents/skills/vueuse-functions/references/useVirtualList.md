@@ -142,9 +142,9 @@ export interface UseVirtualListOptionsBase {
    */
   overscan?: number
 }
-export type UseVirtualListOptions
-  = | UseHorizontalVirtualListOptions
-    | UseVerticalVirtualListOptions
+export type UseVirtualListOptions =
+  | UseHorizontalVirtualListOptions
+  | UseVerticalVirtualListOptions
 export interface UseVirtualListItem<T> {
   data: T
   index: number
@@ -160,16 +160,16 @@ export interface UseVirtualListReturn<T> {
   wrapperProps: ComputedRef<{
     style:
       | {
-        width: string
-        height: string
-        marginTop: string
-      }
+          width: string
+          height: string
+          marginTop: string
+        }
       | {
-        width: string
-        height: string
-        marginLeft: string
-        display: string
-      }
+          width: string
+          height: string
+          marginLeft: string
+          display: string
+        }
   }>
 }
 /**

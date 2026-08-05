@@ -247,7 +247,7 @@ describe('opfs cache full directory persistence', () => {
     ])
   })
 
-  it('caches the original fetched zip blob from middleware instead of the ZipLoader output list', async () => {
+  it('reads an asar file response through arrayBuffer when Response.blob fails', async () => {
     const zipBlob = await createZip({
       'model.model3.json': JSON.stringify({
         Version: 3,
@@ -257,11 +257,20 @@ describe('opfs cache full directory persistence', () => {
       'texture.png': new Uint8Array([1, 2, 3]),
       'not-defined-by-settings.txt': 'still cached',
     })
+    const responseBlob = vi.fn(async () => {
+      throw new TypeError('Failed to fetch')
+    })
+    const responseArrayBuffer = vi.fn(async () => zipBlob.arrayBuffer())
     vi.stubGlobal('fetch', vi.fn(async () => ({
-      blob: async () => zipBlob,
+      arrayBuffer: responseArrayBuffer,
+      blob: responseBlob,
+      headers: new Headers({ 'content-type': 'application/zip' }),
     })))
     const context = {
-      source: { id: 'middleware-model', url: 'blob:source' },
+      source: {
+        id: 'middleware-model',
+        url: 'file:///C:/AIRI/resources/app.asar/out/renderer/assets/model.zip',
+      },
     } as Parameters<typeof OPFSCache.checkMiddleware>[0]
     const checkNext = vi.fn(async () => {})
 
@@ -272,6 +281,9 @@ describe('opfs cache full directory persistence', () => {
     const files = await OPFSCache.get('middleware-model', 'blob:next')
 
     expect(checkNext).toHaveBeenCalledTimes(1)
+    expect(responseArrayBuffer).toHaveBeenCalledTimes(1)
+    expect(responseBlob).not.toHaveBeenCalled()
+    expect(context.opfsZipBlob?.type).toBe('application/zip')
     expect(files).not.toBeNull()
     expect(filePaths(files ?? [])).toEqual([
       'model.moc3',
@@ -279,5 +291,22 @@ describe('opfs cache full directory persistence', () => {
       'not-defined-by-settings.txt',
       'texture.png',
     ])
+  })
+
+  it('preserves bytes and content type for ordinary blob URLs', async () => {
+    const sourceBlob = new Blob([new Uint8Array([1, 2, 3, 4])], {
+      type: 'application/zip',
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(sourceBlob)))
+    const context = {
+      source: { id: 'blob-model', url: 'blob:source' },
+    } as Parameters<typeof OPFSCache.checkMiddleware>[0]
+
+    await OPFSCache.checkMiddleware(context, vi.fn(async () => {}))
+
+    expect(context.opfsZipBlob?.type).toBe('application/zip')
+    expect(new Uint8Array(await context.opfsZipBlob!.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3, 4]),
+    )
   })
 })

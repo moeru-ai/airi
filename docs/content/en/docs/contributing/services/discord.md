@@ -6,7 +6,7 @@ description: Contribute to Project AIRI
 ### Discord bot integration
 
 ```shell
-cd services/discord-bot
+cd integrations/discord-bot
 ```
 
 Configure `.env`

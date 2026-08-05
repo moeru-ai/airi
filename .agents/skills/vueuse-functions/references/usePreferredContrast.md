@@ -27,7 +27,7 @@ const preferredContrast = usePreferredContrast()
 ## Type Declarations
 
 ```ts
-export type ContrastType = 'more' | 'less' | 'custom' | 'no-preference'
+export type ContrastType = "more" | "less" | "custom" | "no-preference"
 /**
  * Reactive prefers-contrast media query.
  *

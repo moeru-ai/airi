@@ -9,9 +9,11 @@ packages:
   - docs/**
   - engines/**
   - apps/**
+  - server/**
   - '!**/dist/**'
 
 overrides:
+  '@better-auth/oauth-provider>@better-auth/core': 1.6.5
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
@@ -22,7 +24,6 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
-  '@mediapipe/tasks-vision': patches/@mediapipe__tasks-vision.patch
   '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
   '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
   '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
@@ -39,6 +40,7 @@ catalog:
   '@better-auth/cli': ^1.4.21
   '@better-auth/drizzle-adapter': ^1.6.5
   '@better-auth/oauth-provider': 1.5.6
+  '@better-fetch/fetch': ^1.1.21
   '@capacitor/android': ^8.3.1
   '@capacitor/app': ^8.1.0
   '@capacitor/barcode-scanner': ^3.0.2
@@ -107,7 +109,7 @@ catalog:
   '@mediapipe/tasks-vision': ^0.10.34
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.19
-  '@moeru/eventa': 1.0.0-beta.8
+  '@moeru/eventa': 1.0.0-beta.14
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.1.0-beta.7
   '@moeru/three-mmd-physics-ammo': 0.1.0-beta.7
@@ -196,10 +198,10 @@ catalog:
   '@unocss/reset': ^66.6.8
   '@valibot/to-json-schema': 1.0.0-rc.0
   '@velin-dev/core': ^0.4.0
-  '@vishot/cli': ^0.0.3
-  '@vishot/mockup-desktop-vue': ^0.0.3
-  '@vishot/renderer-browser': ^0.0.3
-  '@vishot/source-electron': ^0.0.3
+  '@vishot/cli': ^0.1.1
+  '@vishot/mockup-desktop-vue': ^0.1.1
+  '@vishot/renderer-browser': ^0.1.1
+  '@vishot/source-electron': ^0.1.1
   '@vitejs/plugin-vue': ^6.0.6
   '@vue-macros/volar': ^3.1.2
   '@vue/test-utils': ^2.4.6
@@ -338,7 +340,7 @@ catalog:
   rehype-katex: ^7.0.1
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
-  reka-ui: ^2.9.6
+  reka-ui: ^2.10.1
   remark-math: ^6.0.0
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2

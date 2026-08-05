@@ -5,7 +5,36 @@ description: Migrating from npm or Yarn to pnpm with minimal friction
 
 # Migration to pnpm
 
-Guide for migrating existing projects from npm or Yarn to pnpm.
+Guide for migrating existing projects from npm or Yarn to pnpm, plus upgrading pnpm v10 → v11.
+
+## Upgrading pnpm v10 → v11
+
+v11 changes how configuration is read. Most of it is mechanical — run the codemod:
+
+```bash
+cd /path/to/project
+pnpx codemod run pnpm-v10-to-v11
+```
+
+The codemod automatically:
+
+- **Moves `package.json#pnpm` settings into `pnpm-workspace.yaml`** (the `pnpm` field is no longer read).
+- **Splits `.npmrc`**: only auth/registry settings stay in `.npmrc`; every other key moves to `pnpm-workspace.yaml` as **camelCase** (e.g. `node-linker` → `nodeLinker`). Per-subproject `.npmrc` files become `packageConfigs["<name>"]`.
+- **Consolidates build settings** (`onlyBuiltDependencies`, `neverBuiltDependencies`, `ignoredBuiltDependencies`, `onlyBuiltDependenciesFile`) into one `allowBuilds: { name: true|false }` map.
+- **Replaces** `managePackageManagerVersions`/`packageManagerStrict`/`packageManagerStrictVersion` with `pmOnFail: download|ignore|warn|error`.
+- **Renames** `allowNonAppliedPatches` → `allowUnusedPatches`, `auditConfig.ignoreCves` → `auditConfig.ignoreGhsas`.
+- **Converts** `useNodeVersion` → `devEngines.runtime`, and bumps `packageManager`.
+
+Manual follow-ups (not automatable):
+
+- Convert `CVE-…` IDs to `GHSA-…` in `auditConfig.ignoreGhsas`.
+- `ignorePatchFailures` removed — failed patches now always throw.
+- `npm_config_*` env vars → `pnpm_config_*` (CI, shell profiles, Docker).
+- `pnpm link <name>` → use a path (`pnpm link ./foo`); `pnpm link --global` → `pnpm add -g .`.
+- `pnpm install -g` (no args) and `pnpm server` removed.
+- A `package.json` script named `clean`/`setup`/`deploy`/`rebuild` now shadows the built-in — use `pnpm pm <name>` for the built-in.
+
+## Migrating from npm / Yarn
 
 ## Quick Migration
 
@@ -64,10 +93,9 @@ pnpm add lodash
 
 pnpm reports peer dependency issues by default.
 
-**Option 1:** Let pnpm auto-install:
-```ini
-# .npmrc (default in pnpm v8+)
-auto-install-peers=true
+**Option 1:** Let pnpm auto-install (default in v8+):
+```yaml title="pnpm-workspace.yaml"
+autoInstallPeers: true
 ```
 
 **Option 2:** Install manually:
@@ -76,30 +104,26 @@ pnpm add react react-dom
 ```
 
 **Option 3:** Suppress warnings if acceptable:
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "ignoreMissing": ["react"]
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  ignoreMissing:
+    - react
 ```
 
 ### Symlink Issues
 
 Some tools don't work with symlinks. Use hoisted mode:
 
-```ini
-# .npmrc
-node-linker=hoisted
+```yaml title="pnpm-workspace.yaml"
+nodeLinker: hoisted
 ```
 
 Or hoist specific packages:
 
-```ini
-public-hoist-pattern[]=*eslint*
-public-hoist-pattern[]=*babel*
+```yaml title="pnpm-workspace.yaml"
+publicHoistPattern:
+  - '*eslint*'
+  - '*babel*'
 ```
 
 ### Native Module Rebuilds
@@ -165,7 +189,7 @@ pnpm install
    ```json
    // From Yarn
    "@myorg/utils": "*"
-
+   
    // To pnpm
    "@myorg/utils": "workspace:*"
    ```
@@ -184,7 +208,7 @@ pnpm -r run build
 # Lerna: run in specific package
 lerna run build --scope=@myorg/app
 
-# pnpm equivalent
+# pnpm equivalent  
 pnpm --filter @myorg/app run build
 
 # Lerna: publish
@@ -199,21 +223,19 @@ pnpm publish -r
 
 ## Configuration Migration
 
-### .npmrc Settings
+Keep only **auth/registry** in `.npmrc`; put everything else in `pnpm-workspace.yaml` (camelCase).
 
-Most npm/Yarn settings work in pnpm's `.npmrc`:
-
-```ini
-# Registry settings (same as npm)
-registry=https://registry.npmjs.org/
-@myorg:registry=https://npm.myorg.com/
-
-# Auth tokens (same as npm)
+```ini title=".npmrc (auth only, gitignored)"
 //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+//npm.myorg.com/:_authToken=${MYORG_TOKEN}
+```
 
-# pnpm-specific additions
-auto-install-peers=true
-strict-peer-dependencies=false
+```yaml title="pnpm-workspace.yaml"
+registries:
+  default: https://registry.npmjs.org/
+  '@myorg': https://npm.myorg.com/
+autoInstallPeers: true
+strictPeerDependencies: false
 ```
 
 ### Scripts Migration
@@ -227,8 +249,8 @@ Most scripts work unchanged. Update pnpm-specific patterns:
     "build:all": "npm run build --workspaces",
     // pnpm: use -r flag
     "build:all": "pnpm -r run build",
-
-    // npm: run in specific workspace
+    
+    // npm: run in specific workspace  
     "dev:app": "npm run dev -w packages/app",
     // pnpm: use --filter
     "dev:app": "pnpm --filter @myorg/app run dev"
@@ -246,13 +268,13 @@ Update CI configuration:
 
 # After (pnpm)
 - uses: pnpm/action-setup@v4
-- run: pnpm install --frozen-lockfile
+- run: pnpm install --frozen-lockfile   # or: pnpm ci
 ```
 
 Add to `package.json` for Corepack:
 ```json
 {
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@10.0.0"
 }
 ```
 
@@ -285,7 +307,8 @@ Keep old lockfile in git history for easy rollback.
 
 <!--
 Source references:
-- https://pnpm.io/installation
+- https://pnpm.io/migration
 - https://pnpm.io/cli/import
-- https://pnpm.io/limitations
+- https://pnpm.io/configuring
 -->
+

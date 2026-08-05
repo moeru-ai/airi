@@ -33,7 +33,7 @@ const { color, size } = toRefs(brush)
 ## Type Declarations
 
 ```ts
-export type UseDrauuOptions = Omit<Options, 'el'>
+export type UseDrauuOptions = Omit<Options, "el">
 export interface UseDrauuReturn {
   drauuInstance: Ref<Drauu | undefined>
   load: (svg: string) => void

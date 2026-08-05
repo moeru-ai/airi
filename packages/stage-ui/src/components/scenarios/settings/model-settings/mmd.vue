@@ -4,7 +4,7 @@ import type { MMDGazeMode, MorphSlot } from '@proj-airi/stage-ui-mmd'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { controlConfig, useMMD } from '@proj-airi/stage-ui-mmd'
-import { Button, FieldCheckbox, FieldCombobox, FieldRange } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldCombobox, FieldRange, GhostButton } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -139,7 +139,7 @@ function removeMotion(id: string) {
   >
     <template v-if="allowExtractColors">
       <ColorPalette class="mb-4 mt-2" :colors="palette.map(hex => ({ hex, name: hex }))" mx-auto />
-      <Button variant="secondary" :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
+      <Button :disabled="!canExtractColors" @click="$emit('extractColorsFromModel')">
         {{ t('settings.mmd.theme-color-from-model.button-extract.title') }}
       </Button>
     </template>
@@ -177,10 +177,10 @@ function removeMotion(id: string) {
       </div>
       <div />
       <template v-for="option in trackingOptions" :key="option.value">
-        <Button
+        <GhostButton
           :class="[option.class, 'w-auto']"
           size="sm"
-          :variant="gazeMode === option.value ? 'primary' : 'secondary'"
+          :active="gazeMode === option.value"
           :label="option.label"
           @click="gazeMode = option.value"
         />
@@ -266,7 +266,7 @@ function removeMotion(id: string) {
     <p :class="['mb-2', 'text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
       {{ t('settings.mmd.animation.description') }}
     </p>
-    <Button variant="secondary" :class="['mb-2']" @click="vmdDialog.open()">
+    <Button :class="['mb-2']" @click="vmdDialog.open()">
       {{ t('settings.mmd.animation.import-motion') }}
     </Button>
     <FieldCombobox
@@ -286,11 +286,11 @@ function removeMotion(id: string) {
           {{ motion.name }}
         </div>
         <div :class="['flex', 'shrink-0', 'items-center', 'gap-1']">
-          <Button variant="secondary" @click="playMotionOnce(motion.name)">
+          <Button @click="playMotionOnce(motion.name)">
             {{ t('settings.mmd.animation.play-once') }}
           </Button>
           <Button
-            variant="secondary"
+
             :aria-label="t('settings.mmd.animation.remove')"
             @click="removeMotion(motion.id)"
           >
