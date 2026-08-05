@@ -24,10 +24,10 @@ The `={true}` breaks UnoCSS attributify detection.
 ## Installation
 
 ```ts
-import {
-  defineConfig,
-  presetAttributify,
-  transformerAttributifyJsx
+import { 
+  defineConfig, 
+  presetAttributify, 
+  transformerAttributifyJsx 
 } from 'unocss'
 
 export default defineConfig({
@@ -101,11 +101,11 @@ export default {
 
 ```ts
 // uno.config.ts
-import {
-  defineConfig,
-  presetAttributify,
+import { 
+  defineConfig, 
+  presetAttributify, 
   presetWind3,
-  transformerAttributifyJsx
+  transformerAttributifyJsx 
 } from 'unocss'
 
 export default defineConfig({
@@ -150,7 +150,7 @@ declare module 'react' {
 }
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/transformers/attributify-jsx
 -->

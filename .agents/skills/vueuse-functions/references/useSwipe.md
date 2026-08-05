@@ -27,7 +27,7 @@ const { isSwiping, direction } = useSwipe(el)
 ## Type Declarations
 
 ```ts
-export type UseSwipeDirection = 'up' | 'down' | 'left' | 'right' | 'none'
+export type UseSwipeDirection = "up" | "down" | "left" | "right" | "none"
 export interface UseSwipeOptions extends ConfigurableWindow {
   /**
    * Register events as passive

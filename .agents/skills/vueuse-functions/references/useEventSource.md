@@ -101,7 +101,7 @@ const { data } = useEventSource(
 ## Type Declarations
 
 ```ts
-export type EventSourceStatus = 'CONNECTING' | 'OPEN' | 'CLOSED'
+export type EventSourceStatus = "CONNECTING" | "OPEN" | "CLOSED"
 export interface UseEventSourceOptions<Data> extends EventSourceInit {
   /**
    * Enabled auto reconnect
@@ -111,25 +111,25 @@ export interface UseEventSourceOptions<Data> extends EventSourceInit {
   autoReconnect?:
     | boolean
     | {
-      /**
-       * Maximum retry times.
-       *
-       * Or you can pass a predicate function (which returns true if you want to retry).
-       *
-       * @default -1
-       */
-      retries?: number | (() => boolean)
-      /**
-       * Delay for reconnect, in milliseconds
-       *
-       * @default 1000
-       */
-      delay?: number
-      /**
-       * On maximum retry times reached.
-       */
-      onFailed?: Fn
-    }
+        /**
+         * Maximum retry times.
+         *
+         * Or you can pass a predicate function (which returns true if you want to retry).
+         *
+         * @default -1
+         */
+        retries?: number | (() => boolean)
+        /**
+         * Delay for reconnect, in milliseconds
+         *
+         * @default 1000
+         */
+        delay?: number
+        /**
+         * On maximum retry times reached.
+         */
+        onFailed?: Fn
+      }
   /**
    * Immediately open the connection when calling this composable
    *
@@ -171,7 +171,7 @@ export interface UseEventSourceReturn<Events extends string[], Data = any> {
   /**
    * Closes the EventSource connection gracefully.
    */
-  close: EventSource['close']
+  close: EventSource["close"]
   /**
    * Reopen the EventSource connection.
    * If there the current one is active, will close it before opening a new one.
@@ -180,7 +180,7 @@ export interface UseEventSourceReturn<Events extends string[], Data = any> {
   /**
    * Reference to the current EventSource instance.
    */
-  eventSource: Ref<EventSource | null>
+  eventSource: ShallowRef<EventSource | null>
   /**
    * The last event ID string, for server-sent events.
    * @see https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent/lastEventId
