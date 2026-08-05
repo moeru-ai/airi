@@ -82,7 +82,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
-  const { enabled: bilingualEnabled } = storeToRefs(useBilingualStore())
+  const { enabled: bilingualEnabled, systemPromptInstruction: bilingualInstruction } = storeToRefs(useBilingualStore())
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
@@ -197,6 +197,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     getBilingualResponse: () => bilingualEnabled.value,
+    getBilingualInstruction: () => bilingualInstruction.value,
     runtimeContextProviders: [
       createMinecraftContext,
     ],

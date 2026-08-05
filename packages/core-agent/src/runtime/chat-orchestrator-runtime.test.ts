@@ -13,7 +13,7 @@ const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
 
-function createHarness() {
+function createHarness(options?: { getBilingualInstruction?: () => string | undefined }) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -84,6 +84,7 @@ function createHarness() {
     getActiveProvider: () => 'mock-provider',
     getSystemPromptSupplement: () => systemPromptSupplement,
     getBilingualResponse: () => bilingualResponse,
+    getBilingualInstruction: options?.getBilingualInstruction,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
@@ -876,5 +877,24 @@ describe('createChatOrchestratorRuntime', () => {
     ])
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
+  })
+
+  it('snapshots bilingual instruction per-turn alongside bilingualResponse flag', async () => {
+    let bilingualInstructionText = '[TTS] <spoken> [SUB1] <sub1> [SUB2] <sub2>'
+
+    const harness = createHarness({
+      getBilingualInstruction: () => bilingualInstructionText,
+    })
+    harness.bilingualResponse.set(true)
+
+    await harness.runtime.ingest('bilingual query', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const streamCall = harness.stream.mock.calls[0]
+    const composedMessages = streamCall[2]
+    const systemMsg = composedMessages.find((m: any) => m.role === 'system')
+    expect(systemMsg.content).toContain('[TTS] <spoken> [SUB1] <sub1> [SUB2] <sub2>')
   })
 })

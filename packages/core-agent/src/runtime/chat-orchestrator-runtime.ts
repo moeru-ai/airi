@@ -242,6 +242,8 @@ export interface ChatOrchestratorRuntimeDeps {
   getSystemPromptSupplement?: () => string | undefined
   /** Returns whether the response format is bilingual when the queued turn begins. */
   getBilingualResponse?: () => boolean
+  /** Returns the bilingual system prompt instruction when the queued turn begins. */
+  getBilingualInstruction?: () => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -505,9 +507,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const streamContextMessageId = createId()
     const assistantMessageId = createId()
     const roundId = createId()
+    const isBilingualTurn = deps.getBilingualResponse?.() ?? false
+    const bilingualInstruction = isBilingualTurn ? deps.getBilingualInstruction?.()?.trim() : undefined
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
-      bilingualResponse: deps.getBilingualResponse?.() ?? false,
+      bilingualResponse: isBilingualTurn,
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: streamContextMessageId },
       contexts: deps.context.snapshot(),
       composedMessage: [],
@@ -715,16 +719,27 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const newMessages = buildProviderMessages(sessionMessagesForSend)
+      const supplements: string[] = []
+
+      if (bilingualInstruction) {
+        supplements.push(bilingualInstruction)
+      }
+
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
+        supplements.push(systemPromptSupplement)
+      }
+
+      if (supplements.length > 0) {
+        const combinedSupplement = supplements.join('\n\n')
         const systemMessage = newMessages.find(message => message.role === 'system')
         if (systemMessage) {
-          systemMessage.content = `${systemMessage.content}\n\n${systemPromptSupplement}`
+          systemMessage.content = `${systemMessage.content}\n\n${combinedSupplement}`
         }
         else {
           newMessages.unshift({
             role: 'system',
-            content: systemPromptSupplement,
+            content: combinedSupplement,
           })
         }
       }
