@@ -143,6 +143,8 @@ jobs:
           ref: ${{ steps.meta.outputs.HEAD_SHA }}
           fetch-depth: 1
           persist-credentials: false
+          # https://gh.io/securely-using-pull_request_target
+          allow-unsafe-pr-checkout: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

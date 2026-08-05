@@ -4,10 +4,11 @@ import type { DefaultTheme } from 'vitepress/theme'
 import type { Author } from '../functions/authors.data'
 
 import { tryCatch } from '@moeru/std'
+import { usePreferredReducedMotion } from '@vueuse/core'
 import { intlFormat } from 'date-fns'
 import { AvatarFallback, AvatarImage, AvatarRoot } from 'reka-ui'
-import { Content, useData, useRoute } from 'vitepress'
-import { computed, toRefs } from 'vue'
+import { Content, useData, useRoute, withBase } from 'vitepress'
+import { computed, onMounted, ref, toRefs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 // import DocCarbonAds from '../components/DocCarbonAds.vue'
@@ -105,7 +106,44 @@ const publishedAt = computed(() => {
 
 const authors = computed(() => {
   const data = (authorsData as unknown as { data: Array<{ url: string, authors: Author[] }> }).data
-  return data.find(item => item.url === path.value)?.authors || []
+  const currentPath = normalizeDocumentPath(path.value)
+
+  return data.find(item =>
+    normalizeDocumentPath(withBase(item.url)) === currentPath,
+  )?.authors || []
+})
+
+// Title snapshot keyed by `path`: `frontmatter` updates before the article
+// key changes, which would swap the leaving page's title to the new one.
+const pageTitle = ref(frontmatter.value.title || '')
+
+watch(path, () => {
+  pageTitle.value = frontmatter.value.title || ''
+})
+
+// Lock the first paint: hydration replays the transition, so start with an
+// empty `name` (transition classes match no `.fade-*` CSS → no animation)
+// and switch to "fade" only after the article height stabilizes.
+const transitionName = ref('')
+
+// Also honor the user's reduced-motion preference (system setting); the CSS
+// media query in theme-animations.css backs this up for live preference changes.
+const reducedMotion = usePreferredReducedMotion()
+
+onMounted(async () => {
+  const article = document.querySelector<HTMLElement>('.docs-article')
+  if (article) {
+    let prevHeight = -1
+    for (let i = 0; i < 30; i++) {
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const height = article.getBoundingClientRect().height
+      if (height > 0 && height === prevHeight)
+        break
+      prevHeight = height
+    }
+  }
+  if (!reducedMotion.value)
+    transitionName.value = 'fade'
 })
 </script>
 
@@ -145,60 +183,69 @@ const authors = computed(() => {
       </aside>
 
       <div class="flex-1 overflow-x-hidden px-6 py-6 md:px-24 md:py-12">
-        <div class="mb-2 text-sm text-primary font-bold">
+        <!-- Section name for mobile (desktop has the sidebar) -->
+        <div class="mb-2 text-sm text-primary font-bold md:hidden">
           {{ activeSection?.text }}
         </div>
-        <article class="docs-article max-w-none w-full font-sans prose prose-slate dark:prose-invert">
-          <h1>
-            {{ frontmatter.title || '' }}
-          </h1>
+        <Transition
+          :name="transitionName"
+          mode="out-in"
+        >
+          <article
+            :key="path"
+            class="docs-article max-w-none w-full font-sans prose prose-slate dark:prose-invert"
+          >
+            <h1>
+              {{ pageTitle }}
+            </h1>
 
-          <div v-if="publishedAt || authors && authors.length" class="mb-10 mt-5 flex flex-col gap-3 sm:gap-5">
-            <div v-if="publishedAt" class="text-neutral-400 dark:text-neutral-500">
-              <span>
-                {{ t('docs.theme.doc.published-at', { date: publishedAt }) }}
-              </span>
-            </div>
+            <div v-if="publishedAt || authors && authors.length" class="mb-10 mt-5 flex flex-col gap-3 sm:gap-5">
+              <div v-if="publishedAt" class="text-neutral-400 dark:text-neutral-500">
+                <span>
+                  {{ t('docs.theme.doc.published-at', { date: publishedAt }) }}
+                </span>
+              </div>
 
-            <div class="flex flex-row gap-2 sm:gap-4">
-              <!-- Authors -->
-              <div v-for="(author, index) of authors" :key="index" class="flex flex-row items-center gap-2.5">
-                <AvatarRoot class="size-10 inline-flex select-none items-center justify-center overflow-hidden rounded-full bg-neutral-100 align-middle dark:bg-neutral-800">
-                  <AvatarImage
-                    class="h-full w-full rounded-[inherit] object-cover"
-                    :src="author.avatar || author.avatarFallback"
-                    :alt="`${author.displayName}'s avatar`"
-                  />
-                  <AvatarFallback
-                    class="h-full w-full flex items-center justify-center bg-white text-sm text-primary font-medium leading-1 dark:bg-neutral-800 dark:text-neutral-300"
-                    :delay-ms="600"
-                    as-child
-                  >
-                    {{
-                      [
-                        author.displayName.charAt(0).toUpperCase(),
-                        author.displayName.charAt(1).toUpperCase(),
-                      ].join('')
-                    }}
-                  </AvatarFallback>
-                </AvatarRoot>
+              <div class="flex flex-row gap-2 sm:gap-4">
+                <!-- Authors -->
+                <div v-for="(author, index) of authors" :key="index" class="flex flex-row items-center gap-2.5">
+                  <AvatarRoot class="size-10 inline-flex select-none items-center justify-center overflow-hidden rounded-full bg-neutral-100 align-middle dark:bg-neutral-800">
+                    <AvatarImage
+                      class="h-full w-full rounded-[inherit] object-cover"
+                      :src="author.avatar || author.avatarFallback"
+                      :alt="`${author.displayName}'s avatar`"
+                    />
+                    <AvatarFallback
+                      class="h-full w-full flex items-center justify-center bg-white text-sm text-primary font-medium leading-1 dark:bg-neutral-800 dark:text-neutral-300"
+                      :delay-ms="600"
+                      as-child
+                    >
+                      {{
+                        [
+                          author.displayName.charAt(0).toUpperCase(),
+                          author.displayName.charAt(1).toUpperCase(),
+                        ].join('')
+                      }}
+                    </AvatarFallback>
+                  </AvatarRoot>
 
-                <div class="flex flex-col">
-                  <div>
-                    <span>{{ author.displayName }}</span>
-                  </div>
-                  <div v-if="author.githubUsername">
-                    <a :href="`https://github.com/${author.githubUsername}`" target="_blank" rel="noopener noreferrer" class="text-sm text-primary hover:underline">
-                      <span>{{ author.githubUsername }}</span>
-                    </a>
+                  <div class="flex flex-col">
+                    <div>
+                      <span>{{ author.displayName }}</span>
+                    </div>
+                    <div v-if="author.githubUsername">
+                      <a :href="`https://github.com/${author.githubUsername}`" target="_blank" rel="noopener noreferrer" class="text-sm text-primary hover:underline">
+                        <span>{{ author.githubUsername }}</span>
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <Content />
-        </article>
+            <Content />
+          </article>
+        </Transition>
 
         <DocFooter v-if="!isCharactersPage" />
       </div>

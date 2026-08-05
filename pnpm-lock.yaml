@@ -235,8 +235,8 @@ catalogs:
       specifier: 0.1.0-beta.19
       version: 0.1.0-beta.19
     '@moeru/eventa':
-      specifier: 1.0.0-beta.8
-      version: 1.0.0-beta.8
+      specifier: 1.0.0-beta.13
+      version: 1.0.0-beta.13
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -502,17 +502,17 @@ catalogs:
       specifier: ^0.4.0
       version: 0.4.0
     '@vishot/cli':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vishot/mockup-desktop-vue':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vishot/renderer-browser':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vishot/source-electron':
-      specifier: ^0.0.3
-      version: 0.0.3
+      specifier: ^0.1.1
+      version: 0.1.1
     '@vitejs/plugin-vue':
       specifier: ^6.0.6
       version: 6.0.6
@@ -925,8 +925,8 @@ catalogs:
       specifier: ^10.0.1
       version: 10.0.1
     reka-ui:
-      specifier: ^2.9.6
-      version: 2.9.6
+      specifier: ^2.10.1
+      version: 2.10.1
     remark-math:
       specifier: ^6.0.0
       version: 6.0.0
@@ -1207,7 +1207,7 @@ patchedDependencies:
     hash: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
     path: patches/mineflayer-pathfinder.patch
   pixi-live2d-display:
-    hash: 122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c
+    hash: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
     path: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0:
     hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
@@ -1255,7 +1255,7 @@ importers:
         version: 66.6.8
       '@vishot/cli':
         specifier: 'catalog:'
-        version: 0.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        version: 0.1.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@vitest/browser-playwright':
         specifier: catalog:vitest
         version: 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
@@ -1442,7 +1442,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1454,7 +1454,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -1514,7 +1514,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -1607,7 +1607,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -1637,7 +1637,7 @@ importers:
         version: 1.3.1(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -1845,7 +1845,7 @@ importers:
         version: 11.3.2
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1860,7 +1860,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -1932,10 +1932,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai-transformers/transcription':
         specifier: 'catalog:'
-        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2007,7 +2007,7 @@ importers:
         version: 1.45.1
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@5.1.11)
+        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2040,7 +2040,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -2082,7 +2082,7 @@ importers:
         version: 1.3.1(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2326,7 +2326,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)
+        version: 1.0.0-beta.13(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2341,7 +2341,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -2410,7 +2410,7 @@ importers:
         version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -2506,7 +2506,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       remark-parse:
         specifier: 'catalog:'
         version: 11.0.0
@@ -2536,7 +2536,7 @@ importers:
         version: 1.3.1(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2711,7 +2711,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2777,7 +2777,7 @@ importers:
         version: 13.0.0
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -2934,7 +2934,7 @@ importers:
         version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -3448,7 +3448,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       crossws:
         specifier: 'catalog:'
         version: 0.4.5(srvx@0.11.15)
@@ -3581,7 +3581,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@40.8.5)(web-worker@1.5.0)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.5.1
@@ -3609,7 +3609,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3627,7 +3627,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@40.8.5)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3734,7 +3734,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3746,7 +3746,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.5.0-beta.2(patch_hash=26f2819b987245ec85f216b821ddf73aeb28fd7e611238a2d37250e42f838a01)
@@ -3755,7 +3755,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3777,7 +3777,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
@@ -3801,10 +3801,10 @@ importers:
         version: 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@vishot/mockup-desktop-vue':
         specifier: 'catalog:'
-        version: 0.0.3(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.1.1(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@vishot/renderer-browser':
         specifier: 'catalog:'
-        version: 0.0.3(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        version: 0.1.1(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
@@ -3813,7 +3813,7 @@ importers:
         version: 4.1.0
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -3853,7 +3853,7 @@ importers:
         version: 0.1.0-beta.17
       '@vishot/source-electron':
         specifier: 'catalog:'
-        version: 0.0.3
+        version: 0.1.1
       playwright:
         specifier: 'catalog:'
         version: 1.60.0
@@ -3913,7 +3913,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
 
   packages/server-shared:
     dependencies:
@@ -3925,7 +3925,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3988,7 +3988,7 @@ importers:
         version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       unspeech:
         specifier: catalog:xsai
         version: 0.1.14
@@ -4040,7 +4040,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4112,7 +4112,7 @@ importers:
         version: 1.306.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       splitpanes:
         specifier: 'catalog:'
         version: 4.0.4(vue@3.5.32(typescript@5.9.3))
@@ -4189,7 +4189,7 @@ importers:
         version: 3.0.2(electron@41.2.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -4213,7 +4213,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)
+        version: 1.0.0-beta.13(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4246,7 +4246,7 @@ importers:
         version: link:../core-character
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+        version: 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../font-chillroundm
@@ -4315,10 +4315,10 @@ importers:
         version: 0.5.0-beta.2
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+        version: 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai/embed':
         specifier: 'catalog:'
         version: 0.5.0-beta.2
@@ -4432,7 +4432,7 @@ importers:
         version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       remark-math:
         specifier: 'catalog:'
         version: 6.0.0
@@ -4471,7 +4471,7 @@ importers:
         version: 1.3.1(typescript@5.9.3)
       vaul-vue:
         specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       vue-i18n:
         specifier: 'catalog:'
         version: 11.3.2(vue@3.5.32(typescript@5.9.3))
@@ -4718,7 +4718,7 @@ importers:
         version: 4.2.0(5af797a0b5bd919a06578c24a7479046)
       pixi-live2d-display:
         specifier: 'catalog:'
-        version: 0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e)
+        version: 0.4.0(patch_hash=7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d)(0736f5bd67d2e4de7e9fff36ad63fa2e)
       three:
         specifier: 'catalog:'
         version: 0.184.0
@@ -4908,7 +4908,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.2(@types/three@0.184.0)(three@0.184.0)
@@ -4986,7 +4986,7 @@ importers:
         version: 5.2.2(@nuxt/kit@3.20.2(magicast@0.5.2))(vue@3.5.32(typescript@5.9.3))
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.32(typescript@5.9.3)
@@ -5140,7 +5140,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5164,7 +5164,7 @@ importers:
         version: 1.4.0
       reka-ui:
         specifier: 'catalog:'
-        version: 2.9.6(vue@3.5.32(typescript@5.9.3))
+        version: 2.10.1(vue@3.5.32(typescript@5.9.3))
       stockfish:
         specifier: 'catalog:'
         version: 18.0.7
@@ -5237,7 +5237,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)
+        version: 1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5303,7 +5303,7 @@ importers:
         version: 5.4.0(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)
+        version: 1.0.0-beta.13(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -7996,14 +7996,17 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0-beta.8':
-    resolution: {integrity: sha512-V7DTEi9waYxxVNWQbKTMnj0m4U2xyLmd//eZ12noLBYS8wUJJ8Lm0XXj6wc9KI0urrSjDFTBHlD4Ow1bEGw2sw==}
+  '@moeru/eventa@1.0.0-beta.13':
+    resolution: {integrity: sha512-zar2haIEkttvDJkBMSv4nEjo3OMhePDwr65nOBJFb6rXLbUjZQ+El6OuPDQZMbuxA+pcKwZhOT6AvamNXxjHfQ==}
     peerDependencies:
+      '@tauri-apps/api': '>=2'
       electron: '>=39'
       h3: '>=2.0.1-rc.22'
-      hono: '>=4.0.0'
+      hono: '>=4.12.25'
       web-worker: ^1.5.0
     peerDependenciesMeta:
+      '@tauri-apps/api':
+        optional: true
       electron:
         optional: true
       h3:
@@ -11351,26 +11354,26 @@ packages:
   '@vibrant/worker@4.0.4':
     resolution: {integrity: sha512-Q/R6PYhSMWCXEk/IcXbWIzIu7Z4b58ABkGvcdF8Y+q/7g+KnpxKW5x/jfQ/6ciyYSby13wZZoEdNr3QQVgsdBQ==}
 
-  '@vishot/cli@0.0.3':
-    resolution: {integrity: sha512-Yge2xFGq8BLCzRzXpNMX9w0oUoRsHzqt/xe1DQY1jWoi9PvldrfAulibxvLgvhPKA7y2ZzPN8kVQRUbOY/AdXA==}
+  '@vishot/cli@0.1.1':
+    resolution: {integrity: sha512-hqGZxCOeGFaVT5N2IGpnBEqdVeMgWU9oOIXT4Vc/rE1KSvTy6cz1LQn3CXdczeSZr0f8lFf3nEKeazeaoNEgfg==}
     hasBin: true
 
-  '@vishot/core@0.0.3':
-    resolution: {integrity: sha512-NydFb3Fr9LXGSs/c473LThsL1aBbhUWiSCeoWWvYCLZwPhMnZOvLmXwBcbp1ufVZgW1FJv1KeSti1yZDY57ZwQ==}
+  '@vishot/core@0.1.1':
+    resolution: {integrity: sha512-g3KgoIiEG2bqLdavec2JUokTbZHnCK0ZRRRLkb67bjyD9BXGkaFt09cPaGu6b0uDeSzMFQ5sBbnl+lxhAO7lhQ==}
 
-  '@vishot/mockup-desktop-vue@0.0.3':
-    resolution: {integrity: sha512-81zte5unPP0/Ej5beYrq4u5DqZDVxalgMcr1tFlFfn1NF9FijZtBaU7pmxEdY2p0UP9xGUsOLYw8UrnJdG9Yog==}
+  '@vishot/mockup-desktop-vue@0.1.1':
+    resolution: {integrity: sha512-9utr16BEn01UqOk/738FAIKJ/XFe09QIzMHKF8OE2k8xiRDjmbmzfXFpmuZaKLAxXMKy2PdVdSixyR/Nhe2MgA==}
     peerDependencies:
       '@vueuse/core': ^14.2.1
       reka-ui: ^2.6.1
       vue: ^3.5.26
       vue-router: ^4.6.4
 
-  '@vishot/renderer-browser@0.0.3':
-    resolution: {integrity: sha512-9A0HIrKtdGQnKlJ/H1yam3b4BXeEJGMilW9XTBUwgoY817H6XsMIWlderp0V0HKjssbegarAFTC1rlzSdmc0Zg==}
+  '@vishot/renderer-browser@0.1.1':
+    resolution: {integrity: sha512-zicjVCsQKQKIpH5pAXcoV5gzc0yN3Wfsh1KIpXax5f2O2GK+UNi/7g7e0EM5924tQWQFNsOHtnSZEjBkoXOmxA==}
 
-  '@vishot/source-electron@0.0.3':
-    resolution: {integrity: sha512-yqAW6yFX3NaoAYE/c4R8hC6qz23w7qczUzwRcvHCHcJKjD9KEdVUr+tBVQKFIsFSvINBS7JRdYs08Ow8VYztfg==}
+  '@vishot/source-electron@0.1.1':
+    resolution: {integrity: sha512-aE94x7FnY+Jo5J+yOmgcqXyOYpVSTg8xUB4m5AuDAWp28AwmxxbkF5h4ZzWnyux2S0BBwfKH+UGKrvJHdhY0HQ==}
 
   '@vitejs/devtools-kit@0.1.13':
     resolution: {integrity: sha512-8TqyrrPTB8KNGb2ukVHNo4aMhGYJgUypVNMnqOvxaWYln3QAXK6CFxifK3lZGOHWKAUqWAiTmZUsYzV4S0Kn7g==}
@@ -16175,6 +16178,11 @@ packages:
     engines: {node: ^18 || >=20}
     hasBin: true
 
+  nanoid@6.0.1:
+    resolution: {integrity: sha512-3wVS3i51pE2pi1k5FFL/95BGfVS0kSsvDVuGXHOtxox/TywUmtgq+3qiTOTbs9J7KfHaXPiN171k/A6dBnaXFw==}
+    engines: {node: ^22 || ^24 || >=26}
+    hasBin: true
+
   nanospinner@1.2.2:
     resolution: {integrity: sha512-Zt/AmG6qRU3e+WnzGGLuMCEAO/dAu45stNbHY223tUxldaDAeE+FxSPsd9Q+j+paejmm0ZbrNVs5Sraqy3dRxA==}
 
@@ -17262,8 +17270,8 @@ packages:
   rehype-stringify@10.0.1:
     resolution: {integrity: sha512-k9ecfXHmIPuFVI61B9DeLPN0qFHfawM6RsuX48hoqlaKSF61RskNjSm1lI8PhBEM0MRdLxVVm4WmTqJQccH9mA==}
 
-  reka-ui@2.9.6:
-    resolution: {integrity: sha512-K6bL457owpvWONc7hsjFxo3HDC9s6IzhRqShW0w9JSKelPGfRbkHD558UQTn/NH1cvrXVHygKyC7fExFmRketg==}
+  reka-ui@2.10.1:
+    resolution: {integrity: sha512-drcOQ4rQtDYAcGCsyQBqQg8QQ+H3B+zDaMJU0h8KPEPMa7g9BHu3zcOi4OB39XJSWizceFoNO0Z9tctSGLOXqg==}
     peerDependencies:
       vue: '>= 3.4.0'
 
@@ -19223,6 +19231,9 @@ packages:
 
   web-vitals@4.2.4:
     resolution: {integrity: sha512-r4DIlprAGwJ7YM11VZp4R884m0Vmgr6EAKe3P+kO0PPj3Unqyvv59rczf6UiGcb9Z8QxZVcqKNwv/g0WNdWwsw==}
+
+  web-worker@1.5.0:
+    resolution: {integrity: sha512-RiMReJrTAiA+mBjGONMnjVDP2u3p9R1vkcGz6gDIrOMT3oGuYwX2WRMYI9ipkphSuE5XKEhydbhNEJh4NY9mlw==}
 
   webidl-conversions@3.0.1:
     resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
@@ -22400,38 +22411,41 @@ snapshots:
       - supports-color
       - typescript
 
-  '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
+  '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.11
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
+      web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@40.8.5)(hono@4.12.2)':
+  '@moeru/eventa@1.0.0-beta.13(electron@40.8.5)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 5.1.11
+      nanoid: 6.0.1
       picomatch: 4.0.4
     optionalDependencies:
       electron: 40.8.5
-      hono: 4.12.2
+      web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)':
+  '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(hono@4.12.2)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 5.1.11
+      nanoid: 6.0.1
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15))
       hono: 4.12.2
+      web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0-beta.8(electron@41.2.1)(hono@4.11.3)':
+  '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(hono@4.11.3)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 5.1.11
+      nanoid: 6.0.1
       picomatch: 4.0.4
     optionalDependencies:
       electron: 41.2.1
       hono: 4.11.3
+      web-worker: 1.5.0
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -24021,16 +24035,18 @@ snapshots:
     dependencies:
       culori: 4.0.2
 
-  '@proj-airi/drizzle-duckdb-wasm@0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))':
+  '@proj-airi/drizzle-duckdb-wasm@0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.4.1
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
       '@moeru/std': 0.1.0-beta.1
-      '@proj-airi/duckdb-wasm': 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))
+      '@proj-airi/duckdb-wasm': 0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)
       apache-arrow: 21.1.0
       date-fns: 4.1.0
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
       es-toolkit: 1.45.1
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
 
@@ -24039,7 +24055,7 @@ snapshots:
       '@guiiai/logg': 1.2.11
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
 
-  '@proj-airi/duckdb-wasm@0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))':
+  '@proj-airi/duckdb-wasm@0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.4.1
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
@@ -24049,6 +24065,8 @@ snapshots:
       defu: 6.1.7
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.28.14)(pg@8.20.0)(postgres@3.4.9)
       es-toolkit: 1.45.1
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
 
@@ -25728,13 +25746,13 @@ snapshots:
     dependencies:
       '@vibrant/types': 4.0.4
 
-  '@vishot/cli@0.0.3(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/cli@0.1.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
       '@moeru/std': 0.1.0-beta.19
       '@napi-rs/image': 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
-      '@vishot/core': 0.0.3
-      '@vishot/renderer-browser': 0.0.3(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-      '@vishot/source-electron': 0.0.3
+      '@vishot/core': 0.1.1
+      '@vishot/renderer-browser': 0.1.1(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      '@vishot/source-electron': 0.1.1
       cac: 6.7.14
       playwright: 1.60.0
     transitivePeerDependencies:
@@ -25752,19 +25770,19 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/core@0.0.3': {}
+  '@vishot/core@0.1.1': {}
 
-  '@vishot/mockup-desktop-vue@0.0.3(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
+  '@vishot/mockup-desktop-vue@0.1.1(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
     dependencies:
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       '@vueuse/core': 14.2.1(vue@3.5.32(typescript@5.9.3))
-      reka-ui: 2.9.6(vue@3.5.32(typescript@5.9.3))
+      reka-ui: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue: 3.5.32(typescript@5.9.3)
       vue-router: 5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
 
-  '@vishot/renderer-browser@0.0.3(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/renderer-browser@0.1.1(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       playwright: 1.60.0
       vite: 7.3.2(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -25780,9 +25798,9 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/renderer-browser@0.0.3(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/renderer-browser@0.1.1(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       playwright: 1.60.0
       vite: 7.3.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -25798,10 +25816,10 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/source-electron@0.0.3':
+  '@vishot/source-electron@0.1.1':
     dependencies:
       '@moeru/std': 0.1.0-beta.19
-      '@vishot/core': 0.0.3
+      '@vishot/core': 0.1.1
       playwright: 1.60.0
 
   '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(ws@8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))':
@@ -26534,24 +26552,26 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai-transformers/embed@0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
+  '@xsai-transformers/embed@0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+      '@moeru/eventa': 0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.19
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+      '@xsai-transformers/shared': 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.7
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - electron
       - h3
 
-  '@xsai-transformers/shared@0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
+  '@xsai-transformers/shared@0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+      '@moeru/eventa': 0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.19
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.4
@@ -26561,17 +26581,19 @@ snapshots:
       - h3
       - web-worker
 
-  '@xsai-transformers/transcription@0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))':
+  '@xsai-transformers/transcription@0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+      '@moeru/eventa': 0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.19
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))
+      '@xsai-transformers/shared': 0.1.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.15)))(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/generate-transcription': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.7
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - electron
       - h3
@@ -29973,6 +29995,13 @@ snapshots:
     optionalDependencies:
       '@guiiai/logg': 1.2.11
 
+  injeca@0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+    dependencies:
+      error-stack-parser: 2.1.4
+      nanoid: 6.0.1
+    optionalDependencies:
+      '@guiiai/logg': 1.2.11
+
   inspect-function@0.2.2:
     dependencies:
       split-skip: 0.0.1
@@ -31453,6 +31482,8 @@ snapshots:
 
   nanoid@5.1.11: {}
 
+  nanoid@6.0.1: {}
+
   nanospinner@1.2.2:
     dependencies:
       picocolors: 1.1.1
@@ -32148,7 +32179,7 @@ snapshots:
       - '@pixi/settings'
       - '@pixi/utils'
 
-  pixi-live2d-display@0.4.0(patch_hash=122ac09349321d5bfe9d9817aa095cd1c9c4132af86345aa9e27ba8b63dadf2c)(0736f5bd67d2e4de7e9fff36ad63fa2e):
+  pixi-live2d-display@0.4.0(patch_hash=7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d)(0736f5bd67d2e4de7e9fff36ad63fa2e):
     dependencies:
       '@pixi/core': 6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
       '@pixi/display': 6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -32783,7 +32814,7 @@ snapshots:
       hast-util-to-html: 9.0.5
       unified: 11.0.5
 
-  reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)):
+  reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@floating-ui/dom': 1.7.4
       '@floating-ui/vue': 1.1.9(vue@3.5.32(typescript@5.9.3))
@@ -34575,10 +34606,10 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vaul-vue@0.4.1(reka-ui@2.9.6(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
+  vaul-vue@0.4.1(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)):
     dependencies:
       '@vueuse/core': 10.11.1(vue@3.5.32(typescript@5.9.3))
-      reka-ui: 2.9.6(vue@3.5.32(typescript@5.9.3))
+      reka-ui: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue: 3.5.32(typescript@5.9.3)
     transitivePeerDependencies:
       - '@vue/composition-api'
@@ -35370,6 +35401,9 @@ snapshots:
   web-streams-polyfill@3.3.3: {}
 
   web-vitals@4.2.4: {}
+
+  web-worker@1.5.0:
+    optional: true
 
   webidl-conversions@3.0.1: {}
 
