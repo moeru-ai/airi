@@ -5,8 +5,8 @@ date: 2026-03-23
 excerpt: |
   AIRI 모바일 성능 개선을 위한 초기 조사
 preview-cover:
-  light: "/blog/DevLog-2026.03.23/assets/cover-light.avif"
-  dark: "/blog/DevLog-2026.03.23/assets/cover-dark.avif"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 안녕하세요, [@PurCHES5](https://github.com/PurCHES5) 입니다.
@@ -151,18 +151,18 @@ GPU
 Unity 3D 로 프로토타입 3종을 만들었고, 내보내기 용량을 줄이기 위해 압축을 적용했습니다.
 
 ### Unity WebGL 내보내기 설정
-![](/blog/DevLog-2026.03.23/assets/Unity-web-export.avif)
+![](./assets/Unity-web-export.avif)
 
 ### Unity Android 렌더러 설정
-![](/blog/DevLog-2026.03.23/assets/Unity-android-export.avif)
+![](./assets/Unity-android-export.avif)
 
 ### 스크린샷
 
 **Android 렌더러 — Live2D:**
-![](/blog/DevLog-2026.03.23/assets/Screenshot-AIRI-Live2D.avif)
+![](./assets/Screenshot-AIRI-Live2D.avif)
 
 **Android 렌더러 — VRM:**
-![](/blog/DevLog-2026.03.23/assets/Screenshot-AIRI-VRM.avif)
+![](./assets/Screenshot-AIRI-VRM.avif)
 
 일관성을 위해 모든 프로토타입 빌드에 동일한 Vue.js 프론트엔드를 적용했습니다. Unity WebGL 내보내기의 경우 [`unity-webgl`](https://github.com/Marinerer/unity-webgl) 을 써서 WebView 의 기존 내용을 Unity WebGL 로 바로 대체했습니다. Unity Android 렌더러의 경우 Three.js 와 VRM 모듈이 들어 있던 기존 뷰를 완전히 제거하고, Unity 가 배경 레이어로 렌더링하며 그 위에 Vue.js UI 를 렌더링합니다.
 
@@ -193,22 +193,22 @@ Unity 3D 로 프로토타입 3종을 만들었고, 내보내기 용량을 줄이
 ### 참고 스크린샷
 
 **Three.js — Live2D (기준):**
-![](/blog/DevLog-2026.03.23/assets/Live2D-threejs.avif)
+![](./assets/Live2D-threejs.avif)
 
 **Unity WebGL — Live2D:**
-![](/blog/DevLog-2026.03.23/assets/Live2D-webgl.avif)
+![](./assets/Live2D-webgl.avif)
 
 **Unity Android 렌더러 — Live2D:**
-![](/blog/DevLog-2026.03.23/assets/Live2D-android-renderer.avif)
+![](./assets/Live2D-android-renderer.avif)
 
 **Three.js — VRM (기준):**
-![](/blog/DevLog-2026.03.23/assets/VRM-airi.avif)
+![](./assets/VRM-airi.avif)
 
 **Unity WebGL — VRM:**
-![](/blog/DevLog-2026.03.23/assets/VRM-webgl.avif)
+![](./assets/VRM-webgl.avif)
 
 **Unity Android 렌더러 — VRM:**
-![](/blog/DevLog-2026.03.23/assets/VRM-android-renderer.avif)
+![](./assets/VRM-android-renderer.avif)
 
 ### 핵심 관찰
 

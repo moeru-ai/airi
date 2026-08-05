@@ -5,14 +5,14 @@ date: 2025-03-20
 ---
 
 <script setup>
-import Gelbana from '/blog/DevLog-2025.03.20/assets/steins-gate-gelnana-from-elpsycongrooblog.avif'
-import HistoireColorSlider from '/blog/DevLog-2025.03.20/assets/histoire-color-slider.avif'
-import HistoireColorSliderDark from '/blog/DevLog-2025.03.20/assets/histoire-color-slider-dark.avif'
-import HistoireLogo from '/blog/DevLog-2025.03.20/assets/histoire-logo.avif'
-import HistoireLogoDark from '/blog/DevLog-2025.03.20/assets/histoire-logo-dark.avif'
-import NewUIV4Speech from '/blog/DevLog-2025.03.20/assets/new-ui-v4-speech.avif'
-import NewUIV4SpeechDark from '/blog/DevLog-2025.03.20/assets/new-ui-v4-speech-dark.avif'
-import SteinsGateMayori from '/blog/DevLog-2025.03.20/assets/steins-gate-mayori.avif'
+import Gelbana from './assets/steins-gate-gelnana-from-elpsycongrooblog.avif'
+import HistoireColorSlider from './assets/histoire-color-slider.avif'
+import HistoireColorSliderDark from './assets/histoire-color-slider-dark.avif'
+import HistoireLogo from './assets/histoire-logo.avif'
+import HistoireLogoDark from './assets/histoire-logo-dark.avif'
+import NewUIV4Speech from './assets/new-ui-v4-speech.avif'
+import NewUIV4SpeechDark from './assets/new-ui-v4-speech-dark.avif'
+import SteinsGateMayori from './assets/steins-gate-mayori.avif'
 </script>
 
 Hello again! It has been 10 days since the last post of DevLog
@@ -41,8 +41,8 @@ this project, haha, join us if you will. 🥺 (PLEASED FACE)).
 
 And this was the final result we got at that time:
 
-<img class="light" src="/blog/DevLog-2025.03.10/assets/new-ui-v3.avif" alt="new ui" />
-<img class="dark" src="/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif" alt="new ui" />
+<img class="light" src="../DevLog-2025.03.10/assets/new-ui-v3.avif" alt="new ui" />
+<img class="dark" src="../DevLog-2025.03.10/assets/new-ui-v3-dark.avif" alt="new ui" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">0</span>
@@ -70,7 +70,7 @@ This is where we made the decision to introduce the amazing tool called
 Here's the first look that [@sumimakito](https://github.com/sumimakito)
 recorded once done:
 
-<ThemedVideo muted autoplay src="/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4" />
+<ThemedVideo muted autoplay src="./assets/histoire-first-look.mp4" />
 
 The entire OKLCH color palette can spread on to the canvas all at once
 for us to take as reference. But it wasn't perfect to tryout the colors
@@ -142,7 +142,7 @@ service was powered by Microsoft, with the voice named `Ashley`, along with a
 yourself:
 
 <audio controls style="width: 100%;">
-  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
+  <source src="./assets/ashley-pitch-test.mp3" />
 </audio>
 
 Isn't it the same, this is insane! That's means, we can finally approach to
@@ -163,7 +163,7 @@ what Neuro-sama can do with the new **Speech** ability!
 
 With all of those, we can get this result:
 
-<ThemedVideo controls muted autoplay src="/blog/DevLog-2025.03.20/assets/airi-demo.mp4" />
+<ThemedVideo controls muted autoplay src="./assets/airi-demo.mp4" />
 
 Nearly the same. But our story doesn't end here, currently, we haven't
 achieved memory, and better motion control, and the transcription settings

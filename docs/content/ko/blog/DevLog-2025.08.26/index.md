@@ -20,7 +20,7 @@ import NmsIou from '../../../en/blog/DevLog-2025.08.26/components/nms-iou.vue'
 
 먼저 결과부터 보여 드리겠습니다:
 
-<ThemedVideo src="/blog/DevLog-2025.08.26/assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
+<ThemedVideo src="./assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
 
 영상에서 저는 웹 페이지의 VNC 연결로 Factorio 를 플레이하고 있고, 오른쪽에는 객체 탐지 결과가 거의 실시간으로 표시됩니다. [HuggingFace Space](https://huggingface.co/spaces/proj-airi/factorio-yolo-v0-playground) 에도 배포했으니 편하게 써 보세요.
 
@@ -97,7 +97,7 @@ sudo apt install -y websockify novnc
 
 이미지와 어노테이션 데이터를 모은 뒤에는 [YOLO 공식 형식](https://docs.ultralytics.com/datasets/detect/)에 맞춰 데이터셋을 정리하고, [Ultralytics Hub](https://www.ultralytics.com/hub) 에 업로드해 결과를 확인합니다:
 
-![](/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.jpg)
+![](./assets/factorio-ultralytics-hub-preview.jpg)
 
 꽤 괜찮아 보이죠? 학습을 시작해 봅시다!
 

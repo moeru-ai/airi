@@ -5,8 +5,8 @@ date: 2025-07-18
 excerpt: |
   We would love to share how we plan to improve our Factorio AI agent project, `airi-factorio`, based on the Factorio Learning Environment paper.
 preview-cover:
-  light: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
-  dark: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
+  light: "@assets('./assets/factorio-belt.gif')"
+  dark: "@assets('./assets/factorio-belt.gif')"
 ---
 
 Hello, I'm [@LemonNeko](https://github.com/LemonNekoGH), one of the maintainers of AIRI.
@@ -64,9 +64,9 @@ With that, the structure diagram has changed:
 
 <div class="flex flex-row gap-4">
 
-![Before](/blog/DevLog-2025.07.18/assets/structure-before.avif)
+![Before](./assets/structure-before.avif)
 
-![After](/blog/DevLog-2025.07.18/assets/structure-after.avif)
+![After](./assets/structure-after.avif)
 
 </div>
 

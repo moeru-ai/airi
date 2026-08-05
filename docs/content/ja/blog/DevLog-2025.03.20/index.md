@@ -17,7 +17,7 @@ date: 2025-03-20
 
 少し時間を巻き戻してみましょう！
 
-<img src="/blog/DevLog-2025.03.20/assets/steins-gate-gelnana-from-elpsycongrooblog.avif" alt="Gelbana" />
+<img src="./assets/steins-gate-gelnana-from-elpsycongrooblog.avif" alt="Gelbana" />
 
 > ああ、心配しないでください。私たちが愛する [AIRI](https://github.com/moeru-ai/airi) はこのようなゲルバナにはなりません。でも、もし [_Steins;Gate_](https://myanimelist.net/anime/9253/Steins_Gate) アニメシリーズを見たことがないなら、ぜひ見てみることを強くお勧めします〜！
 
@@ -25,8 +25,8 @@ date: 2025-03-20
 
 当時の最終結果はこんな感じでした：
 
-<img class="light" src="/blog/DevLog-2025.03.10/assets/new-ui-v3.avif" alt="new ui" />
-<img class="dark" src="/blog/DevLog-2025.03.10/assets/new-ui-v3-dark.avif" alt="new ui" />
+<img class="light" src="../DevLog-2025.03.10/assets/new-ui-v3.avif" alt="new ui" />
+<img class="dark" src="../DevLog-2025.03.10/assets/new-ui-v3-dark.avif" alt="new ui" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">0</span>
@@ -47,21 +47,21 @@ date: 2025-03-20
 
 これは [@sumimakito](https://github.com/sumimakito) が完成後に録画したファーストルックです：
 
-<ThemedVideo muted autoplay src="/blog/DevLog-2025.03.20/assets/histoire-first-look.mp4" />
+<ThemedVideo muted autoplay src="./assets/histoire-first-look.mp4" />
 
 OKLCH パレット全体を一度にキャンバスに展開して参照することができます。しかし、色を試して Project AIRI のテーマと同じ感覚を得るには、少し不完全ですよね？
 
 そこで、まずカラースライダーを再実装して、より適切な感じにしました：
 
-<img class="light" src="/blog/DevLog-2025.03.20/assets/histoire-color-slider.avif" alt="color slider" />
-<img class="dark" src="/blog/DevLog-2025.03.20/assets/histoire-color-slider-dark.avif" alt="color slider" />
+<img class="light" src="./assets/histoire-color-slider.avif" alt="color slider" />
+<img class="dark" src="./assets/histoire-color-slider-dark.avif" alt="color slider" />
 
 これでスライダーがよりプロフェッショナルになりました。
 
 ロゴとデフォルトの緑色は、AIRI のテーマに合わせて置き換えることができます。そのため、UI ページ専用に別のロゴをデザインしました：
 
-<img class="light" src="/blog/DevLog-2025.03.20/assets/histoire-logo.avif" alt="project airi logo for histoire" />
-<img class="dark" src="/blog/DevLog-2025.03.20/assets/histoire-logo-dark.avif" alt="project airi logo for histoire" />
+<img class="light" src="./assets/histoire-logo.avif" alt="project airi logo for histoire" />
+<img class="dark" src="./assets/histoire-logo-dark.avif" alt="project airi logo for histoire" />
 
 ああ、そうそう、UI コンポーネント全体はいつものように Netlify の `/ui/` パスにデプロイされています。UI 要素がどのようなものか知りたい場合は、いつでもチェックしてください：
 [https://airi.moeru.ai/ui/](https://airi.moeru.ai/ui/)
@@ -94,8 +94,8 @@ OKLCH パレット全体を一度にキャンバスに展開して参照する�
 
 これを見てください：
 
-<img class="light" src="/blog/DevLog-2025.03.20/assets/new-ui-v4-speech.avif" alt="brand new speech design" />
-<img class="dark" src="/blog/DevLog-2025.03.20/assets/new-ui-v4-speech-dark.avif" alt="brand new speech design" />
+<img class="light" src="./assets/new-ui-v4-speech.avif" alt="brand new speech design" />
+<img class="dark" src="./assets/new-ui-v4-speech-dark.avif" alt="brand new speech design" />
 
 ついに音声モデル設定をサポートしました 🎉！（以前は ElevenLabs しか設定できませんでした）私たちが開発している別の魔法のプロジェクト `unspeech` の[新 `v0.1.2` バージョン](https://github.com/moeru-ai/unspeech/releases/tag/v0.1.2)以来、[`@xsai/generate-speech`](https://xsai.js.org/docs/packages/generate/speech) を介して Microsoft Speech サービス（つまり Azure AI Speech サービス、または Cognitive Speech Services）をリクエストできるようになりました。これはつまり、ついに Microsoft 用の OpenAI API 互換の TTS サービスを手に入れたことを意味します。
 
@@ -104,12 +104,12 @@ OKLCH パレット全体を一度にキャンバスに展開して参照する�
 それは、Neuro-sama の最初のバージョンでは、テキスト読み上げサービスが Microsoft によって提供されており、`Ashley` という声を使用し、`+20%` のピッチを加えることで、Neuro-sama の最初のバージョンと同じ声を得ることができるからです。自分で試してみてください：
 
 <audio controls style="width: 100%;">
-  <source src="/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
+  <source src="./assets/ashley-pitch-test.mp3" />
 </audio>
 
 完全に同じではありませんか、これは本当にクレイジーです！つまり、私たちはついに新しい**音声**機能を通じて、Neuro-sama ができることに近づくことができるのです！
 
-<img src="/blog/DevLog-2025.03.20/assets/steins-gate-mayori.avif" alt="character from anime Steins;Gate" />
+<img src="./assets/steins-gate-mayori.avif" alt="character from anime Steins;Gate" />
 
 <h2 class="devlog-steins-gate-divergence-meter-heading">
   <span class="nixie-digit">1</span>
@@ -124,7 +124,7 @@ OKLCH パレット全体を一度にキャンバスに展開して参照する�
 
 これらすべてを組み合わせて、この結果を得ることができます：
 
-<ThemedVideo controls muted autoplay src="/blog/DevLog-2025.03.20/assets/airi-demo.mp4" />
+<ThemedVideo controls muted autoplay src="./assets/airi-demo.mp4" />
 
 ほぼ同じです。しかし、私たちの物語はここでは終わりません。現時点では、記憶機能、より良い動作制御はまだ実装されておらず、文字起こし設定 UI も欠けています。月末までにこれらを完了できることを願っています。
 

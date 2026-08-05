@@ -5,24 +5,24 @@ date: 2025-05-16
 ---
 
 <script setup>
-import VelinLight from '/blog/DevLog-2025.05.16/assets/velin-light.avif'
-import VelinDark from '/blog/DevLog-2025.05.16/assets/velin-dark.avif'
+import VelinLight from './assets/velin-light.avif'
+import VelinDark from './assets/velin-dark.avif'
 
-import CharacterCardMenuLight from '/blog/DevLog-2025.05.16/assets/character-card-menu-light.avif'
-import CharacterCardMenuDark from '/blog/DevLog-2025.05.16/assets/character-card-menu-dark.avif'
+import CharacterCardMenuLight from './assets/character-card-menu-light.avif'
+import CharacterCardMenuDark from './assets/character-card-menu-dark.avif'
 
-import CharacterCardSettingsLight from '/blog/DevLog-2025.05.16/assets/character-card-settings-light.avif'
-import CharacterCardSettingsDark from '/blog/DevLog-2025.05.16/assets/character-card-settings-dark.avif'
+import CharacterCardSettingsLight from './assets/character-card-settings-light.avif'
+import CharacterCardSettingsDark from './assets/character-card-settings-dark.avif'
 
-import CharacterCardShowcaseLight from '/blog/DevLog-2025.05.16/assets/character-card-showcase-light.avif'
-import CharacterCardShowcaseDark from '/blog/DevLog-2025.05.16/assets/character-card-showcase-dark.avif'
+import CharacterCardShowcaseLight from './assets/character-card-showcase-light.avif'
+import CharacterCardShowcaseDark from './assets/character-card-showcase-dark.avif'
 
-import VelinPlaygroundLight from '/blog/DevLog-2025.05.16/assets/velin-playground-light.avif'
-import VelinPlaygroundDark from '/blog/DevLog-2025.05.16/assets/velin-playground-dark.avif'
+import VelinPlaygroundLight from './assets/velin-playground-light.avif'
+import VelinPlaygroundDark from './assets/velin-playground-dark.avif'
 
-import DemoDayHangzhou1 from '/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-1.avif'
-import DemoDayHangzhou2 from '/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-2.avif'
-import DemoDayHangzhou3 from '/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-3.avif'
+import DemoDayHangzhou1 from './assets/demo-day-hangzhou-1.avif'
+import DemoDayHangzhou2 from './assets/demo-day-hangzhou-2.avif'
+import DemoDayHangzhou3 from './assets/demo-day-hangzhou-3.avif'
 </script>
 
 Hello again! Here's [Neko](https://github.com/nekomeowww), the girl who started
@@ -140,7 +140,7 @@ Eventually, I got this:
 which I managed to proof the work can be done on Web browser within one single
 300 ~ 500 lines of TypeScript code to achieve ChatGPT voice chat system.
 
-<ThemedVideo controls muted src="/blog/DevLog-2025.05.16/assets/webai-examples-demo.MP4" style="height: 640px;" />
+<ThemedVideo controls muted src="./assets/webai-examples-demo.MP4" style="height: 640px;" />
 
 I tried my best to split all the possible steps into small and reusable pieces
 to help demonstrate how you can construct a real-time voice chat system

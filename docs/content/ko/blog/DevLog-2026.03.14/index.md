@@ -5,8 +5,8 @@ date: 2026-03-14
 excerpt: |
   PR #1194 이야기 — AIRI 의 VRM 3D 스테이지를 디버깅하고 생애주기를 다시 설계하며, 창 단위 캐시를 도입하고 ThreeScene 관측 가능성의 첫 토대를 놓은 과정입니다.
 preview-cover:
-  light: "/blog/DevLog-2026.03.14/assets/cover-light.avif"
-  dark: "/blog/DevLog-2026.03.14/assets/cover-dark.avif"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 안녕하세요, [@Lilia-Chen](https://github.com/Lilia-Chen) 입니다.
@@ -147,11 +147,11 @@ load -> validate -> commit
 
 이전의 어지러운 모습입니다:
 
-![](/blog/DevLog-2026.03.14/assets/ThreeScene-before.avif)
+![](./assets/ThreeScene-before.avif)
 
 그리고 지금은 단계별로 이렇게 움직입니다:
 
-![](/blog/DevLog-2026.03.14/assets/ThreeScene-after.avif)
+![](./assets/ThreeScene-after.avif)
 
 재설계에서 도입한 핵심 아이디어는 몇 가지입니다:
 

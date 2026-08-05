@@ -5,7 +5,7 @@ date: 2025-04-28
 ---
 
 <script setup>
-import airiMcpArch from '/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif'
+import airiMcpArch from './assets/airi-mcp-arch.avif'
 </script>
 
 Hello everyone, this is [@LemonNeko](https://github.com/LemonNekoGH), and today I'm here to share development stories with you.
@@ -20,12 +20,12 @@ If you're interested, check out these two videos. The first demonstrates AIRI's 
 
 <details>
   <summary>AIRI's MCP Server Setup</summary>
-  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
+  <ThemedVideo controls muted src="./assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI Inputting `Hello World` on Phone</summary>
-  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
+  <ThemedVideo controls muted src="./assets/airi-mcp-input-text.mp4" />
 </details>
 
 During development, to clarify my thinking, I drew a diagram showing how LLMs call Android phones:

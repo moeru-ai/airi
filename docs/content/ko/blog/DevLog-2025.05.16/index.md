@@ -55,19 +55,19 @@ LLM 기반 롤플레잉 캐릭터를 저장하고 공유하는 수단이 캐릭�
 > 캐릭터 카드를 쓰려면 설정 페이지(앱 오른쪽 위, 데스크톱 앱에서는 톱니바퀴 아이콘에 마우스를 올리세요)로
 > 이동해 "Airi Card" 버튼을 찾아 클릭하세요.
 
-<img class="light" src="/blog/DevLog-2025.05.16/assets/character-card-menu-light.avif" alt="Airi Card 메뉴 버튼이 있는 메뉴 스크린샷" />
-<img class="dark" src="/blog/DevLog-2025.05.16/assets/character-card-menu-dark.avif" alt="Airi Card 메뉴 버튼이 있는 메뉴 스크린샷" />
+<img class="light" src="./assets/character-card-menu-light.avif" alt="Airi Card 메뉴 버튼이 있는 메뉴 스크린샷" />
+<img class="dark" src="./assets/character-card-menu-dark.avif" alt="Airi Card 메뉴 버튼이 있는 메뉴 스크린샷" />
 
 > 그러면 "Airi Card 편집 화면" 으로 이동해, 페르소나 커스터마이즈를 위해 캐릭터 카드를
 > 업로드하고 편집할 수 있습니다.
 
-<img class="light" src="/blog/DevLog-2025.05.16/assets/character-card-settings-light.avif" alt="Airi Card 편집 화면 스크린샷" />
-<img class="dark" src="/blog/DevLog-2025.05.16/assets/character-card-settings-dark.avif" alt="Airi Card 편집 화면 스크린샷" />
+<img class="light" src="./assets/character-card-settings-light.avif" alt="Airi Card 편집 화면 스크린샷" />
+<img class="dark" src="./assets/character-card-settings-dark.avif" alt="Airi Card 편집 화면 스크린샷" />
 
 캐릭터 카드 쇼케이스도 몇 가지 방식을 시도해 봤습니다...
 
-<img class="light" src="/blog/DevLog-2025.05.16/assets/character-card-showcase-light.avif" alt="ReLU 라는 파란 머리 캐릭터를 위한 카드 형태의 UI 디자인" />
-<img class="dark" src="/blog/DevLog-2025.05.16/assets/character-card-showcase-dark.avif" alt="ReLU 라는 파란 머리 캐릭터를 위한 카드 형태의 UI 디자인" />
+<img class="light" src="./assets/character-card-showcase-light.avif" alt="ReLU 라는 파란 머리 캐릭터를 위한 카드 형태의 UI 디자인" />
+<img class="dark" src="./assets/character-card-showcase-dark.avif" alt="ReLU 라는 파란 머리 캐릭터를 위한 카드 형태의 UI 디자인" />
 
 저희 UI 컴포넌트 라이브러리에 올라가 있으니 직접 만져 보세요: https://airi.moeru.ai/ui/#/story/src-components-menu-charactercard-story-vue .
 
@@ -107,7 +107,7 @@ LLM 스트리밍 토큰과 오디오 바이트의 이벤트 기반 스트림을 
 그 결과 나온 것이 [WebAI Realtime Voice Chat Examples](https://github.com/proj-airi/webai-example-realtime-voice-chat) 입니다.
 TypeScript 코드 300~500줄 하나로 웹 브라우저에서 ChatGPT 같은 음성 대화 시스템을 구현할 수 있음을 증명했습니다.
 
-<ThemedVideo controls muted src="/blog/DevLog-2025.05.16/assets/webai-examples-demo.MP4" style="height: 640px;" />
+<ThemedVideo controls muted src="./assets/webai-examples-demo.MP4" style="height: 640px;" />
 
 실시간 음성 대화 시스템을 밑바닥부터 어떻게 구성하는지 보여 드리기 위해, 가능한 모든 단계를
 작고 재사용 가능한 조각으로 최대한 나눠 봤습니다:
@@ -198,14 +198,14 @@ WebGPU 기반 배경 제거기를 시스템에 바로 넣는 작은 실험을 �
 
 그렇게 나온 것이 [**Velin**](https://github.com/luoling8192/velin) 입니다.
 
-<img class="light" src="/blog/DevLog-2025.05.16/assets/velin-light.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
-<img class="dark" src="/blog/DevLog-2025.05.16/assets/velin-dark.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
+<img class="light" src="./assets/velin-light.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
+<img class="dark" src="./assets/velin-dark.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
 
 편집하면서 즉석에서 렌더링해 볼 수 있는 플레이그라운드도 만들었고, npm 생태계도 그대로
 누릴 수 있습니다(네, 무엇이든 import 할 수 있습니다!).
 
-<img class="light" src="/blog/DevLog-2025.05.16/assets/velin-playground-light.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
-<img class="dark" src="/blog/DevLog-2025.05.16/assets/velin-playground-dark.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
+<img class="light" src="./assets/velin-playground-light.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
+<img class="dark" src="./assets/velin-playground-dark.avif" alt="Vue.js 로 LLM 프롬프트를 작성하는 도구" />
 
 여기서 써 보세요: https://velin-dev.netlify.app
 
@@ -220,7 +220,7 @@ npm install @velin-dev/core
 
 최근 중국 항저우에서 참가한 행사 **Demo Day @ Hangzhou** 의 사진으로 DevLog 를 마무리하겠습니다.
 
-<img src="/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-1.avif" alt="Demo Day @ Hangzhou" />
+<img src="./assets/demo-day-hangzhou-1.avif" alt="Demo Day @ Hangzhou" />
 
 이게 접니다. 다른 참가자들에게 AIRI 프로젝트를 소개했고 정말 즐거운 시간을 보냈습니다!
 재능 있는 개발자, 제품 디자이너, 창업자를 정말 많이 만났습니다.
@@ -229,8 +229,8 @@ npm install @velin-dev/core
 
 발표에 쓴 슬라이드는 이렇습니다:
 
-<img src="/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-2.avif" alt="Demo Day @ Hangzhou" />
-<img src="/blog/DevLog-2025.05.16/assets/demo-day-hangzhou-3.avif" alt="Demo Day @ Hangzhou" />
+<img src="./assets/demo-day-hangzhou-2.avif" alt="Demo Day @ Hangzhou" />
+<img src="./assets/demo-day-hangzhou-3.avif" alt="Demo Day @ Hangzhou" />
 
 슬라이드 자체도 완전히 오픈소스이니 여기서 직접 보셔도 됩니다:
 [https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1](https://talks.ayaka.io/nekoayaka/2025-05-10-airi-how-we-recreated-it/#/1)

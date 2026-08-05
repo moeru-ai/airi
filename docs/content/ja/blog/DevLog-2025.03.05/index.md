@@ -27,48 +27,48 @@ onMounted(async () => {
 先週、私たちの企業デザイナー/アーティストが Project AIRI のロゴの最初のデザイン案を提出してくれました。
 ロゴの全体的なスタイルはこんな感じでした：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v1.avif)
+![](./assets/airi-logos-v1.avif)
 
 ## 日中の作業
 
 デザインの観点から見ると、これらのロゴはホーム画面のアプリアイコンサイズに縮小したときに、少し複雑すぎて親しみやすさに欠けるように見えました。
 そこで、このバージョンを再デザインしました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logo-v2.avif)
+![](./assets/airi-logo-v2.avif)
 
 そして他のバリエーションも編集しました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v2.avif)
+![](./assets/airi-logos-v2.avif)
 
 しかし、これらのバージョンはダークテーマにしか適していませんでした。「ライトテーマ用のバージョンも必要だ！」と思い、すぐにこれを作成しました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logo-v2-dark.avif)
+![](./assets/airi-logo-v2-dark.avif)
 
 [@kwaa](https://github.com/kwaa) が、2つのテーマの配色を入れ替えてみてはどうかと提案してくれました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v3.avif)
+![](./assets/airi-logos-v3.avif)
 
 確かにこの方が良く見えます。
 
 フォントの配置も更新しました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v4.avif)
+![](./assets/airi-logos-v4.avif)
 
 そして背景色も最適化しました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v5.avif)
+![](./assets/airi-logos-v5.avif)
 
 というわけで、最終的にこうなりました：
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-final.avif)
+![](./assets/airi-logos-final.avif)
 
 今日の遅くには、Project AIRI の[ドキュメントサイト](https://airi.build)を正式に公開する予定です。
 私自身や他の開発者、アーティストのためのリファレンスやガイドを提供するためです。
 
 ついに完成しました！新しいデザインのロゴと配色はすでに[ドキュメントサイト](https://airi.build)に統合されています：
 
-![](/blog/DevLog-2025.03.05/assets/airi-build-light.avif)
-![](/blog/DevLog-2025.03.05/assets/airi-build-dark.avif)
+![](./assets/airi-build-light.avif)
+![](./assets/airi-build-dark.avif)
 
 現在、サイトには[基本ガイド](../guides/)、
 [貢献ガイド](../references/contributing/guide/)、
@@ -92,6 +92,6 @@ https://www.youtube.com/watch?v=_AIgv0EsOE4
 
 移植後の効果はかなり良い感じです：
 
-![](/blog/DevLog-2025.03.05/assets/animation-transitions.gif)
+![](./assets/animation-transitions.gif)
 
 今日の DevLog はここまでです。DevStream に参加し、最後まで付き合ってくれた皆さんに感謝します。また明日お会いしましょう。

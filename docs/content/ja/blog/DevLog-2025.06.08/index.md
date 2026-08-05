@@ -5,8 +5,8 @@ date: 2025-06-08
 excerpt: |
   Live2D モデルがマウス位置を追従するようにする方法と、マルチディスプレイ環境での計算の難しさについて。
 preview-cover:
-  light: "/blog/DevLog-2025.06.08/assets/250608-light.avif"
-  dark: "/blog/DevLog-2025.06.08/assets/250608-dark.avif"
+  light: "@assets('./assets/250608-light.avif')"
+  dark: "@assets('./assets/250608-dark.avif')"
 ---
 
 こんにちは、AIRI のメンテナの一人、LemonNeko です。今日の DevLog では、AIRI デスクトップペットの Live2D モデルがマウスの位置を注視できるようにする方法についてお話しします。
@@ -17,7 +17,7 @@ preview-cover:
 
 まず、Live2D には **注視 (focus)** と **タッチ (tap)** という2つの基本的なインタラクションがあることを理解する必要があります。Live2D キャンバスを作成すると、モデルは自動的にマウスの位置を注視し、頭と体がマウスの方を向きます。実装後の効果は以下のようになります：
 
-![](/blog/DevLog-2025.06.08/assets/airi-tamagotchi-focus.gif)
+![](./assets/airi-tamagotchi-focus.gif)
 
 しかし、マウスが Web ページの内容から外れると、Live2D はマウスの位置がどこにあるかわからなくなるため、マウスがどこにあるかを手動で教える必要があります。
 
@@ -29,7 +29,7 @@ Live2D にマウスの位置を教えるには、Tauri のネイティブコー�
 
 これが私たちの画面だと仮定しましょう：
 
-![](/blog/DevLog-2025.06.08/assets/screen.avif)
+![](./assets/screen.avif)
 
 青い枠が画面、ピンクが AIRI のウィンドウ、紫の矢印がマウスです。次のように定義します：
 

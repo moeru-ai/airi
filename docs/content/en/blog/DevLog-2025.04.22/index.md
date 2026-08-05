@@ -12,7 +12,7 @@ Two months ago, we ported AIRI's web interface to Electron [#7](https://github.c
 
 Last weekend (2025.04.20), I spent some time creating an MCP server demo [airi-android](https://github.com/LemonNekoGH/airi-android) that can interact with ADB, providing AIRI with basic mobile interaction capabilities (in fact, most LLMs can interact with phones through it). Here's a demo video:
 
-<ThemedVideo controls muted src="/blog/DevLog-2025.04.22/assets/cursor-open-settings.mp4" />
+<ThemedVideo controls muted src="./assets/cursor-open-settings.mp4" />
 
 I also packaged it as a Docker image and submitted it to the [MCP server list](https://mcp.so/server/airi-android/lemonnekogh). Feel free to try it if you're interested.
 
@@ -58,7 +58,7 @@ Some reflections.
 
 This is the first time I've felt like coding with a human while working with AI. I'm not sure if it's because my goal was to let AI use my tools, so it became my client—I constantly had to adjust my code based on its feedback. It also became my colleague—I needed to think and solve problems together with it. Look at this screenshot, doesn't it really look like that?
 
-![](/blog/DevLog-2025.04.22/assets/develop-with-cursor.avif)
+![](./assets/develop-with-cursor.avif)
 
 During development, I also learned some small tricks, like using the command line to start Android emulators so we don't need to open Android Studio, which reduces memory pressure significantly.
 

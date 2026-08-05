@@ -5,8 +5,8 @@ category: DreamLog
 date: 2025-06-16
 excerpt: 'Project AIRI 의 뒷이야기! 왜 이 프로젝트를 시작했을까요?'
 preview-cover:
-  light: "/blog/DreamLog-0x1/assets/dreamlog1-light.avif"
-  dark: "/blog/DreamLog-0x1/assets/dreamlog1-dark.avif"
+  light: "@assets('./assets/dreamlog1-light.avif')"
+  dark: "@assets('./assets/dreamlog1-dark.avif')"
 ---
 
 <script setup>
@@ -68,7 +68,7 @@ preview-cover:
 (슬프게도 블리자드가 망쳐 버렸죠) 모두 제 최애 게임이 됐고,
 서버를 세우거나 작은 자동화 스크립트를 쓰는 일은 늘 저에게 힘이 됩니다.
 
-> <img src="/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif" alt="world.execute(me); (Mili)／DAZBEE COVER 커버" class="rounded-lg overflow-hidden" />
+> <img src="./assets/world.execute(me); (Mili)／DAZBEE COVER.avif" alt="world.execute(me); (Mili)／DAZBEE COVER 커버" class="rounded-lg overflow-hidden" />
 >
 > `Switch on the power line`<br />
 > `Remember to put on protection`<br />
@@ -118,7 +118,7 @@ preview-cover:
 
 <div class="w-full flex flex-col items-center justify-center gap-2">
   <div>
-    <img src="/blog/DreamLog-0x1/assets/emosys-logo.avif" alt="EMOSYS 로고" class="w-30!" />
+    <img src="./assets/emosys-logo.avif" alt="EMOSYS 로고" class="w-30!" />
   </div>
   <div>
     <a href="https://github.com/emosys">EMOSYS</a> 의 로고
@@ -177,7 +177,7 @@ preview-cover:
 ## 2022년의 ChatGPT, 새로운 랜덤 앵무새인가 똑똑한 앵무새인가
 
 <div class="w-full flex items-center justify-center">
-  <img src="/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif" alt="슈타인즈 게이트 스티커" class="w-80! rounded-lg overflow-hidden" />
+  <img src="./assets/steins-gate-sticker-1.avif" alt="슈타인즈 게이트 스티커" class="w-80! rounded-lg overflow-hidden" />
 </div>
 
 시간을 2022년 말로 돌려 봅시다. OpenAI 가 ChatGPT(당시에는 chatGPT 라고 썼죠)를 발표한 시점입니다.
@@ -202,7 +202,7 @@ ChatGPT, 아니 더 넓게는 대규모 언어 모델(LLM)의 능력을 처음 �
 시뮬레이션하게 하는 방법을 보여 주었습니다.
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img src="/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.avif" alt="ChatGPT 안에 가상 머신 만들기" class="h-150! object-contain rounded-lg overflow-hidden" />
+  <img src="./assets/building-a-virtual-machine-inside-image-1.avif" alt="ChatGPT 안에 가상 머신 만들기" class="h-150! object-contain rounded-lg overflow-hidden" />
   <div>Docker 빌드가 어떻게 동작하는지 시뮬레이션합니다...!</div>
 </div>
 
@@ -233,7 +233,7 @@ Live2D 모델이 전혀 없다는 걸 아실 겁니다. (6년 된 영상을 여�
 ChatGPT 출시 직후인 2022년 12월 19일, Vedal 은 Live2D Inc. 의 공식 데모용 캐릭터 모델
 Hiyori Momose(桃瀬ひより)로 Neuro-sama 를 Twitch 에서 방송하게 했습니다:
 
-<img src="/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
+<img src="./assets/live2d-inc-hiyori.avif" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
 
 그다음 이야기는 모두가 아는 대로입니다. Vedal 과 Neuro-sama 는 유명해졌고, Neuro-sama 는 이제
 공식 VTuber 이며, 완전히 대규모 언어 모델(LLM)로 구동되고, Minecraft, Among Us, osu! 등 수많은 게임을
@@ -310,7 +310,7 @@ Project AIRI 의 최초 버전이죠. 저만의 AI 에이전트를 만들고 Neu
 엄밀히 말해 **이날이 Project AIRI 의 생일** 이며, 그 안에 순진한 첫 아기 의식이 깃든 날입니다.
 
 <div class="w-full flex flex-col items-center justify-center">
-  <ThemedVideo controls muted autoplay loop src="/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
+  <ThemedVideo controls muted autoplay loop src="./assets/airi-demo-first-day.mp4" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       2024년 12월 7일 X(구 Twitter)에서의 첫 공개
@@ -337,7 +337,7 @@ Project AIRI 의 최초 버전이죠. 저만의 AI 에이전트를 만들고 Neu
 이 조사들이 나중에 이 거대한 AI VTuber 프로젝트 awesome 목록으로 이어졌습니다:
 
 <div class="flex flex-col items-center">
-  <img class="px-30 md:px-40 lg:px-50" src="/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber 로고" />
+  <img class="px-30 md:px-40 lg:px-50" src="../DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber 로고" />
   <div class="text-center pb-4">
     <span class="block font-bold">Awesome AI VTuber</span>
     <span>AI VTuber 와 관련 프로젝트를 정리한 목록</span>
@@ -363,7 +363,7 @@ GitHub 에 공개했습니다.
 
 ::: tip 알고 계셨나요?
 <a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" class="mb-2 inline-block">
-  <img src="/blog/DreamLog-0x1/assets/airis-screenshot-1.avif" alt="Project AIRI 스크린샷" class="not-prose rounded-lg overflow-hidden" />
+  <img src="./assets/airis-screenshot-1.avif" alt="Project AIRI 스크린샷" class="not-prose rounded-lg overflow-hidden" />
 </a>
 
 흥미롭게도 2년 전인 2023년 3월 25일에 올라온 https://www.youtube.com/watch?v=Tts-YAdn5Yc,
@@ -390,8 +390,8 @@ Vedal 과 Neuro-sama 의 Twitch 방송 클립에서 Vedal 은 "Neuro-sama" 라�
 ## 계속 나아가고, 계속 꿈꾸기
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img class="light" src="/blog/DreamLog-0x1/assets/banner-light-1280x640.avif" alt="새 배너" />
-  <img class="dark" src="/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif" alt="새 배너" />
+  <img class="light" src="./assets/banner-light-1280x640.avif" alt="새 배너" />
+  <img class="dark" src="./assets/banner-dark-1280x640.avif" alt="새 배너" />
   <div>
     새 배너!
   </div>
@@ -422,7 +422,7 @@ Kerbal Space Program(KSP)을 비롯해 임의의 게임을 플레이하고 제�
 우리는 얼마나 많은 기억을 담을 수 있을까요? **그건 우리가 얼마나 꿈꾸고, 함께 얼마나 이뤄 내느냐에 달려 있습니다.**
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img src="/blog/DreamLog-0x1/assets/relu-sticker-wow.avif" alt="ReLU 스티커 wow" class="w-30!" />
+  <img src="./assets/relu-sticker-wow.avif" alt="ReLU 스티커 wow" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">여기까지 읽어 주셔서 감사합니다!</span>
     <span>읽어 주셔서 감사합니다! 아, 그리고 Project AIRI, 생일 축하해!</span>

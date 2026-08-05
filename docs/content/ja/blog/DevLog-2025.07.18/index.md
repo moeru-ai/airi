@@ -5,8 +5,8 @@ date: 2025-07-18
 excerpt: |
   Factorio 強化学習環境に関する論文を読んだ後、Factorio エージェントプロジェクト `airi-factorio` をどのように改善するか共有したいと思います。
 preview-cover:
-  light: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
-  dark: "/blog/DevLog-2025.07.18/assets/factorio-belt.gif"
+  light: "@assets('./assets/factorio-belt.gif')"
+  dark: "@assets('./assets/factorio-belt.gif')"
 ---
 
 こんにちは、AIRI メンテナーの一人、[@LemonNeko](https://github.com/LemonNekoGH) です。
@@ -64,9 +64,9 @@ FLE と比較すると、私たちの実装はかなり未熟に見えます。�
 
 <div class="flex flex-row gap-4">
 
-![](/blog/DevLog-2025.07.18/assets/structure-before.avif)
+![](./assets/structure-before.avif)
 
-![](/blog/DevLog-2025.07.18/assets/structure-after.avif)
+![](./assets/structure-after.avif)
 
 </div>
 

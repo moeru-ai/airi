@@ -5,8 +5,8 @@ date: 2025-06-08
 excerpt: |
   How we make Live2D models follow the cursor position, and the how it's challenging to calculate across multiple displays.
 preview-cover:
-  light: "/blog/DevLog-2025.06.08/assets/250608-light.avif"
-  dark: "/blog/DevLog-2025.06.08/assets/250608-dark.avif"
+  light: "@assets('./assets/250608-light.avif')"
+  dark: "@assets('./assets/250608-dark.avif')"
 ---
 
 Hello everyone, here's LemonNeko, one of maintainer of AIRI. Today's DevLog is talking about: Let Live2D model of AIRI Tamagotchi to focus position.
@@ -21,7 +21,7 @@ First of all, we need to know, there are two basic interations of Live2D: **Focu
 
 首先我们需要了解，在 Live2D 中有两种基础的交互：注视 (focus) 与触碰 (tap)，当我们创建一个 Live2D 画布，模型就会自动注视我们的鼠标位置，头和身体朝向鼠标这一侧。下面是实现后的效果：
 
-![](/blog/DevLog-2025.06.08/assets/airi-tamagotchi-focus.gif)
+![](./assets/airi-tamagotchi-focus.gif)
 
 But, if the cursor is out of web page, Live2D won't know the position of our cursor, so we need to tell the Live2D engine where is our cursor.
 
@@ -39,7 +39,7 @@ For example, we have a screen like this:
 
 假设这是我们的屏幕：
 
-![](/blog/DevLog-2025.06.08/assets/screen.avif)
+![](./assets/screen.avif)
 
 The blue box is the screen, the pink box is the AIRI window, the purple arrow is the cursor, we define:
 

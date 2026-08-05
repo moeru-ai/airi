@@ -30,42 +30,42 @@ Last week, our corporate designer/artist has submitted our commission for the
 basic/first version of Project AIRI logo. The feeling of the logo looks like
 this:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v1.avif)
+![](./assets/airi-logos-v1.avif)
 
 ## Daytime
 
 From the perspective of designing, these were so complex and user unfriendly
 when scaled down to Home Screen app sizes. Therefore I added this version:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logo-v2.avif)
+![](./assets/airi-logo-v2.avif)
 
 And edited with other variants:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v2.avif)
+![](./assets/airi-logos-v2.avif)
 
 All of those were only suitable for dark theme, "we need a dark theme version
 logo as well!" I thought, so I did this:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logo-v2-dark.avif)
+![](./assets/airi-logo-v2-dark.avif)
 
 [@kwaa](https://github.com/kwaa) said that we can try to swap the color schemes
 for both themes:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v3.avif)
+![](./assets/airi-logos-v3.avif)
 
 This indeed looks better.
 
 We updated the Typography too:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v4.avif)
+![](./assets/airi-logos-v4.avif)
 
 And optimized the background colors:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-v5.avif)
+![](./assets/airi-logos-v5.avif)
 
 So this is what we get finally:
 
-![](/blog/DevLog-2025.03.05/assets/airi-logos-final.avif)
+![](./assets/airi-logos-final.avif)
 
 Later on today, I was working on publishing the
 [documentation site](https://airi.build) of Project AIRI online, for me,
@@ -74,8 +74,8 @@ and other developers, artists to use it as a reference and guidelines.
 I did it! And the newly designed logo has been put into the
 [documentation site](https://airi.build) along with the color palette:
 
-![](/blog/DevLog-2025.03.05/assets/airi-build-light.avif)
-![](/blog/DevLog-2025.03.05/assets/airi-build-dark.avif)
+![](./assets/airi-build-light.avif)
+![](./assets/airi-build-dark.avif)
 
 [Basic guide](../guides/),
 [contribution guidelines](../references/contributing/guide/),
@@ -104,7 +104,7 @@ I ported many of the animation transitions from [yui540](https://github.com/yui5
 
 It worked really well:
 
-![](/blog/DevLog-2025.03.05/assets/animation-transitions.gif)
+![](./assets/animation-transitions.gif)
 
 That's all for today's DevLog, thank you to everyone that joined the DevStream
 and stayed with me until the end. I'll see you all tomorrow.

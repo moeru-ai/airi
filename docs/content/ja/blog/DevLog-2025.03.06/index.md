@@ -17,7 +17,7 @@ date: 2025-03-06
 最終的な移植結果はかなり良く、以下にデプロイされています：
 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/)。
 
-![](/blog/DevLog-2025.03.06/assets/animation-transitions.gif)
+![](./assets/animation-transitions.gif)
 
 > また、これからは各パッケージのすべてのプレイグラウンドが
 > "proj-airi" + "${subDirectory}" + "${packageName}" というパターンで Netlify に
@@ -48,7 +48,7 @@ date: 2025-03-06
 
 配信のレイアウトと設定を更新しました 😻 これはほぼ1年前に自分でデザインしたものですが、今見ても素晴らしく、見ていて落ち着く感じがします。チャットにコメントや提案を残していただけると嬉しいです。
 
-![](/blog/DevLog-2025.03.06/assets/live-stream-layout-update.avif)
+![](./assets/live-stream-layout-update.avif)
 
 今日の開発配信では、ステージトランジションアニメーションコンポーネントを AIRI ウェブサイトのメインステージに統合しようとしましたが、プロセスはそれほど順調ではありませんでした。以前のアニメーションコンポーネント設計にいくつかの問題が見つかりましたが、良いニュースはそれらの問題を修正できたことです。新しいアニメーション・トランジション効果は現在、私たちの公式デプロイ [https://airi.moeru.ai](https://airi.moeru.ai) で利用可能です。
 

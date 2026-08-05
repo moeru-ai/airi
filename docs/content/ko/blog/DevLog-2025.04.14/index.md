@@ -102,21 +102,21 @@ AIRI 를 위한 좋은 기억 계층을 만들려면 RAG 의 기본 능력과 �
 
 [Project AIRI Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
 
-![](/blog/DevLog-2025.04.14/assets/memory-driver.avif)
+![](./assets/memory-driver.avif)
 
 왼쪽에 강조된 "half life" 는 기억의 반감기입니다.
 
 기본값으로 시간은 1초 = 1일 로 흐르므로, 7초가 지나면 기억 점수가 절반이 됩니다.
 
 기억 점수란 무엇일까요? 기억 점수는 주로 이것으로 제어됩니다:
-![](/blog/DevLog-2025.04.14/assets/memory-controler.avif)
+![](./assets/memory-controler.avif)
 
 그 결과로 나온 점수가 현재 점수입니다.
 
 original 은 무엇일까요? 초기화 시점의 점수입니다.
 
 예: 원래 점수가 523 인데 현재 점수는 실제로 서서히 줄어들고 있습니다:
-![](/blog/DevLog-2025.04.14/assets/memory-decay.avif)
+![](./assets/memory-decay.avif)
 
 계속하기 전에 짚고 넘어가면, 이 망각 곡선 SQL 은 무상태(stateless)입니다.
 
@@ -160,17 +160,17 @@ original 은 무엇일까요? 초기화 시점의 점수입니다.
 
 DevLog 에서 언급한 정렬 표현식을 복습해 보면 이해에 도움이 될 겁니다.
 
-![](/blog/DevLog-2025.04.14/assets/review-1.avif)
+![](./assets/review-1.avif)
 
 코사인 거리는 "연관도" 이며, 가장 기본적인 조 정렬입니다:
-![](/blog/DevLog-2025.04.14/assets/review-2.avif)
+![](./assets/review-2.avif)
 
 이제 시간을 개입시켜야 하므로 시간 거리를 저장할 필드를 하나 더 추가하고, 결합 점수 `(1.2 * similarity) + (0.2 * time_relevance)` 를 저장할 별도 필드를 만듭니다. 여기서 의미적 연관도는 1.2배 가중치(증폭 계수이며 1 미만일 필요는 없습니다), 시간 거리 연관도는 0.2배 가중치를 갖습니다.
 
 이렇게 하면 무상태 다중 필드 연관도 정렬 SQL 을 깔끔하게 구현하면서 매개변수(1.2 와 0.2)로 조정도 할 수 있습니다.
 
 기억 상세 카드에서는 "simulate retrieval" 을 클릭해 기억 회상을 능동적으로 트리거할 수 있습니다.
-![](/blog/DevLog-2025.04.14/assets/memory-retrieval.avif)
+![](./assets/memory-retrieval.avif)
 
 현재 데모에서는 원본 테이블의 검색 횟수 필드에 UPDATE 문으로 +1 을 더하는 단순한 방식으로 구현되어 있습니다.
 
@@ -185,7 +185,7 @@ DevLog 에서 언급한 정렬 표현식을 복습해 보면 이해에 도움이
 https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 
 이 새 시뮬레이터에는 감정 관련 시뮬레이션이 포함되어 있습니다:
-![](/blog/DevLog-2025.04.14/assets/memory-emotional-simulator.avif)
+![](./assets/memory-emotional-simulator.avif)
 
 ### 감정은 기억과 관련이 있을까?
 
@@ -196,7 +196,7 @@ https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 "과거의 어떤 기억이 즐거워서 다시 겪고 싶은데", "그 기억 속 상황을 지금은 재현할 수 없어서", 그래서 "얻지 못해 기분이 나쁜" 것이죠.
 
 기억 데이터베이스에 "기쁨" 과 "혐오" 점수를 저장할 수 있습니다:
-![](/blog/DevLog-2025.04.14/assets/memory-emotional-score.avif)
+![](./assets/memory-emotional-score.avif)
 
 ### PTSD?
 
@@ -206,7 +206,7 @@ PTSD 에는 보통 "trigger" 와 "flashback" 이라는 두 단어가 따라옵�
 
 https://yutsuki.moe/2019/09/a0d0fa1b/ 의 감정 모델을 참고할 수 있습니다.
 
-![](/blog/DevLog-2025.04.14/assets/memory-emotional-model.avif)
+![](./assets/memory-emotional-model.avif)
 
 ## 아직 할 일이 많습니다...
 

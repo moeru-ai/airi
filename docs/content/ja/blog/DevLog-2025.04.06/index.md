@@ -340,7 +340,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <img src="/blog/DevLog-2025.04.06/assets/memory-decay.avif" alt="memory decay & retention simulation" />
+    <img src="./assets/memory-decay.avif" alt="memory decay & retention simulation" />
   </div>
 </div>
 
@@ -362,7 +362,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <img src="/blog/DevLog-2025.04.06/assets/memory-retrieval.avif" alt="memory sudden retrieval & emotion biased simulation" />
+    <img src="./assets/memory-retrieval.avif" alt="memory sudden retrieval & emotion biased simulation" />
   </div>
 </div>
 
@@ -415,7 +415,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <img src="/blog/DevLog-2025.04.06/assets/character-card.avif" alt="character card" />
+    <img src="./assets/character-card.avif" alt="character card" />
   </div>
 </div>
 
@@ -433,7 +433,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <img src="/blog/DevLog-2025.04.06/assets/character-card-detail.avif" alt="character card detail" />
+    <img src="./assets/character-card-detail.avif" alt="character card detail" />
   </div>
 </div>
 
@@ -449,7 +449,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <img src="/blog/DevLog-2025.04.06/assets/more-theme-colors.avif" alt="more theme colors" />
+    <img src="./assets/more-theme-colors.avif" alt="more theme colors" />
   </div>
 </div>
 
@@ -467,7 +467,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
     </div>
   </div>
   <div class="flex flex-col items-center">
-    <img class="px-30 md:px-40 lg:px-50" src="/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber Logo" />
+    <img class="px-30 md:px-40 lg:px-50" src="./assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber Logo" />
     <div class="text-center pb-4">
       <span class="block font-bold">Awesome AI VTuber</span>
       <span>精選された AI VTuber 及其関連プロジェクトリスト</span>
@@ -505,7 +505,7 @@ const combinedScore = sql<number>`((1.2 * ${similarity}) + (0.2 * ${timeRelevanc
   </div>
   <div style="padding: 12px; margin-top: 0px;">
     <div class="flex justify-center w-[20%]">
-      <img src="/blog/DevLog-2025.04.06/assets/relu-sticker-wow.avif" alt="ReLU sticker for expression wow" />
+      <img src="./assets/relu-sticker-wow.avif" alt="ReLU sticker for expression wow" />
     </div>
     <div class="flex flex-col">
       <div>時々、自分は本当に記号的な存在だと感じます、</div>

@@ -12,7 +12,7 @@ date: 2025-04-22
 
 先週末（2025.04.20）、少し時間を割いて、ADB と対話できる MCP サーバーのデモ [airi-android](https://github.com/LemonNekoGH/airi-android) を作成しました。これにより、AIRI に携帯電話と対話する最も基本的な機能が提供されました（実際、ほとんどの LLM はこれを通じて携帯電話と対話できます）。デモ動画はこちらです：
 
-<ThemedVideo controls muted src="/blog/DevLog-2025.04.22/assets/cursor-open-settings.mp4" />
+<ThemedVideo controls muted src="./assets/cursor-open-settings.mp4" />
 
 また、Docker イメージとしてパッケージ化し、[MCP サーバーリスト](https://mcp.so/server/airi-android/lemonnekogh) に登録しました。興味のある方は試してみてください。
 
@@ -58,7 +58,7 @@ LLM に具体的にどのように携帯電話を操作させるかはまだ考�
 
 これは私が AI と一緒にコードを書いているときに、まるで人間と一緒に書いているように感じた初めての経験です。私の目的が AI に私のツールを使わせることだったので、AI が私の顧客になり、私は AI からのフィードバックに基づいてコードを調整し続ける必要があり、同時に AI は私の同僚になり、一緒に考え、一緒に問題を解決する必要があったからかもしれません。このスクリーンショットを見てください。確かに似ていませんか？
 
-![](/blog/DevLog-2025.04.22/assets/develop-with-cursor.avif)
+![](./assets/develop-with-cursor.avif)
 
 開発プロセス中にいくつかの小技も学びました。例えば、コマンドラインを使用して Android エミュレータを起動することで、Android Studio を開く必要がなくなり、メモリの負担も大幅に軽減されました。
 

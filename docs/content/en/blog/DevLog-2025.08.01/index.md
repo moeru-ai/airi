@@ -5,8 +5,8 @@ date: 2025-08-01
 excerpt: |
   Makito will share her journey from implementing text animations in AIRI to building a library to handle grapheme clusters as they arrive in a stream of UTF-8 bytes.<br /> We hope you find it informative and inspiring!
 preview-cover:
-  light: "/blog/DevLog-2025.08.01/assets/cover-light.avif"
-  dark: "/blog/DevLog-2025.08.01/assets/cover-dark.avif"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 <script setup>
@@ -53,7 +53,7 @@ Text animations are especially useful for making messages appear in a fancy way 
 In Project AIRI, [@nekomeowww](https://github.com/nekomeowww) also built an animated chat bubble component with motion effects:
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
-  <source src="/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
+  <source src="./assets/animated-chat-bubble.mp4">
 </video>
 
 <div text-sm text-center>

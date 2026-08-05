@@ -5,8 +5,8 @@ date: 2026-03-29
 excerpt: |
   How should we embed a WebView in Godot? About AIRI switching to the Godot engine for scene rendering while still using web technologies for UI and logic.
 preview-cover:
-  light: "/blog/DevLog-2026.03.29/assets/cover-light.avif"
-  dark: "/blog/DevLog-2026.03.29/assets/cover-dark.avif"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 
@@ -95,7 +95,7 @@ Fortunately, I obtained the XML structure of the root View of the Activity hosti
 If it runs as expected, you should see an effect like this.
 
 
-<video src="/blog/DevLog-2026.03.29/assets/airi-pocket-android-godot-vrm-bg.mp4" autoplay loop muted></video>
+<video src="./assets/airi-pocket-android-godot-vrm-bg.mp4" autoplay loop muted></video>
 
 
 According to the officially recommended approach, we should actually write a Godot Android plugin, but this time LemonNeko wrote it directly in `GodotApp.java` to quickly validate the idea.

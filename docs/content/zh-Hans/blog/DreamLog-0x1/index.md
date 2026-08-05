@@ -5,8 +5,8 @@ date: '2025-06-16'
 category: DreamLog
 excerpt: 'Project AIRI 的幕后故事！以及为什么我们会想要制作如此一个项目？'
 preview-cover:
-  light: "/blog/DreamLog-0x1/assets/dreamlog1-light.avif"
-  dark: "/blog/DreamLog-0x1/assets/dreamlog1-dark.avif"
+  light: "@assets('./assets/dreamlog1-light.avif')"
+  dark: "@assets('./assets/dreamlog1-dark.avif')"
 ---
 
 <script setup>
@@ -66,7 +66,7 @@ Minecraft、Linux 也并不是我旅程的终点，[Factorio（异星工厂）](
 [Overwatch（守望先锋）](https://overwatch.blizzard.com/en-us/)（遗憾的是暴雪还是糟蹋了一番）
 都成了我最喜欢的游戏，建立服务器或编写小脚本来自动化小事情确实都是让我很兴奋的事情。
 
-> <img src="/blog/DreamLog-0x1/assets/world.execute(me); (Mili)／DAZBEE COVER.avif" alt="Cover of world.execute(me); (Mili)／DAZBEE COVER" class="rounded-lg overflow-hidden" />
+> <img src="./assets/world.execute(me); (Mili)／DAZBEE COVER.avif" alt="Cover of world.execute(me); (Mili)／DAZBEE COVER" class="rounded-lg overflow-hidden" />
 >
 > `Switch on the power line`<br />
 > `Remember to put on protection`<br />
@@ -118,7 +118,7 @@ Minecraft、Linux 也并不是我旅程的终点，[Factorio（异星工厂）](
 
 <div class="w-full flex flex-col items-center justify-center gap-2">
   <div>
-    <img src="/blog/DreamLog-0x1/assets/emosys-logo.avif" alt="logo of EMOSYS" class="w-30!" />
+    <img src="./assets/emosys-logo.avif" alt="logo of EMOSYS" class="w-30!" />
   </div>
   <div>
     <a href="https://github.com/emosys">EMOSYS</a> 的 Logo
@@ -175,7 +175,7 @@ Minecraft、Linux 也并不是我旅程的终点，[Factorio（异星工厂）](
 ## 2022 年的 ChatGPT，全新的随机鹦鹉，还挺聪明
 
 <div class="w-full flex items-center justify-center">
-  <img src="/blog/DreamLog-0x1/assets/steins-gate-sticker-1.avif" alt="Steins Gate sticker" class="w-80! rounded-lg overflow-hidden" />
+  <img src="./assets/steins-gate-sticker-1.avif" alt="Steins Gate sticker" class="w-80! rounded-lg overflow-hidden" />
 </div>
 
 让我们把时间推进到 2022 年底，OpenAI 宣布了 ChatGPT（或者在那时，用的是 chatGPT 这个叫法）。
@@ -198,7 +198,7 @@ GPT-3（特别是在 [GitHub Copilot](https://en.wikipedia.org/wiki/GitHub_Copil
 还在内部模拟一个虚拟 Linux 机器。
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img src="/blog/DreamLog-0x1/assets/building-a-virtual-machine-inside-image-1.avif" alt="Building a virtual machine inside ChatGPT" class="h-150! object-contain rounded-lg overflow-hidden" />
+  <img src="./assets/building-a-virtual-machine-inside-image-1.avif" alt="Building a virtual machine inside ChatGPT" class="h-150! object-contain rounded-lg overflow-hidden" />
   <div>它甚至能模拟 Docker build 是如何工作的...！</div>
 </div>
 
@@ -229,7 +229,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 在 ChatGPT 发布之后，差不多 2022 年 12 月 19 日，Vedal 开始让 Neuro-sama 使用来自 Live2D Inc.
 的官方演示角色模型桃瀬ひより（Hiyori Momose）在 Twitch 上直播：
 
-<img src="/blog/DreamLog-0x1/assets/live2d-inc-hiyori.avif" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
+<img src="./assets/live2d-inc-hiyori.avif" alt="Live2D Inc. Hiyori Momose" class="rounded-lg overflow-hidden" />
 
 之后的故事大家都知道了，Vedal 和 Neuro-sama 火了，Neuro-sama 现在正式成为了 VTuber，
 她完全由大语言模型（LLMs）驱动，能够玩 Minecraft、Among Us、osu! 和许多其他游戏。
@@ -304,7 +304,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 从某种意义上来说，**这就是 Project AIRI 的生日**，第一个稚嫩的婴儿意识在其中诞生。
 
 <div class="w-full flex flex-col items-center justify-center">
-  <ThemedVideo controls muted autoplay loop src="/blog/DreamLog-0x1/assets/airi-demo-first-day.mp4" />
+  <ThemedVideo controls muted autoplay loop src="./assets/airi-demo-first-day.mp4" />
   <div>
     <a href="https://x.com/ayakaneko/status/1865420146766160114">
       2024 年 12 月 7 日在 X（曾经是 Twitter）上的首次展示
@@ -328,7 +328,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 我对其他 AI VTuber 或 AI waifu 项目如何工作做了大量研究。这些研究后来产生了这个巨大的 AI VTuber 项目的 awesome list：
 
 <div class="flex flex-col items-center">
-  <img class="px-30 md:px-40 lg:px-50" src="/blog/DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber Logo" />
+  <img class="px-30 md:px-40 lg:px-50" src="../DevLog-2025.04.06/assets/awesome-ai-vtuber-logo-light.avif" alt="Awesome AI VTuber Logo" />
   <div class="text-center pb-4">
     <span class="block font-bold">Awesome AI VTuber</span>
     <span>一个精选的 AI VTuber 及其相关项目列表</span>
@@ -353,7 +353,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 
 ::: tip 你知道吗？
 <a href="https://www.youtube.com/watch?v=Tts-YAdn5Yc" class="mb-2 inline-block">
-  <img src="/blog/DreamLog-0x1/assets/airis-screenshot-1.avif" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
+  <img src="./assets/airis-screenshot-1.avif" alt="Screenshot of Project AIRI" class="rounded-lg overflow-hidden" />
 </a>
 
 有趣的是，从 2023 年 3 月 25 日上传的 2 年前的一段来自 Vedal 和 Neuro-sama 的 Twitch 直播片段
@@ -379,8 +379,8 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 ## 继续前进，继续梦想
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img class="light" src="/blog/DreamLog-0x1/assets/banner-light-1280x640.avif" alt="new ui" />
-  <img class="dark" src="/blog/DreamLog-0x1/assets/banner-dark-1280x640.avif" alt="new ui" />
+  <img class="light" src="./assets/banner-light-1280x640.avif" alt="new ui" />
+  <img class="dark" src="./assets/banner-dark-1280x640.avif" alt="new ui" />
   <div>
     最近刚更新的 Banner
   </div>
@@ -411,7 +411,7 @@ Neuro-sama 的历史其实相当复杂。据我所知，Neuro-sama，或者在�
 那我们究竟能存储多少字节呢？**这取决于我们能梦想多少，以及我们能一起实现多少。**
 
 <div class="w-full flex flex-col items-center justify-center">
-  <img src="/blog/DreamLog-0x1/assets/relu-sticker-wow.avif" alt="ReLU sticker wow" class="w-30!" />
+  <img src="./assets/relu-sticker-wow.avif" alt="ReLU sticker wow" class="w-30!" />
   <div class="text-center">
     <span class="block font-bold">感谢你一直读到这里！</span>
     <span>感谢阅读！哦，还有，祝你生日快乐，Project AIRI！</span>

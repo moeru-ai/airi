@@ -19,17 +19,17 @@ date: 2025-04-28
 
 <details>
   <summary>AIRI 의 MCP 서버 설정</summary>
-  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
+  <ThemedVideo controls muted src="./assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI 가 휴대폰에 `Hello World` 를 입력하는 모습</summary>
-  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
+  <ThemedVideo controls muted src="./assets/airi-mcp-input-text.mp4" />
 </details>
 
 개발 중 생각을 정리하려고 LLM 이 Android 폰을 호출하는 흐름을 그림으로 그려 봤습니다:
 
-<img src="/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif" alt="AIRI 가 휴대폰을 조작하는 구조" :style="{ height: '640px', objectFit: 'contain' }" />
+<img src="./assets/airi-mcp-arch.avif" alt="AIRI 가 휴대폰을 조작하는 구조" :style="{ height: '640px', objectFit: 'contain' }" />
 
 이제 개발 과정을 나눠 보겠습니다.
 

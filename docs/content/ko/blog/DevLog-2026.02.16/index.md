@@ -22,11 +22,11 @@ excerpt: |
 
 1. 데이터 수집용 모드를 작성했습니다. 모드를 설치하면 일시정지 메뉴에 `Start YOLO Data Collection` 버튼이 보이고, 클릭하면 수집이 시작됩니다.
 
-    /blog/DevLog-2026.02.16/assets/add-button-to-menu.avif
+    ./assets/add-button-to-menu.avif
 
 2. 소량의 데이터를 수집했습니다.
 
-    /blog/DevLog-2026.02.16/assets/some-collected-data.avif
+    ./assets/some-collected-data.avif
 
 아직 많지는 않지만, 기록해 둘 만한 함정과 세부 사항을 벌써 여러 개 만났습니다. 그래서 이 DevLog 를 씁니다.
 

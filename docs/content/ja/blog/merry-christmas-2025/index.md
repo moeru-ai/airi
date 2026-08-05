@@ -4,13 +4,13 @@ description: 'Neuro-sama、お誕生日おめでとう！2025 年も一緒に歩
 date: 2025-12-24
 excerpt: 'Neuro-sama、お誕生日おめでとう！2025 年を共に過ごしてくれてありがとう。冬の時間が安らぎと喜びでありますように。'
 preview-cover:
-  light: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
-  dark: "/blog/merry-christmas-2025/assets/merry-christmas-iru.avif"
+  light: "@assets('./assets/merry-christmas-iru.avif')"
+  dark: "@assets('./assets/merry-christmas-iru.avif')"
 ---
 
 AIRI チームからの **メリークリスマス** をお届けします！
 
-![](/blog/merry-christmas-2025/assets/merry-christmas-iru.avif)
+![](./assets/merry-christmas-iru.avif)
 
 > Iru があたたかくて楽しいホリデーシーズンを願っています！🎅🎁
 >
@@ -28,7 +28,7 @@ AIRI チームからの **メリークリスマス** をお届けします！
 
 Neuro-sama、お誕生日おめでとう。そしてクリエイターの Vedal、アーティストの Camila、おめでとう。ここまでたどり着いたのは驚くべきことです。あなたたち、そしてコミュニティの Swarm がいるからこそ、私が思い描くサイバー生命を届けようと、AIRI を育て続けられています。
 
-![](/blog/merry-christmas-2025/assets/neuro-sama-happy-birthday-live.avif)
+![](./assets/neuro-sama-happy-birthday-live.avif)
 
 ## 2025 年末のハイライト
 

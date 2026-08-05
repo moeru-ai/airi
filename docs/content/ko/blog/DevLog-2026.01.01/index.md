@@ -5,8 +5,8 @@ date: 2026-01-01
 excerpt: |
   AIRI 의 iOS 플랫폼 진전과 그 과정에서 만난 문제·해결책, 그리고 LemonNeko 가 FlowChat 에서 진행한 기억 계층 실험의 성과와 구현 세부 사항을 나눕니다.
 preview-cover:
-  light: "/blog/DevLog-2026.01.01/assets/cover-light.png"
-  dark: "/blog/DevLog-2026.01.01/assets/cover-dark.png"
+  light: "@assets('./assets/cover-light.png')"
+  dark: "@assets('./assets/cover-dark.png')"
 ---
 
 ::: info AI 번역
@@ -16,7 +16,7 @@ preview-cover:
 새해 복 많이 받으세요! AIRI 메인테이너 중 한 명인 [@LemonNekoGH](https://github.com/LemonNekoGH) 입니다. 새해 첫 DevLog 는 제 차례네요. (B 키를 눌러 웃는 이모티콘 선택) 하하하하하!
 
 <p style="display: flex; justify-content: center;">
-    <img src="/blog/DevLog-2026.01.01/assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
+    <img src="./assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
 </p>
 
 자, 본론으로 갑시다.
@@ -28,7 +28,7 @@ preview-cover:
 iOS 를 동작시켰고 알림 기능도 추가했습니다. 즉 그녀가 원한다면 알림을 통해 함께 시간을 보내자고 먼저 말을 걸 수 있습니다.
 
 <p style="display: flex; justify-content: center;">
-    <video src="/blog/DevLog-2026.01.01/assets/airi-notification-capability.mp4" alt="AIRI Pocket Notification" controls width="230" height="500"></video>
+    <video src="./assets/airi-notification-capability.mp4" alt="AIRI Pocket Notification" controls width="230" height="500"></video>
 </p>
 
 기본 Capacitor 아이콘은 너무 신경 쓰지 마세요. 나중에 교체할 예정입니다.
@@ -87,7 +87,7 @@ extension DevBridgeViewController: WKNavigationDelegate {
 
 LemonNeko 가 FlowChat 에서 진행한 기억 계층 실험 결과를 보여 드리겠습니다:
 
-<video src="/blog/DevLog-2026.01.01/assets/flow-chat-basic-memory.mp4" alt="FlowChat Basic Memory" controls></video>
+<video src="./assets/flow-chat-basic-memory.mp4" alt="FlowChat Basic Memory" controls></video>
 
 영상에서 저는 LLM 에게 제 이름을 기억하라고 했습니다. 답변을 생성한 뒤 설정 화면에서 기억했다는 것을 확인할 수 있었고, 새 대화를 시작해도 여전히 떠올릴 수 있었습니다.
 

@@ -102,21 +102,21 @@ To build a good memory layer for AIRI, we need to establish a good reranking mec
 
 [Project AIRI Memory Driver @duckdb/duckdb-wasm Playground](https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-decay)
 
-![](/blog/DevLog-2025.04.14/assets/memory-driver.avif)
+![](./assets/memory-driver.avif)
 
 The highlighted "half life" on the left is the memory's half-life.
 
 By default, time passes at 1 second = 1 day, so after 7 seconds, the memory score will be halved.
 
 What is memory score? Memory score is primarily controlled by this:
-![](/blog/DevLog-2025.04.14/assets/memory-controler.avif)
+![](./assets/memory-controler.avif)
 
 The resulting score is the current score.
 
 What is original? It's the score at initialization.
 
 Example: Original score is 523, its current score is actually gradually decreasing:
-![](/blog/DevLog-2025.04.14/assets/memory-decay.avif)
+![](./assets/memory-decay.avif)
 
 Before continuing, let me explain that this forgetting curve SQL is stateless.
 
@@ -160,17 +160,17 @@ Clearly, we've only introduced two dimensions here: temporal relevance and retri
 
 Let's review the sorting expressions mentioned in the DevLog, which should help understanding.
 
-![](/blog/DevLog-2025.04.14/assets/review-1.avif)
+![](./assets/review-1.avif)
 
 Cosine distance is "relevance", the most basic coarse ranking:
-![](/blog/DevLog-2025.04.14/assets/review-2.avif)
+![](./assets/review-2.avif)
 
 Now we need time to participate, so we add another field to store time distance, then create a separate field to store the combined score `(1.2 * similarity) + (0.2 * time_relevance)`, where semantic relevance has 1.2x weight (amplification factor, not required to be less than 1), and time distance relevance has 0.2x weight.
 
 This cleverly implements stateless multi-field relevance sorting SQL while making it parameter-adjustable (1.2 and 0.2).
 
 On the memory detail card, you can click "simulate retrieval", which actively triggers a memory recall.
-![](/blog/DevLog-2025.04.14/assets/memory-retrieval.avif)
+![](./assets/memory-retrieval.avif)
 
 In the current demo, this is implemented by simply using UPDATE statements to add +1 to the retrieval count field in the original table.
 
@@ -185,7 +185,7 @@ So this is the part I haven't completed yet.
 https://drizzle-orm-duckdb-wasm.netlify.app/#/memory-simulator
 
 This new simulator includes emotion-related simulations:
-![](/blog/DevLog-2025.04.14/assets/memory-emotional-simulator.avif)
+![](./assets/memory-emotional-simulator.avif)
 
 ### Are Emotions Related to Memory?
 
@@ -196,7 +196,7 @@ Then you'll discover that emotions are actually related to memory.
 If "happy about a past memory and hoping to experience it again", but "temporarily unable to recreate the scenario from that memory", so feeling "unhappy about not getting it".
 
 Can store "joy" and "disgust" scores in the memory database:
-![](/blog/DevLog-2025.04.14/assets/memory-emotional-score.avif)
+![](./assets/memory-emotional-score.avif)
 
 ### PTSD?
 
@@ -206,7 +206,7 @@ But actually, PTSD-related memories can suddenly emerge. From a bionic and data 
 
 Can reference the emotional model at https://yutsuki.moe/2019/09/a0d0fa1b/
 
-![](/blog/DevLog-2025.04.14/assets/memory-emotional-model.avif)
+![](./assets/memory-emotional-model.avif)
 
 ## Still Much Work to Do...
 

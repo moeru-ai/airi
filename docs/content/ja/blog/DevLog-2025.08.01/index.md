@@ -5,8 +5,8 @@ date: 2025-08-01
 excerpt: |
   Makito が AIRI でのテキストアニメーション実装プロセスと、UTF-8 バイトストリームから「書記素クラスタ」(grapheme cluster) を読み取るライブラリの構築方法を共有します。インスピレーションになれば幸いです！
 preview-cover:
-  light: "/blog/DevLog-2025.08.01/assets/cover-light.avif"
-  dark: "/blog/DevLog-2025.08.01/assets/cover-dark.avif"
+  light: "@assets('./assets/cover-light.avif')"
+  dark: "@assets('./assets/cover-dark.avif')"
 ---
 
 <script setup>
@@ -53,7 +53,7 @@ import RollingText from '../../../en/blog/DevLog-2025.08.01/RollingText.vue'
 Project AIRI では、パートナーの [@nekomeowww](https://github.com/nekomeowww) も滑らかなチャットバブルコンポーネントを作成しました：
 
 <video controls muted autoplay loop max-w="500px" w-full mx-auto>
-  <source src="/blog/DevLog-2025.08.01/assets/animated-chat-bubble.mp4">
+  <source src="./assets/animated-chat-bubble.mp4">
 </video>
 
 <div text-sm text-center>

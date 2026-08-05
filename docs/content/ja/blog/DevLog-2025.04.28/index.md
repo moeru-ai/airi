@@ -19,17 +19,17 @@ date: 2025-04-28
 
 <details>
   <summary>AIRI の MCP サーバー設定</summary>
-  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-settings.mp4" style="height: 640px;" />
+  <ThemedVideo controls muted src="./assets/airi-mcp-settings.mp4" style="height: 640px;" />
 </details>
 
 <details>
   <summary>AIRI が携帯電話で `Hello World` を入力</summary>
-  <ThemedVideo controls muted src="/blog/DevLog-2025.04.28/assets/airi-mcp-input-text.mp4" />
+  <ThemedVideo controls muted src="./assets/airi-mcp-input-text.mp4" />
 </details>
 
 開発中、考えを整理するために、LLM から Android 携帯を呼び出す図を描きました：
 
-<img src="/blog/DevLog-2025.04.28/assets/airi-mcp-arch.avif" alt="AIRI 操作手机" :style="{ height: '640px', objectFit: 'contain' }" />
+<img src="./assets/airi-mcp-arch.avif" alt="AIRI 操作手机" :style="{ height: '640px', objectFit: 'contain' }" />
 
 次に、私の開発プロセスを共有します。
 

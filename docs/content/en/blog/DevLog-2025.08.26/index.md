@@ -20,7 +20,7 @@ Back in June this year, [@nekomeowww](https://github.com/nekomeowww) released a 
 
 First, let me show you the results:
 
-<ThemedVideo src="/blog/DevLog-2025.08.26/assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
+<ThemedVideo src="./assets/airi-factorio-yolo-v0-playground-vnc.mp4" controls playsinline />
 
 In the video, I'm playing Factorio via VNC connection in the web page, with object detection results on the right side, almost in real-time. I've also deployed it to [HuggingFace Space](https://huggingface.co/spaces/proj-airi/factorio-yolo-v0-playground), feel free to try it out.
 
@@ -97,7 +97,7 @@ Oh, and to better debug my collection script, I developed a [VSCode plugin](http
 
 After collecting images and annotation data, we need to organize the dataset according to the [YOLO official format](https://docs.ultralytics.com/datasets/detect/), then we can upload it to [Ultralytics Hub](https://www.ultralytics.com/hub) to see the effect:
 
-![Ultralytics Hub](/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.jpg)
+![Ultralytics Hub](./assets/factorio-ultralytics-hub-preview.jpg)
 
 Looks pretty good, right? Let's start training!
 
