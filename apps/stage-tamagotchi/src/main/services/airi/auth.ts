@@ -18,6 +18,7 @@ import {
   electronAuthCallback,
   electronAuthCallbackError,
   electronAuthLogout,
+  electronAuthSessionState,
   electronAuthStartLogin,
 } from '../../../shared/eventa'
 import { cancelWebApiTicket, getWebApiTicket, initSteam } from '../steam/client'
@@ -155,14 +156,23 @@ export async function startSteamTicketSignIn(
   }
 }
 
-/** Silent Steam ticket sign-in when `VITE_DISTRIBUTION=steam`; no-op otherwise. */
+/**
+ * Silent Steam ticket sign-in when `VITE_DISTRIBUTION=steam`; no-op
+ * otherwise, or when an AIRI session already exists so the startup flow
+ * never overwrites the user's current account with a Steam-created one.
+ */
 export async function trySteamSignIn(
   windowAuthManager: WindowAuthManager,
-  options?: { distribution?: string },
+  options?: { distribution?: string, hasExistingSession?: boolean },
 ): Promise<void> {
   const distribution = options?.distribution ?? import.meta.env.VITE_DISTRIBUTION
   if (distribution !== 'steam')
     return
+
+  if (options?.hasExistingSession) {
+    log.debug('Skipping silent Steam sign-in: an AIRI session already exists')
+    return
+  }
 
   await startSteamTicketSignIn(windowAuthManager, { notifyErrors: false })
 }
@@ -264,5 +274,13 @@ export function createAuthService(params: {
     closeLoopback?.()
     closeLoopback = null
     signingInFlight = false
+  })
+
+  defineInvokeHandler(params.context, electronAuthSessionState, (payload, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
+      return
+    }
+
+    void trySteamSignIn(params.windowAuthManager, { hasExistingSession: payload.hasSession })
   })
 }

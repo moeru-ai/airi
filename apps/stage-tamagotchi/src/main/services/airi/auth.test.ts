@@ -220,6 +220,19 @@ describe('trySteamSignIn', () => {
     expect(windowAuthManager.broadcastAuthCallback).not.toHaveBeenCalled()
   })
 
+  it('skips ticket exchange when a session already exists', async () => {
+    const windowAuthManager = {
+      registerWindow: vi.fn(),
+      broadcastAuthCallback: vi.fn(),
+      broadcastAuthError: vi.fn(),
+    }
+
+    await trySteamSignIn(windowAuthManager, { distribution: 'steam', hasExistingSession: true })
+
+    expect(initSteamMock).not.toHaveBeenCalled()
+    expect(windowAuthManager.broadcastAuthCallback).not.toHaveBeenCalled()
+  })
+
   it('does not broadcast errors on steam distribution failure', async () => {
     exchangeSteamTicketForTokensMock.mockResolvedValue({
       ok: false,

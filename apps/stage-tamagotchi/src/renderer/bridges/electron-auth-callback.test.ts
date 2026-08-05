@@ -14,8 +14,14 @@ import { initializeElectronAuthCallbackBridge } from './electron-auth-callback'
 //   top-level statements.
 // Source/context: https://vitest.dev/guide/mocking.html#mocking-priorities
 // Removal condition: only if this test is deleted.
-const { handlers } = vi.hoisted(() => ({
+const {
+  getAuthTokenMock,
+  handlers,
+  reportSessionStateMock,
+} = vi.hoisted(() => ({
+  getAuthTokenMock: vi.fn<() => string | null>(() => null),
   handlers: new Map<unknown, (event: { body?: unknown }) => void | Promise<void>>(),
+  reportSessionStateMock: vi.fn(async () => {}),
 }))
 
 // NOTICE:
@@ -38,11 +44,13 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
     }),
     emit: vi.fn(),
   }),
+  useElectronEventaInvoke: () => reportSessionStateMock,
 }))
 
 vi.mock('@proj-airi/stage-ui/libs/auth', () => ({
   fetchSession: fetchSessionMock,
   triggerSignIn: vi.fn(),
+  getAuthToken: getAuthTokenMock,
 }))
 
 vi.mock('vue-sonner', () => ({
@@ -59,7 +67,9 @@ describe('initializeElectronAuthCallbackBridge', () => {
     handlers.clear()
     fetchSessionMock.mockClear()
     toastErrorMock.mockClear()
-    initializeElectronAuthCallbackBridge()
+    reportSessionStateMock.mockClear()
+    getAuthTokenMock.mockReset()
+    getAuthTokenMock.mockReturnValue(null)
   })
 
   // https://github.com/moeru-ai/airi/pull/1966#pullrequestreview-4770150485
@@ -76,6 +86,7 @@ describe('initializeElectronAuthCallbackBridge', () => {
   // We fixed this by persisting the callback ID token alongside the other OIDC
   // credentials.
   it('applies tokens including idToken and fetches the session on auth callback (PR #1966)', async () => {
+    initializeElectronAuthCallbackBridge()
     const authStore = useAuthStore()
     await emit(electronAuthCallback, {
       accessToken: 'a',
@@ -88,7 +99,19 @@ describe('initializeElectronAuthCallbackBridge', () => {
   })
 
   it('toasts the error message on auth callback error', async () => {
+    initializeElectronAuthCallbackBridge()
     await emit(electronAuthCallbackError, { error: 'boom' })
     expect(toastErrorMock).toHaveBeenCalledWith('boom')
+  })
+
+  it('reports the persisted session state so main can gate silent Steam sign-in', () => {
+    initializeElectronAuthCallbackBridge()
+    expect(reportSessionStateMock).toHaveBeenCalledWith({ hasSession: false })
+  })
+
+  it('reports an existing persisted session', () => {
+    getAuthTokenMock.mockReturnValue('access-token')
+    initializeElectronAuthCallbackBridge()
+    expect(reportSessionStateMock).toHaveBeenCalledWith({ hasSession: true })
   })
 })

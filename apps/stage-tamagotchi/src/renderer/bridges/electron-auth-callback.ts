@@ -1,13 +1,14 @@
 import { errorMessageFrom } from '@moeru/std'
-import { getElectronEventaContext } from '@proj-airi/electron-vueuse'
+import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { oidcClientId } from '@proj-airi/stage-shared/auth'
-import { fetchSession } from '@proj-airi/stage-ui/libs/auth'
+import { fetchSession, getAuthToken } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { toast } from 'vue-sonner'
 
 import {
   electronAuthCallback,
   electronAuthCallbackError,
+  electronAuthSessionState,
 } from '../../shared/eventa'
 
 /**
@@ -50,4 +51,10 @@ export function initializeElectronAuthCallbackBridge() {
     if (event.body)
       toast.error(event.body.error)
   })
+
+  // Report whether a session was already persisted so the main process can
+  // skip the silent Steam ticket sign-in instead of overwriting the user's
+  // current account with a Steam-created one at startup.
+  const reportSessionState = useElectronEventaInvoke(electronAuthSessionState, context)
+  void reportSessionState({ hasSession: !!getAuthToken() })
 }
