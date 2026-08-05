@@ -85,18 +85,21 @@ export function steam() {
     }
     verifyParams.set('openid.mode', 'check_authentication')
 
-    const response = await ofetch.raw(STEAM_OPENID_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: verifyParams.toString(),
-      responseType: 'text',
-      ignoreResponseError: true,
-    })
-    if (!response.ok)
+    try {
+      const body = await ofetch<string, 'text'>(STEAM_OPENID_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: verifyParams.toString(),
+        responseType: 'text',
+      })
+      return body.split('\n').some(line => line.trim() === 'is_valid:true')
+    }
+    catch {
+      // Steam unreachable or non-2xx: the callback cannot proceed anyway, so
+      // collapse it into a verification failure and let the caller's error
+      // redirect handle it instead of surfacing a second exception.
       return false
-
-    const body = response._data
-    return typeof body === 'string' && body.split('\n').some(line => line.trim() === 'is_valid:true')
+    }
   }
 
   const signInSteam = createAuthEndpoint('/sign-in/steam', {
