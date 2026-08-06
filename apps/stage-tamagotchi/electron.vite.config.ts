@@ -150,6 +150,14 @@ export default defineConfig({
     },
 
     server: {
+      proxy: {
+        // Development renderer requests use the same Voicebox bridge as Stage Web.
+        '/__voicebox': {
+          target: 'http://127.0.0.1:17493',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/__voicebox/, ''),
+        },
+      },
       fs: {
         // To mute errors like:
         //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.

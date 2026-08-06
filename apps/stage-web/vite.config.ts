@@ -76,6 +76,15 @@ export default defineConfig({
     },
   },
   server: {
+    proxy: {
+      // Voicebox 0.5.0 rejects arbitrary local web origins. Keep local model
+      // traffic same-origin while preserving Voicebox as a separate process.
+      '/__voicebox': {
+        target: 'http://127.0.0.1:17493',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/__voicebox/, ''),
+      },
+    },
     fs: {
       // To mute errors like:
       //   The request id ".../node_modules/@fontsource/sniglet/files/sniglet-latin-400-normal.woff" is outside of Vite serving allow list.
