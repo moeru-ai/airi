@@ -56,6 +56,7 @@ const providerSourceMetadataById = {
   'comet-api-transcription': paidCloud,
   'deepgram-tts': paidCloud,
   'deepseek': paidCloud,
+  'eden-ai': paidCloud,
   'elevenlabs': paidCloud,
   'featherless-ai': paidCloud,
   'fireworks-ai': paidCloud,
