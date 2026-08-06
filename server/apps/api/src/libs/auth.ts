@@ -10,7 +10,6 @@ import type { Env } from './env'
 import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
-import { useLogger } from '@guiiai/logg'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
@@ -25,8 +24,6 @@ import { oidcJwtBearer } from './auth-plugins/oidc-jwt-bearer'
 import { steam } from './auth-plugins/steam'
 
 import * as authSchema from '../schemas/accounts'
-
-const logger = useLogger('auth').useGlobalConfig()
 
 interface TrustedClientSeed {
   clientId: string
@@ -783,18 +780,8 @@ export function createAuth(
       },
       session: {
         create: {
-          // NOTE: login-time ban enforcement is the admin plugin's
-          // `session.create.before` (checks `user.banned`). We only keep the
-          // `after` hook for last-seen / analytics.
           after: async (session) => {
             metrics?.userLogin.add(1)
-            // Best-effort analytics: session creation must not fail because
-            // active-user reporting is degraded.
-            void db
-              .update(authSchema.user)
-              .set({ lastSeenAt: new Date() })
-              .where(eq(authSchema.user.id, session.userId))
-              .catch(err => logger.withError(err).withFields({ userId: session.userId }).warn('Failed to update user lastSeenAt; continuing session create'))
             void productEventService?.track({
               userId: session.userId,
               feature: 'auth',
