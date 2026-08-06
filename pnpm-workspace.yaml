@@ -428,6 +428,14 @@ catalogs:
   xsai:
     unspeech: ^0.1.14
 
+minimumReleaseAgeExclude:
+  - '@moeru/*'
+  - '@proj-airi/*'
+  - '@vishot/*'
+  - '@xsai/*'
+  - '@xsai-ext/*'
+  - '@xsai-transformers/*'
+
 ignoredBuiltDependencies:
   - '@ax-llm/ax'
   - '@prisma/client'
