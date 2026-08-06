@@ -1,0 +1,58 @@
+name: PR Triage Action
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/pr-triage/**
+      - .github/workflows/pr-triage-action-ci.yml
+      - .github/workflows/pr-triage.yml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+  push:
+    branches:
+      - main
+    paths:
+      - .github/actions/pr-triage/**
+      - .github/workflows/pr-triage-action-ci.yml
+      - .github/workflows/pr-triage.yml
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck and verify dist
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install action dependencies
+        run: pnpm install --filter @proj-airi/pr-triage-action... --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck
+        run: pnpm --filter @proj-airi/pr-triage-action typecheck
+
+      - name: Rebuild action bundle
+        run: pnpm --filter @proj-airi/pr-triage-action bundle
+
+      - name: Verify committed bundle
+        run: |
+          git diff --exit-code -- .github/actions/pr-triage/dist
+          test -z "$(git status --porcelain --untracked-files=all -- .github/actions/pr-triage/dist)"

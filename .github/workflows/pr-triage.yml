@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # This privileged workflow must never execute files from the pull request head.
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
       - name: Classify pull request
@@ -40,7 +40,7 @@ jobs:
           pull-request-number: ${{ github.event.pull_request.number }}
           llm-api-key: ${{ secrets.PR_TRIAGE_LLM_API_KEY }}
           llm-model: ${{ vars.PR_TRIAGE_LLM_MODEL || 'openai/gpt-4.1-mini' }}
-          llm-api-url: ${{ vars.PR_TRIAGE_LLM_API_URL || 'https://openrouter.ai/api/v1/chat/completions' }}
+          llm-api-url: ${{ vars.PR_TRIAGE_LLM_API_URL || 'https://openrouter.ai/api/v1/' }}
           max-prompt-bytes: '65536'
 
   apply-labels:
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           # Keep the write-capable job on trusted default-branch code as well.
-          ref: ${{ github.event.repository.default_branch }}
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
       - name: Apply validated labels

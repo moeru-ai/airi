@@ -20,9 +20,9 @@ inputs:
     required: false
     default: openai/gpt-4.1-mini
   llm-api-url:
-    description: OpenAI-compatible chat completions endpoint.
+    description: OpenAI-compatible API base URL.
     required: false
-    default: https://openrouter.ai/api/v1/chat/completions
+    default: https://openrouter.ai/api/v1/
   max-prompt-bytes:
     description: Maximum UTF-8 bytes sent as system prompt plus PR context.
     required: false
@@ -40,4 +40,4 @@ outputs:
 
 runs:
   using: node24
-  main: src/index.cjs
+  main: dist/index.js

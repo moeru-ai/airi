@@ -1,0 +1,32 @@
+{
+  "name": "@proj-airi/pr-triage-action",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "bundle": "rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript",
+    "check": "pnpm run typecheck && pnpm run bundle",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "catalog:",
+    "@actions/github": "catalog:",
+    "@moeru/std": "catalog:",
+    "@xsai/generate-text": "catalog:",
+    "@xsai/shared": "catalog:",
+    "@xsai/shared-chat": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "catalog:",
+    "@rollup/plugin-node-resolve": "catalog:",
+    "@rollup/plugin-typescript": "catalog:",
+    "@types/node": "catalog:",
+    "rollup": "catalog:",
+    "tslib": "catalog:",
+    "typescript": "catalog:"
+  }
+}
