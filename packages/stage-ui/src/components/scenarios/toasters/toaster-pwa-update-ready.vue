@@ -44,7 +44,7 @@ function handleNotNow() {
         'w-full flex items-center gap-2',
       ]"
     >
-      <Button w-full size="sm" variant="secondary" @click="() => handleNotNow()">
+      <Button w-full size="sm" @click="() => handleNotNow()">
         <div i-solar:close-circle-line-duotone />
         <div text-nowrap>
           {{ t('base.toaster.pwaUpdateReady.action.notNow') }}

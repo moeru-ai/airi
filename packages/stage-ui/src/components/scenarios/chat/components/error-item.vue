@@ -2,7 +2,7 @@
 import type { ChatHistoryItem, ErrorMessage } from '../../../../types/chat'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
-import { Button } from '@proj-airi/ui'
+import { IconButton } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 import { MarkdownRenderer } from '../../../markdown'
@@ -86,10 +86,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
         'self-end mt-1 w-fit',
       ]"
     >
-      <Button
-        size="sm"
-        variant="ghost"
-        shape="square"
+      <IconButton
         icon="i-solar:refresh-bold"
         :aria-label="retryLabel"
         @click="emit('retry')"

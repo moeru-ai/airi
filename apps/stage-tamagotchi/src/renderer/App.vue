@@ -71,7 +71,8 @@ const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const initialWindowRoutePath = resolveInitialChatSyncRoutePath(route.path)
 const chatSyncLifecycle = createChatSyncWindowLifecycle(route.path)
 const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
-const isSettingsWindowRoute = initialWindowRoutePath.startsWith('/settings')
+const isSettingsWindowRoute = initialWindowRoutePath === '/settings' || initialWindowRoutePath.startsWith('/settings/')
+const isEditorWindowRoute = initialWindowRoutePath === '/editor'
 
 if (!isSpotlightWindowRoute)
   useAuthProviderSync()
@@ -253,7 +254,7 @@ function createFullStageRuntime() {
   }
 }
 
-const fullStageRuntime = isSpotlightWindowRoute ? null : createFullStageRuntime()
+const fullStageRuntime = isSpotlightWindowRoute || isEditorWindowRoute ? null : createFullStageRuntime()
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 

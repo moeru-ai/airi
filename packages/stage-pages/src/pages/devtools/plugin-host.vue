@@ -7,7 +7,7 @@ import type {
 import { errorMessageFrom } from '@moeru/std'
 import { Section } from '@proj-airi/stage-ui/components'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
-import { Button, Callout, Input } from '@proj-airi/ui'
+import { Button, Callout, GhostButton, Input } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
 import { toast } from 'vue-sonner'
 
@@ -306,7 +306,7 @@ onMounted(async () => {
             <div :class="['flex', 'flex-wrap', 'items-center', 'gap-2']">
               <Button
                 size="sm"
-                variant="secondary"
+
                 :label="plugin.autoReload ? 'Auto Reload Off' : 'Auto Reload On'"
                 :icon="plugin.autoReload ? 'i-solar:refresh-circle-bold' : 'i-solar:refresh-bold-duotone'"
                 :loading="store.loading"
@@ -314,7 +314,7 @@ onMounted(async () => {
               />
               <Button
                 size="sm"
-                variant="secondary"
+
                 :label="plugin.enabled ? 'Disable' : 'Enable'"
                 :icon="plugin.enabled ? 'i-solar:lock-keyhole-minimalistic-unlocked-bold-duotone' : 'i-solar:lock-keyhole-bold-duotone'"
                 :loading="store.loading"
@@ -322,16 +322,16 @@ onMounted(async () => {
               />
               <Button
                 size="sm"
-                variant="secondary"
+
                 label="Load"
                 icon="i-solar:play-bold-duotone"
                 :disabled="plugin.loaded"
                 :loading="store.loading"
                 @click="loadPlugin(plugin)"
               />
-              <Button
+              <GhostButton
                 size="sm"
-                variant="ghost"
+
                 label="Unload"
                 icon="i-solar:stop-bold-duotone"
                 :disabled="!plugin.loaded"

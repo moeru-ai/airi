@@ -2,7 +2,7 @@
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
-import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { isAnalyticsAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -65,7 +65,7 @@ const colors = computed(() => {
 })
 
 const onboardingExtraSteps = computed(() => {
-  return isPosthogAvailableInBuild()
+  return isAnalyticsAvailableInBuild()
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
     : []
 })

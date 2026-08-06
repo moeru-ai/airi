@@ -23,6 +23,15 @@ index 0d40d5d40533881d154e3c2cdda9b360c57eaaa6..8dbdb1b36e2da42da264dc3533523e61
        if (!settingsFile) {
          throw new TypeError("Settings file not found");
        }
+@@ -1411,7 +1411,7 @@ FileLoader.factory = (context, next) => __async(void 0, null, function* () {
+     } else if (!settings._objectURL) {
+       throw new Error('"_objectURL" must be specified in ModelSettings');
+     }
+-    settings.validateFiles(files.map((file) => encodeURI(file.webkitRelativePath)));
++    settings.validateFiles(files.map((file) => file.webkitRelativePath));
+     yield _FileLoader.upload(files, settings);
+     settings.resolveURL = function(url2) {
+       return _FileLoader.resolveURL(this._objectURL, url2);
 @@ -1458,7 +1458,7 @@ const _ZipLoader = class {
    static createSettings(reader) {
      return __async(this, null, function* () {
@@ -45,6 +54,15 @@ index c3db490f8dbfdd63ad40648fe0e0325604f22e95..4b452db0b109ba7deaddf397ef351ae7
          if (!settingsFile) {
            throw new TypeError("Settings file not found");
          }
+@@ -1411,7 +1411,7 @@ var __async = (__this, __arguments, generator) => {
+       } else if (!settings._objectURL) {
+         throw new Error('"_objectURL" must be specified in ModelSettings');
+       }
+-      settings.validateFiles(files.map((file) => encodeURI(file.webkitRelativePath)));
++      settings.validateFiles(files.map((file) => file.webkitRelativePath));
+       yield _FileLoader.upload(files, settings);
+       settings.resolveURL = function(url) {
+         return _FileLoader.resolveURL(this._objectURL, url);
 @@ -1458,7 +1458,7 @@ var __async = (__this, __arguments, generator) => {
      static createSettings(reader) {
        return __async(this, null, function* () {
@@ -67,6 +85,15 @@ index f21619f5794c00542bb2a9df340e50d4453a0367..38bd069a5d1ec37380c376c2ff2d7fed
        if (!settingsFile) {
          throw new TypeError("Settings file not found");
        }
+@@ -5050,7 +5050,7 @@ FileLoader.factory = (context, next) => __async(void 0, null, function* () {
+     } else if (!settings._objectURL) {
+       throw new Error('"_objectURL" must be specified in ModelSettings');
+     }
+-    settings.validateFiles(files.map((file) => encodeURI(file.webkitRelativePath)));
++    settings.validateFiles(files.map((file) => file.webkitRelativePath));
+     yield _FileLoader.upload(files, settings);
+     settings.resolveURL = function(url2) {
+       return _FileLoader.resolveURL(this._objectURL, url2);
 @@ -5097,7 +5097,7 @@ const _ZipLoader = class {
    static createSettings(reader) {
      return __async(this, null, function* () {
@@ -89,6 +116,15 @@ index 03c1fb2b32b3b908a8b0e604aa3ee50aa9130169..99fc587e3ca7e6f433099e13f33e0e48
          if (!settingsFile) {
            throw new TypeError("Settings file not found");
          }
+@@ -5050,7 +5050,7 @@ var __async = (__this, __arguments, generator) => {
+       } else if (!settings._objectURL) {
+         throw new Error('"_objectURL" must be specified in ModelSettings');
+       }
+-      settings.validateFiles(files.map((file) => encodeURI(file.webkitRelativePath)));
++      settings.validateFiles(files.map((file) => file.webkitRelativePath));
+       yield _FileLoader.upload(files, settings);
+       settings.resolveURL = function(url) {
+         return _FileLoader.resolveURL(this._objectURL, url);
 @@ -5097,7 +5097,7 @@ var __async = (__this, __arguments, generator) => {
      static createSettings(reader) {
        return __async(this, null, function* () {
@@ -111,6 +147,15 @@ index f969d304f346c4e420b6798dbd4dec81b902a5e4..7e6b4d3ef53f1ea0648030899de9debd
        if (!settingsFile) {
          throw new TypeError("Settings file not found");
        }
+@@ -1411,7 +1411,7 @@ FileLoader.factory = (context, next) => __async(void 0, null, function* () {
+     } else if (!settings._objectURL) {
+       throw new Error('"_objectURL" must be specified in ModelSettings');
+     }
+-    settings.validateFiles(files.map((file) => encodeURI(file.webkitRelativePath)));
++    settings.validateFiles(files.map((file) => file.webkitRelativePath));
+     yield _FileLoader.upload(files, settings);
+     settings.resolveURL = function(url2) {
+       return _FileLoader.resolveURL(this._objectURL, url2);
 @@ -1458,7 +1458,7 @@ const _ZipLoader = class {
    static createSettings(reader) {
      return __async(this, null, function* () {
@@ -133,6 +178,15 @@ index bc3d800c45889979190175cc88cdd8251feb9b5e..d1a660708ff81e1379f173709a32c6f4
          if (!settingsFile) {
            throw new TypeError("Settings file not found");
          }
+@@ -1411,7 +1411,7 @@ var __async = (__this, __arguments, generator) => {
+       } else if (!settings._objectURL) {
+         throw new Error('"_objectURL" must be specified in ModelSettings');
+       }
+-      settings.validateFiles(files.map((file) => encodeURI(file.webkitRelativePath)));
++      settings.validateFiles(files.map((file) => file.webkitRelativePath));
+       yield _FileLoader.upload(files, settings);
+       settings.resolveURL = function(url) {
+         return _FileLoader.resolveURL(this._objectURL, url);
 @@ -1458,7 +1458,7 @@ var __async = (__this, __arguments, generator) => {
      static createSettings(reader) {
        return __async(this, null, function* () {

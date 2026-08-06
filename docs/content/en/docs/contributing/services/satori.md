@@ -6,7 +6,7 @@ description: Contribute to Project AIRI
 ### Satori Bot
 
 ```shell
-cd services/satori-bot
+cd integrations/satori-bot
 ```
 
 Configure the `.env` file:

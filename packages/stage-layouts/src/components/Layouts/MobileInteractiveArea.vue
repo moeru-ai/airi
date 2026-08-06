@@ -94,7 +94,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription } =
     isStageTamagotchi,
   },
 )
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
+const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
 const toggleTranscription = () => isListening.value ? stopStreamingTranscription() : startStreamingTranscription()
 
 async function handleSubmit() {
@@ -199,15 +199,36 @@ onMounted(() => {
       <div translate-y="[-100%]" absolute right-0 px-3 pb-3 font-sans>
         <div flex="~ col" gap-1>
           <ActionAbout />
-          <button
-            border="2 solid neutral-100/60 dark:neutral-800/30"
-            bg="neutral-50/70 dark:neutral-800/70"
-            w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
-            title="Conversations"
-            @click="sessionsDrawerOpen = true"
-          >
-            <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-          </button>
+          <div flex="~ col" items-end gap-1>
+            <button
+              data-testid="conversation-selector-button"
+              border="2 solid neutral-100/60 dark:neutral-800/30"
+              bg="neutral-50/70 dark:neutral-800/70"
+              w-fit flex items-center self-end justify-center rounded-xl p-2 backdrop-blur-md
+              :title="t('stage.chat.sessions.title')"
+              :aria-label="t('stage.chat.sessions.title')"
+              @click="sessionsDrawerOpen = true"
+            >
+              <div i-solar:chat-line-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
+            </button>
+            <button
+              data-testid="speech-mute-button"
+              :class="[
+                'w-fit flex items-center self-end justify-center rounded-xl border-2 border-solid p-2 backdrop-blur-md',
+                'border-neutral-100/60 text-neutral-500 transition-colors active:scale-95 dark:border-neutral-800/30 dark:text-neutral-400',
+                speechMuted
+                  ? 'bg-primary-100/80 text-primary-600 dark:bg-primary-900/60 dark:text-primary-300'
+                  : 'bg-neutral-50/70 hover:text-primary-500 dark:bg-neutral-800/70 dark:hover:text-primary-400',
+              ]"
+              :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+              :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
+              :aria-pressed="speechMuted"
+              @click="toggleSpeechMuted"
+            >
+              <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone size-5" />
+              <div v-else class="i-solar:volume-loud-bold-duotone size-5" />
+            </button>
+          </div>
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
           <HearingConfigDialog
             v-model:enabled="enabled"

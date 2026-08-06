@@ -1738,6 +1738,22 @@ mmd:
     no-materials: This model exposes no materials.
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie 設定
+  archive-description: Tachie 模型使用包含情緒命名圖片的 .tachie.zip 壓縮檔。
+  scale-and-position:
+    title: 縮放與位置
+    scale: 縮放
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: 從模型提取顏色
+    button-extract:
+      title: 提取
+  rendering:
+    title: 渲染
+    render-scale: 渲染縮放
+    shadow: 主題色動態陰影
 websocket-secure-enabled:
   title: 啟用安全 WebSocket (WSS)
   description: >-

@@ -41,6 +41,7 @@ import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-sett
 import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 import { createVoiceInputInteractionLifecycle } from '../utils/voice-input-lifecycle'
 import {
@@ -116,7 +117,7 @@ const isTransparent = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixels.value
 
   return true
@@ -128,7 +129,7 @@ const isTransparentForMouseEvents = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixelsExact.value
 
   return true
@@ -138,10 +139,6 @@ const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBo
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
-
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
-}, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
@@ -190,6 +187,20 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
     })
   }
 
+  if (stageModelRenderer.value === 'tachie') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'tachie',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
   if (stageModelRenderer.value === 'mmd') {
     const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
 
@@ -222,12 +233,29 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+/**
+ * Keeps the rendered fade state and Electron click-through state synchronized.
+ *
+ * Triggering workflow:
+ *
+ * {@link watch}
+ *   -> `fade-on-hover reactive state change`
+ *     -> {@link handleFadeOnHoverInteractionChange}
+ *
+ * Upstream:
+ * - {@link isOutsideFor250Ms}, {@link isOutsideStatusIslandFor250Ms}, and {@link isAroundWindowBorderFor250Ms}
+ * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
+ * - {@link hearingDialogOpen}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ *
+ * Downstream:
+ * - {@link resolveFadeOnHoverInteraction}
+ * - {@link setIgnoreMouseEvents}
+ */
+function handleFadeOnHoverInteractionChange() {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
@@ -236,7 +264,6 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
@@ -248,23 +275,26 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
   }
   else {
-    const fadeEnabled = fadeOnHoverEnabled.value
-    // Keep visible model pixels interactive; only the exact transparent pixel under the cursor
-    // should pass clicks through. The fuzzy transparency value above is intentionally reserved
-    // for fade stability near model edges.
-    const shouldIgnoreMouseEvents = fadeEnabled && isTransparentForMouseEvents.value
-    isIgnoringMouseEvents.value = shouldIgnoreMouseEvents
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([shouldIgnoreMouseEvents, { forward: true }])
-    if (fadeEnabled)
-      resume()
-    else
-      pause()
+    const interaction = resolveFadeOnHoverInteraction({
+      cursorInsideWindow: !isOutsideWindow.value,
+      enabled: fadeOnHoverEnabled.value,
+      transparentForFade: isTransparent.value,
+      transparentForPointer: isTransparentForMouseEvents.value,
+    })
+
+    isIgnoringMouseEvents.value = interaction.ignoreMouseEvents
+    shouldFadeOnCursorWithin.value = interaction.fadeStage
+    setIgnoreMouseEvents([interaction.ignoreMouseEvents, { forward: true }])
   }
-})
+}
+
+watch(
+  [isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
+  handleFadeOnHoverInteractionChange,
+  { immediate: true },
+)
 
 // Emit runtime snapshot on change and on request from settings panel
 /**

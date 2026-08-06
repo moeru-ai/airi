@@ -680,14 +680,13 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
 
           <div class="ml-auto mr-1 flex flex-row gap-2">
             <Button
-              variant="secondary"
+
               icon="i-solar:undo-left-bold-duotone"
               :label="t('settings.pages.card.cancel')"
               :disabled="false"
               @click="modelValue = false"
             />
             <Button
-              :variant="isEditingActiveCard ? 'primary' : 'secondary'"
               icon="i-solar:check-circle-bold-duotone"
               :label="t('settings.pages.card.save')"
               :disabled="false"
@@ -695,7 +694,7 @@ function getDefaultPlaceholder(defaultValue: string | undefined): string {
             />
             <Button
               v-if="!isEditingActiveCard"
-              variant="primary"
+
               icon="i-solar:play-circle-bold-duotone"
               :label="t('settings.pages.card.save_and_activate')"
               :disabled="false"

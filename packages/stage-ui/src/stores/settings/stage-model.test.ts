@@ -60,4 +60,26 @@ describe('settings stage model store', () => {
     expect(getDisplayModelSpy).toHaveBeenCalledWith('display-model-missing')
     expect(getDisplayModelSpy).toHaveBeenCalledWith(fallbackModel.id)
   })
+
+  it('routes Tachie archives to the Tachie renderer', async () => {
+    const tachieModel: DisplayModelURL = {
+      id: 'tachie-model',
+      format: DisplayModelFormat.TachieZip,
+      type: 'url',
+      url: 'https://example.com/character.tachie.zip',
+      name: 'Tachie character',
+      importedAt: 1,
+    }
+    const displayModelsStore = useDisplayModelsStore()
+    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue(tachieModel)
+
+    const store = useSettingsStageModel()
+    store.stageModelSelected = tachieModel.id
+
+    await store.initializeStageModel()
+
+    expect(store.stageModelSelectedDisplayModel).toEqual(tachieModel)
+    expect(store.stageModelSelectedUrl).toBe(tachieModel.url)
+    expect(store.stageModelRenderer).toBe('tachie')
+  })
 })

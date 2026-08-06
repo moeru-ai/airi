@@ -7,6 +7,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
 import type { SettingsWindowManager } from '../settings'
@@ -50,6 +51,7 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupMainWindow(params: {
+  editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
@@ -203,6 +205,7 @@ export async function setupMainWindow(params: {
 
   await setupMainWindowElectronInvokes({
     window,
+    editorWindow: params.editorWindow,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
     widgetsManager: params.widgetsManager,
