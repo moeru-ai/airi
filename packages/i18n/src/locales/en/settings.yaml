@@ -1064,6 +1064,38 @@ pages:
         OpenAI, Azure Speech
     description: LLMs, speech providers, etc.
     provider:
+      voicebox-local:
+        fields:
+          base-url:
+            description: Address of the local Voicebox API server.
+          language:
+            label: Language
+            description: Language hint sent to the local speech model.
+            options:
+              zh: Chinese
+              en: English
+              ja: Japanese
+              ko: Korean
+          model:
+            label: Model
+            description: Model managed by the local Voicebox application.
+        validators:
+          config: Check Voicebox configuration
+          health: Check Voicebox service
+      voicebox-local-speech:
+        title: Voicebox (Local Qwen TTS)
+        description: Generate speech locally with the Qwen TTS model loaded by Voicebox.
+        notice:
+          title: Voicebox must be running
+          description: AIRI uses the Qwen model and voice profiles already managed by Voicebox. No API key is required.
+        playground:
+          default-text: 你好，这是 AIRI 的本地千问语音测试。
+      voicebox-local-transcription:
+        title: Voicebox (Local Whisper ASR)
+        description: Transcribe microphone audio locally with Whisper managed by Voicebox.
+        notice:
+          title: First transcription downloads Whisper
+          description: Voicebox downloads the selected Whisper model on first use. Wait for the download to finish, then retry the recording.
       app-local-audio-transcription:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers

@@ -1013,6 +1013,38 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      voicebox-local:
+        fields:
+          base-url:
+            description: 本机 Voicebox API 服务地址。
+          language:
+            label: 语言
+            description: 发送给本地语音模型的语言提示。
+            options:
+              zh: 中文
+              en: 英文
+              ja: 日文
+              ko: 韩文
+          model:
+            label: 模型
+            description: 由本机 Voicebox 管理的模型。
+        validators:
+          config: 检查 Voicebox 配置
+          health: 检查 Voicebox 服务
+      voicebox-local-speech:
+        title: Voicebox（本地千问 TTS）
+        description: 使用 Voicebox 已加载的千问 TTS 模型在本机生成语音。
+        notice:
+          title: 需要启动 Voicebox
+          description: AIRI 会使用 Voicebox 已管理的千问模型和声音档案，无需 API 密钥。
+        playground:
+          default-text: 你好，这是 AIRI 的本地千问语音测试。
+      voicebox-local-transcription:
+        title: Voicebox（本地 Whisper ASR）
+        description: 使用 Voicebox 管理的 Whisper 在本机识别麦克风音频。
+        notice:
+          title: 首次识别需要下载 Whisper
+          description: Voicebox 会在首次使用时下载所选 Whisper 模型。下载完成后重新录音即可。
       app-local-audio-transcription:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers

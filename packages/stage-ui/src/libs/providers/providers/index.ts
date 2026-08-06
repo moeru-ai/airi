@@ -35,6 +35,7 @@ import './mimo'
 import './cloudflare-workers-ai'
 import './azure-ai-foundry'
 import './official'
+import './voicebox'
 
 export {
   getDefaultStreamingModel,
