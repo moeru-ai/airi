@@ -141,13 +141,6 @@
       "when": 1785843526589,
       "tag": "0019_low_namora",
       "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1786010931965,
-      "tag": "0020_remove_user_last_seen_at",
-      "breakpoints": true
     }
   ]
 }

@@ -62,6 +62,7 @@ function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession
       banned: false,
       banReason: null,
       banExpires: null,
+      lastSeenAt: now,
       createdAt: now,
       updatedAt: now,
     } as RequestAuthSession['user'],
