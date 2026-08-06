@@ -36,37 +36,28 @@ describe('registerUserMetricsSnapshotGauges', () => {
     const totalUsers = createGaugeProbe()
     const activeSessions = createGaugeProbe()
     const distinctActiveUsers = createGaugeProbe()
-    const rollingActiveUsers = createGaugeProbe()
 
     const recorder = registerUserMetricsSnapshotGauges({
       totalUsers: totalUsers.gauge,
       activeSessions: activeSessions.gauge,
       distinctActiveUsers: distinctActiveUsers.gauge,
-      rollingActiveUsers: rollingActiveUsers.gauge,
     })
 
     await Promise.all([
       totalUsers.collect(),
       activeSessions.collect(),
       distinctActiveUsers.collect(),
-      rollingActiveUsers.collect(),
     ])
 
     expect(totalUsers.observe).not.toHaveBeenCalled()
     expect(activeSessions.observe).not.toHaveBeenCalled()
     expect(distinctActiveUsers.observe).not.toHaveBeenCalled()
-    expect(rollingActiveUsers.observe).not.toHaveBeenCalled()
 
     recorder.record(
       {
         totalUsers: 42,
         activeSessions: 7,
         distinctActiveUsers: 5,
-        rollingActiveUsers: {
-          '24h': 9,
-          '7d': 18,
-          '30d': 30,
-        },
       },
       refreshedAt,
     )
@@ -75,15 +66,11 @@ describe('registerUserMetricsSnapshotGauges', () => {
       totalUsers.collect(),
       activeSessions.collect(),
       distinctActiveUsers.collect(),
-      rollingActiveUsers.collect(),
     ])
 
     expect(totalUsers.observe).toHaveBeenLastCalledWith(42)
     expect(activeSessions.observe).toHaveBeenLastCalledWith(7)
     expect(distinctActiveUsers.observe).toHaveBeenLastCalledWith(5)
-    expect(rollingActiveUsers.observe).toHaveBeenNthCalledWith(1, 9, { window: '24h' })
-    expect(rollingActiveUsers.observe).toHaveBeenNthCalledWith(2, 18, { window: '7d' })
-    expect(rollingActiveUsers.observe).toHaveBeenNthCalledWith(3, 30, { window: '30d' })
   })
 
   it('stops observing a snapshot after its bounded freshness interval', async () => {
@@ -92,13 +79,11 @@ describe('registerUserMetricsSnapshotGauges', () => {
     const totalUsers = createGaugeProbe()
     const activeSessions = createGaugeProbe()
     const distinctActiveUsers = createGaugeProbe()
-    const rollingActiveUsers = createGaugeProbe()
 
     const recorder = registerUserMetricsSnapshotGauges({
       totalUsers: totalUsers.gauge,
       activeSessions: activeSessions.gauge,
       distinctActiveUsers: distinctActiveUsers.gauge,
-      rollingActiveUsers: rollingActiveUsers.gauge,
     })
 
     recorder.record(
@@ -106,7 +91,6 @@ describe('registerUserMetricsSnapshotGauges', () => {
         totalUsers: 42,
         activeSessions: 7,
         distinctActiveUsers: 5,
-        rollingActiveUsers: { '24h': 9, '7d': 18, '30d': 30 },
       },
       refreshedAt,
     )
@@ -116,12 +100,10 @@ describe('registerUserMetricsSnapshotGauges', () => {
       totalUsers.collect(),
       activeSessions.collect(),
       distinctActiveUsers.collect(),
-      rollingActiveUsers.collect(),
     ])
 
     expect(totalUsers.observe).not.toHaveBeenCalled()
     expect(activeSessions.observe).not.toHaveBeenCalled()
     expect(distinctActiveUsers.observe).not.toHaveBeenCalled()
-    expect(rollingActiveUsers.observe).not.toHaveBeenCalled()
   })
 })
