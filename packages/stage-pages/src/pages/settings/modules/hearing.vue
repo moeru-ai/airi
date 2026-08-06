@@ -509,7 +509,8 @@ watch(activeTranscriptionProvider, async (provider) => {
   if (!provider)
     return
 
-  await hearingStore.loadModelsForProvider(provider)
+  if (provider !== 'funasr-audio-transcription')
+    await hearingStore.loadModelsForProvider(provider)
   syncOpenAICompatibleSettings()
 
   // Auto-select first model for Web Speech API if no model is selected

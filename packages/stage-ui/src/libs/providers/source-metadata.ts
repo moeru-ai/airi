@@ -59,6 +59,7 @@ const providerSourceMetadataById = {
   'elevenlabs': paidCloud,
   'featherless-ai': paidCloud,
   'fireworks-ai': paidCloud,
+  'funasr-audio-transcription': freeLocal,
   'google-generative-ai': paidCloud,
   'groq': paidCloud,
   'index-tts-vllm': freeLocal,

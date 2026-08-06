@@ -327,8 +327,85 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED)
   const verboseJsonNotSupported = ref(false)
 
-  watch(activeTranscriptionProvider, () => {
+  const activeFunASRConfiguredModel = computed(() => {
+    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription')
+      return ''
+
+    const model = providersStore.getProviderConfig('funasr-audio-transcription')?.model
+    return typeof model === 'string' ? model : 'sensevoice'
+  })
+
+  let pendingDestinationModelProvider = ''
+
+  function syncDestinationModel(providerId: string, freshlyListedModels: readonly { id: string }[] = []) {
+    if (activeTranscriptionProvider.value !== providerId)
+      return false
+
+    const providerConfig = providersStore.getProviderConfig(providerId)
+    const configuredModel = providerConfig?.model
+    const ownsModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof configuredModel === 'string'
+    if (ownsModel) {
+      activeTranscriptionModel.value = configuredModel.trim()
+      return true
+    }
+
+    const defaultOptions = providersStore.findProviderMetadata(providerId)?.defaultOptions?.()
+    const defaultModel = typeof defaultOptions?.model === 'string' ? defaultOptions.model.trim() : ''
+    // A list-backed fallback must come from the current refresh. The runtime cache may still belong
+    // to credentials or an endpoint that the user has just replaced.
+    const listedModel = freshlyListedModels[0]?.id ?? ''
+    const model = defaultModel || listedModel
+    if (!model)
+      return false
+
+    activeTranscriptionModel.value = model
+    if (providerConfig)
+      providerConfig.model = model
+    return true
+  }
+
+  // Auth and other callers select a provider first and its model immediately after.
+  // Resolve the provider transition synchronously so the later model assignment wins.
+  watch(activeTranscriptionProvider, async (providerId, previousProviderId) => {
     verboseJsonNotSupported.value = false
+    pendingDestinationModelProvider = ''
+    if (providerId === 'funasr-audio-transcription') {
+      activeTranscriptionModel.value = activeFunASRConfiguredModel.value
+      await loadModelsForProvider(providerId)
+    }
+    else if (previousProviderId !== undefined) {
+      activeTranscriptionModel.value = ''
+      pendingDestinationModelProvider = providerId
+      if (syncDestinationModel(providerId))
+        pendingDestinationModelProvider = ''
+    }
+  }, { flush: 'sync', immediate: true })
+
+  watch(activeFunASRConfiguredModel, (model) => {
+    if (activeTranscriptionProvider.value === 'funasr-audio-transcription' && activeTranscriptionModel.value !== model)
+      activeTranscriptionModel.value = model
+  })
+
+  // Provider resets replace every runtime state without changing the active Hearing provider.
+  // Rehydrate the cache owned by Hearing when FunASR remains selected across that transition.
+  watch(() => providersStore.providerRuntimeState['funasr-audio-transcription'], (runtimeState, previousRuntimeState) => {
+    if (activeTranscriptionProvider.value !== 'funasr-audio-transcription'
+      || !runtimeState
+      || runtimeState === previousRuntimeState
+      || runtimeState.models.length > 0) {
+      return
+    }
+
+    void loadModelsForProvider('funasr-audio-transcription')
+  })
+
+  watch(activeTranscriptionModel, (model) => {
+    const config = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+    if (!config || !Object.hasOwn(config, 'model') || typeof config.model !== 'string')
+      return
+
+    if (config.model !== model)
+      config.model = model
   })
 
   // Computed properties
@@ -352,9 +429,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
+    let freshlyListedModels: readonly { id: string }[] = []
     if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
-      await providersStore.fetchModelsForProvider(provider)
+      freshlyListedModels = await providersStore.fetchModelsForProvider(provider)
     }
+
+    if (pendingDestinationModelProvider === provider && syncDestinationModel(provider, freshlyListedModels))
+      pendingDestinationModelProvider = ''
   }
 
   async function getModelsForProvider(provider: string) {
@@ -377,7 +458,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     // For OpenAI Compatible providers, check provider config as fallback
     let hasProviderModel = false
-    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
+    if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription'
+      || activeTranscriptionProvider.value === 'funasr-audio-transcription') {
       const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
       hasProviderModel = !!providerConfig?.model
     }
