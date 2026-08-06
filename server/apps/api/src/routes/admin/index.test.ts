@@ -54,14 +54,15 @@ describe('admin metrics', () => {
 
     const firstResponse = await app.request('/api/admin/metrics')
     expect(firstResponse.status).toBe(200)
-    expect(await firstResponse.json()).toMatchObject({
+    const firstMetrics = await firstResponse.json()
+    expect(firstMetrics).toMatchObject({
       totalUsers: 1,
       verifiedUsers: 1,
       adminSeats: 1,
       activeSessions: 0,
       distinctActiveUsers: 0,
-      rollingActiveUsers: { '24h': 0, '7d': 0, '30d': 0 },
     })
+    expect(firstMetrics).not.toHaveProperty('rollingActiveUsers')
     expect(recordUserMetrics).toHaveBeenLastCalledWith(expect.objectContaining({
       totalUsers: 1,
       activeSessions: 0,
