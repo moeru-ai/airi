@@ -23,34 +23,33 @@ function loadCubism2Core(url: string, sri: string, expectedGlobal: string): Prom
   if (expectedGlobal in window)
     return Promise.resolve()
 
-  coreScriptPromise ??= new Promise<void>((resolve, reject) => {
+  if (!coreScriptPromise) {
     const script = document.createElement('script')
     script.src = url
     script.integrity = sri
     script.crossOrigin = 'anonymous'
     script.async = true
-    script.addEventListener('load', () => {
-      if (!(expectedGlobal in window)) {
-        reject(new Error(`The configured Cubism 2 core loaded without exposing window.${expectedGlobal}.`))
-        return
-      }
 
-      resolve()
-    }, { once: true })
-    script.addEventListener('error', () => reject(new Error(`Failed to load the configured Cubism 2 core from "${url}".`)), { once: true })
-    document.head.appendChild(script)
-  })
+    coreScriptPromise = new Promise<void>((resolve, reject) => {
+      script.addEventListener('load', () => {
+        if (!(expectedGlobal in window)) {
+          reject(new Error(`The configured Cubism 2 core loaded without exposing window.${expectedGlobal}.`))
+          return
+        }
+        resolve()
+      }, { once: true })
+      script.addEventListener('error', () => reject(new Error(`Failed to load the configured Cubism 2 core from "${url}".`)), { once: true })
+      document.head.appendChild(script)
+    }).catch((error) => {
+      script.remove()
+      coreScriptPromise = undefined
+      throw error
+    })
+  }
 
   return coreScriptPromise
 }
 
-/**
- * Imports the combined bundle, which carries both Cubism runtimes.
- *
- * Both core globals must already exist; see the invariant recorded in
- * {@link loadLive2DRuntime}. A module-evaluation failure is rethrown naming that
- * requirement, because the upstream message alone does not identify the owner.
- */
 async function importCombinedRuntime(): Promise<Live2DRuntime> {
   try {
     return await import('pixi-live2d-display')
@@ -58,49 +57,32 @@ async function importCombinedRuntime(): Promise<Live2DRuntime> {
   catch (error) {
     throw new Error(
       `Failed to evaluate the combined Live2D runtime bundle: ${errorMessageFrom(error) ?? 'unknown error'}. `
-      + `It requires both window.Live2D (the Cubism 2 core loaded above) and window.Live2DCubismCore `
-      + `(the live2dcubismcore.min.js <script> in the app's index.html) to already exist at import time.`,
+      + `It requires both window.Live2D and window.Live2DCubismCore to exist before the bundle is imported.`,
       { cause: error },
     )
   }
 }
 
-/**
- * Loads the one pixi-live2d-display bundle used for the application lifetime.
- *
- * The combined bundle must only be evaluated after the proprietary Cubism 2
- * core has created `window.Live2D`. Builds without that core retain the
- * existing Cubism 3+ bundle and reject Cubism 2 models during validation.
- */
+async function importAvailableRuntime(): Promise<Live2DRuntime> {
+  if (!cubism2Core.available)
+    return import('pixi-live2d-display/cubism4')
+
+  try {
+    await loadCubism2Core(cubism2Core.url, cubism2Core.sri, cubism2Core.expectedGlobal)
+    return await importCombinedRuntime()
+  }
+  catch (error) {
+    // Cubism 2 is an optional capability. A missing Core, rejected SRI, CSP
+    // policy, or combined-bundle failure must not take Cubism 4/5 down with it.
+    console.warn('[Live2D] Cubism 2 runtime unavailable; continuing with Cubism 4/5 only.', error)
+    return import('pixi-live2d-display/cubism4')
+  }
+}
+
+/** Loads and configures the one pixi-live2d-display bundle used for the application lifetime. */
 export function loadLive2DRuntime(): Promise<Live2DRuntime> {
   runtimePromise ??= (async () => {
-    // NOTICE:
-    // The combined bundle needs BOTH Cubism cores on `window` before it is
-    // imported, not before a model is created, so ordering here is load-bearing.
-    //
-    // It asserts them at module evaluation time: `window.Live2D` at
-    // `node_modules/pixi-live2d-display/dist/index.es.js:1549` ("Could not find
-    // Cubism 2 runtime. This plugin requires live2d.min.js to be loaded.") and
-    // `window.Live2DCubismCore` at `index.es.js:2122` ("Could not find Cubism 4
-    // runtime. This plugin requires live2dcubismcore.js to be loaded.").
-    //
-    // `loadCubism2Core` satisfies the first. Nothing in this package satisfies
-    // the second: it holds only because every app ships a blocking classic
-    // <script> for the modern core ahead of its module entry —
-    // `apps/stage-web/index.html:43`, `apps/stage-pocket/index.html:43`, and
-    // `apps/stage-tamagotchi/src/renderer/index.html:18`. Dropping or deferring
-    // any of those tags breaks every Live2D load in a Cubism-2-enabled build,
-    // and the bare module-eval throw never names the missing tag, hence the
-    // wrapper.
-    //
-    // The Cubism 3+-only bundle carries just the second assertion, so it is
-    // imported directly.
-    //
-    // Removal condition: pixi-live2d-display (0.4.0 today) moves core detection
-    // out of module scope, or this package loads the modern core itself.
-    const runtime = cubism2Core.available
-      ? await loadCubism2Core(cubism2Core.url, cubism2Core.sri, cubism2Core.expectedGlobal).then(importCombinedRuntime)
-      : await import('pixi-live2d-display/cubism4')
+    const runtime = await importAvailableRuntime()
 
     const { configureLive2DLoaders } = await import('./live2d-zip-loader')
     configureLive2DLoaders(runtime)
