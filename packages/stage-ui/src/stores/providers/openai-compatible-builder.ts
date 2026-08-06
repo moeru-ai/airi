@@ -20,21 +20,6 @@ function normalizeBaseUrl(value: unknown): string {
   return base
 }
 
-function shouldLog(): boolean {
-  try {
-    // Opt-in via localStorage to minimize I/O in production
-    return typeof localStorage !== 'undefined' && localStorage.getItem('airi:debug') === '1'
-  }
-  catch {
-    return false
-  }
-}
-
-function logWarn(...args: unknown[]) {
-  if (shouldLog())
-    console.warn(...args)
-}
-
 /**
  * Wraps transcription providers so OpenAI audio options like `language` and `prompt` are preserved.
  */
@@ -194,8 +179,8 @@ export function buildOpenAICompatibleProvider(
             detected = models[0].id
         }
         catch (e) {
-          logWarn(`Model auto-detection failed: ${(e as Error).message}`)
-          logWarn('Falling back to default test model for validation checks.')
+          console.warn(`Model auto-detection failed: ${(e as Error).message}`)
+          console.warn('Falling back to default test model for validation checks.')
           try {
             if (capabilities?.listModels) {
               const models = await capabilities.listModels(config)
@@ -206,7 +191,7 @@ export function buildOpenAICompatibleProvider(
             }
           }
           catch (e) {
-            logWarn(`Model auto-detection via capabilities.listModels also failed: ${(e as Error).message}`)
+            console.warn(`Model auto-detection via capabilities.listModels also failed: ${(e as Error).message}`)
           }
         }
         return detected
