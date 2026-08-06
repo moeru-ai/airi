@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -56,6 +56,8 @@ const providerMetadata = computedAsync(async () => {
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
 
+const hidesApiKey = computed(() => props.hideApiKey || providerMetadata.value?.requiresCredentials === false)
+
 // Common provider settings stay local until the debounced leader write.
 const apiKey = ref('')
 const baseUrl = ref('')
@@ -94,7 +96,7 @@ function reconcileSettings() {
   // assignments run synchronous watchers under this guard and never write back.
   applyingSnapshot = true
   try {
-    if (!props.hideApiKey && !hasUnsavedField('apiKey'))
+    if (!hidesApiKey.value && !hasUnsavedField('apiKey'))
       apiKey.value = stored?.apiKey as string | undefined || ''
     if (!hasUnsavedField('baseUrl'))
       baseUrl.value = stored?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
@@ -210,7 +212,7 @@ async function scheduleProviderConfigUpdate(patch: Record<string, unknown>) {
 
 // Synchronous watchers distinguish user input from guarded snapshot assignments.
 watch(apiKey, async (value) => {
-  if (!props.hideApiKey)
+  if (!hidesApiKey.value)
     await scheduleProviderConfigUpdate({ apiKey: value })
 }, { flush: 'sync' })
 
@@ -244,7 +246,7 @@ function handleResetVoiceSettings() {
           :description="t('settings.pages.providers.common.section.basic.description')"
           :on-reset="handleResetVoiceSettings"
         >
-          <ProviderApiKeyInput v-if="!props.hideApiKey" v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
+          <ProviderApiKeyInput v-if="!hidesApiKey" v-model="apiKey" :provider-name="providerMetadata?.localizedName ?? ''" :placeholder="props.placeholder || 'API Key'" />
           <!-- Slot for provider-specific basic settings -->
           <slot name="basic-settings" />
         </ProviderBasicSettings>
