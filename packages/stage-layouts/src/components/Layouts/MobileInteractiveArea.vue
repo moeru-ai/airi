@@ -69,7 +69,7 @@ const sessionsDrawerOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
 const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(useConsciousnessStore())
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
@@ -118,6 +118,8 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      temperature: activeTemperature.value,
+      topP: activeTopP.value,
     })
   }
   catch (error) {

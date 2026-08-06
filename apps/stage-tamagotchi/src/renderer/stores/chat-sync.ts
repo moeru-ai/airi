@@ -186,7 +186,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
   const { cleanupMessages } = useChatMaintenanceStore()
   const providersStore = useProvidersStore()
   const consciousnessStore = useConsciousnessStore()
-  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
+  const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
   const { activeSessionId, sessionMessages, sessionMetas } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
   const { sending } = storeToRefs(chatOrchestrator)
@@ -343,6 +343,8 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       attachments: payload.attachments,
       input: payload.input,
       tools: resolveTools(payload.toolset),
+      temperature: activeTemperature.value,
+      topP: activeTopP.value,
     }, payload.sessionId)
   }
 

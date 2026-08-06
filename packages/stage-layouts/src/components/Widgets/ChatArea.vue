@@ -34,7 +34,7 @@ const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter'
 const lastEnterTime = ref(0)
 
 const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
+const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
@@ -75,6 +75,8 @@ async function handleSend() {
       chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
       model: activeModel.value,
       providerConfig,
+      temperature: activeTemperature.value,
+      topP: activeTopP.value,
     })
   }
   catch (error) {
