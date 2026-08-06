@@ -1275,6 +1275,16 @@ pages:
         title: MiniMax 글로벌
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: MiniMax 음성 공급자를 초기화하지 못했습니다.
+        fields:
+          field:
+            model:
+              description: 음성 생성에 사용할 MiniMax TTS 모델을 선택하세요.
+              label: 모델
+              placeholder: MiniMax 모델 선택...
+        playground:
+          default-text: 안녕하세요! MiniMax 음성 합성 테스트입니다.
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com

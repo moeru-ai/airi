@@ -1275,6 +1275,16 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: No se pudo inicializar el proveedor de voz MiniMax.
+        fields:
+          field:
+            model:
+              description: Selecciona el modelo TTS de MiniMax que se utilizará para generar voz.
+              label: Modelo
+              placeholder: Selecciona un modelo de MiniMax...
+        playground:
+          default-text: '¡Hola! Esta es una prueba de la síntesis de voz de MiniMax.'
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com

@@ -1275,6 +1275,16 @@ pages:
         title: MiniMax Глобальный
       minimax-speech:
         description: Minimax.io
+        errors:
+          provider-initialization-failed: Не удалось инициализировать провайдер речи MiniMax.
+        fields:
+          field:
+            model:
+              description: Выберите модель MiniMax TTS для синтеза речи.
+              label: Модель
+              placeholder: Выберите модель MiniMax...
+        playground:
+          default-text: Привет! Это тест синтеза речи MiniMax.
         title: MiniMax речь
       mimo:
         description: api.xiaomimimo.com

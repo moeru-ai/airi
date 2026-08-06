@@ -1275,6 +1275,16 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: Không thể khởi tạo nhà cung cấp giọng nói MiniMax.
+        fields:
+          field:
+            model:
+              description: Chọn mô hình TTS MiniMax để tạo giọng nói.
+              label: Mô hình
+              placeholder: Chọn mô hình MiniMax...
+        playground:
+          default-text: Xin chào! Đây là bản thử nghiệm tổng hợp giọng nói MiniMax.
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com

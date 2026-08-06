@@ -1275,6 +1275,16 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: MiniMax 音声プロバイダーを初期化できませんでした。
+        fields:
+          field:
+            model:
+              description: 音声生成に使用する MiniMax TTS モデルを選択します。
+              label: モデル
+              placeholder: MiniMax モデルを選択...
+        playground:
+          default-text: こんにちは！これは MiniMax 音声合成のテストです。
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com

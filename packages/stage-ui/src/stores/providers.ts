@@ -1487,9 +1487,9 @@ export const useProvidersStore = defineStore('providers', () => {
         const baseUrl = ((config.baseUrl as string) || 'https://api.minimax.io').replace(/\/$/, '')
 
         const provider: SpeechProvider = {
-          speech: () => ({
+          speech: model => ({
             baseURL: `${baseUrl}/v1/`,
-            model: 'speech-2.8-hd',
+            model: model || 'speech-2.8-hd',
             fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
               if (!init?.body || typeof init.body !== 'string') {
                 throw new Error('Invalid request body')
