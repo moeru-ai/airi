@@ -146,6 +146,62 @@ export interface ChatOrchestratorPromptProjection {
   composedMessage?: Message[]
 }
 
+function isBilingualResponse(text: string): boolean {
+  if (!text)
+    return false
+
+  const lineStartTags = [...text.matchAll(/^\[(TTS|SUB1|SUB2)\]/gm)]
+  if (lineStartTags.length === 0)
+    return false
+
+  const distinctTags = new Set(lineStartTags.map(m => m[1]))
+  const startsWithTag = /^\s*\[(?:TTS|SUB1|SUB2)\]/.test(text)
+
+  return startsWithTag || distinctTags.size >= 2
+}
+
+function cleanBilingualRoutingTags(text: string, isBilingualTurn: boolean): string {
+  if (!isBilingualTurn || !isBilingualResponse(text)) {
+    return text
+  }
+
+  const matches = [...text.matchAll(/^\[(TTS|SUB1|SUB2)\]/gm)]
+  const sections: Record<string, string> = {}
+  let lastIndex = 0
+  let currentTag: string | null = null
+
+  for (const match of matches) {
+    if (currentTag) {
+      const content = text.slice(lastIndex, match.index).trim()
+      if (content)
+        sections[currentTag] = content
+    }
+    currentTag = match[1]
+    lastIndex = match.index! + match[0].length
+  }
+
+  if (currentTag && lastIndex < text.length) {
+    const content = text.slice(lastIndex).trim()
+    if (content)
+      sections[currentTag] = content
+  }
+
+  const parts: string[] = []
+  const sub1 = sections.SUB1
+  const sub2 = sections.SUB2
+  const tts = sections.TTS
+
+  if (sub1)
+    parts.push(sub1)
+  else if (tts)
+    parts.push(tts)
+
+  if (sub2 && sub2 !== sub1 && sub2 !== tts)
+    parts.push(sub2)
+
+  return parts.length > 0 ? parts.join('\n') : text
+}
+
 /**
  * Reactive state mirrored by UI facades.
  */
@@ -184,6 +240,10 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /** Returns whether the response format is bilingual when the queued turn begins. */
+  getBilingualResponse?: () => boolean
+  /** Returns the bilingual system prompt instruction when the queued turn begins. */
+  getBilingualInstruction?: () => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -447,8 +507,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const streamContextMessageId = createId()
     const assistantMessageId = createId()
     const roundId = createId()
+    const isBilingualTurn = deps.getBilingualResponse?.() ?? false
+    const bilingualInstruction = isBilingualTurn ? deps.getBilingualInstruction?.()?.trim() : undefined
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
+      bilingualResponse: isBilingualTurn,
       message: { role: 'user', content: sendingMessage, createdAt: sendingCreatedAt, id: streamContextMessageId },
       contexts: deps.context.snapshot(),
       composedMessage: [],
@@ -611,6 +674,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             speech: finalCategorization.speech,
             reasoning: reasoningContentField || finalCategorization.reasoning,
           }
+
+          if (typeof buildingMessage.content === 'string') {
+            const cleanedText = cleanBilingualRoutingTags(buildingMessage.content, streamingMessageContext.bilingualResponse)
+            if (cleanedText !== buildingMessage.content) {
+              buildingMessage.content = cleanedText
+              let hasReplacedFirstText = false
+              buildingMessage.slices = buildingMessage.slices.filter((slice) => {
+                if (slice.type === 'text') {
+                  if (!hasReplacedFirstText) {
+                    slice.text = cleanedText
+                    hasReplacedFirstText = true
+                    return true
+                  }
+                  return false
+                }
+                return true
+              })
+            }
+          }
+
           patchForegroundStream(sessionId, buildingMessage)
         },
         minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
@@ -636,16 +719,27 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const newMessages = buildProviderMessages(sessionMessagesForSend)
+      const supplements: string[] = []
+
+      if (bilingualInstruction) {
+        supplements.push(bilingualInstruction)
+      }
+
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
+        supplements.push(systemPromptSupplement)
+      }
+
+      if (supplements.length > 0) {
+        const combinedSupplement = supplements.join('\n\n')
         const systemMessage = newMessages.find(message => message.role === 'system')
         if (systemMessage) {
-          systemMessage.content = `${systemMessage.content}\n\n${systemPromptSupplement}`
+          systemMessage.content = `${systemMessage.content}\n\n${combinedSupplement}`
         }
         else {
           newMessages.unshift({
             role: 'system',
-            content: systemPromptSupplement,
+            content: combinedSupplement,
           })
         }
       }

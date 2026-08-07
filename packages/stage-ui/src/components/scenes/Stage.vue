@@ -40,6 +40,7 @@ import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipelin
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { BilingualStreamParser } from '../../libs/speech/bilingual-parser'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
@@ -48,6 +49,7 @@ import { useBackgroundStore } from '../../stores/background'
 import { useChatOrchestratorStore } from '../../stores/chat'
 import { useLlmStreamingControlStore } from '../../stores/llm-streaming-control'
 import { useAiriCardStore } from '../../stores/modules'
+import { BILINGUAL_KNOWN_TAGS, BILINGUAL_TAG_TTS, useBilingualStore } from '../../stores/modules/bilingual'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useProvidersStore } from '../../stores/providers'
 import { useSettings } from '../../stores/settings'
@@ -200,6 +202,42 @@ function resetAssistantSpeechSurface(source: string) {
 }
 
 const { activeCard } = storeToRefs(useAiriCardStore())
+const bilingualStore = useBilingualStore()
+let bilingualParser = new BilingualStreamParser({
+  enabled: bilingualStore.enabled,
+  ttsTag: BILINGUAL_TAG_TTS,
+  knownTags: BILINGUAL_KNOWN_TAGS,
+})
+// Capture the routing policy when a response begins. Store changes are for the
+// next response and must not change caption behavior for queued audio tokens.
+let activeBilingualTurnId: string | null = null
+let bilingualCaptionsEnabledForTurn = bilingualStore.enabled
+let hasBilingualSubtitleForTurn = false
+
+function appendBilingualCaption(captionChunk: string) {
+  if (!hasBilingualSubtitleForTurn) {
+    // The [TTS] section can begin playback before the model emits subtitles.
+    // Replace that temporary spoken caption once the first subtitle arrives.
+    hasBilingualSubtitleForTurn = true
+    assistantCaption.value = ''
+    try {
+      postPresent({ type: 'assistant-reset' })
+    }
+    catch {}
+  }
+
+  assistantCaption.value += captionChunk
+  try {
+    postCaption({ type: 'caption-assistant', text: '' })
+    postCaption({ type: 'caption-assistant', text: assistantCaption.value })
+  }
+  catch {}
+  try {
+    postPresent({ type: 'assistant-append', text: captionChunk })
+  }
+  catch {}
+}
+
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
 const activeCardId = computed(() => activeCard.value?.name ?? 'default')
@@ -601,6 +639,17 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
       nowSpeaking.value = true
   },
   onStart: ({ item }) => {
+    // Once subtitle text arrives it replaces this provisional spoken caption.
+    // Subsequent playback for this chat turn must not overwrite the requested subtitle tracks.
+    if (
+      bilingualCaptionsEnabledForTurn
+      && hasBilingualSubtitleForTurn
+      && activeBilingualTurnId
+      && item.turnId === activeBilingualTurnId
+    ) {
+      return
+    }
+
     // NOTICE: postCaption and postPresent may throw errors if the BroadcastChannel is closed
     // (e.g., when navigating away from the page). We wrap these in try-catch to prevent
     // breaking playback when the channel is unavailable.
@@ -754,6 +803,7 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
   return {
+    turnId,
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),
@@ -838,6 +888,15 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
+  activeBilingualTurnId = context.turnId
+  bilingualCaptionsEnabledForTurn = context.bilingualResponse
+  hasBilingualSubtitleForTurn = false
+  bilingualParser = new BilingualStreamParser({
+    enabled: bilingualCaptionsEnabledForTurn,
+    ttsTag: BILINGUAL_TAG_TTS,
+    knownTags: BILINGUAL_KNOWN_TAGS,
+  })
+
   currentSession?.cancel('new-message')
   currentSession = null
 
@@ -854,7 +913,13 @@ chatHookCleanups.push(onBeforeSend(async () => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentSession?.appendText(literal)
+  const { ttsChunk, captionChunk } = bilingualParser.feed(literal)
+  if (ttsChunk) {
+    currentSession?.appendText(ttsChunk)
+  }
+  if (bilingualCaptionsEnabledForTurn && captionChunk) {
+    appendBilingualCaption(captionChunk)
+  }
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -869,6 +934,13 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
+  const { ttsChunk, captionChunk } = bilingualParser.flush()
+  if (ttsChunk) {
+    currentSession?.appendText(ttsChunk)
+  }
+  if (bilingualCaptionsEnabledForTurn && captionChunk) {
+    appendBilingualCaption(captionChunk)
+  }
   currentSession?.finishInput()
 }))
 

@@ -764,6 +764,14 @@ pages:
             use-ssml:
               description: Enable to input raw SSML instead of plain text
               label: Use Custom SSML
+          bilingual-subtitles:
+            title: Bilingual Subtitles
+            enable:
+              label: Enable Bilingual Subtitles
+              description: Instructs the AI to respond in two languages with separate subtitle tracks
+            tts-language: TTS Spoken Language
+            subtitle1: Subtitle 1 (Primary)
+            subtitle2: Subtitle 2 (Translation)
       title: Speech
     title: Modules
     vision:

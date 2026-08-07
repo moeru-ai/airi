@@ -13,7 +13,7 @@ const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
 
-function createHarness() {
+function createHarness(options?: { getBilingualInstruction?: () => string | undefined }) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -52,6 +52,7 @@ function createHarness() {
   })
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let systemPromptSupplement: string | undefined
+  let bilingualResponse = false
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
@@ -82,6 +83,8 @@ function createHarness() {
     getActiveSessionId: () => 'session-1',
     getActiveProvider: () => 'mock-provider',
     getSystemPromptSupplement: () => systemPromptSupplement,
+    getBilingualResponse: () => bilingualResponse,
+    getBilingualInstruction: options?.getBilingualInstruction,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
@@ -107,6 +110,11 @@ function createHarness() {
   return {
     assistantAppended,
     assistantTurns,
+    bilingualResponse: {
+      set: (next: boolean) => {
+        bilingualResponse = next
+      },
+    },
     contextSnapshot,
     foregroundPatches,
     foregroundResets,
@@ -357,6 +365,87 @@ describe('createChatOrchestratorRuntime', () => {
       content: 'Plugin toolset guidance.',
     })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
+  })
+
+  it('preserves role-tag documentation when the turn did not request bilingual output', async () => {
+    const harness = createHarness()
+    const tagDocumentation = '[TTS] Text-to-speech output.\n[SUB1] Primary subtitle output.'
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: tagDocumentation })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('Explain the role tags.', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: tagDocumentation,
+    })
+  })
+
+  it('removes routing tags only for a turn that requested bilingual output', async () => {
+    const harness = createHarness()
+    harness.bilingualResponse.set(true)
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '[TTS] Hello\n[SUB1] Hello\n[SUB2] 你好' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('Reply bilingually.', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: 'Hello\n你好',
+    })
+  })
+
+  it('snapshots bilingual formatting when a queued turn starts', async () => {
+    const harness = createHarness()
+    const bilingualFlags: boolean[] = []
+    let releaseFirstSend: (() => void) | undefined
+    harness.runtime.hooks.onBeforeMessageComposed(async (_message, context) => {
+      bilingualFlags.push(context.bilingualResponse)
+    })
+    harness.stream
+      .mockImplementationOnce(async () => {
+        await new Promise<void>((resolve) => {
+          releaseFirstSend = resolve
+        })
+      })
+      .mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+        await options?.onStreamEvent?.({ type: 'text-delta', text: '[TTS] Hello\n[SUB1] Hello\n[SUB2] 你好' })
+        await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+      })
+
+    const firstSend = harness.runtime.ingest('Hold the queue.', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+
+    const secondSend = harness.runtime.ingest('Reply bilingually.', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    harness.bilingualResponse.set(true)
+    releaseFirstSend?.()
+
+    await firstSend
+    await secondSend
+
+    expect(bilingualFlags).toEqual([false, true])
+    expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: 'Hello\n你好',
+    })
   })
 
   /**
@@ -788,5 +877,24 @@ describe('createChatOrchestratorRuntime', () => {
     ])
     expect(harness.assistantAppended).toHaveLength(1)
     expect(harness.foregroundResets).toHaveLength(1)
+  })
+
+  it('snapshots bilingual instruction per-turn alongside bilingualResponse flag', async () => {
+    let bilingualInstructionText = '[TTS] <spoken> [SUB1] <sub1> [SUB2] <sub2>'
+
+    const harness = createHarness({
+      getBilingualInstruction: () => bilingualInstructionText,
+    })
+    harness.bilingualResponse.set(true)
+
+    await harness.runtime.ingest('bilingual query', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const streamCall = harness.stream.mock.calls[0]
+    const composedMessages = streamCall[2]
+    const systemMsg = composedMessages.find((m: any) => m.role === 'system')
+    expect(systemMsg.content).toContain('[TTS] <spoken> [SUB1] <sub1> [SUB2] <sub2>')
   })
 })

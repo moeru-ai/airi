@@ -69,6 +69,7 @@ function fromIntent(intent: IntentHandleSubset): StageTtsSession {
  * for cancelling and re-opening.
  */
 export interface StreamingSessionSnapshot {
+  turnId?: string
   model: string
   voice: string
   voiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
@@ -168,6 +169,7 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
         return
       playbackManager.schedule({
         id: `${intentId}-${index}`,
+        turnId: snapshot.turnId,
         streamId: intentId,
         intentId,
         segmentId: `${intentId}-${index}`,

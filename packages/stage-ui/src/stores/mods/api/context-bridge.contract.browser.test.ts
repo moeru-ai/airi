@@ -556,6 +556,7 @@ describe('context bridge contract', () => {
     const context = {
       message: { role: 'user', content: 'ping' },
       contexts: {},
+      bilingualResponse: false,
       composedMessage: [],
     }
 
@@ -592,6 +593,7 @@ describe('context bridge contract', () => {
     const context = {
       message: { role: 'user', content: 'ping' },
       contexts: {},
+      bilingualResponse: false,
       composedMessage: [],
     }
 
@@ -616,6 +618,7 @@ describe('context bridge contract', () => {
     const context = {
       message: { role: 'user', content: 'ping' },
       contexts: {},
+      bilingualResponse: false,
       composedMessage: [],
     }
 
