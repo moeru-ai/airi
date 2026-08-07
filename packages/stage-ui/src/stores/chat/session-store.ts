@@ -71,7 +71,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   let persistQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
-  const loadingSessions = new Map<string, Promise<void>>()
+  const loadingSessions = new Map<string, Promise<boolean>>()
 
   // Cloud sync state. The WS client is constructed lazily so anonymous
   // (`userId === 'local'`) users never open a socket. `cloudSyncReady` is a
@@ -317,19 +317,19 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * - `sessionId` exists either in `sessionMetas` or in IDB.
    *
    * Returns:
-   * - Resolves once the session is in memory. On IDB error, removes the id
+   * - `true` when the session is in memory, or `false` when hydration failed.
+   *   On IDB error, removes the id
    *   from the loading map so subsequent calls can retry rather than wedge
    *   on a stale promise. Errors are intentionally not rethrown — the
    *   failing session is simply absent from local state and the next
    *   loadSession call will retry.
    */
-  async function loadSession(sessionId: string) {
+  async function loadSession(sessionId: string): Promise<boolean> {
     if (loadedSessions.has(sessionId)) {
-      return
+      return true
     }
     if (loadingSessions.has(sessionId)) {
-      await loadingSessions.get(sessionId)
-      return
+      return await loadingSessions.get(sessionId)!
     }
 
     const loadPromise = (async () => {
@@ -342,7 +342,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         // load — locking the resurrection in. The drawer's batch
         // loadSession + per-row trash button hits this race in production.
         if (!sessionMetas.value[sessionId])
-          return
+          return false
         if (stored) {
           const currentMessages = sessionMessages.value[sessionId] ?? []
           const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
@@ -365,17 +365,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const meta = sessionMetas.value[sessionId]
         if (meta?.cloudChatId)
           await pullCloudMessages(sessionId)
+
+        return true
       }
       catch (err) {
         // Do NOT add to loadedSessions on failure — the next call should
         // retry rather than fast-return on stale "already loaded" state.
         console.warn('[chat-session] loadSession failed for', sessionId, errorMessageFrom(err))
+        return false
       }
     })()
 
     loadingSessions.set(sessionId, loadPromise)
     try {
-      await loadPromise
+      return await loadPromise
     }
     finally {
       // Always drain the loading map so a transient failure does not leave
@@ -479,6 +482,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    *   reconcile `adopt` branch will not re-import the row on next login.
    */
   async function deleteSession(sessionId: string) {
+    // Keep a monotonic tombstone in memory so queued and streaming sends that
+    // captured the previous generation cannot become current again after the
+    // session record is removed.
+    bumpSessionGeneration(sessionId)
+
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
@@ -516,7 +524,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // fire-and-forget. Persistence races now read the post-deletion state.
     delete sessionMetas.value[sessionId]
     delete sessionMessages.value[sessionId]
-    delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
     loadingSessions.delete(sessionId)
 
@@ -1238,15 +1245,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     },
   })
 
-  function setActiveSession(sessionId: string) {
+  function activateSession(sessionId: string) {
     activeSessionId.value = sessionId
-
-    const characterId = getCurrentCharacterId()
-    const characterIndex = index.value?.characters[characterId]
-    if (characterIndex) {
-      characterIndex.activeSessionId = sessionId
-      void persistIndex()
-    }
 
     if (ready.value) {
       void loadSession(sessionId)
@@ -1254,6 +1254,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     else if (!hasKnownSession(sessionId)) {
       ensureSession(sessionId)
     }
+  }
+
+  function setActiveSession(sessionId: string) {
+    activateSession(sessionId)
+
+    const characterId = getCurrentCharacterId()
+    const characterIndex = index.value?.characters[characterId]
+    if (characterIndex) {
+      characterIndex.activeSessionId = sessionId
+      void persistIndex()
+    }
+  }
+
+  /**
+   * Activates a session only in this store instance. Use for secondary
+   * windows whose selection must not overwrite the persisted character index.
+   */
+  function setActiveSessionLocally(sessionId: string) {
+    activateSession(sessionId)
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1328,6 +1347,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function getSessionMessages(sessionId: string) {
     ensureSession(sessionId)
     return sessionMessages.value[sessionId] ?? []
+  }
+
+  /** Returns persisted/in-memory messages without creating an unloaded session fallback. */
+  function getSessionMessagesIfLoaded(sessionId: string) {
+    return sessionMessages.value[sessionId]
   }
 
   function getSessionGeneration(sessionId: string) {
@@ -1459,6 +1483,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages,
 
     setActiveSession,
+    setActiveSessionLocally,
     applyRemoteSnapshot,
     getSnapshot,
     cleanupMessages,
@@ -1470,6 +1495,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,
+    getSessionMessagesIfLoaded,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,

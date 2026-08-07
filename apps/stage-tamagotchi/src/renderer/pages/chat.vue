@@ -9,6 +9,8 @@ import { useI18n } from 'vue-i18n'
 import InteractiveArea from '../components/InteractiveArea.vue'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
+import { useChatSyncStore } from '../stores/chat-sync'
+
 const sessionsDrawerOpen = shallowRef(false)
 const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
@@ -22,6 +24,13 @@ const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
   },
 })
 const { t } = useI18n()
+const chatSync = useChatSyncStore()
+
+const sessionActions = {
+  createSession: (characterId: string) => chatSync.requestCreateSession(characterId),
+  deleteSession: (sessionId: string) => chatSync.requestDeleteSession(sessionId),
+  selectSession: (sessionId: string) => chatSync.requestSelectSession(sessionId),
+}
 </script>
 
 <template>
@@ -68,7 +77,7 @@ const { t } = useI18n()
       class="interaction-area block"
       h-full w-full p-4 transition="opacity duration-250"
     />
-    <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
+    <ChatSessionsDrawer v-model="sessionsDrawerOpen" :session-actions="sessionActions" />
   </div>
 </template>
 

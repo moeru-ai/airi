@@ -89,6 +89,9 @@ async function handleSend() {
 
   const textToSend = messageInput.value
   const attachmentsToSend = attachments.value.map(att => ({ ...att }))
+  // The active session can change while the cross-window request is pending.
+  // Keep one correlation key for both the send and its failure recovery.
+  const targetSessionId = chatSession.activeSessionId
 
   // optimistic clear
   messageInput.value = ''
@@ -98,22 +101,30 @@ async function handleSend() {
     await chatSyncStore.requestIngest({
       text: textToSend,
       attachments: attachmentsToSend,
+      sessionId: targetSessionId,
       toolset: 'artistry',
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
   catch (error) {
-    // restore on failure
-    messageInput.value = textToSend
-    attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    if (chatSession.activeSessionId === targetSessionId) {
+      // A shared input cannot safely hold a draft from a session the user has
+      // left while the cross-window request was pending.
+      messageInput.value = textToSend
+      attachments.value = attachmentsToSend
+    }
+
+    const targetMessages = chatSession.getSessionMessagesIfLoaded(targetSessionId)
+    if (targetMessages) {
+      chatSession.setSessionMessages(targetSessionId, [
+        ...targetMessages,
+        {
+          role: 'error',
+          content: errorMessageFrom(error) ?? 'Failed to send message',
+        },
+      ])
+    }
   }
 }
 
@@ -207,7 +218,10 @@ const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefine
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  await chatSyncStore.requestDeleteMessage({ index })
+  await chatSyncStore.requestDeleteMessage({
+    sessionId: chatSession.activeSessionId,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -255,7 +269,7 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
 
 async function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatSyncStore.requestCleanup()
+  await chatSyncStore.requestCleanup(chatSession.activeSessionId)
   trackChatMessagesCleared({
     source: 'chat_controls',
     message_count: messageCount,
