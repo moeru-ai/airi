@@ -1,6 +1,10 @@
 chat:
   actions:
     retry: Retry
+  provider-configuration:
+    title: 채팅 Provider가 설정되지 않았습니다
+    description: 메시지를 보내기 전에 설정에서 Provider를 선택하고 검증해 주세요.
+    action: Provider 설정 열기
   message:
     character-name:
       airi: AIRI

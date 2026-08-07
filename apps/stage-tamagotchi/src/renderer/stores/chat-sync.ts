@@ -101,6 +101,13 @@ const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
 const SPOTLIGHT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
+/** Stable message used to distinguish provider setup failures from chat runtime failures. */
+export const CHAT_PROVIDER_CONFIGURATION_ERROR = 'Chat provider is not configured. Configure a provider in Settings before chatting.'
+
+/** Returns whether an arbitrary error represents a missing chat provider setup. */
+export function isChatProviderConfigurationError(error: unknown): boolean {
+  return errorMessageFromValue(error) === CHAT_PROVIDER_CONFIGURATION_ERROR
+}
 
 function createRequestId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
@@ -329,12 +336,23 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
-      throw new Error('No active chat provider or model configured')
+      throw new Error(CHAT_PROVIDER_CONFIGURATION_ERROR)
     }
 
-    const chatProvider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    let chatProvider: ChatProvider
+    try {
+      chatProvider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    }
+    catch (error) {
+      const message = errorMessageFromValue(error)
+      if (message.includes('Provider metadata for') || message.includes('Provider credentials for')) {
+        throw new Error(CHAT_PROVIDER_CONFIGURATION_ERROR)
+      }
+      throw error
+    }
+
     if (!chatProvider) {
-      throw new Error(`Failed to resolve chat provider "${providerId}"`)
+      throw new Error(CHAT_PROVIDER_CONFIGURATION_ERROR)
     }
 
     await chatOrchestrator.ingest(payload.text, {
@@ -480,7 +498,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
 
       logChatSyncError('command failed', error, authorityCommandMeta(message))
 
-      if (message.command === 'ingest') {
+      if (message.command === 'ingest' && !isChatProviderConfigurationError(error)) {
         appendIngestErrorMessage(message.payload, errorMessage)
       }
       else if (message.command === 'spotlight-ingest') {

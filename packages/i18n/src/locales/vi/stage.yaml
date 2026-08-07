@@ -1,6 +1,10 @@
 chat:
   actions:
     retry: Thử lại
+  provider-configuration:
+    title: Provider trò chuyện chưa được cấu hình
+    description: Hãy chọn và xác thực một Provider trong phần cài đặt trước khi gửi tin nhắn.
+    action: Mở cài đặt Provider
   message:
     character-name:
       airi: AIRI

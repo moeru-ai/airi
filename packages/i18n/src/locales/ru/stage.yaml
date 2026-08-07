@@ -1,6 +1,10 @@
 chat:
   actions:
     retry: Повторить
+  provider-configuration:
+    title: Provider чата не настроен
+    description: Перед отправкой сообщения выберите и проверьте Provider в настройках.
+    action: Открыть настройки Provider
   message:
     character-name:
       airi: AIRI
