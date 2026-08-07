@@ -605,6 +605,11 @@ pages:
       description: Personality, desired model, etc.
       sections:
         section:
+          thinking:
+            title: Thinking & Roleplay
+            subtitle: Control model reasoning and how in-character replies stay
+            label: Enable thinking and inject roleplay guard
+            description: When on, keep the model thinking and add a guard so it stays in character and first-person. When off, ask the provider to disable thinking.
           provider-model-selection:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...

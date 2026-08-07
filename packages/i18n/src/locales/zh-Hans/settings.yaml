@@ -580,6 +580,11 @@ pages:
       description: 人格设定、使用的模型等配置
       sections:
         section:
+          thinking:
+            title: 思考与角色扮演
+            subtitle: 控制模型思考与回复的入戏程度
+            label: 开启思考并注入角色扮演守则
+            description: 开启时保留模型思考，并注入守则让其保持角色第一人称、避免出戏；关闭时请求服务商停用思考。
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称

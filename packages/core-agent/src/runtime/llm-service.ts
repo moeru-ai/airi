@@ -314,6 +314,12 @@ const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
   /tool_use_failed/i, // Groq
   /does not support function.?calling/i, // Anthropic
   /tools?\s+(is|are)\s+not\s+supported/i, // Cloudflare Workers AI
+  // DeepSeek (incl. via OpenRouter) runs a strict Rust/serde JSON-schema deserializer that
+  // rejects tool `parameters` containing `anyOf` (e.g. nullable array/union fields such as
+  // `array | null`, which `normalizeNullableAnyOf` only flattens for scalar unions). The wire
+  // error is: `Invalid tool parameters schema : field anyOf: invalid type: sequence, expected
+  // variant identifier`. Treat it as tool-unsupported so the turn auto-degrades to no tools.
+  /invalid tool parameters schema/i, // DeepSeek / OpenRouter (strict serde schema)
 ]
 
 export function isToolRelatedError(error: unknown): boolean {

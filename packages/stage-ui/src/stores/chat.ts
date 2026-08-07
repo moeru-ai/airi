@@ -12,6 +12,7 @@ import { ref, toRaw, watch } from 'vue'
 
 import { getConversationAnalyticsSurface, useAnalytics } from '../composables'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { ROLEPLAY_GUARD_PROMPT } from '../constants/prompts/roleplay-guard'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -47,6 +48,30 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
+// NOTICE:
+// Disable server-side reasoning via the de-facto "disable thinking" body fields used across
+// the OpenAI-compatible reasoning-model ecosystem: Qwen/DashScope read the top-level
+// `enable_thinking`, while vLLM/SGLang read `chat_template_kwargs.enable_thinking`. Both are
+// spread into the request body downstream (see core-agent llm-service.streamFrom). This wrapper
+// is applied per-request ONLY when the user turns thinking off, so unknown-field-strict
+// providers are never affected unless the user opts in.
+function withThinkingDisabled(chatProvider: ChatProvider): ChatProvider {
+  return {
+    ...chatProvider,
+    chat(model: string) {
+      const chatConfig = chatProvider.chat(model)
+      const templateKwargs = (chatConfig as { chat_template_kwargs?: Record<string, unknown> }).chat_template_kwargs
+      // These extra fields are not modelled by xsai's chat option type; the cast keeps the
+      // ChatProvider shape for callers while preserving the fields at runtime for the body spread.
+      return {
+        ...chatConfig,
+        enable_thinking: false,
+        chat_template_kwargs: { ...templateKwargs, enable_thinking: false },
+      } as typeof chatConfig
+    },
+  }
+}
+
 export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
 
 export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
@@ -60,7 +85,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
+  const { activeModel, activeProvider, thinkingEnabled } = storeToRefs(consciousnessStore)
   const {
     trackFirstMessage,
     trackMessageSendStarted,
@@ -118,7 +143,10 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     let llmFirstTokenEmitted = false
 
     try {
-      await llmStore.stream(model, chatProvider, messages, {
+      // Thinking off: route the request through a provider wrapper that asks the
+      // upstream model to stop emitting reasoning. Thinking on: send as-is.
+      const effectiveProvider = thinkingEnabled.value ? chatProvider : withThinkingDisabled(chatProvider)
+      await llmStore.stream(model, effectiveProvider, messages, {
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {
@@ -193,7 +221,16 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     },
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
-    getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getSystemPromptSupplement: () => {
+      const toolsetPrompt = llmToolsetPromptsStore.activeToolsetPrompt
+      // Thinking on: append the roleplay guard so a reasoning model keeps speaking
+      // in-character instead of narrating about the user. Thinking off: leave the
+      // supplement untouched ("其他不处理").
+      if (!thinkingEnabled.value)
+        return toolsetPrompt
+
+      return [toolsetPrompt, ROLEPLAY_GUARD_PROMPT].filter(part => part.trim().length > 0).join('\n\n')
+    },
     runtimeContextProviders: [
       createMinecraftContext,
     ],

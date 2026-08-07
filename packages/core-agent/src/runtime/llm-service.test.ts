@@ -3,7 +3,7 @@ import type { Message, Tool } from '@xsai/shared-chat'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { isContentArrayRelatedError, sanitizeMessages, streamFrom } from './llm-service'
+import { isContentArrayRelatedError, isToolRelatedError, sanitizeMessages, streamFrom } from './llm-service'
 
 const { streamTextMock } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
@@ -356,5 +356,29 @@ describe('isContentArrayRelatedError', () => {
     expect(isContentArrayRelatedError('Remote sent 401 response: invalid api key')).toBe(false)
     expect(isContentArrayRelatedError('Tool call failed: invalid schema for function')).toBe(false)
     expect(isContentArrayRelatedError(undefined)).toBe(false)
+  })
+})
+
+describe('isToolRelatedError', () => {
+  // DeepSeek via OpenRouter rejects tool `parameters` containing `anyOf` (nullable
+  // array/union fields) with this wire error, reported by a user running the
+  // roleplay thinking mode against OpenRouter's DeepSeek endpoint.
+  it('detects the DeepSeek/OpenRouter strict-serde anyOf tool schema rejection', () => {
+    /**
+     * @example
+     * isToolRelatedError(
+     *   `Remote sent 400 response: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\"error\":{\"message\":\"Invalid tool parameters schema : field anyOf: invalid type: sequence, expected variant identifier\"}}"}}}`
+     * )
+     * // -> true
+     */
+    const wire = 'Remote sent 400 response: {"error":{"message":"Provider returned error","code":400,"metadata":{"raw":"{\\"error\\":{\\"message\\":\\"Invalid tool parameters schema : field anyOf: invalid type: sequence, expected variant identifier\\",\\"type\\":\\"invalid_request_error\\"}}","provider_name":"DeepSeek"}}}'
+    expect(isToolRelatedError(wire)).toBe(true)
+    expect(isToolRelatedError(new Error(wire))).toBe(true)
+  })
+
+  it('does not false-positive on unrelated 400s', () => {
+    expect(isToolRelatedError('Remote sent 400 response: model not found')).toBe(false)
+    expect(isToolRelatedError('Remote sent 401 response: invalid api key')).toBe(false)
+    expect(isToolRelatedError(undefined)).toBe(false)
   })
 })
