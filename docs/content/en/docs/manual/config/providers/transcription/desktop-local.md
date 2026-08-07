@@ -36,7 +36,8 @@ This provider does not appear on the web client. Running the model uses local di
 
 
 1. Open **Settings → Providers → Transcription → App (Local)** in the AIRI desktop client.
-2. Select an available model; once ready, enable it under **Settings → Hearing**.
+2. Fill in the Base URL of the local service that provides the model (often like `http://localhost:11434/v1` for a local Ollama server). This field is required — the provider has no built-in default.
+3. Select an available model; once ready, enable it under **Settings → Hearing**.
 
 
 ## Step 3: Verify the Configuration

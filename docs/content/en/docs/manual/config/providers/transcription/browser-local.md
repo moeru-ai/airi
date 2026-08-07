@@ -36,7 +36,8 @@ Local models consume device resources. If the provider card does not appear or r
 
 
 1. Open **Settings → Providers → Transcription → Browser (Local)** in the web client.
-2. Wait for the model to be ready, select a model, and enable it under **Settings → Hearing**.
+2. Fill in the Base URL of the local service that provides the model (often like `http://localhost:11434/v1` for a local Ollama server). This field is required — the provider has no built-in default.
+3. Wait for the model to be ready, select a model, and enable it under **Settings → Hearing**.
 
 
 ## Step 3: Verify the Configuration

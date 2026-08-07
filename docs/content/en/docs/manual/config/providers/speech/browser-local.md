@@ -36,7 +36,8 @@ This capability depends on browser and hardware conditions. If the provider card
 
 
 1. Open **Settings → Providers → Speech → Browser (Local)** in the web client.
-2. Wait for the model to be ready, and select a model and voice.
+2. Fill in the Base URL of the local service that provides the model (often like `http://localhost:11434/v1` for a local Ollama server). This field is required — the provider has no built-in default.
+3. Wait for the model to be ready, and select a model and voice.
 
 
 ## Step 3: Verify the Configuration
