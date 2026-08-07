@@ -38,7 +38,7 @@ Do not commit the API key to the repository, put it in screenshots, or share it 
 
 1. Open **Settings → Providers → Text-to-Speech → OpenAI-compatible API**.
 2. Fill in the API key and the TTS model ID you want to use.
-3. When using OpenAI's official service, keep the default Base URL: `https://api.openai.com/v1/`; when using a compatible service, fill in the API root address from the provider's documentation.
+3. When using OpenAI's official service, enter `https://api.openai.com/v1/` as the Base URL. The OpenAI-compatible API provider requires a Base URL — there is no built-in default; when using a compatible service, fill in the API root address from the provider's documentation.
 4. Adjust the speech speed as needed.
 
 
