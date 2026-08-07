@@ -36,7 +36,7 @@ Do not commit the API key to the repository, put it in screenshots, or share it 
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → ElevenLabs**.
+1. Open **Settings → Providers → Speech → ElevenLabs**.
 2. Paste the API key into the basic settings.
 3. Keep the default Base URL shown on the page; only change it when using your own compatible gateway.
 

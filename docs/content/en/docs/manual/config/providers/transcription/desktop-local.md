@@ -35,7 +35,7 @@ This provider does not appear on the web client. Running the model uses local di
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Speech Recognition → App (Local)** in the AIRI desktop client.
+1. Open **Settings → Providers → Transcription → App (Local)** in the AIRI desktop client.
 2. Select an available model; once ready, enable it under **Settings → Hearing**.
 
 

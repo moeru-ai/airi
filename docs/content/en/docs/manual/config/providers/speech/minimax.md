@@ -36,7 +36,7 @@ Do not commit the API key to the repository, put it in screenshots, or share it 
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → MiniMax Speech** and paste the API key.
+1. Open **Settings → Providers → Speech → MiniMax Speech** and paste the API key.
 2. Keep the default service address `https://api.minimax.io`, unless the provider explicitly offers another address.
 
 

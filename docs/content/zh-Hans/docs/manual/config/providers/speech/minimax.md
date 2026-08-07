@@ -21,7 +21,7 @@ MiniMax Speech 可在 AIRI 中提供语音合成模型和预设声音。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → MiniMax Speech**，粘贴 API Key。
+1. 打开 **设置 → 服务商 → Speech → MiniMax Speech**，粘贴 API Key。
 2. 保留默认服务地址 `https://api.minimax.io`，除非服务商明确提供了其他地址。
 
 ## 第三步：验证配置

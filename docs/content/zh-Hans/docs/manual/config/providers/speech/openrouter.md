@@ -21,7 +21,7 @@ OpenRouter 是一个聚合式 API 服务商。完成配置后，在“发声”�
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → OpenRouter**。
+1. 打开 **设置 → 服务商 → Speech → OpenRouter**。
 2. 将 API Key 粘贴到基础设置。
 3. 保留默认 Base URL：`https://openrouter.ai/api/v1/`。
 

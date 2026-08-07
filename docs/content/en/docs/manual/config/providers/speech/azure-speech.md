@@ -36,7 +36,7 @@ The Azure key can access your speech resource. Do not commit, screenshot, or sha
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Microsoft / Azure Speech**.
+1. Open **Settings → Providers → Speech → Microsoft / Azure Speech**.
 2. Fill in the API key and region information. Keep the default Base URL unless you use a compatible gateway.
 
 

@@ -20,7 +20,7 @@ MiMo 使用其原生音频理解模型完成语音转写。
 
 ## 第二步：在 AIRI 中配置
 
-1. 在 **设置 → 服务商 → 语音识别 → Xiaomi MiMo** 中填写 API Key。
+1. 在 **设置 → 服务商 → Transcription → Xiaomi MiMo** 中填写 API Key。
 2. 保留默认 Base URL：`https://api.xiaomimimo.com/v1/`，除非服务商提供了其他地址。
 
 ## 第三步：验证配置

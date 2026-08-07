@@ -35,7 +35,7 @@ Local models consume device resources. If the provider card does not appear or r
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Speech Recognition → Browser (Local)** in the web client.
+1. Open **Settings → Providers → Transcription → Browser (Local)** in the web client.
 2. Wait for the model to be ready, select a model, and enable it under **Settings → Hearing**.
 
 

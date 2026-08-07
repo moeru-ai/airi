@@ -35,7 +35,7 @@ The available models, credits, and regions of the official service are determine
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → AIRI Official Text-to-Speech**.
+1. Open **Settings → Providers → Speech → Official Speech Provider**.
 2. Wait for AIRI to load the currently available models and voices from the server.
 
 

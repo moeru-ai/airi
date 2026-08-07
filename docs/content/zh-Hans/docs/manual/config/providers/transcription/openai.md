@@ -21,7 +21,7 @@ description: 在 AIRI 中配置 OpenAI 或兼容 OpenAI 的 API 作为语音识�
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音识别 → OpenAI 兼容 API**。
+1. 打开 **设置 → 服务商 → Transcription → OpenAI 兼容 API**。
 2. 填写 API Key 和要使用的 ASR/STT 模型 ID。
 3. 使用 OpenAI 官方服务时，在 Base URL 中填写 `https://api.openai.com/v1/`。OpenAI-compatible API 服务商没有内置默认 Base URL，该字段必填；使用兼容服务时，填写服务商文档提供的 API 根地址。
 

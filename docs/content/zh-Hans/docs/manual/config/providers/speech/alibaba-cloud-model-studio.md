@@ -21,7 +21,7 @@ description: 在 AIRI 中配置阿里云百炼语音合成
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → Alibaba Cloud Model Studio**。
+1. 打开 **设置 → 服务商 → Speech → Alibaba Cloud Model Studio**。
 2. 将百炼 API Key 粘贴到基础设置；Base URL 使用界面默认值，除非你配置了兼容网关。
 
 ## 第三步：验证配置

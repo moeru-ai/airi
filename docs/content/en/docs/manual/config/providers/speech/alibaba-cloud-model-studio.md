@@ -36,7 +36,7 @@ Do not commit the Model Studio API key to the repository, put it in screenshots,
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Alibaba Cloud Model Studio**.
+1. Open **Settings → Providers → Speech → Alibaba Cloud Model Studio**.
 2. Paste the Model Studio API key into the basic settings; use the default Base URL unless you have configured a compatible gateway.
 
 

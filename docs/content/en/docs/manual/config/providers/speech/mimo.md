@@ -35,7 +35,7 @@ Voice cloning requires audio samples in Base64 data URI format. Only upload voic
 ## Step 2: Configure in AIRI
 
 
-1. Fill in the API key under **Settings → Providers → Text-to-Speech → Xiaomi MiMo**.
+1. Fill in the API key under **Settings → Providers → Speech → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the provider offers another address.
 
 

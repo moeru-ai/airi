@@ -36,7 +36,7 @@ Do not expose the API key or the credentials corresponding to the App ID; if the
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Volcengine**.
+1. Open **Settings → Providers → Speech → Volcengine**.
 2. Fill in the API key and App ID; use the default Base URL unless you use a compatible gateway.
 
 

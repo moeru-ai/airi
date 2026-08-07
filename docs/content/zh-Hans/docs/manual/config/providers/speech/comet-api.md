@@ -20,7 +20,7 @@ CometAPI 通过其兼容接口提供语音合成。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → CometAPI Speech**，填写 API Key。
+1. 打开 **设置 → 服务商 → Speech → CometAPI Speech**，填写 API Key。
 2. 保留默认 Base URL：`https://api.cometapi.com/v1/`；只有使用代理或兼容网关时才修改。
 
 ## 第三步：验证配置

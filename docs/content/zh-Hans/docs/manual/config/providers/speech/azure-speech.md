@@ -21,7 +21,7 @@ Azure 密钥可访问你的语音资源。不要提交、截图或分享它。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → Microsoft / Azure Speech**。
+1. 打开 **设置 → 服务商 → Speech → Microsoft / Azure Speech**。
 2. 填写 API Key 和区域信息。Base URL 保持界面默认值，除非你使用兼容网关。
 
 ## 第三步：验证配置

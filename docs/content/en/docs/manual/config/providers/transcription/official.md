@@ -35,7 +35,7 @@ Real-time recognition sends audio to the official service. Do not use test audio
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Speech Recognition → AIRI Official Speech Recognition**.
+1. Open **Settings → Providers → Transcription → Official Transcription Provider**.
 2. Select `Auto` or a model provided by the server, then enable it under **Settings → Hearing**.
 
 

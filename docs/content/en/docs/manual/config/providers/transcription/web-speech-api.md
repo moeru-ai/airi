@@ -35,7 +35,7 @@ The Web Speech API only works in browser environments; the AIRI desktop client (
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Speech Recognition → Web Speech API** in the web client.
+1. Open **Settings → Providers → Transcription → Web Speech API** in the web client.
 2. Select the recognition language, and, when needed, the continuous recognition and interim results options.
 
 

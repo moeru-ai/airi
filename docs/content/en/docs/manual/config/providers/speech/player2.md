@@ -35,7 +35,7 @@ Do not expose the local service port to untrusted public networks.
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Player2 Speech**.
+1. Open **Settings → Providers → Speech → Player2 Speech**.
 2. Fill in a Base URL matching the service address.
 
 

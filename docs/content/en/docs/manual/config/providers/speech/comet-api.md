@@ -35,7 +35,7 @@ Do not commit the API key to the repository, put it in screenshots, or share it 
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → CometAPI Speech** and fill in the API key.
+1. Open **Settings → Providers → Speech → CometAPI Speech** and fill in the API key.
 2. Keep the default Base URL: `https://api.cometapi.com/v1/`; only change it when using a proxy or a compatible gateway.
 
 

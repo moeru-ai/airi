@@ -20,7 +20,7 @@ MiMo 支持预设音色、声音设计和声音克隆三种语音合成模式。
 
 ## 第二步：在 AIRI 中配置
 
-1. 在 **设置 → 服务商 → 语音合成 → Xiaomi MiMo** 中填写 API Key。
+1. 在 **设置 → 服务商 → Speech → Xiaomi MiMo** 中填写 API Key。
 2. 保留默认 Base URL：`https://api.xiaomimimo.com/v1/`，除非服务商提供了其他地址。
 
 ## 第三步：验证配置

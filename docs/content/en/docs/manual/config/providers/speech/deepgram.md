@@ -36,7 +36,7 @@ Do not commit the API key to the repository, put it in screenshots, or share it 
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Deepgram** and paste the API key into the basic settings.
+1. Open **Settings → Providers → Speech → Deepgram** and paste the API key into the basic settings.
 2. Keep the default Base URL shown on the page; only change it when you self-host a compatible gateway.
 
 

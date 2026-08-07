@@ -21,7 +21,7 @@ Index-TTS 是通过本地 HTTP 服务接入 AIRI 的语音合成选项。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → Index-TTS by Bilibili**。
+1. 打开 **设置 → 服务商 → Speech → Index-TTS by Bilibili**。
 2. 填写与本地服务一致的 Base URL。
 
 ## 第三步：验证配置

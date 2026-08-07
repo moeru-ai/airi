@@ -35,7 +35,7 @@ This capability depends on browser and hardware conditions. If the provider card
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Browser (Local)** in the web client.
+1. Open **Settings → Providers → Speech → Browser (Local)** in the web client.
 2. Wait for the model to be ready, and select a model and voice.
 
 

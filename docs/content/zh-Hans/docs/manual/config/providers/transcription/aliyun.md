@@ -21,7 +21,7 @@ description: 在 AIRI 中配置阿里云智能语音交互服务（ASR）
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音识别 → 阿里云 NLS**。
+1. 打开 **设置 → 服务商 → Transcription → 阿里云 NLS**。
 2. 填写 **AccessKey ID**、**AccessKey Secret** 和 **AppKey**。
 3. 选择距离你最近的区域，例如华东 `cn-shanghai`、华北 `cn-beijing` 或华南 `cn-shenzhen`。
 

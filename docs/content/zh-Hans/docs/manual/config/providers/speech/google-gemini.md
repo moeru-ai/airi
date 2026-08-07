@@ -21,7 +21,7 @@ Google Gemini 音频语音合成会使用 Gemini 凭据和支持音频输出的�
 
 ## 第二步：在 AIRI 中配置
 
-1. 在 **设置 → 服务商 → 语音合成 → Google Gemini** 中填写 Gemini API Key。
+1. 在 **设置 → 服务商 → Speech → Google Gemini** 中填写 Gemini API Key。
 2. 保留界面默认 Base URL，除非你使用企业网关或兼容代理。
 
 ## 第三步：验证配置

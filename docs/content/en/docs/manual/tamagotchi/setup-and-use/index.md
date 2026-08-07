@@ -202,7 +202,6 @@ The most important parts of the identity section are the name and description:
 - If you reference the default character card when writing your own character's settings, the ACT-tag related content in the latter half does not need to be included.
 :::
 - The behavior section supplements personality, scenario, and greeting; the modules section assigns chat, vision, speech, and display models to the character; the Artistry section sets the character's image generation preferences; the settings section contains the system prompt, post-history instructions, and version information.
-:::
 ::: warning Manual Activation Required
 A newly created character card is not enabled by default; you must activate it manually to use it. Click the play button below to enable it.
 :::

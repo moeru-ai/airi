@@ -21,7 +21,7 @@ ElevenLabs 可将 AIRI 的回复合成为语音。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → ElevenLabs**。
+1. 打开 **设置 → 服务商 → Speech → ElevenLabs**。
 2. 将 API Key 粘贴到基础设置。
 3. 保留界面默认 Base URL；只有使用自己的兼容网关时才更改。
 

@@ -20,7 +20,7 @@ Player2 Speech 是通过本地服务连接的语音合成选项。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → Player2 Speech**。
+1. 打开 **设置 → 服务商 → Speech → Player2 Speech**。
 2. 填写与服务地址一致的 Base URL。
 
 ## 第三步：验证配置

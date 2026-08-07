@@ -21,7 +21,7 @@ Deepgram 在 AIRI 中提供 Aura 系列语音合成模型。
 
 ## 第二步：在 AIRI 中配置
 
-1. 打开 **设置 → 服务商 → 语音合成 → Deepgram**，将 API Key 粘贴到基础设置。
+1. 打开 **设置 → 服务商 → Speech → Deepgram**，将 API Key 粘贴到基础设置。
 2. 保留界面默认 Base URL；仅在自行部署兼容网关时修改。
 
 ## 第三步：验证配置

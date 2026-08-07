@@ -20,7 +20,7 @@ Web Speech API 仅适用于浏览器环境，AIRI 桌面版（Electron）不支�
 
 ## 第二步：在 AIRI 中配置
 
-1. 在网页版打开 **设置 → 服务商 → 语音识别 → Web Speech API**。
+1. 在网页版打开 **设置 → 服务商 → Transcription → Web Speech API**。
 2. 选择识别语言，以及需要时的连续识别和中间结果选项。
 
 ## 第三步：验证配置

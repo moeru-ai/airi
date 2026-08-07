@@ -36,7 +36,7 @@ Do not commit the Gemini API key to the repository, put it in screenshots, or sh
 ## Step 2: Configure in AIRI
 
 
-1. Fill in the Gemini API key under **Settings → Providers → Text-to-Speech → Google Gemini**.
+1. Fill in the Gemini API key under **Settings → Providers → Speech → Google Gemini**.
 2. Keep the default Base URL shown on the page, unless you use an enterprise gateway or a compatible proxy.
 
 

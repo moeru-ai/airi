@@ -20,7 +20,7 @@ description: 在 AIRI 桌面版中使用本地语音识别
 
 ## 第二步：在 AIRI 中配置
 
-1. 在 AIRI 桌面版打开 **设置 → 服务商 → 语音识别 → App (Local)**。
+1. 在 AIRI 桌面版打开 **设置 → 服务商 → Transcription → App (Local)**。
 2. 选择可用模型；完成准备后，到 **设置 → 听觉** 启用。
 
 ## 第三步：验证配置

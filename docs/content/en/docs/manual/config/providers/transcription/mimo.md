@@ -35,7 +35,7 @@ Do not expose the API key. Cloud transcription sends the audio to be recognized 
 ## Step 2: Configure in AIRI
 
 
-1. Fill in the API key under **Settings → Providers → Speech Recognition → Xiaomi MiMo**.
+1. Fill in the API key under **Settings → Providers → Transcription → Xiaomi MiMo**.
 2. Keep the default Base URL: `https://api.xiaomimimo.com/v1/`, unless the provider offers another address.
 
 

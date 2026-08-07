@@ -10,7 +10,7 @@ Text-to-speech (TTS) reads AIRI's text replies aloud; speech recognition (ASR/ST
 ## Configure Text-to-Speech (TTS)
 
 
-1. Open **Settings → Providers → Text-to-Speech**, select a provider, and fill in the credentials.
+1. Open **Settings → Providers → Speech**, select a provider, and fill in the credentials.
 2. Open **Settings → Speech**, and select the configured provider, model, and voice.
 3. Enter some test text on the Speech page and play it. If you hear sound, the configuration was successful.
 
@@ -21,7 +21,7 @@ If your provider is compatible with the OpenAI speech interface, see [OpenAI-com
 ## Configure Speech Recognition (ASR/STT)
 
 
-1. Open **Settings → Providers → Speech Recognition**, select a provider, and fill in the credentials.
+1. Open **Settings → Providers → Transcription**, select a provider, and fill in the credentials.
 2. Open **Settings → Hearing**, and select the configured provider and model.
 3. Select the correct microphone, start a test, and say a short sentence.
 4. Confirm that the text appears correctly in the recognition results area.
@@ -54,5 +54,5 @@ Select a model or voice that supports the target language. The language, region,
 ## Next Steps
 
 
-To understand the meanings of the API key, Base URL, and verification flow, read [General Configuration Instructions](./common.md). To learn how to configure providers, expand "Providers → Text-to-Speech / Speech Recognition" in the sidebar and select the provider you want.
+To understand the meanings of the API key, Base URL, and verification flow, read [General Configuration Instructions](./common.md). To learn how to configure providers, expand "Providers → Speech / Transcription" in the sidebar and select the provider you want.
 

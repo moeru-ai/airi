@@ -35,7 +35,7 @@ The local model consumes download space, memory, and computing resources. Do not
 ## Step 2: Configure in AIRI
 
 
-1. Open **Settings → Providers → Text-to-Speech → Kokoro**.
+1. Open **Settings → Providers → Speech → Kokoro**.
 2. Select one of the available Kokoro models provided by AIRI.
 
 
