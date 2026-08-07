@@ -8,6 +8,7 @@ import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
+import { resolveOpenAICompatibleFetch } from '../openaiCompatibleFetch'
 import { isModelProvider, ProviderValidationCheck } from '../types'
 
 interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
@@ -78,7 +79,12 @@ async function resolveModels<TConfig extends { apiKey?: string | null, baseUrl?:
     return providerExtra.listModels(config, provider)
   }
   if (!isModelProvider(provider)) {
-    return listModels({ baseURL: config.baseUrl!, apiKey: config.apiKey! })
+    const fetch = resolveOpenAICompatibleFetch(config.baseUrl)
+    return listModels({
+      baseURL: config.baseUrl!,
+      apiKey: config.apiKey!,
+      ...(fetch ? { fetch } : {}),
+    })
   }
 
   return listModels(provider.model())
@@ -134,9 +140,11 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }
 
     try {
+      const fetch = resolveOpenAICompatibleFetch(config.baseUrl)
       await generateText({
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
+        ...(fetch ? { fetch } : {}),
         headers: additionalHeaders,
         model: normalizedModel,
         messages: message.messages(message.user('ping')),
@@ -248,14 +256,18 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         const timeout = setTimeout(() => controller.abort(), 10_000)
 
         try {
-          const response = await fetch(modelsUrl, {
+          const electronFetch = resolveOpenAICompatibleFetch(config.baseUrl)
+          const requestInit: RequestInit = {
             method: 'GET',
             headers: {
               ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
               ...additionalHeaders,
             },
             signal: controller.signal,
-          })
+          }
+          const response = electronFetch
+            ? await electronFetch(new URL(modelsUrl), requestInit)
+            : await globalThis.fetch(modelsUrl, requestInit)
 
           if (response.status >= 500) {
             const errorMessage = `Server error: HTTP ${response.status}`

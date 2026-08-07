@@ -7,6 +7,7 @@ import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { resolveOpenAICompatibleFetch } from '../libs/providers/openaiCompatibleFetch'
 import { resolveLlmTools } from './llm-tool-resolver'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
@@ -62,9 +63,11 @@ export const useLLM = defineStore('llm', () => {
       return []
 
     try {
+      const fetch = resolveOpenAICompatibleFetch(apiUrl)
       return await listModels({
         baseURL: (apiUrl.endsWith('/') ? apiUrl : `${apiUrl}/`) as `${string}/`,
         apiKey,
+        ...(fetch ? { fetch } : {}),
       })
     }
     catch (err) {
