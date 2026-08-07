@@ -210,7 +210,10 @@ export async function setupMainWindow(params: {
     }, windowBoundsRecoveryDelayMs)
   }
 
-  window.on('resize', () => persistWindowBounds(window.getBounds()))
+  window.on('resize', () => {
+    persistWindowBounds(window.getBounds())
+    scheduleMainWindowBoundsRecovery()
+  })
   window.on('move', () => {
     persistWindowBounds(window.getBounds())
     scheduleMainWindowBoundsRecovery()
