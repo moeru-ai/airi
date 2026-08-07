@@ -1,3 +1,4 @@
+export { electronOidcRedirectPath } from './electron-oidc'
 export { base64UrlEncode, generateCodeChallenge, generateCodeVerifier, generateState } from './pkce'
 
 /** OIDC client id shared by the main-process token exchange and the renderer bridge. */

@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
+    "./auth/electron-oidc": "./src/auth/electron-oidc.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
     "./godot-stage": "./src/godot-stage/index.ts",

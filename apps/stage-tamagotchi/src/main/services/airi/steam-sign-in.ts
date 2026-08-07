@@ -5,7 +5,7 @@ import { generateCodeChallenge, generateCodeVerifier, oidcClientId } from '@proj
 import { ofetch } from 'ofetch'
 import { object, safeParse, string } from 'valibot'
 
-import { electronOidcRedirectUri, exchangeAuthorizationCode } from './oidc-token-exchange'
+import { exchangeAuthorizationCode } from './oidc-token-exchange'
 
 const SteamAuthorizationCodeBodySchema = object({
   code: string(),
@@ -30,7 +30,6 @@ export async function exchangeSteamTicketForTokens(params: {
   try {
     const codeVerifier = generateCodeVerifier()
     const codeChallenge = await generateCodeChallenge(codeVerifier)
-    const redirectUri = electronOidcRedirectUri(params.serverUrl)
 
     const response = await ofetch<unknown>(new URL('/api/auth/steam/desktop-sign-in', params.serverUrl).toString(), {
       method: 'POST',
@@ -53,7 +52,6 @@ export async function exchangeSteamTicketForTokens(params: {
       clientId: oidcClientId,
       code: codeBody.output.code,
       codeVerifier,
-      redirectUri,
     })
 
     return { ok: true, tokens }

@@ -7,6 +7,7 @@ import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import {
+  electronOidcRedirectPath,
   generateCodeChallenge,
   generateCodeVerifier,
   generateState,
@@ -23,7 +24,7 @@ import {
 } from '../../../shared/eventa'
 import { cancelWebApiTicket, getWebApiTicket, initSteam } from '../steam/client'
 import { startLoopbackServer } from './http-server/http/auth'
-import { electronOidcRedirectUri, exchangeAuthorizationCode } from './oidc-token-exchange'
+import { exchangeAuthorizationCode } from './oidc-token-exchange'
 import { exchangeSteamTicketForTokens } from './steam-sign-in'
 
 const log = useLogg('auth-service').useGlobalConfig()
@@ -218,7 +219,7 @@ export function createAuthService(params: {
       // Use the server-side relay as redirect_uri. The relay page serves HTML
       // that forwards the authorization code to the loopback via JS fetch().
       // The loopback port is encoded in the state parameter as "{port}:{state}".
-      const redirectUri = electronOidcRedirectUri(SERVER_URL)
+      const redirectUri = `${SERVER_URL.replace(/\/+$/, '')}${electronOidcRedirectPath}`
       const stateWithPort = `${loopback.port}:${state}`
 
       // NOTICE: prompt=login forces the authorization server to show the login
@@ -244,7 +245,6 @@ export function createAuthService(params: {
             clientId: oidcClientId,
             code,
             codeVerifier,
-            redirectUri,
           })
           params.windowAuthManager.broadcastAuthCallback(tokens)
           log.log('OIDC token exchange successful')

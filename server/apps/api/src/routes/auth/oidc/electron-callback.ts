@@ -1,6 +1,7 @@
 import type { Env } from '../../../libs/env'
 import type { HonoEnv } from '../../../types/hono'
 
+import { electronOidcRedirectPath } from '@proj-airi/stage-shared/auth/electron-oidc'
 import { Hono } from 'hono'
 
 import { buildAuthUiUrl } from '../../../utils/auth-ui'
@@ -24,6 +25,6 @@ export function createElectronCallbackRelay(env: Env) {
   return new Hono<HonoEnv>()
     .get('/', (c) => {
       const request = new URL(c.req.url)
-      return c.redirect(buildAuthUiUrl(env.AUTH_UI_URL, '/api/auth/oidc/electron-callback', request.search))
+      return c.redirect(buildAuthUiUrl(env.AUTH_UI_URL, electronOidcRedirectPath, request.search))
     })
 }

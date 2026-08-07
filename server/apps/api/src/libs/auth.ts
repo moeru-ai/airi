@@ -12,6 +12,7 @@ import { createHmac } from 'node:crypto'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
+import { electronOidcRedirectPath } from '@proj-airi/stage-shared/auth/electron-oidc'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
@@ -68,7 +69,6 @@ const OIDC_RESPONSE_TYPES = ['code'] as const
 export const OIDC_CLIENT_ID_WEB = 'airi-stage-web'
 export const OIDC_CLIENT_ID_ELECTRON = 'airi-stage-electron'
 export const OIDC_CLIENT_ID_POCKET = 'airi-stage-pocket'
-export const ELECTRON_OIDC_REDIRECT_PATH = '/api/auth/oidc/electron-callback'
 
 /**
  * Signs a better-auth session token for use in the session cookie.
@@ -200,10 +200,10 @@ function buildTrustedElectronRedirectUri(request: Request, redirectUri: string):
     if (parsed.origin !== requestUrl.origin)
       return null
 
-    if (parsed.pathname !== ELECTRON_OIDC_REDIRECT_PATH)
+    if (parsed.pathname !== electronOidcRedirectPath)
       return null
 
-    return `${requestUrl.origin}${ELECTRON_OIDC_REDIRECT_PATH}`
+    return `${requestUrl.origin}${electronOidcRedirectPath}`
   }
   catch {
     return null
@@ -239,7 +239,7 @@ function buildTrustedClientSeeds(env: Env): TrustedClientSeed[] {
     type: 'native',
     public: true,
     redirectUris: [
-      `${env.API_SERVER_URL}${ELECTRON_OIDC_REDIRECT_PATH}`,
+      `${env.API_SERVER_URL}${electronOidcRedirectPath}`,
     ],
     scopes: [...OIDC_SCOPES],
     grantTypes: [...OIDC_GRANT_TYPES],

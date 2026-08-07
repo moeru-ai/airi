@@ -6,6 +6,7 @@ import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { HonoEnv } from '../../types/hono'
 
 import { oauthProviderAuthServerMetadata, oauthProviderOpenIdConfigMetadata } from '@better-auth/oauth-provider'
+import { electronOidcRedirectPath } from '@proj-airi/stage-shared/auth/electron-oidc'
 import { Hono } from 'hono'
 
 import { ensureDynamicFirstPartyRedirectUri } from '../../libs/auth'
@@ -92,7 +93,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * authorization code to the Electron loopback server via JS fetch().
      * This avoids navigating the browser to http://127.0.0.1:{port}.
      */
-    .route('/api/auth/oidc/electron-callback', createElectronCallbackRelay(deps.env))
+    .route(electronOidcRedirectPath, createElectronCallbackRelay(deps.env))
     /**
      * OAuth 2.1 Authorization Server metadata must live at the root-level
      * well-known path with the issuer path inserted for non-root issuers.

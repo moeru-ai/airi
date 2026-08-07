@@ -1,10 +1,11 @@
 import type { AuthInstance } from './auth'
 import type { Env } from './env'
 
+import { electronOidcRedirectPath } from '@proj-airi/stage-shared/auth/electron-oidc'
 import { generateRandomString } from 'better-auth/crypto'
 
 import { createForbiddenError } from '../utils/error'
-import { ELECTRON_OIDC_REDIRECT_PATH, OIDC_CLIENT_ID_ELECTRON, OIDC_SCOPES, signSessionCookieValue } from './auth'
+import { OIDC_CLIENT_ID_ELECTRON, OIDC_SCOPES, signSessionCookieValue } from './auth'
 import { isUserBannedNow } from './request-auth'
 
 /**
@@ -54,7 +55,7 @@ export async function issueElectronOidcCode(params: {
 
   // Throwaway CSRF state: the code is returned in JSON, not via browser redirect.
   const state = generateRandomString(32, 'A-Z', 'a-z')
-  const redirectUri = `${params.env.API_SERVER_URL}${ELECTRON_OIDC_REDIRECT_PATH}`
+  const redirectUri = `${params.env.API_SERVER_URL}${electronOidcRedirectPath}`
   const scopes = OIDC_SCOPES.join(' ')
 
   const cookieName = ctx.authCookies.sessionToken.name
