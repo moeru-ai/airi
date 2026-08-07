@@ -49,6 +49,8 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     && !authStore.token
     && !hasSkippedSetup.value
     && !hasCompletedSetup.value
+    && !hasEssentialProviderConfigured.value
+    && !hasEssentialProviderCredentialConfigured.value
     && !skipOnboardingPath.includes(document.location.pathname),
   )
 
