@@ -48,6 +48,12 @@ interface IngestCommandPayload {
   input?: WebSocketEventInputs
   sessionId?: string
   toolset?: ToolsetId
+  hidden?: boolean
+}
+
+interface IngestRequestOptions {
+  /** Supported only by the local authority path; AbortSignal is not serializable. */
+  abortSignal?: AbortSignal
 }
 
 interface SpotlightIngestPayload {
@@ -100,6 +106,7 @@ interface PendingRequest {
 const CHAT_SYNC_CHANNEL_NAME = 'airi:stage-tamagotchi:chat-sync'
 const AUTHORITY_HEARTBEAT_INTERVAL_MS = 1000
 const REQUEST_TIMEOUT_MS = 30000
+const INGEST_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 const SPOTLIGHT_REQUEST_TIMEOUT_MS = 5 * 60 * 1000
 
 function createRequestId() {
@@ -325,7 +332,10 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     return assistant ? extractMessageText(assistant) : ''
   }
 
-  async function executeIngest(payload: IngestCommandPayload): Promise<void> {
+  async function executeIngest(payload: IngestCommandPayload, abortSignal?: AbortSignal): Promise<void> {
+    if (abortSignal?.aborted)
+      throw abortSignal.reason ?? new DOMException('Chat ingest aborted', 'AbortError')
+
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if (!providerId || !modelId) {
@@ -333,17 +343,23 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     }
 
     const chatProvider = await providersStore.getProviderInstance<ChatProvider>(providerId)
+    if (abortSignal?.aborted)
+      throw abortSignal.reason ?? new DOMException('Chat ingest aborted', 'AbortError')
     if (!chatProvider) {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
     }
 
-    await chatOrchestrator.ingest(payload.text, {
+    const sendOptions = {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
       tools: resolveTools(payload.toolset),
-    }, payload.sessionId)
+      hiddenUserMessage: payload.hidden,
+      abortSignal,
+    } as Parameters<typeof chatOrchestrator.ingest>[1]
+
+    await chatOrchestrator.ingest(payload.text, sendOptions, payload.sessionId)
   }
 
   async function executeSpotlightIngest(payload: SpotlightIngestPayload): Promise<SpotlightIngestResult> {
@@ -619,10 +635,14 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
     })
   }
 
-  async function requestIngest(payload: IngestCommandPayload) {
+  async function requestIngest(payload: IngestCommandPayload, options?: IngestRequestOptions) {
     if (mode.value === 'authority') {
-      await executeIngest(payload)
+      await executeIngest(payload, options?.abortSignal)
       return
+    }
+
+    if (options?.abortSignal) {
+      throw new Error('Abortable chat ingest requires the local authority window')
     }
 
     return await dispatch<void>({
@@ -631,7 +651,7 @@ export const useChatSyncStore = defineStore('stage-tamagotchi:chat-sync', () => 
       senderId: instanceId,
       command: 'ingest',
       payload,
-    })
+    }, INGEST_REQUEST_TIMEOUT_MS, () => new Error('Chat response timed out'))
   }
 
   async function requestSpotlightIngest(payload: SpotlightIngestPayload) {

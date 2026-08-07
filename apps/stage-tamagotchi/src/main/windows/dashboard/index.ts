@@ -139,6 +139,8 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
+  initScreenCaptureForWindow(window)
+
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
 
   /**
@@ -171,8 +173,6 @@ export async function setupDashboardWindow(params: {
       cleanUpWindowDraggingInvokeHandler()
     })
   }
-
-  initScreenCaptureForWindow(window)
 
   return window
 }

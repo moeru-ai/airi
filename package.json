@@ -21,7 +21,7 @@
     "dev:pocket:ios": "pnpm -rF @proj-airi/stage-pocket run dev:ios",
     "dev:pocket:android": "pnpm -rF @proj-airi/stage-pocket run dev:android",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",
-    "dev:tamagotchi": "pnpm -rF @proj-airi/stage-tamagotchi run dev",
+    "dev:tamagotchi": "pnpm -F @proj-airi/electron-screen-capture run build && pnpm -rF @proj-airi/stage-tamagotchi run dev",
     "dev:tamagotchi:xwayland": "pnpm -rF @proj-airi/stage-tamagotchi run dev:xwayland",
     "dev:apps": "pnpm -rF=\"./apps/*\" run --parallel dev",
     "dev:packages": "pnpm -rF=\"./packages/*\" --parallel run dev",
@@ -107,7 +107,7 @@
     "server/**"
   ],
   "simple-git-hooks": {
-    "pre-commit": "pnpm nano-staged"
+    "pre-commit": "if pnpm.CMD --version >/dev/null 2>&1; then pnpm.CMD exec nano-staged; else pnpm exec nano-staged; fi"
   },
   "nano-staged": {
     "*": "moeru-lint --fix"

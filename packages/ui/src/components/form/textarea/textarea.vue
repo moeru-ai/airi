@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import BasicTextarea from './basic-text-area.vue'
 
+const props = withDefaults(defineProps<{
+  defaultHeight?: string
+  submitOnEnter?: boolean
+}>(), {
+  submitOnEnter: true,
+})
+
 const modelValue = defineModel<string>({ default: '' })
 </script>
 
 <template>
   <BasicTextarea
     v-model="modelValue"
+    :default-height="props.defaultHeight"
+    :submit-on-enter="props.submitOnEnter"
     :class="[
       'focus:border-primary-300 dark:focus:border-primary-400/50 border-2 border-solid border-neutral-100 dark:border-neutral-900',
       'transition-all duration-200 ease-in-out',

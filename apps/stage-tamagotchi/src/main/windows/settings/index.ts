@@ -81,14 +81,14 @@ export function setupSettingsWindowReusableFunc(params: {
       spotlightWindow: params.spotlightWindow,
     })
 
+    initScreenCaptureForWindow(window)
+
     await load(window, withHashRoute(rendererBase, currentRoute))
 
     window.on('closed', () => {
       if (settingsContext)
         settingsContext = undefined
     })
-
-    initScreenCaptureForWindow(window)
 
     return window
   })

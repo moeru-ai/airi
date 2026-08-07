@@ -162,6 +162,8 @@ const chatOrchestratorMock = {
   emitTokenSpecialHooks: (...args: unknown[]) => emitHooks(tokenSpecialHooks, ...args),
   emitStreamEndHooks: (...args: unknown[]) => emitHooks(streamEndHooks, ...args),
   emitAssistantResponseEndHooks: (...args: unknown[]) => emitHooks(assistantEndHooks, ...args),
+  emitAssistantMessageHooks: (...args: unknown[]) => emitHooks(assistantMessageHooks, ...args),
+  emitChatTurnCompleteHooks: (...args: unknown[]) => emitHooks(turnCompleteHooks, ...args),
 }
 
 vi.mock('pinia', async () => {
@@ -579,6 +581,78 @@ describe('context bridge contract', () => {
     // to avoid corrupting history by persisting a duplicate assistant message.
     expect(finalizeStreamMock).not.toHaveBeenCalled()
     expect(chatOrchestratorMock.sending).toBe(false)
+
+    await store.dispose()
+  })
+
+  it('keeps hidden companion turns off the external chat bridge', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    serverSendMock.mockClear()
+
+    const hiddenContext = {
+      message: { role: 'user', content: 'hidden screen observation' },
+      contexts: {},
+      composedMessage: [],
+      hiddenUserMessage: true,
+      input: {
+        type: 'input:text',
+        data: {
+          text: 'hidden screen observation',
+        },
+      },
+    }
+    const hiddenMessage = {
+      role: 'assistant',
+      content: 'I can see the selected screen.',
+      slices: [{ type: 'text', text: 'I can see the selected screen.' }],
+      tool_results: [],
+      isHiddenUserMessageResponse: true,
+    }
+
+    await emitHooks(assistantMessageHooks, hiddenMessage, 'I can see the selected screen.', hiddenContext)
+    await emitHooks(turnCompleteHooks, {
+      output: hiddenMessage,
+      outputText: 'I can see the selected screen.',
+      toolCalls: [],
+    }, hiddenContext)
+
+    expect(serverSendMock.mock.calls.map(call => call[0]?.type)).not.toEqual(expect.arrayContaining([
+      'output:gen-ai:chat:message',
+      'output:gen-ai:chat:complete',
+    ]))
+    expect(serverSendMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: 'output:gen-ai:chat:message',
+    }))
+    expect(serverSendMock).not.toHaveBeenCalledWith(expect.objectContaining({
+      type: 'output:gen-ai:chat:complete',
+    }))
+
+    const visibleContext = {
+      message: { role: 'user', content: 'hello' },
+      contexts: {},
+      composedMessage: [],
+    }
+    const visibleMessage = {
+      role: 'assistant',
+      content: 'hi there',
+      slices: [{ type: 'text', text: 'hi there' }],
+      tool_results: [],
+    }
+
+    await emitHooks(assistantMessageHooks, visibleMessage, 'hi there', visibleContext)
+    await emitHooks(turnCompleteHooks, {
+      output: visibleMessage,
+      outputText: 'hi there',
+      toolCalls: [],
+    }, visibleContext)
+
+    expect(serverSendMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'output:gen-ai:chat:message',
+    }))
+    expect(serverSendMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'output:gen-ai:chat:complete',
+    }))
 
     await store.dispose()
   })

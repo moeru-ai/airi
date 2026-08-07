@@ -60,6 +60,10 @@ export interface ChatOrchestratorSendOptions {
   tools?: StreamOptions['tools']
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Send this turn to the provider without persisting/rendering the user message. */
+  hiddenUserMessage?: boolean
+  /** Cancels queued or active work for this send, including provider streaming and finalization. */
+  abortSignal?: AbortSignal
 }
 
 interface QueuedSend {
@@ -68,6 +72,7 @@ interface QueuedSend {
   generation: number
   sessionId: string
   cancelled?: boolean
+  abortListener?: () => void
   deferred: {
     resolve: () => void
     reject: (error: unknown) => void
@@ -293,11 +298,13 @@ export interface ChatOrchestratorRuntimeDeps {
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
     messageText: string
+    /** Chronological session history safe to forward; excludes hidden-user assistant replies. */
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
     messageText: string
+    /** Chronological session history safe to forward; excludes hidden-user assistant replies. */
     sessionMessages: ChatHistoryItem[]
   }) => void
 }
@@ -324,6 +331,15 @@ export interface ChatOrchestratorRuntime {
 
 function defaultCreateId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+}
+
+function chatSendAbortReason(signal: AbortSignal) {
+  if (signal.reason !== undefined)
+    return signal.reason
+
+  const error = new Error('Chat send aborted')
+  error.name = 'AbortError'
+  return error
 }
 
 /**
@@ -394,10 +410,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
+  // Companion replies generated from internal observations remain in local
+  // session state, but must not cross provider or downstream hook boundaries.
+  function isForwardableHistoryMessage(message: ChatHistoryItem) {
+    return message.role !== 'assistant' || !message.isHiddenUserMessageResponse
+  }
+
   function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]) {
     const nowTs = now()
 
-    return sessionMessagesForSend.map((msg) => {
+    return sessionMessagesForSend.filter(isForwardableHistoryMessage).map((msg) => {
       const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 
@@ -406,7 +428,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       if (rawMessage.role === 'assistant') {
-        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
+        const {
+          slices: _slices,
+          tool_results: _toolResults,
+          categorization: _categorization,
+          isHiddenUserMessageResponse: _isHiddenUserMessageResponse,
+          ...rest
+        } = rawMessage as ChatAssistantMessage
         return unwrapMessage(rest)
       }
 
@@ -426,12 +454,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     deps.session.ensureSession(sessionId)
 
     const existingSessionMessages = deps.session.getSessionMessages(sessionId)
+    const hiddenUserMessage = options.hiddenUserMessage === true
+    const shouldTrackUserChatTelemetry = !hiddenUserMessage
     const turnIndex = existingSessionMessages.filter(message => message.role === 'user').length + 1
 
-    // Activation measures whether a conversation reaches its first assistant
-    // response. Later turns still emit message and latency telemetry, but they
-    // must not inflate the one-time activation milestones.
-    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant')
+    // Hidden Companion Mode inputs intentionally leave no user history item,
+    // while their assistant replies remain visible. Marked hidden replies must
+    // not consume the first real user-message activation milestone.
+    const isActivationAttempt = shouldTrackUserChatTelemetry
+      && !existingSessionMessages.some(message =>
+        message.role === 'assistant' && !message.isHiddenUserMessageResponse,
+      )
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -453,6 +486,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      hiddenUserMessage: hiddenUserMessage || undefined,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -465,7 +499,24 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     })
 
     const isStaleGeneration = () => deps.session.getSessionGeneration(sessionId) !== generation
-    const shouldAbort = () => isStaleGeneration()
+    const isSignalAborted = () => options.abortSignal?.aborted === true
+    const shouldAbort = () => isStaleGeneration() || isSignalAborted()
+    const throwIfSignalAborted = () => {
+      if (options.abortSignal?.aborted)
+        throw chatSendAbortReason(options.abortSignal)
+    }
+    // After the foreground placeholder exists, abort exits must not leave it
+    // behind. Signal aborts throw so the catch branch resets and rejects;
+    // stale generations reset here and exit quietly.
+    const exitIfAbortedAfterForegroundPatch = () => {
+      throwIfSignalAborted()
+      if (isStaleGeneration()) {
+        resetForegroundStream(sessionId)
+        return true
+      }
+      return false
+    }
+    throwIfSignalAborted()
     if (shouldAbort())
       return
 
@@ -478,6 +529,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       tool_results: [],
       createdAt: now(),
       id: assistantMessageId,
+      isHiddenUserMessageResponse: hiddenUserMessage || undefined,
     }
     patchForegroundStream(sessionId, buildingMessage)
     const sendSource = options.input ? 'voice' : 'text'
@@ -489,20 +541,22 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       roundId,
       turnIndex,
     }
-    deps.onTrackFirstMessage?.()
-    if (isActivationAttempt) {
-      deps.onChatActivationStarted?.({
+    if (shouldTrackUserChatTelemetry) {
+      deps.onTrackFirstMessage?.()
+      if (isActivationAttempt) {
+        deps.onChatActivationStarted?.({
+          ...correlation,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+        })
+      }
+      deps.onMessageSendStarted?.({
         ...correlation,
         source: sendSource,
         model: options.model,
-        provider: activeProvider,
       })
     }
-    deps.onMessageSendStarted?.({
-      ...correlation,
-      source: sendSource,
-      model: options.model,
-    })
     const roundStartedAt = monotonicNow()
 
     try {
@@ -533,7 +587,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
       }
 
-      if (shouldAbort())
+      if (exitIfAbortedAfterForegroundPatch())
         return
 
       const userMessage = {
@@ -542,26 +596,36 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         createdAt: sendingCreatedAt,
         id: roundId,
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
+      const visibleSessionMessagesBeforeUser = deps.session.getSessionMessages(sessionId)
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
+      if (!hiddenUserMessage) {
+        deps.session.appendSessionMessage(sessionId, userMessage)
 
-      const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
-      deps.onUserTurnReady?.({
-        messageText: sendingMessage,
-        sessionMessages: sessionMessagesForSend,
-      })
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
+
+      const sessionMessagesForSend = hiddenUserMessage
+        ? [...visibleSessionMessagesBeforeUser, userMessage]
+        : deps.session.getSessionMessages(sessionId)
+      const sessionMessagesForHooks = sessionMessagesForSend.filter(isForwardableHistoryMessage)
+
+      if (!hiddenUserMessage) {
+        deps.onUserTurnReady?.({
+          messageText: sendingMessage,
+          sessionMessages: sessionMessagesForHooks,
+        })
+      }
 
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0
@@ -601,7 +665,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
-          if (isStaleGeneration())
+          if (shouldAbort())
             return
 
           const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
@@ -700,41 +764,53 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let fullText = ''
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
-      if (shouldAbort())
+      if (exitIfAbortedAfterForegroundPatch())
         return
 
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
-      deps.onLlmRequestStarted?.({
-        ...correlation,
-        model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
-        hasVoice: !!options.input,
-      })
+      if (shouldTrackUserChatTelemetry) {
+        deps.onLlmRequestStarted?.({
+          ...correlation,
+          model: options.model,
+          provider: deps.getActiveProvider() || 'unknown',
+          hasVoice: !!options.input,
+        })
+      }
 
       await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
+        abortSignal: options.abortSignal,
         headers,
-        requestCorrelation: {
-          conversationId: correlation.conversationId,
-          roundId: correlation.roundId,
-        },
+        ...(shouldTrackUserChatTelemetry
+          ? {
+              requestCorrelation: {
+                conversationId: correlation.conversationId,
+                roundId: correlation.roundId,
+              },
+            }
+          : {}),
         tools: options.tools,
         waitForTools: true,
         captureToolErrors: true,
         onUsage: (usage) => {
           generationUsage = usage
-          deps.onLlmGeneration?.({
-            ...correlation,
-            model: options.model,
-            provider: activeProvider,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            totalTokens: usage.totalTokens,
-            usageSource: usage.source,
-          })
+          if (shouldTrackUserChatTelemetry) {
+            deps.onLlmGeneration?.({
+              ...correlation,
+              model: options.model,
+              provider: activeProvider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
+              usageSource: usage.source,
+            })
+          }
         },
         onStreamEvent: async (event: StreamEvent) => {
+          if (shouldAbort())
+            return
+
           switch (event.type) {
             case 'tool-call':
               toolCallQueue.enqueue({
@@ -763,11 +839,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             case 'text-delta':
               if (!llmFirstTokenEmitted) {
                 llmFirstTokenEmitted = true
-                deps.onLlmFirstToken?.({
-                  ...correlation,
-                  model: options.model,
-                  ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
-                })
+                if (shouldTrackUserChatTelemetry) {
+                  deps.onLlmFirstToken?.({
+                    ...correlation,
+                    model: options.model,
+                    ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+                  })
+                }
               }
               fullText += event.text
               await parser.consume(event.text)
@@ -797,14 +875,22 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
       })
 
-      await parser.end()
-      deps.onAssistantResponseRendered?.({
-        ...correlation,
-        model: options.model,
-        latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
-      })
+      if (exitIfAbortedAfterForegroundPatch())
+        return
 
-      if (!isStaleGeneration() && buildingMessage.slices.length > 0) {
+      await parser.end()
+      if (exitIfAbortedAfterForegroundPatch())
+        return
+
+      if (shouldTrackUserChatTelemetry) {
+        deps.onAssistantResponseRendered?.({
+          ...correlation,
+          model: options.model,
+          latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
+        })
+      }
+
+      if (!shouldAbort() && buildingMessage.slices.length > 0) {
         const finalAssistant = buildingMessage
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         deps.onAssistantMessageAppended?.({
@@ -825,45 +911,51 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         toolCalls: sessionMessagesForSend.filter(msg => msg.role === 'tool') as ToolMessage[],
       }, streamingMessageContext)
 
-      deps.onAssistantTurnReady?.({
-        messageText: fullText,
-        sessionMessages: sessionMessagesForSend,
-      })
+      // Hidden Companion Mode turns carry a synthetic screen-observation user
+      // message inside sessionMessagesForSend that is intentionally never
+      // persisted. Skip assistant-turn hooks for those synthetic turns;
+      // persisted hidden replies are removed from hook history above.
+      if (!hiddenUserMessage) {
+        deps.onAssistantTurnReady?.({
+          messageText: fullText,
+          sessionMessages: sessionMessagesForHooks,
+        })
+      }
 
       resetForegroundStream(sessionId)
       const durationMs = Math.round(monotonicNow() - roundStartedAt)
-      deps.onMessageRound?.({
-        ...correlation,
-        durationMs,
-        hasVoice: !!options.input,
-        model: options.model,
-        inputTokens: generationUsage.inputTokens,
-        outputTokens: generationUsage.outputTokens,
-        totalTokens: generationUsage.totalTokens,
-        usageSource: generationUsage.source,
-      })
-      if (isActivationAttempt) {
-        deps.onChatActivationSucceeded?.({
+      if (shouldTrackUserChatTelemetry) {
+        deps.onMessageRound?.({
           ...correlation,
           durationMs,
-          source: sendSource,
+          hasVoice: !!options.input,
           model: options.model,
-          provider: activeProvider,
+          inputTokens: generationUsage.inputTokens,
+          outputTokens: generationUsage.outputTokens,
+          totalTokens: generationUsage.totalTokens,
+          usageSource: generationUsage.source,
         })
+
+        if (isActivationAttempt) {
+          deps.onChatActivationSucceeded?.({
+            ...correlation,
+            durationMs,
+            source: sendSource,
+            model: options.model,
+            provider: activeProvider,
+          })
+        }
       }
     }
     catch (error) {
+      if (isSignalAborted()) {
+        resetForegroundStream(sessionId)
+        throw chatSendAbortReason(options.abortSignal!)
+      }
+
       console.error('Error sending message:', error)
-      deps.onMessageRoundFailed?.({
-        ...correlation,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
-      })
-      if (isActivationAttempt) {
-        deps.onChatActivationFailed?.({
+      if (shouldTrackUserChatTelemetry) {
+        deps.onMessageRoundFailed?.({
           ...correlation,
           source: sendSource,
           model: options.model,
@@ -871,6 +963,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           failureStage: 'llm_response',
           errorCode: 'llm_response_failed',
         })
+        if (isActivationAttempt) {
+          deps.onChatActivationFailed?.({
+            ...correlation,
+            source: sendSource,
+            model: options.model,
+            provider: activeProvider,
+            failureStage: 'llm_response',
+            errorCode: 'llm_response_failed',
+          })
+        }
       }
       throw error
     }
@@ -885,8 +987,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       async ({ data }) => {
         const { sendingMessage, options, generation, deferred, sessionId, cancelled } = data
 
-        if (cancelled)
+        if (cancelled) {
+          if (data.abortListener)
+            options.abortSignal?.removeEventListener('abort', data.abortListener)
           return
+        }
+
+        if (options.abortSignal?.aborted) {
+          if (data.abortListener)
+            options.abortSignal.removeEventListener('abort', data.abortListener)
+          deferred.reject(chatSendAbortReason(options.abortSignal))
+          return
+        }
 
         if (deps.session.getSessionGeneration(sessionId) !== generation) {
           deferred.reject(new Error('Chat session was reset before send could start'))
@@ -899,6 +1011,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
         catch (error) {
           deferred.reject(error)
+        }
+        finally {
+          if (data.abortListener)
+            options.abortSignal?.removeEventListener('abort', data.abortListener)
         }
       },
     ],
@@ -923,13 +1039,32 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const generation = deps.session.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      if (options.abortSignal?.aborted) {
+        reject(chatSendAbortReason(options.abortSignal))
+        return
+      }
+
+      const queuedSend: QueuedSend = {
         sendingMessage,
         options,
         generation,
         sessionId,
         deferred: { resolve, reject },
-      })
+      }
+      if (options.abortSignal) {
+        queuedSend.abortListener = () => {
+          if (queuedSend.cancelled)
+            return
+
+          queuedSend.cancelled = true
+          queuedSend.deferred.reject(chatSendAbortReason(options.abortSignal!))
+          pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+          emitStateChange()
+        }
+        options.abortSignal.addEventListener('abort', queuedSend.abortListener, { once: true })
+      }
+
+      sendQueue.enqueue(queuedSend)
     })
   }
 
@@ -939,6 +1074,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
+      if (queued.abortListener)
+        queued.options.abortSignal?.removeEventListener('abort', queued.abortListener)
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
 

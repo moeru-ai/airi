@@ -39,6 +39,9 @@ export function setupElectronScreenCapture(context: ReturnType<typeof createCont
         sourceId,
         timeout: options.request?.timeout,
       })
+      if (!handle)
+        throw new Error('Selected screen-capture source lease was not created')
+
       return await useFn()
     }
     finally {

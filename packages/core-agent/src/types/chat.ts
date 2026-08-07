@@ -31,6 +31,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
     speech: string
     reasoning: string
   }
+  /** True when this reply was generated from an internal hidden user message. */
+  isHiddenUserMessageResponse?: boolean
 }
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage
@@ -56,6 +58,8 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  /** True when this turn was started by an internal hidden user message. */
+  hiddenUserMessage?: boolean
 }
 
 export type ChatStreamEvent

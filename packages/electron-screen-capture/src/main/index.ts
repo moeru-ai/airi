@@ -3,13 +3,13 @@
 
 import type { Format, LogLevelString } from '@guiiai/logg'
 import type { MutexInterface } from 'async-mutex'
-import type { BrowserWindow, DesktopCapturerSource, SourcesOptions } from 'electron'
+import type { BrowserWindow, DesktopCapturerSource, SourcesOptions, WebContents } from 'electron'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { Mutex, withTimeout } from 'async-mutex'
-import { app, desktopCapturer, ipcMain, session as sessionModule } from 'electron'
+import { app, desktopCapturer, ipcMain, screen, session as sessionModule } from 'electron'
 import { nanoid } from 'nanoid'
 
 import { screenCapture } from '..'
@@ -94,6 +94,27 @@ export interface GetLoopbackAudioMediaStreamOptions {
 let setSourceMutex: MutexInterface
 let screenCaptureSourceMutexHandle: string | undefined
 let setSourceMutexTimeoutHandle: NodeJS.Timeout | undefined
+let screenCaptureSourceOwnerWebContentsId: number | undefined
+
+/**
+ * Checks whether a renderer currently holds the short-lived selected-source capture lease.
+ *
+ * Use when:
+ * - A permission policy needs to distinguish an Electron desktop-stream fallback
+ *   from a general camera request
+ *
+ * Returns:
+ * - `true` while an in-flight `setSource` request exists. When Electron
+ *   supplies a renderer, it must be the renderer that owns that request.
+ *   Permission checks may omit `webContents`; callers must independently
+ *   validate the requesting origin in that case.
+ */
+export function isScreenCaptureSourceRequestActive(webContents: Pick<WebContents, 'id'> | null | undefined): boolean {
+  if (!screenCaptureSourceMutexHandle || screenCaptureSourceOwnerWebContentsId === undefined)
+    return false
+
+  return !webContents || screenCaptureSourceOwnerWebContentsId === webContents.id
+}
 
 export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
   const {
@@ -142,6 +163,7 @@ function resetScreenCaptureSource() {
   clearTimeout(setSourceMutexTimeoutHandle)
   setSourceMutexTimeoutHandle = undefined
   screenCaptureSourceMutexHandle = undefined
+  screenCaptureSourceOwnerWebContentsId = undefined
 }
 
 const initializedWindows = new WeakSet<BrowserWindow>()
@@ -197,7 +219,11 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     // REVIEW(@sumimakito): This has nothing to do with out side, probably related to Electron Bug, you can
     // read more here https://github.com/electron/electron/issues/44504
     const sources = await desktopCapturer.getSources(sourcesOptions)
-    return sources.map(source => toSerializableDesktopCapturerSource(source))
+    const currentDisplayId = screen.getDisplayMatching(window.getBounds()).id.toString()
+    return sources.map(source => ({
+      ...toSerializableDesktopCapturerSource(source),
+      isCurrentDisplay: source.display_id === currentDisplayId,
+    }))
   })
 
   defineInvokeHandler(context, screenCapture.setSource, async (request, eventaOptions) => {
@@ -217,6 +243,7 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     const handle = nanoid()
     setSourceMutexTimeoutHandle = undefined
     screenCaptureSourceMutexHandle = handle
+    screenCaptureSourceOwnerWebContentsId = window.webContents.id
 
     try {
       session.setDisplayMediaRequestHandler(async (_request, callback) => {
@@ -228,7 +255,9 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
 
         callback({
           video: source,
-          audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+          audio: _request.audioRequested
+            ? options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback
+            : undefined,
         })
       })
 

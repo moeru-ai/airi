@@ -70,6 +70,29 @@ describe('useVisionInference', () => {
     })).resolves.toBe('Frame summary')
   })
 
+  it('forwards an external cancellation to the active vision stream', async () => {
+    stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
+      options?.abortSignal?.addEventListener('abort', () => {
+        reject(options.abortSignal?.reason)
+      }, { once: true })
+    }))
+
+    const { useVisionInference } = await import('./use-vision-inference')
+    const { runVisionInference } = useVisionInference()
+    const abortController = new AbortController()
+    const result = runVisionInference({
+      imageDataUrl: 'data:image/png;base64,Zm9v',
+      workloadId: 'screen:interpret',
+      abortSignal: abortController.signal,
+    })
+
+    await Promise.resolve()
+    await Promise.resolve()
+    abortController.abort(new Error('Companion Mode stopped'))
+
+    await expect(result).rejects.toThrow('Companion Mode stopped')
+  })
+
   it('aborts vision inference when the stream never settles', async () => {
     stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
       options?.abortSignal?.addEventListener('abort', () => {

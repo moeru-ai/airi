@@ -39,6 +39,9 @@ export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOption
         sourceId,
         timeout: request?.timeout,
       })
+      if (!handle)
+        throw new Error('Selected screen-capture source lease was not created')
+
       return await useFn()
     }
     finally {

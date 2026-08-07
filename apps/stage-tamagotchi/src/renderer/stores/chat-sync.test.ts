@@ -365,19 +365,26 @@ describe('useChatSyncStore', async () => {
     store.dispose()
   })
 
-  it('rejects follower command timeouts after thirty seconds', async () => {
+  it('keeps long-running follower ingest requests alive past thirty seconds', async () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const store = useChatSyncStore()
     store.initialize('follower')
 
+    let rejected = false
     const pending = store.requestIngest({
       text: 'hello timeout',
       sessionId: 'session-1',
+    }).catch((error) => {
+      rejected = true
+      throw error
     })
-    const expectedRejection = expect(pending).rejects.toThrow('Timed out waiting for chat authority response')
+    const expectedRejection = expect(pending).rejects.toThrow('Chat response timed out')
 
     await vi.advanceTimersByTimeAsync(30000)
+    expect(rejected).toBe(false)
+
+    await vi.advanceTimersByTimeAsync(270000)
 
     await expectedRejection
 
@@ -429,6 +436,31 @@ describe('useChatSyncStore', async () => {
     ])
 
     peer.close()
+    store.dispose()
+  })
+
+  it('passes an abort signal through the local authority ingest path', async () => {
+    mockState.ingest.mockResolvedValueOnce(undefined)
+    const store = useChatSyncStore()
+    store.initialize('authority')
+    const abortController = new AbortController()
+
+    await store.requestIngest({
+      text: 'hidden companion observation',
+      hidden: true,
+    }, {
+      abortSignal: abortController.signal,
+    })
+
+    expect(mockState.ingest).toHaveBeenCalledWith(
+      'hidden companion observation',
+      expect.objectContaining({
+        hiddenUserMessage: true,
+        abortSignal: abortController.signal,
+      }),
+      undefined,
+    )
+
     store.dispose()
   })
 

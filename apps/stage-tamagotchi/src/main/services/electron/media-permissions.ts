@@ -1,12 +1,14 @@
 import type { Session, WebContents } from 'electron'
 
+import { isScreenCaptureSourceRequestActive } from '@proj-airi/electron-screen-capture/main'
+
 import { isLocalAppURL } from '../../libs/electron/url'
 
 type PermissionCheckHandler = Exclude<Parameters<Session['setPermissionCheckHandler']>[0], null>
 type PermissionRequestHandler = Exclude<Parameters<Session['setPermissionRequestHandler']>[0], null>
 type ElectronPermission = Parameters<PermissionCheckHandler>[1] | Parameters<PermissionRequestHandler>[1]
 type ElectronPermissionDetails = Parameters<PermissionCheckHandler>[3] | Parameters<PermissionRequestHandler>[3]
-type LocalAppWebContents = Pick<WebContents, 'getURL'>
+type LocalAppWebContents = Pick<WebContents, 'getURL' | 'id'>
 
 const LOCAL_APP_PERMISSION_NAMES = new Set<ElectronPermission>([
   'display-capture',
@@ -32,6 +34,50 @@ function isAudioMediaPermission(permission: ElectronPermission, details?: Electr
   }
 
   return 'mediaType' in details && details.mediaType === 'audio'
+}
+
+/**
+ * Checks whether Electron described a video-only media permission operation.
+ */
+function isVideoMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media' || !details)
+    return false
+
+  if ('mediaTypes' in details && details.mediaTypes?.length) {
+    return details.mediaTypes.includes('video') && !details.mediaTypes.includes('audio')
+  }
+
+  return 'mediaType' in details && details.mediaType === 'video'
+}
+
+/**
+ * Checks whether Electron's media request can belong to the selected desktop
+ * capture flow.
+ *
+ * Electron 41 reports the actual Windows desktop-stream permission request
+ * with an empty `mediaTypes` array even though its earlier permission check
+ * identifies the operation as video. An active selected-source lease supplies
+ * the missing scope, while explicitly audio-only or combined requests remain
+ * excluded here.
+ */
+function isSelectedDesktopMediaPermission(permission: ElectronPermission, details?: ElectronPermissionDetails): boolean {
+  if (permission !== 'media')
+    return false
+
+  if (!details)
+    return true
+
+  if ('mediaTypes' in details) {
+    if (!details.mediaTypes?.length)
+      return true
+
+    return details.mediaTypes.includes('video') && !details.mediaTypes.includes('audio')
+  }
+
+  if ('mediaType' in details)
+    return details.mediaType === undefined || details.mediaType === 'video'
+
+  return true
 }
 
 /**
@@ -80,6 +126,24 @@ export function shouldGrantAudioCapturePermission(
 }
 
 /**
+ * Allows Electron's legacy selected-desktop-stream fallback without granting
+ * general camera access to local renderer pages.
+ */
+export function shouldGrantSelectedDesktopCapturePermission(
+  webContents: LocalAppWebContents | null,
+  permission: ElectronPermission,
+  requestingOrigin?: string,
+  details?: ElectronPermissionDetails,
+): boolean {
+  return isSelectedDesktopMediaPermission(permission, details)
+    && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+    // The lease belongs to the renderer that selected the source. Electron may
+    // omit WebContents during permission checks, but whenever it supplies one,
+    // preserve that identity so another local AIRI renderer cannot borrow it.
+    && isScreenCaptureSourceRequestActive(webContents ?? undefined)
+}
+
+/**
  * Applies AIRI's allowlist to an Electron session permission operation.
  *
  * Use when:
@@ -99,11 +163,34 @@ export function shouldGrantElectronPermission(
   requestingOrigin?: string,
   details?: ElectronPermissionDetails,
 ): boolean {
-  if (permission === 'media')
+  if (permission === 'media') {
     return shouldGrantAudioCapturePermission(webContents, permission, requestingOrigin, details)
+      || shouldGrantSelectedDesktopCapturePermission(webContents, permission, requestingOrigin, details)
+  }
 
   return LOCAL_APP_PERMISSION_NAMES.has(permission)
     && shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+}
+
+/**
+ * Applies AIRI's permission policy to Chromium's non-mutating permission
+ * status checks.
+ *
+ * Video checks from local AIRI pages must not be reported as permanently
+ * denied merely because no selected-source lease exists yet. The subsequent
+ * request handler still requires the short-lived lease before granting an
+ * actual video stream.
+ */
+export function shouldGrantElectronPermissionCheck(
+  webContents: LocalAppWebContents | null,
+  permission: ElectronPermission,
+  requestingOrigin?: string,
+  details?: ElectronPermissionDetails,
+): boolean {
+  if (isVideoMediaPermission(permission, details))
+    return shouldGrantLocalAppPermission(webContents, requestingOrigin, details)
+
+  return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details)
 }
 
 /**
@@ -127,6 +214,6 @@ export function setupMediaPermissionHandlers(
   })
 
   targetSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-    return shouldGrantElectronPermission(webContents, permission, requestingOrigin, details)
+    return shouldGrantElectronPermissionCheck(webContents, permission, requestingOrigin, details)
   })
 }
