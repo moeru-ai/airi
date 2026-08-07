@@ -8,6 +8,8 @@ import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
 import { SERVER_URL } from './server'
 import { steamClient } from './steam-auth-client'
 
+// Steam is OpenID 2.0; only the Steam plugin endpoint can start it, so it is
+// not part of the OIDC direct-jump hint.
 export type OAuthProvider = SocialOAuthProvider | 'steam'
 
 // NOTICE: reads the same localStorage key ('auth/v1/token') that useAuthStore's
