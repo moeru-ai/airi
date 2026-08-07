@@ -9,6 +9,7 @@ import {
   computeResizedBoundsAnchoredToDominantDisplay,
   heightFrom,
   mapForBreakpoints,
+  rectanglesOverlap,
   restoreWindowBounds,
   widthFrom,
 } from './display'
@@ -265,5 +266,21 @@ describe('restoreWindowBounds', () => {
       savedBounds: { x: 5000, y: 5000, width: 450, height: 600 },
       fallbackWorkArea: primaryWorkArea,
     })).toEqual({ x: 990, y: 300, width: 450, height: 600 })
+  })
+})
+
+describe('rectanglesOverlap', () => {
+  it('recognizes a window that intersects a current display', () => {
+    expect(rectanglesOverlap(
+      { x: 1200, y: 100, width: 450, height: 600 },
+      { x: 0, y: 0, width: 1440, height: 900 },
+    )).toBe(true)
+  })
+
+  it('rejects bounds that belong to a disconnected display', () => {
+    expect(rectanglesOverlap(
+      { x: 5000, y: 5000, width: 450, height: 600 },
+      { x: 0, y: 0, width: 1440, height: 900 },
+    )).toBe(false)
   })
 })

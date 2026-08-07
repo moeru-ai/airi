@@ -35,7 +35,7 @@ import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared'
-import { restoreWindowBounds } from '../shared/display'
+import { rectanglesOverlap, restoreWindowBounds } from '../shared/display'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -95,7 +95,9 @@ export async function setupMainWindow(params: {
     let matchingWorkArea: Rectangle | undefined
 
     try {
-      matchingWorkArea = screen.getDisplayMatching(savedBounds).workArea
+      const intersectsCurrentDisplay = screen.getAllDisplays().some(display => rectanglesOverlap(savedBounds, display.bounds))
+      if (intersectsCurrentDisplay)
+        matchingWorkArea = screen.getDisplayMatching(savedBounds).workArea
     }
     catch (error) {
       console.warn('failed to find the display for saved main window bounds, using the primary display:', error)

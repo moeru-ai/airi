@@ -66,6 +66,16 @@ export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 
 }
 
 /**
+ * Returns whether two rectangles share a positive-area intersection.
+ */
+export function rectanglesOverlap(first: Rectangle, second: Rectangle): boolean {
+  return first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y
+}
+
+/**
  * Restores a saved window position inside a currently available display work area.
  *
  * Use when:
