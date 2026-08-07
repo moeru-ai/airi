@@ -1,5 +1,6 @@
 export * from './background'
 export * from './display-models'
+export * from './emotion'
 // NOTICE: `@proj-airi/stage-ui/stores` remains a valid package export path.
 // Keep this barrel file pointing at real store modules so package resolution
 // and typecheck stay valid even when consumers should prefer explicit subpaths.
@@ -9,5 +10,6 @@ export * from './modules/artistry'
 export * from './modules/consciousness'
 export * from './modules/speech'
 export * from './providers'
+export * from './relationship-bond'
 export * from './settings'
 export * from './voice-packs'
