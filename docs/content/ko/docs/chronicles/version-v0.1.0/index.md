@@ -17,28 +17,28 @@ title: 연대기 v0.1.0
   - [x] ~~오디오 전사~~
     - [x] ~~프론트엔드에서 백엔드로 오디오 스트리밍~~
       - [x] WebSocket 기반 양방향 통신을 위해 socket.io 사용 [Socket.IO](https://socket.io/) (6월 10일)
-        - [x] Socket.io 는 사실 WebSocket 기반이 아니다
+        - [x] Socket.io는 사실 WebSocket 기반이 아니다
           - [node.js - What is the major scenario to use Socket.IO - Stack Overflow](https://stackoverflow.com/questions/18587104/what-is-the-major-scenario-to-use-socket-io)
           - [node.js - Differences between socket.io and websockets - Stack Overflow](https://stackoverflow.com/questions/10112178/differences-between-socket-io-and-websockets)
         - [x] 프론트엔드는 `socket.io-client` 패키지 사용, `pnpm i socket.io-client`
-          - [x] WebSocket 은 지원이 좋고 Nuxt 의 Nitro 도 지원한다. [How to use with Nuxt | Socket.IO](https://socket.io/how-to/use-with-nuxt)
+          - [x] WebSocket은 지원이 좋고 Nuxt의 Nitro도 지원한다. [How to use with Nuxt | Socket.IO](https://socket.io/how-to/use-with-nuxt)
         - [x] 백엔드는 `socket.io` 패키지 사용, `pnpm i socket.io`
-        - Nuxt 3 와 socket.io
+        - Nuxt 3와 socket.io
           - [richardeschloss/nuxt-socket-io: Nuxt Socket IO - socket.io client and server module for Nuxt](https://github.com/richardeschloss/nuxt-socket-io)
           - [javascript - Socket.io websocket not working in Nuxt 3 when in production - Stack Overflow](https://stackoverflow.com/questions/73592619/socket-io-websocket-not-working-in-nuxt-3-when-in-production)
           - [adityar15/nuxt3socket (github.com)](https://github.com/adityar15/nuxt3socket)
-      - [x] ~~오디오 스트리밍에 WebRTC 사용, VueUse 도 이를 지원함~~
-        - [x] Nuxt 와 Nitro 가 아직 지원하지 않아 일단 보류. 그룹 채팅이나 Discord 용으로 검토해 볼 수 있음.
+      - [x] ~~오디오 스트리밍에 WebRTC 사용, VueUse도 이를 지원함~~
+        - [x] Nuxt와 Nitro가 아직 지원하지 않아 일단 보류. 그룹 채팅이나 Discord 용으로 검토해 볼 수 있음.
         - 튜토리얼:
           - [Getting started with media devices | WebRTC](https://webrtc.org/getting-started/media-devices?hl=en)
           - [WebRTC | JavaScript Standard Reference Tutorial](https://wohugb.gitbooks.io/javascript/content/htmlapi/webrtc.html)
-    - ~~Transformers.js + Whisper 로 충분함~~
-      - [x] Chrome / Edge 가 이제 WebGPU 를 지원함
+    - ~~Transformers.js + Whisper로 충분함~~
+      - [x] Chrome / Edge가 이제 WebGPU를 지원함
         - [x] 데모가 있음: [Real-time Whisper WebGPU - a Hugging Face Space by Xenova](https://huggingface.co/spaces/Xenova/realtime-whisper-webgpu) (현재는 오픈소스가 아님)
       - [x] ~~Whisper 추론을 브라우저에서 바로 수행할 수 있음~~
-      - [x] ~~WebGPU 가 아직 지원되지 않음~~ (이제 지원됨)
+      - [x] ~~WebGPU가 아직 지원되지 않음~~ (이제 지원됨)
         - [x] [🤗 Transformers.js + ONNX Runtime WebGPU in Chrome extension | by Wei Lu | Medium](https://medium.com/@GenerationAI/transformers-js-onnx-runtime-webgpu-in-chrome-extension-13b563933ca9)
-      - ~~Node.js CPP Addon 을 통해 Whisper.cpp 를 임베딩하는 방안 검토~~
+      - ~~Node.js CPP Addon을 통해 Whisper.cpp를 임베딩하는 방안 검토~~
       - [whisper.cpp](https://github.com/ggerganov/whisper.cpp)
     - 튜토리얼:
       - [Realtime video transcription and translation with Whisper and NLLB on MacBook Air | by Wei Lu | Medium](https://medium.com/@GenerationAI/realtime-video-transcription-and-translation-with-whisper-and-nllb-on-macbook-air-31db4c62c074)
@@ -64,7 +64,7 @@ title: 연대기 v0.1.0
 ## **모델**
 
 - **VRM**
-  - [`@pixiv/three-vrm`](https://github.com/pixiv/three-vrm/) 을 알려 준 [kwaa](https://github.com/kwaa) 에게 감사드립니다
+  - [`@pixiv/three-vrm`](https://github.com/pixiv/three-vrm/) 을 알려 준 [kwaa](https://github.com/kwaa)에게 감사드립니다
   - 관련 도구와 플러그인:
     - [VRM Add-on for Blender](https://vrm-addon-for-blender.info/en/)
     - [VRM format — Blender Extensions](https://extensions.blender.org/add-ons/vrm/)

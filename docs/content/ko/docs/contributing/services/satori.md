@@ -1,6 +1,6 @@
 ---
 title: Satori 봇
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 ### Satori 봇
@@ -15,7 +15,7 @@ cd integrations/satori-bot
 cp .env .env.local
 ```
 
-`.env.local` 에서 각종 키와 설정 정보를 수정하세요.
+`.env.local`에서 각종 키와 설정 정보를 수정하세요.
 
 봇 시작하기:
 
@@ -25,7 +25,7 @@ pnpm -F @proj-airi/satori-bot dev
 
 ::: tip
 
-[@antfu/ni](https://github.com/antfu-collective/ni) 를 쓰신다면 이렇게 할 수 있습니다:
+[@antfu/ni](https://github.com/antfu-collective/ni)를 쓰신다면 이렇게 할 수 있습니다:
 
 ```shell
 nr -F @proj-airi/satori-bot dev

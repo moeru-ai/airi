@@ -2,8 +2,8 @@
 title: 연대기 v0.0.1
 ---
 
-- [x] 프로젝트 생성 - 완료, Vitesse Lite 와 Vue 조합으로 생성 (2024년 6월 7일)
-- [x] 프론트엔드 Live2D 연동 - [Pixi.js 렌더러를 통해 Vue 애플리케이션에 Live2D 모델 통합하기](https://nolebase.ayaka.io/to/3cae2b7c0b) 에서 완료 (2024년 6월 7일)
+- [x] 프로젝트 생성 - 완료, Vitesse Lite와 Vue 조합으로 생성 (2024년 6월 7일)
+- [x] 프론트엔드 Live2D 연동 - [Pixi.js 렌더러를 통해 Vue 애플리케이션에 Live2D 모델 통합하기](https://nolebase.ayaka.io/to/3cae2b7c0b)에서 완료 (2024년 6월 7일)
   - [x] Live2D Cubism SDK 연동
   - [x] pixi.js 렌더링
   - [x] 모델 다운로드
@@ -11,7 +11,7 @@ title: 연대기 v0.0.1
 
 ![]( /assets/version-v0.0.1/screenshot-1.avif)
 
-- [x] Vercel AI SDK 를 통한 GPT-4o 연동 (2024년 6월 7일)
+- [x] Vercel AI SDK를 통한 GPT-4o 연동 (2024년 6월 7일)
   - [x] `@ai-sdk/openai`
   - [x] `ai`
 - [x] 스트리밍 토큰 전송 (2024년 6월 8일)
@@ -26,12 +26,12 @@ title: 연대기 v0.0.1
     - [x] 선형 정규화
     - [x] MinMax 정규화
     - [x] ~~SoftMax 정규화~~(효과가 좋지 않았음. 출력 데이터가 전부 0.999999 ~ 1.000001 범위에 몰림)
-- [x] 스트리밍 토큰에서 스트리밍 TTS 로 (2024년 6월 9일)
+- [x] 스트리밍 토큰에서 스트리밍 TTS로 (2024년 6월 9일)
   - [x] 구두점과 공백 + 글자 수 제한 조합으로 문장을 구성한 뒤 TTS 추론을 수행할 수 있어 보임
-    - [x] ~~11Labs 는 WebSocket 기반~~
+    - [x] ~~11Labs는 WebSocket 기반~~
     - [x] 큐를 통해 TTS 스트림 요청을 보내고, 다시 오디오 스트림 큐로 전달
-    - [x] Vue 에서 Queue 구현
-      - [x] queue 는 선입선출이어야 함
+    - [x] Vue에서 Queue 구현
+      - [x] queue는 선입선출이어야 함
         - [x] 꺼내기, [`Array.prototype.shift`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/shift)
         - [x] 넣기, [`Array.prototype.push`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/push)
         - [x] 이벤트 기반
@@ -41,7 +41,7 @@ title: 연대기 v0.0.1
             - [x] `processing`, 핸들러를 호출할 때 `processing` 이벤트 발생
             - [x] `done`, 핸들러가 끝나면 `done` 이벤트 발생
           - [x] 이벤트 처리
-            - [x] `add` 나 `done` 이벤트가 발생하면 실행 중인 핸들러가 있는지 확인
+            - [x] `add`나 `done` 이벤트가 발생하면 실행 중인 핸들러가 있는지 확인
               - [x] 있으면 반환
               - [x] 없으면 `pick(): T` 후 핸들러 호출
         - [x] queue 핸들러
@@ -60,7 +60,7 @@ title: 연대기 v0.0.1
 - ✅ 대화
 - ✅ 대화 UI
 - ✅ 음성
-- ✅ Live2D 립싱크 (itorr 의 GitHub 설명 덕분)
+- ✅ Live2D 립싱크 (itorr의 GitHub 설명 덕분)
 - ✅ 기본 프롬프트
 
 ![](/assets/version-v0.0.1/screenshot-2.avif)
@@ -75,32 +75,32 @@ title: 연대기 v0.0.1
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> [Deepgram Voice AI: Text to Speech + Speech to Text APIs | Deepgram](https://deepgram.com/)
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> GPT-SoVITS 시도해 보기
   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> fish-speech 시도 (2024년 7월 6일 ~ 2024년 7월 7일)
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> 실제로 few-shot 으로 바로 복제가 가능함. Gura 의 목소리를 복제해 봤는데 처음 4초까지는 아주 높은 품질을 유지함
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> fish audio 의 오디오 처리 도구는 매우 충실해서, 오디오 프로세서가 (라벨링과 자동 라벨링을 포함해) 대부분의 요구를 커버함
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> 실제로 few-shot으로 바로 복제가 가능함. Gura의 목소리를 복제해 봤는데 처음 4초까지는 아주 높은 품질을 유지함
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> fish audio의 오디오 처리 도구는 매우 충실해서, 오디오 프로세서가 (라벨링과 자동 라벨링을 포함해) 대부분의 요구를 커버함
     - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> 결과가 매우 불안정해서 단어나 소리를 자주 삼키거나 갑자기 이상한 잡음을 냄
     - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> RTX 4090 장비에서 돌려도 스트리밍 오디오 모드에서는 추론 결과를 내보내는 데 최대 2초가 걸림
   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> ChatTTS 시도 (2024년 7월 6일 ~ 2024년 7월 7일)
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> 실제로 few-shot 복제가 가능함. Gura 의 목소리를 복제해 봤지만 fish-speech 만큼 좋지는 않았음
-    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> 감정 제어는 fish-speech 보다 훨씬 좋지만, 영어 환경에서는 `[uv_break]` 같은 토큰까지 발음해 버림. WeChat 그룹에서도 이 부분을 두고 이야기가 오가고 있음
-    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> RTX 4090 장비에서 돌려도 스트리밍 오디오 모드에서는 몇 분이 걸림... 🤯 정말 말이 안 됨. 평문/정규화된 텍스트를 액션 토큰이 포함된 텍스트로 바꾸기 위해 먼저 로컬에서 llm 을 돌리는 것으로 보이는데, 그 llm 을 띄울 때 캐싱이나 모델 크기를 전혀 고려하지 않은 듯함
-   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> [TTS Arena - a Hugging Face Space by TTS-AGI](https://huggingface.co/spaces/TTS-AGI/TTS-Arena) 에 언급된 다른 모델들 시도 (2024년 7월 8일)
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> 실제로 few-shot 복제가 가능함. Gura의 목소리를 복제해 봤지만 fish-speech 만큼 좋지는 않았음
+    - <span class="i-icon-park-outline:up-one translate-y-0.5 text-green-800 dark:text-green-400 text-lg"></span> 감정 제어는 fish-speech보다 훨씬 좋지만, 영어 환경에서는 `[uv_break]` 같은 토큰까지 발음해 버림. WeChat 그룹에서도 이 부분을 두고 이야기가 오가고 있음
+    - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> RTX 4090 장비에서 돌려도 스트리밍 오디오 모드에서는 몇 분이 걸림... 🤯 정말 말이 안 됨. 평문/정규화된 텍스트를 액션 토큰이 포함된 텍스트로 바꾸기 위해 먼저 로컬에서 llm을 돌리는 것으로 보이는데, 그 llm을 띄울 때 캐싱이나 모델 크기를 전혀 고려하지 않은 듯함
+   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> [TTS Arena - a Hugging Face Space by TTS-AGI](https://huggingface.co/spaces/TTS-AGI/TTS-Arena)에 언급된 다른 모델들 시도 (2024년 7월 8일)
      - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> XTTSv2 시도
-       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> huggingface 를 그대로 사용했는데 결과가 좋지 않음. fish speech 나 chattts 보다는 안정적이지만 톤이 너무 밋밋해서, 애니메이션 톤을 위해서는 lora 가 필요할 듯
+       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> huggingface를 그대로 사용했는데 결과가 좋지 않음. fish speech나 chattts 보다는 안정적이지만 톤이 너무 밋밋해서, 애니메이션 톤을 위해서는 lora가 필요할 듯
      - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> StyleTTS 2 시도
-       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> huggingface 를 그대로 사용했는데 결과가 좋지 않음. fish speech 나 chattts 보다는 안정적이지만 톤이 너무 밋밋해서, 애니메이션 톤을 위해서는 lora 가 필요할 듯
+       - <span class="i-icon-park-outline:down-one translate-y-0.5 text-red-800 dark:text-red-400 text-lg"></span> huggingface를 그대로 사용했는데 결과가 좋지 않음. fish speech나 chattts 보다는 안정적이지만 톤이 너무 밋밋해서, 애니메이션 톤을 위해서는 lora가 필요할 듯
    - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> CosyVoice 시도 (알리바바)
    - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> [Koemotion](https://koemotion.rinna.co.jp/)
    - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> [Seed-TTS](https://bytedancespeech.github.io/seedtts_tech_report/)
 
 ### 표정 (2024년 7월 9일)
 
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> embed instruction 으로 표정을 실시간으로 빠르게 처리하는 방법을 GPT 와 논의 https://poe.com/s/vu7foBWJHtnPmWzJNeAy (2024년 7월 7일)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> embed instruction으로 표정을 실시간으로 빠르게 처리하는 방법을 GPT와 논의 https://poe.com/s/vu7foBWJHtnPmWzJNeAy (2024년 7월 7일)
 - [x] 프론트엔드 Live2D 표정 제어 (2024년 7월 9일)
   - [x] `<|EMOTE_HAPPY|>` 인코딩을 통해 구현
   - [x] `<|DELAY:1|>` 같은 지연 문법도 추가 지원
   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 감정 토큰 `<|EMOTE_.*|>` 파서와 토크나이저 캡슐화
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 큐 기반 스트리밍 처리 지원, `useEmotionMessagesQueue` 와 `useEmotionsQueue` 캡슐화
-    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> Live2D 를 호출해 모션 표정을 처리하도록 지원
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 큐 기반 스트리밍 처리 지원, `useEmotionMessagesQueue`와 `useEmotionsQueue` 캡슐화
+    - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> Live2D를 호출해 모션 표정을 처리하도록 지원
     - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 테스트용 디버그 페이지
   - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 스트리밍 전체 과정의 지연을 동적으로 제어하기 위한 지연 토큰 `<|DELAY:.*|>` 파서와 토크나이저 캡슐화
     - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 큐 기반 스트리밍 처리 지원, `useDelaysQueue` 캡슐화
@@ -119,13 +119,13 @@ title: 연대기 v0.0.1
 - [ ] 리서치에 사용한 인덱스 사이트
   - [ ] [Hannibal046/Awesome-LLM: Awesome-LLM: a curated list of Large Language Model](https://github.com/Hannibal046/Awesome-LLM)
 - [ ] 리서치 중 ADHD 같은 행동
-  - [ ] 친구가 NVIDIA 의 새 논문 [ConsiStory: Training-Free Consistent Text-to-Image Generation](https://research.nvidia.com/labs/par/consistory/) 를 추천해 줬는데 IPadapter 보다 안정적으로 느껴짐.
+  - [ ] 친구가 NVIDIA의 새 논문 [ConsiStory: Training-Free Consistent Text-to-Image Generation](https://research.nvidia.com/labs/par/consistory/) 를 추천해 줬는데 IPadapter보다 안정적으로 느껴짐.
 - [ ] 흥미로운 것은 [IDEA-Research/MotionLLM: [Arxiv-2024] MotionLLM: Understanding Human Behaviors from Human Motions and Videos](https://github.com/IDEA-Research/MotionLLM). 이 논문과 연구 방향은 영상 애니메이션 프레임 사이에 형성되는 사람의 동작을 자연어로 기술하는 것에 관한 내용. 2024년 5월 31일 공개.
 - [ ] [Ksuriuri/EasyAIVtuber: Simply animate your 2D waifu.](https://github.com/Ksuriuri/EasyAIVtuber)
 - [ ] 이건 꽤 큰 주제라서 여러 키워드를 조사해 본 결과, 현재 이 방향의 주요 연구 주제들을 찾았습니다:
   - [ ] 디지털 휴먼 합성 -> 가상 WebCam 모션 캡처
     - [ ] [PersonaTalk: Bring Attention to Your Persona in Visual Dubbing](https://arxiv.org/pdf/2409.05379)
-      - [ ] 이것이 SOTA 로 보임
+      - [ ] 이것이 SOTA로 보임
     - [ ] [OpenTalker/SadTalker: [CVPR 2023] SadTalker：Learning Realistic 3D Motion Coefficients for Stylized Audio-Driven Single Image Talking Face Animation](https://github.com/OpenTalker/SadTalker)
     - [ ] [Rudrabha/Wav2Lip: This repository contains the codes of "A Lip Sync Expert Is All You Need for Speech to Lip Generation In the Wild", published at ACM Multimedia 2020. For HD commercial model, please try out Sync Labs](https://github.com/Rudrabha/Wav2Lip)
     - [ ] [yerfor/GeneFace: GeneFace: Generalized and High-Fidelity 3D Talking Face Synthesis; ICLR 2023; Official code](https://github.com/yerfor/GeneFace)
@@ -151,31 +151,31 @@ title: 연대기 v0.0.1
     - [ ] [CLIPort](https://cliport.github.io/)：CLIPort: What and Where Pathways for Robotic Manipulation
     - [ ] [VIMA | General Robot Manipulation with Multimodal Prompts](https://vimalabs.github.io/)：VIMA: General Robot Manipulation with Multimodal Prompts
     - [ ] [Scaling Up and Distilling Down: Language-Guided Robot Skill Acquisition](https://www.cs.columbia.edu/~huy/scalingup/)
-    - [ ] [EUREKA: HUMAN-LEVEL REWARD DESIGN VIA CODING LARGE LANGUAGE MODELS](https://eureka-research.github.io/assets/eureka_paper.pdf) 는 요약본에 가까운 느낌.
+    - [ ] [EUREKA: HUMAN-LEVEL REWARD DESIGN VIA CODING LARGE LANGUAGE MODELS](https://eureka-research.github.io/assets/eureka_paper.pdf)는 요약본에 가까운 느낌.
   - [ ] 강화학습
     - [ ] 이 방향은 주로 로보틱스 저수준 제어에서 이미 학습된 RL 모델과 연결한 뒤, 인터페이스와 연산 레이어에 code as policies 구현을 많이 얹는 방식
       - [ ] [MarI/O - Machine Learning for Video Games - YouTube](https://www.youtube.com/watch?v=qv6UVOQ0F44)
-    - [ ] [RLADAPTER: BRIDGING LARGE LANGUAGE MODELS TO REINFORCEMENT LEARNING IN OPEN WORLDS](https://openreview.net/pdf?id=3s4fZTr1ce) 의 요지: RLAdapter 프레임워크 안에서 RL 에이전트 학습 중 생성된 정보로 경량 언어 모델을 파인튜닝하면 LLM 이 다운스트림 작업에 적응하는 데 크게 도움이 되고, 결과적으로 RL 에이전트에게 더 나은 가이드를 줄 수 있다는 것. Crafter 환경에서 RLAdapter 를 실험한 결과 SOTA 베이스라인을 뛰어넘었고, 이 프레임워크 아래에서 에이전트는 베이스라인 모델에는 없는 상식적인 행동을 보였다고 합니다
-    - [ ] [See and Think: Embodied Agent in Virtual Environment](https://arxiv.org/pdf/2311.15209) 는 아래에 언급한 Voyager, PlanMC, MP5 와 비슷하게 Minecraft 를 위한 연구인데, 주로 RL 을 강조하는 느낌.
+    - [ ] [RLADAPTER: BRIDGING LARGE LANGUAGE MODELS TO REINFORCEMENT LEARNING IN OPEN WORLDS](https://openreview.net/pdf?id=3s4fZTr1ce)의 요지: RLAdapter 프레임워크 안에서 RL 에이전트 학습 중 생성된 정보로 경량 언어 모델을 파인튜닝하면 LLM이 다운스트림 작업에 적응하는 데 크게 도움이 되고, 결과적으로 RL 에이전트에게 더 나은 가이드를 줄 수 있다는 것. Crafter 환경에서 RLAdapter를 실험한 결과 SOTA 베이스라인을 뛰어넘었고, 이 프레임워크 아래에서 에이전트는 베이스라인 모델에는 없는 상식적인 행동을 보였다고 합니다
+    - [ ] [See and Think: Embodied Agent in Virtual Environment](https://arxiv.org/pdf/2311.15209)는 아래에 언급한 Voyager, PlanMC, MP5와 비슷하게 Minecraft를 위한 연구인데, 주로 RL을 강조하는 느낌.
     - [ ] [Text2Reward: Reward Shaping with Language Models for Reinforcement Learning](https://text-to-reward.github.io/)
-    - [ ] [Direct Preference Optimization: Your Language Model is Secretly a Reward Model](https://arxiv.org/pdf/2305.18290) 는 주로 LLM 자체가 보상 모델이 될 수 있다는 이야기. RLHF 를 어떻게 결합할지 배울 수 있고 트랜스포머 관점에서도 꽤 기초적인 내용.
+    - [ ] [Direct Preference Optimization: Your Language Model is Secretly a Reward Model](https://arxiv.org/pdf/2305.18290)는 주로 LLM 자체가 보상 모델이 될 수 있다는 이야기. RLHF를 어떻게 결합할지 배울 수 있고 트랜스포머 관점에서도 꽤 기초적인 내용.
   - [ ] Embodied Control
     - [ ] 여기에 많이 정리되어 있음
       - [ ] [zchoi/Awesome-Embodied-Agent-with-LLMs](https://github.com/zchoi/Awesome-Embodied-Agent-with-LLMs)："대규모 언어 모델을 활용한 Embodied AI 또는 로봇" 연구를 정리한 목록입니다. 최신 업데이트를 받으려면 이 저장소를 watch 하세요! 🔥
-    - [ ] [MP5: A Multi-modal Open-ended Embodied System in Minecraft via Active Perception](https://arxiv.org/pdf/2312.07472) 이건 흥미롭습니다. 비교적 완성된 Minecraft RL 프레임워크를 사용해, 자연어 지시로 LLM 에게 "**낮**에 **초원**의 **물가**에서 **돌검**으로 **돼지**를 **잡아라**" 라고 알려 주면 RL 에이전트가 이런 특징들을 인지하고 목표를 달성하는 방식입니다. [AI 가 Minecraft 를 플레이하게 하는 방법? Voyager 논문 노트](https://nolebase.ayaka.io/to/27024f5434) 와 달리 MP5 는 PlanMC 에 더 가깝고, Voyager 의 순수 텍스트·순수 상태 정보 대신 멀티모달 능력을 통합했습니다.
-      - [ ] 초록: 매우 도전적인 Minecraft 시뮬레이터 위에 구축한 개방형 멀티모달 embodied 시스템 MP5 를 소개합니다. 실행 가능한 하위 목표를 분해하고, 복잡한 맥락 인식 계획을 설계하며, embodied 행동 제어를 수행하고, 목표 조건부 능동 인지 체계와 자주 소통할 수 있습니다. 구체적으로 MP5 는 멀티모달 대규모 언어 모델(MLLM)의 최근 성과를 바탕으로 개발되었으며, 시스템은 여러 기능 모듈로 나뉘어 스케줄링·협업을 통해 사전 정의된 맥락·과정 관련 작업을 최종적으로 해결합니다.
+    - [ ] [MP5: A Multi-modal Open-ended Embodied System in Minecraft via Active Perception](https://arxiv.org/pdf/2312.07472) 이건 흥미롭습니다. 비교적 완성된 Minecraft RL 프레임워크를 사용해, 자연어 지시로 LLM에게 "**낮**에 **초원**의 **물가**에서 **돌검**으로 **돼지**를 **잡아라**" 라고 알려 주면 RL 에이전트가 이런 특징들을 인지하고 목표를 달성하는 방식입니다. [AI가 Minecraft를 플레이하게 하는 방법? Voyager 논문 노트](https://nolebase.ayaka.io/to/27024f5434)와 달리 MP5는 PlanMC에 더 가깝고, Voyager의 순수 텍스트·순수 상태 정보 대신 멀티모달 능력을 통합했습니다.
+      - [ ] 초록: 매우 도전적인 Minecraft 시뮬레이터 위에 구축한 개방형 멀티모달 embodied 시스템 MP5를 소개합니다. 실행 가능한 하위 목표를 분해하고, 복잡한 맥락 인식 계획을 설계하며, embodied 행동 제어를 수행하고, 목표 조건부 능동 인지 체계와 자주 소통할 수 있습니다. 구체적으로 MP5는 멀티모달 대규모 언어 모델(MLLM)의 최근 성과를 바탕으로 개발되었으며, 시스템은 여러 기능 모듈로 나뉘어 스케줄링·협업을 통해 사전 정의된 맥락·과정 관련 작업을 최종적으로 해결합니다.
     - [ ] [CRADLE: Empowering Foundation Agents Towards General Computer Control](https://arxiv.org/pdf/2403.03186) 아직 안 읽음. 시간 날 때 읽을 예정.
-    - [ ] [Embodied Multi-Modal Agent trained by an LLM from a Parallel TextWorld](https://arxiv.org/pdf/2311.16714) 는 주로 **병렬 텍스트 세계에서 뛰어난 LLM 에이전트를 이용해 시각 세계에 사는 VLM 에이전트를 학습시키는** 이야기.
+    - [ ] [Embodied Multi-Modal Agent trained by an LLM from a Parallel TextWorld](https://arxiv.org/pdf/2311.16714)는 주로 **병렬 텍스트 세계에서 뛰어난 LLM 에이전트를 이용해 시각 세계에 사는 VLM 에이전트를 학습시키는** 이야기.
     - [ ] [Online continual learning ONLINE CONTINUAL LEARNING FOR INTERACTIVE INSTRUCTION FOLLOWING AGENTS](https://openreview.net/pdf?id=7M0EzjugaN)
   - [ ] Manipulation (주로 로보틱스 분야)
   - [ ] Motion Embeddings
-    - [ ] [PerAct](https://peract.github.io/)：꽤 드물게도, code as policies 와 RL 환경 정보에 manipulation 까지 토큰으로 인코딩해 연산한다는 내용
+    - [ ] [PerAct](https://peract.github.io/)：꽤 드물게도, code as policies와 RL 환경 정보에 manipulation까지 토큰으로 인코딩해 연산한다는 내용
   - [ ] Feedback Loop (주로 로보틱스 + 제어 분야, 이 카테고리는 사실 더 드묾)
     - [ ] 일반적인 환경과 관련 있을 것 같은데, 상당히 저수준 영역
-    - [ ] 차라리 RL 을 직접 파는 게 도움이 될지도
-    - [ ] [InCoRo: In-Context Learning for Robotics Control with Feedback Loops](https://arxiv.org/html/2402.05188v1?_immersive_translate_auto_translate=1) 는 제목이 매력적인데 아직 꼼꼼히 읽지는 못했습니다. 시간 날 때 읽을 예정이고, 인용도 많이 됐습니다.
-      - [ ] 목적은 주로 LLM 의 자연어 명령을 로봇 유닛을 위한 저수준의 _정적_ 실행 계획으로 변환하는 것. LLM 내부의 로봇 시스템을 활용해 이를 새로운 수준으로 일반화하고, 새로운 작업에 대한 zero-shot 일반화를 가능하게 합니다.
-    - [ ] 관련해서 Hugging Face 가 오픈소스로 공개한 LeRobot 도 참고할 만함
+    - [ ] 차라리 RL을 직접 파는 게 도움이 될지도
+    - [ ] [InCoRo: In-Context Learning for Robotics Control with Feedback Loops](https://arxiv.org/html/2402.05188v1?_immersive_translate_auto_translate=1)는 제목이 매력적인데 아직 꼼꼼히 읽지는 못했습니다. 시간 날 때 읽을 예정이고, 인용도 많이 됐습니다.
+      - [ ] 목적은 주로 LLM의 자연어 명령을 로봇 유닛을 위한 저수준의 _정적_ 실행 계획으로 변환하는 것. LLM 내부의 로봇 시스템을 활용해 이를 새로운 수준으로 일반화하고, 새로운 작업에 대한 zero-shot 일반화를 가능하게 합니다.
+    - [ ] 관련해서 Hugging Face가 오픈소스로 공개한 LeRobot도 참고할 만함
       - [ ] [huggingface/lerobot: 🤗 LeRobot: End-to-end Learning for Real-World Robotics in Pytorch](https://github.com/huggingface/lerobot?tab=readme-ov-file)
 
 ### 시각
@@ -185,7 +185,7 @@ title: 연대기 v0.0.1
 - [ ] [landing-ai/vision-agent: Vision agent (github.com)](https://github.com/landing-ai/vision-agent)
 - [ ] [2404.04834 LLM-Based Multi-Agent Systems for Software Engineering: Vision and the Road Ahead (arxiv.org)](https://arxiv.org/abs/2404.04834)
 - [ ] [Experimentation: LLM, LangChain Agent, Computer Vision | by TeeTracker | Medium](https://teetracker.medium.com/experimentation-llm-langchain-agent-computer-vision-0c405deb7c6e)
-- [ ] Neuro Sama 는 어떻게 화면을 보고 이해하는 걸까?
+- [ ] Neuro Sama는 어떻게 화면을 보고 이해하는 걸까?
 - [ ] [Is it possible to use a local LLM and have it play Minecraft? : r/LocalLLaMA](https://www.reddit.com/r/LocalLLaMA/comments/143ziop/comment/jnfvr1w/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button)
 - [ ] [2402.07945 ScreenAgent: A Vision Language Model-driven Computer Control Agent](https://arxiv.org/abs/2402.07945)
 - [ ] 스탠퍼드와 베이 에어리어에서 대규모 언어 모델이 로봇을 제어하게 하는 시스템은 어떻게 동작할까?
@@ -205,19 +205,19 @@ title: 연대기 v0.0.1
 
 - [ ] 다국어 지원
   - [ ] 중국어
-    - [ ] 현재 11Labs 의 중국어 TTS 모델은 품질이 너무 떨어짐
-    - [ ] Microsoft 의 Cognitive TTS API 도 그다지 좋지 않음
-    - [ ] AWS 는 결과가 나쁨
+    - [ ] 현재 11Labs의 중국어 TTS 모델은 품질이 너무 떨어짐
+    - [ ] Microsoft의 Cognitive TTS API도 그다지 좋지 않음
+    - [ ] AWS는 결과가 나쁨
     - [ ] 알리바바 클라우드가 괜찮다고 함
   - [ ] 일본어
     - [ ] [Koemotion](https://koemotion.rinna.co.jp/)
-    - [ ] Pixiv 의 [ChatVRM 데모](https://github.com/pixiv/ChatVRM) 도 이걸 사용함
+    - [ ] Pixiv의 [ChatVRM 데모](https://github.com/pixiv/ChatVRM)도 이걸 사용함
 
 ## 최적화 위시리스트 백로그
 
 ### 코드 저장소 & 아키텍처
 
-- [x] [SPA 로 마이그레이션](https://github.com/nekomeowww/airi-vtuber/commit/cd0f371595a669c570dc263e72dd3ce54afab7ff)
+- [x] [SPA로 마이그레이션](https://github.com/nekomeowww/airi-vtuber/commit/cd0f371595a669c570dc263e72dd3ce54afab7ff)
 - [x] [모노레포로 마이그레이션](https://github.com/nekomeowww/airi-vtuber/commit/ee4878710eeded6ef1b66474905936353d0176b4)
 - [x] moeru-ai 조직으로 통합
 
@@ -226,7 +226,7 @@ title: 연대기 v0.0.1
 - [x] sendMessage 입력란이 비어 있으면 전송하지 않기 (2024년 6월 9일)
 - [x] 대화 기록 (2024년 6월 9일)
 - [ ] 컨텍스트를 초과한 대화 기록 자동 정리
-  - 예전에 Go 로 구현한 적이 있으니 가져오면 됨.
+  - 예전에 Go로 구현한 적이 있으니 가져오면 됨.
 - [ ] 컨텍스트 크기 자동 판단
 - [ ] 마이크 선택 지원
 - [ ] 단축키 리스닝 구현 (방송 사고 방지)
@@ -266,39 +266,39 @@ title: 연대기 v0.0.1
 - [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 메시지를 보낼 때 피드백을 위해 곧바로 생각하는 표정으로 전환하도록 지원 (2024년 7월 9일)
 - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 감정 인식
   - [ ] 현재는 감정 토큰을 처리하느라 토큰을 추가로 낭비하고 있는데, 전통적인 NLP 감정 분석(sentiment)을 시도해 볼 수 있음
-    - [ ] 다만 전통적인 sentiment 는 긍정과 부정밖에 없어서, 다른 감정을 어떻게 지원할지 고민이 필요함
+    - [ ] 다만 전통적인 sentiment는 긍정과 부정밖에 없어서, 다른 감정을 어떻게 지원할지 고민이 필요함
 - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 감정 토큰 임베딩
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 현재 `<|EMOTE_.*|>` 패턴 토큰은 토크나이저가 관리하지 않아서, 추론 중에 스트리밍 호환 토크나이저를 여러 개 따로 작성해야 함
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 현재 `<|EMOTE_.*|>` 패턴 토큰은 토크나이저가 관리하지 않아서, 추론 중에 스트리밍 호환 토크나이저를 여러 개 따로 작성해야 함
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">버그</span> `useQueue` 가 처리 중 `isProcessing` 락으로 분리된 큐 항목을 고려하지 않음 (2024년 7월 9일)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">버그</span> Local Storage 에 저장된 모델이 필요한 데이터와 맞지 않아 `computed` 무한 루프가 발생해 인터페이스가 멈춤 (2024년 7월 9일)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">버그</span> `useQueue`가 처리 중 `isProcessing` 락으로 분리된 큐 항목을 고려하지 않음 (2024년 7월 9일)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">버그</span> Local Storage에 저장된 모델이 필요한 데이터와 맞지 않아 `computed` 무한 루프가 발생해 인터페이스가 멈춤 (2024년 7월 9일)
 - [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">버그</span> Live2DViewer 프레임의 자동 크기 감지 기능에 문제가 있음 (2024년 7월 9일)
 - [x] <span class="text-sm px-1 py-0.5 border border-solid border-red-500/30 text-red-800 dark:text-red-400 bg-red-500/20 rounded-lg">버그</span> streamSpeech 중 무한 루프를 피하려고 빈 텍스트를 격리하면서 생긴 문제 (2024년 7월 9일)
-- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> `useQueue` 가 `handler` 안에서 커스텀 이벤트를 지원 (2024년 7월 9일)
+- [x] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> `useQueue`가 `handler` 안에서 커스텀 이벤트를 지원 (2024년 7월 9일)
 - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 텍스트 출력과 음성 출력 타이밍 동기화
-  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> `ttsQueue` 와 `audioPlaybackQueue` 가 대응하는 타임스탬프를 저장할 수 있게
+  - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> `ttsQueue`와 `audioPlaybackQueue`가 대응하는 타임스탬프를 저장할 수 있게
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> `audioPlaybackQueue` 처리와 재생을 마칠 때 오디오 길이 계산
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 공백으로 텍스트를 나눠 `['hello ', 'this ', 'is ', 'neuro ']` 얻기
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 오디오 길이 ÷ 텍스트 글자 수 = 토큰 그룹 출력마다의 지연
   - [ ] <span class="text-sm px-1 py-0.5 border border-solid border-green-500/30 text-green-800 dark:text-green-400 bg-green-500/20 rounded-lg">기능</span> 지연 지시에 따라 텍스트 출력 (지연 큐를 써도 됨)
-- [ ] Neuro Sama 의 추론 속도는 정말 빠릅니다. 벡터 DB 회상 + 재추론 + 작업 배분까지 감안해도 이렇게 빠를 수는 없을 것 같은데
-- [x] Neuro Sama 의 TTS 도 매우 빠릅니다. 제가 아는 어떤 TTS 보다도 빠릅니다
-  - [x] MicVAD 와 Whisper 를 연동하고 나니 아주 빠르게 느껴짐. 생각보다 훨씬 간단했음
+- [ ] Neuro Sama의 추론 속도는 정말 빠릅니다. 벡터 DB 회상 + 재추론 + 작업 배분까지 감안해도 이렇게 빠를 수는 없을 것 같은데
+- [x] Neuro Sama의 TTS도 매우 빠릅니다. 제가 아는 어떤 TTS 보다도 빠릅니다
+  - [x] MicVAD와 Whisper를 연동하고 나니 아주 빠르게 느껴짐. 생각보다 훨씬 간단했음
   - [ ] 로컬 Whisper
   - [ ] 로컬 TTS
-- [ ] Vedal 은 Neuro Sama 의 음성 인식을 파인튜닝할 때 데이터를 얼마나 썼을까?
-  - [ ] `Evil` 과 `Evil Neuro` 같은 단어는 의미상 합쳐질 수 없어야 하는데, RAG 로 강제하려면 꽤 강력한 벡터 DB 노드 지원이 필요할 것
+- [ ] Vedal은 Neuro Sama의 음성 인식을 파인튜닝할 때 데이터를 얼마나 썼을까?
+  - [ ] `Evil`과 `Evil Neuro` 같은 단어는 의미상 합쳐질 수 없어야 하는데, RAG로 강제하려면 꽤 강력한 벡터 DB 노드 지원이 필요할 것
 
 ### 기억
 
 - [ ] keep alive 방안
-  - [ ] 유휴 상태라면 30분마다 Neuro 에게 연속 추론 프롬프트를 주기
-    - [ ] Neuro 에게 지금 뭘 하고 있는지 묻고, 그것을 기록하도록 돕기
-    - [ ] Neuro 에게 다음에 뭘 하고 싶은지 물어 지루해지지 않게 하기
-    - [ ] 24시간을 1로 환산. 그러지 않으면 GPT 가 숫자 감각을 쉽게 잃음
+  - [ ] 유휴 상태라면 30분마다 Neuro에게 연속 추론 프롬프트를 주기
+    - [ ] Neuro에게 지금 뭘 하고 있는지 묻고, 그것을 기록하도록 돕기
+    - [ ] Neuro에게 다음에 뭘 하고 싶은지 물어 지루해지지 않게 하기
+    - [ ] 24시간을 1로 환산. 그러지 않으면 GPT가 숫자 감각을 쉽게 잃음
 - [ ] 연속 추론
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> Perplexity 와의 논의 https://www.perplexity.ai/search/I-want-to-jKXpnx6hT6uvhm0qbu6ofA#0 (2024년 6월 8일)
-  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> Poe 에서 실험 [https://poe.com/s/PqQfwNd2V2wFpmR0YUke](https://poe.com/s/PqQfwNd2V2wFpmR0YUke) (2024년 7월 8일)
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> Perplexity와의 논의 https://www.perplexity.ai/search/I-want-to-jKXpnx6hT6uvhm0qbu6ofA#0 (2024년 6월 8일)
+  - [x] <span class="text-sm px-1 py-0.5 border border-solid border-purple-500/30 text-purple-800 dark:text-purple-400 bg-purple-500/20 rounded-lg">실험</span> Poe에서 실험 [https://poe.com/s/PqQfwNd2V2wFpmR0YUke](https://poe.com/s/PqQfwNd2V2wFpmR0YUke) (2024년 7월 8일)
   - [ ] 루프 만들기
     - [ ] 무엇을 하고 싶은가
       - [ ] 액션 맵을 생성할 수 있음
@@ -317,15 +317,15 @@ title: 연대기 v0.0.1
     - [ ] 무엇을 하고 싶은가
     - [ ] ...
 - [ ] 단방향 핑 방안 (저비용)
-  - [ ] 유휴 상태라면 매시간 Neuro 에게 지난 1시간의 상태 업데이트를 보내기
+  - [ ] 유휴 상태라면 매시간 Neuro에게 지난 1시간의 상태 업데이트를 보내기
   - [ ] 24시간이 지나면 상태 업데이트를 컨텍스트에 넣지 않고 가동 시간만 요약하기
-    - [ ] 매 상호작용 전에 Neuro 에게 가동 시간 프롬프트를 보내 시간의 흐름을 느끼게 하기
+    - [ ] 매 상호작용 전에 Neuro에게 가동 시간 프롬프트를 보내 시간의 흐름을 느끼게 하기
 
 ## 동작
 
-- [ ] Minecraft 플레이 [AI 가 Minecraft 를 플레이하게 하는 방법? Voyager 논문 노트](https://nolebase.ayaka.io/to/27024f5434)
+- [ ] Minecraft 플레이 [AI가 Minecraft를 플레이하게 하는 방법? Voyager 논문 노트](https://nolebase.ayaka.io/to/27024f5434)
 - [ ] 검색
-- [ ] VSCode 로 코드 작성
+- [ ] VSCode로 코드 작성
 - [ ] 지식 베이스 작성 돕기
 - [ ] Factorio 플레이
 - [ ] 다른 GPT 들에게 지시하기
@@ -347,7 +347,7 @@ title: 연대기 v0.0.1
   - [【무료 모델】이렇게 귀여운 강아지를 무료로!_bilibili](https://www.bilibili.com/video/BV1LM41137vK/)
   - [【무료 live2d 모델】작은 악마를 무료로 데려가세요(∠・ω< )⌒☆_bilibili](https://www.bilibili.com/video/BV1fP411e7fA/)
   - [【무료 L2D 모델】달콤 짭짤한 기계 소녀! 무료 모델 공개~클릭해서 받아가세요_bilibili](https://www.bilibili.com/video/BV1S8411H7zf/)
-  - [【Frieren 무료 live2d 모델】그때 Himmel 에게 이 기술을 썼더니 위력이 너무 세서 기절했다=w=_bilibili](https://www.bilibili.com/video/BV1te411b7Xp)
+  - [【Frieren 무료 live2d 모델】그때 Himmel에게 이 기술을 썼더니 위력이 너무 세서 기절했다=w=_bilibili](https://www.bilibili.com/video/BV1te411b7Xp)
   - [【무료 live2D 모델】1만 위안짜리 초고정밀 모델을 그냥 무료로?_bilibili](https://www.bilibili.com/video/BV1hB4y1Q7vn/)
   - [Bilibili Workshop](https://gf.bilibili.com/item/detail/1105759077)
   - [【무료 live2d 모델 쇼케이스】지뢰계 소녀 받아가기_bilibili](https://www.bilibili.com/video/BV1eu4y187zw)
@@ -464,7 +464,7 @@ The available actions:
 And the last, do what ever you want!
 ```
 
-- 대규모 언어 모델이 Delay 를 스스로 다루게 하면 결과가 매우 나빴습니다. live2d 모션 애니메이션 길이가 제각각이라 여러 표정이 겹칠 때 문제가 자주 생겼습니다
+- 대규모 언어 모델이 Delay를 스스로 다루게 하면 결과가 매우 나빴습니다. live2d 모션 애니메이션 길이가 제각각이라 여러 표정이 겹칠 때 문제가 자주 생겼습니다
 - 지금의 프론트엔드 표시 레이어 토크나이저 구현에도 문제가 좀 있어서, 겹침 처리가 잘 안 됩니다
   - 수정 완료. 이제 전용 llmmarker 파서 캡슐화가 있습니다
 
