@@ -2,6 +2,8 @@ import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import type { ModelInfo, ProviderMetadata, VoiceInfo } from '../../providers'
 
+import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
+
 import { OPENROUTER_ATTRIBUTION_HEADERS } from '../../../libs/providers/providers/openrouter-ai'
 
 const DEFAULT_BASE_URL = 'https://openrouter.ai/api/v1/'
@@ -94,42 +96,6 @@ function decodeBase64PCM(chunks: string[]): Uint8Array {
   return bytes
 }
 
-/** Wraps raw PCM16 mono data in a minimal WAV container. */
-function wrapPCM16InWAV(pcmBytes: Uint8Array, sampleRate = 24000): Uint8Array {
-  const numChannels = 1
-  const bitsPerSample = 16
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8)
-  const blockAlign = numChannels * (bitsPerSample / 8)
-  const header = new ArrayBuffer(44)
-  const view = new DataView(header)
-
-  const writeStr = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++)
-      view.setUint8(offset + i, str.charCodeAt(i))
-  }
-
-  writeStr(0, 'RIFF')
-  view.setUint32(4, 36 + pcmBytes.length, true)
-  writeStr(8, 'WAVE')
-
-  writeStr(12, 'fmt ')
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)
-  view.setUint16(22, numChannels, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, byteRate, true)
-  view.setUint16(32, blockAlign, true)
-  view.setUint16(34, bitsPerSample, true)
-
-  writeStr(36, 'data')
-  view.setUint32(40, pcmBytes.length, true)
-
-  const wav = new Uint8Array(44 + pcmBytes.length)
-  wav.set(new Uint8Array(header), 0)
-  wav.set(pcmBytes, 44)
-  return wav
-}
-
 /**
  * Custom fetch adapter that translates an OpenAI-compatible TTS request
  * into an OpenRouter streaming chat-completion with audio modality,
@@ -167,9 +133,9 @@ function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
 
     const audioChunks = await collectAudioChunksFromSSE(sseResponse.body!)
     const pcmBytes = decodeBase64PCM(audioChunks)
-    const wavBytes = wrapPCM16InWAV(pcmBytes)
+    const wavBuffer = toWavFromPCM16(pcmBytes, 24000)
 
-    return new Response(new Blob([wavBytes.buffer as ArrayBuffer], { type: 'audio/wav' }), {
+    return new Response(new Blob([wavBuffer], { type: 'audio/wav' }), {
       status: 200,
       headers: { 'Content-Type': 'audio/wav' },
     })

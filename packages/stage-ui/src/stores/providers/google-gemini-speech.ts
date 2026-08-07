@@ -2,6 +2,8 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import type { ModelInfo, ProviderMetadata, VoiceInfo } from '../providers'
 
+import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
+
 const PROVIDER_ID = 'google-gemini-audio-speech'
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 const DEFAULT_MODEL = 'gemini-2.5-flash-preview-tts'
@@ -44,42 +46,6 @@ const GOOGLE_GEMINI_TTS_VOICES: [string, string][] = [
   ['Sadaltager', 'Knowledgeable'],
   ['Sulafat', 'Warm'],
 ]
-
-/** Wraps raw PCM16 mono data in a minimal WAV container. */
-function wrapPCM16InWAV(pcmBytes: Uint8Array, sampleRate = 24000): Uint8Array {
-  const numChannels = 1
-  const bitsPerSample = 16
-  const byteRate = sampleRate * numChannels * (bitsPerSample / 8)
-  const blockAlign = numChannels * (bitsPerSample / 8)
-  const header = new ArrayBuffer(44)
-  const view = new DataView(header)
-
-  const writeStr = (offset: number, str: string) => {
-    for (let i = 0; i < str.length; i++)
-      view.setUint8(offset + i, str.charCodeAt(i))
-  }
-
-  writeStr(0, 'RIFF')
-  view.setUint32(4, 36 + pcmBytes.length, true)
-  writeStr(8, 'WAVE')
-
-  writeStr(12, 'fmt ')
-  view.setUint32(16, 16, true)
-  view.setUint16(20, 1, true)
-  view.setUint16(22, numChannels, true)
-  view.setUint32(24, sampleRate, true)
-  view.setUint32(28, byteRate, true)
-  view.setUint16(32, blockAlign, true)
-  view.setUint16(34, bitsPerSample, true)
-
-  writeStr(36, 'data')
-  view.setUint32(40, pcmBytes.length, true)
-
-  const wav = new Uint8Array(44 + pcmBytes.length)
-  wav.set(new Uint8Array(header), 0)
-  wav.set(pcmBytes, 44)
-  return wav
-}
 
 /** Decodes a base64 string into a Uint8Array. */
 function base64ToBytes(base64: string): Uint8Array {
@@ -169,12 +135,9 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
     }
 
     const pcmBytes = base64ToBytes(audioBase64)
-    const wavBytes = wrapPCM16InWAV(pcmBytes)
+    const wavBuffer = toWavFromPCM16(pcmBytes, 24000)
 
-    // NOTICE: wrapPCM16InWAV always creates a fresh Uint8Array, so .buffer is the full
-    // backing ArrayBuffer (not a subarray view into a larger buffer). The `as ArrayBuffer`
-    // cast is needed because .buffer returns ArrayBufferLike in newer TypeScript.
-    return new Response(wavBytes.buffer as ArrayBuffer, {
+    return new Response(wavBuffer, {
       status: 200,
       headers: { 'Content-Type': 'audio/wav' },
     })

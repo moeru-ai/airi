@@ -1,19 +1,14 @@
 import type { ObservableGauge } from '@opentelemetry/api'
 
-const ROLLING_WINDOWS = ['24h', '7d', '30d'] as const
-
 // The admin endpoint caches DB aggregates for 60 seconds. Two minutes keeps a
 // continuously refreshed dashboard stable across cache rollover and several
 // 15-second OTel collections, while still bounding stale replica dominance.
 export const USER_METRICS_SNAPSHOT_MAX_AGE_MS = 2 * 60_000
 
-type RollingWindow = (typeof ROLLING_WINDOWS)[number]
-
 export interface UserMetricsSnapshot {
   totalUsers: number
   activeSessions: number
   distinctActiveUsers: number
-  rollingActiveUsers: Record<RollingWindow, number>
 }
 
 export interface UserMetricsSnapshotRecorder {
@@ -26,7 +21,6 @@ export interface UserMetricsSnapshotGauges {
   totalUsers: ObservableGaugeRegistration
   activeSessions: ObservableGaugeRegistration
   distinctActiveUsers: ObservableGaugeRegistration
-  rollingActiveUsers: ObservableGaugeRegistration
 }
 
 /**
@@ -68,15 +62,6 @@ export function registerUserMetricsSnapshotGauges(
     const snapshot = readFreshSnapshot()
     if (snapshot)
       result.observe(snapshot.distinctActiveUsers)
-  })
-
-  gauges.rollingActiveUsers.addCallback((result) => {
-    const snapshot = readFreshSnapshot()
-    if (!snapshot)
-      return
-
-    for (const window of ROLLING_WINDOWS)
-      result.observe(snapshot.rollingActiveUsers[window], { window })
   })
 
   return {

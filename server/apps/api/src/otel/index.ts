@@ -56,7 +56,6 @@ import {
   METRIC_STRIPE_EVENTS,
   METRIC_STRIPE_PAYMENT_FAILED,
   METRIC_STRIPE_SUBSCRIPTION_EVENT,
-  METRIC_USER_ACTIVE_ROLLING,
   METRIC_USER_ACTIVE_SESSIONS,
   METRIC_USER_DISTINCT_ACTIVE,
   METRIC_USER_LOGIN,
@@ -125,26 +124,6 @@ export interface AuthMetrics {
    *   `avg()`/`max()`, not `sum()`.
    */
   distinctActiveUsers: ObservableGauge
-  /**
-   * Gauge for the latest requested rolling-window active users (DAU / WAU /
-   * MAU).
-   *
-   * Use when:
-   * - Reporting "how many users were active in the last 24h / 7d / 30d" —
-   *   the standard product-engagement funnel, distinct from
-   *   {@link AuthMetrics.distinctActiveUsers} which only counts users with a
-   *   currently-live session.
-   *
-   * Expects:
-   * - Refreshed by `/api/admin/metrics` using `COUNT(*) FILTER` over the
-   *   `user` table. `last_seen_at` is touched on sign-in and on every
-   *   OIDC access-token refresh (~hourly), so it is a per-user last-activity
-   *   timestamp (see the `user.lastSeenAt` schema note).
-   * - Observed once per window with a `window` attribute (`24h` / `7d` /
-   *   `30d`). Periodic collection reads memory only; dashboards MUST
-   *   aggregate with `max()`/`avg()`, not `sum()`.
-   */
-  rollingActiveUsers: ObservableGauge
 }
 
 export interface EngagementMetrics {
@@ -412,9 +391,6 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
       description: 'Fresh admin-requested distinct active-user snapshot, immune to per-row session inflation and omitted when stale (dashboard must use max(), not sum())',
-    }),
-    rollingActiveUsers: meter.createObservableGauge(METRIC_USER_ACTIVE_ROLLING, {
-      description: 'Fresh admin-requested DAU/WAU/MAU snapshot from user.last_seen_at, omitted when stale and labelled by window=24h|7d|30d (dashboard must use max(), not sum())',
     }),
   }
 

@@ -505,17 +505,17 @@ catalogs:
       specifier: ^0.4.0
       version: 0.4.0
     '@vishot/cli':
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.2.0
+      version: 0.2.0
     '@vishot/mockup-desktop-vue':
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.2.0
+      version: 0.2.0
     '@vishot/renderer-browser':
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.2.0
+      version: 0.2.0
     '@vishot/source-electron':
-      specifier: ^0.1.1
-      version: 0.1.1
+      specifier: ^0.2.0
+      version: 0.2.0
     '@vitejs/plugin-vue':
       specifier: ^6.0.6
       version: 6.0.6
@@ -1258,7 +1258,7 @@ importers:
         version: 66.6.8
       '@vishot/cli':
         specifier: 'catalog:'
-        version: 0.1.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        version: 0.2.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@vitest/browser-playwright':
         specifier: catalog:vitest
         version: 4.1.4(bufferutil@4.1.0)(playwright@1.60.0)(utf-8-validate@5.0.10)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(vitest@4.1.4)
@@ -3804,10 +3804,10 @@ importers:
         version: 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@vishot/mockup-desktop-vue':
         specifier: 'catalog:'
-        version: 0.1.1(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+        version: 0.2.0(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
       '@vishot/renderer-browser':
         specifier: 'catalog:'
-        version: 0.1.1(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        version: 0.2.0(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@vueuse/core':
         specifier: 'catalog:'
         version: 14.2.1(vue@3.5.32(typescript@5.9.3))
@@ -3856,7 +3856,7 @@ importers:
         version: 0.1.0-beta.17
       '@vishot/source-electron':
         specifier: 'catalog:'
-        version: 0.1.1
+        version: 0.2.0
       playwright:
         specifier: 'catalog:'
         version: 1.60.0
@@ -11360,26 +11360,26 @@ packages:
   '@vibrant/worker@4.0.4':
     resolution: {integrity: sha512-Q/R6PYhSMWCXEk/IcXbWIzIu7Z4b58ABkGvcdF8Y+q/7g+KnpxKW5x/jfQ/6ciyYSby13wZZoEdNr3QQVgsdBQ==}
 
-  '@vishot/cli@0.1.1':
-    resolution: {integrity: sha512-hqGZxCOeGFaVT5N2IGpnBEqdVeMgWU9oOIXT4Vc/rE1KSvTy6cz1LQn3CXdczeSZr0f8lFf3nEKeazeaoNEgfg==}
+  '@vishot/cli@0.2.0':
+    resolution: {integrity: sha512-LB50TkuEy2KZ7lzg4LQSKvahNN7zWNsn/6g6w99uQBNqauMYJGpOsJJTX0BI2bHV/LI1eNh6+sz2/1Ar0Wfu6Q==}
     hasBin: true
 
-  '@vishot/core@0.1.1':
-    resolution: {integrity: sha512-g3KgoIiEG2bqLdavec2JUokTbZHnCK0ZRRRLkb67bjyD9BXGkaFt09cPaGu6b0uDeSzMFQ5sBbnl+lxhAO7lhQ==}
+  '@vishot/core@0.2.0':
+    resolution: {integrity: sha512-6jEFvQqX4kd9gY1dWoBg1NiyV7tgIZ3ycIWcaqy2TOj+siZjp/2HEeHPOnP0rlcKJWJ6pugL6qhep+OumYNzAw==}
 
-  '@vishot/mockup-desktop-vue@0.1.1':
-    resolution: {integrity: sha512-9utr16BEn01UqOk/738FAIKJ/XFe09QIzMHKF8OE2k8xiRDjmbmzfXFpmuZaKLAxXMKy2PdVdSixyR/Nhe2MgA==}
+  '@vishot/mockup-desktop-vue@0.2.0':
+    resolution: {integrity: sha512-Yc3yOVLoqLqlJA3Gi3U9JQ/hf28Cr2aiFJkazlq9EEGG0a7CLbKtU5F3HOz8f63fqaAnmF8H5oJH39ji0OTl7g==}
     peerDependencies:
       '@vueuse/core': ^14.2.1
       reka-ui: ^2.6.1
       vue: ^3.5.26
       vue-router: ^4.6.4
 
-  '@vishot/renderer-browser@0.1.1':
-    resolution: {integrity: sha512-zicjVCsQKQKIpH5pAXcoV5gzc0yN3Wfsh1KIpXax5f2O2GK+UNi/7g7e0EM5924tQWQFNsOHtnSZEjBkoXOmxA==}
+  '@vishot/renderer-browser@0.2.0':
+    resolution: {integrity: sha512-a9slbx+e5aHs+2B/LusYvQnmAQVn4RZPl+Iy8yTqUlNCjYQko2ok3xVImg5342DxyIRpIK89ShGzw3sdI89Tng==}
 
-  '@vishot/source-electron@0.1.1':
-    resolution: {integrity: sha512-aE94x7FnY+Jo5J+yOmgcqXyOYpVSTg8xUB4m5AuDAWp28AwmxxbkF5h4ZzWnyux2S0BBwfKH+UGKrvJHdhY0HQ==}
+  '@vishot/source-electron@0.2.0':
+    resolution: {integrity: sha512-AjpRFO9i3xGynkaaBKqgB8FEdGKd1nsZj7qU4jsfyi0ZS2BKU32eS0GINFJA4emxJ1/SmgF4vUWzKCxm4PGxNg==}
 
   '@vitejs/devtools-kit@0.1.13':
     resolution: {integrity: sha512-8TqyrrPTB8KNGb2ukVHNo4aMhGYJgUypVNMnqOvxaWYln3QAXK6CFxifK3lZGOHWKAUqWAiTmZUsYzV4S0Kn7g==}
@@ -25752,13 +25752,13 @@ snapshots:
     dependencies:
       '@vibrant/types': 4.0.4
 
-  '@vishot/cli@0.1.1(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/cli@0.2.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
       '@moeru/std': 0.1.0-beta.19
       '@napi-rs/image': 1.12.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
-      '@vishot/core': 0.1.1
-      '@vishot/renderer-browser': 0.1.1(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
-      '@vishot/source-electron': 0.1.1
+      '@vishot/core': 0.2.0
+      '@vishot/renderer-browser': 0.2.0(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+      '@vishot/source-electron': 0.2.0
       cac: 6.7.14
       playwright: 1.60.0
     transitivePeerDependencies:
@@ -25776,19 +25776,19 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/core@0.1.1': {}
+  '@vishot/core@0.2.0': {}
 
-  '@vishot/mockup-desktop-vue@0.1.1(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
+  '@vishot/mockup-desktop-vue@0.2.0(@vueuse/core@14.2.1(vue@3.5.32(typescript@5.9.3)))(reka-ui@2.10.1(vue@3.5.32(typescript@5.9.3)))(vue-router@5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))':
     dependencies:
-      '@vishot/core': 0.1.1
+      '@vishot/core': 0.2.0
       '@vueuse/core': 14.2.1(vue@3.5.32(typescript@5.9.3))
       reka-ui: 2.10.1(vue@3.5.32(typescript@5.9.3))
       vue: 3.5.32(typescript@5.9.3)
       vue-router: 5.0.4(@pinia/colada@1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3)))(@vue/compiler-sfc@3.5.32)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
 
-  '@vishot/renderer-browser@0.1.1(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/renderer-browser@0.2.0(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
-      '@vishot/core': 0.1.1
+      '@vishot/core': 0.2.0
       playwright: 1.60.0
       vite: 7.3.2(@types/node@24.12.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -25804,9 +25804,9 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/renderer-browser@0.1.1(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@vishot/renderer-browser@0.2.0(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
-      '@vishot/core': 0.1.1
+      '@vishot/core': 0.2.0
       playwright: 1.60.0
       vite: 7.3.2(@types/node@25.6.0)(jiti@2.6.1)(less@4.6.4)(lightningcss@1.32.0)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
     transitivePeerDependencies:
@@ -25822,11 +25822,12 @@ snapshots:
       - tsx
       - yaml
 
-  '@vishot/source-electron@0.1.1':
+  '@vishot/source-electron@0.2.0':
     dependencies:
       '@moeru/std': 0.1.0-beta.19
-      '@vishot/core': 0.1.1
+      '@vishot/core': 0.2.0
       playwright: 1.60.0
+      tsx: 4.21.0
 
   '@vitejs/devtools-kit@0.1.13(typescript@5.9.3)(vite@8.0.8(@types/node@24.12.2)(esbuild@0.27.2)(jiti@2.6.1)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))(ws@8.20.0(bufferutil@4.1.0)(utf-8-validate@5.0.10))':
     dependencies:
