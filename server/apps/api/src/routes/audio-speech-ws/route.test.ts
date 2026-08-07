@@ -312,6 +312,66 @@ describe('audio-speech-ws route', () => {
     }))
   })
 
+  it('uses the client BYOK credential without forwarding it as a frame or charging Flux', async () => {
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { event: 'session.finished', payload: { usage: { text_words: 21 } } } },
+    ])
+    // A zero balance would reject the official path. BYOK must not run that
+    // pre-flight or any final Flux accumulation.
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 0 })
+    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const events = handlers('user-byok', {
+      credentialMode: 'byok',
+      providerId: 'volcengine-streaming',
+      voiceType: 'custom_configured',
+    })
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'credentials', provider: 'volcengine', api_key: 'user-owned-x-api-key' }),
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'mock' }),
+      JSON.stringify({ event: 'text', text: 'BYOK streaming' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 200))
+
+    expect(upstream.observedAuth).toBe('Bearer user-owned-x-api-key')
+    expect(upstream.receivedFrames).toHaveLength(3)
+    expect(upstream.receivedFrames.map(frame => JSON.parse(frame.data as string).event)).toEqual(['start', 'text', 'finish'])
+    expect(deps.fluxService.getFlux).not.toHaveBeenCalled()
+    expect(deps.ttsMeter.assertCanAfford).not.toHaveBeenCalled()
+    expect(deps.ttsMeter.accumulate).not.toHaveBeenCalled()
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'speech_succeeded',
+      metadata: expect.objectContaining({
+        credential_mode: 'byok',
+        provider_id: 'volcengine-streaming',
+        flux_consumed: 0,
+      }),
+    }))
+  })
+
+  it('does not fall back to the operator key when a BYOK session omits credentials', async () => {
+    upstream = await startMockUpstream([])
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
+    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const events = handlers('user-byok', {
+      credentialMode: 'byok',
+      providerId: 'volcengine-streaming',
+    })
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'mock' }),
+    ])
+
+    expect(client.closeCode).toBe(1008)
+    expect(client.closeReason).toBe('invalid_credentials_frame')
+    expect(upstream.observedAuth).toBeUndefined()
+    expect(upstream.receivedFrames).toHaveLength(0)
+    expect(deps.envelopeCrypto.decryptKey).not.toHaveBeenCalled()
+  })
+
   it('refuses the session with insufficient_flux when the user is broke', async () => {
     upstream = await startMockUpstream([])
     const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 0 })

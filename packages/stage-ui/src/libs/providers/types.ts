@@ -15,6 +15,8 @@ import type { MaybePromise } from 'clustr'
 import type { ComposerTranslation } from 'vue-i18n'
 import type { $ZodType } from 'zod/v4/core'
 
+import type { StreamingTtsConnection } from '../speech/streaming-connection'
+
 export type ProviderInstance
   = | ChatProvider
     | ChatProviderWithExtraOptions
@@ -214,6 +216,10 @@ export interface ProviderDefinition<TConfig extends any = any> {
      */
     speech?: {
       transport: 'rest' | 'bidirectional-ws'
+      /** Resolves provider-owned credential policy for one streaming session. */
+      resolveConnection?: (config: TConfig) => StreamingTtsConnection
+      /** Returns the provider's discovered default streaming model. */
+      getDefaultModel?: () => string | null
     }
   }
   /**

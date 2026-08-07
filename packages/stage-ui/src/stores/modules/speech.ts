@@ -12,7 +12,8 @@ import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
-import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
+import { getDefinedProvider } from '../../libs/providers/providers'
+import { getDefaultSpeechModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
 import { useProvidersStore } from '../providers'
 
 export function toSignedPercent(value: number): string {
@@ -141,18 +142,15 @@ export const useSpeechStore = defineStore('speech', () => {
     activeSpeechVoice.value = undefined
   }
 
-  // Streaming TTS voices are model-scoped: the server only returns recommended
-  // voices for an explicit `?model=`. Ensure the active model is a valid
-  // streaming model id so voice loading gets the right recommendations (parity
-  // with the HTTP provider's auto-pick). Reseeds the server-curated default
-  // both when no model is selected AND when `activeSpeechModel` still holds a
-  // stale id from a previously-active provider (the global model ref is shared
-  // across providers, and the per-surface reset may not have run yet). No-op
-  // for non-streaming providers.
+  // Streaming TTS voices are model-scoped. Resolve the default through the
+  // active provider capability so official and BYOK transports share the same
+  // state transition without Stage knowing provider ids.
   function ensureStreamingDefaultModel() {
-    if (activeSpeechProvider.value !== OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    const providerId = activeSpeechProvider.value
+    const speechCapability = getDefinedProvider(providerId)?.capabilities?.speech
+    if (speechCapability?.transport !== 'bidirectional-ws')
       return
-    const streamingModels = providersStore.getModelsForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    const streamingModels = providersStore.getModelsForProvider(providerId)
     const hasValidSelection = !!activeSpeechModel.value && streamingModels.some(m => m.id === activeSpeechModel.value)
     if (hasValidSelection)
       return
@@ -160,7 +158,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // When no default can be resolved yet (catalog not loaded), clear it to ''
     // so callers pass `undefined` (server returns the full streaming catalog)
     // rather than forwarding a stale non-streaming model id as `?model=`.
-    const nextModel = getDefaultStreamingModel() ?? streamingModels[0]?.id ?? ''
+    const nextModel = speechCapability.getDefaultModel?.() ?? streamingModels[0]?.id ?? ''
     if (activeSpeechModel.value === nextModel)
       return
     activeSpeechModel.value = nextModel

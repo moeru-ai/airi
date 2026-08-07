@@ -44,7 +44,7 @@ const tracer = trace.getTracer('audio-speech-ws')
 export interface AudioSpeechSessionState {
   /** Stores the accepted client websocket. */
   attachClient: (ws: WSContext) => void
-  /** Reads config, checks balance, decrypts the upstream key, and dials upstream after the start frame is accepted. */
+  /** Resolves the selected credential policy and dials upstream after the start frame is accepted. */
   dialUpstream: () => Promise<void>
   /** Forwards a client frame or queues it while the upstream connection opens. */
   handleClientMessage: (message: { data: unknown }, ws: WSContext) => void
@@ -55,11 +55,15 @@ export interface AudioSpeechSessionState {
 export type StreamingTtsTrigger = 'auto' | 'manual'
 export type StreamingTtsSource = 'audio.speech.ws' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
 export type StreamingTtsVoiceType = 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+export type StreamingTtsCredentialMode = 'official' | 'byok'
+export type StreamingTtsProviderId = 'official-provider-speech-streaming' | 'volcengine-streaming' | 'unknown'
 
 export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
+  credentialMode?: StreamingTtsCredentialMode
+  providerId?: StreamingTtsProviderId
 }
 
 /**
@@ -71,7 +75,9 @@ export interface AudioSpeechSessionAnalytics {
  *   are handled at session end.
  *
  * Expects:
- * - `UNSPEECH_UPSTREAM.streaming` has a base URL and at least one encrypted key.
+ * - `UNSPEECH_UPSTREAM.streaming` has a base URL.
+ * - Official sessions have an operator key; BYOK sessions send one private
+ *   credentials frame before the UnSpeech start frame.
  *
  * Returns:
  * - A connection-scoped state object with no global peer registry.
@@ -94,7 +100,7 @@ export function createSessionState(
   let upstreamWs: WebSocket | null = null
   let upstreamReady = false
   let closed = false
-  let billed = false
+  let completed = false
   let startFrameAccepted = false
   let startValidationStarted = false
   let dialStarted = false
@@ -102,6 +108,8 @@ export function createSessionState(
   let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
   let voiceLabel: string | undefined
+  let byokKey: Buffer | null = null
+  let credentialFrameAccepted = analytics.credentialMode === 'official'
   /**
    * Frames the client sent before the upstream finished dialing. Buffered to
    * avoid silently dropping the `start` frame; flushed in arrival order once
@@ -127,7 +135,7 @@ export function createSessionState(
       model: modelLabel,
       metadata: {
         trigger: analytics.trigger,
-        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+        ...streamingSessionMetadata(voiceLabel, analytics),
       },
     })
 
@@ -142,51 +150,63 @@ export function createSessionState(
     }
 
     const upstreamConfig = unspeech?.streaming
-    if (!upstreamConfig || !upstreamConfig.baseURL || upstreamConfig.keys.length === 0) {
+    if (!upstreamConfig?.baseURL || (analytics.credentialMode === 'official' && upstreamConfig.keys.length === 0)) {
       closeWithError(1008, 'streaming_tts_not_configured')
       return
     }
 
-    // Pre-flight balance check: refuse before dialing if the user cannot
-    // afford the worst-case session.
-    try {
-      const flux = await opts.fluxService.getFlux(userId)
-      preflightFluxBalance = flux.flux
-      await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
-    }
-    catch (err) {
-      log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
-      // assertCanAfford throws PaymentRequiredError (402) — translate to ws
-      // policy-violation close. The client can read the close code/reason to
-      // surface a 'top up' prompt.
-      if (isPaymentRequiredError(err))
-        closeWithBlockedPreflight(1008, 'insufficient_flux')
-      else
-        closeWithError(1011, 'flux_preflight_failed')
-      return
+    if (analytics.credentialMode === 'official') {
+      // Official sessions consume AIRI-hosted credentials and Flux. BYOK
+      // sessions are explicitly excluded so a missing user key can never
+      // fall back to the operator account or charge the user twice.
+      try {
+        const flux = await opts.fluxService.getFlux(userId)
+        preflightFluxBalance = flux.flux
+        await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
+      }
+      catch (err) {
+        log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
+        // assertCanAfford throws PaymentRequiredError (402) — translate to ws
+        // policy-violation close. The client can read the close code/reason to
+        // surface a 'top up' prompt.
+        if (isPaymentRequiredError(err))
+          closeWithBlockedPreflight(1008, 'insufficient_flux')
+        else
+          closeWithError(1011, 'flux_preflight_failed')
+        return
+      }
     }
 
-    // Decrypt the first key. Streaming surface does not do per-attempt key
-    // rotation: a live ws cannot transparently switch upstream mid-session
-    // without breaking audio continuity. Fallback policy belongs at the
-    // session-retry layer (next client connect), not inline.
-    const entry = upstreamConfig.keys[0]
     let keyPlaintext: Buffer
-    try {
-      keyPlaintext = opts.envelopeCrypto.decryptKey(entry.ciphertext, {
-        modelName: STREAM_MODEL_LABEL_FALLBACK,
-        keyEntryId: entry.id,
-      })
+    if (analytics.credentialMode === 'byok') {
+      if (!byokKey) {
+        closeWithError(1008, 'byok_credentials_required')
+        return
+      }
+      keyPlaintext = byokKey
+      byokKey = null
     }
-    catch (err) {
-      log.withError(err).withFields({ keyEntryId: entry.id }).error('decrypt failed for streaming tts key')
-      closeWithError(1011, 'decrypt_failed')
-      return
+    else {
+      // Streaming sessions do not rotate keys mid-connection because that
+      // would break audio continuity. Retry policy belongs to the next client
+      // connection, never to an in-flight session.
+      const entry = upstreamConfig.keys[0]
+      try {
+        keyPlaintext = opts.envelopeCrypto.decryptKey(entry.ciphertext, {
+          modelName: STREAM_MODEL_LABEL_FALLBACK,
+          keyEntryId: entry.id,
+        })
+      }
+      catch (err) {
+        log.withError(err).withFields({ keyEntryId: entry.id }).error('decrypt failed for streaming tts key')
+        closeWithError(1011, 'decrypt_failed')
+        return
+      }
+      span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, entry.id)
     }
 
     const upstreamURL = upstreamConfig.baseURL
     span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL, upstreamURL)
-    span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, entry.id)
 
     let upstream: WebSocket
     try {
@@ -195,6 +215,11 @@ export function createSessionState(
           Authorization: `Bearer ${keyPlaintext.toString('utf8')}`,
         },
       })
+    }
+    catch (err) {
+      log.withError(err).withFields({ userId }).warn('failed to dial streaming tts upstream')
+      closeWithError(1011, 'upstream_dial_failed')
+      return
     }
     finally {
       // Wipe plaintext immediately — the ws lib has already serialized the
@@ -242,7 +267,7 @@ export function createSessionState(
         metadata: {
           duration_ms: Date.now() - startedAt,
           trigger: analytics.trigger,
-          ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+          ...streamingSessionMetadata(voiceLabel, analytics),
         },
       })
       try {
@@ -269,6 +294,26 @@ export function createSessionState(
         : message.data instanceof ArrayBuffer
           ? Buffer.from(message.data)
           : Buffer.from(message.data as ArrayBufferLike)
+
+    if (!credentialFrameAccepted) {
+      if (isBinary || typeof payload !== 'string') {
+        closeWithError(1008, 'invalid_credentials_frame')
+        return
+      }
+
+      const credentials = parseCredentialsFrame(payload)
+      if (!credentials) {
+        closeWithError(1008, 'invalid_credentials_frame')
+        return
+      }
+
+      // This AIRI-private frame is deliberately consumed here and never
+      // placed in pendingClientFrames, so the upstream UnSpeech protocol can
+      // never observe or log the plaintext credential as an application frame.
+      byokKey = Buffer.from(credentials.apiKey, 'utf8')
+      credentialFrameAccepted = true
+      return
+    }
 
     if (!startValidationStarted) {
       if (isBinary || typeof payload !== 'string') {
@@ -382,10 +427,7 @@ export function createSessionState(
         // the client-text-frame estimate accumulated in handleClientMessage.
         const usageChars = readUsageChars(evt.payload)
         const billUnits = usageChars ?? totalInputChars
-        if (billUnits > 0)
-          void billSession(billUnits, 'session.finished')
-        else
-          finalize()
+        void completeSession(billUnits, 'session.finished')
         break
       }
       case 'error': {
@@ -433,7 +475,7 @@ export function createSessionState(
     }
 
     const upstreamConfig = unspeech?.streaming
-    if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || upstreamConfig.keys.length === 0) {
+    if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || (analytics.credentialMode === 'official' && upstreamConfig.keys.length === 0)) {
       closeWithError(1008, 'streaming_tts_not_configured')
       return false
     }
@@ -470,42 +512,44 @@ export function createSessionState(
     return true
   }
 
-  async function billSession(units: number, reason: string) {
-    if (billed)
+  async function completeSession(units: number, reason: string) {
+    if (completed)
       return
-    billed = true
+    completed = true
     span.setAttribute(GEN_AI_ATTR_REQUEST_MODEL, modelLabel)
 
-    let flux: Awaited<ReturnType<FluxService['getFlux']>>
-    try {
-      flux = await opts.fluxService.getFlux(userId)
-    }
-    catch (err) {
-      log.withError(err).withFields({ userId }).warn('flux read failed at session end')
-      finalize()
-      return
-    }
-
     let fluxConsumed = 0
-    try {
-      const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
-        opts.ttsMeter.accumulate({
-          userId,
-          units,
-          currentBalance: flux.flux,
-          requestId,
-          metadata: { model: modelLabel },
-        }))
-      fluxConsumed = result.fluxDebited
-      span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
-    }
-    catch (err) {
-      // Billing failure is surfaced but does not retroactively reject the
-      // already-delivered audio — the user got the audio, the meter retains
-      // the debt for the next request to settle (per FluxMeter rollback path).
-      log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
-      span.recordException(err as Error)
-      span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
+    if (analytics.credentialMode === 'official' && units > 0) {
+      let flux: Awaited<ReturnType<FluxService['getFlux']>>
+      try {
+        flux = await opts.fluxService.getFlux(userId)
+      }
+      catch (err) {
+        log.withError(err).withFields({ userId }).warn('flux read failed at session end')
+        finalize()
+        return
+      }
+
+      try {
+        const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
+          opts.ttsMeter.accumulate({
+            userId,
+            units,
+            currentBalance: flux.flux,
+            requestId,
+            metadata: { model: modelLabel },
+          }))
+        fluxConsumed = result.fluxDebited
+        span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
+      }
+      catch (err) {
+        // Billing failure is surfaced but does not retroactively reject the
+        // already-delivered audio — the user got the audio, the meter retains
+        // the debt for the next request to settle (per FluxMeter rollback path).
+        log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
+        span.recordException(err as Error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
+      }
     }
 
     const durationMs = Date.now() - startedAt
@@ -534,7 +578,7 @@ export function createSessionState(
         duration_ms: durationMs,
         flux_consumed: fluxConsumed,
         trigger: analytics.trigger,
-        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+        ...streamingSessionMetadata(voiceLabel, analytics),
       },
     })
 
@@ -545,6 +589,7 @@ export function createSessionState(
     if (closed)
       return
     closed = true
+    wipeByokKey()
     try {
       upstreamWs?.close()
     }
@@ -572,7 +617,7 @@ export function createSessionState(
         close_code: code,
         duration_ms: Date.now() - startedAt,
         trigger: analytics.trigger,
-        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+        ...streamingSessionMetadata(voiceLabel, analytics),
       },
     })
     if (clientWs) {
@@ -586,6 +631,7 @@ export function createSessionState(
       catch {}
     }
     closed = true
+    wipeByokKey()
     span.end()
   }
 
@@ -608,7 +654,7 @@ export function createSessionState(
         close_code: code,
         duration_ms: Date.now() - startedAt,
         trigger: analytics.trigger,
-        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
+        ...streamingSessionMetadata(voiceLabel, analytics),
       },
     })
     if (clientWs) {
@@ -622,7 +668,13 @@ export function createSessionState(
       catch {}
     }
     closed = true
+    wipeByokKey()
     span.end()
+  }
+
+  function wipeByokKey() {
+    byokKey?.fill(0)
+    byokKey = null
   }
 
   return {
@@ -638,6 +690,8 @@ function normalizeAnalytics(input: AudioSpeechSessionAnalytics): Required<AudioS
     trigger: normalizeTrigger(input.trigger),
     source: normalizeSource(input.source),
     voiceType: normalizeVoiceType(input.voiceType),
+    credentialMode: input.credentialMode === 'byok' ? 'byok' : 'official',
+    providerId: normalizeProviderId(input.providerId),
   }
 }
 
@@ -682,6 +736,27 @@ function streamingVoiceMetadata(voiceId: string | undefined, voiceType: Streamin
   }
 }
 
+function streamingSessionMetadata(
+  voiceId: string | undefined,
+  analytics: Required<AudioSpeechSessionAnalytics>,
+): Record<string, unknown> {
+  return {
+    ...streamingVoiceMetadata(voiceId, analytics.voiceType),
+    credential_mode: analytics.credentialMode,
+    provider_id: analytics.providerId,
+  }
+}
+
+function normalizeProviderId(providerId: AudioSpeechSessionAnalytics['providerId']): StreamingTtsProviderId {
+  switch (providerId) {
+    case 'official-provider-speech-streaming':
+    case 'volcengine-streaming':
+      return providerId
+    default:
+      return 'unknown'
+  }
+}
+
 function isPaymentRequiredError(err: unknown): boolean {
   if (err instanceof ApiError)
     return err.statusCode === 402
@@ -695,6 +770,29 @@ interface StreamingTtsStartFrame {
   event: 'start'
   model: string
   voice: string
+}
+
+interface StreamingTtsCredentialsFrame {
+  event: 'credentials'
+  provider: 'volcengine'
+  apiKey: string
+}
+
+function parseCredentialsFrame(rawText: string): StreamingTtsCredentialsFrame | null {
+  try {
+    const parsed = JSON.parse(rawText) as Record<string, unknown>
+    if (parsed.event !== 'credentials' || parsed.provider !== 'volcengine')
+      return null
+    if (typeof parsed.api_key !== 'string')
+      return null
+    const apiKey = parsed.api_key.trim()
+    if (apiKey.length === 0 || apiKey.length > 4096)
+      return null
+    return { event: 'credentials', provider: 'volcengine', apiKey }
+  }
+  catch {
+    return null
+  }
 }
 
 function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {

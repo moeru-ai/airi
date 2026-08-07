@@ -1,3 +1,5 @@
+import type { StreamingTtsConnection } from './streaming-connection'
+
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
 
@@ -36,6 +38,8 @@ export interface StreamingTtsSessionResult {
 }
 
 export interface StreamingTtsSessionOptions {
+  /** Provider-owned credential and billing policy for this session. */
+  connection: StreamingTtsConnection
   /** Server URL override. Defaults to {@link SERVER_URL}. */
   serverUrl?: string
   /** Override the auth token (Bearer). Defaults to {@link getAuthToken}. */
@@ -95,6 +99,7 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
     ttsTrigger: options.ttsTrigger ?? 'manual',
     ttsSource: options.ttsSource ?? 'manual_preview',
     ttsVoiceType: options.ttsVoiceType ?? 'unknown',
+    connection: options.connection,
   })
 
   const audioChunks: ArrayBuffer[] = []
@@ -143,6 +148,13 @@ export async function streamingSynthesize(options: StreamingTtsSessionOptions): 
     }
 
     ws.addEventListener('open', () => {
+      if (options.connection.credentialMode === 'byok') {
+        ws.send(JSON.stringify({
+          event: 'credentials',
+          provider: 'volcengine',
+          api_key: options.connection.apiKey,
+        }))
+      }
       const startFrame = {
         event: 'start',
         model: options.model,
@@ -243,6 +255,7 @@ function toWebSocketUrl(
     ttsTrigger: 'auto' | 'manual'
     ttsSource: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
     ttsVoiceType: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack' | 'unknown'
+    connection: StreamingTtsConnection
   },
 ): string {
   const u = new URL(path, httpBase)
@@ -251,6 +264,8 @@ function toWebSocketUrl(
   u.searchParams.set('tts_trigger', analytics.ttsTrigger)
   u.searchParams.set('tts_source', analytics.ttsSource)
   u.searchParams.set('tts_voice_type', analytics.ttsVoiceType)
+  u.searchParams.set('tts_credential_mode', analytics.connection.credentialMode)
+  u.searchParams.set('tts_provider_id', analytics.connection.providerId)
   return u.toString()
 }
 

@@ -11,6 +11,7 @@ import './azure-openai'
 import './openai-compatible'
 import './atlascloud'
 import './volcengine-coding-plan'
+import './volcengine-streaming'
 import './byteplus'
 import './byteplus-coding-plan'
 import './browser-web-speech-api'
@@ -60,3 +61,5 @@ export {
   getDefinedProvider,
   listProviders,
 } from './registry'
+
+export { getVolcengineStreamingDefaultModel, VOLCENGINE_STREAMING_PROVIDER_ID } from './volcengine-streaming'

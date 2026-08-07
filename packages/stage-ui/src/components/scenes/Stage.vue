@@ -38,7 +38,7 @@ import { useIOTraceBridge } from '../../composables/use-io-trace-bridge'
 import { initIOTracer } from '../../composables/use-io-tracer'
 import { useSpeechPipelineAnalytics } from '../../composables/use-speech-pipeline-analytics'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { getDefaultStreamingModel, getDefinedProvider } from '../../libs/providers/providers'
+import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
@@ -715,15 +715,29 @@ function stopSpeechOutput(reason: string) {
   resetAssistantSpeechSurface(reason)
 }
 
-/**
- * Resolves the official streaming TTS model for the current Stage session.
- */
 function resolveStreamingSessionModel(): string | null {
   const activeModel = activeSpeechModel.value as string | undefined
-  const sessionModel = activeModel?.includes('/') ? activeModel : getDefaultStreamingModel()
+  const definition = activeSpeechProvider.value ? getDefinedProvider(activeSpeechProvider.value) : undefined
+  const sessionModel = activeModel?.includes('/')
+    ? activeModel
+    : definition?.capabilities?.speech?.getDefaultModel?.()
   if (!sessionModel?.includes('/'))
     return null
   return sessionModel
+}
+
+function resolveStreamingConnection() {
+  const providerId = activeSpeechProvider.value
+  if (!providerId)
+    return null
+  const definition = getDefinedProvider(providerId)
+  const resolver = definition?.capabilities?.speech?.resolveConnection
+  if (!resolver)
+    return null
+  const connection = resolver(providersStore.getProviderConfig(providerId) ?? {})
+  if (connection.credentialMode === 'byok' && !connection.apiKey?.trim())
+    return null
+  return connection
 }
 
 function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
@@ -748,12 +762,16 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   const sessionModel = resolveStreamingSessionModel()
   if (!sessionModel)
     return null
+  const connection = resolveStreamingConnection()
+  if (!connection)
+    return null
   const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
   const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
   return {
+    connection,
     model: sessionModel,
     voice: voiceId,
     voiceType: resolveStageVoiceType(),

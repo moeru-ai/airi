@@ -8,6 +8,11 @@ import { WebSocketServer } from 'ws'
 
 import { createStreamingTtsPipeline } from './streaming-pipeline'
 
+const officialConnection = {
+  credentialMode: 'official',
+  providerId: 'official-provider-speech-streaming',
+} as const
+
 vi.mock('../auth', () => ({
   getAuthToken: () => 'test-jwt',
 }))
@@ -19,6 +24,7 @@ interface MockServer {
   url: string
   receivedFrames: Array<{ kind: 'text' | 'binary', data: string | Buffer }>
   observedVoiceTypes: string[]
+  observedCredentialModes: string[]
   /** Resolves when the server has observed a `start` frame from the client. */
   startObserved: Promise<void>
   stop: () => Promise<void>
@@ -27,6 +33,7 @@ interface MockServer {
 async function startMockServer(handler: (ws: import('ws').WebSocket) => void): Promise<MockServer> {
   const receivedFrames: MockServer['receivedFrames'] = []
   const observedVoiceTypes: string[] = []
+  const observedCredentialModes: string[] = []
   const httpServer = createServer()
   const wss = new WebSocketServer({ server: httpServer })
 
@@ -40,6 +47,9 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     const voiceType = u.searchParams.get('tts_voice_type')
     if (voiceType != null)
       observedVoiceTypes.push(voiceType)
+    const credentialMode = u.searchParams.get('tts_credential_mode')
+    if (credentialMode != null)
+      observedCredentialModes.push(credentialMode)
 
     ws.on('message', (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
@@ -64,6 +74,7 @@ async function startMockServer(handler: (ws: import('ws').WebSocket) => void): P
     url: `http://127.0.0.1:${port}`,
     receivedFrames,
     observedVoiceTypes,
+    observedCredentialModes,
     startObserved,
     async stop() {
       wss.close()
@@ -132,6 +143,7 @@ describe('createStreamingTtsPipeline', () => {
     const onDone = vi.fn()
 
     const handle = createStreamingTtsPipeline({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
@@ -169,6 +181,44 @@ describe('createStreamingTtsPipeline', () => {
     expect(calls[1].audio.__byteLength).toBe(chunks[2].length)
   })
 
+  it('opens chat streaming with the BYOK credentials frame before start', async () => {
+    server = await startMockServer((ws) => {
+      ws.on('message', (data, isBinary) => {
+        if (isBinary)
+          return
+        const frame = JSON.parse(data.toString()) as { event?: string }
+        if (frame.event === 'finish')
+          ws.send(JSON.stringify({ event: 'session.finished', payload: { usage: { text_words: 5 } } }))
+      })
+    })
+
+    const onDone = vi.fn()
+    const handle = createStreamingTtsPipeline({
+      connection: {
+        credentialMode: 'byok',
+        providerId: 'volcengine-streaming',
+        apiKey: 'chat-byok-key',
+      },
+      serverUrl: server.url,
+      model: 'volcengine/seed-tts-2.0',
+      voice: 'mock',
+      audioContext: makeStubAudioContext(),
+      onDone,
+    })
+    handle.appendText('hello')
+    handle.finish()
+
+    await new Promise<void>((resolve) => {
+      onDone.mockImplementation(() => resolve())
+      setTimeout(resolve, 1500)
+    })
+
+    const frames = server.receivedFrames.map(frame => JSON.parse(frame.data as string) as Record<string, unknown>)
+    expect(frames.map(frame => frame.event)).toEqual(['credentials', 'start', 'text', 'finish'])
+    expect(frames[0]?.api_key).toBe('chat-byok-key')
+    expect(server.observedCredentialModes).toEqual(['byok'])
+  })
+
   it('buffers entire session when bufferEntireSession is true', async () => {
     const chunks = [Buffer.from([1, 2, 3, 4]), Buffer.from([5, 6, 7, 8])]
     server = await startMockServer((ws) => {
@@ -190,6 +240,7 @@ describe('createStreamingTtsPipeline', () => {
 
     const onSentence = vi.fn()
     const handle = createStreamingTtsPipeline({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-2.0',
       voice: 'mock',
@@ -223,6 +274,7 @@ describe('createStreamingTtsPipeline', () => {
     const onError = vi.fn()
     const onDone = vi.fn()
     createStreamingTtsPipeline({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
@@ -256,6 +308,7 @@ describe('createStreamingTtsPipeline', () => {
     const onError = vi.fn()
     const onDone = vi.fn()
     createStreamingTtsPipeline({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
@@ -287,6 +340,7 @@ describe('createStreamingTtsPipeline', () => {
 
     const onDone = vi.fn()
     const handle = createStreamingTtsPipeline({
+      connection: officialConnection,
       serverUrl: server.url,
       model: 'volcengine/seed-tts-1.0',
       voice: 'mock',
