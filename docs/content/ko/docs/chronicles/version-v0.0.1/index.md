@@ -9,7 +9,7 @@ title: 연대기 v0.0.1
   - [x] 모델 다운로드
     - [x] Momose Hiyori (Neuro 초기 버전 모델) Pro 버전 (중소기업 상업 이용 무료)
 
-![]( /assets/version-v0.0.1/screenshot-1.avif)
+![](./assets/screenshot-1.avif)
 
 - [x] Vercel AI SDK 를 통한 GPT-4o 연동 (2024년 6월 7일)
   - [x] `@ai-sdk/openai`
@@ -63,7 +63,7 @@ title: 연대기 v0.0.1
 - ✅ Live2D 립싱크 (itorr 의 GitHub 설명 덕분)
 - ✅ 기본 프롬프트
 
-![](/assets/version-v0.0.1/screenshot-2.avif)
+![](./assets/screenshot-2.avif)
 
 ## 멀티모달
 
@@ -470,7 +470,7 @@ And the last, do what ever you want!
 
 #### 표정 프롬프트
 
-![](/assets/version-v0.0.1/screenshot-3.avif)
+![](./assets/screenshot-3.avif)
 
 #### 연속 추론 프롬프트
 

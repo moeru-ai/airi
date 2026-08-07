@@ -29,7 +29,7 @@ description: 为 Project AIRI 配置聊天、视觉、语音合成和语音识�
 服务商配置完成后，你还可以在设置中更改 AIRI 的主题颜色，或切换 Live2D（2D）与 VRM（3D）模型。
 
 <video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
+ <source src="./assets/tutorial-basic-open-settings.mp4" type="video/mp4">
 </video>
 
 配置服务商时，优先使用服务商文档提供的默认地址和模型名称。不要猜测 Base URL、模型 ID 或区域参数；它们因服务商而异。
@@ -56,5 +56,5 @@ description: 为 Project AIRI 配置聊天、视觉、语音合成和语音识�
 <br />
 
 <video autoplay loop muted>
- <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4">
+ <source src="./assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>

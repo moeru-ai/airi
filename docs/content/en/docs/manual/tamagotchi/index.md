@@ -31,7 +31,7 @@ You need to set the system environment variable `OLLAMA_ORIGINS=*`, then restart
 <br />
 
 <video controls autoplay loop muted>
- <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4" />
+ <source src="./assets/tutorial-basic-setup-providers.mp4" type="video/mp4" />
 </video>
 
 
@@ -83,7 +83,7 @@ When you enable hide-on-hover for the first time, AIRI shows a short explanation
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
-    <source src="/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4" />
+    <source src="./assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4" />
   </video>
 </div>
 
@@ -95,7 +95,7 @@ To move the main character window, drag the move button at the bottom right of t
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
-    <source src="/assets/tutorial-basic-move.mp4" type="video/mp4" />
+    <source src="./assets/tutorial-basic-move.mp4" type="video/mp4" />
   </video>
 </div>
 
@@ -112,7 +112,7 @@ The **Align to** option in the same tray menu can place the window at the center
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
-    <source src="/assets/tutorial-basic-resize.mp4" type="video/mp4" />
+    <source src="./assets/tutorial-basic-resize.mp4" type="video/mp4" />
   </video>
 </div>
 

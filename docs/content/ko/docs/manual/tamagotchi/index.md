@@ -22,7 +22,7 @@ AIRI 를 설치하고 실행한 뒤, 가장 빠르게 대화를 시작하는 방
 <br />
 
 <video controls autoplay loop muted>
- <source src="/assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
+ <source src="./assets/tutorial-basic-setup-providers.mp4" type="video/mp4">
 </video>
 
 ## 화면 구성
@@ -63,7 +63,7 @@ Stage Tamagotchi 라고도 부르는 데스크톱 버전은 보통 다음과 같
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-180 translate-x--30 translate-y--2 lg:scale-150 lg:translate-x--40">
-    <source src="/assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
+    <source src="./assets/tutorial-basic-fade-on-hover.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -73,7 +73,7 @@ Stage Tamagotchi 라고도 부르는 데스크톱 버전은 보통 다음과 같
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-225 translate-x--45 translate-y--5 lg:scale-200 lg:translate-x--80 lg:translate-y--5">
-    <source src="/assets/tutorial-basic-move.mp4" type="video/mp4">
+    <source src="./assets/tutorial-basic-move.mp4" type="video/mp4">
   </video>
 </div>
 
@@ -87,7 +87,7 @@ Windows 에서는 창의 가장자리나 모서리를 드래그해 캐릭터 창
 
 <div rounded-lg overflow-hidden>
   <video autoplay loop muted class="scale-160 translate-x--20 lg:scale-150 lg:translate-x--40 lg:translate-y-10">
-    <source src="/assets/tutorial-basic-resize.mp4" type="video/mp4">
+    <source src="./assets/tutorial-basic-resize.mp4" type="video/mp4">
   </video>
 </div>
 

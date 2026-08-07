@@ -10,7 +10,7 @@ AIRI 의 테마 색상을 바꾸거나, Live2D(2D) 또는 VRM(3D, Grok Companion
 같은 다른 모델로 전환할 수 있습니다.
 
 <video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4">
+ <source src="./assets/tutorial-basic-open-settings.mp4" type="video/mp4">
 </video>
 
 설정에는 정말 많은 항목이 있으니, 이것저것 시도해 보면서 마음에 드는 조합을 찾아보세요.
@@ -41,5 +41,5 @@ Live2D 모델을 렌더링하는 데 사용하는 라이브러리는 VTuber Stud
 <br />
 
 <video autoplay loop muted>
- <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4">
+ <source src="./assets/tutorial-settings-change-model.mp4" type="video/mp4">
 </video>

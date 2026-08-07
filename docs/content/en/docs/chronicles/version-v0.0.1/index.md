@@ -11,7 +11,7 @@ title: Chronicles v0.0.1
     - [x] Momose Hiyori (the model of the first version of Neuro) Pro version (free for commercial use by small and medium businesses)
 
 
-![](/assets/version-v0.0.1/screenshot-1.avif)
+![](./assets/screenshot-1.avif)
 
 
 - [x] GPT-4o integration via the Vercel AI SDK (June 7, 2024)
@@ -71,7 +71,7 @@ Now it can:
 - ✅ Base prompt
 
 
-![](/assets/version-v0.0.1/screenshot-2.avif)
+![](./assets/screenshot-2.avif)
 
 
 ## Multimodal
@@ -541,7 +541,7 @@ And the last, do what ever you want!
 #### Expression Prompt
 
 
-![](/assets/version-v0.0.1/screenshot-3.avif)
+![](./assets/screenshot-3.avif)
 
 
 #### Continuous Inference Prompt

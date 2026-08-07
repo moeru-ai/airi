@@ -38,7 +38,7 @@ After configuring providers, you can also change AIRI's theme color in Settings,
 
 
 <video autoplay loop muted>
- <source src="/assets/tutorial-basic-open-settings.mp4" type="video/mp4" />
+ <source src="./assets/tutorial-basic-open-settings.mp4" type="video/mp4" />
 </video>
 
 
@@ -87,6 +87,6 @@ After loading a model, you need to restart AIRI for the change to take effect.
 <br />
 
 <video autoplay loop muted>
- <source src="/assets/tutorial-settings-change-model.mp4" type="video/mp4" />
+ <source src="./assets/tutorial-settings-change-model.mp4" type="video/mp4" />
 </video>
 
