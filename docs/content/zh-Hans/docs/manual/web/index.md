@@ -12,7 +12,7 @@ description: 如何使用网页版的 Project AIRI
 这里选择你的大模型提供商，你可以选择 OpenAI 、DeepSeek、Ollama 等，也可以使用其他所有兼容 OpenAI 格式的 API 站点。
 填入你的 API 密钥，如果选择 OpenAI 兼容 API ，还需要配置 Base URL ，即大模型提供商的 API 端点。此处以硅基流动举例。
 
-![](/assets/screenshot-api-example.avif)
+![](./assets/screenshot-api-example.avif)
 
 ### 选择模型
 
@@ -27,7 +27,7 @@ description: 如何使用网页版的 Project AIRI
 ### 开始你的第一条对话
 
 在对话框中输入文字就可以和 AIRI 对话了~
-![](/assets/screenshot-chat.avif)
+![](./assets/screenshot-chat.avif)
 
 ## 眼睛，耳朵和嘴巴
 

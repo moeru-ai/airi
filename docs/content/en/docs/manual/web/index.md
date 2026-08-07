@@ -19,7 +19,7 @@ Here you select your LLM provider. You can choose OpenAI, DeepSeek, Ollama, and 
 Fill in your API key. If you choose an OpenAI-compatible API, you also need to configure the Base URL, i.e. the API endpoint of your LLM provider. SiliconFlow is used as an example here.
 
 
-![](/assets/screenshot-api-example.avif)
+![](./assets/screenshot-api-example.avif)
 
 
 ### Choose a Model
@@ -43,7 +43,7 @@ If the model you use supports reasoning, generating a reply may take a long time
 Type a message in the input box to start chatting with AIRI~
 
 
-![](/assets/screenshot-chat.avif)
+![](./assets/screenshot-chat.avif)
 
 
 ## Eyes, Ears, and Mouth
