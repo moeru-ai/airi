@@ -15,6 +15,11 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, b
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
   normalizeModelId?: (modelId: string) => string
+  /**
+   * The model that represents provider health for the Chat Completions check.
+   * Catalog order remains a display concern and cannot change this policy.
+   */
+  validationModel?: string
   schedule?: {
     mode: 'once' | 'interval'
     intervalMs?: number
@@ -88,7 +93,12 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   config: TConfig,
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
+  validationModel?: string,
 ): Promise<string | null> {
+  const explicitModel = validationModel?.trim()
+  if (explicitModel)
+    return explicitModel
+
   try {
     const models = await resolveModels(config, provider, providerExtra)
     const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
@@ -111,6 +121,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     chatOk: boolean
     errorMessage?: string
     error?: unknown
+    model?: string
   }
 
   async function runChatCheck(
@@ -118,7 +129,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     provider: ProviderInstance,
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
   ): Promise<ChatCheckResult> {
-    const model = await pickValidationModel(config, provider, providerExtra)
+    const model = await pickValidationModel(config, provider, providerExtra, options?.validationModel)
     const normalizedModel = model ? options?.normalizeModelId?.(model) ?? model : model
 
     if (!normalizedModel) {
@@ -134,25 +145,41 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     }
 
     try {
+      if (!('chat' in provider)) {
+        return {
+          connectivityOk: true,
+          chatOk: false,
+          errorMessage: 'Provider does not support chat completions.',
+          model: normalizedModel,
+        }
+      }
+
+      const chatConfig = provider.chat(normalizedModel)
+      const headers = new Headers(chatConfig.headers)
+      for (const [name, value] of Object.entries(additionalHeaders ?? {}))
+        headers.set(name, value)
+      const requestHeaders: Record<string, string> = {}
+      headers.forEach((value, name) => {
+        requestHeaders[name] = value
+      })
+
       await generateText({
-        apiKey: config.apiKey,
-        baseURL: config.baseUrl!,
-        headers: additionalHeaders,
-        model: normalizedModel,
+        ...chatConfig,
+        headers: requestHeaders,
         messages: message.messages(message.user('ping')),
         max_tokens: 1,
       })
 
-      return { connectivityOk: true, chatOk: true }
+      return { connectivityOk: true, chatOk: true, model: normalizedModel }
     }
     catch (e) {
       if (isNetworkError(e)) {
-        return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
+        return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e), model: normalizedModel }
       }
 
       const status = extractStatusCode(e)
       const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
-      return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
+      return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e), model: normalizedModel }
     }
   }
 
@@ -289,7 +316,12 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
   if (checks.includes(ProviderValidationCheck.ChatCompletions)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
-      name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
+      name: [
+        t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
+        options?.validationModel
+          ? `(${options.normalizeModelId?.(options.validationModel) ?? options.validationModel})`
+          : '',
+      ].filter(Boolean).join(' '),
       schedule: options?.schedule,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
@@ -300,7 +332,8 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
         if (!result.chatOk) {
-          errors.push({ error: new Error(`Chat completions check failed: ${result.errorMessage || 'Unknown error.'}`) })
+          const modelDescription = result.model ? ` for model "${result.model}"` : ''
+          errors.push({ error: new Error(`Chat completions check failed${modelDescription}: ${result.errorMessage || 'Unknown error.'}`) })
         }
 
         return {

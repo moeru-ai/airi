@@ -68,6 +68,7 @@ import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createV1Routes } from './routes/openai/v1'
+import { createProviderProxyRoutes } from './routes/provider-proxy'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
@@ -263,6 +264,14 @@ export async function buildApp(deps: AppDeps) {
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
   })
+
+  // This route runs before AIRI session resolution because its Authorization
+  // header belongs to OpenCode Go, not to an AIRI account.
+  app.route('/api/v1/provider-proxy', createProviderProxyRoutes({
+    fetch: globalThis.fetch,
+    rateLimitMetrics: deps.otel?.rateLimit,
+    trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
+  }))
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.auth, deps.env))

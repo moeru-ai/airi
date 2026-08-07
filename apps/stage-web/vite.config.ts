@@ -89,6 +89,18 @@ export default defineConfig({
         `${resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src'))}/*.vue`,
       ],
     },
+    proxy: {
+      // NOTICE:
+      // OpenCode Go answers preflight requests but omits CORS headers from actual API responses.
+      // Browsers reject those responses before AIRI can read them.
+      // Source: https://opencode.ai/docs/go/
+      // Remove this proxy when OpenCode Go adds CORS headers to every API response.
+      '/api/v1/provider-proxy/opencode-go': {
+        target: 'https://opencode.ai',
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api\/v1\/provider-proxy\/opencode-go/, '/zen/go/v1'),
+      },
+    },
   },
   build: {
     manifest: true,

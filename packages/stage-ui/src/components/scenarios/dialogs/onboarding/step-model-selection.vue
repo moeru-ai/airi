@@ -3,6 +3,7 @@ import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './typ
 
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../../misc/alert.vue'
@@ -11,6 +12,8 @@ import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
 
 const props = defineProps<{
+  selectedModelId: string
+  onSelectModel: (modelId: string) => void
   onNext: OnboardingStepNextHandler
   onPrevious: OnboardingStepPrevHandler
 }>()
@@ -18,12 +21,16 @@ const { t } = useI18n()
 
 const consciousnessStore = useConsciousnessStore()
 const {
-  activeModel,
   modelSearchQuery,
   providerModels,
   isLoadingActiveProviderModels,
   activeProviderModelError,
 } = storeToRefs(consciousnessStore)
+
+const selectedModelId = computed({
+  get: () => props.selectedModelId,
+  set: modelId => props.onSelectModel(modelId),
+})
 </script>
 
 <template>
@@ -59,11 +66,11 @@ const {
       </Alert>
 
       <RadioCardManySelect
-        v-model="activeModel"
+        v-model="selectedModelId"
         v-model:search-query="modelSearchQuery"
         class="min-h-0 flex flex-1 flex-col"
         fill-available-height
-        :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+        :items="providerModels.toSorted((a, b) => a.id === selectedModelId ? -1 : b.id === selectedModelId ? 1 : 0)"
         :searchable="true"
         :allow-custom="true"
         :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -92,7 +99,7 @@ const {
       <Button
 
         class="w-full"
-        :disabled="!activeModel"
+        :disabled="!selectedModelId"
         :loading="isLoadingActiveProviderModels"
         :label="t('settings.dialogs.onboarding.saveAndContinue')"
         @click="props.onNext"
