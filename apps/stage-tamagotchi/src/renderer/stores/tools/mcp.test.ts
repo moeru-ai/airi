@@ -33,7 +33,7 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 }))
 
 describe('useTamagotchiMcpToolsStore', async () => {
-  const { useTamagotchiMcpToolsStore } = await import('./mcp-tools')
+  const { useTamagotchiMcpToolsStore } = await import('./mcp')
 
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -41,11 +41,6 @@ describe('useTamagotchiMcpToolsStore', async () => {
     invokeMocks.callMcpTool.mockClear()
   })
 
-  /**
-   * @example
-   * await store.refresh()
-   * expect(llmToolsStore.toolsByProvider.mcp).toHaveLength(2)
-   */
   it('loads MCP tools, proxies execution, and clears them from the shared llm-tools store', async () => {
     const llmToolsStore = useLlmToolsStore()
     const store = useTamagotchiMcpToolsStore()
@@ -53,14 +48,21 @@ describe('useTamagotchiMcpToolsStore', async () => {
 
     await store.refresh()
 
-    const mcpTools = llmToolsStore.toolsByProvider.mcp
-    const listTools = mcpTools?.find(tool => tool.function.name === 'builtIn_mcpListTools')
-    const callTool = mcpTools?.find(tool => tool.function.name === 'builtIn_mcpCallTool')
+    const mcpDefinitions = llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))
+    const listTools = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpListTools')
+    const callTool = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpCallTool')
 
-    expect(mcpTools).toEqual([
-      expect.objectContaining({ function: expect.objectContaining({ name: 'builtIn_mcpListTools' }) }),
-      expect.objectContaining({ function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }) }),
+    expect(mcpDefinitions).toEqual([
+      expect.objectContaining({
+        id: 'mcp:builtIn_mcpListTools',
+        function: expect.objectContaining({ name: 'builtIn_mcpListTools' }),
+      }),
+      expect.objectContaining({
+        id: 'mcp:builtIn_mcpCallTool',
+        function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }),
+      }),
     ])
+    expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
 
     const listResult = await listTools?.execute({}, toolOptions)
     const callResult = await callTool?.execute({
@@ -90,6 +92,6 @@ describe('useTamagotchiMcpToolsStore', async () => {
 
     store.dispose()
 
-    expect(llmToolsStore.toolsByProvider.mcp).toBeUndefined()
+    expect(llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))).toEqual([])
   })
 })

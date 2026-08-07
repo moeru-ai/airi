@@ -1,81 +1,115 @@
 import type { Tool } from '@xsai/shared-chat'
+import type {} from 'pinia-plugin-synced'
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-type ToolRegistration = Promise<Tool[]> | Tool[]
+/** A serializable tool definition shared between application contexts. */
+export interface ToolDefinition extends Omit<Tool, 'execute'> {
+  /** A stable application id. This id does not need to match the model-facing name. */
+  id: string
+  /** Includes this tool when a request does not select it explicitly. */
+  defaultActive?: boolean
+}
+
+/** A tool definition with the executor that is available in the current runtime. */
+export interface ExecutableTool extends Tool {
+  /** A stable application id. This id does not need to match the model-facing name. */
+  id: string
+  /** Includes this tool when a request does not select it explicitly. */
+  defaultActive?: boolean
+}
+
+function unavailableToolResult(name: string) {
+  return `Tool "${name}" is not available now.`
+}
 
 /**
- * Stores runtime-registered xsai tools keyed by provider.
+ * Stores serializable tool definitions and leader-local executors.
  *
- * Use when:
- * - App runtimes need to publish additional LLM tools into shared stage-ui logic
- *
- * Expects:
- * - Provider names are stable identifiers such as `mcp` or `plugin-tools`
- *
- * Returns:
- * - A merged reactive list of all currently registered tools
+ * The Pinia state contains definitions only. Call {@link addTools} from an
+ * action that already runs in the elected leader. The executor map never
+ * enters synchronized state.
  */
 export const useLlmToolsStore = defineStore('llm-tools', () => {
-  const toolsByProvider = ref<Record<string, Tool[]>>({})
-  const providerRegistrationTokens = new Map<string, symbol>()
-  const pendingRegistrations = new Map<string, Promise<void>>()
+  const tools = ref<ToolDefinition[]>([])
+  const executors = new Map<string, Tool['execute']>()
 
-  function assignTools(provider: string, tools: Tool[]) {
-    toolsByProvider.value = {
-      ...toolsByProvider.value,
-      [provider]: [...tools],
+  function executableToolFrom(definition: ToolDefinition): Tool {
+    const execute = executors.get(definition.id)
+      ?? (() => unavailableToolResult(definition.function.name))
+
+    return {
+      type: definition.type,
+      function: definition.function,
+      execute,
     }
   }
 
-  function registerTools(provider: string, tools: ToolRegistration) {
-    const registrationToken = Symbol(provider)
-    providerRegistrationTokens.set(provider, registrationToken)
+  const activeTools = computed<Tool[]>(() => tools.value
+    .filter(tool => tool.defaultActive !== false)
+    .map(executableToolFrom))
 
-    if (Array.isArray(tools)) {
-      pendingRegistrations.delete(provider)
-      assignTools(provider, tools)
-      return Promise.resolve([...tools])
+  /** Resolves registered tools in the requested model-facing name order. */
+  function getToolsByNames(...names: string[]): Tool[] {
+    return names.flatMap((name) => {
+      const definition = tools.value.findLast(tool => tool.function.name === name)
+      return definition ? [executableToolFrom(definition)] : []
+    })
+  }
+
+  /** Adds tools or replaces existing tools that have the same application id. */
+  function addTools(...nextTools: ExecutableTool[]) {
+    const definitions = [...tools.value]
+
+    for (const tool of nextTools) {
+      const definition = structuredClone<ToolDefinition>({
+        id: tool.id,
+        type: tool.type,
+        function: tool.function,
+        ...(tool.defaultActive === undefined ? {} : { defaultActive: tool.defaultActive }),
+      })
+      const existingIndex = definitions.findIndex(item => item.id === tool.id)
+
+      executors.set(tool.id, tool.execute)
+      if (existingIndex >= 0) {
+        definitions[existingIndex] = definition
+        continue
+      }
+
+      definitions.push(definition)
     }
 
-    const registration = Promise.resolve(tools)
-      .then((resolvedTools) => {
-        if (providerRegistrationTokens.get(provider) !== registrationToken)
-          return resolvedTools
-
-        assignTools(provider, resolvedTools)
-        return resolvedTools
-      })
-      .finally(() => {
-        if (providerRegistrationTokens.get(provider) === registrationToken)
-          pendingRegistrations.delete(provider)
-      })
-
-    pendingRegistrations.set(provider, registration.then(() => undefined, () => undefined))
-    return registration
+    tools.value = definitions
   }
 
-  function clearTools(provider: string) {
-    providerRegistrationTokens.set(provider, Symbol(provider))
-    pendingRegistrations.delete(provider)
-    const { [provider]: _removed, ...remaining } = toolsByProvider.value
-    toolsByProvider.value = remaining
+  /** Removes one tool definition and its local executor. */
+  function removeToolById(id: string) {
+    removeToolsByIds(id)
   }
 
-  async function awaitPendingRegistrations() {
-    while (pendingRegistrations.size > 0)
-      await Promise.all(pendingRegistrations.values())
+  /** Removes tool definitions and their local executors. */
+  function removeToolsByIds(...ids: string[]) {
+    if (ids.length === 0)
+      return
+
+    const idSet = new Set(ids)
+    for (const id of idSet)
+      executors.delete(id)
+
+    tools.value = tools.value.filter(tool => !idSet.has(tool.id))
   }
 
-  const activeTools = computed(() => Object.values(toolsByProvider.value).flat())
-
-  // TODO: Track provider support/loading/error state if runtime diagnostics need it later.
   return {
     activeTools,
-    awaitPendingRegistrations,
-    clearTools,
-    registerTools,
-    toolsByProvider,
+    addTools,
+    getToolsByNames,
+    removeToolById,
+    removeToolsByIds,
+    tools,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

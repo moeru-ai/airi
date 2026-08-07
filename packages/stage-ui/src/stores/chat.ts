@@ -1,9 +1,13 @@
 import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
+import type {} from 'pinia-plugin-synced'
 
-import type { ChatHistoryItem } from '../types/chat'
+import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
+import type { ToolCallRerunPayload } from './tool-call-rerun'
 
+import { errorMessageFrom } from '@moeru/std'
 import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
@@ -24,17 +28,53 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useLLM } from './llm'
+import { resolveLlmTools } from './llm-tool-resolver'
+import { useLlmToolsStore } from './llm-tools'
 import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
+import { useProviderStore } from './providers/provider'
+import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
   fromSessionId?: string
   atIndex?: number
   reason?: string
   hidden?: boolean
+}
+
+/** A serializable chat request that any application context can send to the leader. */
+export interface ChatSendPayload {
+  /** Image attachments for the new user message. */
+  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Original input metadata for chat hooks and telemetry. */
+  input?: WebSocketEventInputs
+  /** Session that owns the new turn. */
+  sessionId: string
+  /** User text for the new turn. */
+  text: string
+  /** Request-specific tools selected by their model-facing names. */
+  tools?: ChatToolReference[]
+}
+
+/** The durable messages appended while one chat request executes. */
+export interface ChatSendResult {
+  messages: ChatHistoryItem[]
+  sessionId: string
+}
+
+/** Identifies one stored message whose user turn must run again. */
+export interface ChatRetryPayload {
+  index: number
+  sessionId: string
+  tools?: ChatToolReference[]
+}
+
+/** Identifies one stored tool call that must run again in the leader. */
+export interface ChatToolCallRerunPayload extends Omit<ToolCallRerunPayload, 'sessionId' | 'toolset'> {
+  sessionId: string
 }
 
 type ProviderHistoryMessage = Exclude<ChatHistoryItem, { role: 'error' }>
@@ -47,10 +87,56 @@ function isTextDelta(event: StreamEvent): event is Extract<StreamEvent, { type: 
   return event.type === 'text-delta'
 }
 
-export type { QueuedSendSnapshot, ChatOrchestratorSendOptions as SendOptions } from '@proj-airi/core-agent'
+function retryTextFrom(message: ChatHistoryItem | undefined): string | null {
+  if (!message || message.role !== 'user')
+    return null
 
-export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
+  if (typeof message.content === 'string') {
+    const text = message.content.trim()
+    return text || null
+  }
+
+  if (!Array.isArray(message.content))
+    return null
+
+  const text = message.content.reduce<string[]>((texts, part) => {
+    if (part.type !== 'text')
+      return texts
+
+    const value = part.text?.trim()
+    if (value)
+      texts.push(value)
+
+    return texts
+  }, []).join('\n\n')
+
+  return text || null
+}
+
+function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): number {
+  const targetMessage = messages[index]
+  if (!targetMessage)
+    return -1
+
+  if (targetMessage.role === 'user')
+    return index
+
+  if (targetMessage.role !== 'assistant' && targetMessage.role !== 'error')
+    return -1
+
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    if (messages[cursor]?.role === 'user')
+      return cursor
+  }
+
+  return -1
+}
+
+export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
+
+export const useChatStore = defineStore('chat', () => {
   const llmStore = useLLM()
+  const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   // Instantiate the web-search store eagerly so its `configured` watcher registers
   // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
@@ -59,6 +145,7 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
+  const providerStore = useProviderStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const {
@@ -384,6 +471,118 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
+  function collectToolReferences(sessionId: string, selectedTools: ChatToolReference[] = []): ChatToolReference[] {
+    const names = new Set<string>()
+
+    for (const message of chatSession.getSessionMessages(sessionId)) {
+      for (const tool of message.tools ?? [])
+        names.add(tool.name)
+    }
+
+    for (const tool of selectedTools)
+      names.add(tool.name)
+
+    return [...names].map(name => ({ name }))
+  }
+
+  function appendSendError(sessionId: string, error: unknown) {
+    chatSession.appendSessionMessage(sessionId, {
+      role: 'error',
+      content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
+    })
+  }
+
+  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+    const providerId = activeProvider.value
+    const modelId = activeModel.value
+    if (!providerId || !modelId)
+      throw new Error('No active chat provider or model configured')
+
+    const messageCount = chatSession.getSessionMessages(payload.sessionId).length
+    const chatProvider = await providerStore.getProviderInstance<ChatProvider>(providerId)
+    if (!chatProvider)
+      throw new Error(`Failed to resolve chat provider "${providerId}"`)
+
+    await runtime.ingest(payload.text, {
+      model: modelId,
+      chatProvider,
+      attachments: payload.attachments,
+      input: payload.input,
+      toolReferences: payload.tools,
+      // Resolve this function after the request reaches the per-session queue.
+      // The history then contains tool names from every earlier queued turn.
+      tools: async () => {
+        const references = collectToolReferences(payload.sessionId, payload.tools)
+        return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+      },
+    }, payload.sessionId)
+
+    return {
+      messages: chatSession.getSessionMessages(payload.sessionId)
+        .slice(messageCount)
+        .map(message => structuredClone(toRaw(message))),
+      sessionId: payload.sessionId,
+    }
+  }
+
+  /** Sends one serializable chat request through the elected leader. */
+  async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
+    try {
+      return await executeSend(payload)
+    }
+    catch (error) {
+      appendSendError(payload.sessionId, error)
+      throw error
+    }
+  }
+
+  /** Replaces one stored turn with a new execution of its user message. */
+  async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
+    const currentMessages = chatSession.getSessionMessages(payload.sessionId)
+    const sourceIndex = retrySourceIndexFrom(currentMessages, payload.index)
+    if (sourceIndex < 0)
+      throw new Error('Retry target has no retriable source message')
+
+    const sourceMessage = currentMessages[sourceIndex]
+    const text = retryTextFrom(sourceMessage)
+    if (!text)
+      throw new Error('Retry target has no retriable user message')
+
+    chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
+
+    try {
+      return await executeSend({
+        sessionId: payload.sessionId,
+        text,
+        tools: payload.tools ?? sourceMessage?.tools,
+      })
+    }
+    catch (error) {
+      appendSendError(payload.sessionId, error)
+      throw error
+    }
+  }
+
+  /** Runs one stored tool call again and replaces its stored result. */
+  async function rerunToolCall(payload: ChatToolCallRerunPayload): Promise<void> {
+    const nextMessages = await executeToolCallRerun({
+      messages: chatSession.getSessionMessages(payload.sessionId),
+      payload,
+      resolveTools: () => resolveLlmTools({
+        customTools: llmToolsStore.getToolsByNames(payload.toolName),
+      }),
+    })
+    chatSession.setSessionMessages(payload.sessionId, nextMessages)
+  }
+
+  /** Clears one session and stops runtime work that still belongs to it. */
+  function cleanup(sessionId: string) {
+    chatSession.cleanupMessages(sessionId)
+    chatContext.resetContexts()
+    runtime.cancelPendingSends(sessionId)
+    chatStream.resetStream()
+  }
+
   async function ingestOnFork(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
@@ -414,8 +613,12 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     sending,
     pendingQueuedSendCount,
 
+    cleanup,
     ingest,
     ingestOnFork,
+    rerunToolCall,
+    retry,
+    send,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
 
@@ -443,4 +646,9 @@ export const useChatOrchestratorStore = defineStore('chat-orchestrator', () => {
     onAssistantMessage: runtime.hooks.onAssistantMessage,
     onChatTurnComplete: runtime.hooks.onChatTurnComplete,
   }
+}, {
+  synced: {
+    actions: ['cleanup', 'rerunToolCall', 'retry', 'send'],
+    state: true,
+  },
 })

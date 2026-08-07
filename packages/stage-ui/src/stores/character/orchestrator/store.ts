@@ -9,14 +9,14 @@ import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useLLM } from '../../llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useProvidersStore } from '../../providers'
+import { useProviderStore } from '../../providers/provider'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
   const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)

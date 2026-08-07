@@ -1,9 +1,12 @@
+import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
+
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
+import { createContextChannel } from './context-channel'
 
 type HookCallback = (...args: unknown[]) => Promise<void> | void
 type UseContextBridgeStore = typeof import('./context-bridge')['useContextBridgeStore']
@@ -40,7 +43,7 @@ const turnCompleteHooks: HookCallback[] = []
 
 const activeSessionIdRef = ref('session-1')
 let currentGeneration = 7
-const testChannels: BroadcastChannel[] = []
+const testChannels: Array<ReturnType<typeof createContextChannel>> = []
 let useContextBridgeStore: UseContextBridgeStore
 
 function registerHook(target: HookCallback[], callback: HookCallback) {
@@ -59,23 +62,37 @@ function registerServerEventHook(eventName: string, callback: HookCallback) {
 }
 
 function createTestChannel(name: string) {
-  const channel = new BroadcastChannel(name)
+  const channel = createContextChannel()
   testChannels.push(channel)
-  return channel
+  return {
+    postMessage(message: ContextMessage | ChatStreamEvent) {
+      return name === CONTEXT_CHANNEL_NAME
+        ? channel.emitContext(message as ContextMessage)
+        : channel.emitStream(message as ChatStreamEvent)
+    },
+  }
 }
 
 function collectChannelMessages<T>(name: string) {
   const messages: T[] = []
-  const channel = createTestChannel(name)
-  channel.addEventListener('message', (event) => {
-    messages.push((event as MessageEvent<T>).data)
-  })
+  const channel = createContextChannel()
+  testChannels.push(channel)
+  if (name === CONTEXT_CHANNEL_NAME) {
+    channel.onContext((message) => {
+      messages.push(message as T)
+    })
+  }
+  else {
+    channel.onStream((message) => {
+      messages.push(message as T)
+    })
+  }
   return messages
 }
 
 function closeTestChannels() {
   for (const channel of testChannels) {
-    channel.close()
+    channel.dispose(new Error('Context bridge contract test ended'))
   }
   testChannels.length = 0
 }
@@ -205,7 +222,7 @@ vi.mock('../../character', () => ({
 }))
 
 vi.mock('../../chat', () => ({
-  useChatOrchestratorStore: () => chatOrchestratorMock,
+  useChatStore: () => chatOrchestratorMock,
 }))
 
 vi.mock('../../chat/context-store', () => ({
@@ -245,14 +262,11 @@ vi.mock('../../modules/consciousness', () => ({
   }),
 }))
 
-vi.mock('../../providers', () => ({
-  useProvidersStore: () => ({
+vi.mock('../../providers/provider', () => ({
+  useProviderStore: () => ({
     configuredSpeechProvidersMetadata: [],
     getProviderConfig: vi.fn(() => ({})),
     getProviderInstance: getProviderInstanceMock,
-    getProviderMetadata: vi.fn(() => ({
-      capabilities: {},
-    })),
     providerRuntimeState: {},
   }),
 }))
@@ -554,10 +568,11 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
+      turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
-    }
+    } satisfies ChatStreamEventContext
 
     streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
     await vi.waitFor(() => {
@@ -590,10 +605,11 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
+      turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
-    }
+    } satisfies ChatStreamEventContext
 
     await chatOrchestratorMock.emitTokenSpecialHooks('manual-special', context)
     await vi.waitFor(() => {
@@ -614,10 +630,11 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
 
     const context = {
+      turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
-    }
+    } satisfies ChatStreamEventContext
 
     streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
     await vi.waitFor(() => {

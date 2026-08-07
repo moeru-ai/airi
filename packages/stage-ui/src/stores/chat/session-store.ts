@@ -1,4 +1,5 @@
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
+import type {} from 'pinia-plugin-synced'
 
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
@@ -40,6 +41,13 @@ interface CloudMergePayload {
   toSeq?: number
 }
 
+/** Identifies one message that must be removed from a session. */
+export interface DeleteChatMessagePayload {
+  index?: number
+  messageId?: string
+  sessionId: string
+}
+
 /**
  * Max retry attempts before an outbox entry is treated as terminally failed.
  * Failed entries stay in IDB so the user can see them in `outboxPendingCount`
@@ -47,11 +55,24 @@ interface CloudMergePayload {
  */
 const OUTBOX_MAX_ATTEMPTS = 5
 
+const useChatSessionSelectionStore = defineStore('chat-session-selection', () => {
+  const activeSessionId = ref('')
+
+  return { activeSessionId }
+})
+
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
-  const activeSessionId = ref<string>('')
+  const chatSessionSelection = useChatSessionSelectionStore()
+  // The selected conversation belongs to one window. Expose it through the
+  // existing chat-session API as a computed property so synchronized session
+  // data never makes another window navigate to the same conversation.
+  const activeSessionId = computed({
+    get: () => chatSessionSelection.activeSessionId,
+    set: value => chatSessionSelection.activeSessionId = value,
+  })
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
   const sessionMetas = ref<Record<string, ChatSessionMeta>>({})
   const sessionGenerations = ref<Record<string, number>>({})
@@ -303,6 +324,19 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       ...(sessionMessages.value[sessionId] ?? []),
       message,
     ])
+  }
+
+  /** Removes one message by stable id or by its current history index. */
+  function deleteMessage(payload: DeleteChatMessagePayload) {
+    const nextMessages = getSessionMessages(payload.sessionId).filter((message, messageIndex) => {
+      if (payload.messageId)
+        return message.id !== payload.messageId
+      if (payload.index !== undefined)
+        return messageIndex !== payload.index
+      return true
+    })
+
+    setSessionMessages(payload.sessionId, nextMessages)
   }
 
   /**
@@ -1466,6 +1500,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     resetAllSessions,
 
     ensureSession,
+    deleteMessage,
     setSessionMessages,
     appendSessionMessage,
     persistSessionMessages,
@@ -1487,4 +1522,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     outboxPendingCount,
     pushMessageToCloud,
   }
+}, {
+  synced: {
+    actions: ['deleteMessage', 'importSessions'],
+    state: true,
+  },
 })

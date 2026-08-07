@@ -8,7 +8,7 @@ import { ref } from 'vue'
 
 import { useLLM } from '../../stores/llm'
 import { useVisionStore } from '../../stores/modules/vision'
-import { useProvidersStore } from '../../stores/providers'
+import { useProviderStore } from '../../stores/providers/provider'
 import { getVisionWorkload } from './use-vision-workloads'
 
 export interface VisionInferenceInput {
@@ -36,7 +36,7 @@ function parseDataUrl(dataUrl: string) {
 
 export function useVisionInference() {
   const llmStore = useLLM()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const visionStore = useVisionStore()
   const { activeProvider, activeModel, ollamaThinkingEnabled } = storeToRefs(visionStore)
 

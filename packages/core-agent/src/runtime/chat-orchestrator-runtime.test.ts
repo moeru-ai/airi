@@ -148,6 +148,26 @@ function createHarness() {
  * await runtime.ingest('hello', { model, chatProvider })
  */
 describe('createChatOrchestratorRuntime', () => {
+  it('stores tool names with the user message and omits them from provider messages', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('use a widget', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      toolReferences: [{ name: 'stage_widgets' }],
+    })
+
+    const storedUserMessage = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    const providerMessages = harness.stream.mock.calls[0]?.[2]
+    const providerUserMessage = providerMessages?.find(message => message.role === 'user')
+
+    expect(storedUserMessage).toMatchObject({
+      role: 'user',
+      tools: [{ name: 'stage_widgets' }],
+    })
+    expect(providerUserMessage).not.toHaveProperty('tools')
+  })
+
   /**
    * @example
    * Hook order and prompt composition stay compatible with the stage-ui facade.

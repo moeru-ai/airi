@@ -45,7 +45,7 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 }))
 
 describe('useTamagotchiPluginToolsStore', async () => {
-  const { useTamagotchiPluginToolsStore } = await import('./plugin-tools')
+  const { useTamagotchiPluginToolsStore } = await import('./plugins')
 
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -58,11 +58,6 @@ describe('useTamagotchiPluginToolsStore', async () => {
     vi.restoreAllMocks()
   })
 
-  /**
-   * @example
-   * await store.refresh()
-   * expect(llmToolsStore.toolsByProvider['plugin-tools']).toHaveLength(1)
-   */
   it('loads plugin xsai tools, proxies execution, and clears them from the shared llm-tools store', async () => {
     const llmToolsStore = useLlmToolsStore()
     const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
@@ -71,12 +66,16 @@ describe('useTamagotchiPluginToolsStore', async () => {
 
     await store.refresh()
 
-    const pluginTools = llmToolsStore.toolsByProvider['plugin-tools']
-    const playChessTool = pluginTools?.find(tool => tool.function.name === 'play_chess')
+    const pluginDefinitions = llmToolsStore.tools.filter(tool => tool.id.startsWith('plugin:'))
+    const playChessTool = llmToolsStore.activeTools.find(tool => tool.function.name === 'play_chess')
 
-    expect(pluginTools).toEqual([
-      expect.objectContaining({ function: expect.objectContaining({ name: 'play_chess' }) }),
+    expect(pluginDefinitions).toEqual([
+      expect.objectContaining({
+        id: 'plugin:plugin-chess:play_chess',
+        function: expect.objectContaining({ name: 'play_chess' }),
+      }),
     ])
+    expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
     expect(llmToolsetPromptsStore.activeToolsetPrompt).toContain('Do not pass fen or pgn when mode is "new".')
 
     const executionResult = await playChessTool?.execute({
@@ -100,16 +99,10 @@ describe('useTamagotchiPluginToolsStore', async () => {
 
     store.dispose()
 
-    expect(llmToolsStore.toolsByProvider['plugin-tools']).toBeUndefined()
+    expect(llmToolsStore.tools.filter(tool => tool.id.startsWith('plugin:'))).toEqual([])
     expect(llmToolsetPromptsStore.promptsByProvider['plugin-tools']).toBeUndefined()
   })
 
-  /**
-   * @example
-   * await store.refresh()
-   * await vi.advanceTimersByTimeAsync(5_000)
-   * await llmToolsStore.awaitPendingRegistrations()
-   */
   it('falls back to empty plugin tools when listing xsai tools never resolves during cold start', async () => {
     vi.useFakeTimers()
     vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -121,34 +114,25 @@ describe('useTamagotchiPluginToolsStore', async () => {
 
     const llmToolsStore = useLlmToolsStore()
     const store = useTamagotchiPluginToolsStore()
-    const onSettled = vi.fn()
-
     // ROOT CAUSE:
     //
     // If the renderer asks the main process for plugin xsai tools before the
     // Eventa handler is ready, the invoke promise can remain pending forever.
-    // The shared LLM store then waits in awaitPendingRegistrations() before
-    // building chat tools, so no model HTTP request is sent and chat sync
-    // eventually times out.
+    // The tool refresh never completes, so the leader cannot finish startup.
     //
     // Before the fix, this wait never settled.
     //
     // We fixed this by letting optional plugin tool listing time out and
     // complete registration with an empty tool list.
-    store.refresh()
-    const pendingRegistrations = llmToolsStore.awaitPendingRegistrations().then(() => {
-      onSettled()
-    })
+    const refresh = store.refresh()
 
     await Promise.resolve()
-
-    expect(onSettled).not.toHaveBeenCalled()
+    expect(llmToolsStore.tools.filter(tool => tool.id.startsWith('plugin:'))).toEqual([])
 
     await vi.advanceTimersByTimeAsync(5_000)
-    await pendingRegistrations
+    await refresh
 
-    expect(onSettled).toHaveBeenCalledTimes(1)
-    expect(llmToolsStore.toolsByProvider['plugin-tools']).toEqual([])
+    expect(llmToolsStore.tools.filter(tool => tool.id.startsWith('plugin:'))).toEqual([])
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining('[plugin-tools] Failed to list plugin xsai tools'),
     )

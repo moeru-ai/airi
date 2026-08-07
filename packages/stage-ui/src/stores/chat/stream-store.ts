@@ -1,3 +1,5 @@
+import type {} from 'pinia-plugin-synced'
+
 import type { StreamingAssistantMessage } from '../../types/chat'
 
 import { defineStore } from 'pinia'
@@ -48,4 +50,8 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
     finalizeStream,
     resetStream,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

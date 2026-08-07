@@ -1,128 +1,125 @@
 import type { Tool } from '@xsai/shared-chat'
 
+import type { ExecutableTool, ToolDefinition } from './llm-tools'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useLlmToolsStore } from './llm-tools'
+
+function createExecutableTool(id: string, name = id): ExecutableTool {
+  return {
+    id,
+    type: 'function',
+    function: {
+      name,
+      description: `Execute ${name}.`,
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    execute: vi.fn(async () => ({ ok: true })),
+  }
+}
 
 describe('useLlmToolsStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  it('registers and merges tools by provider', () => {
+  it('stores serializable definitions and keeps executors outside Pinia state', async () => {
     const store = useLlmToolsStore()
-    const mcpTool = { function: { name: 'builtIn_mcpListTools' } } as Tool
-    const pluginTool = { function: { name: 'play_chess' } } as Tool
+    const executableTool = createExecutableTool('plugin:chess:play', 'play_chess')
+    const toolOptions = {} as Parameters<Tool['execute']>[1]
 
-    store.registerTools('mcp', [mcpTool])
-    store.registerTools('plugin-tools', [pluginTool])
+    store.addTools(executableTool)
 
-    expect(store.toolsByProvider).toEqual({
-      'mcp': [mcpTool],
-      'plugin-tools': [pluginTool],
-    })
-    expect(store.activeTools).toEqual([mcpTool, pluginTool])
+    expect(store.tools).toEqual([{
+      id: 'plugin:chess:play',
+      type: 'function',
+      function: {
+        name: 'play_chess',
+        description: 'Execute play_chess.',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+    }])
+    expect(JSON.stringify(store.$state)).not.toContain('execute')
+    await expect(store.activeTools[0]?.execute({}, toolOptions)).resolves.toEqual({ ok: true })
   })
 
-  it('replaces tools for the same provider instead of appending forever', () => {
+  it('replaces a tool with the same id and keeps its list position', () => {
     const store = useLlmToolsStore()
-    const first = { function: { name: 'first' } } as Tool
-    const second = { function: { name: 'second' } } as Tool
+    const first = createExecutableTool('plugin:chess:play', 'play_chess')
+    const second = createExecutableTool('plugin:chess:play', 'play_chess_v2')
+    const other = createExecutableTool('mcp:list', 'builtIn_mcpListTools')
 
-    store.registerTools('plugin-tools', [first])
-    store.registerTools('plugin-tools', [second])
+    store.addTools(first, other)
+    store.addTools(second)
 
-    expect(store.toolsByProvider).toEqual({
-      'plugin-tools': [second],
-    })
-    expect(store.activeTools).toEqual([second])
+    expect(store.tools.map(tool => tool.id)).toEqual([
+      'plugin:chess:play',
+      'mcp:list',
+    ])
+    expect(store.tools[0]?.function.name).toBe('play_chess_v2')
+    expect(store.activeTools[0]?.execute).toBe(second.execute)
   })
 
-  it('clears one provider without touching the others', () => {
+  it('removes one or many tools by id', () => {
     const store = useLlmToolsStore()
-    const mcpTool = { function: { name: 'builtIn_mcpListTools' } } as Tool
-    const pluginTool = { function: { name: 'play_chess' } } as Tool
+    store.addTools(
+      createExecutableTool('plugin:chess:play'),
+      createExecutableTool('plugin:chess:reset'),
+      createExecutableTool('mcp:list'),
+    )
 
-    store.registerTools('mcp', [mcpTool])
-    store.registerTools('plugin-tools', [pluginTool])
-    store.clearTools('plugin-tools')
+    store.removeToolById('plugin:chess:play')
+    expect(store.tools.map(tool => tool.id)).toEqual([
+      'plugin:chess:reset',
+      'mcp:list',
+    ])
 
-    expect(store.toolsByProvider).toEqual({
-      mcp: [mcpTool],
-    })
-    expect(store.activeTools).toEqual([mcpTool])
-  })
-
-  it('does not change store state when the caller mutates the registered array later', () => {
-    const store = useLlmToolsStore()
-    const first = { function: { name: 'first' } } as Tool
-    const second = { function: { name: 'second' } } as Tool
-    const tools = [first]
-
-    store.registerTools('plugin-tools', tools)
-    tools.push(second)
-
-    expect(store.toolsByProvider).toEqual({
-      'plugin-tools': [first],
-    })
-    expect(store.activeTools).toEqual([first])
-  })
-
-  /**
-   * @example
-   * store.registerTools('plugin-tools', Promise.resolve([pluginTool]))
-   * await store.awaitPendingRegistrations()
-   */
-  it('waits for async tool registrations before exposing them as active tools', async () => {
-    const store = useLlmToolsStore()
-    const pluginTool = { function: { name: 'play_chess' } } as Tool
-    let resolveTools: ((tools: Tool[]) => void) | undefined
-    const pendingTools = new Promise<Tool[]>((resolve) => {
-      resolveTools = resolve
-    })
-    const onSettled = vi.fn()
-
-    store.registerTools('plugin-tools', pendingTools)
-    const pendingWait = store.awaitPendingRegistrations().then(() => {
-      onSettled()
-    })
-
-    await Promise.resolve()
-
-    expect(store.toolsByProvider['plugin-tools']).toBeUndefined()
+    store.removeToolsByIds('plugin:chess:reset', 'mcp:list')
+    expect(store.tools).toEqual([])
     expect(store.activeTools).toEqual([])
-    expect(onSettled).not.toHaveBeenCalled()
-
-    resolveTools?.([pluginTool])
-    await pendingWait
-
-    expect(onSettled).toHaveBeenCalledTimes(1)
-    expect(store.toolsByProvider['plugin-tools']).toEqual([pluginTool])
-    expect(store.activeTools).toEqual([pluginTool])
   })
 
-  /**
-   * @example
-   * store.registerTools('plugin-tools', slowTools)
-   * store.registerTools('plugin-tools', [latestTool])
-   */
-  it('ignores stale async registrations after newer tools replace the same provider', async () => {
+  it('returns an unavailable executor when synchronized state has no local executor', () => {
     const store = useLlmToolsStore()
-    const staleTool = { function: { name: 'stale' } } as Tool
-    const latestTool = { function: { name: 'latest' } } as Tool
-    let resolveTools: ((tools: Tool[]) => void) | undefined
-    const pendingTools = new Promise<Tool[]>((resolve) => {
-      resolveTools = resolve
+    const definition: ToolDefinition = {
+      id: 'plugin:chess:play',
+      type: 'function',
+      function: {
+        name: 'play_chess',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+    }
+    const toolOptions = {} as Parameters<Tool['execute']>[1]
+
+    store.$patch((state) => {
+      state.tools = [definition]
     })
 
-    store.registerTools('plugin-tools', pendingTools)
-    store.registerTools('plugin-tools', [latestTool])
-    resolveTools?.([staleTool])
+    expect(store.activeTools[0]?.execute({}, toolOptions)).toBe('Tool "play_chess" is not available now.')
+  })
 
-    await store.awaitPendingRegistrations()
+  it('keeps explicit tools out of the default list and resolves them by name', () => {
+    const store = useLlmToolsStore()
+    const defaultTool = createExecutableTool('plugin:chess:play', 'play_chess')
+    const explicitTool = {
+      ...createExecutableTool('tamagotchi:journal', 'image_journal'),
+      defaultActive: false,
+    }
 
-    expect(store.toolsByProvider['plugin-tools']).toEqual([latestTool])
-    expect(store.activeTools).toEqual([latestTool])
+    store.addTools(defaultTool, explicitTool)
+
+    expect(store.activeTools.map(tool => tool.function.name)).toEqual(['play_chess'])
+    expect(store.getToolsByNames('image_journal').map(tool => tool.function.name)).toEqual(['image_journal'])
   })
 })

@@ -16,8 +16,9 @@ import vadWorkletUrl from '../../workers/vad/process.worklet?worker&url'
 import { useAnalytics } from '../../composables/use-analytics'
 import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
-import { useProvidersStore } from '../providers'
 import { streamAliyunTranscription } from '../providers/aliyun/stream-transcription'
+import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 import { streamWebSpeechAPITranscription } from '../providers/web-speech-api'
 
 function errorMessage(err: unknown): string {
@@ -306,7 +307,8 @@ export function resolveTranscriptionProviderOptions(providerConfig?: Record<stri
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
+  const providerStore = useProviderConfigStore()
   const { allAudioTranscriptionProvidersMetadata } = storeToRefs(providersStore)
   const {
     trackAudioDeviceUnavailable,
@@ -336,7 +338,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.findProviderMetadata(activeTranscriptionProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.supportsModelListing(activeTranscriptionProvider.value)
   })
 
   const providerModels = computed(() => {
@@ -352,13 +354,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
-    if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+    if (providersStore.supportsModelListing(provider)) {
       await providersStore.fetchModelsForProvider(provider)
     }
   }
 
   async function getModelsForProvider(provider: string) {
-    if (providersStore.findProviderMetadata(provider)?.capabilities.listModels !== undefined) {
+    if (providersStore.supportsModelListing(provider)) {
       return providersStore.getModelsForProvider(provider)
     }
 
@@ -378,7 +380,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     // For OpenAI Compatible providers, check provider config as fallback
     let hasProviderModel = false
     if (activeTranscriptionProvider.value === 'openai-compatible-audio-transcription') {
-      const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+      const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
       hasProviderModel = !!providerConfig?.model
     }
 
@@ -562,7 +564,8 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
   const hearingStore = useHearingStore()
   const { activeTranscriptionProvider, activeTranscriptionModel } = storeToRefs(hearingStore)
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
+  const providerStore = useProviderConfigStore()
   const {
     trackAudioDeviceUnavailable,
     trackVoiceInputCancelled,
@@ -882,7 +885,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         const abortController = new AbortController()
 
         // Get provider config for language settings
-        const providerConfig = providersStore.getProviderConfig(providerId) || {}
+        const providerConfig = providerStore.getProviderConfig(providerId) || {}
         const language = (options?.providerOptions?.language as string)
           || (providerConfig.language as string)
           || 'en-US'
@@ -1145,7 +1148,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
         throw new Error('Failed to initialize speech provider')
       }
 
-      const providerConfig = providersStore.getProviderConfig(providerId)
+      const providerConfig = providerStore.getProviderConfig(providerId)
       const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, providerConfig)
       const providerOptions = resolveTranscriptionProviderOptions(providerConfig)
       console.info('[Hearing Pipeline] Transcribing recording', {

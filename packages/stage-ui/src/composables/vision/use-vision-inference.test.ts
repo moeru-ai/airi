@@ -18,8 +18,8 @@ vi.mock('../../stores/llm', () => ({
   }),
 }))
 
-vi.mock('../../stores/providers', () => ({
-  useProvidersStore: () => ({
+vi.mock('../../stores/providers/provider', () => ({
+  useProviderStore: () => ({
     getProviderInstance,
   }),
 }))

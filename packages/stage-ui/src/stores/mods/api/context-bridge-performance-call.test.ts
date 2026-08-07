@@ -24,7 +24,7 @@ vi.mock('../../character', () => ({
 }))
 
 vi.mock('../../chat', () => ({
-  useChatOrchestratorStore: () => ({}),
+  useChatStore: () => ({}),
 }))
 
 vi.mock('../../chat/session-store', () => ({
@@ -54,8 +54,8 @@ vi.mock('../../modules/consciousness', () => ({
   }),
 }))
 
-vi.mock('../../providers', () => ({
-  useProvidersStore: () => ({}),
+vi.mock('../../providers/provider', () => ({
+  useProviderStore: () => ({}),
 }))
 
 vi.mock('./channel-server', () => ({

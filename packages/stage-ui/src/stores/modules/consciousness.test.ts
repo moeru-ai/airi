@@ -1,7 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useProvidersStore } from '../providers'
+import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 import { useConsciousnessStore } from './consciousness'
 
 vi.mock('vue-i18n', () => ({
@@ -18,15 +19,13 @@ describe('consciousness store provider selection', () => {
 
   // ROOT CAUSE:
   //
-  // supportsModelListing called providersStore.getProviderMetadata(...) with
-  // `?.` as if it returned undefined for unknown ids, but the function throws.
+  // supportsModelListing called a throwing metadata lookup for unknown ids.
   // With no provider selected yet (fresh install or reset state persists ''),
   // evaluating the computed surfaced a raw "Provider metadata for  not found"
   // error to the user.
   //
-  // We fixed this by adding a non-throwing findProviderMetadata lookup and
-  // using it in the capability computeds of the consciousness, speech, and
-  // hearing modules.
+  // We fixed this by checking the ProviderDefinition registry through the
+  // runtime store without building executable ProviderMetadata objects.
   //
   // https://github.com/moeru-ai/airi/issues/1761
   it('reports no model listing support instead of throwing when no provider is selected (Issue #1761)', () => {
@@ -46,20 +45,31 @@ describe('consciousness store provider selection', () => {
     expect(store.supportsModelListing).toBe(false)
   })
 
-  it('findProviderMetadata returns metadata for known providers', () => {
-    const providersStore = useProvidersStore()
+  it('findProviderDefinition returns known provider definitions', () => {
+    const providersStore = useProviderStore()
 
-    const metadata = providersStore.findProviderMetadata('openai')
+    const definition = providersStore.findProviderDefinition('openai')
 
-    expect(metadata).toBeDefined()
-    expect(metadata?.id).toBe('openai')
+    expect(definition).toBeDefined()
+    expect(definition?.id).toBe('openai')
   })
 
-  it('findProviderMetadata returns undefined for empty and unknown ids', () => {
-    const providersStore = useProvidersStore()
+  it('findProviderDefinition returns undefined for empty and unknown ids', () => {
+    const providersStore = useProviderStore()
 
-    expect(providersStore.findProviderMetadata('')).toBeUndefined()
-    expect(providersStore.findProviderMetadata('nope')).toBeUndefined()
+    expect(providersStore.findProviderDefinition('')).toBeUndefined()
+    expect(providersStore.findProviderDefinition('nope')).toBeUndefined()
+  })
+
+  it('resolves definitions through a configured provider instance id', () => {
+    const providerStore = useProviderConfigStore()
+    const providersStore = useProviderStore()
+    providerStore.ensureProvider('custom-openai', 'openai', { apiKey: 'sk-test' })
+
+    const definition = providersStore.findProviderDefinition('custom-openai')
+
+    expect(definition?.id).toBe('openai')
+    expect(definition?.name).toBe('OpenAI')
   })
 
   // ROOT CAUSE:

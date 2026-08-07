@@ -9,7 +9,9 @@ import {
   ProviderSettingsContainer,
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/stores/providers/web-speech-api'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCombobox } from '@proj-airi/ui'
@@ -23,12 +25,18 @@ const providerId = 'browser-web-speech-api'
 const { t } = useI18n()
 const router = useRouter()
 
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
 providersStore.initializeProvider(providerId)
 
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const providerMetadata = computed(() => selectProviderMetadata(
+  providersStore.getProviderDefinition(providerId),
+  t,
+  { id: providerId },
+))
 
 // Web Speech API settings (no API key needed, but language and options)
 const settings = computed({

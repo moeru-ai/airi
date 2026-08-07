@@ -1,38 +1,42 @@
-export type ProviderSourcePricing = 'free' | 'paid'
-export type ProviderSourceDeployment = 'local' | 'cloud'
+/** Pricing category used by provider catalogue filters. */
+export type ProviderPricing = 'free' | 'paid'
+
+/** Deployment category used by provider catalogue filters. */
+export type ProviderDeployment = 'local' | 'cloud'
 
 /**
- * Represents source catalogue tags used by provider filtering UI.
+ * Represents catalogue attributes used by provider filtering UI.
  */
-export interface ProviderSourceMetadata {
+export interface ProviderAttributes {
   /** Price bucket shown by the provider source filter. */
-  pricing?: ProviderSourcePricing
+  pricing?: ProviderPricing
   /** Runtime/deployment bucket shown by the provider source filter. */
-  deployment?: ProviderSourceDeployment
+  deployment?: ProviderDeployment
   /** Whether the provider should receive the existing recommended tag. */
   beginnerRecommended?: boolean
 }
 
-export interface ProviderSourceMetadataInput {
+/** Minimal provider identity accepted by the attribute resolver. */
+export interface ProviderAttributesInput {
   id?: string
 }
 
 const paidCloud = {
   pricing: 'paid',
   deployment: 'cloud',
-} satisfies ProviderSourceMetadata
+} satisfies ProviderAttributes
 
 const freeLocal = {
   pricing: 'free',
   deployment: 'local',
-} satisfies ProviderSourceMetadata
+} satisfies ProviderAttributes
 
 const recommendedPaidCloud = {
   ...paidCloud,
   beginnerRecommended: true,
-} satisfies ProviderSourceMetadata
+} satisfies ProviderAttributes
 
-const providerSourceMetadataById = {
+const providerAttributesById = {
   '302-ai': paidCloud,
   'aihubmix': paidCloud,
   'alibaba-cloud-model-studio': paidCloud,
@@ -98,10 +102,10 @@ const providerSourceMetadataById = {
   'volcengine-coding-plan': paidCloud,
   'xai': paidCloud,
   'zai': paidCloud,
-} satisfies Record<string, ProviderSourceMetadata | false>
+} satisfies Record<string, ProviderAttributes | false>
 
 /**
- * Normalizes provider source metadata by dropping undefined fields.
+ * Normalizes provider attributes by dropping undefined fields.
  *
  * Before:
  * - `{ pricing: "paid", deployment: undefined }`
@@ -109,7 +113,7 @@ const providerSourceMetadataById = {
  * After:
  * - `{ pricing: "paid" }`
  */
-function compactProviderSourceMetadata(metadata: ProviderSourceMetadata): ProviderSourceMetadata {
+function compactProviderAttributes(metadata: ProviderAttributes): ProviderAttributes {
   return {
     ...(metadata.pricing ? { pricing: metadata.pricing } : {}),
     ...(metadata.deployment ? { deployment: metadata.deployment } : {}),
@@ -118,11 +122,11 @@ function compactProviderSourceMetadata(metadata: ProviderSourceMetadata): Provid
 }
 
 /**
- * Resolves the provider source tags used by settings/provider filtering.
+ * Resolves the provider attributes used by settings filters.
  *
  * Use when:
  * - Rendering provider source cards.
- * - Converting defineProvider() catalogue entries to legacy ProviderMetadata.
+ * - Selecting serializable metadata from a provider definition.
  *
  * Expects:
  * - `metadata.id` may identify a provider with catalogue metadata.
@@ -130,17 +134,17 @@ function compactProviderSourceMetadata(metadata: ProviderSourceMetadata): Provid
  * Returns:
  * - Compact metadata with only meaningful tag fields.
  */
-export function resolveProviderSourceMetadata(
-  metadata: ProviderSourceMetadataInput = {},
-): ProviderSourceMetadata {
+export function resolveProviderAttributes(
+  metadata: ProviderAttributesInput = {},
+): ProviderAttributes {
   if (!metadata.id)
     return {}
 
-  const sourceMetadata = providerSourceMetadataById[metadata.id as keyof typeof providerSourceMetadataById]
-  if (sourceMetadata === false)
+  const attributes = providerAttributesById[metadata.id as keyof typeof providerAttributesById]
+  if (attributes === false)
     return {}
-  if (sourceMetadata)
-    return compactProviderSourceMetadata(sourceMetadata)
+  if (attributes)
+    return compactProviderAttributes(attributes)
 
   return {}
 }

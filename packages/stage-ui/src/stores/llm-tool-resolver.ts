@@ -89,9 +89,7 @@ async function resolveActiveTools(activeTools?: Tool[]): Promise<Tool[]> {
   if (activeTools != null)
     return activeTools
 
-  const llmToolsStore = useLlmToolsStore()
-  await llmToolsStore.awaitPendingRegistrations()
-  return llmToolsStore.activeTools
+  return useLlmToolsStore().activeTools
 }
 
 async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise<Tool[]> {

@@ -20,7 +20,7 @@ import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../llm'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
-import { useProvidersStore } from '../../providers'
+import { useProviderStore } from '../../providers/provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -107,8 +107,8 @@ describe('store character-orchestrator', () => {
     setActivePinia(pinia)
 
     const mockGetProviderInstance = vi.fn()
-    mockedStore(useProvidersStore).getProviderInstance = mockGetProviderInstance
-    mockedStore(useProvidersStore).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
+    mockedStore(useProviderStore).getProviderInstance = mockGetProviderInstance
+    mockedStore(useProviderStore).getProviderInstance.mockResolvedValue({ chat: (_model: string) => ({} as any) })
 
     const consciousnessStore = useConsciousnessStore(pinia)
     consciousnessStore.activeProvider = 'mock-provider'

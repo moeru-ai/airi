@@ -3,7 +3,7 @@ import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { UserMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEvent, ChatStreamEventContext, ContextMessage } from '../../../types/chat'
+import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat'
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -16,16 +16,16 @@ import { ref, toRaw, watch } from 'vue'
 
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useCharacterOrchestratorStore } from '../../character'
-import { useChatOrchestratorStore } from '../../chat'
-import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
+import { useChatStore } from '../../chat'
 import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
 import { useContextObservabilityStore } from '../../devtools/context-observability'
 import { useLlmStreamingControlStore } from '../../llm-streaming-control'
 import { useConsciousnessStore } from '../../modules/consciousness'
-import { useProvidersStore } from '../../providers'
+import { useProviderStore } from '../../providers/provider'
 import { useModsServerChannelStore } from './channel-server'
+import { createContextChannel } from './context-channel'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -49,7 +49,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   ] as const
   const mutex = new Mutex()
 
-  const chatOrchestrator = useChatOrchestratorStore()
+  const chatOrchestrator = useChatStore()
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
@@ -57,12 +57,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const contextObservability = useContextObservabilityStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const streamingControl = useLlmStreamingControlStore()
 
-  const { post: broadcastContext, data: incomingContext } = useBroadcastChannel<ContextMessage, ContextMessage>({ name: CONTEXT_CHANNEL_NAME })
-  const { post: broadcastStreamEvent, data: incomingStreamEvent } = useBroadcastChannel<ChatStreamEvent, ChatStreamEvent>({ name: CHAT_STREAM_CHANNEL_NAME })
   type SparkNotifyBridgeMessage
     = | {
       type: 'request'
@@ -92,6 +90,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
   const disposeHookFns = ref<Array<() => void>>([])
   let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  let contextChannel: ReturnType<typeof createContextChannel> | undefined
   let initialized = false
 
   function recordContextIngestRejected(options: {
@@ -381,6 +380,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       if (initialized)
         return
 
+      contextChannel = createContextChannel()
+
       const registerConsumers = () => {
         for (const consumerEvent of consumerRegistrationEvents) {
           serverChannelStore.send({
@@ -401,10 +402,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       let isProcessingRemoteStream = false
 
-      const { stop } = watch(incomingContext, (event) => {
-        if (!event)
-          return
-
+      const stopContextUpdates = contextChannel.onContext((event) => {
         contextObservability.recordLifecycle({
           phase: 'broadcast-received',
           channel: 'broadcast',
@@ -442,7 +440,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           })
         }
       })
-      disposeHookFns.value.push(stop)
+      disposeHookFns.value.push(stopContextUpdates)
 
       const { stop: stopSparkNotifyBridgeWatch } = watch(incomingSparkNotifyBridgeMessage, async (event) => {
         if (!event) {
@@ -541,7 +539,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             },
           })
         }
-        broadcastContext(toRaw(contextMessage))
+        void contextChannel?.emitContext(toRaw(contextMessage))
         contextObservability.recordLifecycle({
           phase: 'broadcast-posted',
           channel: 'broadcast',
@@ -701,49 +699,49 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          broadcastStreamEvent({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
@@ -792,10 +790,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
       )
 
-      const { stop: stopIncomingStreamWatch } = watch(incomingStreamEvent, async (event) => {
-        if (!event)
-          return
-
+      const stopIncomingStreamWatch = contextChannel.onStream(async (event) => {
         isProcessingRemoteStream = true
 
         try {
@@ -871,6 +866,14 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       disposeHookFns.value.push(stopIncomingStreamWatch)
       initialized = true
     }
+    catch (error) {
+      for (const fn of disposeHookFns.value)
+        fn()
+      disposeHookFns.value = []
+      contextChannel?.dispose(error)
+      contextChannel = undefined
+      throw error
+    }
     finally {
       mutex.release()
     }
@@ -897,6 +900,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       for (const fn of disposeHookFns.value) {
         fn()
       }
+
+      contextChannel?.dispose(new Error('Context bridge disposed'))
+      contextChannel = undefined
 
       initialized = false
       remoteStreamGuard = null

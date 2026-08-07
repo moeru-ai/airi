@@ -392,3 +392,34 @@ describe('chat-session-store · active card prompt edits', () => {
     expect(store.messages[1]?.content).toBe('Persisted history')
   })
 })
+
+describe('chat-session-store · synchronized data actions', () => {
+  it('deletes a message by its stable id from the specified session', async () => {
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-1',
+      sessionMessages: {
+        'session-1': [
+          { id: 'keep', role: 'user', content: 'keep' },
+          { id: 'delete', role: 'assistant', content: 'delete', slices: [], tool_results: [] },
+        ],
+      },
+      sessionMetas: {},
+    })
+
+    await store.deleteMessage({
+      sessionId: 'session-1',
+      messageId: 'delete',
+    })
+
+    expect(store.getSessionMessages('session-1').map(message => message.id)).toEqual(['keep'])
+  })
+
+  it('keeps the active session outside synchronized session state', () => {
+    const store = useChatSessionStore()
+    store.activeSessionId = 'window-local-session'
+
+    expect(store.activeSessionId).toBe('window-local-session')
+    expect(store.$state).not.toHaveProperty('activeSessionId')
+  })
+})
