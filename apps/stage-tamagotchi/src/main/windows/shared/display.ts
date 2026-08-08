@@ -65,6 +65,47 @@ export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 
   return centeredBounds
 }
 
+/**
+ * Returns whether two rectangles share a positive-area intersection.
+ */
+export function rectanglesOverlap(first: Rectangle, second: Rectangle): boolean {
+  return first.x < second.x + second.width
+    && first.x + first.width > second.x
+    && first.y < second.y + second.height
+    && first.y + first.height > second.y
+}
+
+/**
+ * Restores a saved window position inside a currently available display work area.
+ *
+ * Use when:
+ * - A saved window position may refer to a display that is no longer connected
+ * - A window was moved partly or completely outside the visible desktop
+ *
+ * Expects:
+ * - `matchingWorkArea` is the work area selected for the saved bounds when available
+ * - `fallbackWorkArea` is a currently visible work area, usually the primary display
+ *
+ * Returns:
+ * - Bounds that preserve the saved size when possible and keep the window reachable
+ */
+export function restoreWindowBounds(options: {
+  savedBounds: Rectangle
+  matchingWorkArea?: Rectangle
+  fallbackWorkArea: Rectangle
+}): Rectangle {
+  const workArea = options.matchingWorkArea ?? options.fallbackWorkArea
+  const width = Math.min(Math.max(1, options.savedBounds.width), workArea.width)
+  const height = Math.min(Math.max(1, options.savedBounds.height), workArea.height)
+
+  return {
+    x: clamp(options.savedBounds.x, workArea.x, workArea.x + workArea.width - width),
+    y: clamp(options.savedBounds.y, workArea.y, workArea.y + workArea.height - height),
+    width,
+    height,
+  }
+}
+
 export interface ResizableDisplayArea {
   /** Full display bounds used to decide which physical display owns most of a window. */
   bounds: Rectangle
