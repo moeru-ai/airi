@@ -121,6 +121,57 @@ export async function listSessions() {
   return await authClient.listSessions()
 }
 
+// Module-private: callers depend on the observable timeout behavior, not the
+// constant itself. Tests in auth.test.ts mirror this value locally because
+// they need to drive fake timers across the exact boundary; if you change
+// one, change the other.
+const SIGN_OUT_REQUEST_TIMEOUT_MS = 8000
+
+/**
+ * Build an AbortSignal that fires `TimeoutError` after `ms`, with a manual
+ * fallback for runtimes that predate `AbortSignal.timeout` (notably iOS 15's
+ * WKWebView, which is still in the stage-pocket deployment target list at
+ * `apps/stage-pocket/ios/App/App.xcodeproj` `IPHONEOS_DEPLOYMENT_TARGET = 15.0`).
+ *
+ * Removal condition: drop the fallback branch once stage-pocket's deployment
+ * target moves to iOS 16+ (where `AbortSignal.timeout` ships natively).
+ */
+function createSignOutTimeoutSignal(ms: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms)
+  }
+  // NOTICE: temporary fallback for runtimes that predate `AbortSignal.timeout`,
+  // notably iOS 15's WKWebView (stage-pocket's `IPHONEOS_DEPLOYMENT_TARGET = 15.0`;
+  // `AbortSignal.timeout` only ships on iOS 16+). Mirrors the native semantics:
+  // abort with a `TimeoutError` DOMException after `ms`. Remove this branch
+  // once stage-pocket's deployment target moves to iOS 16+.
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(new DOMException('The operation timed out', 'TimeoutError')), ms)
+  return controller.signal
+}
+
+/**
+ * Invalidate the authoritative server session, then clear local auth state.
+ *
+ * Always issues a real server request before touching local state, so the
+ * caller's button must remain disabled (loading indicator) until this
+ * resolves. See the inline NOTICE for the SameSite-Lax re-login race that
+ * motivates the ordering.
+ *
+ * Rejection contract:
+ * - If the OIDC `/end-session` or bearer `/sign-out` request rejects (timeout
+ *   via `createSignOutTimeoutSignal`, network error, non-2xx, etc.), this
+ *   function re-throws and **does not** clear local auth state. The user
+ *   stays "logged in" locally so they can retry, and so that any subsequent
+ *   navigation to `/oauth2/authorize` cannot hit the documented
+ *   still-live-session silent re-login bug.
+ * - If no server credential is available (`idToken`/`oidcClientId`/`token`
+ *   all empty), local state is cleared optimistically because there is no
+ *   remote row to invalidate.
+ *
+ * Callers should catch rejection and surface a retry affordance; do not
+ * blindly proceed to a "signed out" UI on rejection.
+ */
 export async function signOut() {
   const authStore = useAuthStore()
 
@@ -156,27 +207,42 @@ export async function signOut() {
   // persistence (applyOIDCTokens started saving id_token in this branch);
   // without it, those legacy sessions would skip server cleanup and hit
   // exactly the silent-re-login bug described above.
-  try {
-    if (idTokenHint && clientId) {
-      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-      url.searchParams.set('id_token_hint', idTokenHint)
-      url.searchParams.set('client_id', clientId)
-      await fetch(url.toString(), { method: 'GET' })
+  if (idTokenHint && clientId) {
+    const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+    url.searchParams.set('id_token_hint', idTokenHint)
+    url.searchParams.set('client_id', clientId)
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      signal: createSignOutTimeoutSignal(SIGN_OUT_REQUEST_TIMEOUT_MS),
+    })
+    // Treat non-2xx as a failed server sign-out: re-throw so the rejection
+    // contract documented above holds and local state stays intact. Without
+    // this, a 5xx (or a misconfigured 4xx) would resolve fetch and clear local
+    // state even though the server session row is still live.
+    if (!response.ok) {
+      throw new Error(`sign-out end-session failed: HTTP ${response.status}`)
     }
-    else if (bearerToken) {
-      const url = new URL('/api/auth/sign-out', SERVER_URL)
-      await fetch(url.toString(), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${bearerToken}` },
-      })
-    }
-  }
-  catch {
-    // Network failure: still clear local state below. Server-side row will
-    // expire by TTL; the local refreshToken/idToken/clientId are about to
-    // be wiped, so the local user has no way to spend it in the meantime.
+    authStore.clearAllAuthState()
+    return
   }
 
+  if (bearerToken) {
+    const url = new URL('/api/auth/sign-out', SERVER_URL)
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${bearerToken}` },
+      signal: createSignOutTimeoutSignal(SIGN_OUT_REQUEST_TIMEOUT_MS),
+    })
+    if (!response.ok) {
+      throw new Error(`sign-out bearer fallback failed: HTTP ${response.status}`)
+    }
+    authStore.clearAllAuthState()
+    return
+  }
+
+  // No server-side credential material is available, so there is no
+  // authoritative remote session we can invalidate from this client. In that
+  // legacy/local-only state, local cleanup is still the only available action.
   authStore.clearAllAuthState()
 }
 
