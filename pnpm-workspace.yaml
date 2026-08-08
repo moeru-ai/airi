@@ -1,4 +1,12 @@
 catalogMode: prefer
+minimumReleaseAgeExclude:
+  - '@moeru/*'
+  - '@proj-airi/*'
+  - '@vishot/*'
+  - '@xsai/*'
+  - '@xsai-ext/*'
+  - '@xsai-transformers/*'
+
 shellEmulator: true
 packages:
   - packages/**
@@ -427,14 +435,6 @@ catalogs:
     vitest: ^4.1.4
   xsai:
     unspeech: ^0.1.14
-
-minimumReleaseAgeExclude:
-  - '@moeru/*'
-  - '@proj-airi/*'
-  - '@vishot/*'
-  - '@xsai/*'
-  - '@xsai-ext/*'
-  - '@xsai-transformers/*'
 
 ignoredBuiltDependencies:
   - '@ax-llm/ax'
