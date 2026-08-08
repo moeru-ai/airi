@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import { Capacitor } from '@capacitor/core'
-import { LocalNotifications } from '@capacitor/local-notifications'
 import { Button } from '@proj-airi/ui'
-import { AndroidSettings, IOSSettings, NativeSettings } from 'capacitor-native-settings'
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-type PermissionState = boolean | undefined
+import PermissionsPanel from '../permissions/permissions-panel.vue'
 
 interface Props {
   onNext: () => Promise<void> | void
@@ -15,31 +11,6 @@ interface Props {
 
 const props = defineProps<Props>()
 const { t } = useI18n()
-
-const isNativePlatform = Capacitor.isNativePlatform()
-
-const notificationPermissionGranted = ref<PermissionState>(undefined)
-
-async function requestNotificationPermission() {
-  const beforeRequest = await LocalNotifications.checkPermissions()
-  if (beforeRequest.display === 'granted') {
-    notificationPermissionGranted.value = true
-    return
-  }
-
-  const requested = await LocalNotifications.requestPermissions()
-  if (requested.display === 'granted') {
-    notificationPermissionGranted.value = true
-    return
-  }
-
-  if (isNativePlatform) {
-    NativeSettings.open({
-      optionAndroid: AndroidSettings.AppNotification,
-      optionIOS: IOSSettings.AppNotification,
-    })
-  }
-}
 </script>
 
 <template>
@@ -59,25 +30,9 @@ async function requestNotificationPermission() {
         {{ t('settings.dialogs.onboarding.permissions.description') }}
       </p>
 
-      <section class="border border-neutral-200 rounded-xl bg-neutral-50 p-4 dark:border-neutral-700 dark:bg-neutral-800/50">
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h3 class="text-sm text-neutral-800 font-semibold dark:text-neutral-100">
-              {{ t('settings.dialogs.onboarding.permissions.notificationsTitle') }}
-            </h3>
-            <p class="mt-1 text-xs text-neutral-600 dark:text-neutral-300">
-              {{ t('settings.dialogs.onboarding.permissions.notificationsDescription') }}
-            </p>
-          </div>
-          <span v-if="notificationPermissionGranted" class="i-solar:check-circle-linear h-5 w-5 text-green-700 dark:text-green-400" />
-        </div>
-        <Button
-          :label="t('settings.dialogs.onboarding.permissions.notificationsAction')"
-          @click="requestNotificationPermission"
-        />
-      </section>
+      <PermissionsPanel />
 
-      <p class="text-xs text-neutral-500 dark:text-neutral-400">
+      <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.dialogs.onboarding.permissions.optionalHint') }}
       </p>
     </div>

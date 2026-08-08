@@ -58,16 +58,14 @@ dialogs:
       Please return to the previous step and check your API key, or check the
       network connection.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: Notifications
       notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
   bug-report:
@@ -1512,6 +1510,9 @@ pages:
     general:
       description: Dark theme, languages, etc.
       title: General
+    permissions:
+      description: View current permission status.
+      title: Permission Management
     description: Customize your stage!
     sections:
       section:

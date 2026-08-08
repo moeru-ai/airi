@@ -113,14 +113,14 @@ const isWebSpeechAPIAvailable = computed(() => {
     && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
 })
 
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
+
 onMounted(async () => {
   ensureProviderSettings()
-  // Audio devices are loaded on demand when user requests them
+  await askPermission()
 })
-
-// Speech-to-Text test state (always uses Web Speech API)
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
 
 const isTestingSTT = ref(false)
 const testTranscriptionText = ref<string>('')
@@ -405,10 +405,7 @@ onUnmounted(() => {
                 v-model="selectedAudioInput"
                 label="Audio Input Device"
                 description="Select the audio input device for testing"
-                :options="audioInputs.map(input => ({
-                  label: input.label || input.deviceId,
-                  value: input.deviceId,
-                }))"
+                :options="audioInputOptions"
                 placeholder="Select an audio input device"
                 layout="vertical"
                 class="flex-1"
