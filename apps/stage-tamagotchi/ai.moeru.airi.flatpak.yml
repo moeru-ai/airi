@@ -22,7 +22,10 @@ finish-args:
   - --talk-name=org.freedesktop.portal.Desktop
   - --system-talk-name=org.freedesktop.login1
   - --system-talk-name=org.freedesktop.UPower
-  - --filesystem=home:rw
+  # Filesystem permissions
+  - --filesystem=xdg-download:rw
+  - --filesystem=xdg-config/airi:create
+  - --filesystem=~/.config/airi:create
 
 modules:
   - name: AIRI-App
@@ -32,8 +35,11 @@ modules:
       - mkdir -p /app/bin/airi
       - cp -r ./* /app/bin/airi/
       - install airi.sh /app/bin/airi.sh
-      - chmod +x /app/bin/airi/airi.sh
+      - chmod +x /app/bin/airi.sh
       - chmod +x /app/bin/airi/airi
+      - install -Dm644 ai.moeru.airi.desktop /app/share/applications/ai.moeru.airi.desktop
+      - install -Dm644 ai.moeru.airi.metainfo.xml /app/share/metainfo/ai.moeru.airi.metainfo.xml
+      - install -Dm644 build/icon.png /app/share/icons/hicolor/512x512/apps/ai.moeru.airi.png
     sources:
       - type: dir
         only-arches: [x86_64]
@@ -41,6 +47,13 @@ modules:
       - type: dir
         only-arches: [aarch64]
         path: dist/linux-arm64-unpacked
+      - type: file
+        path: ai.moeru.airi.desktop
+      - type: file
+        path: ai.moeru.airi.metainfo.xml
+      - type: dir
+        path: build
+        dest: build
       # First discovered by [@gg582](https://github.com/gg582) in https://github.com/moeru-ai/airi/pull/647
       #
       # Without the correct zypak-wrapper, application launch will result in this error:
