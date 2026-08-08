@@ -1200,7 +1200,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 
-packageExtensionsChecksum: sha256-7gs/L6SSPlA6hADj6ZSQFgfNIQFNSbCO6+FgyU/u4q8=
+packageExtensionsChecksum: sha256-9x3Rf+UzSxqvhTMT2ZrdkfQfMS5uM9fieg8gzFf62VQ=
 
 patchedDependencies:
   '@xsai/generate-text@0.5.0-beta.2':
@@ -21793,6 +21793,7 @@ snapshots:
   '@huggingface/transformers@3.8.1':
     dependencies:
       '@huggingface/jinja': 0.5.3
+      onnxruntime-common: 1.27.0
       onnxruntime-node: 1.21.0
       onnxruntime-web: 1.24.3
       sharp: 0.34.5
@@ -26560,7 +26561,7 @@ snapshots:
       '@moeru/std': 0.1.0-beta.20
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.4
-      onnxruntime-common: 1.24.3
+      onnxruntime-common: 1.27.0
     transitivePeerDependencies:
       - electron
       - h3

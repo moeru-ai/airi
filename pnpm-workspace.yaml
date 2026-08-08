@@ -470,7 +470,8 @@ packageExtensions:
       vue: '*'
   '@huggingface/transformers':
     dependencies:
-      onnxruntime-node: 'catalog:'
+      onnxruntime-common: '^1.24.3'
+      onnxruntime-node: '1.27.0'
   '@intlify/unplugin-vue-i18n':
     peerDependencies:
       vite: '*'
