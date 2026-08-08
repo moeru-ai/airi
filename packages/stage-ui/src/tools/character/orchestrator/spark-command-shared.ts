@@ -36,8 +36,8 @@ export const sparkNotifyCommandItemSchema = z.object({
 }).strict()
 
 export const sparkCommandMetadataEntrySchema = z.object({
-  key: z.string().describe('Metadata key.'),
-  value: z.union([z.string(), z.number(), z.boolean(), z.null()]).describe('Metadata value.'),
+  key: z.string().optional().describe('Metadata key.'),
+  value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional().describe('Metadata value.'),
 }).strict()
 
 export const sparkCommandContextSchema = z.object({
