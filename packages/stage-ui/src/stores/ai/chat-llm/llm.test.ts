@@ -1,13 +1,13 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
-import type { ExecutableTool } from './llm-tools'
+import type { ExecutableTool } from './tools'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { isToolRelatedError, useLLM } from './llm'
-import { useLlmToolsStore } from './llm-tools'
+import { useLlmToolsStore } from './tools'
 
 const {
   streamTextMock,
@@ -38,7 +38,7 @@ vi.mock('@xsai/shared-chat', () => ({
   stepCountAtLeast: vi.fn(),
 }))
 
-vi.mock('../tools', () => ({
+vi.mock('../../../tools', () => ({
   mcp: mcpMock,
   debug: debugMock,
   createSparkCommandTool: createSparkCommandToolMock,

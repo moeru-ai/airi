@@ -1,14 +1,14 @@
 import type { TraceEvent } from '@proj-airi/stage-shared'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import type { StreamEvent } from './llm'
+import type { StreamEvent } from './ai/chat-llm/llm'
 
 import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-shared'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
+import { useLLM } from './ai/chat-llm/llm'
 import { useChatStore } from './chat'
-import { useLLM } from './llm'
 import { useConsciousnessStore } from './modules/consciousness'
 import { usePerfTracerBridgeStore } from './perf-tracer-bridge'
 import { useProviderStore } from './providers/provider'

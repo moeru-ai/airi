@@ -8,7 +8,7 @@ import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 
-import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { activeTurnSpan, startSpan } from '../../../composables/use-io-tracer'
 
 interface RemoteCallMessage {
   type: 'turn-call'

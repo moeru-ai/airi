@@ -4,10 +4,10 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { uniqBy } from 'es-toolkit'
 
-import { createSparkCommandTool, createWebSearchTools, debug, mcp } from '../tools'
-import { useLlmToolsStore } from './llm-tools'
-import { useModsServerChannelStore } from './mods/api/channel-server'
-import { useWebSearchStore } from './modules/web-search'
+import { createSparkCommandTool, createWebSearchTools, debug, mcp } from '../../../tools'
+import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useWebSearchStore } from '../../modules/web-search'
+import { useLlmToolsStore } from './tools'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
 

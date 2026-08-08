@@ -11,7 +11,7 @@ const spanMock = vi.hoisted(() => ({
 
 const startSpanMock = vi.hoisted(() => vi.fn(() => spanMock))
 
-vi.mock('../composables/use-io-tracer', () => ({
+vi.mock('../../../composables/use-io-tracer', () => ({
   activeTurnSpan: shallowRef(undefined),
   startSpan: startSpanMock,
 }))
@@ -31,7 +31,7 @@ describe('useLlmStreamingControlStore', () => {
    * expect(startSpan).toHaveBeenCalledWith('Streaming control dispatch', ...)
    */
   it('records streaming control dispatch spans and call handler events', async () => {
-    const { useLlmStreamingControlStore } = await import('./llm-streaming-control')
+    const { useLlmStreamingControlStore } = await import('./streaming-control')
     const store = useLlmStreamingControlStore()
     const handler = vi.fn()
 
@@ -82,7 +82,7 @@ describe('useLlmStreamingControlStore', () => {
    * expect(span.addEvent).toHaveBeenCalledWith(IOEvents.StreamingControlRejected, ...)
    */
   it('records rejected streaming control dispatches', async () => {
-    const { useLlmStreamingControlStore } = await import('./llm-streaming-control')
+    const { useLlmStreamingControlStore } = await import('./streaming-control')
     const store = useLlmStreamingControlStore()
 
     await expect(store.dispatchWith('<|CALL []|>')).resolves.toBe(false)

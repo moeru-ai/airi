@@ -6,7 +6,7 @@ import type { VisionWorkloadId } from './use-vision-workloads'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useLLM } from '../../stores/llm'
+import { useLLM } from '../../stores/ai/chat-llm/llm'
 import { useVisionStore } from '../../stores/modules/vision'
 import { useProviderStore } from '../../stores/providers/provider'
 import { getVisionWorkload } from './use-vision-workloads'

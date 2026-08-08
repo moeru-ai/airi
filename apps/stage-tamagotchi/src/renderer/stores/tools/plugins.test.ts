@@ -1,7 +1,7 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
-import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
+import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 

@@ -7,7 +7,7 @@ import type { Mock } from 'vitest'
 import type { UnwrapRef } from 'vue'
 import type z from 'zod'
 
-import type { StreamEvent } from '../../llm'
+import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
 import { createTestingPinia } from '@pinia/testing'
@@ -18,7 +18,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
-import { useLLM } from '../../llm'
+import { useLLM } from '../../ai/chat-llm/llm'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
 

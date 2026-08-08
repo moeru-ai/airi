@@ -1,7 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { useLlmToolsetPromptsStore } from './llm-toolset-prompts'
+import { useLlmToolsetPromptsStore } from './toolset-prompts'
 
 describe('useLlmToolsetPromptsStore', () => {
   beforeEach(() => {

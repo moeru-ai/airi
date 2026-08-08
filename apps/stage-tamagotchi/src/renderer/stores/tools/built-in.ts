@@ -1,7 +1,7 @@
-import type { ExecutableTool } from '@proj-airi/stage-ui/stores/llm-tools'
+import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import type { ChatToolReference } from '@proj-airi/stage-ui/types/chat'
 
-import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { defineStore } from 'pinia'
 
 import { imageJournalTools } from './builtin/image-journal'

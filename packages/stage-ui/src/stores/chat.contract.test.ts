@@ -162,13 +162,13 @@ vi.mock('./chat/stream-store', () => ({
   }),
 }))
 
-vi.mock('./llm', () => ({
+vi.mock('./ai/chat-llm/llm', () => ({
   useLLM: () => ({
     stream: llmStreamMock,
   }),
 }))
 
-vi.mock('./llm-tools', () => ({
+vi.mock('./ai/chat-llm/tools', () => ({
   useLlmToolsStore: () => ({
     getToolsByNames: (...names: string[]) => getToolsByNamesMock(names),
   }),
@@ -180,7 +180,7 @@ vi.mock('./providers/provider', () => ({
   }),
 }))
 
-vi.mock('./llm-toolset-prompts', () => ({
+vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   useLlmToolsetPromptsStore: () => ({
     activeToolsetPrompt: 'Plugin toolset guidance.',
   }),

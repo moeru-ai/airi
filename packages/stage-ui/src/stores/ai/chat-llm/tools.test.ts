@@ -1,11 +1,11 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import type { ExecutableTool, ToolDefinition } from './llm-tools'
+import type { ExecutableTool, ToolDefinition } from './tools'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useLlmToolsStore } from './llm-tools'
+import { useLlmToolsStore } from './tools'
 
 function createExecutableTool(id: string, name = id): ExecutableTool {
   return {

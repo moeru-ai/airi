@@ -2,7 +2,7 @@ import type { Tool } from '@xsai/shared-chat'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { resolveLlmTools, toolNameFrom } from './llm-tool-resolver'
+import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 
 // The default (non-injected) web-search branch reads the module store and the
 // tools barrel; mock both so the configured-gate + key-trim logic can be
@@ -12,12 +12,12 @@ const { createWebSearchToolsMock, useWebSearchStoreMock } = vi.hoisted(() => ({
   useWebSearchStoreMock: vi.fn(),
 }))
 
-vi.mock('../tools', async (importOriginal) => {
+vi.mock('../../../tools', async (importOriginal) => {
   const actual = await importOriginal() as Record<string, unknown>
   return { ...actual, createWebSearchTools: createWebSearchToolsMock }
 })
 
-vi.mock('./modules/web-search', () => ({
+vi.mock('../../modules/web-search', () => ({
   useWebSearchStore: useWebSearchStoreMock,
 }))
 

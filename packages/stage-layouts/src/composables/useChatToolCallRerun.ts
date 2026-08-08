@@ -1,8 +1,8 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { resolveLlmTools } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-resolver'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { resolveLlmTools } from '@proj-airi/stage-ui/stores/llm-tool-resolver'
 import { executeToolCallRerun } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 
 export interface ChatToolCallRerunEvent {
