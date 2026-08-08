@@ -473,12 +473,12 @@ export function setupAgentSparkNotifyHandler(deps: SparkNotifyAgentDeps): {
           })
         }
 
-        if (streamEvent.type === 'tool-result') {
+        if (streamEvent.type === 'tool-result' || streamEvent.type === 'tool-error') {
           traceSpark(deps, {
             type: 'tool-execution',
             payload: {
               eventId: event.data.eventId,
-              kind: 'tool-result',
+              kind: streamEvent.type,
               ...streamEvent,
             },
           })
