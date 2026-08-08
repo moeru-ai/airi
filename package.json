@@ -96,6 +96,7 @@
     "yaml": "catalog:"
   },
   "workspaces": [
+    ".github/actions/*",
     "packages/**",
     "plugins/**",
     "integrations/**",

@@ -1,1 +1,2 @@
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
+.github/actions/pr-triage/dist/** linguist-generated=true whitespace=-blank-at-eol

@@ -59,6 +59,8 @@ bundle/
 
 # Vite
 dist
+!.github/actions/pr-triage/dist/
+!.github/actions/pr-triage/dist/**
 # Nuxt
 .nuxt
 # vite-plugin-inspect
