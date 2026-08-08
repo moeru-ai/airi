@@ -1,4 +1,5 @@
 export * from './airi-card'
+export * from './alaya-memory'
 export * from './consciousness'
 export * from './discord'
 export * from './gaming-factorio'
