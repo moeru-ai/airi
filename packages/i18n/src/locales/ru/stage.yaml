@@ -15,12 +15,12 @@ chat:
     new-chat-fallback: Новый чат
     delete: Удалить диалог
 render-error:
-  title: '{renderer} не удалось отобразить эту модель'
-  description: Модель выбрана, но сцена не смогла её отобразить.
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} не удалось отобразить выбранную модель.
-    ID модели: {modelId}
-    Ошибка: {error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: Спроси что-нибудь
 send-mode:
   title: Отправить ключ
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Двойной Enter
 speech-output:
-  mute: Отключить озвучивание
-  unmute: Включить озвучивание
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: Загрузить модели
   load-models-status:

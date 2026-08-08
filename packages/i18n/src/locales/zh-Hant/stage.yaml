@@ -15,12 +15,12 @@ chat:
     new-chat-fallback: 新對話
     delete: 刪除對話
 render-error:
-  title: '{renderer} 無法算繪這個模型'
-  description: 模型已經選取，但舞台無法顯示它。
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} 無法算繪選取的模型。
-    模型 ID：{modelId}
-    錯誤：{error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: 說點什麼...
 send-mode:
   title: 傳送按鍵
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Enter + Enter
 speech-output:
-  mute: 靜音語音
-  unmute: 恢復語音
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: 載入模型
   load-models-status:
