@@ -24,4 +24,5 @@ menu:
       reset_position: Сбросить положение
       devtools: Инструменты разработчика
       troubleshoot_beatsync: Синхронизация неполадок
+      reload: Перезагрузить главное окно
       quit: Выход

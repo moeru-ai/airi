@@ -24,4 +24,5 @@ menu:
       reset_position: Đặt lại vị trí
       devtools: Công cụ phát triển
       troubleshoot_beatsync: Sửa lỗi BeatSync...
+      reload: Tải lại cửa sổ chính
       quit: Thoát ra

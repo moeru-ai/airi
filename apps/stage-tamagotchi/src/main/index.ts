@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
 
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
@@ -18,7 +18,7 @@ import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
-import icon from '../../resources/icon.png?asset'
+import macOSDockIcon from '../../build/icon.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
@@ -96,7 +96,11 @@ if (isLinux) {
   }
 }
 
-app.dock?.setIcon(icon)
+// Packaged macOS builds use the adaptive icon configured by electron-builder.
+// Only development needs a runtime override because it otherwise shows Electron's icon.
+if (is.dev) {
+  app.dock?.setIcon(macOSDockIcon)
+}
 electronApp.setAppUserModelId('ai.moeru.airi')
 
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.

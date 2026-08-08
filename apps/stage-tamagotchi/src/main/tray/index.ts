@@ -216,6 +216,16 @@ export function setupTray(params: {
               { type: 'separator' },
             ] as const
           : [],
+        {
+          label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.reload'),
+          click: () => {
+            if (isRendererUnavailable(params.mainWindow)) {
+              return
+            }
+
+            params.mainWindow.webContents.reload()
+          },
+        },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.quit'), click: () => app.quit() },
       ])
 
