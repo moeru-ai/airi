@@ -301,10 +301,10 @@ pages:
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
-    activation_notice: 已切换到 {name}，当前会话将使用该角色。
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 取消操作
     save: 保存更改
-    save_and_activate: 保存并激活
+    save_and_activate: Save and activate
     card_not_found: 未找到角色卡
     character: 角色设定
     close: 关闭
@@ -537,45 +537,45 @@ pages:
       card:
         description: 配置 AIRI 生成图像和视觉内容的方式。
         comfyui_empty: 未配置 ComfyUI 工作流。前往设置 → 提供商 → ComfyUI 上传工作流模板。
-        exposed_fields: '{count} exposed fields'
-        open_on_replicate: Open on Replicate
+        exposed_fields: '投影'
+        open_on_replicate: 重置为默认参数
         instruction_sync:
-          title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
-          keep: Keep Existing
-      provider: Artistry Provider
+          title: 清除模型缓存
+          description: 表情
+          apply: 表情系统
+          keep: 禁用后仍会保留 SDK 表情管理器和眨眼功能。
+      provider: 此模型没有可用表情。
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: LLM 工具集成尚未完成。
+        description: 保存默认表情设置
         options:
-          bg: Background Environment
-          inline: Inline Chat
-          widget: Overlay Widget
-          bg_widget: Dual (Background + Widget)
+          bg: 重置所有表情
+          inline: 向 LLM 公开
+          widget: 无
+          bg_widget: 全部
       autonomous:
-        title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
-        threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
-        threshold_min: Always Generate (0%)
-        threshold_max: Strict (100%)
+        title: 自定义
+        description: 确认新密码
+        threshold: 此处包含不可撤销的账户操作。
+        threshold_description: 删除账户？
+        threshold_min: 邮箱不匹配。
+        threshold_max: 发送确认邮件
       model:
-        label: Artistry Model (Optional Override)
-        description: Model identifier if needed by provider
+        label: 取消
+        description: 请查看 {email} 收件箱中的删除链接。
       prompt-prefix:
-        label: Artistry Prompt Default Prefix
-        description: Pre-pended to every prompt sent to the image generator.
+        label: 无法开始删除操作，请稍后重试。
+        description: 视觉 / 提供商
       options:
-        label: Artistry Provider Options (JSON)
+        label: 视觉 / 模型
       widget-instructions:
-        label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        label: 错误：绘图服务提供商选项包含无效的 JSON。
+        description: 无
     categories:
       essential: 基础
-      messaging: Messaging
-      gaming: Gaming
-      artistry: Artistry
+      messaging: 导出
+      gaming: 角色卡包已导出
+      artistry: 导出角色卡包失败
     consciousness:
       description: 人格设定、使用的模型等配置
       sections:
@@ -695,11 +695,11 @@ pages:
               loading: 正在加载模型……
               required: 请选择声线
           voice-pack:
-            description: Select a curated voice for the active character
-            empty: No Voice Packs available
-            error: Error loading Voice Packs
-            loading: Loading Voice Packs...
-            title: Voice Pack
+            description: 角色卡包已导入
+            empty: 角色卡包缺少必需文件
+            error: 角色卡包文件无效
+            loading: 点击或拖放 AIRI 角色卡包以导入
+            title: 将桌面窗口移至中央
           provider-voice-selection:
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
@@ -773,7 +773,7 @@ pages:
         empty: 这里什么都还没有哦，在下面添加一个！
       add:
         title: 新建
-        description: '填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」'
+        description: "填写新的服务器配置，然后点击「保存并重启」，完成后将会更新至上方的「已配置」"
         pending-badge: 未保存
       status:
         unknown: 未加载
@@ -861,7 +861,7 @@ pages:
       typeAddition: 充电
       typeConsumption: 用量
       typeInitial: 初始额度
-      typePromo: Promo Grant
+      typePromo: ComfyUI（本地）
       loading: 加载历史...
       empty: 暂无消耗记录
       loadMore: 更多信息
@@ -981,20 +981,20 @@ pages:
     categories:
       chat:
         title: 聊天
-        description: Text generation model providers. e.g. OpenRouter, OpenAI, Ollama.
+        description: 通过 WSL 使用本地 ComfyUI 实例生成图像。
       vision:
-        title: Vision
-        description: Vision model providers for image understanding.
+        title: Replicate.ai（云端）
+        description: 通过 Replicate API 使用云端模型。
       speech:
-        title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        title: Nano Banana（预览版）
+        description: 使用 Google AI Studio 生成预览图像和反应。
       transcription:
-        title: Transcription
+        title: 配置 AIRI 如何生成图像和视觉内容。
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          尚未配置 ComfyUI 工作流。请前往“设置 → 服务提供商 → ComfyUI”上传工作流模板。
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
+        title: 绘图
+        description: '{count} 个公开字段'
         items:
           comfyui:
             description: 本地图像生成运行器。
@@ -1739,21 +1739,21 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
-  title: Tachie 设置
-  archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: 缩放与位置
-    scale: 缩放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: 从模型提取颜色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   rendering:
-    title: 渲染
-    render-scale: 渲染缩放
-    shadow: 主题色动态阴影
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: 启用安全WebSocket (WSS)
   description: >-

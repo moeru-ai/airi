@@ -144,78 +144,78 @@ live2d:
   theme-color-from-model:
     title: 從模型中提取顏色
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      登入即可使用 AIRI 官方提供者，享受最佳體驗。
     button-extract:
       title: 提取
   animation:
-    title: Animation
+    title: 登入
     focus:
-      title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
-      offset: Eye offset(%)
+      title: 使用您的提供者設定
+      description: Flux
+      offset: 為 Flux 充值
     force-idle-eye-animation:
-      title: Idle eye movement
-      description: Randomly look around when there is no active cursor focus.
+      title: 通知
+      description: 您可以現在允許通知，或繼續操作並稍後設定。
     blink-enable:
-      title: Enable blink
-      description: Let the model blink.
+      title: 通知
+      description: 允許提醒與重要狀態更新。
     auto-blink:
-      title: Auto
-      description: Use default blinking animation of the model
+      title: 要求通知權限
+      description: 若拒絕，之後可以從 iOS 設定中啟用通知。
     force-auto-blink:
-      title: Force
-      description: Force blinking animation with external timer
+      title: 開啟 iOS 設定
+      description: 即使未授予通知權限，您仍可繼續操作。
     blink-mode:
-      title: Blink mode
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      title: 未要求
+      description: 要求中...
     idle-motion:
-      title: Idle animation
-      no-motion: No animation available
-      placeholder: Select animation
-      disable-motion: Disabled
-      disable-motion-description: Disable idle animation
+      title: 已授予
+      no-motion: 未授予
+      placeholder: 錯誤回報
+      disable-motion: 糟糕，很抱歉我們出錯了。您願意告訴我們發生了什麼嗎？
+      disable-motion-description: 回報錯誤
   parameters:
-    title: Model Parameters
+    title: 傳送錯誤回報
     render-scale:
-      title: Render scale
+      title: 附上螢幕截圖和頁面內容，協助我們分流處理此問題。
     fps:
-      title: FPS
-      description: Limit rendering frame rate
+      title: 重現步驟、預期行為與實際行為
+      description: 附上目前頁面的螢幕截圖
       options:
-        unlimited: '∞'
-    shadow: Drop shadow
-    reset-parameters: Reset to default parameters
-  clear-model-cache: Clear model cache
+        unlimited: 手動選擇螢幕截圖／錄影
+    shadow: 選填。
+    reset-parameters: 媒體檔案
+  clear-model-cache: 選填：手動選擇。
   expressions:
-    title: Expressions
-    override-toggle: Expression system
+    title: 選擇螢幕截圖或影片檔案
+    override-toggle: 已選取 {count} 個檔案
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
-    no-expression: No expressions available for this model.
-    llm-integration-wip: LLM tool integration is not yet wired up.
-    save-default: Save expression defaults
-    reset: Reset all expressions
-    expose-to-llm-toggle: Expose to LLM
+      上次提交的內容預覽
+    no-expression: 介面語言。您可以稍後設定角色語言。
+    llm-integration-wip: 使用分析
+    save-default: AIRI 會收集匿名使用分析，以協助我們了解應用程式的使用方式並提升穩定性。我們不會收集個人資料。
+    reset: 閱讀
+    expose-to-llm-toggle: 隱私權政策
     expose-to-llm-options:
-      none: None
-      all: All
-      custom: Custom
+      none: 您稍後可以在「設定 > 系統 > 一般」中關閉使用分析。
+      all: 您可以隨時關閉使用分析。
+      custom: 啟用使用分析
 microphone: 麥克風
 models: 模型
 pages:
   account:
-    title: Account
-    description: View your profile and manage your account
-    notLoggedIn: Sign in to view your account and access all features
-    login: Sign in
-    logout: Sign out
-    fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    signedInAs: Signed in as
+    title: 關閉此項以退出使用分析收集。
+    description: 此開發版本已停用使用分析
+    notLoggedIn: 我們支援 2D 和 3D 模型
+    login: 點擊 {select-button} 以選取或匯入模型。目前支援 Live2D 和 Spine 模型的 {zip}，以及 VRM 模型的 {vrm}。
+    logout: Neuro-sama 使用由 Live2D Inc 開發的框架驅動 2D 模型，而 Grok Ani（Grok Companion 中的角色）使用由 VRM / MMD 開放格式驅動的 3D 模型。
+    fluxBalance: 模型選擇器
+    viewFluxDetails: 選擇模型
+    signedInAs: 選取
     profile:
-      tab: Profile
-      title: Profile
-      description: Manage your public display name.
+      tab: 匯入
+      title: 移除
+      description: 確認
       name:
         label: Display name
         placeholder: How others see you
@@ -301,10 +301,10 @@ pages:
     activate: 啟用
     active: 已啟用
     active_badge: 目前使用中
-    activation_notice: 已切換至 {name}，目前對話將使用此角色。
+    activation_notice: Switched to {name}. The current conversation now uses this character.
     cancel: 取消操作
     save: 儲存變更
-    save_and_activate: 儲存並啟用
+    save_and_activate: Save and activate
     card_not_found: 找不到角色卡
     character: 角色設定
     close: 關閉
@@ -773,7 +773,7 @@ pages:
         empty: 目前沒有內容。請在下方新增一個！
       add:
         title: 新增
-        description: '填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。'
+        description: "填寫新伺服器後，點擊「儲存並重新啟動」—它會移至上方的「已設定」區域。"
         pending-badge: 未儲存
       status:
         unknown: 未載入
@@ -805,7 +805,7 @@ pages:
         args:
           label: 引數
           description: 每行一個，依序排列。
-          placeholder: '-y some-package-name /tmp'
+          placeholder: "-y some-package-name /tmp"
         cwd:
           label: 工作目錄
           description: 用作程序工作目錄的選用目錄。
@@ -1739,21 +1739,21 @@ mmd:
     description: >-
       Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
-  title: Tachie 設定
-  archive-description: Tachie 模型使用包含情緒命名圖片的 .tachie.zip 壓縮檔。
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
-    title: 縮放與位置
-    scale: 縮放
+    title: Scale And Position
+    scale: Scale
     x: X
     'y': 'Y'
   theme-color-from-model:
-    title: 從模型提取顏色
+    title: Extract colors from model
     button-extract:
-      title: 提取
+      title: Extract
   rendering:
-    title: 渲染
-    render-scale: 渲染縮放
-    shadow: 主題色動態陰影
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: 啟用安全 WebSocket (WSS)
   description: >-

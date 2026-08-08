@@ -15,7 +15,7 @@ docs:
   'open-settings': Abrir configuración
   'open-chat': Abrir Chat
   'refresh': Actualizar
-  'center-main-window': Move to screen center
+  'center-main-window': Mover al centro de la pantalla
   'open-hearing-controls': Abrir controles de audición
   'drag-to-move-window': Arrastra para mover la ventana
   'stop-speaking': Detener voz
@@ -91,7 +91,7 @@ about:
       checking: Verificando...
       latest-version: Última versión
       disabled-dev: Actualizaciones desactivadas en Dev
-      managed-by-store: Las actualizaciones se gestionan desde la tienda de aplicaciones
+      managed-by-store: Updates managed by your app store
       retry-check: Reintentar verificación
       restart-silent: Reiniciar para actualizar silenciosamente
       restart-install: Reiniciar e instalar actualización

@@ -109,7 +109,7 @@ model-select:
   panel-callout:
     support-status-header: Chúng tôi hỗ trợ cả mô hình 2D và 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
+      Nhấp vào {select-button} để chọn hoặc nhập các mô hình. Hiện tại, {zip} (cho Live2D và các Spine model) và {vrm} (cho các VRM model) đều được hỗ trợ.
     model-type-example: >
       Neuro-sama sử dụng mô hình 2D được vận hành bởi framework được phát triển bởi Live2D Inc, trong khi đó Grok Ani (trong Grok Companion) sử dụng mô hình 3D được vận hành bởi VRM /MMD định dạng mở.
   select-model:
@@ -155,7 +155,7 @@ live2d:
       offset: Độ lệch mắt(%)
     force-idle-eye-animation:
       title: Chuyển động mắt nhàn rỗi (idle)
-      description: Randomly look around when there is no active cursor focus.
+      description: Nhìn xung quanh khi con trỏ chuột không di chuyển.
     blink-enable:
       title: Mở chớp mắt
       description: Cho phép mô hình chớp mắt.
@@ -301,7 +301,7 @@ pages:
     activate: Kích hoạt
     active: Đang hoạt động
     active_badge: Hiện đang hoạt động
-    activation_notice: Đã chuyển sang {name}. Cuộc trò chuyện hiện tại giờ sử dụng nhân vật này.
+    activation_notice: Chuyển sang {name}. Nhân vật này sẽ được sử dụng cho hội thoại hiện tại.
     cancel: Hủy thao tác
     save: Lưu thay đổi
     save_and_activate: Lưu và kích hoạt
@@ -415,7 +415,7 @@ pages:
         delete: Xóa tất cả hội thoại
       models:
         title: Mô hình
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Xóa các mô hình Live2D/VRM đã nhập.
         delete: Xóa tất cả mô hình
       modules:
         title: Các Mô-Đun
@@ -456,7 +456,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Đã đặt lại dữ liệu ứng dụng máy tính.
   models:
-    description: Live2D, VRM, Spine, MMD, etc.
+    description: Live2D, VRM, Spine, v.v.
     title: Mô hình
     sections:
       section:
@@ -751,13 +751,13 @@ pages:
       access-token-secret-placeholder: Nhập bí mật mã truy cập X / Twitter của bạn
       configured: Đã cấu hình X / Twitter thành công!
     web-search:
-      title: Web Search
+      title: Tìm kiếm trên web
       description: Let AIRI search the web for current information
-      enable: Enable Web Search
+      enable: Kích hoạt Tìm kiếm trên Web
       enable-description: Allow AIRI to search the web during chat
       api-key: Tavily API Key
-      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
-      api-key-placeholder: Enter your Tavily API key
+      api-key-description: Chức năng tìm kiếm trên web được cung cấp bởi Tavily. Nhận API miễn phí tại tavily.com.
+      api-key-placeholder: Nhập Tavily API của bạn
       configured: Web search is ready to use!
     mcp-server:
       title: Các máy chủ MCP
@@ -834,7 +834,7 @@ pages:
         success: Kết nối thành công! Đã tìm thấy {count} công cụ trong {ms}ms.
         failure: Kết nối thất bại sau {ms}ms
       errors:
-        empty-identifier: Server # {index} is missing an identifier.
+        empty-identifier: Máy chủ # {index} is missing an identifier.
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
         empty-command: '"{name}" đang thiếu một lệnh.'
         invalid-shape: Nhìn không giống mcp.json hợp lệ — root cần một trường "mcpServers".

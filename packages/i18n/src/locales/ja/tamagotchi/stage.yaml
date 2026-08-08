@@ -91,7 +91,7 @@ about:
       checking: 確認中…
       latest-version: 最新バージョン
       disabled-dev: Updates disabled in Dev
-      managed-by-store: アップデートはアプリストアによって管理されています
+      managed-by-store: Updates managed by your app store
       retry-check: Retry Check
       restart-silent: Restart to update silently
       restart-install: 再起動してアップデートをインストールする

@@ -15,12 +15,12 @@ chat:
     new-chat-fallback: Cuộc trò chuyện mới
     delete: Xóa đoạn hội thoại
 render-error:
-  title: '{renderer} không thể hiển thị mô hình này'
-  description: Mô hình đã được chọn nhưng sân khấu không thể hiển thị mô hình đó.
+  title: '{renderer} could not render this model'
+  description: The model is selected, but the Stage could not display it.
   report-description: |-
-    {renderer} không thể hiển thị mô hình đã chọn.
-    ID mô hình: {modelId}
-    Lỗi: {error}
+    {renderer} failed to render the selected model.
+    Model ID: {modelId}
+    Error: {error}
 message: Nói gì đó...
 send-mode:
   title: Gửi key
@@ -28,8 +28,8 @@ send-mode:
   ctrl-enter: Ctrl + Enter
   double-enter: Nhập hai lần
 speech-output:
-  mute: Tắt tiếng nói
-  unmute: Bật tiếng nói
+  mute: Mute voice
+  unmute: Unmute voice
 operations:
   load-models: Tải mô hình
   load-models-status:
