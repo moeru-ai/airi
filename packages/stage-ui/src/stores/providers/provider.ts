@@ -8,7 +8,6 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
-import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
 import type { ModelInfo, ProviderDefinition, ProviderInstance } from '../../libs/providers/types'
@@ -22,6 +21,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { captureAnalyticsEvent, enableAnalytics, isAnalyticsAvailableInBuild } from '../../libs/analytics'
 import {
   CHAT_COMPLETIONS_VALIDATOR_ID,
   getProviderValidationIntervalMs,
@@ -31,7 +31,6 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
-import { captureAnalyticsEvent, ensureAnalyticsInitialized, isAnalyticsAvailableInBuild } from '../analytics/client'
 import { useAuthStore } from '../auth'
 import { useSettingsAnalytics } from '../settings/analytics'
 import { useProviderConfigStore } from './config'
@@ -69,7 +68,7 @@ function canCaptureProviderAnalytics(): boolean {
   if (!settingsAnalytics.analyticsEnabled)
     return false
 
-  return ensureAnalyticsInitialized(true)
+  return enableAnalytics()
 }
 
 /**

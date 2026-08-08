@@ -1,5 +1,3 @@
-import type {} from 'pinia-plugin-synced'
-
 import type { InferenceServiceProvider, ProviderValidationStatus } from '../../libs/providers/types'
 
 import { useMutation, useQuery } from '@pinia/colada'

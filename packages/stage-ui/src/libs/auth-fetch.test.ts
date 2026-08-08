@@ -17,7 +17,7 @@ vi.mock('./auth', () => ({
   getAuthToken: authMocks.getAuthToken,
 }))
 
-vi.mock('../stores/analytics/client', () => ({
+vi.mock('./analytics', () => ({
   getAnalyticsIdentitySnapshot: posthogMocks.getAnalyticsIdentitySnapshot,
 }))
 

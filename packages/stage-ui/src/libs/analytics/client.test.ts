@@ -35,13 +35,7 @@ describe('analytics client', () => {
     expect(adapter.identify).toHaveBeenCalledWith('user-1')
   })
 
-  // ROOT CAUSE:
-  //
-  // A content blocker rejects the provider adapter's dynamic module request.
-  // If that rejection escapes into application startup, Vue never mounts.
-  //
-  // The client converts provider loading failure into a permanent no-op state.
-  it('fails open when a content blocker rejects the provider adapter', async () => {
+  it('degrades to a no-op when a content blocker rejects the provider adapter', async () => {
     const client = new AnalyticsClient(async () => {
       throw new TypeError('Failed to fetch dynamically imported module')
     })

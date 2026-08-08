@@ -24,11 +24,6 @@ vi.mock('../../../../../posthog.config', () => ({
 }))
 
 describe('posthog analytics adapter', () => {
-  // ROOT CAUSE:
-  //
-  // `surface` was registered as the runtime platform but individual events
-  // also used `surface` for entry points such as `settings_flux`. Event
-  // properties overwrite super properties, so platform breakdowns drifted.
   it('registers the runtime under the dedicated app_surface property', () => {
     createPosthogAdapter({ enabled: true })
     expect(posthogMocks.register).toHaveBeenCalledWith({ app_surface: 'web' })

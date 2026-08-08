@@ -18,7 +18,7 @@ function currentSurface(): 'web' | 'mobile' | 'electron' {
   return 'web'
 }
 
-/** Creates and initializes the default PostHog analytics adapter. */
+/** Creates and initializes the default PostHog adapter. */
 export function createPosthogAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
   posthog.init(POSTHOG_PROJECT_KEY, {
     ...DEFAULT_POSTHOG_CONFIG,

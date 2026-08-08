@@ -1,5 +1,4 @@
 import type { Tool } from '@xsai/shared-chat'
-import type {} from 'pinia-plugin-synced'
 
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'

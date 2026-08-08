@@ -3,23 +3,19 @@ import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 
 export interface AnalyticsIdentitySnapshot {
-  /** Current provider distinct id for the browser/device/user person. */
+  /** Current provider distinct id for the browser, device, or user. */
   distinctId: string
-  /** Current provider session id, when one has been established. */
+  /** Current provider session id, when one exists. */
   sessionId?: string
 }
 
-/** Provider-neutral delivery hints for one product event. */
+/** Provider-neutral delivery options for one product event. */
 export interface AnalyticsCaptureOptions {
-  /**
-   * Indicates that document navigation immediately follows capture, allowing
-   * the adapter to select an unload-safe delivery mechanism.
-   * @default false
-   */
+  /** Selects an unload-safe delivery method before document navigation. */
   beforeNavigation?: boolean
 }
 
-/** Provider contract installed behind the shared analytics façade. */
+/** Provider contract behind the product analytics facade. */
 export interface AnalyticsAdapter {
   capture: (name: string, properties: object, options?: AnalyticsCaptureOptions) => boolean
   getIdentitySnapshot: () => AnalyticsIdentitySnapshot | null
@@ -29,13 +25,12 @@ export interface AnalyticsAdapter {
   setCaptureEnabled: (enabled: boolean) => boolean
 }
 
-/** Initialization state supplied to an analytics adapter loader. */
+/** Initial state given to an asynchronously loaded analytics provider. */
 export interface AnalyticsAdapterOptions {
-  /** Whether capture is enabled when the adapter initializes. */
   enabled: boolean
 }
 
-/** Loads one provider adapter. Rejections permanently degrade the client to no-op. */
+/** Loads one analytics provider adapter. */
 export type AnalyticsAdapterLoader = (options: AnalyticsAdapterOptions) => Promise<AnalyticsAdapter>
 
 type PendingOperation
@@ -48,7 +43,7 @@ type PendingOperation
 type LoadState = 'idle' | 'loading' | 'ready' | 'unavailable'
 
 /**
- * Owns an optional provider's lifecycle and keeps provider loading out of the
+ * Owns an optional provider lifecycle and keeps provider loading outside the
  * static application graph. Calls made while loading use a bounded queue.
  */
 export class AnalyticsClient {
@@ -138,8 +133,6 @@ export class AnalyticsClient {
         return true
       })
       .catch(() => {
-        // A denied dynamic module request is expected under content blockers.
-        // Product events are optional, so core application work stays no-op.
         this.pendingOperations.length = 0
         this.loadState = 'unavailable'
         return false
@@ -149,8 +142,6 @@ export class AnalyticsClient {
   }
 
   private enqueue(operation: PendingOperation): void {
-    // Keep the latest events without letting a slow provider grow memory for
-    // the lifetime of a long-running desktop session.
     if (this.pendingOperations.length === 100)
       this.pendingOperations.shift()
     this.pendingOperations.push(operation)
@@ -183,13 +174,13 @@ export class AnalyticsClient {
 }
 
 let adapterLoader: AnalyticsAdapterLoader | undefined
-const analytics = new AnalyticsClient(async (options) => {
+const analyticsClient = new AnalyticsClient(async (options) => {
   if (!adapterLoader)
     throw new Error('No analytics adapter has been configured')
   return adapterLoader(options)
 })
 
-/** Configures the provider loader before the shared store initializes. */
+/** Configures the provider adapter before analytics starts. */
 export function configureAnalyticsAdapter(loader: AnalyticsAdapterLoader): void {
   adapterLoader = loader
 }
@@ -198,38 +189,34 @@ export function isAnalyticsAvailableInBuild(): boolean {
   return isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)
 }
 
-export function ensureAnalyticsInitialized(enabled: boolean): boolean {
+export function enableAnalyticsCapture(): boolean {
   if (!isAnalyticsAvailableInBuild() || !adapterLoader)
     return false
-  return analytics.ensureInitialized(enabled)
+  return analyticsClient.syncCapture(true)
 }
 
-export function syncAnalyticsCapture(enabled: boolean): boolean {
+export function disableAnalyticsCapture(): void {
   if (!isAnalyticsAvailableInBuild() || !adapterLoader)
-    return false
-  return analytics.syncCapture(enabled)
-}
-
-export function registerAnalyticsBuildInfo(buildInfo: AboutBuildInfo): void {
-  analytics.registerBuildInfo(buildInfo)
-}
-
-export function identifyAnalyticsUser(userId: string): void {
-  analytics.identify(userId)
-}
-
-export function resetAnalyticsIdentity(): void {
-  analytics.resetIdentity()
+    return
+  analyticsClient.syncCapture(false)
 }
 
 export function getAnalyticsIdentitySnapshot(): AnalyticsIdentitySnapshot | null {
-  return analytics.getIdentitySnapshot()
+  return analyticsClient.getIdentitySnapshot()
 }
 
-/**
- * Emits an event through the configured provider. Returns `false` when capture
- * is disabled or the provider is unavailable, allowing callers to gate dedup.
- */
+export function identifyAnalyticsUser(userId: string): void {
+  analyticsClient.identify(userId)
+}
+
+export function registerAnalyticsBuildInfo(buildInfo: AboutBuildInfo): void {
+  analyticsClient.registerBuildInfo(buildInfo)
+}
+
+export function resetAnalyticsIdentity(): void {
+  analyticsClient.resetIdentity()
+}
+
 export function captureAnalyticsEvent(name: string, properties: object, options?: AnalyticsCaptureOptions): boolean {
-  return analytics.capture(name, properties, options)
+  return analyticsClient.capture(name, properties, options)
 }
