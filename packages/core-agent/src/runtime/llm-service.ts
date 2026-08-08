@@ -143,19 +143,6 @@ function toAiriStreamEvent(event: Event): StreamEvent | null {
   }
 }
 
-function normalizeUsage(usage: Usage | undefined) {
-  if (!usage || (usage.inputTokens == null && usage.outputTokens == null && usage.totalTokens == null)) {
-    return { source: 'unavailable' as const }
-  }
-
-  return {
-    inputTokens: usage.inputTokens,
-    outputTokens: usage.outputTokens,
-    totalTokens: usage.totalTokens,
-    source: 'reported' as const,
-  }
-}
-
 export async function streamFrom({
   model,
   chatProvider,
@@ -196,8 +183,8 @@ export async function streamFrom({
         const streamEvent = toAiriStreamEvent(event)
         if (streamEvent != null)
           await options?.onStreamEvent?.(streamEvent)
-        if (event.type === 'error')
-          rejectOnce(event.cause ?? new Error(event.message))
+        if (streamEvent?.type === 'error')
+          rejectOnce(streamEvent.error)
       }
       catch (error) {
         rejectOnce(error)
@@ -249,7 +236,11 @@ export async function streamFrom({
           console.error('Stream totalUsage error:', error)
         }
         try {
-          await options?.onUsage?.(normalizeUsage(usage))
+          const normalizedUsage = !usage
+            || (usage.inputTokens == null && usage.outputTokens == null && usage.totalTokens == null)
+            ? { source: 'unavailable' as const }
+            : { ...usage, source: 'reported' as const }
+          await options?.onUsage?.(normalizedUsage)
         }
         catch (error) {
           // Usage observers are telemetry-only and must not turn a completed
