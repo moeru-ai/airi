@@ -79,9 +79,9 @@ export async function imagineAnAction(
       response: res.text,
       unreadEvents: Object.fromEntries(Object.entries(globalStates.unreadEvents).map(([key, value]) => [key, value.length])),
       now: new Date().toLocaleString(),
-      totalTokens: res.usage.total_tokens,
-      promptTokens: res.usage.prompt_tokens,
-      completion_tokens: res.usage.completion_tokens,
+      totalTokens: res.usage.totalTokens,
+      promptTokens: res.usage.inputTokens,
+      completion_tokens: res.usage.outputTokens,
     }).log('Generated action')
 
     responseText = res.text

@@ -468,7 +468,7 @@ describe('chat store contract', () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
       composedMessages = messages
       expect(options.waitForTools).toBe(true)
-      expect(options.captureToolErrors).toBe(true)
+      expect(options.captureToolErrors).toBeUndefined()
 
       await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
