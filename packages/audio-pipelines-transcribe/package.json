@@ -10,6 +10,7 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
+    "onnxruntime-node": "catalog:",
     "uncrypto": "catalog:"
   }
 }

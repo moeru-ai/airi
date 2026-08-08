@@ -1,4 +1,5 @@
 import type { HonoWsInvocableEventContext } from '@moeru/eventa/adapters/websocket/hono'
+import type { PullMessagesRequest, SendMessagesRequest } from '@proj-airi/server-sdk-shared'
 
 import type { EngagementMetrics } from '../../otel'
 import type { ChatService } from '../../services/domain/chats'
@@ -41,19 +42,19 @@ export interface RegisterChatRpcHandlersOptions {
 export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions): void {
   const { ctx, userId, chatService, registry, broadcast, metrics } = options
 
-  defineInvokeHandler(ctx, sendMessages, async (req) => {
-    log.withFields({ userId, chatId: req!.chatId, count: req!.messages.length }).log('sendMessages')
-    const result = await chatService.pushMessages(userId, req!.chatId, req!.messages)
+  defineInvokeHandler(ctx, sendMessages, async (req: SendMessagesRequest) => {
+    log.withFields({ userId, chatId: req.chatId, count: req.messages.length }).log('sendMessages')
+    const result = await chatService.pushMessages(userId, req.chatId, req.messages)
 
-    const wireMessages = await chatService.pullMessages(userId, req!.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
+    const wireMessages = await chatService.pullMessages(userId, req.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
     const broadcastPayload = {
-      chatId: req!.chatId,
+      chatId: req.chatId,
       messages: wireMessages.messages,
       fromSeq: result.fromSeq,
       toSeq: result.toSeq,
     }
 
-    const members = await chatService.getMembers(req!.chatId)
+    const members = await chatService.getMembers(req.chatId)
     const memberUserIds = members
       .filter(m => m.memberType === 'user' && m.userId != null)
       .map(m => m.userId!)
@@ -68,8 +69,8 @@ export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions)
     return { seq: result.seq }
   })
 
-  defineInvokeHandler(ctx, pullMessages, async (req) => {
-    log.withFields({ userId, chatId: req!.chatId, afterSeq: req!.afterSeq }).log('pullMessages')
-    return chatService.pullMessages(userId, req!.chatId, req!.afterSeq, req!.limit)
+  defineInvokeHandler(ctx, pullMessages, async (req: PullMessagesRequest) => {
+    log.withFields({ userId, chatId: req.chatId, afterSeq: req.afterSeq }).log('pullMessages')
+    return chatService.pullMessages(userId, req.chatId, req.afterSeq, req.limit)
   })
 }
