@@ -1,4 +1,12 @@
 catalogMode: prefer
+minimumReleaseAgeExclude:
+  - '@moeru/*'
+  - '@proj-airi/*'
+  - '@vishot/*'
+  - '@xsai/*'
+  - '@xsai-ext/*'
+  - '@xsai-transformers/*'
+
 shellEmulator: true
 packages:
   - packages/**
