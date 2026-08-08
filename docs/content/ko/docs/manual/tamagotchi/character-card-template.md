@@ -1,14 +1,14 @@
 ---
 title: 캐릭터 카드 템플릿
-description: Project AIRI 용 Character Card V3 JSON 템플릿입니다.
+description: Project AIRI용 Character Card V3 JSON 템플릿입니다.
 ---
 
-이 템플릿은 새 AIRI 캐릭터를 만들 때 쓸 수 있는 최소한의 Character Card V3 구조를 제공합니다. 아래 JSON 을 복사한 뒤 예시 값을 여러분의 캐릭터 설정으로 바꾸고, 필드 이름과 중첩 구조는 그대로 유지하세요.
+이 템플릿은 새 AIRI 캐릭터를 만들 때 쓸 수 있는 최소한의 Character Card V3 구조를 제공합니다. 아래 JSON을 복사한 뒤 예시 값을 여러분의 캐릭터 설정으로 바꾸고, 필드 이름과 중첩 구조는 그대로 유지하세요.
 
 ::: tip 작성 요령
-- `name`, `description`, `personality`, `scenario`, `first_mes` 부터 채워 보세요.
+- `name`, `description`, `personality`, `scenario`, `first_mes`부터 채워 보세요.
 - 아직 필요하지 않은 선택 필드는 비워 두어도 됩니다.
-- 가져오거나 공유하기 전에 최종 내용이 여전히 유효한 JSON 인지 확인하세요.
+- 가져오거나 공유하기 전에 최종 내용이 여전히 유효한 JSON인지 확인하세요.
 :::
 
 ## 템플릿

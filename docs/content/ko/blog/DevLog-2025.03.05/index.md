@@ -45,7 +45,7 @@ onMounted(async () => {
 
 ![](/en/blog/DevLog-2025.03.05/assets/airi-logo-v2-dark.avif)
 
-[@kwaa](https://github.com/kwaa) 가 두 테마의 색 구성을 서로 바꿔 보자고 제안했습니다:
+[@kwaa](https://github.com/kwaa)가 두 테마의 색 구성을 서로 바꿔 보자고 제안했습니다:
 
 ![](/en/blog/DevLog-2025.03.05/assets/airi-logos-v3.avif)
 
@@ -63,7 +63,7 @@ onMounted(async () => {
 
 ![](/en/blog/DevLog-2025.03.05/assets/airi-logos-final.avif)
 
-오늘 늦게는 Project AIRI 의 [문서 사이트](https://airi.build)를 온라인에 배포하는 작업을 했습니다.
+오늘 늦게는 Project AIRI의 [문서 사이트](https://airi.build)를 온라인에 배포하는 작업을 했습니다.
 저와 다른 개발자, 아티스트들이 참고 자료와 가이드라인으로 쓸 수 있도록요.
 
 해냈습니다! 새로 디자인한 로고를 컬러 팔레트와 함께 [문서 사이트](https://airi.build)에 올렸습니다:
@@ -76,7 +76,7 @@ onMounted(async () => {
 [디자인 가이드라인](../references/design-guidelines/)
 이 이 시점부터 모두 포함됐습니다.
 
-점심 내내 YouTube 의 Text PV 애니메이션을 감상하며 감을 잡았습니다.
+점심 내내 YouTube의 Text PV 애니메이션을 감상하며 감을 잡았습니다.
 정말 좋아하는 스타일이라, 브라우저에서도 비슷한 전환 효과를 구현할 수 있으면 좋겠습니다!
 
 https://www.youtube.com/watch?v=_AIgv0EsOE4
@@ -89,7 +89,7 @@ https://www.youtube.com/watch?v=_AIgv0EsOE4
 
 ## DevStream
 
-[yui540](https://github.com/yui540) 의 [저장소](https://github.com/yui540/css-animations)에 있는
+[yui540](https://github.com/yui540)의 [저장소](https://github.com/yui540/css-animations)에 있는
 애니메이션 전환을 상당수 [https://proj-airi-packages-ui-transitions.netlify.app/#/](https://proj-airi-packages-ui-transitions.netlify.app/#/)
 로 포팅했습니다.
 
@@ -97,5 +97,5 @@ https://www.youtube.com/watch?v=_AIgv0EsOE4
 
 ![](/en/blog/DevLog-2025.03.05/assets/animation-transitions.gif)
 
-오늘의 DevLog 는 여기까지입니다. DevStream 에 참여해 끝까지 함께해 주신 모든 분께 감사드립니다.
+오늘의 DevLog는 여기까지입니다. DevStream에 참여해 끝까지 함께해 주신 모든 분께 감사드립니다.
 내일 또 만나요.
