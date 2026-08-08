@@ -1,33 +1,38 @@
 diff --git a/dist/index.d.ts b/dist/index.d.ts
-index bfa8434ddad32d08af9d9aedaf6a1f1caa21cac8..db248a93025a37d2c0d11d7a6bb31aa9ba6ee63b 100644
+index c9cc51d8b715b6f220d67574b8c674247d032926..9b4c2e6b096a0a139792d3fd4ce89c2f15bfc51e 100644
 --- a/dist/index.d.ts
 +++ b/dist/index.d.ts
-@@ -1,9 +1,13 @@
+@@ -1,11 +1,15 @@
  import { WithUnknown } from '@xsai/shared';
--import { ChatOptions, CompletionStep, PrepareStep, StopCondition, FinishReason, AssistantMessage, Usage, Message, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
-+import { ChatOptions, CompletionStep, OnToolCallFinishCallback, OnToolCallStartCallback, PrepareStep, RepairToolCallFunction, StopCondition, FinishReason, AssistantMessage, Usage, Message, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
+-import { ChatOptions, CompletionStep, PostToolCall, PrepareStep, PreToolCall, StopCondition, Message, Usage, FinishReason, AssistantMessage, ChatCompletionUsage, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
++import { ChatOptions, CompletionStep, OnToolCallFinishCallback, OnToolCallStartCallback, PostToolCall, PrepareStep, PreToolCall, RepairToolCallFunction, StopCondition, Message, Usage, FinishReason, AssistantMessage, ChatCompletionUsage, CompletionToolCall, CompletionToolResult } from '@xsai/shared-chat';
  
  interface GenerateTextOptions extends ChatOptions {
      onStepFinish?: (step: CompletionStep<true>) => Promise<unknown> | unknown;
 +    captureToolErrors?: boolean;
 +    onToolCallFinish?: OnToolCallFinishCallback;
 +    onToolCallStart?: OnToolCallStartCallback;
+     postToolCall?: PostToolCall;
      prepareStep?: PrepareStep;
+     preToolCall?: PreToolCall;
 +    repairToolCall?: RepairToolCallFunction;
      /** @internal */
      steps?: CompletionStep<true>[];
      /** @default `stepCountAtLeast(1)` */
 diff --git a/dist/index.js b/dist/index.js
-index 11940a69300f795caa7b780deba1f61a4d3127f6..2cefa4f4806493b21aae75df2cb1ae4e6ae5f160 100644
+index d4fdab8b13f83fc2eb55eca0d15919133347393e..334428415f242fc6b11c874e988bc98187c3eadc 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -41,6 +41,10 @@ const rawGenerateText = async (options) => {
+@@ -55,9 +55,13 @@ const rawGenerateText = async (options) => {
+       const results = await Promise.all(
          msgToolCalls.map(async (toolCall) => executeTool({
            abortSignal: options.abortSignal,
 +          captureToolErrors: options.captureToolErrors,
            messages,
 +          onToolCallFinish: options.onToolCallFinish,
 +          onToolCallStart: options.onToolCallStart,
+           postToolCall: options.postToolCall,
+           preToolCall: options.preToolCall,
 +          repairToolCall: options.repairToolCall,
            toolCall,
            tools: options.tools

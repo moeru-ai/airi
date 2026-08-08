@@ -1,0 +1,211 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index b327ec1c9dda3a8c4ddf39beb6a7b4ffc6afb860..8f740ffc45080cf6b80155e62fa87b090aa8efff 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -94,6 +94,7 @@ interface CompletionToolCall {
+ }
+ interface CompletionToolResult {
+     args: unknown;
++    error?: unknown;
+     isError?: boolean;
+     result: ToolExecuteResult;
+     toolCallId: string;
+@@ -101,6 +102,24 @@ interface CompletionToolResult {
+ }
+ type PostToolCall = (toolResult: CompletionToolResult, options: ToolExecuteOptions) => CompletionToolResult | Promise<CompletionToolResult | void> | void;
+ type PreToolCall = (toolCall: CompletionToolCall, options: ToolExecuteOptions) => CompletionToolCall | CompletionToolResult | Promise<CompletionToolCall | CompletionToolResult | void> | void;
++type OnToolCallFinishCallback = (context: {
++    durationMs: number;
++    error?: unknown;
++    output?: unknown;
++    toolCallId: string;
++    toolName: string;
++}) => Promise<void> | void;
++type OnToolCallStartCallback = (context: {
++    input: unknown;
++    toolCallId: string;
++    toolName: string;
++}) => Promise<void> | void;
++type RepairToolCallFunction = (context: {
++    error: Error;
++    messages: Message[];
++    toolCall: ToolCall;
++    tools?: Tool[];
++}) => Promise<ToolCall | null> | ToolCall | null;
+ interface Tool {
+     execute: (input: unknown, options: ToolExecuteOptions) => Promise<ToolExecuteResult> | ToolExecuteResult;
+     function: {
+@@ -275,9 +294,13 @@ declare const chat: <T extends WithUnknown<ChatOptions>>(options: T) => Promise<
+ 
+ interface ExecuteToolOptions<T = ToolMessage['content']> {
+     abortSignal?: AbortSignal;
++    captureToolErrors?: boolean;
+     messages: Message[];
++    onToolCallFinish?: OnToolCallFinishCallback;
++    onToolCallStart?: OnToolCallStartCallback;
+     postToolCall?: PostToolCall;
+     preToolCall?: PreToolCall;
++    repairToolCall?: RepairToolCallFunction;
+     toolCall: ToolCall;
+     tools?: Tool[];
+     wrapResult?: (result: ToolExecuteResult) => T;
+@@ -285,10 +308,11 @@ interface ExecuteToolOptions<T = ToolMessage['content']> {
+ interface ExecuteToolResult<T = ToolMessage['content']> {
+     completionToolCall: CompletionToolCall;
+     completionToolResult: CompletionToolResult;
++    message: ToolMessage;
+     result: T;
+ }
+ declare const toCompletionToolCall: (toolCall: ToolCall) => CompletionToolCall;
+-declare const executeTool: <T = ToolMessage["content"]>({ abortSignal, messages, postToolCall, preToolCall, toolCall, tools, wrapResult }: ExecuteToolOptions<T>) => Promise<ExecuteToolResult<T>>;
++declare const executeTool: <T = ToolMessage["content"]>(options: ExecuteToolOptions<T>) => Promise<ExecuteToolResult<T>>;
+ 
+ interface ResolvePrepareStepOptions<TInput = Message[], TToolChoice = ToolChoice> {
+     input: TInput;
+@@ -317,4 +341,4 @@ declare const computeTotalUsage: (totalUsage: undefined | Usage, usage: Usage) =
+ declare const normalizeChatCompletionUsage: (usage: ChatCompletionUsage) => Usage;
+ 
+ export { and, chat, computeTotalUsage, executeTool, hasToolCall, normalizeChatCompletionUsage, not, or, resolvePrepareStep, shouldStop, stepCountAtLeast, toCompletionToolCall };
+-export type { AssistantMessage, AudioContentPart, ChatCompletionUsage, ChatOptions, CommonContentPart, CompletionStep, CompletionToolCall, CompletionToolResult, DeveloperMessage, ErrorEvent, Event, EventType, ExecuteToolOptions, ExecuteToolResult, FileContentPart, FinishReason, ImageContentPart, Message, PostToolCall, PreToolCall, PrepareStep, PrepareStepOptions, PrepareStepResult, ReasoningDeltaEvent, ReasoningDoneEvent, ReasoningStartEvent, RefusalContentPart, ResolvePrepareStepOptions, ResolvePrepareStepResult, StepDoneEvent, StepStartEvent, StopCondition, StopContext, SystemMessage, TextContentPart, TextDeltaEvent, TextDoneEvent, TextStartEvent, Tool, ToolCall, ToolCallDeltaEvent, ToolCallDoneEvent, ToolCallStartEvent, ToolChoice, ToolExecuteOptions, ToolExecuteResult, ToolMessage, ToolResultDoneEvent, ToolValidateFailure, ToolValidateResult, ToolValidateSuccess, Usage, UserMessage };
++export type { AssistantMessage, AudioContentPart, ChatCompletionUsage, ChatOptions, CommonContentPart, CompletionStep, CompletionToolCall, CompletionToolResult, DeveloperMessage, ErrorEvent, Event, EventType, ExecuteToolOptions, ExecuteToolResult, FileContentPart, FinishReason, ImageContentPart, Message, OnToolCallFinishCallback, OnToolCallStartCallback, PostToolCall, PreToolCall, PrepareStep, PrepareStepOptions, PrepareStepResult, RepairToolCallFunction, ReasoningDeltaEvent, ReasoningDoneEvent, ReasoningStartEvent, RefusalContentPart, ResolvePrepareStepOptions, ResolvePrepareStepResult, StepDoneEvent, StepStartEvent, StopCondition, StopContext, SystemMessage, TextContentPart, TextDeltaEvent, TextDoneEvent, TextStartEvent, Tool, ToolCall, ToolCallDeltaEvent, ToolCallDoneEvent, ToolCallStartEvent, ToolChoice, ToolExecuteOptions, ToolExecuteResult, ToolMessage, ToolResultDoneEvent, ToolValidateFailure, ToolValidateResult, ToolValidateSuccess, Usage, UserMessage };
+diff --git a/dist/index.js b/dist/index.js
+index d8fa061c8fe9ba9b76aafea74f40e27a957b0a17..45373a31d56a3127377789177e28e609c99fca64 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,4 +1,4 @@
+-import { postJSON, InvalidToolCallError, InvalidToolInputError } from '@xsai/shared';
++import { postJSON, InvalidToolCallError, InvalidToolInputError, ToolExecutionError } from '@xsai/shared';
+ 
+ const chat = async (options) => postJSON("chat/completions", {
+   ...options,
+@@ -56,15 +56,19 @@ const parseToolInput = async (tool, input) => {
+ };
+ const createErrorToolResult = (toolCall, args, cause, abortSignal) => ({
+   args,
++  error: cause,
+   isError: true,
+   result: `Tool "${toolCall.toolName}" execution failed: ${abortSignal?.aborted === true ? "This operation was aborted" : cause instanceof Error ? cause.message : String(cause)}`,
+   toolCallId: toolCall.toolCallId,
+   toolName: toolCall.toolName
+ });
+-const catchToolError = async (toolCall, abortSignal, callback) => {
++const isAbortError = (error, abortSignal) => abortSignal?.aborted === true || error instanceof Error && error.name === "AbortError";
++const catchToolError = async (toolCall, abortSignal, captureToolErrors, callback) => {
+   try {
+     return await callback(toolCall);
+   } catch (cause) {
++    if (isAbortError(cause, abortSignal) || !captureToolErrors)
++      throw cause;
+     return createErrorToolResult(toolCall, InvalidToolInputError.isInstance(cause) ? cause.toolInput : toolCall.args, cause, abortSignal);
+   }
+ };
+@@ -90,7 +94,7 @@ const findTool = (tools, toolName, toolCall) => {
+   }
+   return tool;
+ };
+-const executeTool = async ({ abortSignal, messages, postToolCall, preToolCall, toolCall, tools, wrapResult }) => {
++const executeToolBase = async ({ abortSignal, captureToolErrors, messages, postToolCall, preToolCall, toolCall, tools, wrapResult }) => {
+   const wrap = wrapResult ?? toToolMessageContent;
+   const toolName = toolCall.function.name;
+   const toolArguments = toolCall.function.arguments;
+@@ -120,7 +124,7 @@ const executeTool = async ({ abortSignal, messages, postToolCall, preToolCall, t
+   let completionToolResult;
+   let parsedArgs;
+   let shouldPostToolCall = false;
+-  const preToolCallResult = await catchToolError(completionToolCall, abortSignal, async (toolCall2) => preToolCall?.(toolCall2, toolExecuteOptions));
++  const preToolCallResult = await catchToolError(completionToolCall, abortSignal, captureToolErrors, async (toolCall2) => preToolCall?.(toolCall2, toolExecuteOptions));
+   if (preToolCallResult) {
+     assertSameToolCallId(completionToolCall.toolCallId, preToolCallResult, "preToolCallResult");
+     if ("result" in preToolCallResult)
+@@ -128,13 +132,25 @@ const executeTool = async ({ abortSignal, messages, postToolCall, preToolCall, t
+     else
+       completionToolCall = preToolCallResult;
+   }
+-  completionToolResult ??= await catchToolError(completionToolCall, abortSignal, async () => {
++  completionToolResult ??= await catchToolError(completionToolCall, abortSignal, captureToolErrors, async () => {
+     const tool = findTool(tools, completionToolCall.toolName, completionToolCall);
+     parsedArgs = await parseToolInput(tool, completionToolCall.args);
+     if (abortSignal?.aborted === true)
+       return createErrorToolResult(completionToolCall, parsedArgs, abortSignal.reason, abortSignal);
+     shouldPostToolCall = true;
+-    const result = await tool.execute(parsedArgs, toolExecuteOptions);
++    let result;
++    try {
++      result = await tool.execute(parsedArgs, toolExecuteOptions);
++    } catch (cause) {
++      if (isAbortError(cause, abortSignal))
++        throw cause;
++      throw new ToolExecutionError(`Tool "${completionToolCall.toolName}" execution failed.`, {
++        cause,
++        toolCallId: completionToolCall.toolCallId,
++        toolInput: parsedArgs,
++        toolName: completionToolCall.toolName
++      });
++    }
+     return {
+       args: parsedArgs,
+       result,
+@@ -144,7 +160,7 @@ const executeTool = async ({ abortSignal, messages, postToolCall, preToolCall, t
+   });
+   if (shouldPostToolCall) {
+     completionToolResult.args = parsedArgs;
+-    const postToolCallResult = await catchToolError(completionToolResult, abortSignal, async (toolResult) => postToolCall?.(toolResult, toolExecuteOptions));
++    const postToolCallResult = await catchToolError(completionToolResult, abortSignal, captureToolErrors, async (toolResult) => postToolCall?.(toolResult, toolExecuteOptions));
+     if (postToolCallResult) {
+       assertSameToolCallId(completionToolResult.toolCallId, postToolCallResult, "postToolCallResult");
+       completionToolResult = postToolCallResult;
+@@ -156,6 +172,54 @@ const executeTool = async ({ abortSignal, messages, postToolCall, preToolCall, t
+     result: wrap(completionToolResult.result)
+   };
+ };
++const callToolLifecycle = async (callback, context) => {
++  try {
++    await callback?.(context);
++  } catch {
++  }
++};
++const executeTool = async (options) => {
++  const { abortSignal, captureToolErrors, messages, onToolCallFinish, onToolCallStart, repairToolCall, toolCall, tools } = options;
++  const toolCallId = toolCall.id;
++  const toolName = toolCall.function?.name ?? "unknown";
++  const startTime = Date.now();
++  try {
++    const execution = await executeToolBase(options);
++    const failure = execution.completionToolResult.error;
++    if (failure instanceof Error && repairToolCall && (InvalidToolCallError.isInstance(failure) || InvalidToolInputError.isInstance(failure))) {
++      const repaired = await repairToolCall({ error: failure, messages, toolCall, tools });
++      if (repaired != null)
++        return executeTool({ ...options, repairToolCall: void 0, toolCall: repaired });
++    }
++    if (!execution.completionToolResult.isError)
++      await callToolLifecycle(onToolCallStart, { input: execution.completionToolResult.args, toolCallId, toolName });
++    await callToolLifecycle(onToolCallFinish, {
++      durationMs: Date.now() - startTime,
++      error: execution.completionToolResult.error,
++      output: execution.completionToolResult.isError ? void 0 : execution.completionToolResult.result,
++      toolCallId,
++      toolName
++    });
++    return {
++      ...execution,
++      message: {
++        content: execution.result,
++        role: "tool",
++        tool_call_id: execution.completionToolCall.toolCallId
++      }
++    };
++  } catch (error) {
++    if (isAbortError(error, abortSignal))
++      throw error;
++    if (error instanceof Error && repairToolCall && (InvalidToolCallError.isInstance(error) || InvalidToolInputError.isInstance(error))) {
++      const repaired = await repairToolCall({ error, messages, toolCall, tools });
++      if (repaired != null)
++        return executeTool({ ...options, repairToolCall: void 0, toolCall: repaired });
++    }
++    await callToolLifecycle(onToolCallFinish, { durationMs: Date.now() - startTime, error, toolCallId, toolName });
++    throw error;
++  }
++};
+ 
+ const resolvePrepareStep = async ({ input, model, prepareStep, stepNumber, steps, toolChoice }) => {
+   const prepared = prepareStep == null ? void 0 : await prepareStep({
