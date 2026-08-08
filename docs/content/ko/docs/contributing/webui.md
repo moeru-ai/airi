@@ -1,6 +1,6 @@
 ---
 title: 웹 UI
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 ### Stage Web ([airi.moeru.ai](https://airi.moeru.ai) 브라우저 버전)

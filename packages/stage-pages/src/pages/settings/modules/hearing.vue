@@ -38,8 +38,9 @@ const providerStore = useProviderConfigStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -525,8 +526,8 @@ watch(activeTranscriptionProvider, async (provider) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  // Audio devices are loaded on demand when user requests them
   syncOpenAICompatibleSettings()
+  await askPermission()
 })
 
 onUnmounted(() => {
@@ -556,10 +557,7 @@ onUnmounted(() => {
             v-model="selectedAudioInput"
             label="Audio Input Device"
             description="Select the audio input device for your hearing module."
-            :options="audioInputs.map(input => ({
-              label: input.label || input.deviceId,
-              value: input.deviceId,
-            }))"
+            :options="audioInputOptions"
             placeholder="Select an audio input device"
             layout="vertical"
           />

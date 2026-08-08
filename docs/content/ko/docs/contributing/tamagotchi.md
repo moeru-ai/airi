@@ -1,6 +1,6 @@
 ---
 title: 데스크톱
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 ### Stage Tamagotchi (데스크톱 버전)
