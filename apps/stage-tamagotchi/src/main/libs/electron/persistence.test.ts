@@ -77,7 +77,10 @@ describe('createConfig', () => {
       app: appMock,
     }))
     vi.doMock('es-toolkit', () => ({
-      throttle: (handler: (...args: unknown[]) => unknown) => handler,
+      throttle: (handler: (...args: unknown[]) => unknown) => Object.assign(handler, {
+        cancel: vi.fn(),
+        flush: vi.fn(),
+      }),
     }))
     vi.doMock('node:fs', () => ({
       existsSync: () => false,
@@ -112,5 +115,74 @@ describe('createConfig', () => {
     expect(saveErrorSpy).not.toHaveBeenCalledWith('Failed to save config', expect.anything())
     expect(new Set(renameMock.mock.calls.map(([from]) => from)).size).toBe(2)
     saveErrorSpy.mockRestore()
+  })
+
+  it('flushes the latest throttled config before the Electron main process exits', async () => {
+    const writeFileMock = vi.fn(async () => {})
+    const renameMock = vi.fn(async () => {})
+
+    vi.doMock('electron', () => ({
+      app: {
+        getPath: vi.fn(() => '/tmp/airi-user-data'),
+      },
+    }))
+    vi.doMock('es-toolkit', () => ({
+      throttle: (handler: () => void) => {
+        let pending = false
+        return Object.assign(
+          () => {
+            pending = true
+          },
+          {
+            cancel: vi.fn(),
+            flush: () => {
+              if (!pending)
+                return
+              pending = false
+              handler()
+            },
+          },
+        )
+      },
+    }))
+    vi.doMock('node:fs', () => ({
+      existsSync: () => false,
+      readFileSync: () => '',
+    }))
+    vi.doMock('node:fs/promises', () => ({
+      copyFile: vi.fn(async () => {}),
+      mkdir: vi.fn(async () => {}),
+      rename: renameMock,
+      writeFile: writeFileMock,
+    }))
+
+    const { createConfig } = await import('./persistence')
+    const config = createConfig('app', 'config.json', object({ value: number() }), {
+      default: { value: 0 },
+    })
+
+    config.setup()
+    config.update({ value: 42 })
+
+    expect(writeFileMock).not.toHaveBeenCalled()
+
+    // ROOT CAUSE:
+    //
+    // If Electron restarts while a throttled bounds update is pending, the
+    // process exits before the async config write starts.
+    //
+    // Before the patch, createConfig exposed no lifecycle operation that could
+    // force and await this pending save.
+    //
+    // We fixed this by cancelling the delayed call, awaiting active writes, and
+    // persisting the latest in-memory value as the authoritative final write.
+    await config.flush()
+
+    expect(writeFileMock).toHaveBeenCalledOnce()
+    expect(writeFileMock).toHaveBeenCalledWith(
+      expect.stringMatching(/app-config\.json\..+\.tmp$/),
+      JSON.stringify({ value: 42 }),
+    )
+    expect(renameMock).toHaveBeenCalledOnce()
   })
 })
