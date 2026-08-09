@@ -11,6 +11,15 @@ import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
 
 const log = useLogg('DiscordAdapter').useGlobalConfig()
+const discordClientIdentity = {
+  id: 'discord',
+  extension: { id: 'discord' },
+} as const
+const discordStatusIdentity = {
+  id: 'discord',
+  kind: 'plugin',
+  plugin: { id: 'discord' },
+} as const
 
 export interface DiscordAdapterConfig {
   discordToken?: string
@@ -77,11 +86,13 @@ export class DiscordAdapter {
     // Initialize AIRI client
     this.airiClient = new ServerChannel({
       name: 'discord',
+      identity: discordClientIdentity,
       possibleEvents: [
         'input:text',
         'input:text:voice',
         'input:voice',
         'module:configure',
+        'module:status',
         'output:gen-ai:chat:message',
       ],
       token: config.airiToken,
@@ -109,32 +120,37 @@ export class DiscordAdapter {
           const { token, enabled } = config
 
           if (enabled === false) {
-            if (this.discordClient.isReady) {
+            if (this.discordClient.isReady()) {
               log.log('Disabling Discord bot as per configuration...')
               await this.discordClient.destroy()
             }
+            this.publishConnectionStatus('configuration-needed', 'Discord integration is disabled.')
             return
           }
 
           // If enabled, but no token is provided, stop the bot if it's running.
           if (!token) {
             log.warn('Discord bot enabled, but no token provided. Stopping bot.')
-            if (this.discordClient.isReady) {
+            if (this.discordClient.isReady()) {
               await this.discordClient.destroy()
             }
+            this.publishConnectionStatus('configuration-needed', 'A Discord bot token is required.')
             return
           }
 
           // Connect or reconnect if token changed or client is not ready.
-          if (this.discordToken !== token || !this.discordClient.isReady) {
+          if (this.discordToken !== token || !this.discordClient.isReady()) {
             this.discordToken = token
-            if (this.discordClient.isReady) {
+            if (this.discordClient.isReady()) {
               log.log('Reconnecting Discord client with new token...')
               await this.discordClient.destroy()
             }
             log.log('Connecting Discord client...')
+            this.publishConnectionStatus('preparing', 'Connecting to Discord.')
             await this.discordClient.login(this.discordToken)
-            log.log('Discord client connected.')
+          }
+          else {
+            this.publishConnectionStatus('ready')
           }
         }
         else {
@@ -143,6 +159,7 @@ export class DiscordAdapter {
       }
       catch (error) {
         log.withError(error as Error).error('Failed to apply Discord configuration.')
+        this.publishConnectionStatus('failed', errorReason(error, 'Failed to connect to Discord.'))
       }
       finally {
         this.isReconnecting = false
@@ -201,10 +218,19 @@ export class DiscordAdapter {
     })
 
     // Set up Discord event handlers
-    this.discordClient.once(Events.ClientReady, async (readyClient) => {
+    this.discordClient.on(Events.ClientReady, async (readyClient) => {
       log.log(`Discord bot ready! User: ${readyClient.user.tag}`)
+      this.publishConnectionStatus('ready')
       // Register commands dynamically using the authenticated client's ID and token
       await registerCommands(this.discordToken, readyClient.user.id)
+    })
+
+    this.discordClient.on(Events.Error, (error) => {
+      this.publishConnectionStatus('failed', error.message)
+    })
+
+    this.discordClient.on(Events.ShardDisconnect, () => {
+      this.publishConnectionStatus('failed', 'Discord connection closed.')
     })
 
     // Handle text messages from Discord
@@ -326,6 +352,7 @@ export class DiscordAdapter {
     log.log('Stopping Discord adapter...')
     try {
       await this.discordClient.destroy()
+      this.publishConnectionStatus('configuration-needed', 'Discord integration stopped.')
       this.airiClient.close()
       log.log('Discord adapter stopped')
     }
@@ -334,4 +361,28 @@ export class DiscordAdapter {
       throw error
     }
   }
+
+  private publishConnectionStatus(phase: 'configuration-needed' | 'preparing' | 'ready' | 'failed', reason?: string) {
+    this.airiClient.send({
+      type: 'module:status',
+      data: {
+        identity: discordStatusIdentity,
+        phase,
+        reason,
+      },
+    })
+  }
+}
+
+function errorReason(error: unknown, fallback: string): string {
+  if (
+    typeof error === 'object'
+    && error !== null
+    && 'message' in error
+    && typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+
+  return fallback
 }

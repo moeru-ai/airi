@@ -7,7 +7,7 @@ import { useDiscordStore } from '../../stores/modules/discord'
 
 const { t } = useI18n()
 const discordStore = useDiscordStore()
-const { enabled, token, configured } = storeToRefs(discordStore)
+const { enabled, token, connected } = storeToRefs(discordStore)
 
 function saveSettings() {
   discordStore.saveSettings()
@@ -38,7 +38,7 @@ function saveSettings() {
       />
     </div>
 
-    <div v-if="configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
+    <div v-if="connected" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
       {{ t('settings.pages.modules.messaging-discord.configured') }}
     </div>
   </div>
