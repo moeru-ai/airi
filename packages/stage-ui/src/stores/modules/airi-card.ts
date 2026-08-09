@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { captureAnalyticsEvent } from '../analytics/client'
+import { captureAnalyticsEvent } from '../../libs/analytics'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'

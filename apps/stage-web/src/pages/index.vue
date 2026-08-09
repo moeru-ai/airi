@@ -45,7 +45,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording } = hearingPipeline
+const { stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
@@ -67,28 +67,39 @@ const {
 
 let stopOnStopRecord: (() => void) | undefined
 
+async function sendVoiceInputTextToChat(text: string | undefined) {
+  if (!text?.trim())
+    return
+
+  try {
+    const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+    if (!provider || !activeChatModel.value)
+      return
+
+    await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+  }
+  catch (error) {
+    console.error('Failed to send chat from voice:', error)
+  }
+}
+
 async function startAudioInteraction() {
   try {
     await initVAD()
     if (stream.value)
       await startVAD(stream.value)
 
+    if (shouldUseStreamInput.value && stream.value) {
+      await transcribeForMediaStream(stream.value, {
+        onSentenceEnd: text => void sendVoiceInputTextToChat(text),
+      })
+      return
+    }
+
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
-        return
-
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
-          return
-
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
+      await sendVoiceInputTextToChat(text)
     })
   }
   catch (e) {
@@ -119,6 +130,7 @@ function stopAudioInteraction() {
   try {
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    void stopStreamingTranscription(true)
     disposeVAD()
   }
   catch {}

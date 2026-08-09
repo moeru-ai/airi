@@ -1,4 +1,5 @@
 export const IOSubsystems = {
+  VAD: 'vad',
   ASR: 'asr',
   LLM: 'llm',
   StreamingControl: 'streaming-control',
@@ -9,6 +10,7 @@ export type IOSubsystem = (typeof IOSubsystems)[keyof typeof IOSubsystems]
 
 export const IOSpanNames = {
   InteractionTurn: 'Interaction turn',
+  VoiceActivityDetection: 'Voice activity detection',
   SpeechRecognition: 'Speech recognition',
   LLMInference: 'LLM inference',
   StreamingControlDispatch: 'Streaming control dispatch',
@@ -26,6 +28,8 @@ export const IOAttributes = {
   Subsystem: `${customPrefix}.subsystem`,
   TooltipKeys: `${customPrefix}.tooltip.keys`,
   LLM_TTFT: `${customPrefix}.llm.time_to_first_token`,
+  VADAudioDurationMs: `${customPrefix}.vad.audio_duration_ms`,
+  VADAborted: `${customPrefix}.vad.aborted`,
   ASRText: `${customPrefix}.asr.text`,
   ASRAbort: `${customPrefix}.asr.abort`,
   LLMTextLength: `${customPrefix}.llm.text_length`,

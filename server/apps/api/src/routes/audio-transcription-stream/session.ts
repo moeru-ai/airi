@@ -169,7 +169,7 @@ async function writeAudioToUpstream(audioStream: ReadableStream<Uint8Array>, ws:
  * - `audioStream` contains 16 kHz PCM chunks by default, matching the Hearing worklet output.
  *
  * Returns:
- * - A `text/event-stream` response consumable by the existing `streamAliyunTranscription` executor.
+ * - A `text/event-stream` response consumable by the shared `streamTranscription` adapter.
  */
 export function createAliyunNlsStreamResponse(options: CreateAliyunNlsStreamResponseOptions): Response {
   const body = new ReadableStream<Uint8Array>({

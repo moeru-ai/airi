@@ -31,15 +31,17 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
-  '@xsai/generate-text@0.5.0-beta.2': patches/@xsai__generate-text@0.5.0-beta.2.patch
-  '@xsai/shared-chat@0.5.0-beta.2': patches/@xsai__shared-chat@0.5.0-beta.2.patch
-  '@xsai/stream-text@0.5.0-beta.2': patches/@xsai__stream-text@0.5.0-beta.2.patch
+  '@xsai/generate-text@0.5.0-beta.8': patches/@xsai__generate-text@0.5.0-beta.8.patch
+  '@xsai/shared-chat@0.5.0-beta.8': patches/@xsai__shared-chat@0.5.0-beta.8.patch
+  '@xsai/stream-text@0.5.0-beta.8': patches/@xsai__stream-text@0.5.0-beta.8.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
   uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
+  '@alint-js/cli': ^0.4.0
+  '@alint-js/plugin-js': ^0.4.0
   '@antfu/eslint-config': ^8.2.0
   '@anthropic-ai/claude-code': ^2.1.204
   '@arethetypeswrong/core': ^0.18.2
@@ -218,21 +220,21 @@ catalog:
   '@vueuse/shared': ^14.2.1
   '@webgpu/types': ^0.1.69
   '@wxt-dev/module-vue': ^1.0.3
-  '@xsai-ext/providers': 0.5.0-beta.2
+  '@xsai-ext/providers': 0.5.0-beta.8
   '@xsai-transformers/embed': ^0.1.0
   '@xsai-transformers/shared': ^0.1.0
   '@xsai-transformers/transcription': ^0.1.0
-  '@xsai/embed': 0.5.0-beta.2
-  '@xsai/generate-speech': 0.5.0-beta.2
-  '@xsai/generate-text': 0.5.0-beta.2
-  '@xsai/generate-transcription': 0.5.0-beta.2
-  '@xsai/model': 0.5.0-beta.2
-  '@xsai/shared': 0.5.0-beta.2
-  '@xsai/shared-chat': 0.5.0-beta.2
-  '@xsai/stream-text': 0.5.0-beta.2
-  '@xsai/stream-transcription': 0.5.0-beta.2
-  '@xsai/tool': 0.5.0-beta.2
-  '@xsai/utils-chat': 0.5.0-beta.2
+  '@xsai/embed': 0.5.0-beta.8
+  '@xsai/generate-speech': 0.5.0-beta.8
+  '@xsai/generate-text': 0.5.0-beta.8
+  '@xsai/generate-transcription': 0.5.0-beta.8
+  '@xsai/model': 0.5.0-beta.8
+  '@xsai/shared': 0.5.0-beta.8
+  '@xsai/shared-chat': 0.5.0-beta.8
+  '@xsai/stream-text': 0.5.0-beta.8
+  '@xsai/stream-transcription': 0.5.0-beta.8
+  '@xsai/tool': 0.5.0-beta.8
+  '@xsai/utils-chat': 0.5.0-beta.8
   alien-signals: ^3.1.2
   animejs: ^4.3.6
   async-mutex: 0.5.0

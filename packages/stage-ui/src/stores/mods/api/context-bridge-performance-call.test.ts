@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { useLlmStreamingControlStore } from '../../llm-streaming-control'
+import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
 import { useContextBridgeStore } from './context-bridge'
 
 type SparkNotifyReactionMock = (event: {

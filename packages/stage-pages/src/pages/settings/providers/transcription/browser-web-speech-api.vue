@@ -10,9 +10,9 @@ import {
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
 import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
+import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/libs/providers/providers/browser-web-speech-api'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/stores/providers/web-speech-api'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCombobox } from '@proj-airi/ui'
 import { until } from '@vueuse/core'

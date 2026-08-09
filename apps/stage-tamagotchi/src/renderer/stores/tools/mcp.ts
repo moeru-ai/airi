@@ -1,7 +1,7 @@
-import type { ExecutableTool } from '@proj-airi/stage-ui/stores/llm-tools'
+import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { createMcpTools } from '@proj-airi/stage-ui/tools/mcp'
 import { defineStore } from 'pinia'
 

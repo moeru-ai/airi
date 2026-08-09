@@ -20,6 +20,8 @@ export interface BaseVADConfig {
 export interface VADEvents {
   // Emitted when speech is detected
   'speech-start': void
+  // Emitted with each PCM chunk that belongs to the active speech segment
+  'speech-audio': { buffer: Float32Array }
   // Emitted when speech has ended
   'speech-end': void
   // Emitted when a complete speech segment is ready for transcription

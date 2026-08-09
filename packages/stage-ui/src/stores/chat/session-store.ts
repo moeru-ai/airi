@@ -1,5 +1,4 @@
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
-import type {} from 'pinia-plugin-synced'
 
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
@@ -13,6 +12,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+import { captureAnalyticsEvent } from '../../libs/analytics'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
   applyCreateActions,
@@ -24,7 +24,6 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
-import { captureAnalyticsEvent } from '../analytics/client'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'

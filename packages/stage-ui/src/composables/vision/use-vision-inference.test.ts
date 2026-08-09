@@ -12,7 +12,7 @@ vi.mock('pinia', async () => {
   }
 })
 
-vi.mock('../../stores/llm', () => ({
+vi.mock('../../stores/ai/chat-llm/llm', () => ({
   useLLM: () => ({
     stream,
   }),

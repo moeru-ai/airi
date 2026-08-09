@@ -6,8 +6,8 @@ import Tres from '@tresjs/core'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
+import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
 import { setupSynced } from '@proj-airi/stage-ui/libs/pinia'
-import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/stores/analytics/client'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -40,7 +40,7 @@ import '@fontsource/m-plus-rounded-1c/index.css'
 import '@fontsource-variable/nunito/index.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/stores/analytics/posthog')
+  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/analytics/posthog')
   return createPosthogAdapter(options)
 })
 

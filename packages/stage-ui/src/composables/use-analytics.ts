@@ -1,14 +1,12 @@
-import type { ControlsIslandAction } from '../stores/analytics/button-events'
+import type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useSharedAnalyticsStore } from '../stores/analytics'
-import { captureTrackButtonEvent } from '../stores/analytics/button-events'
-import { captureAnalyticsEvent, ensureAnalyticsInitialized, isAnalyticsAvailableInBuild } from '../stores/analytics/client'
-import { getAnalyticsPrivacyPolicyUrl } from '../stores/analytics/privacy-policy'
+import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/analytics'
+import { captureTrackButtonEvent } from '../libs/analytics/events/interaction'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
@@ -40,7 +38,7 @@ export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
-export type { ControlsIslandAction } from '../stores/analytics/button-events'
+export type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
@@ -124,7 +122,7 @@ export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface 
 }
 
 export function useAnalytics() {
-  const analyticsStore = useSharedAnalyticsStore()
+  const analytics = getAnalytics()
   const settingsAnalytics = useSettingsAnalytics()
   const settingsGeneral = useSettingsGeneral()
   const { locale } = useI18n()
@@ -137,7 +135,7 @@ export function useAnalytics() {
     if (!isAnalyticsEnabled.value)
       return false
 
-    return ensureAnalyticsInitialized(true)
+    return enableAnalytics()
   }
 
   function trackProviderClick(providerId: string, module: string) {
@@ -154,20 +152,7 @@ export function useAnalytics() {
     if (!canCapture())
       return
 
-    // Only track the first message once
-    if (analyticsStore.firstMessageTracked)
-      return
-
-    analyticsStore.markFirstMessageTracked()
-
-    // Calculate time from app start to message sent
-    const timeToFirstMessageMs = analyticsStore.appStartTime
-      ? Date.now() - analyticsStore.appStartTime
-      : null
-
-    captureAnalyticsEvent('first_message_sent', {
-      time_to_first_message_ms: timeToFirstMessageMs,
-    })
+    analytics.recordFirstMessage()
   }
 
   /**
@@ -1233,11 +1218,11 @@ export function useAnalytics() {
   }
 
   function trackMcpServerAdded() {
-    captureTrackButtonEvent({ name: 'mcp_server_added' })
+    captureTrackButtonEvent({ name: 'mcp_server_updated', action: 'add' })
   }
 
   function trackMcpServerRemoved() {
-    captureTrackButtonEvent({ name: 'mcp_server_removed' })
+    captureTrackButtonEvent({ name: 'mcp_server_updated', action: 'remove' })
   }
 
   function trackMcpConnectionTestRun(properties: { success: boolean }) {

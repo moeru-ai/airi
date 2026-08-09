@@ -1,11 +1,13 @@
+import type { Span } from '@opentelemetry/api'
 import type { MaybeRefOrGetter } from 'vue'
 
 import type { BaseVADConfig } from '../../../libs/audio/vad'
 
 import { merge } from '@moeru/std'
-import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { errorMessageFromValue, IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { ref, toRef, watch } from 'vue'
 
+import { startSpan } from '../../../composables/use-io-tracer'
 import { createVAD, createVADStates } from '../../../workers/vad'
 
 interface UseVADOptions {
@@ -15,6 +17,7 @@ interface UseVADOptions {
   minSpeechDurationMs?: MaybeRefOrGetter<number>
 
   onSpeechStart?: () => void
+  onSpeechAudio?: (event: { buffer: Float32Array }) => void
   onSpeechEnd?: () => void
   onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
 }
@@ -62,6 +65,17 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
 
   const loaded = ref(false)
   const loading = ref(false)
+  let activeSpan: Span | undefined
+
+  function finishActiveSpan(aborted: boolean) {
+    if (!activeSpan)
+      return
+
+    if (aborted)
+      activeSpan.setAttribute(IOAttributes.VADAborted, true)
+    activeSpan.end()
+    activeSpan = undefined
+  }
 
   const threshold = toRef(options.threshold)
   const minSilenceDurationMs = toRef(options.minSilenceDurationMs)
@@ -90,8 +104,16 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
 
       // Set up event handlers
       vad.value.on('speech-start', () => {
+        finishActiveSpan(true)
+        activeSpan = startSpan(IOSpanNames.VoiceActivityDetection, undefined, {
+          [IOAttributes.Subsystem]: IOSubsystems.VAD,
+        })
         isSpeech.value = true
         options?.onSpeechStart?.()
+      })
+
+      vad.value.on('speech-audio', (event) => {
+        options?.onSpeechAudio?.(event)
       })
 
       vad.value.on('speech-end', () => {
@@ -100,6 +122,8 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       })
 
       vad.value.on('speech-ready', (event) => {
+        activeSpan?.setAttribute(IOAttributes.VADAudioDurationMs, event.duration)
+        finishActiveSpan(false)
         options?.onSpeechReady?.(event)
       })
 
@@ -150,6 +174,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
   }
 
   function dispose() {
+    finishActiveSpan(true)
     manager.value?.stop()
     manager.value?.dispose()
     manager.value = undefined

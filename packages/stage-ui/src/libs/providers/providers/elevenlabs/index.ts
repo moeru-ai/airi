@@ -5,8 +5,8 @@ import type { ComposerTranslation } from 'vue-i18n'
 import { createUnElevenLabs, listVoices } from 'unspeech'
 import { z } from 'zod'
 
-import { models as elevenLabsModels } from '../../../../stores/providers/elevenlabs/list-models'
 import { defineProvider } from '../registry'
+import { models as elevenLabsModels } from './list-models'
 
 const elevenLabsConfigSchema = z.object({
   apiKey: z.string(),

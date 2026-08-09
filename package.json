@@ -49,6 +49,8 @@
     "knip": "knip"
   },
   "devDependencies": {
+    "@alint-js/cli": "catalog:",
+    "@alint-js/plugin-js": "catalog:",
     "@antfu/eslint-config": "catalog:",
     "@arethetypeswrong/core": "catalog:",
     "@electron-toolkit/eslint-config-ts": "catalog:",
