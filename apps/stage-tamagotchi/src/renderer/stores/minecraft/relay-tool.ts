@@ -1,7 +1,8 @@
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { JsonSchema } from 'xsschema'
 
-import { normalizeNullableAnyOf, normalizeSparkCommandGuidanceOptions } from '@proj-airi/stage-ui/tools/character/orchestrator/spark-command-shared'
+import { normalizeSparkCommandGuidanceOptions } from '@proj-airi/stage-ui/tools/character/orchestrator/spark-command-shared'
+import { normalizeNullableAnyOf } from '@proj-airi/stage-ui/tools/json-schema'
 import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod/v4'
@@ -42,7 +43,7 @@ export interface CreateRelayToMinecraftToolOptions {
 }
 
 // NOTICE:
-// The bot side (services/minecraft airi-bridge.handleActionIntent) uses `guidance.options[0].label`
+// The bot side (integrations/minecraft airi-bridge.handleActionIntent) uses `guidance.options[0].label`
 // as the message it relays to its brain (label preferred; steps only as fallback). So `label` MUST
 // carry the FULL task text, not a truncated display label — otherwise the brain receives a clipped
 // instruction.

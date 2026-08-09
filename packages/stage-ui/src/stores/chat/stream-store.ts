@@ -48,4 +48,8 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
     finalizeStream,
     resetStream,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

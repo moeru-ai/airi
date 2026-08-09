@@ -32,7 +32,7 @@ export interface UsePrecisionOptions {
    *
    * @default 'round'
    */
-  math?: 'floor' | 'ceil' | 'round'
+  math?: "floor" | "ceil" | "round"
 }
 /**
  * Reactively set the precision of a number.

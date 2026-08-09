@@ -1,13 +1,14 @@
 import type { ContextUpdate, WebSocketBaseEvent, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
+import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character/orchestrator/store'
-import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/llm-tools'
-import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/llm-toolset-prompts'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useMinecraftStore } from '@proj-airi/stage-ui/stores/modules/gaming-minecraft'
 import { useSystemSpeechStore } from '@proj-airi/stage-ui/stores/modules/system-speech'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, watch } from 'vue'
+import { shallowRef, watch } from 'vue'
 
 import { buildMinecraftToolsetPrompt, parseMasterUsername, shouldReadAloud } from './prompt'
 import { createRelayToMinecraftTool } from './relay-tool'
@@ -16,9 +17,11 @@ import { createRelayToMinecraftTool } from './relay-tool'
 const MINECRAFT_SOURCE = 'minecraft-bot'
 /** Provider key this adapter owns in the shared LLM tools / toolset-prompt registries. */
 const MINECRAFT_PROVIDER = 'minecraft'
+/** Stable application id for the relay tool in the synchronized LLM tool registry. */
+const MINECRAFT_RELAY_TOOL_ID = 'minecraft:relayToMinecraft'
 
-function eventSourceId(event: { metadata?: { source?: { plugin?: { id?: string }, id?: string } } }): string | undefined {
-  return event.metadata?.source?.plugin?.id ?? event.metadata?.source?.id
+function eventSourceId(event: { metadata?: { source?: { id?: string } } }): string | undefined {
+  return event.metadata?.source?.id
 }
 
 /**
@@ -54,7 +57,7 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
   const { serviceConnected, configured, latestRuntimeContextText } = storeToRefs(minecraftStore)
   // The master's in-game username, parsed from the bot's neutral `minecraft:status` text. Kept here
   // (not in the shared minecraft store) because binding the owner role is a desktop-persona concern.
-  const masterUsername = ref('')
+  const masterUsername = shallowRef('')
 
   let started = false
   let disposeContextUpdate: (() => void) | null = null
@@ -65,16 +68,21 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
     channelStore.send<WebSocketEvents['spark:command']>({ type: 'spark:command', data: command })
   }
 
-  function registerRelayTool() {
-    // registerTools internally tracks the pending Promise (awaitPendingRegistrations), so we don't
-    // await it here; the gate just fires register/clear as the bot connects/disconnects.
-    void llmToolsStore.registerTools(
-      MINECRAFT_PROVIDER,
-      createRelayToMinecraftTool({
-        sendSparkCommand,
-        isAvailable: () => minecraftStore.serviceConnected,
-      }),
-    )
+  async function registerRelayTool() {
+    const tools = await createRelayToMinecraftTool({
+      sendSparkCommand,
+      isAvailable: () => minecraftStore.serviceConnected,
+    })
+
+    // Schema conversion is asynchronous. Re-check the gate after it finishes so a disconnect or
+    // adapter disposal cannot publish a stale tool into the synchronized registry.
+    if (!started || !serviceConnected.value)
+      return
+
+    llmToolsStore.addTools(...tools.map(tool => ({
+      ...tool,
+      id: MINECRAFT_RELAY_TOOL_ID,
+    } satisfies ExecutableTool)))
   }
 
   function syncToolsetPrompt() {
@@ -132,9 +140,9 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
     // Capability gate: the relay tool exists only while the bot is online.
     stopToolGate = watch(serviceConnected, (online) => {
       if (online)
-        registerRelayTool()
+        void registerRelayTool()
       else
-        llmToolsStore.clearTools(MINECRAFT_PROVIDER)
+        llmToolsStore.removeToolById(MINECRAFT_RELAY_TOOL_ID)
     }, { immediate: true })
 
     // Re-register the persona directive whenever the inputs it derives from change.
@@ -156,7 +164,7 @@ export const useMinecraftToolsStore = defineStore('tamagotchi-minecraft-tools', 
     stopPromptSync = null
     disposeContextUpdate = null
 
-    llmToolsStore.clearTools(MINECRAFT_PROVIDER)
+    llmToolsStore.removeToolById(MINECRAFT_RELAY_TOOL_ID)
     llmToolsetPromptsStore.clearToolsetPrompts(MINECRAFT_PROVIDER)
     orchestratorStore.unmuteNotifySource(MINECRAFT_SOURCE)
 

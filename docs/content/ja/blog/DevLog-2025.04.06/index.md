@@ -45,7 +45,7 @@ import ReLUStickerWow from '../../../en/blog/DevLog-2025.04.06/assets/relu-stick
 
 ### 記憶システム
 
-最近、数ヶ月準備してきた Project AIRI の「記憶アップデート」に備えて、[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/services/telegram-bot) をリファクタリングしています。
+最近、数ヶ月準備してきた Project AIRI の「記憶アップデート」に備えて、[`telegram-bot`](https://github.com/moeru-ai/airi/tree/main/integrations/telegram-bot) をリファクタリングしています。
 
 実装後の記憶システムを、現在最も先進的で強力かつ堅牢なものにする予定であり、その思想の多くは現実世界の人間の記憶システムから深くインスピレーションを得ています。
 

@@ -4,7 +4,7 @@ import type { Character, CreateCharacterPayload } from '@proj-airi/stage-ui/type
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useCharacterStore } from '@proj-airi/stage-ui/stores/characters'
 import { CreateCharacterSchema } from '@proj-airi/stage-ui/types/character'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { Button, FieldInput, GhostButton } from '@proj-airi/ui'
 import {
   DialogContent,
   DialogOverlay,
@@ -27,7 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const characterStore = useCharacterStore()
-const { trackCharacterCreated } = useAnalytics()
+const { trackCharacterCreated, trackCharacterUpdated } = useAnalytics()
 
 // Form State
 const form = reactive({
@@ -154,6 +154,7 @@ async function handleSubmit() {
         version: form.version,
         coverUrl: form.coverUrl,
       })
+      trackCharacterUpdated({ character_id: props.character.id })
       // Capabilities/I18n update not supported in simple UpdateCharacterSchema yet?
       // Checking types/character.ts: UpdateCharacterSchema only has version, coverUrl, characterId.
       // So deep update is not supported by the simple endpoint yet?
@@ -290,9 +291,9 @@ const isOpen = computed({
 
           <!-- Footer -->
           <div class="flex items-center justify-end gap-2 border-t border-neutral-100 p-4 dark:border-neutral-800">
-            <Button variant="ghost" @click="isOpen = false">
+            <GhostButton @click="isOpen = false">
               Cancel
-            </Button>
+            </GhostButton>
             <Button :loading="isSubmitting" @click="handleSubmit">
               {{ character ? 'Save Changes' : 'Create' }}
             </Button>

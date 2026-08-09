@@ -12,6 +12,7 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+import { captureAnalyticsEvent } from '../../libs/analytics'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
   applyCreateActions,
@@ -23,7 +24,6 @@ import {
   reconcileLocalAndRemote,
 } from '../../libs/chat-sync'
 import { SERVER_URL } from '../../libs/server'
-import { capturePosthogEvent } from '../analytics/posthog'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { mergeLoadedSessionMessages } from './session-message-merge'
@@ -40,6 +40,13 @@ interface CloudMergePayload {
   toSeq?: number
 }
 
+/** Identifies one message that must be removed from a session. */
+export interface DeleteChatMessagePayload {
+  index?: number
+  messageId?: string
+  sessionId: string
+}
+
 /**
  * Max retry attempts before an outbox entry is treated as terminally failed.
  * Failed entries stay in IDB so the user can see them in `outboxPendingCount`
@@ -47,11 +54,24 @@ interface CloudMergePayload {
  */
 const OUTBOX_MAX_ATTEMPTS = 5
 
+const useChatSessionSelectionStore = defineStore('chat-session-selection', () => {
+  const activeSessionId = ref('')
+
+  return { activeSessionId }
+})
+
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
-  const activeSessionId = ref<string>('')
+  const chatSessionSelection = useChatSessionSelectionStore()
+  // The selected conversation belongs to one window. Expose it through the
+  // existing chat-session API as a computed property so synchronized session
+  // data never makes another window navigate to the same conversation.
+  const activeSessionId = computed({
+    get: () => chatSessionSelection.activeSessionId,
+    set: value => chatSessionSelection.activeSessionId = value,
+  })
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
   const sessionMetas = ref<Record<string, ChatSessionMeta>>({})
   const sessionGenerations = ref<Record<string, number>>({})
@@ -178,6 +198,39 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return generateInitialMessageFromPrompt(systemPrompt.value)
   }
 
+  function refreshActiveSessionSystemMessage() {
+    const sessionId = activeSessionId.value
+    const meta = sessionMetas.value[sessionId]
+
+    // A card switch updates `systemPrompt` before its character session has
+    // necessarily finished loading. Never rewrite the previous character's
+    // session or persist an empty in-memory placeholder over an IDB history
+    // that is still being hydrated.
+    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
+      return
+
+    const currentMessages = sessionMessages.value[sessionId] ?? []
+    const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
+    const currentSystemMessage = currentMessages[systemMessageIndex]
+    const resolvedSystemMessage = generateInitialMessage()
+
+    if (currentSystemMessage?.content === resolvedSystemMessage.content)
+      return
+
+    if (currentSystemMessage) {
+      const nextMessages = [...currentMessages]
+      nextMessages[systemMessageIndex] = {
+        ...currentSystemMessage,
+        role: 'system',
+        content: resolvedSystemMessage.content,
+      }
+      replaceSessionMessages(sessionId, nextMessages)
+      return
+    }
+
+    replaceSessionMessages(sessionId, [resolvedSystemMessage, ...currentMessages])
+  }
+
   function ensureGeneration(sessionId: string) {
     if (sessionGenerations.value[sessionId] === undefined)
       sessionGenerations.value[sessionId] = 0
@@ -272,6 +325,19 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ])
   }
 
+  /** Removes one message by stable id or by its current history index. */
+  function deleteMessage(payload: DeleteChatMessagePayload) {
+    const nextMessages = getSessionMessages(payload.sessionId).filter((message, messageIndex) => {
+      if (payload.messageId)
+        return message.id !== payload.messageId
+      if (payload.index !== undefined)
+        return messageIndex !== payload.index
+      return true
+    })
+
+    setSessionMessages(payload.sessionId, nextMessages)
+  }
+
   /**
    * Hydrate a single session's messages from IDB into memory. Idempotent —
    * subsequent calls for the same id are no-ops.
@@ -322,6 +388,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             await persistSession(sessionId)
         }
         loadedSessions.add(sessionId)
+        if (activeSessionId.value === sessionId)
+          refreshActiveSessionSystemMessage()
 
         // Cloud gap fill: when the session is mapped to a cloud chat, ask
         // the server for everything past our highest known seq. Best
@@ -406,6 +474,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.setActive !== false)
       activeSessionId.value = sessionId
 
+    captureAnalyticsEvent('conversation_created', {
+      conversation_id: sessionId,
+      source: options?.messages?.length ? 'fork' : 'new_session',
+      character_id: characterId,
+      cloud_synced: currentUserId !== 'local',
+    })
+
     // Fire-and-forget cloud reconcile so the freshly-minted session gets a
     // `cloudChatId` (POST /api/v1/chats) before the user types into it.
     // Reentrant: `reconcileCloudSessions` itself guards on `cloudReconcileTask`
@@ -443,9 +518,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     // Snapshot count before the in-memory wipe below zeroes it out.
     const messageCount = (sessionMessages.value[sessionId] ?? []).length
-    capturePosthogEvent('chat_session_deleted', {
+    captureAnalyticsEvent('chat_session_deleted', {
       session_id: sessionId,
       message_count: messageCount,
+    })
+    captureAnalyticsEvent('conversation_deleted', {
+      conversation_id: sessionId,
+      message_count: messageCount,
+      cloud_synced: !!meta.cloudChatId,
     })
 
     const wasActive = activeSessionId.value === sessionId
@@ -1374,6 +1454,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     void ensureActiveSessionForCharacter()
   })
 
+  // Keep the active conversation aligned with edits to the active card. The
+  // active session id is included because card switching resolves the target
+  // session asynchronously after the card prompt itself has already changed.
+  watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
+
   // Auth toggles drive cloud WS lifecycle independently of activeCardId so
   // a card swap inside a single session does not bounce the socket. The
   // critical invariant: when the auth user changes, every piece of in-memory
@@ -1414,6 +1499,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     resetAllSessions,
 
     ensureSession,
+    deleteMessage,
     setSessionMessages,
     appendSessionMessage,
     persistSessionMessages,
@@ -1435,4 +1521,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     outboxPendingCount,
     pushMessageToCloud,
   }
+}, {
+  synced: {
+    actions: ['deleteMessage', 'importSessions'],
+    state: true,
+  },
 })

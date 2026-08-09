@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { applyOIDCTokens, fetchSession, triggerSignIn } from '@proj-airi/stage-ui/libs/auth'
 import { consumeFlowState, exchangeCodeForTokens } from '@proj-airi/stage-ui/libs/auth-oidc'
 import { Button } from '@proj-airi/ui'
@@ -9,6 +10,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const { t } = useI18n()
+const { trackOauthCallbackFailed } = useAnalytics()
 const error = ref<string | null>(null)
 
 onMounted(async () => {
@@ -18,17 +20,20 @@ onMounted(async () => {
   const errorParam = url.searchParams.get('error')
 
   if (errorParam) {
+    trackOauthCallbackFailed({ stage: 'provider_error' })
     error.value = url.searchParams.get('error_description') ?? errorParam
     return
   }
 
   if (!code || !state) {
+    trackOauthCallbackFailed({ stage: 'missing_code_or_state' })
     error.value = t('server.auth.webCallback.message.missingCodeOrState')
     return
   }
 
   const persisted = consumeFlowState()
   if (!persisted) {
+    trackOauthCallbackFailed({ stage: 'missing_flow_state' })
     error.value = t('server.auth.webCallback.message.missingFlowState')
     return
   }
@@ -40,6 +45,7 @@ onMounted(async () => {
     router.replace('/')
   }
   catch (err) {
+    trackOauthCallbackFailed({ stage: 'token_exchange_failed' })
     error.value = errorMessageFrom(err) ?? t('server.auth.webCallback.message.tokenExchangeFailed')
   }
 })

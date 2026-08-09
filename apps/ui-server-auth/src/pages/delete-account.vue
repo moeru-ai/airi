@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
+
+import { trackAccountDeletionCompleted } from '../modules/analytics'
 
 // NOTICE:
 // This page is a SUCCESS landing — better-auth's `/api/auth/delete-user/callback`
@@ -27,6 +29,14 @@ const route = useRoute()
 const errorMessage = computed(() => {
   const value = route.query.error
   return typeof value === 'string' ? value : null
+})
+
+onMounted(() => {
+  // Strongest churn fact the client can observe: better-auth only
+  // redirects here after the deletion callback already ran server-side,
+  // so rendering the success state means the account is gone.
+  if (!errorMessage.value)
+    trackAccountDeletionCompleted()
 })
 </script>
 

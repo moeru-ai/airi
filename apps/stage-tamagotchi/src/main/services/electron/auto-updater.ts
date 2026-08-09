@@ -48,7 +48,14 @@ function getCacheRoot() {
 }
 
 function getLegacyCacheRoot() {
-  return getCacheRoot()
+  switch (process.platform) {
+    case 'win32':
+      return process.env.LOCALAPPDATA || join(process.env.USERPROFILE || '', 'AppData', 'Local')
+    case 'darwin':
+      return join(process.env.HOME || '', 'Library', 'Caches')
+    default:
+      return process.env.XDG_CACHE_HOME || join(process.env.HOME || '', '.cache')
+  }
 }
 
 const UPDATER_DEBUG_CACHE_DIR = join(getCacheRoot(), 'stage-tamagotchi-updater')
@@ -253,7 +260,15 @@ export interface AutoUpdater {
 }
 
 export interface AutoUpdaterOptions {
+  /**
+   * Whether AIRI owns application updates for this distribution.
+   *
+   * @default true
+   */
+  enabled?: boolean
+  /** Reads the release channel persisted by the application configuration. */
   getStoredUpdateLane?: () => UpdateLane | undefined
+  /** Persists a release-channel change requested through updater IPC. */
   setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
 }
 
@@ -261,7 +276,39 @@ function isPrereleaseVersion(version: string) {
   return (semver.prerelease(version)?.length ?? 0) > 0
 }
 
+/**
+ * Preserves the updater IPC contract when the storefront owns application updates.
+ *
+ * No method reaches Electron Updater or a release feed, while preference reads and
+ * subscriptions remain available to existing renderer consumers.
+ */
+function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
+  const state: AutoUpdaterState = { status: 'disabled' }
+  let storedPreferredLane = options.getStoredUpdateLane?.()
+
+  return {
+    state,
+    async checkForUpdates() {},
+    async downloadUpdate() {},
+    async quitAndInstall() {},
+    getPreferredUpdateLane() {
+      return storedPreferredLane
+    },
+    async setPreferredUpdateLane(lane) {
+      storedPreferredLane = lane
+      options.setStoredUpdateLane?.(lane)
+    },
+    subscribe(callback) {
+      callback(state)
+      return () => {}
+    },
+  }
+}
+
 export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
+  if (options.enabled === false)
+    return createDisabledAutoUpdater(options)
+
   const semaphore = new Semaphore(1)
   const appVersion = app.getVersion()
   const isPrereleaseBuild = isPrereleaseVersion(appVersion)

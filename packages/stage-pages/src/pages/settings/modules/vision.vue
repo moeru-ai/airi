@@ -1,18 +1,23 @@
 <script setup lang="ts">
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
-const { persistedChatProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
+const { configuredProviders } = storeToRefs(providerStore)
+const { persistedVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,
@@ -47,6 +52,10 @@ watch(activeProvider, async (provider, oldProvider) => {
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
+watch([activeProvider, activeModel], ([provider, model]) => {
+  airiCardStore.updateActiveCardVision({ provider, model })
+})
+
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
@@ -61,7 +70,11 @@ function handleDeleteProvider(providerId: string) {
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
 const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
-const isOllamaVisionProvider = computed(() => activeProvider.value === 'ollama')
+const isOllamaVisionProvider = computed(() => activeProvider.value === 'vision-ollama')
+
+function canDeleteProvider(providerId: string) {
+  return !providerId.startsWith('official-provider') && !providerId.startsWith('vision-official-provider')
+}
 
 function formatRelativeTime(timestamp: number | null) {
   if (!timestamp)
@@ -93,12 +106,12 @@ function formatRelativeTime(timestamp: number | null) {
         </div>
         <div :class="['max-w-full']">
           <fieldset
-            v-if="persistedChatProvidersMetadata.length > 0"
-            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'of-x-auto', 'scroll-smooth']"
+            v-if="persistedVisionProvidersMetadata.length > 0"
+            :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedChatProvidersMetadata"
+              v-for="metadata in persistedVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
@@ -108,7 +121,7 @@ function formatRelativeTime(timestamp: number | null) {
               :description="metadata.localizedDescription"
               @click="trackProviderClick(metadata.id, 'vision')"
             >
-              <template #topRight>
+              <template v-if="canDeleteProvider(metadata.id)" #topRight>
                 <button
                   type="button"
                   :class="[
@@ -147,7 +160,7 @@ function formatRelativeTime(timestamp: number | null) {
               </template>
             </RadioCardSimple>
             <RouterLink
-              to="/settings/providers"
+              to="/settings/providers#vision"
               :class="[
                 'relative',
                 'min-w-50',
@@ -178,7 +191,7 @@ function formatRelativeTime(timestamp: number | null) {
           </fieldset>
           <div v-else>
             <RouterLink
-              to="/settings/providers"
+              to="/settings/providers#vision"
               :class="[
                 'flex',
                 'items-center',

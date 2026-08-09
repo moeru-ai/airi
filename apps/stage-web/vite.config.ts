@@ -91,6 +91,23 @@ export default defineConfig({
     },
   },
   build: {
+    manifest: true,
+    rolldownOptions: {
+      output: {
+        chunkFileNames: (chunkInfo) => {
+          const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
+            const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('posthog')
+          })
+
+          // Only analytics/provider chunks receive the manual neutral mapping;
+          // all unrelated chunks retain Vite's readable default naming.
+          return containsAnalyticsModule
+            ? 'assets/auxiliary-[hash].js'
+            : 'assets/[name]-[hash].js'
+        },
+      },
+    },
     sourcemap: true,
   },
   worker: {

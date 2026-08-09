@@ -48,8 +48,11 @@ export interface ExtensionHostGameletWidgetsManager {
   updateWidget: (payload: WidgetsUpdatePayload) => Promise<void>
   removeWidget: (id: string) => Promise<void>
   getWidgetSnapshot: (id: string) => WidgetSnapshot | undefined
-  publishWidgetEvent: (id: string, event: Record<string, unknown>) => void
-  onWidgetEvent: (listener: (event: { id: string, event: Record<string, unknown> }) => void) => () => void
+  requestWidgetIframe: <TResponse extends Record<string, unknown> = Record<string, unknown>>(
+    id: string,
+    payload: Record<string, unknown>,
+    options?: { timeoutMs?: number },
+  ) => Promise<TResponse>
 }
 
 /**

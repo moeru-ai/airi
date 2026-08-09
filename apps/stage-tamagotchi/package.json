@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.10.2",
+  "version": "0.11.3",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -62,12 +62,14 @@
     "@proj-airi/font-cjkfonts-allseto": "workspace:^",
     "@proj-airi/font-xiaolai": "workspace:^",
     "@proj-airi/i18n": "workspace:^",
+    "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-sdk-tamagotchi": "workspace:^",
     "@proj-airi/server-sdk": "workspace:*",
     "@proj-airi/stage-layouts": "workspace:^",
     "@proj-airi/stage-pages": "workspace:^",
     "@proj-airi/stage-ui": "workspace:^",
     "@proj-airi/stage-ui-live2d": "workspace:^",
+    "@proj-airi/stage-ui-mmd": "workspace:^",
     "@proj-airi/stage-ui-spine": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/ui": "workspace:^",

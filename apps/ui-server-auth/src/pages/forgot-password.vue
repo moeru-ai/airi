@@ -4,6 +4,7 @@ import { Button, FieldInput } from '@proj-airi/ui'
 import { reactive, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { trackPasswordResetRequested } from '../modules/analytics'
 import { buildCurrentOriginAuthUiUrl } from '../modules/auth-ui-base'
 import { describeAuthError, requestPasswordReset } from '../modules/email-password'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
@@ -36,6 +37,7 @@ async function handleSubmit(event: Event) {
       email: form.email.trim(),
       redirectTo: resetRedirect,
     })
+    trackPasswordResetRequested()
     submitted.value = true
   }
   catch (error) {

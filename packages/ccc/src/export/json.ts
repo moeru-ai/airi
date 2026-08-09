@@ -1,5 +1,5 @@
+import type { CharacterCardV3 } from '../codec/characterCardV3'
 import type { Card } from '../define'
-import type { CharacterCardV3 } from './types/character_card_v3'
 
 /**
  * Exports a Card object to CharacterCardV3 format
@@ -23,6 +23,9 @@ function createCardData(data: Card): CharacterCardV3['data'] {
   return {
     name: data.name,
     nickname: data.nickname,
+    assets: data.assets,
+    character_book: data.characterBook,
+    creation_date: data.creationDate,
     description: data.description ?? '',
     personality: data.personality ?? '',
     scenario: data.scenario ?? '',
@@ -36,6 +39,8 @@ function createCardData(data: Card): CharacterCardV3['data'] {
     system_prompt: data.systemPrompt ?? '',
     post_history_instructions: data.postHistoryInstructions ?? '',
     mes_example: formatMessageExample(data.messageExample),
+    modification_date: data.modificationDate,
+    source: data.source,
     tags: data.tags ?? [],
     extensions: createExtensions(data),
   }
@@ -60,7 +65,7 @@ function formatMessageExample(messageExample: string[][] | undefined): string {
  * @param data Source card data
  * @returns Extensions object
  */
-function createExtensions(data: Card): Record<string, any> {
+function createExtensions(data: Card): CharacterCardV3['data']['extensions'] {
   return {
     depth_prompt: {
       depth: 4,

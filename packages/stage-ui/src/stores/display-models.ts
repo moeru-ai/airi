@@ -10,6 +10,7 @@ export enum DisplayModelFormat {
   Live2dDirectory = 'live2d-directory',
   VRM = 'vrm',
   SpineZip = 'spine-zip',
+  TachieZip = 'tachie-zip',
   PMXZip = 'pmx-zip',
   PMXDirectory = 'pmx-directory',
   PMD = 'pmd',
@@ -60,6 +61,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   let generateLive2DPreview: (file: File) => Promise<string | undefined>
   let generateVrmPreview: (file: File) => Promise<string | undefined>
   let generateSpinePreview: (file: File) => Promise<string | undefined>
+  let generateTachiePreview: (file: File) => Promise<string | undefined>
+  let generateMMDPreview: (file: File) => Promise<string | undefined>
 
   const displayModelsFromIndexedDBLoading = ref(false)
 
@@ -108,6 +111,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const loadLive2DModelPreview = (file: File) => generateLive2DPreview(file)
   const loadVrmModelPreview = (file: File) => generateVrmPreview(file)
   const loadSpineModelPreview = (file: File) => generateSpinePreview(file)
+  const loadTachieModelPreview = (file: File) => generateTachiePreview(file)
+  const loadMMDModelPreview = (file: File) => generateMMDPreview(file)
 
   async function addDisplayModel(format: DisplayModelFormat, file: File) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
@@ -124,6 +129,26 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     else if (format === DisplayModelFormat.SpineZip) {
       const previewImage = await loadSpineModelPreview(file)
       newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.TachieZip) {
+      const previewImage = await loadTachieModelPreview(file)
+      newDisplayModel.previewImage = previewImage
+    }
+    else if (format === DisplayModelFormat.PMXZip || format === DisplayModelFormat.PMXDirectory || format === DisplayModelFormat.PMD) {
+      // NOTICE:
+      // Preview generation is best-effort and must not block the import.
+      // MMD preview spins up an offscreen WebGL context and the three-stdlib
+      // MMDLoader; if that throws (context limits, parse error, missing Ammo
+      // module), the model should still import — just without a thumbnail.
+      // Removal condition: preview generation is guaranteed non-throwing.
+      try {
+        if (!generateMMDPreview)
+          throw new Error('MMD preview module not initialized')
+        newDisplayModel.previewImage = await loadMMDModelPreview(file)
+      }
+      catch (err) {
+        console.error('[display-models] MMD preview generation failed; importing without a thumbnail:', err)
+      }
     }
 
     displayModels.value.unshift(newDisplayModel)
@@ -187,10 +212,26 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const { loadLive2DModelPreview } = await import('@proj-airi/stage-ui-live2d/utils/live2d-preview')
     const { loadVrmModelPreview } = await import('@proj-airi/stage-ui-three/utils/vrm-preview')
     const { loadSpineModelPreview } = await import('@proj-airi/stage-ui-spine/utils/spine-preview')
+    const { loadTachieModelPreview } = await import('@proj-airi/stage-ui-tachie/utils/tachie-preview')
 
     generateLive2DPreview = loadLive2DModelPreview
     generateVrmPreview = loadVrmModelPreview
     generateSpinePreview = loadSpineModelPreview
+    generateTachiePreview = loadTachieModelPreview
+
+    // NOTICE:
+    // Isolate the MMD preview import. It pulls in three-stdlib's MMD modules,
+    // and a module-evaluation failure here must not prevent the Live2D/VRM/
+    // Spine preview functions (assigned above) from being wired up. A thrown
+    // import previously aborted initialize() and silently broke all previews.
+    // Removal condition: the MMD preview module is guaranteed to import.
+    try {
+      const { loadMMDModelPreview } = await import('@proj-airi/stage-ui-mmd/utils/mmd-preview')
+      generateMMDPreview = loadMMDModelPreview
+    }
+    catch (err) {
+      console.error('[display-models] failed to load MMD preview module:', err)
+    }
   }
 
   return {

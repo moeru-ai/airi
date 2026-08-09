@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => ({
           browser: {
             provider: playwright(),
             enabled: true,
-            // at least one instance is required
+            // Vitest browser mode requires an explicit browser instance list.
             instances: [
               { browser: 'chromium' },
             ],

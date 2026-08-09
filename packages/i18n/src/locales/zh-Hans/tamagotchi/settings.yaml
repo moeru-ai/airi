@@ -4,8 +4,8 @@ allow-visible-on-all-workspaces:
 spotlight:
   errors:
     unknown: 未知错误
-    prefix: 出错啦：{message}
-    shortcutRegistrationFailed: 出错啦：快捷键注册失败
+    prefix: '出错啦：{message}'
+    shortcutRegistrationFailed: '出错啦：快捷键注册失败'
 pages:
   modules:
     mcp-server:
@@ -49,6 +49,10 @@ devtools:
   pages:
     context-flow:
       title: Context Flow
+    editor:
+      title: AIRI 编辑器
+      description: 打开独立的 AIRI 编辑器窗口
+      button: 打开编辑器
     lag-visualizer:
       title: Lag 可视化
     performance-visualizer:

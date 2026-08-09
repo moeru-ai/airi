@@ -216,7 +216,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
 
                   <div class="mt-3 flex flex-col gap-2 sm:flex-row">
                     <Button
-                      variant="primary"
+
                       size="md"
                       block
                       :label="t('tamagotchi.stage.notice.fade-on-hover.confirm')"

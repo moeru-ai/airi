@@ -21,6 +21,7 @@ type WidgetActionInput
     id: string
     componentName: string
     componentProps: string | Record<string, any>
+    alwaysOnTop?: boolean
     size: SizePreset
     windowSize?: WidgetWindowSize
     ttlSeconds: number
@@ -30,6 +31,7 @@ type WidgetActionInput
     id: string
     componentProps: string | Record<string, any>
     componentName?: string
+    alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
     ttlSeconds?: number
@@ -39,6 +41,7 @@ type WidgetActionInput
     id: string
     componentName?: string
     componentProps?: string | Record<string, any>
+    alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
     ttlSeconds?: number
@@ -48,6 +51,7 @@ type WidgetActionInput
     id: string
     componentName?: string
     componentProps?: string | Record<string, any>
+    alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
     ttlSeconds?: number
@@ -57,6 +61,7 @@ type WidgetActionInput
     id: string
     componentName?: string
     componentProps?: string | Record<string, any>
+    alwaysOnTop?: boolean
     size?: SizePreset
     windowSize?: WidgetWindowSize
     ttlSeconds?: number
@@ -106,6 +111,7 @@ const widgetParams = z.object({
   id: z.string().describe('Widget id; required for update/remove, optional for spawn/open'),
   componentName: z.string().describe('Widget component to render, e.g. weather (required for spawn)'),
   componentProps: z.string().describe('Widget props as JSON string (e.g. {"city":"Tokyo"})'),
+  alwaysOnTop: z.boolean().describe('Whether the widget window should stay above other windows. Defaults to false when omitted by internal callers.'),
   size: z.enum(['s', 'm', 'l']),
   windowSize: z.union([widgetWindowSizeParams, z.null()]).describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
   ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
@@ -257,7 +263,8 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
         componentName: input.componentName,
         componentProps: sanitizedComponentProps,
         size: input.size ?? 'm',
-        windowSize,
+        ...(input.alwaysOnTop === undefined ? {} : { alwaysOnTop: input.alwaysOnTop }),
+        ...(windowSize === undefined ? {} : { windowSize }),
         ttlMs,
       })
 
@@ -273,7 +280,8 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
       await invokers.updateWidget({
         id: normalizedId,
         componentProps: sanitizedComponentProps,
-        windowSize,
+        ...(input.alwaysOnTop === undefined ? {} : { alwaysOnTop: input.alwaysOnTop }),
+        ...(windowSize === undefined ? {} : { windowSize }),
       })
 
       return `Updated widget (${normalizedId}).`

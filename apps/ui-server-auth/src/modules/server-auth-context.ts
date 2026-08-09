@@ -17,7 +17,15 @@ const API_SERVER_URL_QUERY_PARAM = 'api_server_url'
 const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://api.airi.build',
   'https://airi-server-dev.up.railway.app',
+  'https://airi-server-next.up.railway.app',
 ]
+
+const TRUSTED_HTTPS_API_SERVER_HOSTS = new Map(
+  TRUSTED_STANDALONE_API_SERVER_ORIGINS.map((origin) => {
+    const url = new URL(origin)
+    return [url.hostname, origin]
+  }),
+)
 
 const TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS = [
   /^http:\/\/localhost(:\d+)?$/,
@@ -89,7 +97,12 @@ function normalizeTrustedApiServerUrl(value: string | null): string | null {
     return null
 
   try {
-    const origin = new URL(value).origin
+    const url = new URL(value)
+    const normalizedHttpsOrigin = TRUSTED_HTTPS_API_SERVER_HOSTS.get(url.hostname)
+    if (normalizedHttpsOrigin)
+      return normalizedHttpsOrigin
+
+    const origin = url.origin
 
     if (TRUSTED_STANDALONE_API_SERVER_ORIGINS.includes(origin))
       return origin

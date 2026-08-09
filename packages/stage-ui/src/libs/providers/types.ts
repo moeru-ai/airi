@@ -27,6 +27,21 @@ export type ProviderInstance
     | ModelProvider
     | ModelProviderWithExtraOptions
 
+/** Validation lifecycle for one serializable provider configuration. */
+export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
+
+/** Serializable configuration for one provider instance. */
+export interface InferenceServiceProvider {
+  /** Stable provider instance id. */
+  id: string
+  /** Provider definition id from the built-in provider registry. */
+  definitionId: string
+  /** Provider-specific configuration values. */
+  config: Record<string, unknown>
+  /** Current validation state for this provider configuration. */
+  status: ProviderValidationStatus
+}
+
 export function isModelProvider(providerInstance: ProviderInstance): providerInstance is ModelProvider | ModelProviderWithExtraOptions {
   if ('model' in providerInstance && typeof providerInstance.model === 'function') {
     return true

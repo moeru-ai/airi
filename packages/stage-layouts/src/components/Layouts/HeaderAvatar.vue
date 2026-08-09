@@ -1,28 +1,21 @@
 <script setup lang="ts">
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { Avatar } from '@proj-airi/ui'
 import { onClickOutside } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const authStore = useAuthStore()
 const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { t } = useI18n()
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 const showDropdown = ref(false)
 const dropdownRef = ref(null)
-
-// Fall back to the user-icon placeholder when the avatar URL fails to load
-// (broken/expired host, network error, hot-linked image taken down). Without
-// this the header pill renders the browser's default broken-image glyph,
-// which looks worse than the explicit placeholder we already ship.
-// Reset on URL change so a fixed URL re-attempts loading.
-const avatarLoadError = ref(false)
-watch(userAvatar, () => {
-  avatarLoadError.value = false
-})
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
 
@@ -65,22 +58,17 @@ onClickOutside(dropdownRef, () => {
         class="flex items-center gap-2 border-2 border-neutral-100/60 rounded-full bg-neutral-50/70 p-1 pl-1 pr-3 backdrop-blur-md transition dark:border-neutral-800/30 dark:bg-neutral-800/70 hover:bg-neutral-100 dark:hover:bg-neutral-800"
         :class="{ 'ring-2 ring-primary-500/20': showDropdown }"
         aria-haspopup="true"
+        :aria-label="userName || t('settings.pages.account.title')"
         :aria-expanded="showDropdown ? 'true' : 'false'"
         @click="showDropdown = !showDropdown"
       >
-        <img
-          v-if="userAvatar && !avatarLoadError"
+        <Avatar
           :src="userAvatar"
-          :alt="userName"
-          class="h-7 w-7 rounded-full object-cover"
-          @error="avatarLoadError = true"
-        >
-        <div
-          v-else
-          class="h-7 w-7 flex items-center justify-center rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400"
-        >
-          <div class="i-solar:user-bold-duotone text-lg" />
-        </div>
+          :class="[
+            'h-7 w-7 rounded-full',
+            'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400',
+          ]"
+        />
 
         <span v-if="userName" class="max-w-[100px] truncate text-sm text-neutral-700 font-medium hidden sm:block dark:text-neutral-200">
           {{ userName }}

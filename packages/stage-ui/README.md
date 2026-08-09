@@ -2,6 +2,31 @@
 
 Shared core for stage
 
+## Button analytics
+
+Register the shared plugin once in each Vue application:
+
+```ts
+import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
+
+createApp(App)
+  .use(trackButtonPlugin)
+  .mount('#app')
+```
+
+Buttons that represent a product-analysis click intent can then declare a
+typed event without wrapping their business handler:
+
+```vue
+<Button
+  v-track-button="{ name: 'update_check_clicked', channel: selectedChannel }"
+  @click="checkForUpdates()"
+/>
+```
+
+Keep async outcomes, confirmed state changes, impressions, and lifecycle events
+in their owning business flows instead of attaching them to the initial click.
+
 ## Histoire (UI storyboard)
 
 https://histoire.dev/

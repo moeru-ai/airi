@@ -15,8 +15,11 @@ docs:
   'open-settings': 打开设置
   'open-chat': 打开聊天
   'refresh': 刷新
+  'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
   'drag-to-move-window': 拖动以移动窗口
+  'stop-speaking': 停止说话
+  'speaker-idle': 扬声器
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
   'pin-on-top': 置顶窗口
@@ -88,6 +91,7 @@ about:
       checking: 正在检查...
       latest-version: 最新版本
       disabled-dev: 已禁用开发环境时的更新
+      managed-by-store: 更新由应用商店管理
       retry-check: 重新检查
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新

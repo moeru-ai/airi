@@ -72,6 +72,25 @@ public sealed record StageViewPatchRequestPayload(string RequestId, StageViewPat
 public sealed record StageViewSnapshotRequestPayload(string RequestId);
 
 /// <summary>
+/// Host-origin diagnostic request to save the current stage viewport as a PNG.
+/// </summary>
+public sealed record StageViewCapturePngRequestPayload(
+    string RequestId,
+    string Path,
+    int SettleFrames
+);
+
+/// <summary>
+/// Host-origin request to display a render pipeline diagnostic stage in the final window.
+/// </summary>
+public sealed record StageRenderDebugViewRequestPayload(string RequestId, string View);
+
+/// <summary>
+/// Host-origin diagnostic request to enable or bypass the avatar edge-light stage.
+/// </summary>
+public sealed record StageRenderAvatarEdgeLightRequestPayload(string RequestId, bool Enabled);
+
+/// <summary>
 /// Snapshot emitted by Godot after load, mutation, local input, or request.
 /// </summary>
 public sealed record StageViewSnapshotPayload(
@@ -89,3 +108,23 @@ public sealed record StageViewErrorPayload(
     string Message,
     string RequestId = null
 );
+
+/// <summary>
+/// Diagnostic PNG capture emitted after Godot writes the current viewport image.
+/// </summary>
+public sealed record StageViewCapturePngPayload(
+    string RequestId,
+    string Path,
+    int Width,
+    int Height
+);
+
+/// <summary>
+/// Acknowledgement emitted after Godot applies a render pipeline diagnostic stage.
+/// </summary>
+public sealed record StageRenderDebugViewPayload(string RequestId, string View);
+
+/// <summary>
+/// Acknowledgement emitted after Godot applies the avatar edge-light diagnostic toggle.
+/// </summary>
+public sealed record StageRenderAvatarEdgeLightPayload(string RequestId, bool Enabled);

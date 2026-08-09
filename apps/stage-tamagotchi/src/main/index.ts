@@ -12,8 +12,8 @@ import messages from '@proj-airi/i18n/locales'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain } from 'electron'
+import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { app, ipcMain, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
@@ -37,6 +37,7 @@ import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
+import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -44,6 +45,7 @@ import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowReusableFunc } from './windows/chat'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
+import { setupEditorWindowManager } from './windows/editor'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
@@ -114,6 +116,8 @@ app.whenReady().then(async () => {
     return
   }
 
+  setupMediaPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
+
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
 
@@ -132,6 +136,7 @@ app.whenReady().then(async () => {
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
+      enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
@@ -209,13 +214,22 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupSpotlightWindowManager(dependsOn),
   })
 
+  const editorWindow = injeca.provide('windows:editor', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupEditorWindowManager(dependsOn),
+  })
+
   const settingsWindow = injeca.provide('windows:settings', {
     dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, windowAuthManager, globalShortcut, spotlightWindow },
-    build: async ({ dependsOn }) => setupSettingsWindowReusableFunc(dependsOn),
+    build: async ({ dependsOn }) =>
+      setupSettingsWindowReusableFunc({
+        ...dependsOn,
+        getMainWindow: () => userFacingMainWindow,
+      }),
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, windowAuthManager },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
@@ -328,12 +342,20 @@ async function handleAppExit() {
   skipFileLogging = true
   await logIfError('flush file logs', () => fileLogger.close()) // Ensure all logs are flushed
 
-  app.exit(exitedNormally ? 0 : 1)
+  if (!exitedNormally) {
+    app.exit(1)
+  }
+  else {
+    app.quit()
+  }
 }
 
 process.on('SIGINT', () => handleAppExit())
 
 app.on('before-quit', (event) => {
+  if (appExiting)
+    return
+
   event.preventDefault()
   handleAppExit()
 })

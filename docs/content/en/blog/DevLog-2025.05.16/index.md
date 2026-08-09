@@ -313,7 +313,6 @@ I would love to mention some of the milestone we reached in the past few weeks:
     - Live2D modeling for characters "Me" and "ReLU"
   - Community Support & Marketing
     - Japanese README
-    - Plausible analytics integration
     - Comprehensive documentation
 
 See you!

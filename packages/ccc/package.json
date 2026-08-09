@@ -7,9 +7,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "lint:fix": "eslint --fix ."
+    "lint:fix": "eslint --fix .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "meta-png": "catalog:"
+    "meta-png": "catalog:",
+    "valibot": "catalog:"
   }
 }

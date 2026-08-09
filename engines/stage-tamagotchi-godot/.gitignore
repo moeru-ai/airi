@@ -1,6 +1,7 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+/artifacts/
 
 # .NET build artifacts
 bin/

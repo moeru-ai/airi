@@ -1,16 +1,19 @@
-import type { WebSocketEventOptionalSource } from '@proj-airi/server-shared/types'
+import type { ClientConnection, ClientConnector, ClientEvents } from '@proj-airi/better-ws'
+import type { WebSocketBaseEvent, WebSocketEvent, WebSocketEventOptionalSource, WebSocketEvents } from '@proj-airi/server-shared/types'
 
 import type { ExtensionPeerClient } from '../src/extension-peer'
-import type { WebSocketLike } from '../src/websocket-like'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { createWebSocketExtensionPeer } from '../src/extension-peer'
 
+type Listener = (data: WebSocketBaseEvent<string, unknown>) => void | Promise<void>
+
 class FakeClient implements ExtensionPeerClient {
   readonly sent: WebSocketEventOptionalSource[] = []
   readonly connect = vi.fn(async () => {})
   readonly close = vi.fn(() => {})
+  readonly listeners = new Map<keyof WebSocketEvents, Set<Listener>>()
 
   send(data: WebSocketEventOptionalSource): boolean {
     this.sent.push(data)
@@ -20,43 +23,49 @@ class FakeClient implements ExtensionPeerClient {
   sendOrThrow(data: WebSocketEventOptionalSource): void {
     this.sent.push(data)
   }
+
+  onEvent<E extends keyof WebSocketEvents>(
+    event: E,
+    callback: (data: WebSocketBaseEvent<E, WebSocketEvents[E]>) => void | Promise<void>,
+  ) {
+    let listeners = this.listeners.get(event)
+    if (!listeners) {
+      listeners = new Set()
+      this.listeners.set(event, listeners)
+    }
+
+    const listener = callback as Listener
+    listeners.add(listener)
+
+    return () => {
+      listeners?.delete(listener)
+    }
+  }
 }
 
-class FakeSocket implements WebSocketLike {
-  static readonly CONNECTING = 0
-  static readonly OPEN = 1
-  static readonly CLOSING = 2
-  static readonly CLOSED = 3
+class FakeConnector implements ClientConnector<WebSocketEvent> {
+  readonly attempts: Array<{
+    events: ClientEvents<WebSocketEvent>
+    connection: ClientConnection<WebSocketEvent>
+  }> = []
 
-  onopen?: () => void
-  onclose?: () => void
-  onmessage?: (event: { data: string }) => void
-  onerror?: (event: unknown) => void
-  readyState = FakeSocket.CONNECTING
-  readonly sent: string[] = []
+  connect(events: ClientEvents<WebSocketEvent>) {
+    const connection: ClientConnection<WebSocketEvent> = {
+      send: () => true,
+      close: () => events.close({ code: 1000, reason: 'closed', wasClean: true }),
+    }
 
-  constructor(readonly url: string) {}
-
-  open() {
-    this.readyState = FakeSocket.OPEN
-    this.onopen?.()
+    this.attempts.push({ events, connection })
+    return connection
   }
+}
 
-  close(_code?: number, _reason?: string) {
-    this.readyState = FakeSocket.CLOSED
-    this.onclose?.()
-  }
-
-  send(data: string | ArrayBufferLike | ArrayBufferView) {
-    this.sent.push(typeof data === 'string' ? data : new TextDecoder().decode(data))
-  }
+async function flushMicrotasks() {
+  await Promise.resolve()
+  await Promise.resolve()
 }
 
 describe('websocket extension peer', () => {
-  /**
-   * @example
-   * expect(fakeClient.sent.map(event => event.type)).toEqual(['peer:authenticate', 'extension:announce'])
-   */
   it('authenticates the websocket peer separately from the extension session', async () => {
     const fakeClient = new FakeClient()
     const peer = createWebSocketExtensionPeer({
@@ -96,10 +105,6 @@ describe('websocket extension peer', () => {
     })
   })
 
-  /**
-   * @example
-   * expect(fakeClient.sent[0].type).toBe('extension:module:announce')
-   */
   it('announces extension modules under the owning extension identity', () => {
     const fakeClient = new FakeClient()
     const peer = createWebSocketExtensionPeer({
@@ -132,36 +137,26 @@ describe('websocket extension peer', () => {
     })
   })
 
-  /**
-   * @example
-   * expect(sockets).toHaveLength(1)
-   */
-  it('does not reconnect by default because manual extension handshakes are one-shot', async () => {
-    const sockets: FakeSocket[] = []
+  it('creates a manual peer client without auto-connect or auto-reconnect by default', async () => {
+    const connector = new FakeConnector()
     const peer = createWebSocketExtensionPeer({
       extension: {
         id: 'airi-extension-chess',
         sessionId: 'session-1',
       },
       clientOptions: {
-        websocketConstructor: class extends FakeSocket {
-          constructor(url: string) {
-            super(url)
-            sockets.push(this)
-          }
-        },
-        connectTimeoutMs: 10,
+        connector,
       },
     })
 
-    const connectPromise = peer.connect()
-    expect(sockets).toHaveLength(1)
-    sockets[0]!.open()
-    await connectPromise
+    expect(connector.attempts).toHaveLength(0)
 
-    sockets[0]!.close()
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await peer.connect()
+    expect(connector.attempts).toHaveLength(1)
 
-    expect(sockets).toHaveLength(1)
+    connector.attempts[0]!.connection.close()
+    await flushMicrotasks()
+
+    expect(connector.attempts).toHaveLength(1)
   })
 })

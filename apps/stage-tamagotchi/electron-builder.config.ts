@@ -99,7 +99,7 @@ export default {
   ],
   extraResources: [
     {
-      from: '../../engines/stage-tamagotchi-godot/build/${os}',
+      from: '../../engines/stage-tamagotchi-godot/out/${os}',
       to: 'godot-stage',
       filter: ['**/*'],
     },
@@ -132,6 +132,7 @@ export default {
     deleteAppDataOnUninstall: true,
     oneClick: false,
     allowToChangeInstallationDirectory: true,
+    runAfterFinish: true,
   },
   mac: {
     entitlementsInherit: 'build/entitlements.mac.plist',

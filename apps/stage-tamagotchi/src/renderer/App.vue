@@ -5,8 +5,11 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
+import { initializeAnalytics } from '@proj-airi/stage-ui/libs/analytics'
+import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -52,12 +55,15 @@ import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { createChatSyncWindowLifecycle, resolveInitialChatSyncRoutePath } from './stores/chat-sync-lifecycle'
-import { useTamagotchiMcpToolsStore } from './stores/mcp-tools'
 import { useMinecraftToolsStore } from './stores/minecraft'
-import { useTamagotchiPluginToolsStore } from './stores/plugin-tools'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
+import {
+  useTamagotchiBuiltinToolsStore,
+  useTamagotchiMcpToolsStore,
+  useTamagotchiPluginToolsStore,
+} from './stores/tools'
+import { resolveInitialWindowRoutePath } from './window-route'
 
 const { isDark: dark } = useTheme()
 const settingsStore = useSettings()
@@ -68,10 +74,44 @@ const chatSessionStore = useChatSessionStore()
 const context = useElectronEventaContext()
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
-const initialWindowRoutePath = resolveInitialChatSyncRoutePath(route.path)
-const chatSyncLifecycle = createChatSyncWindowLifecycle(route.path)
+const initialWindowRoutePath = resolveInitialWindowRoutePath(route.path)
+useChatStore()
+const builtinToolsStore = useTamagotchiBuiltinToolsStore()
+const mcpToolsStore = useTamagotchiMcpToolsStore()
+const pluginToolsStore = useTamagotchiPluginToolsStore()
+const syncedPinia = usePiniaSynced()
 const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
-const isSettingsWindowRoute = initialWindowRoutePath.startsWith('/settings')
+const isSettingsWindowRoute = initialWindowRoutePath === '/settings' || initialWindowRoutePath.startsWith('/settings/')
+const isEditorWindowRoute = initialWindowRoutePath === '/editor'
+
+// Every renderer participates in leader election. Keep provider state ready in
+// auxiliary windows so a newly elected leader can execute chat actions after
+// the previous window closes.
+useAuthProviderSync()
+
+async function refreshPluginRuntimeTools() {
+  try {
+    await pluginToolsStore.refresh()
+  }
+  catch (error) {
+    console.warn('[App] Failed to refresh plugin runtime tools:', error)
+  }
+}
+
+// Every renderer creates the runtime tool stores because every renderer can
+// become the leader. Only the leader discovers tools and keeps executors.
+const stopToolLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
+  if (!isLeader)
+    return
+
+  void builtinToolsStore.refresh().catch((error) => {
+    console.warn('[App] Failed to refresh built-in runtime tools:', error)
+  })
+  void mcpToolsStore.refresh().catch((error) => {
+    console.warn('[App] Failed to refresh MCP runtime tools:', error)
+  })
+  void refreshPluginRuntimeTools()
+})
 
 function createFullStageRuntime() {
   const contextBridgeStore = useContextBridgeStore()
@@ -80,11 +120,8 @@ function createFullStageRuntime() {
   const cardStore = useAiriCardStore()
   const serverChannelStore = useModsServerChannelStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
-  const analyticsStore = useSharedAnalyticsStore()
   const inferencePreload = useInferencePreload()
   const pluginHostInspectorStore = usePluginHostInspectorStore()
-  const mcpToolsStore = useTamagotchiMcpToolsStore()
-  const pluginToolsStore = useTamagotchiPluginToolsStore()
   const minecraftToolsStore = useMinecraftToolsStore()
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
   const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -114,15 +151,6 @@ function createFullStageRuntime() {
 
     if ((state.state === 'stopped' || state.state === 'error') && settingsStore.stageModelRenderer === 'godot')
       settingsStore.restoreBuiltInStageModelRenderer()
-  }
-
-  async function refreshPluginRuntimeTools() {
-    try {
-      await pluginToolsStore.refresh()
-    }
-    catch (error) {
-      console.warn('[App] Failed to refresh plugin runtime tools:', error)
-    }
   }
 
   usePerfTracerBridgeStore()
@@ -161,13 +189,6 @@ function createFullStageRuntime() {
     inspect: () => inspectPluginHost(),
   })
 
-  // NOTICE: Runtime tool stores must register during setup so renderer consumers can see them
-  // before `onMounted()` finishes the rest of the startup flow.
-  void mcpToolsStore.refresh().catch((error) => {
-    console.warn('[App] Failed to refresh MCP runtime tools:', error)
-  })
-  void refreshPluginRuntimeTools()
-
   watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
     if (activeProvider.value) {
       void syncArtistryConfig({
@@ -194,7 +215,7 @@ function createFullStageRuntime() {
 
   return {
     async initialize() {
-      analyticsStore.initialize()
+      initializeAnalytics()
       await displayModelsStore.initialize()
       cardStore.initialize()
 
@@ -254,14 +275,12 @@ function createFullStageRuntime() {
     dispose() {
       if (!isAuxiliaryChatRoute)
         contextBridgeStore.dispose()
-      mcpToolsStore.dispose()
-      pluginToolsStore.dispose()
       minecraftToolsStore.dispose()
     },
   }
 }
 
-const fullStageRuntime = isSpotlightWindowRoute ? null : createFullStageRuntime()
+const fullStageRuntime = isSpotlightWindowRoute || isEditorWindowRoute ? null : createFullStageRuntime()
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
@@ -284,8 +303,6 @@ if (isSettingsWindowRoute) {
 }
 
 onMounted(async () => {
-  chatSyncLifecycle.initialize()
-
   // NOTICE: Issue #1658
   // When Electron restarts, renderer localStorage may not be flushed to disk.
   // The store's onMounted hook falls back to navigator.language, which triggers
@@ -299,10 +316,6 @@ onMounted(async () => {
   await fullStageRuntime?.initialize()
 })
 
-onUnmounted(() => {
-  chatSyncLifecycle.dispose()
-})
-
 watch(themeColorsHue, () => {
   document.documentElement.style.setProperty('--chromatic-hue', themeColorsHue.value.toString())
 }, { immediate: true })
@@ -312,6 +325,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  stopToolLeadershipListener?.()
   fullStageRuntime?.dispose()
 })
 </script>

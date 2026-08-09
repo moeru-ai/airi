@@ -2,11 +2,15 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { describe, expect, it } from 'vitest'
 
-import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialSpeech, providerOfficialTranscription } from './index'
+import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
 
 interface OfficialSpeechOptions {
   speed?: number
   extraBody?: {
+    airi_analytics?: {
+      source: string
+      voice_type: string
+    }
     voice_pack?: {
       pitch?: number
     }
@@ -35,6 +39,32 @@ describe('official speech provider', () => {
     expect(request.extraBody).toEqual({
       voice_pack: {
         pitch: 20,
+      },
+    })
+    expect(request.fetch).toBeTypeOf('function')
+  })
+
+  /**
+   * @example
+   * provider.speech('volcengine/seed-tts-2.0', { extraBody: { airi_analytics: { source: 'manual_preview', voice_type: 'official_selected' } } })
+   */
+  it('keeps streaming speech preview analytics on the generated request config', () => {
+    const provider = providerOfficialSpeechStreaming.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
+
+    const request = provider.speech('volcengine/seed-tts-2.0', {
+      extraBody: {
+        airi_analytics: {
+          source: 'manual_preview',
+          voice_type: 'official_selected',
+        },
+      },
+    })
+
+    expect(request.model).toBe('volcengine/seed-tts-2.0')
+    expect(request.extraBody).toEqual({
+      airi_analytics: {
+        source: 'manual_preview',
+        voice_type: 'official_selected',
       },
     })
     expect(request.fetch).toBeTypeOf('function')

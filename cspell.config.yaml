@@ -52,6 +52,7 @@ words:
   - clippy
   - clustr
   - cmdorctrl
+  - codenames
   - codesign
   - collectblock
   - colorjs
@@ -111,6 +112,7 @@ words:
   - eventa
   - Factorio
   - feaxios
+  - fflate
   - Flathub
   - flexsearch
   - formkit
@@ -176,6 +178,7 @@ words:
   - lowpass
   - lucide
   - luoling
+  - lydell
   - Maekawa
   - magnifer
   - Makito
@@ -187,6 +190,7 @@ words:
   - MeshToonMaterial
   - meteocons
   - micvad
+  - MikuMikuDance
   - mineflayer
   - mingcute
   - minimizable
@@ -276,6 +280,7 @@ words:
   - safetensors
   - SAVEPOINT
   - Screenable
+  - SDEF
   - sdkmanager
   - sensenova
   - serde
@@ -304,6 +309,7 @@ words:
   - supergroup
   - superjson
   - systempreferences
+  - tachie
   - tamagotchi
   - tauri
   - taze
@@ -313,6 +319,7 @@ words:
   - tinyexec
   - togetherapi
   - tolist
+  - toon
   - tresjs
   - Triggerable
   - truncatable

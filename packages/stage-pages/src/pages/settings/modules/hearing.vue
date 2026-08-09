@@ -3,11 +3,12 @@ import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&u
 
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAnalytics, useAudioAnalyzer, useAudioRecorder } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useAudioAnalyzer, useAudioRecorder, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
@@ -32,12 +33,14 @@ const {
   confidenceThreshold,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -81,12 +84,67 @@ const useVADThreshold = ref(0.6) // 0.1 - 0.9
 const useVADMinSilenceDurationMs = ref(800)
 const useVADModel = ref(true) // Toggle between VAD and volume-based detection
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
+let sttTestStopTimer: ReturnType<typeof setTimeout> | undefined
+
+const sttTestVoiceInputSession = useVoiceInputSession(stream, {
+  shouldUseStreamInput,
+  // Manual Settings tests own their 3s recording window; automatic volume segmentation
+  // would race that timer and make provider diagnostics harder to interpret.
+  volumeFallback: {
+    enabled: false,
+  },
+  onSegmentStart: () => {
+    testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
+  },
+  onTranscriptionStart: () => {
+    testStatusMessage.value = 'Transcribing recording...'
+    isTranscribing.value = true
+  },
+  onTranscriptionResult: ({ text }) => {
+    testTranscriptionText.value = text
+    testStatusMessage.value = 'Transcription complete!'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+    console.info('STT test transcription result:', text)
+  },
+  onTranscriptionEmpty: () => {
+    testTranscriptionError.value = transcriptionPipelineError.value || 'No transcription result returned from provider'
+    testStatusMessage.value = 'Transcription failed'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+  },
+  onRecordingSkipped: ({ gate }) => {
+    testTranscriptionError.value = gate?.reason || transcriptionPipelineError.value || 'No recording captured from microphone'
+    testStatusMessage.value = 'Transcription failed'
+    isTranscribing.value = false
+    isTestingSTT.value = false
+  },
+  onTranscriptionError: ({ error }) => {
+    testTranscriptionError.value = errorMessageFromValue(error)
+    testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+    isTranscribing.value = false
+    isTestingSTT.value = false
+    console.error('STT test transcription error:', error)
+  },
+})
+
+async function resetSttTestVoiceInputSession() {
+  if (sttTestStopTimer) {
+    clearTimeout(sttTestStopTimer)
+    sttTestStopTimer = undefined
+  }
+
+  await sttTestVoiceInputSession.stop({ flushActiveRecording: false })
+}
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
 }
 
 async function handleSpeechStart() {
+  if (isTestingSTT.value)
+    return
+
   if (shouldUseStreamInput.value && stream.value) {
     // Use both callbacks to support incremental updates and final transcript replacement.
     // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
@@ -105,6 +163,9 @@ async function handleSpeechStart() {
 }
 
 async function handleSpeechEnd() {
+  if (isTestingSTT.value)
+    return
+
   if (shouldUseStreamInput.value) {
     // For streaming providers, keep the session alive; idle timer will handle teardown.
     return
@@ -246,7 +307,7 @@ function syncOpenAICompatibleSettings() {
   if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
     return
 
-  const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+  const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
   // Always sync model from provider config (override any existing value from previous provider)
   if (providerConfig?.model) {
     activeTranscriptionModel.value = providerConfig.model as string
@@ -264,37 +325,11 @@ onStopRecord(async (recording) => {
   if (shouldUseStreamInput.value)
     return
 
+  if (isTestingSTT.value)
+    return
+
   if (!recording || recording.size === 0)
     return
-
-  // Handle STT test transcription directly here
-  if (isTestingSTT.value) {
-    testStatusMessage.value = 'Transcribing recording...'
-    isTranscribing.value = true
-
-    try {
-      const result = await transcribeForRecording(recording)
-      if (result) {
-        testTranscriptionText.value = result
-        testStatusMessage.value = 'Transcription complete!'
-        console.info('STT test transcription result:', result)
-      }
-      else {
-        testTranscriptionError.value = transcriptionPipelineError.value || 'No transcription result returned from provider'
-        testStatusMessage.value = 'Transcription failed'
-      }
-    }
-    catch (err) {
-      testTranscriptionError.value = errorMessageFromValue(err)
-      testStatusMessage.value = `Error: ${testTranscriptionError.value}`
-      console.error('STT test transcription error:', err)
-    }
-    finally {
-      isTranscribing.value = false
-      isTestingSTT.value = false
-    }
-    return
-  }
 
   // Normal monitoring mode - add to audios and transcribe
   audios.value.push(recording)
@@ -393,12 +428,29 @@ async function startSTTTest() {
       testStatusMessage.value = 'Recording audio for transcription... (3 seconds)'
       console.info('Starting STT test with recording-based transcription for provider:', activeTranscriptionProvider.value)
 
-      startRecord()
+      const recordingStarted = await sttTestVoiceInputSession.startSegment('manual')
+      if (!recordingStarted) {
+        if (!testTranscriptionError.value)
+          testStatusMessage.value = 'Recording did not start'
+        isTranscribing.value = false
+        isTestingSTT.value = false
+        return
+      }
 
       // Wait a bit for recording to start, then stop it after a delay
-      setTimeout(async () => {
-        stopRecord()
+      sttTestStopTimer = setTimeout(async () => {
+        sttTestStopTimer = undefined
         testStatusMessage.value = 'Processing transcription...'
+        try {
+          await sttTestVoiceInputSession.stopSegment('manual')
+        }
+        catch (err) {
+          testTranscriptionError.value = errorMessageFromValue(err)
+          testStatusMessage.value = `Error: ${testTranscriptionError.value}`
+          isTranscribing.value = false
+          isTestingSTT.value = false
+          console.error('STT test stop timer error:', err)
+        }
       }, 3000) // Record for 3 seconds
     }
   }
@@ -422,7 +474,7 @@ async function stopSTTTest() {
       await stopStreamingTranscription(false, activeTranscriptionProvider.value)
     }
     else {
-      stopRecord()
+      await resetSttTestVoiceInputSession()
     }
   }
   catch (err) {
@@ -445,9 +497,6 @@ async function stopSTTTest() {
     }
   }
 }
-
-// Note: STT test transcription is now handled directly in onStopRecord handler above
-// This watch is kept for potential future use but is no longer needed for STT tests
 
 watch(selectedAudioInput, async () => isMonitoring.value && await setupAudioMonitoring())
 
@@ -477,8 +526,8 @@ watch(activeTranscriptionProvider, async (provider) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  // Audio devices are loaded on demand when user requests them
   syncOpenAICompatibleSettings()
+  await askPermission()
 })
 
 onUnmounted(() => {
@@ -508,10 +557,7 @@ onUnmounted(() => {
             v-model="selectedAudioInput"
             label="Audio Input Device"
             description="Select the audio input device for your hearing module."
-            :options="audioInputs.map(input => ({
-              label: input.label || input.deviceId,
-              value: input.deviceId,
-            }))"
+            :options="audioInputOptions"
             placeholder="Select an audio input device"
             layout="vertical"
           />
@@ -535,7 +581,7 @@ onUnmounted(() => {
             <fieldset
               v-if="configuredTranscriptionProvidersMetadata.length > 0"
               flex="~ row gap-4"
-              min-w-0 of-x-auto scroll-smooth
+              min-w-0 overflow-x-auto scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple

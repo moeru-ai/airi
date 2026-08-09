@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { Section } from '@proj-airi/stage-ui/components'
+import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore, useBackgroundStore } from '@proj-airi/stage-ui/stores'
 import { Button, Callout } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const { trackSceneBackgroundSet } = useAnalytics()
 const backgroundStore = useBackgroundStore()
 const cardStore = useAiriCardStore()
 
@@ -31,6 +33,7 @@ const activeBackgroundId = computed({
       ...cardStore.activeCard,
       extensions: extension,
     })
+    trackSceneBackgroundSet({ source: 'scene_settings', cleared: val === 'none' })
   },
 })
 
@@ -100,7 +103,7 @@ function clearDefault() {
             @change="handleFileChange"
           >
           <Button
-            variant="primary"
+
             class="flex-1"
             @click="triggerUpload"
           >
@@ -109,7 +112,7 @@ function clearDefault() {
           </Button>
           <Button
             v-if="activeBackgroundId !== 'none'"
-            variant="secondary"
+
             @click="clearDefault"
           >
             <div :class="['i-solar:trash-bin-trash-bold-duotone', 'mr-2']" />
@@ -168,7 +171,7 @@ function clearDefault() {
               <Button
                 v-if="bg.id !== activeBackgroundId"
                 size="sm"
-                variant="primary"
+
                 @click="setAsBackground(bg.id)"
               >
                 <div :class="['i-solar:check-read-bold-duotone']" />
@@ -176,7 +179,7 @@ function clearDefault() {
               <Button
                 v-if="bg.type !== 'builtin'"
                 size="sm"
-                variant="secondary"
+
                 :class="['!bg-red-500 hover:!bg-red-600 !text-white']"
                 @click="removeBackground(bg.id)"
               >

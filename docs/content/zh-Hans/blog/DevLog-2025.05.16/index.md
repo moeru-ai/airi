@@ -241,7 +241,6 @@ npm install @velin-dev/core
     - 角色"Me"和"ReLU"的 Live2D 建模
   - 社区支持和营销
     - 日语 README
-    - Plausible 分析集成
     - 全面的文档
 
 再见！

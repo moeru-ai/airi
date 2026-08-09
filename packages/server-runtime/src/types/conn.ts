@@ -52,5 +52,10 @@ export interface AuthenticatedPeer extends NamedPeer {
   extensionModules?: Map<string, RegisteredExtensionModule>
   lastHeartbeatAt?: number
   healthy?: boolean
+  /**
+   * REVIEW: Legacy field name kept during the better-ws migration.
+   * The value now stores peer silence duration in milliseconds, not a miss count.
+   * Rename this with the server-runtime peer state cleanup.
+   */
   missedHeartbeats?: number
 }

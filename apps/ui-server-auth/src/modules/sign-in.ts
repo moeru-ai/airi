@@ -1,5 +1,6 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
+import { getAuthClient } from './auth-client'
 import { extractAuthError } from './auth-fetch'
 import { buildAuthUiPath } from './auth-ui-base'
 
@@ -100,27 +101,18 @@ function normalizeTrustedAdminRedirect(redirect: string): string | null {
 }
 
 export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
-  const fetchImpl = params.fetchImpl ?? fetch
-  const endpoint = new URL('/api/auth/sign-in/social', params.apiServerUrl)
-  const response = await fetchImpl(endpoint.toString(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: params.provider,
-      callbackURL: params.callbackURL,
-    }),
-    credentials: 'include',
-    redirect: 'manual',
-  })
+  const client = getAuthClient({ apiServerUrl: params.apiServerUrl, fetchImpl: params.fetchImpl })
 
-  if (response.type === 'opaqueredirect' || response.status === 302) {
-    return response.headers.get('location') || '/'
-  }
+  // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
+  // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
+  // Other providers use the standard `/sign-in/social`.
+  const result = params.provider === 'steam'
+    ? await client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
+    : await client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL, disableRedirect: true })
 
-  const data = await response.json() as { url?: unknown }
+  const url = result.data?.url
+  if (typeof url === 'string')
+    return url
 
-  if (typeof data.url === 'string')
-    return data.url
-
-  throw new Error(extractAuthError(data) ?? 'Unexpected response')
+  throw new Error(extractAuthError(result.data ?? result.error) ?? 'Unexpected response')
 }

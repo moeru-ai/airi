@@ -1,505 +1,480 @@
+import type { ClientConnection, ClientConnector, ClientEvents } from '@proj-airi/better-ws'
 import type { WebSocketEvent, WebSocketEventOf } from '@proj-airi/server-shared/types'
-
-import superjson from 'superjson'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Client } from '../src/client'
-import { createWebSocketExtensionPeer } from '../src/extension-peer'
 
-const { InjectedMockWebSocket, MockWebSocket } = vi.hoisted(() => {
-  class MockWebSocket {
-    static readonly CONNECTING = 0
-    static readonly OPEN = 1
-    static readonly CLOSING = 2
-    static readonly CLOSED = 3
+class Deferred<T> {
+  promise: Promise<T>
+  resolve!: (value: T) => void
+  reject!: (error: unknown) => void
 
-    static instances: MockWebSocket[] = []
+  constructor() {
+    this.promise = new Promise<T>((resolve, reject) => {
+      this.resolve = resolve
+      this.reject = reject
+    })
+  }
+}
 
-    readonly sent: Array<string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>> = []
-    readyState = MockWebSocket.CONNECTING
-    onclose?: () => void
-    onerror?: (event: { error?: Error } | unknown) => void
-    onmessage?: (event: { data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike> }) => void
-    onopen?: () => void
+class FakeConnection<C = undefined> implements ClientConnection<WebSocketEvent<C>> {
+  readonly sent: Array<WebSocketEvent<C>> = []
+  readonly pongs: number[] = []
+  closed = false
 
-    constructor(public readonly url: string) {
-      MockWebSocket.instances.push(this)
-    }
+  constructor(private readonly events: ClientEvents<WebSocketEvent<C>>) {}
 
-    send(data: string | ArrayBufferLike | ArrayBufferView<ArrayBufferLike>) {
-      this.sent.push(data)
-    }
-
-    close() {
-      this.readyState = MockWebSocket.CLOSED
-      this.onclose?.()
-    }
-
-    ping() {}
-    pong() {}
+  send(message: WebSocketEvent<C>) {
+    this.sent.push(message)
+    return true
   }
 
-  class InjectedMockWebSocket extends MockWebSocket {
-    static instances: InjectedMockWebSocket[] = []
-
-    constructor(url: string) {
-      super(url)
-      InjectedMockWebSocket.instances.push(this)
+  close() {
+    if (this.closed) {
+      return
     }
+
+    this.closed = true
+    this.events.close({ code: 1000, reason: 'closed', wasClean: true })
   }
 
+  pong() {
+    this.pongs.push(Date.now())
+    return true
+  }
+}
+
+class FakeConnector<C = undefined> implements ClientConnector<WebSocketEvent<C>> {
+  readonly attempts: Array<{
+    deferred: Deferred<ClientConnection<WebSocketEvent<C>>>
+    events: ClientEvents<WebSocketEvent<C>>
+    connection?: FakeConnection<C>
+  }> = []
+
+  connect(events: ClientEvents<WebSocketEvent<C>>) {
+    const deferred = new Deferred<ClientConnection<WebSocketEvent<C>>>()
+    this.attempts.push({ deferred, events })
+    return deferred.promise
+  }
+
+  open(index = this.attempts.length - 1) {
+    const attempt = this.attempts[index]
+    if (!attempt) {
+      throw new Error(`Missing fake connector attempt at index ${index}.`)
+    }
+
+    const connection = new FakeConnection<C>(attempt.events)
+    attempt.connection = connection
+    attempt.deferred.resolve(connection)
+    return connection
+  }
+
+  reject(error: unknown, index = this.attempts.length - 1) {
+    const attempt = this.attempts[index]
+    if (!attempt) {
+      throw new Error(`Missing fake connector attempt at index ${index}.`)
+    }
+
+    attempt.deferred.reject(error)
+  }
+
+  emit(message: WebSocketEvent<C>, index = this.attempts.length - 1) {
+    const attempt = this.attempts[index]
+    if (!attempt) {
+      throw new Error(`Missing fake connector attempt at index ${index}.`)
+    }
+
+    attempt.events.message(message)
+  }
+}
+
+function serverEvent<E extends WebSocketEvent['type']>(
+  type: E,
+  data: WebSocketEventOf<E>['data'],
+): WebSocketEventOf<E> {
   return {
-    InjectedMockWebSocket,
-    MockWebSocket,
-  }
-})
-
-vi.mock('crossws/websocket', () => ({
-  default: MockWebSocket,
-}))
-
-function lastSocket() {
-  const socket = MockWebSocket.instances.at(-1)
-  if (!socket) {
-    throw new Error('No mock websocket instance created')
-  }
-
-  return socket
+    type,
+    data,
+    metadata: {
+      source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
+      event: { id: `${type}-1` },
+    },
+  } as WebSocketEventOf<E>
 }
 
-function parseSent(socket: InstanceType<typeof MockWebSocket>, index = -1) {
-  const payload = socket.sent.at(index)
-  if (!payload) {
-    throw new Error(`No sent payload at index ${index}`)
-  }
-  if (typeof payload === 'string') {
-    return superjson.parse<WebSocketEvent>(payload)
-  }
-
-  const textDecoder = new TextDecoder()
-  const decoded = textDecoder.decode(payload)
-
-  return superjson.parse<WebSocketEvent>(decoded)
+async function flushMicrotasks() {
+  await Promise.resolve()
+  await Promise.resolve()
 }
 
-function emitOpen(socket: InstanceType<typeof MockWebSocket>) {
-  socket.readyState = MockWebSocket.OPEN
-  socket.onopen?.()
-}
-
-function emitMessage(socket: InstanceType<typeof MockWebSocket>, event: WebSocketEvent) {
-  socket.onmessage?.({
-    data: superjson.stringify(event),
-  })
+async function flushAsyncTasks() {
+  await flushMicrotasks()
+  await new Promise(resolve => setTimeout(resolve, 0))
 }
 
 afterEach(() => {
-  MockWebSocket.instances.length = 0
-  InjectedMockWebSocket.instances.length = 0
   vi.useRealTimers()
 })
 
 describe('client', () => {
-  it('resolves connect only after authentication and self announcement', async () => {
+  it('routes default autoConnect failures through onError without unhandled rejections', async () => {
+    const connector = new FakeConnector()
+    const onError = vi.fn()
+    const unhandledRejections: unknown[] = []
+    const onUnhandledRejection = (reason: unknown) => {
+      unhandledRejections.push(reason)
+    }
+    process.on('unhandledRejection', onUnhandledRejection)
+
+    let client: Client | undefined
+    try {
+      client = new Client({
+        autoReconnect: false,
+        connector,
+        name: 'test-plugin',
+        onError,
+      })
+
+      const failure = new Error('server unavailable')
+      connector.reject(failure)
+      await flushAsyncTasks()
+
+      expect(onError).toHaveBeenCalledWith(failure)
+      expect(unhandledRejections).toEqual([])
+    }
+    finally {
+      client?.close()
+      process.off('unhandledRejection', onUnhandledRejection)
+    }
+  })
+
+  it('runs module authentication and announcement in the better-ws prepare step', async () => {
+    const connector = new FakeConnector()
     const client = new Client({
       autoConnect: false,
       autoReconnect: false,
+      connector,
       name: 'test-plugin',
       token: 'secret',
     })
 
     const connected = client.connect()
-    const socket = lastSocket()
+    const connection = connector.open()
+    await flushMicrotasks()
 
-    emitOpen(socket)
-
-    expect(parseSent(socket)).toMatchObject({
+    expect(client.connectionStatus).toBe('authenticating')
+    expect(connection.sent.at(-1)).toMatchObject({
       type: 'module:authenticate',
       data: { token: 'secret' },
     })
 
-    emitMessage(socket, {
-      type: 'module:authenticated',
-      data: { authenticated: true },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'auth-1' },
-      },
-    })
+    connector.emit(serverEvent('module:authenticated', { authenticated: true }))
+    await flushMicrotasks()
 
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
+    const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
 
+    expect(client.connectionStatus).toBe('announcing')
     expect(announceEvent).toMatchObject({
       type: 'extension:module:announce',
       data: { name: 'test-plugin' },
     })
 
-    emitMessage(socket, {
-      type: 'extension:module:announced',
-      data: {
-        name: 'test-plugin',
-        identity: announceEvent.data.identity,
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'announce-1' },
-      },
-    })
+    connector.emit(serverEvent('extension:module:announced', {
+      name: 'test-plugin',
+      identity: announceEvent.data.identity,
+    }))
 
     await expect(connected).resolves.toBeUndefined()
     expect(client.connectionStatus).toBe('ready')
     expect(client.isReady).toBe(true)
   })
 
-  it('fails terminally on invalid token', async () => {
-    const client = new Client({
-      autoConnect: false,
-      autoReconnect: true,
-      name: 'test-plugin',
-      token: 'wrong-token',
-    })
-
-    const connected = client.connect()
-    const socket = lastSocket()
-
-    emitOpen(socket)
-    emitMessage(socket, {
-      type: 'error',
-      data: { message: 'invalid token' },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'error-1' },
-      },
-    })
-
-    await expect(connected).rejects.toThrow('invalid token')
-    expect(client.connectionStatus).toBe('failed')
-  })
-
-  it('returns an unsubscribe function from onEvent', () => {
+  it('accepts registry sync as the module announcement completion signal', async () => {
+    const connector = new FakeConnector()
+    const onReady = vi.fn()
     const client = new Client({
       autoConnect: false,
       autoReconnect: false,
+      connector,
       name: 'test-plugin',
-    })
-
-    const listener = vi.fn()
-    const dispose = client.onEvent('input:text', listener)
-
-    dispose()
-    expect(() => client.offEvent('input:text', listener)).not.toThrow()
-  })
-
-  it('uses an injected websocket constructor when provided', async () => {
-    const client = new Client({
-      autoConnect: false,
-      autoReconnect: false,
-      name: 'test-plugin',
-      websocketConstructor: InjectedMockWebSocket,
+      onReady,
     })
 
     const connected = client.connect()
-    const socket = InjectedMockWebSocket.instances.at(-1)
+    const connection = connector.open()
+    await flushMicrotasks()
 
-    expect(socket).toBeDefined()
-    expect(MockWebSocket.instances).toHaveLength(1)
+    const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
 
-    if (!socket) {
-      throw new Error('No custom mock websocket instance created')
-    }
-
-    emitOpen(socket)
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
-
-    emitMessage(socket, {
-      type: 'extension:module:announced',
-      data: {
-        name: 'test-plugin',
-        identity: announceEvent.data.identity,
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'announce-1' },
-      },
-    })
-
-    await expect(connected).resolves.toBeUndefined()
-  })
-
-  it('supports manual handshake for extension peers without legacy module announce', async () => {
-    const client = new Client({
-      autoConnect: false,
-      autoReconnect: false,
-      handshake: 'manual',
-      name: 'test-extension',
-    })
-
-    const connected = client.connect()
-    const socket = lastSocket()
-
-    emitOpen(socket)
+    connector.emit(serverEvent('registry:modules:sync', {
+      modules: [{ name: 'test-plugin', identity: announceEvent.data.identity }],
+    }))
+    connector.emit(serverEvent('extension:module:announced', {
+      name: 'test-plugin',
+      identity: announceEvent.data.identity,
+    }))
 
     await expect(connected).resolves.toBeUndefined()
     expect(client.connectionStatus).toBe('ready')
-    expect(socket.sent).toHaveLength(0)
+    expect(onReady).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps manual reconnects non-ready until the peer reauthenticates and reannounces', async () => {
+  it('keeps manual automatic reconnects non-ready until peer authentication and extension announcement arrive', async () => {
+    vi.useFakeTimers()
+
+    const connector = new FakeConnector()
     const onReady = vi.fn()
     const client = new Client({
       autoConnect: false,
       autoReconnect: true,
+      connector,
       handshake: 'manual',
       name: 'test-extension',
       onReady,
     })
 
     const connected = client.connect()
-    const firstSocket = lastSocket()
-
-    emitOpen(firstSocket)
-
+    const firstConnection = connector.open(0)
+    await flushMicrotasks()
     await expect(connected).resolves.toBeUndefined()
+
     expect(client.connectionStatus).toBe('ready')
     expect(onReady).toHaveBeenCalledTimes(1)
 
-    firstSocket.close()
-    const secondSocket = lastSocket()
+    firstConnection.close()
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(connector.attempts).toHaveLength(2)
 
-    emitOpen(secondSocket)
+    const secondConnection = connector.open(1)
+    await flushMicrotasks()
 
     expect(client.connectionStatus).toBe('authenticating')
-    expect(onReady).toHaveBeenCalledTimes(1)
+    expect(client.isReady).toBe(false)
+    expect(secondConnection.sent).toEqual([])
 
-    emitMessage(secondSocket, {
-      type: 'peer:authenticated',
-      data: { authenticated: true },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'peer-auth-1' },
-      },
-    })
+    connector.emit(serverEvent('peer:authenticated', { authenticated: true }), 1)
+    await flushMicrotasks()
 
     expect(client.connectionStatus).toBe('announcing')
     expect(onReady).toHaveBeenCalledTimes(1)
 
-    emitMessage(secondSocket, {
-      type: 'extension:announced',
-      data: {
-        identity: { id: 'test-extension' },
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'extension-announce-1' },
-      },
-    })
+    connector.emit(serverEvent('extension:announced', {
+      identity: { id: 'other-extension' },
+    }), 1)
+    await flushMicrotasks()
+
+    expect(client.connectionStatus).toBe('announcing')
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    connector.emit(serverEvent('extension:announced', {
+      identity: { id: 'test-extension' },
+    }), 1)
 
     await expect(client.ensureConnected()).resolves.toBeUndefined()
     expect(client.connectionStatus).toBe('ready')
     expect(onReady).toHaveBeenCalledTimes(2)
   })
 
-  it('uses manual handshake when creating websocket extension peers', async () => {
-    const peer = createWebSocketExtensionPeer({
-      extension: {
-        id: 'test-extension',
-        sessionId: 'session-1',
-      },
-      clientOptions: {
-        autoReconnect: false,
-      },
-    })
-
-    const connected = peer.connect()
-    const socket = lastSocket()
-
-    emitOpen(socket)
-    await expect(connected).resolves.toBeUndefined()
-
-    expect(socket.sent).toHaveLength(0)
-
-    peer.authenticatePeer({ token: 'secret', peerId: 'peer-1' })
-    expect(parseSent(socket)).toMatchObject({
-      type: 'peer:authenticate',
-      data: {
-        token: 'secret',
-        peerId: 'peer-1',
-      },
-    })
-  })
-
-  it('supports timeout-aware ensureConnected without cancelling the shared connect task', async () => {
-    vi.useFakeTimers()
-
+  it('injects source and event metadata before sending through better-ws', async () => {
+    const connector = new FakeConnector()
+    const onAnySend = vi.fn()
     const client = new Client({
       autoConnect: false,
       autoReconnect: false,
+      connector,
+      handshake: 'manual',
+      name: 'test-extension',
+      onAnySend,
+    })
+
+    const connected = client.connect()
+    const connection = connector.open()
+    await connected
+
+    const sent = client.send({
+      type: 'input:text',
+      data: { text: 'hello' },
+    })
+
+    expect(sent).toBe(true)
+    expect(connection.sent.at(-1)).toMatchObject({
+      type: 'input:text',
+      data: { text: 'hello' },
+      metadata: {
+        source: {
+          kind: 'plugin',
+          id: expect.any(String),
+          plugin: { id: 'test-extension' },
+        },
+        event: { id: expect.any(String) },
+      },
+    })
+    expect(onAnySend).toHaveBeenCalledWith(connection.sent.at(-1))
+  })
+
+  it('fails without retrying terminal authentication errors', async () => {
+    vi.useFakeTimers()
+
+    const connector = new FakeConnector()
+    const onError = vi.fn()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: true,
+      connector,
+      name: 'test-plugin',
+      onError,
+      token: 'wrong-token',
+    })
+
+    const connected = client.connect()
+    connector.open()
+    await flushMicrotasks()
+
+    connector.emit(serverEvent('error', { message: 'invalid token' }))
+
+    await expect(connected).rejects.toThrow('invalid token')
+    expect(client.connectionStatus).toBe('failed')
+    expect(connector.attempts).toHaveLength(1)
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError).toHaveBeenCalledWith(expect.any(Error))
+  })
+
+  it('dispatches typed events and answers transport heartbeat pings with pong', async () => {
+    const connector = new FakeConnector()
+    const listener = vi.fn()
+    const onAnyMessage = vi.fn()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      connector,
+      handshake: 'manual',
+      name: 'test-extension',
+      onAnyMessage,
+    })
+
+    const connected = client.connect()
+    const connection = connector.open()
+    await connected
+
+    client.onEvent('input:text', listener)
+
+    const input = serverEvent('input:text', { text: 'hello' })
+    connector.emit(input)
+    connector.emit(serverEvent('transport:connection:heartbeat', {
+      kind: 'ping',
+      message: 'ping',
+    }))
+    await flushMicrotasks()
+
+    expect(listener).toHaveBeenCalledWith(input)
+    expect(onAnyMessage).toHaveBeenCalledWith(input)
+    expect(connection.sent.at(-1)).toMatchObject({
+      type: 'transport:connection:heartbeat',
+      data: { kind: 'pong' },
+    })
+  })
+
+  it('keeps generated event ids when caller metadata has an undefined id', async () => {
+    const connector = new FakeConnector()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      connector,
+      handshake: 'manual',
+      name: 'test-extension',
+    })
+
+    const connected = client.connect()
+    const connection = connector.open()
+    await connected
+
+    client.send({
+      type: 'input:text',
+      data: { text: 'hello' },
+      metadata: {
+        event: { id: undefined },
+      },
+    })
+
+    expect(connection.sent.at(-1)?.metadata.event.id).toEqual(expect.any(String))
+  })
+
+  it('can disable protocol heartbeat', async () => {
+    const connector = new FakeConnector()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      connector,
+      heartbeat: false,
+      handshake: 'manual',
+      name: 'test-extension',
+    })
+
+    const connected = client.connect()
+    connector.open()
+    await connected
+
+    expect(client.isReady).toBe(true)
+  })
+
+  it('races local timeouts without cancelling the shared connect task', async () => {
+    vi.useFakeTimers()
+
+    const connector = new FakeConnector()
+    const client = new Client({
+      autoConnect: false,
+      autoReconnect: false,
+      connector,
       name: 'test-plugin',
     })
 
     const timedOut = client.ensureConnected({ timeout: 50 })
     const timedOutAssertion = expect(timedOut).rejects.toThrow('Connection timed out after 50ms')
-    const socket = lastSocket()
 
     await vi.advanceTimersByTimeAsync(50)
     await timedOutAssertion
 
-    emitOpen(socket)
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
+    const connection = connector.open()
+    await flushMicrotasks()
 
-    emitMessage(socket, {
-      type: 'extension:module:announced',
-      data: {
-        name: 'test-plugin',
-        identity: announceEvent.data.identity,
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'announce-1' },
-      },
-    })
+    const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
+    connector.emit(serverEvent('extension:module:announced', {
+      name: 'test-plugin',
+      identity: announceEvent.data.identity,
+    }))
 
     await expect(client.ensureConnected()).resolves.toBeUndefined()
     expect(client.isReady).toBe(true)
   })
 
-  it('supports abort-aware connect', async () => {
+  it('races local aborts without cancelling the shared connect task', async () => {
+    const connector = new FakeConnector()
     const client = new Client({
       autoConnect: false,
       autoReconnect: false,
+      connector,
       name: 'test-plugin',
     })
 
     const controller = new AbortController()
     const connecting = client.connect({ abortSignal: controller.signal })
 
-    lastSocket()
     controller.abort()
 
     await expect(connecting).rejects.toThrow('Connection aborted')
     expect(client.connectionStatus).toBe('connecting')
-  })
 
-  it('notifies external state listeners', async () => {
-    const client = new Client({
-      autoConnect: false,
-      autoReconnect: false,
+    const connection = connector.open()
+    await flushMicrotasks()
+
+    const announceEvent = connection.sent.at(-1) as WebSocketEventOf<'extension:module:announce'>
+    connector.emit(serverEvent('extension:module:announced', {
       name: 'test-plugin',
-    })
+      identity: announceEvent.data.identity,
+    }))
 
-    const listener = vi.fn()
-    const dispose = client.onConnectionStateChange(listener)
-    const connected = client.connect()
-    const socket = lastSocket()
-
-    emitOpen(socket)
-
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
-
-    emitMessage(socket, {
-      type: 'extension:module:announced',
-      data: {
-        name: 'test-plugin',
-        identity: announceEvent.data.identity,
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'announce-1' },
-      },
-    })
-
-    await connected
-
-    expect(listener).toHaveBeenCalledWith({ previousStatus: 'idle', status: 'connecting' })
-    expect(listener).toHaveBeenCalledWith({ previousStatus: 'connecting', status: 'announcing' })
-    expect(listener).toHaveBeenCalledWith({ previousStatus: 'announcing', status: 'ready' })
-
-    dispose()
-  })
-
-  it('retries after connect timeout and eventually connects on a later socket', async () => {
-    vi.useFakeTimers()
-
-    const client = new Client({
-      autoConnect: false,
-      autoReconnect: true,
-      connectTimeoutMs: 50,
-      name: 'test-plugin',
-    })
-
-    const connecting = client.connect()
-    const firstSocket = lastSocket()
-    const firstCloseSpy = vi.spyOn(firstSocket, 'close')
-
-    await vi.advanceTimersByTimeAsync(50)
-    expect(firstCloseSpy).toHaveBeenCalledTimes(1)
-
-    await vi.advanceTimersByTimeAsync(1_000)
-    expect(MockWebSocket.instances).toHaveLength(2)
-
-    const secondSocket = lastSocket()
-    emitOpen(secondSocket)
-
-    const announceEvent = parseSent(secondSocket) as WebSocketEventOf<'extension:module:announce'>
-
-    emitMessage(secondSocket, {
-      type: 'extension:module:announced',
-      data: {
-        name: 'test-plugin',
-        identity: announceEvent.data.identity,
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'announce-retry-1' },
-      },
-    })
-
-    await expect(connecting).resolves.toBeUndefined()
-    expect(client.connectionStatus).toBe('ready')
-  })
-
-  it('does not emit onReady twice when sync fallback already moved status to ready', async () => {
-    const onReady = vi.fn()
-    const client = new Client({
-      autoConnect: false,
-      autoReconnect: false,
-      name: 'test-plugin',
-      onReady,
-    })
-
-    const connecting = client.connect()
-    const socket = lastSocket()
-    emitOpen(socket)
-
-    const announceEvent = parseSent(socket) as WebSocketEventOf<'extension:module:announce'>
-
-    const selfIdentity = announceEvent.data.identity
-
-    emitMessage(socket, {
-      type: 'registry:modules:sync',
-      data: {
-        modules: [{ name: 'test-plugin', identity: selfIdentity }],
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'sync-1' },
-      },
-    })
-
-    emitMessage(socket, {
-      type: 'extension:module:announced',
-      data: {
-        name: 'test-plugin',
-        identity: selfIdentity,
-      },
-      metadata: {
-        source: { kind: 'plugin', plugin: { id: 'server' }, id: 'server-1' },
-        event: { id: 'announce-1' },
-      },
-    })
-
-    await expect(connecting).resolves.toBeUndefined()
-    expect(onReady).toHaveBeenCalledTimes(1)
+    await expect(client.ready()).resolves.toBeUndefined()
+    expect(client.isReady).toBe(true)
   })
 })

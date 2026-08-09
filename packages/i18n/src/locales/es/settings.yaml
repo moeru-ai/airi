@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       Por favor, vuelva al paso anterior y compruebe su clave API, o compruebe la conexión de red.
     permissions:
-      title: Notificaciones
-      description: Puedes permitir notificaciones ahora o continuar y configurarlas más tarde.
+      title: Gestión de permisos
+      description: Puedes conceder los permisos necesarios ahora o continuar y configurarlos más tarde.
       notificationsTitle: Notificaciones
       notificationsDescription: Permitir recordatorios y actualizaciones importantes de estado.
-      notificationsAction: '​Solicitar Permiso de Notificación'
-      notificationsNotGrantedHint: Si se deniega, puede habilitar las notificaciones más tarde desde la configuración de iOS.
-      openSettings: Abrir ajustes de iOS
-      optionalHint: Puedes continuar incluso si no se concede permiso de notificación.
-      stateUnknown: No solicitado
-      stateRequesting: Solicitando...
+      microphoneTitle: Micrófono
+      microphoneDescription: Permite que AIRI use el micrófono para la entrada de voz y la transcripción.
+      requestAction: Solicitar acceso
+      optionalHint: Puedes continuar aunque no se concedan estos permisos.
       stateGranted: Concedido
       stateNotGranted: No concedido
   bug-report:
@@ -79,7 +77,7 @@ dialogs:
       description: 'Opcional: selección manual.'
       placeholder: Elegir captura de pantalla o video
       selected-count: '{count} archivo(s) seleccionados'
-    last-submitted-preview: Last Submitted Payload Preview
+    last-submitted-preview: Vista previa de la última payload enviada
 language:
   title: Idioma
   description: |
@@ -109,9 +107,9 @@ model-select:
   panel-callout:
     support-status-header: Soportamos tanto modelos 2D como 3D
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+      Neuro-sama utiliza un modelo 2D basado en el marco de trabajo desarrollado por Live2D Inc, mientras que Grok Ani (en Grok Companion) utiliza un modelo 3D basado en los formatos abiertos VRM y MMD.
   select-model:
     title: Selector de modelo
     button: Seleccionar modelo
@@ -144,30 +142,30 @@ live2d:
   theme-color-from-model:
     title: Extraer colores del modelo
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      Extrae los colores más destacados del lienzo de renderizado actual. Haz clic en el color para aplicarlo a AIRI. Si los colores no te convencen, prueba a realizar la extracción varias veces, con el modelo en diferentes poses.
     button-extract:
       title: Extraer
   animation:
     title: Animación
     focus:
       title: Habilitar Seguimiento del Ratón
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      description: Fíjate en el cursor mientras se mueve. El movimiento ocular espontáneo se reanuda cuando el cursor se detiene.
       offset: Desplazamiento ocular (%)
     force-idle-eye-animation:
       title: Movimiento ojo inactivo
-      description: Randomly look around when there is no active cursor focus.
+      description: Mira al azar a tu alrededor cuando el cursor no esté activo.
     blink-enable:
       title: Habilitar parpadeo
       description: Dejar que el modelo parpadee.
     auto-blink:
       title: Automático
-      description: Use default blinking animation of the model
+      description: Utilizar la animación de parpadeo predeterminada del modelo
     force-auto-blink:
       title: Forzar
-      description: Force blinking animation with external timer
+      description: Forzar la animación de parpadeo con un temporizador externo
     blink-mode:
       title: Modo parpadeo
-      description: Choose the model built-in blink or AIRI's forced blink timer.
+      description: Elige entre el parpadeo integrado en el modelo o el temporizador de parpadeo forzado de AIRI.
     idle-motion:
       title: Animación inactiva
       no-motion: No hay animación disponible
@@ -183,16 +181,16 @@ live2d:
       description: Limitar velocidad de fotogramas
       options:
         unlimited: '∞'
-    shadow: Drop shadow
+    shadow: Sombra proyectada.
     reset-parameters: Restablecer valores predeterminados
-  clear-model-cache: Clear model cache
+  clear-model-cache: Borrar la caché del modelo.
   expressions:
     title: Expresiones
     override-toggle: Sistema de Expresión
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
+      El gestor de expresiones del SDK y el parpadeo se mantienen cuando están desactivados.
     no-expression: No hay expresiones disponibles para este modelo.
-    llm-integration-wip: LLM tool integration is not yet wired up.
+    llm-integration-wip: La integración de la herramienta LLM aún no está configurada
     save-default: Guardar expresiones por defecto
     reset: Restablecer todas las expresiones
     expose-to-llm-toggle: Exponer a LLM
@@ -231,7 +229,7 @@ pages:
     connections:
       tab: Cuentas conectadas
       title: Cuentas conectadas
-      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      description: Inicia sesión en AIRI a través de estos proveedores. Desvincula tu cuenta para revocar el acceso y, a continuación, vuelve a vincularla para cambiar a otra cuenta.
       status:
         linked: Vinculado
         notLinked: No vinculado
@@ -250,12 +248,12 @@ pages:
         linkFailed: No se pudo iniciar el flujo de vinculación.
         accountAlreadyLinkedToDifferentUser: Esta cuenta OAuth ya está vinculada a otra cuenta de AIRI. Elige otra cuenta del proveedor o desvincúlala primero de la otra cuenta de AIRI.
         oauthCallbackFailed: No pudimos conectar esta cuenta OAuth. Inténtalo de nuevo o elige otra cuenta del proveedor.
-        lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        lastAccount: Este es tu único método de inicio de sesión. Establece primero una contraseña antes de desvincularlo.
     security:
       tab: Seguridad
       title: Seguridad
       description: Cambia tu contraseña. Tus otros dispositivos cerrarán sesión.
-      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      setDescription: Te has registrado a través de una red social, por lo que aún no tienes contraseña. Te enviaremos por correo electrónico un enlace seguro para que puedas establecer una.
       currentPassword:
         label: Contraseña actual
         placeholder: Introduce tu contraseña actual
@@ -279,7 +277,7 @@ pages:
     danger:
       tab: Zona peligrosa
       title: Zona peligrosa
-      description: Irreversible account actions live here.
+      description: Las acciones irreversibles relacionadas con la cuenta se muestran aquí.
       deleteAccount:
         title: Eliminar cuenta
         description: Elimina permanentemente tu cuenta y tus datos personales.
@@ -301,8 +299,10 @@ pages:
     activate: Activar
     active: Activo
     active_badge: Actualmente Activo
+    activation_notice: Se cambió a {name}. La conversación actual ahora usa este personaje.
     cancel: Cancelar acción
     save: Guardar cambios
+    save_and_activate: Guardar y activar
     card_not_found: Tarjeta no encontrada
     character: Personaje
     close: Cerrar
@@ -310,6 +310,9 @@ pages:
       provider: Chat / Proveedor
     consciousness:
       model: Consciencia / Modelo
+    vision:
+      provider: Visión / Proveedor
+      model: Visión / Modelo
     created_by: creado por
     creator_notes: Notas del Creador
     delete: Eliminar
@@ -366,7 +369,7 @@ pages:
         scenario: 'Error: Se requiere un escenario.'
         systemprompt: 'Error: Por favor, proporciona un prompt del sistema.'
         posthistoryinstructions: 'Error: Se requiere un prompt post-historial.'
-        invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
+        invalid_artistry_json: 'Error: Las opciones del proveedor Artistry contienen un JSON no válido.'
       none: Nada
     modules: Módulos
     name_asc: Nombre (A-Z)
@@ -387,8 +390,14 @@ pages:
     systemprompt: Prompt del Sistema
     title: Tarjeta AIRI
     try_different_search: Prueba un término de búsqueda diferente
+    export: Export
+    exported: Card package exported
+    export_failed: Failed to export card package
+    imported: Card package imported
+    import_missing_file: Card package is missing required files
+    import_invalid_file: Card package file is invalid
     upload: Subir
-    upload_desc: Haz clic o arrastra el archivo para subir
+    upload_desc: Click or drag an AIRI card package to import
   memory:
     description: Donde se almacenan y organizan las memorias
     title: Memoria
@@ -404,7 +413,7 @@ pages:
         delete: Borrar todas las conversaciones
       models:
         title: Modelos
-        description: Borrar modelos Live2D/VRM importados.
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: Borrar todos los modelos
       modules:
         title: Módulos
@@ -428,6 +437,7 @@ pages:
       desktop:
         title: Restablecer ajustes de escritorio y estados
         description: Limpiar ajustes de escritorio y estado de ejecución de AIRI.
+        center: Move desktop window to center
         reset: Restablecer datos de escritorio
     confirmations:
       tooltip: '¿Estás seguro?'
@@ -441,9 +451,10 @@ pages:
       modules_reset: Ajustes del módulo restablecidos.
       providers_reset: Ajustes del proveedor restablecidos.
       all_deleted: Todos los datos locales eliminados.
+      desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Datos de escritorio restablecidos.
   models:
-    description: Live2D, VRM, etc.
+    description: Live2D, VRM, Spine, MMD, etc.
     title: Modelos
     sections:
       section:
@@ -506,35 +517,35 @@ pages:
       title: Artistry
       description: Generación de imágenes, fondo de escena y dibujo.
       page:
-        title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        title: Configuración del proveedor de Artistry
+        description: Selecciona el proveedor de backend activo para la generación de imágenes. Los usuarios pueden anular esta configuración en los ajustes de su tarjeta.
       providers:
         none:
           name: Ninguno
-          description: Bypass and disable the image generation module globally.
+          description: Omitir y desactivar el módulo de generación de imágenes de forma global.
         comfyui:
           name: ConfyUI (local)
-          description: Use a local ComfyUI instance via WSL for image generation.
+          description: Utiliza una instancia local de ComfyUI a través de WSL para generar imágenes.
         replicate:
-          name: Replicate.ai (Cloud)
-          description: Use cloud-based models via the Replicate API.
+          name: Replicate.ai (en la nube)
+          description: Utiliza modelos basados en la nube a través de la API de Replicate.
         nanobanana:
           name: Nano Banana (Vista previa)
           description: Utilice Google AI Studio para previsualizar imágenes y reacciones.
       card:
-        description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        description: Configura cómo AIRI genera imágenes y contenido visual.
+        comfyui_empty: No hay flujos de trabajo de ComfyUI configurados. Ve a Ajustes → Proveedores → ComfyUI para cargar una plantilla de flujo de trabajo.
         exposed_fields: 'Campos expuestos {count}'
         open_on_replicate: Abrir al replicar
         instruction_sync:
           title: Sincronización de Instrucción de ComfyUI
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
-          apply: Apply Recommended Prompt
+          description: Ya está disponible una indicación especializada para tu flujo de trabajo {workflowName}. Al aplicarla, se sobrescribirán las instrucciones actuales del widget para que la IA sepa cómo utilizar esta plantilla concreta.
+          apply: Aplicar el prompt recomendado.
           keep: Mantener existente
-      provider: Artistry Provider
+      provider: Proveedor de Artistry.
       spawn_mode:
-        label: Manifestation Mode (Spawn Mode)
-        description: Choose how images are delivered to the interface.
+        label: Modo de aparición (Spawn Mode)
+        description: Elige cómo se muestran las imágenes en la interfaz.
         options:
           bg: Entorno de fondo
           inline: Chat en línea
@@ -737,6 +748,15 @@ pages:
       access-token-secret-description: Su secreto de token de acceso de X / Twitter
       access-token-secret-placeholder: Ingrese su secreto de token de acceso de X / Twitter
       configured: '¡X / Twitter está configurado correctamente!'
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: Servidores MCP
       description: Configure los servidores MCP y traiga sus herramientas a AIRI.
@@ -960,6 +980,9 @@ pages:
       chat:
         title: Chat
         description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
+      vision:
+        title: Vision
+        description: Vision model providers for image understanding.
       speech:
         title: Habla
         description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
@@ -1223,6 +1246,9 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
+      google-gemini-audio-speech:
+        description: aistudio.google.com
+        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1281,6 +1307,9 @@ pages:
       n1n:
         description: n1n.ai - Proveedor de API de IA de alto rendimiento.
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: openrouter.ai
         title: OpenRouter
@@ -1421,6 +1450,9 @@ pages:
     general:
       description: Tema oscuro, idiomas, etc.
       title: General
+    permissions:
+      description: Consulta el estado actual de los permisos.
+      title: Gestión de permisos
     description: '¡Personaliza tu escenario!'
     sections:
       section:
@@ -1647,6 +1679,8 @@ spine:
     idle-animation: Animación inactiva
     mix-duration: Mezclar duración (segundos)
     speed: Velocidad de animación
+  appearance:
+    title: Apariencia
   variant:
     title: Variante
     current-variant: Variante activa
@@ -1660,6 +1694,67 @@ spine:
   fps:
     options:
       unlimited: Ilimitado
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  rendering:
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: Habilitar WebSocket Seguro (WSS)
   description: >-
