@@ -1,11 +1,11 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
-import type { AliyunRealtimeSpeechExtraOptions } from '../../../../stores/providers/aliyun/stream-transcription'
+import type { AliyunRealtimeSpeechExtraOptions } from './provider'
 
 import { z } from 'zod'
 
-import { createAliyunNLSProvider } from '../../../../stores/providers/aliyun/stream-transcription'
 import { defineProvider } from '../registry'
+import { createAliyunNLSProvider } from './provider'
 
 const aliyunNlsRegions = [
   'cn-shanghai',
@@ -105,3 +105,7 @@ export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
     }],
   },
 })
+
+export type { AliyunRealtimeSpeechExtraOptions } from './provider'
+export { createAliyunNLSProvider } from './provider'
+export type { ServerEvent, ServerEvents } from './session'
