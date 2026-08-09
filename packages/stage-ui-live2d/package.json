@@ -37,6 +37,7 @@
   },
   "dependencies": {
     "@lemonneko/crop-empty-pixels": "catalog:",
+    "@moeru/std": "catalog:",
     "@pixi/app": "catalog:",
     "@pixi/constants": "catalog:",
     "@pixi/core": "catalog:",
@@ -66,6 +67,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@proj-airi/unplugin-live2d-sdk": "catalog:",
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
     "vitest": "catalog:vitest",

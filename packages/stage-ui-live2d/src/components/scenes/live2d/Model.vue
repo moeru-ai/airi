@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
@@ -11,11 +12,11 @@ import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import {
   createBeatSyncController,
+  resolveIdleMotionGroup,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -28,6 +29,7 @@ import {
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
 import { useL2dViewControl, useLive2dParams } from '../../../stores'
+import { resolveLive2DRuntime, setupLive2DModel } from '../../../utils/live2d-runtime'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -93,12 +95,13 @@ const offset = computed(() => ({
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
-const model = ref<Live2DModel<PixiLive2DInternalModel>>()
+const model = shallowRef<PixiLive2DModel<PixiLive2DInternalModel>>()
+const forceMotionPriority = shallowRef<number>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
 const nowSpeaking = toRef(() => props.nowSpeaking)
-const lastUpdateTime = ref(0)
+const lastUpdateAtMs = ref(0)
 
 const { isDark: dark } = useTheme()
 const dropShadowFilter = shallowRef(new DropShadowFilter({
@@ -250,16 +253,15 @@ async function loadModel() {
       return
     }
 
+    const { runtime } = await resolveLive2DRuntime()
+    const { Live2DModel, MotionPriority } = runtime
+    forceMotionPriority.value = MotionPriority.FORCE
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
-    availableMotions.value.forEach((motion) => {
-      if (motion.motionName in Emotion) {
-        motionMap.value[motion.fileName] = motion.motionName
-      }
-      else {
-        motionMap.value[motion.fileName] = EmotionNeutralMotionName
-      }
-    })
+    await setupLive2DModel(runtime, live2DModel, { url: modelSrcRef.value, id: props.modelId }, pixiApp.value!.renderer, { autoInteract: false })
+    if (isUnmounted) {
+      live2DModel.destroy()
+      return
+    }
 
     // --- Scene
 
@@ -285,14 +287,24 @@ async function loadModel() {
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
+    const detectedIdleGroup = resolveIdleMotionGroup(motionManager.definitions)
+    if (detectedIdleGroup)
+      motionManager.groups.idle = detectedIdleGroup
+
     availableMotions.value = Object
       .entries(motionManager.definitions)
       .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
         motionName,
         motionIndex: index,
-        fileName: motion.File,
+        fileName: motion.File ?? motion.file,
       })) || []))
       .filter(Boolean)
+
+    availableMotions.value.forEach((motion) => {
+      motionMap.value[motion.fileName] = motion.motionName in Emotion
+        ? motion.motionName
+        : EmotionNeutralMotionName
+    })
 
     // Check if user has selected a runtime motion to play as idle
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
@@ -347,7 +359,7 @@ async function loadModel() {
       live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
-      lastUpdateTime,
+      lastUpdateAtMs,
     })
 
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
@@ -453,7 +465,7 @@ async function loadModel() {
 
 /**
  * Initialise the expression controller by reading expression definitions from
- * the model settings (model3.json) and parsing each referenced exp3.json file.
+ * the model settings and parsing each referenced expression file.
  *
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
@@ -466,8 +478,10 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   if (!settings)
     return
 
-  // model3.json stores expressions as { Name, File }[] under settings.expressions
-  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
+  const expressionRefs: { Name: string, File: string }[] = (settings.expressions ?? []).map((expression: any) => ({
+    Name: expression.Name ?? expression.name,
+    File: expression.File ?? expression.file,
+  }))
   if (expressionRefs.length === 0)
     return
 
@@ -475,6 +489,12 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
   // models the resolved URL points to an in-memory blob/object URL.
   const readExpFile = async (filePath: string): Promise<string> => {
+    const embeddedExpression = settings._expFiles?.find((expression: any) =>
+      expression.fileName === filePath || expression.fileName.endsWith(`/${filePath}`),
+    )
+    if (embeddedExpression)
+      return JSON.stringify(embeddedExpression.data)
+
     const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
     const response = await fetch(resolvedUrl)
     if (!response.ok)
@@ -494,7 +514,7 @@ async function setMotion(motionName: string, index?: number) {
 
   console.info('Setting motion:', motionName, 'index:', index)
   try {
-    await model.value.motion(motionName, index, MotionPriority.FORCE)
+    await model.value.motion(motionName, index, forceMotionPriority.value)
     console.info('Motion started successfully:', motionName)
   }
   catch (error) {

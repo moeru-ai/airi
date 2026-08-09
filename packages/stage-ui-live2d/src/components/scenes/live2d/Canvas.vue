@@ -2,8 +2,9 @@
 import { Application } from '@pixi/app'
 import { extensions } from '@pixi/extensions'
 import { Ticker, TickerPlugin } from '@pixi/ticker'
-import { Live2DModel } from 'pixi-live2d-display/cubism4'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+
+import { resolveLive2DRuntime } from '../../../utils/live2d-runtime'
 
 const props = withDefaults(defineProps<{
   width: number
@@ -23,8 +24,9 @@ const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', {
 
 const containerRef = ref<HTMLDivElement>()
 const isPixiCanvasReady = ref(false)
-const pixiApp = ref<Application>()
+const pixiApp = shallowRef<Application>()
 const pixiAppCanvas = ref<HTMLCanvasElement>()
+let isDisposed = false
 
 function resolveMaxFps(limit?: number) {
   if (!limit || limit <= 0)
@@ -54,6 +56,11 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
   componentState.value = 'loading'
   isPixiCanvasReady.value = false
 
+  const { runtime } = await resolveLive2DRuntime()
+  if (isDisposed)
+    return
+
+  const { Live2DModel } = runtime
   // https://guansss.github.io/pixi-live2d-display/#package-importing
   Live2DModel.registerTicker(Ticker)
   extensions.add(TickerPlugin)
@@ -114,7 +121,10 @@ onMounted(async () => {
     emit('error', error instanceof Error ? error : new Error(String(error)))
   }
 })
-onUnmounted(() => pixiApp.value?.destroy())
+onUnmounted(() => {
+  isDisposed = true
+  pixiApp.value?.destroy()
+})
 
 async function captureFrame() {
   const frame = new Promise<Blob | null>((resolve) => {

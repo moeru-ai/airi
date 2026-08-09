@@ -10,9 +10,6 @@ import Live2DModel from './live2d/Model.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
-import '../../utils/live2d-zip-loader'
-import '../../utils/live2d-opfs-registration'
-
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
   modelSrc?: string

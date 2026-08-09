@@ -1,157 +1,165 @@
+import type { JSONObject } from 'pixi-live2d-display'
+
 import JSZip from 'jszip'
 
+import { errorMessageFrom } from '@moeru/std'
+
+import { isLive2DSettingsFile, selectLive2DSettings, shouldIgnoreLive2DArchiveEntry } from '../generations/loader'
 import { decodeZipFileName } from './decode-zip-filename'
+import { resolveLive2DRuntime } from './live2d-runtime'
+
+export type Live2DRuntimeFamily = 'cubism2' | 'cubism3-plus'
 
 export interface Live2DValidationReport {
   fileName: string
   totalFiles: number
   status: 'VALID' | 'WARNING' | 'INVALID'
   entryPoint: string | null
-  structureType: 'Standard (model3.json)' | 'Heuristic (Loose Files)' | 'Unknown'
+  runtimeFamily: Live2DRuntimeFamily | null
+  structureType: 'Cubism 2 (model.json)' | 'Cubism 3+ (model3.json)' | 'Heuristic (Loose Files)' | 'Unknown'
   errors: string[]
   warnings: string[]
   checks: string[]
   mocInfo?: {
+    format: 'moc' | 'moc3'
     header: string
-    ver: number
+    ver: number | null
     size: number
   }
 }
 
-export async function validateLive2DZip(file: File | Blob): Promise<Live2DValidationReport> {
-  const zip = await JSZip.loadAsync(file, { decodeFileName: decodeZipFileName })
-  const allPaths = Object.keys(zip.files)
+function normalizeArchivePath(baseDir: string, relativePath: string): string {
+  const stack: string[] = []
+  const parts = baseDir ? [...baseDir.split('/'), ...relativePath.split(/[\\/]/)] : relativePath.split(/[\\/]/)
+  for (const part of parts) {
+    if (!part || part === '.')
+      continue
+    if (part === '..')
+      stack.pop()
+    else
+      stack.push(part)
+  }
+  return stack.join('/')
+}
+
+/**
+ * Validates Cubism 2 and Cubism 3+ model ZIPs against the resolved runtime.
+ *
+ * The runtime resolver is injectable because it is an external feature gate;
+ * production callers should use the default application-wide resolver.
+ */
+export async function validateLive2DZip(
+  file: File | Blob,
+  resolveRuntime: () => Promise<{ supportsCubism2: boolean }> = resolveLive2DRuntime,
+): Promise<Live2DValidationReport> {
+  const zip = await JSZip.loadAsync(await file.arrayBuffer(), { decodeFileName: decodeZipFileName })
+  const allPaths = Object.keys(zip.files).filter(path => !zip.files[path].dir && !shouldIgnoreLive2DArchiveEntry(path))
+
+  // Count entry points exactly the way the loader selects one. A raw suffix scan
+  // would also claim VTube Studio's `items_pinned_to_model.json` and macOS
+  // `__MACOSX/._*.model3.json` sidecars — both end in `model.json` — and report
+  // the archive as having several entry points, which the model selector blocks
+  // from being imported even though the runtime loads it fine.
+  const settingsFiles = allPaths.filter(isLive2DSettingsFile)
 
   const report: Live2DValidationReport = {
     fileName: (file as File).name || 'live2d-model.zip',
     totalFiles: allPaths.length,
     status: 'VALID',
     entryPoint: null,
+    runtimeFamily: null,
     structureType: 'Unknown',
     errors: [],
     warnings: [],
     checks: [],
   }
 
-  // 1. Entry Point Identification
-  const model3Files = allPaths.filter(p => p.endsWith('.model3.json'))
-  if (model3Files.length > 0) {
-    report.entryPoint = model3Files[0]
-    report.structureType = 'Standard (model3.json)'
-    report.checks.push(`Entry point identified: ${report.entryPoint}`)
-  }
-  else {
-    const mocFiles = allPaths.filter(p => p.endsWith('.moc3'))
-    if (mocFiles.length === 1) {
+  let selectedSettings: ReturnType<typeof selectLive2DSettings> | undefined
+  try {
+    const candidates = await Promise.all(settingsFiles.map(async path => ({
+      path,
+      json: JSON.parse(await zip.file(path)!.async('text')) as JSONObject,
+    })))
+    if (!candidates.length) {
+      const mocFiles = allPaths.filter(path => path.toLowerCase().endsWith('.moc3'))
+      const textures = allPaths.filter(path => path.toLowerCase().endsWith('.png'))
+      if (mocFiles.length !== 1 || textures.length === 0)
+        throw new Error(`No supported settings file found and expected exactly one .moc3 with textures; found ${mocFiles.length} .moc3 files and ${textures.length} textures.`)
+      report.runtimeFamily = 'cubism3-plus'
       report.structureType = 'Heuristic (Loose Files)'
-      report.checks.push(`Heuristic match found: Unique MOC file ${mocFiles[0]}`)
+      report.checks.push(`Heuristic match found: unique MOC file ${mocFiles[0]}.`)
     }
     else {
-      report.errors.push(`Invalid Structure: No .model3.json found and ${mocFiles.length} .moc3 files encountered.`)
+      selectedSettings = selectLive2DSettings(candidates)
+      report.entryPoint = selectedSettings.path
+      report.runtimeFamily = selectedSettings.loader.generation === 'cubism2' ? 'cubism2' : 'cubism3-plus'
+      report.structureType = selectedSettings.loader.generation === 'cubism2'
+        ? 'Cubism 2 (model.json)'
+        : 'Cubism 3+ (model3.json)'
+
+      if (selectedSettings.loader.generation === 'cubism2' && !(await resolveRuntime()).supportsCubism2) {
+        // Reported as an error, not a warning: this is the same gate the loader
+        // checks, so a build without the core is guaranteed to reject the archive
+        // with the missing-core message once it reaches the stage. A WARNING report
+        // still offers "Import Anyway" in the audit modal, which would only defer
+        // that failure past the point where the model was already persisted.
+        report.errors.push('Cubism 2 runtime is unavailable. Configure it through the Live2D SDK Vite plugin and check the runtime failure log.')
+      }
     }
   }
-
-  // 2. MOC Header & Size Audit
-  const mocPath = allPaths.find(p => p.endsWith('.moc3'))
-  if (mocPath) {
-    const buf = await zip.file(mocPath)!.async('uint8array')
-    const header = String.fromCharCode(...buf.slice(0, 4))
-    const ver = buf[4]
-    const sizeMb = buf.length / 1024 / 1024
-
-    report.mocInfo = { header, ver, size: buf.length }
-
-    if (header !== 'MOC3') {
-      report.errors.push(`Invalid MOC Header: "${header}" (Expected MOC3)`)
-    }
-    else {
-      report.checks.push(`MOC3 Header Valid (Sub-version: ${ver}, Size: ${sizeMb.toFixed(2)} MB)`)
-    }
-
-    if (sizeMb > 100) {
-      report.errors.push(`CRITICAL WEIGHT: MOC file is ${sizeMb.toFixed(2)} MB. This "Mega-Model" likely exceeds browser WASM memory limits.`)
-    }
-    else if (sizeMb > 30) {
-      report.warnings.push(`HEAVY RESOURCE: MOC file is ${sizeMb.toFixed(2)} MB. This may cause performance issues in web browsers.`)
-    }
+  catch (error) {
+    report.errors.push(`Invalid structure: ${errorMessageFrom(error) ?? 'unable to select a Live2D settings entry point'}`)
   }
 
-  // 3. Basename Collision Audit (AIRI ZipLoader weakness)
-  const basenames = new Map<string, string[]>()
-  allPaths.forEach((p) => {
-    if (p.endsWith('/'))
-      return // Skip directories
-    const base = p.split(/[\\/]/).pop()!
-    if (!basenames.has(base))
-      basenames.set(base, [])
-    basenames.get(base)!.push(p)
-  })
-
-  for (const [base, paths] of basenames.entries()) {
-    if (paths.length > 1) {
-      report.errors.push(`BASENAME COLLISION: Filename "${base}" exists in multiple locations: ${paths.join(', ')}. This causes data loss in AIRI's loader.`)
-    }
-  }
-
-  // 4. Detailed Reference Validation
-  if (report.entryPoint) {
+  if (report.entryPoint && report.runtimeFamily && selectedSettings) {
     try {
-      const content = await zip.file(report.entryPoint)!.async('text')
-      const json = JSON.parse(content)
-      const baseDir = report.entryPoint.split(/[\\/]/).slice(0, -1).join('/')
+      const json = JSON.parse(await zip.file(report.entryPoint)!.async('text')) as JSONObject
+      const baseDir = report.entryPoint.split('/').slice(0, -1).join('/')
+      const references = selectedSettings.loader.assetReferences(json)
 
-      const resolve = (rel: string) => {
-        if (!rel)
-          return ''
-        const parts = baseDir ? [...baseDir.split('/'), ...rel.split(/[\\/]/)] : rel.split(/[\\/]/)
-        const stack: string[] = []
-        for (const p of parts) {
-          if (p === '.' || p === '')
-            continue
-          if (p === '..')
-            stack.pop()
-          else stack.push(p)
-        }
-        return stack.join('/')
+      for (const { path: relativePath, kind: label } of references) {
+        const expectedPath = normalizeArchivePath(baseDir, relativePath)
+        if (allPaths.includes(expectedPath))
+          continue
+        const caseMismatch = allPaths.find(path => path.toLowerCase() === expectedPath.toLowerCase())
+        report.errors.push(caseMismatch
+          ? `Case sensitivity mismatch: ${label} "${relativePath}" resolves to "${expectedPath}", but the ZIP contains "${caseMismatch}".`
+          : `Missing reference: ${label} "${relativePath}" expected at "${expectedPath}".`)
       }
 
-      const checkRef = (rel: string, type: string) => {
-        const full = resolve(rel)
-        if (!allPaths.includes(full)) {
-          // Check for case-insensitivity match to provide better error
-          const fuzzy = allPaths.find(p => p.toLowerCase() === full.toLowerCase())
-          if (fuzzy) {
-            report.errors.push(`CASE SENSITIVITY MISMATCH: "${rel}" expects "${full}" but ZIP contains "${fuzzy}". Browsers are case-sensitive.`)
+      const mocReference = references.find(reference => reference.kind === 'MOC')?.path
+      if (mocReference) {
+        const mocPath = normalizeArchivePath(baseDir, mocReference)
+        const mocFile = zip.file(mocPath)
+        if (mocFile) {
+          const bytes = await mocFile.async('uint8array')
+          const format = report.runtimeFamily === 'cubism2' ? 'moc' : 'moc3'
+          const headerLength = format === 'moc' ? 3 : 4
+          const header = String.fromCharCode(...bytes.slice(0, headerLength))
+          const expectedHeader = format === 'moc' ? 'moc' : 'MOC3'
+          report.mocInfo = {
+            format,
+            header,
+            ver: format === 'moc3' ? bytes[4] : null,
+            size: bytes.length,
           }
-          else {
-            report.errors.push(`MISSING REFERENCE: ${type} "${rel}" (expected at "${full}") not found in ZIP.`)
-          }
+          if (header !== expectedHeader)
+            report.errors.push(`Invalid ${format.toUpperCase()} header: "${header}" (expected "${expectedHeader}").`)
+          if (bytes.length > 100 * 1024 * 1024)
+            report.errors.push(`${format.toUpperCase()} is larger than 100 MB and likely exceeds browser memory limits.`)
+          else if (bytes.length > 30 * 1024 * 1024)
+            report.warnings.push(`${format.toUpperCase()} is larger than 30 MB and may perform poorly in a browser.`)
         }
       }
-
-      const refs = json.FileReferences || {}
-      if (refs.Moc)
-        checkRef(refs.Moc, 'MOC')
-      if (Array.isArray(refs.Textures)) {
-        refs.Textures.forEach((t: string) => checkRef(t, 'Texture'))
-      }
-      if (refs.Physics)
-        checkRef(refs.Physics, 'Physics')
-      if (Array.isArray(refs.Expressions)) {
-        refs.Expressions.forEach((e: any) => checkRef(typeof e === 'string' ? e : e.File, 'Expression'))
-      }
+      report.checks.push(`Validated ${references.length} referenced Cubism assets.`)
     }
-    catch (e: any) {
-      report.errors.push(`JSON PARSE ERROR: Failed to parse ${report.entryPoint}: ${e.message}`)
+    catch (error) {
+      report.errors.push(`JSON parse error in ${report.entryPoint}: ${errorMessageFrom(error) ?? 'Unknown validation error'}`)
     }
   }
 
-  // 5. Final Status
-  if (report.errors.length > 0)
-    report.status = 'INVALID'
-  else if (report.warnings.length > 0)
-    report.status = 'WARNING'
-  else report.status = 'VALID'
-
+  report.status = report.errors.length > 0
+    ? 'INVALID'
+    : report.warnings.length > 0 ? 'WARNING' : 'VALID'
   return report
 }
