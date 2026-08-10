@@ -1,3 +1,5 @@
+import type {} from 'pinia-plugin-synced'
+
 import type { StreamingAssistantMessage } from '../../types/chat'
 
 import { defineStore } from 'pinia'
@@ -9,8 +11,8 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
   const chatSession = useChatSessionStore()
   const streamingMessage = ref<StreamingAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
 
-  function beginStream() {
-    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() }
+  function beginStream(id: string) {
+    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id }
   }
 
   function appendStreamLiteral(literal: string) {

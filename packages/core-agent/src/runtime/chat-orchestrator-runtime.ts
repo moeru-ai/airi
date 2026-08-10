@@ -14,7 +14,7 @@ import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 
-const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
+const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
 function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
   const content = msg.content
@@ -616,7 +616,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           }
           patchForegroundStream(sessionId, buildingMessage)
         },
-        minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
+        // The parser keeps its own marker-safety tail. Emit each safe literal
+        // chunk so slow providers update the chat before they reach 24 characters.
+        minLiteralEmitLength: 1,
       })
 
       const toolCallQueue = createQueue<ChatSlices>({
@@ -786,8 +788,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 reasoning: nextReasoning,
               }
               const crossesBoundary
-                = Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
-                  > Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                  > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
               if (!reasoning || crossesBoundary)
                 patchForegroundStream(sessionId, buildingMessage)
               break

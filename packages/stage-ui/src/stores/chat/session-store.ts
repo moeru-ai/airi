@@ -1,4 +1,5 @@
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
+import type {} from 'pinia-plugin-synced'
 
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'

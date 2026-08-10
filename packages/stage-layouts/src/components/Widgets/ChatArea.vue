@@ -45,7 +45,6 @@ const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const { ingest, onAfterMessageComposed } = chatOrchestrator
-const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
@@ -83,13 +82,10 @@ async function handleSend() {
   catch (error) {
     // preserve any user input when failed to send the message
     messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value.slice(0, -1),
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    chatSession.appendSessionMessage(chatSession.activeSessionId, {
+      role: 'error',
+      content: errorMessageFrom(error) ?? 'Failed to send message',
+    })
   }
 }
 

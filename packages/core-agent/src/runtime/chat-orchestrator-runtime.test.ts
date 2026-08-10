@@ -148,6 +148,33 @@ function createHarness() {
  * await runtime.ingest('hello', { model, chatProvider })
  */
 describe('createChatOrchestratorRuntime', () => {
+  // ROOT CAUSE:
+  //
+  // The marker parser buffered 24 literal characters plus its marker-safety tail.
+  // Providers that emitted small, slow deltas therefore showed no visible text for several seconds.
+  //
+  // We fixed this by keeping only the marker-safety tail before the first foreground update.
+  it('updates the foreground stream before a slow response reaches 24 characters', async () => {
+    const harness = createHarness()
+    let patchesBeforeFinish = 0
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      for (const text of '1234567890')
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+
+      patchesBeforeFinish = harness.foregroundPatches.length
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('show a slow response', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(patchesBeforeFinish).toBeGreaterThan(1)
+    expect(harness.foregroundPatches.some(message => message.content === '1234')).toBe(true)
+  })
+
   it('stores tool names with the user message and omits them from provider messages', async () => {
     const harness = createHarness()
 
