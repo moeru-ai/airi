@@ -22,11 +22,11 @@ excerpt: |
 
 1. 编写了一个 mod 用来采集数据。在安装 mod 之后，可以在暂停菜单里找到一个 `Start YOLO Data Collection` 按钮，点击后开始采集。
 
-    ![add-button-to-menu](./assets/add-button-to-menu.png)
+    ![add-button-to-menu](./assets/add-button-to-menu.avif)
 
 2. 简单采集了一点点数据。
 
-    ![some-collected-data](./assets/some-collected-data.png)
+    ![some-collected-data](./assets/some-collected-data.avif)
 
 好像不多？但是已经遇到了不少坑和细节问题了，所以要写写 DevLog 来记录一下。
 

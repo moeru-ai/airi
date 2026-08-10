@@ -66,11 +66,11 @@ const maskImageURL = `url(${homeCover})`
   <div
     :class="[
       'relative left-1/2 -translate-x-1/2 max-w-none z-1',
-      'w-[160%] translate-y-[35%] translate-x-[-55%] scale-100 -rotate-0 top-5rem',
-      'md:w-[150%] md:translate-y-[40%] md:rotate-[0deg] md:top-8dvh',
-      'lg:w-[95%] lg:translate-y-[-20%] lg:translate-x-[-50%] lg:rotate-[0deg] lg:scale-95 lg:top-32dvh',
-      'xl:translate-y-[-50%] xl:translate-x-[-50%] xl:scale-80 xl:top-18dvh',
-      '2xl:w-[100%] 2xl:translate-y-[-20%] 2xl:translate-x-[-50%] 2xl:rotate-[0deg] 2xl:scale-60 2xl:top-12dvh',
+      'w-[160%] translate-y-[30%] translate-x-[-55%] scale-110 -rotate-0 top-5rem',
+      'md:w-[150%] md:translate-y-[5%] md:rotate-[0deg] md:top-8dvh',
+      'lg:w-[95%] lg:translate-y-[-20%] lg:translate-x-[-50%] lg:rotate-[0deg] lg:scale-90 lg:top-32dvh',
+      'xl:translate-y-[-10%] xl:translate-x-[-50%] xl:scale-80 xl:top-18dvh',
+      '2xl:w-[100%] 2xl:translate-y-[-13%] 2xl:translate-x-[-50%] 2xl:rotate-[0deg] 2xl:scale-60 2xl:top-12dvh',
     ]"
   >
     <img ref="surface" :src="homeCover" alt="Project AIRI Cover Image" class="w-full object-cover">

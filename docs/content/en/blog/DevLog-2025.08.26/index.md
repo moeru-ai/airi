@@ -97,7 +97,7 @@ Oh, and to better debug my collection script, I developed a [VSCode plugin](http
 
 After collecting images and annotation data, we need to organize the dataset according to the [YOLO official format](https://docs.ultralytics.com/datasets/detect/), then we can upload it to [Ultralytics Hub](https://www.ultralytics.com/hub) to see the effect:
 
-![Ultralytics Hub](./assets/factorio-ultralytics-hub-preview.jpg)
+![Ultralytics Hub](./assets/factorio-ultralytics-hub-preview.avif)
 
 Looks pretty good, right? Let's start training!
 

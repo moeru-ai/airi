@@ -5,8 +5,8 @@ date: 2026-01-01
 excerpt: |
   AIRI의 iOS 플랫폼 진전과 그 과정에서 만난 문제·해결책, 그리고 LemonNeko가 FlowChat에서 진행한 기억 계층 실험의 성과와 구현 세부 사항을 나눕니다.
 preview-cover:
-  light: "@assets('/en/blog/DevLog-2026.01.01/assets/cover-light.png')"
-  dark: "@assets('/en/blog/DevLog-2026.01.01/assets/cover-dark.png')"
+  light: "@assets('/en/blog/DevLog-2026.01.01/assets/cover-light.avif')"
+  dark: "@assets('/en/blog/DevLog-2026.01.01/assets/cover-dark.avif')"
 ---
 
 ::: info AI 번역
@@ -16,7 +16,7 @@ preview-cover:
 새해 복 많이 받으세요! AIRI 메인테이너 중 한 명인 [@LemonNekoGH](https://github.com/LemonNekoGH)입니다. 새해 첫 DevLog는 제 차례네요. (B 키를 눌러 웃는 이모티콘 선택) 하하하하하!
 
 <p style="display: flex; justify-content: center;">
-    <img src="/en/blog/DevLog-2026.01.01/assets/helldiver-laughing.png" alt="Helldiver Laughing Emotion" />
+    <img src="/en/blog/DevLog-2026.01.01/assets/helldiver-laughing.avif" alt="Helldiver Laughing Emotion" />
 </p>
 
 자, 본론으로 갑시다.

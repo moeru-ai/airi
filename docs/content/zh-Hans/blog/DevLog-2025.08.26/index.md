@@ -98,7 +98,7 @@ sudo apt install -y websockify novnc
 
 图片和标注数据都收集好后，我们需要按 [YOLO 官方的格式](https://docs.ultralytics.com/datasets/detect/) 来组织数据集，然后可以传到 [Ultralytics Hub](https://www.ultralytics.com/hub) 上来看看效果：
 
-![Ultralytics Hub](./assets/factorio-ultralytics-hub-preview.jpg)
+![Ultralytics Hub](./assets/factorio-ultralytics-hub-preview.avif)
 
 是不是看上去还行？那我们开始训练吧！
 

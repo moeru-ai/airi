@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { useMediaQuery } from '@vueuse/core'
-import { dirname, sep } from 'pathe'
+import { dirname } from 'pathe'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger, Separator } from 'reka-ui'
 import { useData, useRoute } from 'vitepress'
 import { ref, toRefs, watch } from 'vue'
@@ -32,8 +32,17 @@ watch(isDesktop, (value) => {
 })
 
 function isNavLinkActive(link: string, path: string) {
+  // useRoute().path is relative to the site base; strip the base prefix that
+  // withBase() prepends to nav links (e.g. "/docs" when deployed under /docs/).
+  const base = site.value.base
   let normalizedLink = link.toLowerCase()
-  normalizedLink = normalizedLink.split(sep).filter(Boolean).length > (site.value.base !== '' ? 3 : 2) ? `${dirname(normalizedLink)}/` : normalizedLink
+  if (base && base !== '/' && normalizedLink.startsWith(base))
+    normalizedLink = normalizedLink.slice(base.length) || '/'
+
+  // Treat a deep link as its parent directory so any sub-page keeps the tab
+  // active (e.g. /zh-Hans/docs/overview/ → /zh-Hans/docs/, covering all docs pages).
+  if (normalizedLink.split('/').filter(Boolean).length > 2)
+    normalizedLink = `${dirname(normalizedLink)}/`
 
   const normalizedPath = path.toLowerCase()
   return normalizedPath.includes(normalizedLink)

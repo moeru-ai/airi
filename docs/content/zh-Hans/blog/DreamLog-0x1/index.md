@@ -1,5 +1,6 @@
 ---
 title: 'DreamLog 0x1'
+category: DreamLog
 description: 'Project AIRI 的幕后故事！'
 date: '2025-06-16'
 excerpt: 'Project AIRI 的幕后故事！以及为什么我们会想要制作如此一个项目？'

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useScroll } from '@vueuse/core'
+import { MotionConfig } from 'motion-v'
 import { TooltipProvider } from 'reka-ui'
 import { useData, useRoute, withBase } from 'vitepress'
 import { computed, onMounted, toRefs, watch } from 'vue'
@@ -35,46 +36,48 @@ watch(lang, () => locale.value = lang.value, { immediate: true })
 
 <template>
   <TooltipProvider>
-    <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
-      <header
-        class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500"
-        :class="[
-          top && !isHome ? 'bg-transparent backdrop-blur-0' : 'bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90',
-        ]"
-      >
-        <div class="mx-auto max-w-[1440px] flex items-center justify-between px-6">
-          <div class="w-full flex items-center justify-between gap-8 md:justify-normal">
-            <a
-              :href="withBase(`/${lang}/`)"
-              class="flex translate-y--1 items-center gap-2"
-            >
-              <img
-                class="w-6 md:w-9"
-                alt="Project AIRI logo"
-                :src="logo"
+    <MotionConfig reduced-motion="user">
+      <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
+        <header
+          class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500"
+          :class="[
+            top && !isHome ? 'bg-transparent backdrop-blur-0' : 'bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/90',
+          ]"
+        >
+          <div class="mx-auto max-w-[1440px] flex items-center justify-between px-6">
+            <div class="w-full flex items-center justify-between gap-8 md:justify-normal">
+              <a
+                :href="withBase(`/${lang}/`)"
+                class="flex translate-y--1 items-center gap-2"
               >
-              <span class="translate-y-1 text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>
-            </a>
-            <SearchTrigger />
+                <img
+                  class="w-6 md:w-9"
+                  alt="Project AIRI logo"
+                  :src="logo"
+                >
+                <span class="translate-y-1 text-xl font-bold font-sans-rounded md:text-2xl">{{ title }}</span>
+              </a>
+              <SearchTrigger />
+            </div>
+
+            <Navbar />
           </div>
+        </header>
 
-          <Navbar />
+        <div v-if="layout === 'home'" class="w-full flex flex-1 flex-col justify-between">
+          <main h-full w-full flex flex-1 flex-col justify-between>
+            <Home />
+          </main>
         </div>
-      </header>
 
-      <div v-if="layout === 'home'" class="w-full flex flex-1 flex-col justify-between">
-        <main h-full w-full flex flex-1 flex-col justify-between>
-          <Home />
-        </main>
-      </div>
+        <div v-else-if="layout === 'showcase'" class="h-full max-w-[1440px] w-full grow">
+          <Showcase />
+        </div>
 
-      <div v-else-if="layout === 'showcase'" class="h-full max-w-[1440px] w-full grow">
-        <Showcase />
+        <div v-else class="h-full max-w-[1440px] w-full grow">
+          <Docs />
+        </div>
       </div>
-
-      <div v-else class="h-full max-w-[1440px] w-full grow">
-        <Docs />
-      </div>
-    </div>
+    </MotionConfig>
   </TooltipProvider>
 </template>
