@@ -74,6 +74,7 @@ export function applyTimeDecay(
     trust: newTrust,
     affection: newAffection,
     stability: newStability,
+    lastUpdatedAt: now,
   }
 }
 

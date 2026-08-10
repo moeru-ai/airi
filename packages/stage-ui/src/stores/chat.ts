@@ -33,7 +33,6 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useEmotionStore } from './emotion'
-import { useLLM } from './ai/chat-llm/llm'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -274,6 +273,20 @@ export const useChatStore = defineStore('chat', () => {
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+      const evaluation = evaluateTurn(messageText)
+      const sentimentScore = evaluation.delta.valence + evaluation.delta.trust + evaluation.delta.affection
+      emotionStore.setCurrentSession(sessionId)
+      emotionStore.applyEmotionDelta(sessionId, evaluation.delta, evaluation.reason, message.id)
+      relationshipBondStore.recordUserMessageInteraction({
+        characterId: chatSession.getSessionCharacterId?.(sessionId) ?? cardStore.activeCardId ?? 'default',
+        sessionId,
+        summary: evaluation.reason,
+        reason: evaluation.reason,
+        sentimentScore,
+        significant: evaluation.reason !== '普通对话',
+      })
+      chatSession.refreshSessionSystemMessage?.(sessionId)
+
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
@@ -324,20 +337,6 @@ export const useChatStore = defineStore('chat', () => {
     targetSessionId?: string,
   ) {
     const sessionId = targetSessionId ?? activeSessionId.value
-    const evaluation = evaluateTurn(sendingMessage)
-    const sentimentScore = evaluation.delta.valence + evaluation.delta.trust + evaluation.delta.affection
-    emotionStore.setCurrentSession(sessionId)
-    emotionStore.applyEmotionDelta(sessionId, evaluation.delta, evaluation.reason)
-    relationshipBondStore.recordUserMessageInteraction({
-      characterId: chatSession.getSessionCharacterId?.(sessionId) ?? cardStore.activeCardId ?? 'default',
-      sessionId,
-      summary: evaluation.reason,
-      reason: evaluation.reason,
-      sentimentScore,
-      significant: evaluation.reason !== '普通对话',
-    })
-    chatSession.refreshSessionSystemMessage?.(sessionId)
-
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 
