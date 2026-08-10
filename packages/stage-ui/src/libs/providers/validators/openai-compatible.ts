@@ -22,6 +22,7 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, b
   skipApiKeyCheck?: boolean
   connectivityFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
   modelListFailureReason?: (input: { config: TConfig, error: unknown, errorMessage: string }) => string
+  chatCompletionTokenParameter?: 'max_tokens' | 'max_completion_tokens'
 }
 
 function extractStatusCode(error: unknown): number | null {
@@ -140,7 +141,9 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         headers: additionalHeaders,
         model: normalizedModel,
         messages: message.messages(message.user('ping')),
-        max_tokens: 1,
+        ...(options?.chatCompletionTokenParameter === 'max_completion_tokens'
+          ? { maxCompletionTokens: 1 }
+          : { max_tokens: 1 }),
       })
 
       return { connectivityOk: true, chatOk: true }
