@@ -114,13 +114,16 @@ export const useMinecraftStore = defineStore('minecraft', () => {
 
   function handleRegistrySync(event: WebSocketBaseEvent<'registry:modules:sync', WebSocketEvents['registry:modules:sync']>) {
     const moduleEntry = event.data.modules.find(isMinecraftModuleIdentity)
-    // Registry sync only proves that a module is known. Health remains owned by
-    // registry:modules:health:* so a replayed sync cannot revive an unhealthy service.
+    const wasPresent = servicePresent.value
     servicePresent.value = !!moduleEntry
 
     if (!moduleEntry) {
       serviceHealthy.value = false
+      return
     }
+
+    if (!wasPresent)
+      serviceHealthy.value = true
   }
 
   function handleRegistryHealthy(event: WebSocketBaseEvent<'registry:modules:health:healthy', WebSocketEvents['registry:modules:health:healthy']>) {

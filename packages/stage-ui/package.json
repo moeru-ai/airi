@@ -39,7 +39,6 @@
     "./libs": "./src/libs/index.ts",
     "./services/*": "./src/services/*.ts",
     "./tools/mcp": "./src/tools/mcp.ts",
-    "./tools/*": "./src/tools/*.ts",
     "./stores/character": "./src/stores/character/index.ts",
     "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
     "./stores/settings": "./src/stores/settings/index.ts",

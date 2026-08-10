@@ -133,50 +133,6 @@ describe('setupApp websocket liveness', () => {
     vi.useRealTimers()
   })
 
-  /**
-   * @example
-   * it('broadcasts an initial healthy event for a newly announced extension module', () => {})
-   */
-  it('broadcasts an initial healthy event for a newly announced extension module', () => {
-    const runtime = setupApp({ heartbeat: { readTimeout: 20_000 } })
-    const handler = wsHandler()
-    const observer = createPeer('observer')
-    const modulePeer = createPeer('module-peer')
-
-    handler.open?.(observer.peer)
-    handler.open?.(modulePeer.peer)
-    observer.sent.length = 0
-
-    // ROOT CAUSE:
-    //
-    // Registry sync only reports module presence. Before this fix, a new extension module did not
-    // emit a healthy event, so health-gated consumers stayed offline until a heartbeat failure and
-    // recovery happened. The current runtime also stores module identity separately from its parent
-    // peer, so publishing the parent peer's health cannot represent this module registration.
-    //
-    // We fixed this by publishing registry:modules:health:healthy with the announced module's name
-    // and identity immediately after registration.
-    sendEvent(handler, modulePeer.peer, createExtensionModuleAnnounceEvent())
-
-    // @example
-    expect(decodeEvents(observer.sent)).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: 'registry:modules:health:healthy',
-        data: {
-          name: 'memory',
-          identity: {
-            id: 'memory-module-1',
-            extension: {
-              id: 'extension-1',
-            },
-          },
-        },
-      }),
-    ]))
-
-    runtime.dispose()
-  })
-
   it('broadcasts extension module unhealthy events from better-ws liveness checks', () => {
     const runtime = setupApp({ heartbeat: { readTimeout: 20_000 } })
     const handler = wsHandler()

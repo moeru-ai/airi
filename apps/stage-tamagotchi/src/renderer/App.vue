@@ -55,7 +55,6 @@ import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { useMinecraftToolsStore } from './stores/minecraft'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -122,7 +121,6 @@ function createFullStageRuntime() {
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const inferencePreload = useInferencePreload()
   const pluginHostInspectorStore = usePluginHostInspectorStore()
-  const minecraftToolsStore = useMinecraftToolsStore()
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   const artistryStore = useArtistryStore()
@@ -241,15 +239,6 @@ function createFullStageRuntime() {
         token: serverChannelConfig.authToken || undefined,
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-
-      // Wire the desktop Minecraft integration AFTER the channel client is created with the configured
-      // token, so it never triggers a tokenless auto-init race: registerListener() auto-calls initialize()
-      // with no options when no client exists yet, which would otherwise connect with the default URL / no
-      // token and make the configured initialize above a no-op (it returns the in-flight promise). The
-      // on-auth registry:modules:sync is replayable, so the adapter's late subscription still observes the
-      // in-game bot as online.
-      minecraftToolsStore.setup()
-
       if (!isAuxiliaryChatRoute) {
         contextBridgeStore.initialize()
         if (!isWidgetsWindowRoute()) {
@@ -275,7 +264,6 @@ function createFullStageRuntime() {
     dispose() {
       if (!isAuxiliaryChatRoute)
         contextBridgeStore.dispose()
-      minecraftToolsStore.dispose()
     },
   }
 }

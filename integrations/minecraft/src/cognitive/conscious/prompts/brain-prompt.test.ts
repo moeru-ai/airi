@@ -1,9 +1,19 @@
+import type { Action } from '../../../libs/mineflayer/action'
+
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 
 import { generateBrainSystemPrompt } from './brain-prompt'
 
+/**
+ * @example
+ * generateBrainSystemPrompt(actions, { masterUsername: 'dssadg' }) binds the configured owner.
+ */
 describe('generateBrainSystemPrompt', () => {
+  /**
+   * @example
+   * expect(prompt).toContain('Feedback Loop Guard')
+   */
   it('includes chat feedback loop guard guidance', () => {
     const prompt = generateBrainSystemPrompt([
       {
@@ -13,7 +23,7 @@ describe('generateBrainSystemPrompt', () => {
         schema: z.object({ message: z.string(), feedback: z.boolean().optional() }),
         perform: () => () => '',
       },
-    ] as any)
+    ] satisfies Action[])
 
     expect(prompt).toContain('Feedback Loop Guard')
     expect(prompt).toContain('chat->feedback->chat')
@@ -46,8 +56,12 @@ describe('generateBrainSystemPrompt', () => {
     execution: 'sync',
     schema: z.object({ message: z.string() }),
     perform: () => () => '',
-  }] as any
+  }] satisfies Action[]
 
+  /**
+   * @example
+   * expect(prompt).toContain('master = dssadg')
+   */
   it('binds the master and enforces master-only command authority when a master username is set', () => {
     const prompt = generateBrainSystemPrompt(chatAction, { masterUsername: 'dssadg' })
 
@@ -58,6 +72,10 @@ describe('generateBrainSystemPrompt', () => {
     expect(prompt).toContain('default to declining politely')
   })
 
+  /**
+   * @example
+   * expect(prompt).not.toContain('Master Identity')
+   */
   it('omits the master identity section when no master username is configured', () => {
     const prompt = generateBrainSystemPrompt(chatAction)
 

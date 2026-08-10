@@ -245,27 +245,16 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
   let disposed = false
 
   // === Health Check & Peer Liveness ===
-  function broadcastModuleHealthy(
-    module: { name: string, index?: number, identity: MetadataEventSource },
-    parentId?: string,
-  ) {
-    broadcastToAuthenticated({
-      type: 'registry:modules:health:healthy',
-      data: { name: module.name, index: module.index, identity: module.identity },
-      metadata: createEventMetadata(instanceId, parentId),
-    })
-  }
-
   function broadcastPeerHealthy(peerInfo: AuthenticatedPeer, parentId?: string) {
     if (!peerInfo.authenticated || !peerInfo.name || !peerInfo.identity) {
       return
     }
 
-    broadcastModuleHealthy({
-      name: peerInfo.name,
-      index: peerInfo.index,
-      identity: peerInfo.identity,
-    }, parentId)
+    broadcastToAuthenticated({
+      type: 'registry:modules:health:healthy',
+      data: { name: peerInfo.name, index: peerInfo.index, identity: peerInfo.identity },
+      metadata: createEventMetadata(instanceId, parentId),
+    })
   }
 
   function broadcastPeerUnhealthy(peerInfo: AuthenticatedPeer, reason: string) {
@@ -324,9 +313,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     peersByModule.get(module.name)!.set(module.identity.id, p)
     p.healthy = true
     broadcastRegistrySync()
-    // Registry sync only proves presence. Announce this extension module itself as healthy so
-    // consumers do not have to wait for its parent peer to first become unhealthy and recover.
-    broadcastModuleHealthy(module)
   }
 
   function findModulePeer(moduleName: string, moduleIndex: number | undefined, identity?: MetadataEventSource) {
