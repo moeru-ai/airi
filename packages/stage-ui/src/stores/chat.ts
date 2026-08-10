@@ -2,6 +2,7 @@ import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, StreamE
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message } from '@xsai/shared-chat'
+import type {} from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'

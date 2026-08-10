@@ -809,7 +809,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 generation: chatSession.getSessionGenerationValue(chatSession.activeSessionId),
               }
               chatOrchestrator.sending = true
-              chatStream.beginStream()
+              chatStream.beginStream(event.context.turnId)
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)

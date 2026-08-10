@@ -8,6 +8,7 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
+import type {} from 'pinia-plugin-synced'
 
 import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/providers'
 import type { ModelInfo, ProviderDefinition, ProviderInstance } from '../../libs/providers/types'
