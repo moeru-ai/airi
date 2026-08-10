@@ -219,16 +219,22 @@ export async function streamFrom({
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
+        // Ignore any late provider error event emitted after xsAI has already
+        // resolved the authoritative full-step lifecycle.
+        stepsSettled = true
         try {
           await options?.onStreamEvent?.({ type: 'finish' } as const)
         }
         catch (error) {
-          rejectOnce(error)
+          // The finish listener runs after steps settled, so rejectOnce would
+          // ignore this error as a "late provider event". A listener failure
+          // is still a real failure and must reject the outer promise.
+          if (!settled) {
+            settled = true
+            reject(error)
+          }
           return
         }
-        // Ignore any late provider error event emitted after xsAI has already
-        // resolved the authoritative full-step lifecycle.
-        stepsSettled = true
         let usage: Usage | undefined
         try {
           usage = await streamResult.totalUsage
