@@ -40,8 +40,9 @@ describe('createOpenAICompatibleValidators', () => {
   }
   const provider: ProviderInstance = {
     model: () => ({
-      apiKey: config.apiKey,
+      apiKey: 'test-key',
       baseURL: config.baseUrl,
+      model: 'seed-2-0-pro-260328',
     }),
   } as ProviderInstance
   const providerExtra: ProviderExtraMethods<TestConfig> = {}
@@ -144,5 +145,35 @@ describe('createOpenAICompatibleValidators', () => {
     expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
       model: 'seed-2-0-pro-260328',
     }))
+  })
+
+  it('uses and reports an explicit validation model instead of the first catalog model', async () => {
+    // ROOT CAUSE:
+    //
+    // The chat check selected the first model in the provider catalog. A temporary
+    // failure for that model made the complete provider appear unavailable, even
+    // when another configured model worked. The provider now declares the model
+    // that represents its chat health policy, independent of catalog order.
+    listModelsMock.mockResolvedValue([
+      { id: 'opencode-go/grok-4.5' },
+      { id: 'opencode-go/kimi-k3' },
+    ])
+    generateTextMock.mockRejectedValue(new Error('Endpoint is unavailable.'))
+
+    const [, chatValidator] = getProviderValidators({
+      checks: [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ChatCompletions],
+      normalizeModelId: modelId => modelId.replace(/^opencode-go\//, ''),
+      validationModel: 'opencode-go/kimi-k3',
+    })
+
+    const result = await chatValidator.validator(config, provider, providerExtra, { t: mockT })
+
+    expect(chatValidator.name).toContain('kimi-k3')
+    expect(result.valid).toBe(false)
+    expect(result.reason).toContain('model "kimi-k3"')
+    expect(generateTextMock).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'kimi-k3',
+    }))
+    expect(listModelsMock).not.toHaveBeenCalled()
   })
 })

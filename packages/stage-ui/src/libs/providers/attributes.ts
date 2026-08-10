@@ -91,6 +91,7 @@ const providerAttributesById = {
   'openai-compatible': false,
   'openai-compatible-audio-speech': false,
   'openai-compatible-audio-transcription': false,
+  'opencode-go': paidCloud,
   'openpaths': paidCloud,
   'openrouter-ai': paidCloud,
   'openrouter-audio-speech': paidCloud,
