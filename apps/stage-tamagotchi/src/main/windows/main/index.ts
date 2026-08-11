@@ -149,7 +149,11 @@ export async function setupMainWindow(params: {
     }
   }
 
-  // Keep bounds unconstrained while a drag is in progress so the window can cross display boundaries.
+  // NOTICE:
+  // Bounds recovery is delayed until Electron move/resize events settle so intermediate drag bounds are only persisted.
+  // Immediate recovery during every move event clamps the window into the current display before it can cross monitor boundaries.
+  // Source/context: apps/stage-tamagotchi window recovery for #2181 and Codex review on moeru-ai/airi#2203.
+  // Can be safely deleted if Electron exposes and this code uses a reliable drag-completed event instead.
   const windowBoundsRecoveryDelayMs = 250
 
   function persistWindowBounds(bounds: Rectangle) {

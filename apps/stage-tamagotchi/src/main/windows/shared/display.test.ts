@@ -245,6 +245,15 @@ describe('centerWindowOnDisplay', () => {
 describe('restoreWindowBounds', () => {
   const primaryWorkArea = { x: 0, y: 25, width: 1440, height: 875 }
 
+  // ROOT CAUSE:
+  //
+  // If saved main-window bounds are outside the current display work area, the AIRI window can restore off-screen.
+  // This happens because persisted Electron bounds may come from a removed display or a prior partially visible position.
+  //
+  // Before the patch, startup reused those persisted coordinates directly and left the window unreachable.
+  //
+  // We fixed this by clamping saved bounds into the matching work area, and by falling back to the primary work area
+  // when the saved display is no longer available.
   it('moves a fully off-screen window into the matching display work area', () => {
     expect(restoreWindowBounds({
       savedBounds: { x: -2000, y: -900, width: 450, height: 600 },

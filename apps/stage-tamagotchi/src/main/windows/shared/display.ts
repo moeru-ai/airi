@@ -88,6 +88,14 @@ export function rectanglesOverlap(first: Rectangle, second: Rectangle): boolean 
  *
  * Returns:
  * - Bounds that preserve the saved size when possible and keep the window reachable
+ *
+ * @example
+ * restoreWindowBounds({
+ *   savedBounds: { x: -200, y: 700, width: 450, height: 600 },
+ *   matchingWorkArea: { x: 0, y: 25, width: 1440, height: 875 },
+ *   fallbackWorkArea: { x: 0, y: 25, width: 1440, height: 875 },
+ * })
+ * // => { x: 0, y: 300, width: 450, height: 600 }
  */
 export function restoreWindowBounds(options: {
   savedBounds: Rectangle
