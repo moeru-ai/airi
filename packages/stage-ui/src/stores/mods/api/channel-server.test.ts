@@ -55,6 +55,7 @@ const serverSdkMocks = vi.hoisted(() => {
 
     emit(type: string, data: any) {
       const event = { type, data }
+      this.options.onAnyMessage?.(event)
       for (const callback of this.listeners.get(type) ?? []) {
         void callback(event)
       }
@@ -189,6 +190,45 @@ describe('channel-server store reconnect', () => {
       readTimeout: 60_000,
       pingInterval: 20_000,
     })
+  })
+
+  it('replays the latest status for each module to late subscribers', async () => {
+    const store = useModsServerChannelStore()
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    client.emit('module:status', {
+      identity: { id: 'discord', kind: 'plugin', plugin: { id: 'discord' } },
+      phase: 'ready',
+    })
+    client.emit('module:status', {
+      identity: { id: 'twitter', kind: 'plugin', plugin: { id: 'twitter' } },
+      phase: 'ready',
+    })
+    client.emit('module:status', {
+      identity: { id: 'discord', kind: 'plugin', plugin: { id: 'discord' } },
+      phase: 'failed',
+    })
+
+    const onStatus = vi.fn()
+    store.onEvent('module:status', onStatus)
+
+    expect(onStatus).toHaveBeenCalledTimes(2)
+    expect(onStatus).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        identity: expect.objectContaining({ id: 'discord' }),
+        phase: 'failed',
+      }),
+    }))
+    expect(onStatus).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        identity: expect.objectContaining({ id: 'twitter' }),
+        phase: 'ready',
+      }),
+    }))
   })
 
   it('notifies onReconnected callbacks when the websocket becomes ready again', async () => {
