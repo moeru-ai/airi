@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { useAuthStore } from './auth'
-import { useProvidersStore } from './providers'
+import { useProviderConfigStore } from './providers/config'
 
 const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
 const credentialBasedEssentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'deepseek'] as const
@@ -13,7 +13,7 @@ function hasNonEmptyText(value: unknown): boolean {
 }
 
 export const useOnboardingStore = defineStore('onboarding', () => {
-  const providersStore = useProvidersStore()
+  const providerStore = useProviderConfigStore()
   const authStore = useAuthStore()
 
   // Track if first-time setup has been completed or skipped
@@ -25,7 +25,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
 
   // Check if any essential provider is configured
   const hasEssentialProviderConfigured = computed(() => {
-    return essentialProviderIds.some(providerId => providersStore.configuredProviders[providerId])
+    return essentialProviderIds.some(providerId => providerStore.configuredProviders[providerId])
   })
 
   // Fallback for app startup timing:
@@ -33,7 +33,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   // from persisted essential credentials.
   const hasEssentialProviderCredentialConfigured = computed(() => {
     return credentialBasedEssentialProviderIds.some((providerId) => {
-      const providerConfig = providersStore.providers[providerId] as Record<string, unknown> | undefined
+      const providerConfig = providerStore.getProviderConfig(providerId)
       if (!providerConfig) {
         return false
       }

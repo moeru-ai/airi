@@ -35,6 +35,11 @@ export interface ChatAssistantMessage extends AssistantMessage {
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage
 
+/** Identifies one model-facing tool without storing its runtime executor. */
+export interface ChatToolReference {
+  name: string
+}
+
 export interface ErrorMessage {
   role: 'error'
   content: string
@@ -47,7 +52,13 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
   createdAt: number
 }
 
-export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
+  context?: ContextMessage
+  createdAt?: number
+  id?: string
+  /** Tools selected for this message. The runtime rebuilds executors from these names. */
+  tools?: ChatToolReference[]
+}
 
 export interface ChatStreamEventContext {
   /** Stable correlation id shared by every hook emitted for one user turn. */

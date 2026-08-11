@@ -25,6 +25,11 @@ interface ChannelListenerEntry {
   boundClient?: Client
 }
 
+interface ChannelConnectionIdentity {
+  token?: string
+  url: string
+}
+
 type TextConnectorFactory = (url: string) => ClientConnector<string> | undefined
 
 function hasReconnectableWebSocketScheme(url: string | undefined) {
@@ -53,6 +58,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
+  let connectionAttempt = 0
+  let connectionIdentity: ChannelConnectionIdentity | null = null
   const textConnectorFactory = ref<TextConnectorFactory>()
   const hasEverConnected = ref(false)
   const pendingSend = ref<Array<WebSocketEvent>>([])
@@ -94,14 +101,26 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     possibleEvents?: Array<keyof WebSocketEvents>
     connector?: TextConnectorFactory
   }) {
-    if (connected.value && client.value)
-      return Promise.resolve()
-    if (initializing.value)
-      return initializing.value
-
     if (options?.connector) {
       textConnectorFactory.value = options.connector
     }
+
+    const requestedConnection: ChannelConnectionIdentity = {
+      token: options?.token ?? (websocketAuthToken.value || undefined),
+      url: websocketUrl.value || defaultWebSocketUrl,
+    }
+    const isSameConnection = connectionIdentity?.url === requestedConnection.url
+      && connectionIdentity.token === requestedConnection.token
+
+    if (connected.value && client.value && isSameConnection)
+      return Promise.resolve()
+    if (initializing.value && isSameConnection)
+      return initializing.value
+    if (client.value || initializing.value)
+      dispose()
+
+    connectionIdentity = requestedConnection
+    const attempt = ++connectionAttempt
 
     const possibleEvents = Array.from(new Set<keyof WebSocketEvents>([
       ...basePossibleEvents,
@@ -109,13 +128,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     ]))
 
     initializing.value = new Promise<void>((resolve) => {
-      const currentWebSocketUrl = websocketUrl.value || defaultWebSocketUrl
-      const textConnector = textConnectorFactory.value?.(currentWebSocketUrl)
+      const textConnector = textConnectorFactory.value?.(requestedConnection.url)
 
       client.value = new Client({
         name: isStageWeb() ? WebSocketEventSource.StageWeb : isStageTamagotchi() ? WebSocketEventSource.StageTamagotchi : WebSocketEventSource.StageWeb,
-        url: currentWebSocketUrl,
-        token: options?.token ?? (websocketAuthToken.value || undefined),
+        url: requestedConnection.url,
+        token: requestedConnection.token,
         connector: textConnector
           ? createTextProtocolConnector(textConnector)
           : undefined,
@@ -135,6 +153,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           useWebSocketInspectorStore().add('outgoing', event)
         },
         onError: (error) => {
+          if (attempt !== connectionAttempt)
+            return
+
           connected.value = false
           // Do not clear listeners or replay cache here.
           // onError may be recoverable while the SDK is reconnecting.
@@ -146,6 +167,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           }
         },
         onClose: () => {
+          if (attempt !== connectionAttempt)
+            return
+
           connected.value = false
 
           if (!hasEverConnected.value) {
@@ -156,6 +180,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           // Terminal failure: handled by onStateChange status === 'failed'.
         },
         onStateChange: ({ status }) => {
+          if (attempt !== connectionAttempt)
+            return
+
           if (status === 'failed') {
             // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
             connected.value = false
@@ -164,6 +191,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           }
         },
         onReady: () => {
+          if (attempt !== connectionAttempt)
+            return
+
           const isReconnect = hasEverConnected.value
 
           hasEverConnected.value = true
@@ -189,6 +219,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
       })
 
       client.value.onEvent('module:authenticated', (event) => {
+        if (attempt !== connectionAttempt)
+          return
+
         if (event.data.authenticated) {
           if (!hasEverConnected.value) {
             // First connection can flush immediately after authentication.
@@ -315,6 +348,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function dispose() {
+    connectionAttempt += 1
+    connectionIdentity = null
     flush()
     hasEverConnected.value = false
     connected.value = false

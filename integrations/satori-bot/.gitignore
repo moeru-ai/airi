@@ -1,0 +1,15 @@
+# Database persistence (generated locally; do not commit)
+data/*
+!data/.gitkeep
+
+# Environment Secrets
+.env
+.env.local
+
+# Node.js
+node_modules/
+dist/
+*.log
+
+# OS Files
+.DS_Store

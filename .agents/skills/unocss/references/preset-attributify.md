@@ -86,12 +86,12 @@ presetAttributify({
 
 ```ts
 presetAttributify({
-  strict: false, // Only generate CSS for attributify
-  prefix: 'un-', // Attribute prefix
-  prefixedOnly: false, // Require prefix for all
+  strict: false,           // Only generate CSS for attributify
+  prefix: 'un-',           // Attribute prefix
+  prefixedOnly: false,     // Require prefix for all
   nonValuedAttribute: true, // Support valueless attributes
-  ignoreAttributes: [], // Attributes to ignore
-  trueToNonValued: false, // Treat value="true" as valueless
+  ignoreAttributes: [],    // Attributes to ignore
+  trueToNonValued: false,  // Treat value="true" as valueless
 })
 ```
 
@@ -136,7 +136,7 @@ export default defineConfig({
 
 **Important:** Only use attributify if `uno.config.*` shows `presetAttributify()` is enabled.
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/attributify
 -->

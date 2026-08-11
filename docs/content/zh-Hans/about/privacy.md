@@ -34,7 +34,6 @@ description: Project AIRI 的隐私政策
 请注意，应用程序使用具有其自己隐私政策的第三方服务来处理数据。以下是应用程序使用的第三方服务提供商的隐私政策链接：
 
 *   [Posthog](https://posthog.com/privacy)
-*   [Plausible Analytics](https://plausible.io/privacy)
 
 服务提供商可能会披露用户提供的和自动收集的信息：
 

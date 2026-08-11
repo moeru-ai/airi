@@ -26,11 +26,11 @@ reaching feature parity with the Live2D and VRM renderers:
   lights, albedo glow, render scale, physics gravity, and per-material opacity
   — all live, persisted, and synced across windows.
 
-It builds on [`three-stdlib`](https://github.com/pmndrs/three-stdlib) (the
-maintained TypeScript port of three.js' `examples/jsm`) for `MMDLoader`,
-`MMDAnimationHelper`, `MMDPhysics`, and `CCDIKSolver`, because upstream three
-removed the first-party MMD modules in r168. Physics uses `ammojs-typed`,
-loaded lazily so the WASM binary only ships once an MMD model is mounted.
+It builds on [`@moeru/three-mmd`](https://github.com/moeru-ai/three-mmd) for
+PMX/PMD loading, VMD animation building, IK, append-bone propagation, toon
+materials, outlines, and the shared runtime update order. Physics comes from
+`@moeru/three-mmd-physics-ammo` and is loaded lazily, so the Ammo WASM runtime
+is initialized only after a live MMD model is mounted.
 
 ## How to use
 

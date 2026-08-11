@@ -1,0 +1,24 @@
+{
+  "name": "@proj-airi/audio-input-e2e",
+  "type": "module",
+  "version": "0.11.3",
+  "private": true,
+  "description": "End-to-end audio input contracts for AIRI Web and Electron",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "scripts": {
+  },
+  "dependencies": {
+    "@pnpm/find-workspace-dir": "catalog:",
+    "@proj-airi/stage-shared": "workspace:^",
+    "playwright": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:"
+  }
+}

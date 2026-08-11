@@ -2,12 +2,11 @@
 import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { errorMessageFrom } from '@moeru/std'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
@@ -22,24 +21,23 @@ import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
-import { useChatSyncStore } from '../stores/chat-sync'
+import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 
 const router = useRouter()
 const messageInput = ref('')
 const lastEnterTime = ref(0)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
-const chatOrchestrator = useChatOrchestratorStore()
+const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
-const chatSyncStore = useChatSyncStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
 
 const { messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
+const { sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
@@ -48,7 +46,6 @@ const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
-type ToolCallRerunToolset = 'widgets' | 'artistry'
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
@@ -95,25 +92,19 @@ async function handleSend() {
   attachments.value = []
 
   try {
-    await chatSyncStore.requestIngest({
+    await chatStore.send({
+      sessionId: chatSession.activeSessionId,
       text: textToSend,
       attachments: attachmentsToSend,
-      toolset: 'artistry',
+      tools: artistryToolReferences,
     })
 
     attachmentsToSend.forEach(att => URL.revokeObjectURL(att.url))
   }
-  catch (error) {
+  catch {
     // restore on failure
     messageInput.value = textToSend
     attachments.value = attachmentsToSend
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value,
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
   }
 }
 
@@ -207,7 +198,10 @@ const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefine
 
 async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  await chatSyncStore.requestDeleteMessage({ index })
+  await chatSession.deleteMessage({
+    sessionId: chatSession.activeSessionId,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -219,34 +213,21 @@ onMounted(() => {
 })
 
 async function handleRetryMessage(index: number) {
-  await chatSyncStore.requestRetry({
+  await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
+    tools: widgetToolReferences,
   })
   trackChatMessageRetried({
     source: 'history',
   })
 }
 
-function resolveToolCallRerunToolset(toolName: string): ToolCallRerunToolset | undefined {
-  // TODO: Stop hardcoding tool names to app-local toolsets. Tool registration
-  // should expose the owning runtime/toolset id so reruns can reuse the exact
-  // source that created the original tool call.
-  if (toolName === 'image_journal' || toolName === 'text_journal')
-    return 'artistry'
-
-  if (toolName === 'stage_widgets' || toolName === 'get_weather')
-    return 'widgets'
-
-  return undefined
-}
-
 async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }) {
-  await chatSyncStore.requestToolCallRerun({
+  await chatStore.rerunToolCall({
     sessionId: chatSession.activeSessionId,
     messageId: payload.message.id,
     index: payload.index,
-    toolset: resolveToolCallRerunToolset(payload.toolName),
     toolCallId: payload.toolCallId,
     toolName: payload.toolName,
     args: payload.args,
@@ -255,7 +236,7 @@ async function handleToolCallRerun(payload: { message: ChatHistoryItem, index: n
 
 async function handleCleanupMessages() {
   const messageCount = messages.value.filter(message => message.role !== 'system').length
-  await chatSyncStore.requestCleanup()
+  await chatStore.cleanup(chatSession.activeSessionId)
   trackChatMessagesCleared({
     source: 'chat_controls',
     message_count: messageCount,

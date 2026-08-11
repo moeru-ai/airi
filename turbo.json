@@ -5,7 +5,7 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "@proj-airi/server-schema#build": {
+    "@proj-airi/drizzle-migration#build": {
       "cache": false
     },
     "@proj-airi/electron-vueuse#build": {

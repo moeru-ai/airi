@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { OnboardingScreen, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
-import { isPosthogAvailableInBuild } from '@proj-airi/stage-ui/stores/analytics'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useTheme } from '@proj-airi/ui'
@@ -30,7 +30,7 @@ watch(needsLogin, async (val) => {
 
 const bgClass = computed(() => isDark.value ? 'bg-[#0f0f0f]' : 'bg-white')
 const extraSteps = computed(() => {
-  return isPosthogAvailableInBuild()
+  return isAnalyticsAvailableInBuild()
     ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
     : []
 })
@@ -53,10 +53,8 @@ async function handleConfigured() {
     :class="bgClass"
   >
     <div class="min-h-8 w-full flex-shrink-0 select-none drag-region" :class="bgClass" />
-    <div class="onboarding-scroll min-h-0 w-full flex flex-1 flex-col overflow-hidden px-10">
-      <div class="onboarding-content min-h-0 flex flex-1 flex-col overflow-hidden">
-        <OnboardingScreen :extra-steps="extraSteps" @skipped="handleSkipped" @configured="handleConfigured" />
-      </div>
+    <div class="mx-8 mb-8 mt-2 min-h-0 flex flex-1 flex-col">
+      <OnboardingScreen :extra-steps="extraSteps" @skipped="handleSkipped" @configured="handleConfigured" />
     </div>
   </div>
 </template>
@@ -68,15 +66,6 @@ async function handleConfigured() {
 
 .onboarding-root::-webkit-scrollbar {
   display: none;
-}
-
-.onboarding-content {
-  padding: 8px 0 20px 0;
-}
-
-.onboarding-scroll {
-  padding-top: 8px;
-  padding-bottom: 20px;
 }
 </style>
 

@@ -1,6 +1,6 @@
 import type { DefaultTheme } from 'vitepress'
 
-import type { ThemeConfig } from './theme/config.ts'
+import type { ThemeConfig } from './theme/config'
 
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
@@ -15,7 +15,7 @@ import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
-import { webLive } from './constants.ts'
+import { webLive } from './constants'
 import { teamMembers } from './contributors'
 import {
   discord,
@@ -63,13 +63,6 @@ export default defineConfig<ThemeConfig>({
     ['meta', { name: 'twitter:image', content: ogImage }],
     ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['link', { rel: 'mask-icon', href: '/logo.svg', color: '#ffffff' }],
-    // Proxying Plausible through Netlify | Plausible docs
-    // https://plausible.io/docs/proxy/guides/netlify
-    ['script', { async: '', src: 'https://plausible.io/js/pa-HI8-_JIBI6d_2IgIr2Tai.js' }],
-    ['script', {}, `
-      window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
-      plausible.init()
-    `],
     ['script', {}, `
       ;(function () {
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -144,6 +137,7 @@ export default defineConfig<ThemeConfig>({
           {
             text: 'Manual',
             icon: 'lucide:book-open',
+            link: withBase('/en/docs/manual/'),
             items: [
               {
                 text: 'Quick Start',
@@ -200,11 +194,6 @@ export default defineConfig<ThemeConfig>({
               { text: 'Initial Publish v0.1.0', link: withBase('/en/docs/chronicles/version-v0.1.0/') },
               { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
             ],
-          },
-          {
-            text: 'Characters',
-            icon: 'lucide:scan-face',
-            link: withBase('/en/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
@@ -289,12 +278,12 @@ export default defineConfig<ThemeConfig>({
                   { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
                 ],
               },
-              { text: '角色', link: withBase('/zh-Hans/characters/') },
             ],
           },
           {
             text: '用户手册',
             icon: 'lucide:book-open',
+            link: withBase('/zh-Hans/docs/manual/'),
             items: [
               {
                 text: '快速开始',
@@ -528,6 +517,7 @@ export default defineConfig<ThemeConfig>({
           {
             text: 'マニュアル',
             icon: 'lucide:book-open',
+            link: withBase('/ja/docs/manual/'),
             items: [
               {
                 text: 'クイックスタート',
@@ -584,11 +574,6 @@ export default defineConfig<ThemeConfig>({
               { text: '前日譚 v0.0.1', link: withBase('/ja/docs/chronicles/version-v0.0.1/') },
             ],
           },
-          {
-            text: 'キャラクター',
-            icon: 'lucide:scan-face',
-            link: withBase('/ja/characters/'),
-          },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
         homepage: {
@@ -606,6 +591,144 @@ export default defineConfig<ThemeConfig>({
             {
               text: 'はじめに',
               link: withBase('/ja/docs/overview/'),
+            },
+          ],
+        },
+      },
+    },
+    'ko': {
+      label: '한국어',
+      lang: 'ko',
+      themeConfig: {
+        // https://vitepress.dev/reference/default-theme-config
+        nav: [
+          { text: '문서', link: withBase('/ko/docs/overview/') },
+          { text: '블로그', link: withBase('/ko/blog/') },
+          {
+            text: `v${version}`,
+            items: [
+              { text: '릴리스 노트', link: releases },
+            ],
+          },
+          {
+            text: '소개',
+            items: [
+              { text: '개인정보 처리방침', link: withBase('/ko/about/privacy') },
+              { text: '이용약관', link: withBase('/ko/about/terms') },
+            ],
+          },
+        ],
+        outline: {
+          level: 'deep',
+          label: '이 페이지의 내용',
+        },
+        docFooter: {
+          prev: '이전 페이지',
+          next: '다음 페이지',
+        },
+        editLink: {
+          pattern: 'https://github.com/moeru-ai/airi/edit/main/docs/content/:path',
+          text: 'GitHub에서 이 페이지 편집하기',
+        },
+        lastUpdated: {
+          text: '마지막 업데이트',
+        },
+        darkModeSwitchLabel: '테마',
+        sidebarMenuLabel: '메뉴',
+        returnToTopLabel: '맨 위로',
+        langMenuLabel: '언어 변경',
+        logo: withBase('/favicon.svg'),
+
+        sidebar: [
+          {
+            text: '개요',
+            icon: 'lucide:rocket',
+            items: [
+              { text: '소개', link: withBase('/ko/docs/overview/') },
+              { text: '버전과 다운로드', link: withBase('/ko/docs/overview/versions') },
+              { text: 'AI VTuber 란', link: withBase('/ko/docs/overview/about-ai-vtuber') },
+              { text: 'Neuro-sama 란', link: withBase('/ko/docs/overview/about-neuro-sama') },
+              { text: '비슷한 다른 프로젝트들', link: withBase('/ko/docs/overview/other-similar-projects') },
+            ],
+          },
+          {
+            text: '사용 설명서',
+            icon: 'lucide:book-open',
+            link: withBase('/ko/docs/manual/'),
+            items: [
+              {
+                text: '빠른 시작',
+                items: [
+                  { text: '데스크톱 버전', link: withBase('/ko/docs/manual/tamagotchi/') },
+                  { text: '웹 버전', link: withBase('/ko/docs/manual/web/') },
+                ],
+              },
+              { text: '설치와 사용', link: withBase('/ko/docs/manual/tamagotchi/setup-and-use/') },
+              {
+                text: '설정',
+                items: [
+                  { text: '설정 가이드', link: withBase('/ko/docs/manual/config/') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '기여하기',
+            icon: 'lucide:users',
+            items: [
+              {
+                text: '기본 설정',
+                items: [
+                  { text: '개발 환경 설정과 사전 준비', link: withBase('/ko/docs/contributing/') },
+                  { text: '데스크톱 앱', link: withBase('/ko/docs/contributing/tamagotchi') },
+                  { text: '웹 UI', link: withBase('/ko/docs/contributing/webui') },
+                  { text: '문서 사이트', link: withBase('/ko/docs/contributing/docs') },
+                ],
+              },
+              {
+                text: '게임 & 소셜 플랫폼',
+                items: [
+                  { text: 'Minecraft', link: withBase('/ko/docs/contributing/services/minecraft') },
+                  { text: 'Satori 봇', link: withBase('/ko/docs/contributing/services/satori') },
+                  { text: 'Telegram 봇', link: withBase('/ko/docs/contributing/services/telegram') },
+                  { text: 'Discord 봇', link: withBase('/ko/docs/contributing/services/discord') },
+                ],
+              },
+              {
+                text: '디자인 가이드라인',
+                items: [
+                  { text: '소개', link: withBase('/ko/docs/contributing/design-guidelines/') },
+                  { text: '아티스트 & 개발자 (참고 자료)', link: withBase('/ko/docs/contributing/design-guidelines/resources') },
+                  { text: '도구', link: withBase('/ko/docs/contributing/design-guidelines/tools') },
+                ],
+              },
+            ],
+          },
+          {
+            text: '연대기',
+            icon: 'lucide:calendar-days',
+            items: [
+              { text: '첫 공개 v0.1.0', link: withBase('/ko/docs/chronicles/version-v0.1.0/') },
+              { text: '그 이전 이야기 v0.0.1', link: withBase('/ko/docs/chronicles/version-v0.0.1/') },
+            ],
+          },
+        ] as (DefaultTheme.SidebarItem & { icon?: string })[],
+
+        homepage: {
+          buttons: [
+            {
+              text: '라이브 데모 체험하기',
+              link: webLive,
+              primary: true,
+              target: '_self',
+            },
+            {
+              text: '다운로드',
+              link: withBase('/ko/docs/overview/versions'),
+            },
+            {
+              text: '시작하기',
+              link: withBase('/ko/docs/overview/'),
             },
           ],
         },

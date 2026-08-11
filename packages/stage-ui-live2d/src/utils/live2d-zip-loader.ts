@@ -102,6 +102,29 @@ function sanitizeModelSettingsText(text: string): string {
   return JSON.stringify(json)
 }
 
+/**
+ * Normalizes a resolved Live2D resource path to the decoded archive representation.
+ *
+ * @example
+ * normalizeLive2DArchivePath('Model%20Package/Avatar%20Model.moc3')
+ * // => 'Model Package/Avatar Model.moc3'
+ */
+function normalizeLive2DArchivePath(path: string): string {
+  try {
+    return decodeURI(path)
+  }
+  catch {
+    // Malformed percent escapes cannot be URI-decoded and therefore represent a literal archive path.
+    return path
+  }
+}
+
+function useArchivePathResolution(settings: ModelSettings): ModelSettings {
+  const resolveURL = settings.resolveURL.bind(settings)
+  settings.resolveURL = path => normalizeLive2DArchivePath(resolveURL(path))
+  return settings
+}
+
 function createModelSettings(text: string, url: string): ModelSettings {
   if (!text) {
     throw new Error(`Empty settings file: ${url}`)
@@ -115,7 +138,7 @@ function createModelSettings(text: string, url: string): ModelSettings {
     throw new Error('Unknown settings JSON')
   }
 
-  return runtime.createModelSettings(settingsJSON)
+  return useArchivePathResolution(runtime.createModelSettings(settingsJSON))
 }
 
 export function isSettingsFile(file: string) {

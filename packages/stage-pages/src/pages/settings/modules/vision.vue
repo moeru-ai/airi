@@ -3,18 +3,21 @@ import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@pr
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
-const { persistedVisionProvidersMetadata, configuredProviders } = storeToRefs(providersStore)
+const { configuredProviders } = storeToRefs(providerStore)
+const { persistedVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
   activeProvider,
   activeModel,

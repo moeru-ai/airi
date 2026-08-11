@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
@@ -32,6 +30,9 @@ vi.mock('../../../../composables/audio', async () => {
   return {
     useAudioDevice: () => ({
       audioInputs: ref([createAudioInput('store-microphone', 'Store microphone')]),
+      audioInputOptions: computed(() => [
+        { label: 'Store microphone', value: 'store-microphone' },
+      ]),
       selectedAudioInput: ref('store-microphone'),
       stream: shallowRef<MediaStream>(),
       deviceConstraints: computed(() => ({ audio: true })),

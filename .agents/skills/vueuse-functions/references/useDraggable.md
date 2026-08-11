@@ -210,7 +210,7 @@ export interface UseDraggableOptions {
    *
    * @default 'both'
    */
-  axis?: 'x' | 'y' | 'both'
+  axis?: "x" | "y" | "both"
   /**
    * Disabled drag and drop.
    *
@@ -247,25 +247,25 @@ export interface UseDraggableOptions {
   autoScroll?: MaybeRefOrGetter<
     | boolean
     | {
-      /**
-       * Speed of auto-scroll.
-       *
-       * @default 2
-       */
-      speed?: MaybeRefOrGetter<number | Position>
-      /**
-       * Margin from the edge to trigger auto-scroll.
-       *
-       * @default 30
-       */
-      margin?: MaybeRefOrGetter<number | Position>
-      /**
-       * Direction of auto-scroll.
-       *
-       * @default 'both'
-       */
-      direction?: 'x' | 'y' | 'both'
-    }
+        /**
+         * Speed of auto-scroll.
+         *
+         * @default 2
+         */
+        speed?: MaybeRefOrGetter<number | Position>
+        /**
+         * Margin from the edge to trigger auto-scroll.
+         *
+         * @default 30
+         */
+        margin?: MaybeRefOrGetter<number | Position>
+        /**
+         * Direction of auto-scroll.
+         *
+         * @default 'both'
+         */
+        direction?: "x" | "y" | "both"
+      }
   >
 }
 export interface UseDraggableReturn {

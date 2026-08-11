@@ -147,6 +147,10 @@ export class VAD implements BaseVAD {
         // Speech just started
         this.emit('speech-start', undefined)
         this.emit('status', { type: 'info', message: 'Speech detected' })
+        this.emit('speech-audio', { buffer: this.createLeadingSpeechAudio(inputBuffer) })
+      }
+      else {
+        this.emit('speech-audio', { buffer: inputBuffer.slice() })
       }
 
       // Update state
@@ -157,6 +161,7 @@ export class VAD implements BaseVAD {
     }
 
     // At this point, we were recording but the current buffer is not speech
+    this.emit('speech-audio', { buffer: inputBuffer.slice() })
     this.postSpeechSamples += inputBuffer.length
 
     // Check if silence is long enough to consider speech ended
@@ -164,6 +169,7 @@ export class VAD implements BaseVAD {
       // Check if the speech segment is long enough to process
       if (this.bufferPointer < minSpeechDurationSamples) {
         // Too short, reset without processing
+        this.emit('speech-end', undefined)
         this.reset()
 
         return
@@ -172,6 +178,21 @@ export class VAD implements BaseVAD {
       // Process the speech segment
       this.processSpeechSegment()
     }
+  }
+
+  /** Combines VAD's retained pre-speech padding with the first detected speech chunk. */
+  private createLeadingSpeechAudio(inputBuffer: Float32Array): Float32Array {
+    const leadingLength = this.prevBuffers.reduce((total, buffer) => total + buffer.length, 0)
+    const output = new Float32Array(leadingLength + inputBuffer.length)
+    let offset = 0
+
+    for (const buffer of this.prevBuffers) {
+      output.set(buffer, offset)
+      offset += buffer.length
+    }
+
+    output.set(inputBuffer, offset)
+    return output
   }
 
   /**

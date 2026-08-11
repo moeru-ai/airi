@@ -24,6 +24,8 @@ import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -38,9 +40,9 @@ import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
-import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 import { createVoiceInputInteractionLifecycle } from '../utils/voice-input-lifecycle'
 import {
@@ -139,10 +141,6 @@ const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
-}, { immediate: true })
-
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
@@ -236,12 +234,29 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+/**
+ * Keeps the rendered fade state and Electron click-through state synchronized.
+ *
+ * Triggering workflow:
+ *
+ * {@link watch}
+ *   -> `fade-on-hover reactive state change`
+ *     -> {@link handleFadeOnHoverInteractionChange}
+ *
+ * Upstream:
+ * - {@link isOutsideFor250Ms}, {@link isOutsideStatusIslandFor250Ms}, and {@link isAroundWindowBorderFor250Ms}
+ * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
+ * - {@link hearingDialogOpen}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ *
+ * Downstream:
+ * - {@link resolveFadeOnHoverInteraction}
+ * - {@link setIgnoreMouseEvents}
+ */
+function handleFadeOnHoverInteractionChange() {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
@@ -250,7 +265,6 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
@@ -262,23 +276,26 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
   }
   else {
-    const fadeEnabled = fadeOnHoverEnabled.value
-    // Keep visible model pixels interactive; only the exact transparent pixel under the cursor
-    // should pass clicks through. The fuzzy transparency value above is intentionally reserved
-    // for fade stability near model edges.
-    const shouldIgnoreMouseEvents = fadeEnabled && isTransparentForMouseEvents.value
-    isIgnoringMouseEvents.value = shouldIgnoreMouseEvents
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([shouldIgnoreMouseEvents, { forward: true }])
-    if (fadeEnabled)
-      resume()
-    else
-      pause()
+    const interaction = resolveFadeOnHoverInteraction({
+      cursorInsideWindow: !isOutsideWindow.value,
+      enabled: fadeOnHoverEnabled.value,
+      transparentForFade: isTransparent.value,
+      transparentForPointer: isTransparentForMouseEvents.value,
+    })
+
+    isIgnoringMouseEvents.value = interaction.ignoreMouseEvents
+    shouldFadeOnCursorWithin.value = interaction.fadeStage
+    setIgnoreMouseEvents([interaction.ignoreMouseEvents, { forward: true }])
   }
-})
+}
+
+watch(
+  [isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
+  handleFadeOnHoverInteractionChange,
+  { immediate: true },
+)
 
 // Emit runtime snapshot on change and on request from settings panel
 /**
@@ -310,7 +327,8 @@ const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(he
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
-const chatSyncStore = useChatSyncStore()
+const chatStore = useChatStore()
+const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
@@ -490,7 +508,10 @@ function postSpeakerCaption(text: string) {
  */
 async function sendVoiceInputTextToChat(text: string) {
   try {
-    await chatSyncStore.requestIngest({ text })
+    await chatStore.send({
+      sessionId: chatSession.activeSessionId,
+      text,
+    })
   }
   catch (err) {
     reportVoiceInputFailure('send to chat', err)

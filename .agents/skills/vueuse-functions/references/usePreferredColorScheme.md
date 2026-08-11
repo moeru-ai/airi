@@ -27,7 +27,7 @@ const preferredColor = usePreferredColorScheme()
 ## Type Declarations
 
 ```ts
-export type ColorSchemeType = 'dark' | 'light' | 'no-preference'
+export type ColorSchemeType = "dark" | "light" | "no-preference"
 /**
  * Reactive prefers-color-scheme media query.
  *

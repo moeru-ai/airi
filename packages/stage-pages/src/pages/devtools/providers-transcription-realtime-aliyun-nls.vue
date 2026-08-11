@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/stores/providers/aliyun'
+import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/libs/providers/providers/aliyun-nls'
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
-import { createAliyunNLSProvider, streamAliyunTranscription } from '@proj-airi/stage-ui/stores/providers/aliyun/stream-transcription'
+import { createAliyunNLSProvider } from '@proj-airi/stage-ui/libs/providers/providers/aliyun-nls'
+import { streamTranscription } from '@proj-airi/stage-ui/libs/providers/stream-transcription'
 import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { computed, nextTick, onBeforeUnmount, reactive, ref, shallowRef, watch } from 'vue'
 
@@ -159,7 +160,7 @@ async function startRecording() {
 
   appendLog('Initializing realtime transcription session')
 
-  const transcriptionResult = streamAliyunTranscription({
+  const transcriptionResult = streamTranscription({
     ...createAliyunNLSProvider(
       credentials.accessKeyId.trim(),
       credentials.accessKeySecret.trim(),
@@ -184,7 +185,7 @@ async function startRecording() {
       },
     }),
     inputAudioStream: audioStream,
-  } as unknown as Parameters<typeof streamAliyunTranscription>[0])
+  })
   transcriptionTextPromise.value = transcriptionResult.text
   isTranscribing.value = true
 
@@ -417,7 +418,7 @@ onBeforeUnmount(async () => {
         <div class="flex flex-wrap gap-3">
           <Button
             :disabled="!canStartRecording"
-            variant="primary"
+
             @click="startRecording"
           >
             Start Recording
@@ -425,7 +426,7 @@ onBeforeUnmount(async () => {
 
           <Button
             :disabled="!canStopRecording"
-            variant="primary"
+
             @click="stopRecording"
           >
             Stop Recording
@@ -434,7 +435,7 @@ onBeforeUnmount(async () => {
           <Button
             v-if="isTranscribing"
             :disabled="!canAbortTranscription"
-            variant="secondary"
+
             @click="abortTranscription"
           >
             Abort Transcription

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 
 import { WEB_SEARCH_TOOLSET_PROMPT } from '../../tools/web-search'
-import { useLlmToolsetPromptsStore } from '../llm-toolset-prompts'
+import { useLlmToolsetPromptsStore } from '../ai/chat-llm/toolset-prompts'
 import { useWebSearchStore } from './web-search'
 
 describe('useWebSearchStore', () => {

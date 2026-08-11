@@ -176,12 +176,12 @@ export interface UseMediaControlsReturn {
   seeking: ShallowRef<boolean>
   ended: ShallowRef<boolean>
   stalled: ShallowRef<boolean>
-  buffered: Ref<[number, number][]>
+  buffered: ShallowRef<[number, number][]>
   playing: ShallowRef<boolean>
   rate: ShallowRef<number>
   volume: ShallowRef<number>
   muted: ShallowRef<boolean>
-  tracks: Ref<UseMediaTextTrack[]>
+  tracks: ShallowRef<UseMediaTextTrack[]>
   selectedTrack: ShallowRef<number>
   enableTrack: (
     track: number | UseMediaTextTrack,

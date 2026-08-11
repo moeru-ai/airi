@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { capturePosthogEvent } from '../analytics/posthog'
+import { captureAnalyticsEvent } from '../../libs/analytics'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
@@ -76,7 +76,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
-    capturePosthogEvent('card_created', { card_id: newCardId, source })
+    captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
 
@@ -94,7 +94,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (activeCardId.value === id)
       activeCardId.value = 'default'
 
-    capturePosthogEvent('character_deleted', { character_id: id })
+    captureAnalyticsEvent('character_deleted', { character_id: id })
     return true
   }
 

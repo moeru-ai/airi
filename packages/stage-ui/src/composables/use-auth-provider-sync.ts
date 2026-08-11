@@ -7,7 +7,7 @@ import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useVisionStore } from '../stores/modules/vision'
-import { useProvidersStore } from '../stores/providers'
+import { useProviderStore } from '../stores/providers/provider'
 import { useAnalytics } from './use-analytics'
 
 /**
@@ -40,7 +40,7 @@ export function useAuthProviderSync() {
   initializeAuth()
 
   const authStore = useAuthStore()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const consciousnessStore = useConsciousnessStore()
   const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
@@ -81,7 +81,7 @@ export function useAuthProviderSync() {
       return
 
     const toActivate = AUTH_ACTIVATED_PROVIDERS.filter(
-      p => providersStore.getProviderMetadata(p.id) != null,
+      p => providersStore.findProviderDefinition(p.id) != null,
     )
 
     for (const { id } of toActivate) {
@@ -157,7 +157,7 @@ export function useAuthProviderSync() {
   // settings card + picker); force-configure makes it selectable. It is never
   // set as the active speech provider — the HTTP TTS provider stays default.
   async function syncStreamingSpeechProvider() {
-    if (providersStore.getProviderMetadata(STREAMING_SPEECH_PROVIDER_ID) == null)
+    if (providersStore.findProviderDefinition(STREAMING_SPEECH_PROVIDER_ID) == null)
       return
 
     await providersStore.fetchModelsForProvider(STREAMING_SPEECH_PROVIDER_ID)

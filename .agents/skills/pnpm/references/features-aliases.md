@@ -130,7 +130,7 @@ Force all transitive dependencies to use an alias:
 ```yaml
 # pnpm-workspace.yaml
 overrides:
-  'underscore': 'npm:lodash@^4.17.21'
+  "underscore": "npm:lodash@^4.17.21"
 ```
 
 This replaces all `underscore` imports (including in dependencies) with lodash.
@@ -148,6 +148,21 @@ Aliases work with any valid pnpm specifier:
 }
 ```
 
+## Registry Aliases (namedRegistries)
+
+Distinct from package aliases: a `namedRegistries` prefix selects *which registry* a package is fetched from.
+
+```yaml title="pnpm-workspace.yaml"
+namedRegistries:
+  work: https://npm.work.example.com/
+```
+
+```bash
+pnpm add work:@corp/lib@^2.0.0   # resolves @corp/lib against the work registry
+```
+
+The built-in `gh:` alias points at GitHub Packages. Auth is reused from per-URL `.npmrc` entries.
+
 ## Best Practices
 
 1. **Clear naming**: Use descriptive alias names that indicate purpose
@@ -156,13 +171,15 @@ Aliases work with any valid pnpm specifier:
    "lodash-modern": "npm:lodash@4"
    ```
 
-2. **Document aliases**: Add comments or documentation explaining why aliases exist
+2. **Document aliases**: explain why aliases exist
 
-3. **Prefer overrides for global replacement**: If you want to replace a package everywhere, use overrides instead of aliases
+3. **Prefer overrides for global replacement**: to replace a package everywhere, use `overrides` (in `pnpm-workspace.yaml`) instead of aliases
 
 4. **Test thoroughly**: Aliased packages may have subtle differences in behavior
 
 <!--
 Source references:
 - https://pnpm.io/aliases
+- https://pnpm.io/settings#namedregistries
 -->
+

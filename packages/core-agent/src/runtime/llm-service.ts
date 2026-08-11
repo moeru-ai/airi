@@ -114,14 +114,14 @@ function createCapturedToolErrorResult(toolName: string, error: unknown): string
 }
 
 function normalizeUsage(usage: Usage | undefined) {
-  if (!usage || (usage.prompt_tokens == null && usage.completion_tokens == null && usage.total_tokens == null)) {
+  if (usage?.inputTokens == null || usage.outputTokens == null || usage.totalTokens == null) {
     return { source: 'unavailable' as const }
   }
 
   return {
-    inputTokens: usage.prompt_tokens,
-    outputTokens: usage.completion_tokens,
-    totalTokens: usage.total_tokens,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    totalTokens: usage.totalTokens,
     source: 'reported' as const,
   }
 }
@@ -241,6 +241,7 @@ export async function streamFrom({
         // chat body, so unknown runtime-only fields can be rejected upstream.
         // AIRI captures tool failures by wrapping local tool executors instead.
         tools: streamTools,
+        toolChoice: options?.toolChoice,
         onEvent,
       })
 

@@ -1,0 +1,200 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index a596849dec1316dd84e4261650aa6b439327a4f5..b238d42480e4654cdb89d0619540275b7796e80d 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1,5 +1,35 @@
+ import { WithUnknown } from '@xsai/shared';
+-import { ToolCall, FinishReason, ChatCompletionUsage, ChatOptions, Event, CompletionStep, PostToolCall, PrepareStep, PreToolCall, StopCondition, Message, Usage } from '@xsai/shared-chat';
++import { CompletionToolCall, CompletionToolResult, ToolCall, FinishReason, ChatCompletionUsage, ChatOptions, CompletionStep, OnToolCallFinishCallback, OnToolCallStartCallback, PostToolCall, PrepareStep, PreToolCall, RepairToolCallFunction, StopCondition, Message, Usage } from '@xsai/shared-chat';
++
++type StreamTextEvent = (CompletionToolCall & {
++    type: 'tool-call';
++}) | (CompletionToolResult & {
++    type: 'tool-error';
++}) | (CompletionToolResult & {
++    type: 'tool-result';
++}) | {
++    argsTextDelta: string;
++    toolCallId: string;
++    toolName: string;
++    type: 'tool-call-delta';
++} | {
++    error: unknown;
++    type: 'error';
++} | {
++    finishReason: FinishReason;
++    type: 'finish';
++    usage?: Usage;
++} | {
++    text: string;
++    type: 'reasoning-delta';
++} | {
++    text: string;
++    type: 'text-delta';
++} | {
++    toolCallId: string;
++    toolName: string;
++    type: 'tool-call-streaming-start';
++};
+ 
+ interface StreamTextChunkResult {
+     choices: {
+@@ -27,12 +57,16 @@ interface StreamTextChunkResult {
+ }
+ 
+ interface StreamTextOptions extends ChatOptions {
+-    onEvent?: (event: Event) => Promise<unknown> | unknown;
++    onEvent?: (event: StreamTextEvent) => Promise<unknown> | unknown;
+     onFinish?: (step?: CompletionStep) => Promise<unknown> | unknown;
+     onStepFinish?: (step: CompletionStep) => Promise<unknown> | unknown;
++    captureToolErrors?: boolean;
++    onToolCallFinish?: OnToolCallFinishCallback;
++    onToolCallStart?: OnToolCallStartCallback;
+     postToolCall?: PostToolCall;
+     prepareStep?: PrepareStep;
+     preToolCall?: PreToolCall;
++    repairToolCall?: RepairToolCallFunction;
+     /** @default `stepCountAtLeast(1)` */
+     stopWhen?: StopCondition<Message>;
+     /**
+@@ -48,8 +82,8 @@ interface StreamTextOptions extends ChatOptions {
+     };
+ }
+ interface StreamTextResult {
+-    eventStream: ReadableStream<Event>;
+-    fullStream: ReadableStream<StreamTextChunkResult>;
++    eventStream: ReadableStream<StreamTextEvent>;
++    fullStream: ReadableStream<StreamTextEvent>;
+     messages: Promise<Message[]>;
+     reasoningTextStream: ReadableStream<string>;
+     steps: Promise<CompletionStep[]>;
+@@ -60,4 +94,4 @@ interface StreamTextResult {
+ declare const streamText: (options: WithUnknown<StreamTextOptions>) => StreamTextResult;
+ 
+ export { streamText };
+-export type { StreamTextChunkResult, StreamTextOptions, StreamTextResult };
++export type { StreamTextChunkResult, StreamTextEvent, StreamTextOptions, StreamTextResult };
+diff --git a/dist/index.js b/dist/index.js
+index ec6e01b0defd49370f75ed50d975aa6da8c03faf..4a956cc07f62049de4fe2ea10ba8c3fba2875ecb 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -63,7 +63,6 @@ const streamText = (options) => {
+     let finishReason = "other";
+     let reasoningStarted = false;
+     let textStarted = false;
+-    pushEvent({ type: "step.start" });
+     await stream.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream()).pipeThrough(new JsonMessageTransformStream()).pipeTo(new WritableStream({
+       abort: (reason) => {
+         errorControllers(reason, eventCtrl, fullCtrl, textCtrl, reasoningTextCtrl);
+@@ -82,18 +81,16 @@ const streamText = (options) => {
+             reasoningField = "reasoning";
+           if (!reasoningStarted) {
+             reasoningStarted = true;
+-            pushEvent({ type: "reasoning.start" });
+           }
+-          pushEvent({ delta: choice.delta.reasoning, type: "reasoning.delta" });
++          pushEvent({ text: choice.delta.reasoning, type: "reasoning-delta" });
+           pushReasoningText(choice.delta.reasoning);
+         } else if (choice.delta.reasoning_content != null) {
+           if (reasoningField !== "reasoning_content")
+             reasoningField = "reasoning_content";
+           if (!reasoningStarted) {
+             reasoningStarted = true;
+-            pushEvent({ type: "reasoning.start" });
+           }
+-          pushEvent({ delta: choice.delta.reasoning_content, type: "reasoning.delta" });
++          pushEvent({ text: choice.delta.reasoning_content, type: "reasoning-delta" });
+           pushReasoningText(choice.delta.reasoning_content);
+         }
+         if (choice.finish_reason != null)
+@@ -102,16 +99,14 @@ const streamText = (options) => {
+           if (choice.delta.content != null) {
+             if (!textStarted) {
+               textStarted = true;
+-              pushEvent({ type: "text.start" });
+             }
+-            pushEvent({ delta: choice.delta.content, type: "text.delta" });
++            pushEvent({ text: choice.delta.content, type: "text-delta" });
+             pushText(choice.delta.content);
+           } else if (choice.delta.refusal != null) {
+             if (!textStarted) {
+               textStarted = true;
+-              pushEvent({ type: "text.start" });
+             }
+-            pushEvent({ delta: choice.delta.refusal, type: "text.delta" });
++            pushEvent({ text: choice.delta.refusal, type: "text-delta" });
+             pushText(choice.delta.refusal);
+           }
+         } else {
+@@ -125,21 +120,17 @@ const streamText = (options) => {
+                   arguments: toolCall.function.arguments ?? ""
+                 }
+               };
+-              pushEvent({ toolCallId: toolCall.id, toolName: toolCall.function.name, type: "tool-call.start" });
++              pushEvent({ toolCallId: toolCall.id, toolName: toolCall.function.name, type: "tool-call-streaming-start" });
+               if (toolCall.function.arguments != null && toolCall.function.arguments.length > 0)
+-                pushEvent({ delta: toolCall.function.arguments, type: "tool-call.delta" });
++                pushEvent({ argsTextDelta: toolCall.function.arguments, toolCallId: toolCall.id, toolName: toolCall.function.name, type: "tool-call-delta" });
+             } else {
+               tool_calls[index].function.arguments += toolCall.function.arguments;
+-              pushEvent({ delta: toolCall.function.arguments, type: "tool-call.delta" });
++              pushEvent({ argsTextDelta: toolCall.function.arguments, toolCallId: toolCall.id, toolName: toolCall.function.name ?? tool_calls[index].function.name, type: "tool-call-delta" });
+             }
+           }
+         }
+       }
+     }));
+-    if (reasoningStarted)
+-      pushEvent({ content: reasoningText ?? "", type: "reasoning.done" });
+-    if (textStarted)
+-      pushEvent({ content: text, type: "text.done" });
+     messages.push({
+       ...reasoningField != null ? { [reasoningField]: reasoningText } : {},
+       content: text,
+@@ -152,7 +143,7 @@ const streamText = (options) => {
+     if (options.abortSignal?.aborted === true)
+       throw options.abortSignal.reason ?? new Error("This operation was aborted");
+     for (const toolCall of toolCalls)
+-      pushEvent({ ...toolCall, type: "tool-call.done" });
++      pushEvent({ ...toolCall, type: "tool-call" });
+     const step = {
+       finishReason,
+       text,
+@@ -169,9 +160,13 @@ const streamText = (options) => {
+       const results = await Promise.all(
+         validToolCalls.map(async (toolCall) => executeTool({
+           abortSignal: options.abortSignal,
++          captureToolErrors: options.captureToolErrors,
+           messages,
++          onToolCallFinish: options.onToolCallFinish,
++          onToolCallStart: options.onToolCallStart,
+           postToolCall: options.postToolCall,
+           preToolCall: options.preToolCall,
++          repairToolCall: options.repairToolCall,
+           toolCall,
+           tools: options.tools
+         }))
+@@ -185,12 +180,12 @@ const streamText = (options) => {
+           role: "tool",
+           tool_call_id: completionToolCall.toolCallId
+         });
+-        pushEvent({ ...completionToolResult, type: "tool-result.done" });
++        pushEvent({ ...completionToolResult, type: completionToolResult.isError ? "tool-error" : "tool-result" });
+       }
+     }
+     const willContinue = validToolCalls.length > 0 && !stop && !options.abortSignal?.aborted;
+     pushStep(step);
+-    pushEvent({ type: "step.done", usage });
++    pushEvent({ finishReason, type: "finish", usage });
+     if (willContinue)
+       return async () => doStream();
+   };
+@@ -222,7 +217,7 @@ const streamText = (options) => {
+   })();
+   return {
+     eventStream,
+-    fullStream,
++    fullStream: eventStream,
+     messages: resultMessages.promise,
+     reasoningTextStream,
+     steps: resultSteps.promise,

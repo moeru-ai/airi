@@ -41,10 +41,10 @@ export default defineConfig({
 fonts: {
   // Simple
   sans: 'Roboto',
-
+  
   // Multiple (fallback)
   mono: ['Fira Code', 'Fira Mono:400,700'],
-
+  
   // Detailed
   lato: [
     {
@@ -85,7 +85,7 @@ presetWebFonts({
 })
 ```
 
-<!--
+<!-- 
 Source references:
 - https://unocss.dev/presets/web-fonts
 -->

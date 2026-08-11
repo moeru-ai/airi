@@ -49,8 +49,8 @@ vi.mock('@proj-airi/stage-ui/stores/modules/hearing', () => ({
   useHearingSpeechInputPipeline: vi.fn().mockImplementation(() => mockHearingPipeline),
 }))
 
-vi.mock('@proj-airi/stage-ui/stores/providers', () => ({
-  useProvidersStore: vi.fn().mockImplementation(() => mockProvidersStore),
+vi.mock('@proj-airi/stage-ui/stores/providers/provider', () => ({
+  useProviderStore: vi.fn().mockImplementation(() => mockProvidersStore),
 }))
 
 vi.mock('@proj-airi/stage-ui/stores/settings', () => ({

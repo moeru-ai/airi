@@ -98,7 +98,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
     </Callout>
     <div :class="['flex flex-wrap items-center gap-2']">
       <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
-        <Button variant="secondary">
+        <Button>
           {{ t('settings.model-select.select-model.button') }}
         </Button>
       </ModelSelectorDialog>

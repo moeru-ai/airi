@@ -85,6 +85,6 @@ export declare function useSorted<T = any>(
 export declare function useSorted<T = any>(
   source: MaybeRefOrGetter<T[]>,
   compareFn?: UseSortedCompareFn<T>,
-  options?: Omit<UseSortedOptions<T>, 'compareFn'>,
+  options?: Omit<UseSortedOptions<T>, "compareFn">,
 ): Ref<T[]>
 ```
