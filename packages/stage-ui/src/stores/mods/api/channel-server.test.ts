@@ -231,6 +231,30 @@ describe('channel-server store reconnect', () => {
     }))
   })
 
+  it('does not replay a status for a de-announced extension module', async () => {
+    const store = useModsServerChannelStore()
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    client.emit('module:status', {
+      identity: { id: 'discord', kind: 'plugin', plugin: { id: 'discord' } },
+      phase: 'ready',
+    })
+    client.emit('extension:module:de-announced', {
+      name: 'discord',
+      identity: { id: 'discord', extension: { id: 'discord' } },
+      possibleEvents: [],
+    })
+
+    const onStatus = vi.fn()
+    store.onEvent('module:status', onStatus)
+
+    expect(onStatus).not.toHaveBeenCalled()
+  })
+
   it('notifies onReconnected callbacks when the websocket becomes ready again', async () => {
     const store = useModsServerChannelStore()
     const onReconnected = vi.fn()

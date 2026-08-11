@@ -160,4 +160,36 @@ describe('discord adapter connection status', () => {
       data: expect.objectContaining({ phase: 'configuration-needed' }),
     }))
   })
+
+  it('cancels an in-progress connection when the integration is disabled', async () => {
+    const adapter = new DiscordAdapter({})
+    const channel = mocks.FakeServerChannel.instances[0]!
+    const discord = mocks.FakeDiscordClient.instances[0]!
+    const configure = channel.handlers.get('module:configure')!
+    let resolveLogin: () => void
+    discord.login.mockImplementationOnce(() => new Promise<undefined>((resolve) => {
+      resolveLogin = () => resolve(undefined)
+    }))
+
+    const enable = configure({ data: { config: { enabled: true, token: 'bot-token' } } })
+    await vi.waitFor(() => expect(discord.login).toHaveBeenCalledTimes(1))
+    const disable = configure({ data: { config: { enabled: false } } })
+    resolveLogin!()
+
+    await Promise.all([enable, disable])
+
+    expect(adapter).toBeInstanceOf(DiscordAdapter)
+    expect(discord.destroy).toHaveBeenCalledTimes(1)
+    expect(channel.sent).toContainEqual(expect.objectContaining({
+      type: 'module:status',
+      data: expect.objectContaining({ phase: 'configuration-needed' }),
+    }))
+
+    discord.emit('ready', { user: { id: 'bot-id', tag: 'AIRI#0001' } })
+
+    expect(channel.sent).not.toContainEqual(expect.objectContaining({
+      type: 'module:status',
+      data: expect.objectContaining({ phase: 'ready' }),
+    }))
+  })
 })

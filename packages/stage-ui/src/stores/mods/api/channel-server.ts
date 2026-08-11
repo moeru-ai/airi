@@ -81,6 +81,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'module:configure',
     'module:de-announced',
     'module:status',
+    'extension:module:de-announced',
     'module:consumer:register',
     'module:consumer:unregister',
     'module:authenticated',
@@ -149,6 +150,10 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           if (event.type === 'module:status') {
             const moduleStatusEvent = event as WebSocketBaseEvent<'module:status', WebSocketEvents['module:status']>
             moduleStatusEvents.set(moduleStatusEvent.data.identity.id, moduleStatusEvent)
+          }
+          else if (event.type === 'module:de-announced' || event.type === 'extension:module:de-announced') {
+            const { identity } = event.data as { identity: { id: string } }
+            moduleStatusEvents.delete(identity.id)
           }
           else if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents)) {
             replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
