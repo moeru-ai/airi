@@ -2,7 +2,6 @@ import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
-import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
@@ -61,7 +60,6 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
-  windowAuthManager: WindowAuthManager
 }) {
   const {
     setup: setupConfig,
@@ -186,7 +184,6 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
-    windowAuthManager: params.windowAuthManager,
   })
 
   await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
