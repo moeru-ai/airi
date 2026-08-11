@@ -239,11 +239,13 @@ describe('store character-orchestrator', () => {
       forceTextResponse: true,
     })
 
-    const streamOptions = mockStream.mock.calls[0][3]
-    expect(streamOptions.supportsTools).toBe(false)
-    expect(streamOptions.waitForTools).toBe(false)
-    expect(streamOptions.tools).toEqual([])
-    expect(streamOptions.toolChoice).toBeUndefined()
+    const streamOptions = mockStream.mock.lastCall?.[3]
+    expect(streamOptions).toMatchObject({
+      supportsTools: false,
+      tools: [],
+      waitForTools: false,
+    })
+    expect(streamOptions?.toolChoice).toBeUndefined()
     expect(onDelta).toHaveBeenCalled()
     expect(onEnd).toHaveBeenCalled()
   })
@@ -290,12 +292,14 @@ describe('store character-orchestrator', () => {
       forceSparkCommandResponse: true,
     })
 
-    const streamOptions = mockStream.mock.calls[0][3]
-    expect(streamOptions.supportsTools).toBe(true)
-    expect(streamOptions.waitForTools).toBe(true)
-    expect(streamOptions.toolChoice).toEqual({
-      type: 'function',
-      function: { name: 'builtIn_sparkCommand' },
+    const streamOptions = mockStream.mock.lastCall?.[3]
+    expect(streamOptions).toMatchObject({
+      supportsTools: true,
+      toolChoice: {
+        type: 'function',
+        function: { name: 'builtIn_sparkCommand' },
+      },
+      waitForTools: true,
     })
     expect(result?.commands?.length).toBe(1)
     expect(sendSparkCommandMock).toHaveBeenCalledWith({
@@ -336,7 +340,7 @@ describe('store character-orchestrator', () => {
       },
     })
 
-    const renderedMessages = mockStream.mock.calls[0]?.[2] as Array<{ role: string, content: string }> | undefined
+    const renderedMessages = mockStream.mock.lastCall?.[2] as Array<{ role: string, content: string }> | undefined
     expect(String(renderedMessages?.[0]?.content)).toContain('Plugin-specific hint')
     expect(String(renderedMessages?.[1]?.content)).toContain('Rendered board snapshot')
   })

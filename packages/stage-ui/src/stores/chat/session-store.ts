@@ -76,6 +76,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
   const sessionMetas = ref<Record<string, ChatSessionMeta>>({})
   const sessionGenerations = ref<Record<string, number>>({})
+  /** Authority-owned session index replicated so each window can derive its local selection. */
   const index = ref<ChatSessionsIndex | null>(null)
 
   const ready = ref(false)
@@ -92,7 +93,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   let persistQueue = Promise.resolve()
   const loadedSessions = new Set<string>()
-  const loadingSessions = new Map<string, Promise<void>>()
+  const staleSessions = new Set<string>()
+  const cloudHydratedSessions = new Set<string>()
+  const loadingSessions = new Map<string, Promise<boolean>>()
 
   // Cloud sync state. The WS client is constructed lazily so anonymous
   // (`userId === 'local'`) users never open a socket. `cloudSyncReady` is a
@@ -110,6 +113,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   let cloudMapper: CloudChatMapper | undefined
   let cloudReconcileTask: Promise<void> | undefined
   let pendingReconcile = false
+  let ownsCloudSync = true
   // Incremented on every teardown / user swap. Long-running reconcile IIFEs
   // capture the epoch at start and bail after every await once it changes,
   // so account-A mutations cannot land on account-B state after a sign-out.
@@ -327,7 +331,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /** Removes one message by stable id or by its current history index. */
-  function deleteMessage(payload: DeleteChatMessagePayload) {
+  async function deleteMessage(payload: DeleteChatMessagePayload): Promise<void> {
+    if (!await loadSession(payload.sessionId))
+      throw new Error('Failed to load the target chat session')
+
     const nextMessages = getSessionMessages(payload.sessionId).filter((message, messageIndex) => {
       if (payload.messageId)
         return message.id !== payload.messageId
@@ -351,71 +358,96 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * - `sessionId` exists either in `sessionMetas` or in IDB.
    *
    * Returns:
-   * - Resolves once the session is in memory. On IDB error, removes the id
+   * - `true` when the session is in memory, or `false` when hydration failed.
+   *   On IDB error, removes the id
    *   from the loading map so subsequent calls can retry rather than wedge
    *   on a stale promise. Errors are intentionally not rethrown — the
    *   failing session is simply absent from local state and the next
    *   loadSession call will retry.
    */
-  async function loadSession(sessionId: string) {
-    if (loadedSessions.has(sessionId)) {
-      return
+  async function loadSession(sessionId: string): Promise<boolean> {
+    const needsCloudHydration = () => {
+      const meta = sessionMetas.value[sessionId]
+      return !!meta?.cloudChatId && !cloudHydratedSessions.has(sessionId)
+    }
+
+    if (loadedSessions.has(sessionId) && !staleSessions.has(sessionId) && !needsCloudHydration()) {
+      return true
+    }
+    // A synchronized snapshot already carries the authority's hydrated
+    // messages. Trust it instead of letting this follower merge an older IDB
+    // record and publish that stale full-store proposal back to the leader.
+    if (Object.hasOwn(sessionMessages.value, sessionId) && hasKnownSession(sessionId) && !staleSessions.has(sessionId) && !needsCloudHydration()) {
+      loadedSessions.add(sessionId)
+      return true
     }
     if (loadingSessions.has(sessionId)) {
-      await loadingSessions.get(sessionId)
-      return
+      return await loadingSessions.get(sessionId)!
     }
 
     const loadPromise = (async () => {
       try {
-        const stored = await chatSessionsRepo.getSession(sessionId)
-        // Re-check existence: `deleteSession` (or `clearInMemoryState` on a
-        // user swap) may have run while we were awaiting IDB. Without this
-        // guard, the post-await write resurrects the deleted entry and
-        // `loadedSessions.add` then short-circuits every future legitimate
-        // load — locking the resurrection in. The drawer's batch
-        // loadSession + per-row trash button hits this race in production.
-        if (!sessionMetas.value[sessionId])
-          return
-        if (stored) {
-          const currentMessages = sessionMessages.value[sessionId] ?? []
-          const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+        if (!loadedSessions.has(sessionId) || staleSessions.has(sessionId)) {
+          const stored = await chatSessionsRepo.getSession(sessionId)
+          // Re-check existence after the IDB read. Deletion or an account
+          // change can remove this session while the read is pending.
+          if (!sessionMetas.value[sessionId])
+            return false
+          if (staleSessions.has(sessionId) && !stored)
+            return false
+          if (stored) {
+            const currentMessages = sessionMessages.value[sessionId] ?? []
+            const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
 
-          sessionMetas.value[sessionId] = stored.meta
-          replaceSessionMessages(sessionId, mergedMessages, { persist: false })
-          ensureGeneration(sessionId)
+            sessionMetas.value[sessionId] = stored.meta
+            replaceSessionMessages(sessionId, mergedMessages, { persist: false })
+            ensureGeneration(sessionId)
 
-          if (mergedMessages !== stored.messages)
-            await persistSession(sessionId)
+            if (mergedMessages !== stored.messages)
+              await persistSession(sessionId)
+          }
+          staleSessions.delete(sessionId)
+          loadedSessions.add(sessionId)
+          if (activeSessionId.value === sessionId)
+            refreshActiveSessionSystemMessage()
         }
-        loadedSessions.add(sessionId)
-        if (activeSessionId.value === sessionId)
-          refreshActiveSessionSystemMessage()
 
-        // Cloud gap fill: when the session is mapped to a cloud chat, ask
-        // the server for everything past our highest known seq. Best
-        // effort — failures are logged inside pullCloudMessages and the
-        // local view stays usable.
-        const meta = sessionMetas.value[sessionId]
-        if (meta?.cloudChatId)
+        // Local and cloud hydration are separate. A failed cloud pull leaves
+        // the local view usable and keeps the next selection eligible to retry.
+        if (needsCloudHydration())
           await pullCloudMessages(sessionId)
+
+        // Missing IDB payloads still need a valid canonical conversation.
+        // This action runs in the elected leader, so the initialized history
+        // is published once rather than independently by every follower.
+        ensureSession(sessionId)
+
+        return true
       }
       catch (err) {
         // Do NOT add to loadedSessions on failure — the next call should
         // retry rather than fast-return on stale "already loaded" state.
         console.warn('[chat-session] loadSession failed for', sessionId, errorMessageFrom(err))
+        return false
       }
     })()
 
     loadingSessions.set(sessionId, loadPromise)
     try {
-      await loadPromise
+      return await loadPromise
     }
     finally {
       // Always drain the loading map so a transient failure does not leave
       // a permanent wedge entry.
       loadingSessions.delete(sessionId)
     }
+  }
+
+  /** Forces the next session load to merge the latest IndexedDB record into memory. */
+  async function refreshSession(sessionId: string): Promise<boolean> {
+    staleSessions.add(sessionId)
+    loadedSessions.delete(sessionId)
+    return loadSession(sessionId)
   }
 
   /**
@@ -493,26 +525,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /**
-   * Permanently remove a session from the local index + IDB and, when the
-   * session is cloud-mapped and the user is signed in, soft-delete the
-   * server chat via `DELETE /api/v1/chats/:id`.
+   * Permanently removes a session locally and tombstones its cloud identity.
    *
-   * Use when:
-   * - The user explicitly chooses "delete" from the sessions drawer.
-   *
-   * Expects:
-   * - The caller does not need to pre-confirm: this method is destructive.
-   *   When the deleted session is the active one, the store falls back to
-   *   another session for the same character or creates a fresh one.
-   *
-   * Returns:
-   * - Resolves once both local state and (if applicable) the remote DELETE
-   *   call have settled. Cloud failures are swallowed with a console.warn —
-   *   the local removal goes through either way so the user does not see
-   *   a "ghost" session after the click. A tombstone is written so the
-   *   reconcile `adopt` branch will not re-import the row on next login.
+   * Cloud failures are logged but do not restore the local session. A
+   * tombstone prevents the next reconcile from importing it again.
    */
   async function deleteSession(sessionId: string) {
+    // Keep a monotonic tombstone in memory so queued and streaming sends that
+    // captured the previous generation cannot become current again after the
+    // session record is removed.
+    bumpSessionGeneration(sessionId)
+
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
@@ -550,8 +573,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // fire-and-forget. Persistence races now read the post-deletion state.
     delete sessionMetas.value[sessionId]
     delete sessionMessages.value[sessionId]
-    delete sessionGenerations.value[sessionId]
     loadedSessions.delete(sessionId)
+    staleSessions.delete(sessionId)
+    cloudHydratedSessions.delete(sessionId)
     loadingSessions.delete(sessionId)
 
     if (index.value) {
@@ -572,42 +596,55 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await persistIndex()
     await refreshOutboxPendingCount()
 
-    if (cloudChatId && isCloudUser) {
+    if (isCloudUser) {
+      const remoteChatId = cloudChatId ?? sessionId
       // Tombstone first: even if the cloud DELETE never reaches the server
-      // (offline, transient 5xx), the next reconcile will see the cloudChatId
+      // (offline, transient 5xx), the next reconcile will see the remote id
       // here and skip the adopt branch — preventing the ghost-session bug
       // where the server still has the row and re-creates the local mapping.
       // The reconcile-driven `drainTombstones` retries failed DELETEs.
-      await enqueuePersist(() => chatSessionsRepo.addTombstone(currentUserId, cloudChatId))
-      getCloudMapper().deleteChat(cloudChatId).then(
-        async () => {
-          // Server confirmed the delete; reconcile will not see this id again,
-          // so we can drop the tombstone.
-          await enqueuePersist(() => chatSessionsRepo.removeTombstones(currentUserId, [cloudChatId]))
-        },
-        (err) => {
-          console.warn('[chat-sync] DELETE /api/v1/chats failed for', sessionId, errorMessageFrom(err))
-        },
-      )
+      await enqueuePersist(() => chatSessionsRepo.addTombstone(currentUserId, remoteChatId))
+      if (cloudChatId) {
+        getCloudMapper().deleteChat(cloudChatId).then(
+          async () => {
+            // Server confirmed the delete; reconcile will not see this id again,
+            // so we can drop the tombstone.
+            await enqueuePersist(() => chatSessionsRepo.removeTombstones(currentUserId, [cloudChatId]))
+          },
+          (err) => {
+            console.warn('[chat-sync] DELETE /api/v1/chats failed for', sessionId, errorMessageFrom(err))
+          },
+        )
+      }
     }
 
-    // If the deleted session was active, pick another for the same
-    // character or mint a fresh one so the chat surface never lands on an
-    // empty void.
-    if (wasActive) {
-      const characterIndex = index.value?.characters[characterId]
-      const fallbackId = characterIndex
-        ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id])
-        : undefined
-      if (fallbackId) {
+    const characterIndex = index.value?.characters[characterId]
+    const fallbackId = characterIndex
+      ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id])
+      : undefined
+
+    // Persisted character fallback is shared, but live selection is local to
+    // the window that was displaying the deleted session.
+    if (fallbackId && characterIndex) {
+      characterIndex.activeSessionId = fallbackId
+      if (wasActive) {
         activeSessionId.value = fallbackId
-        if (characterIndex)
-          characterIndex.activeSessionId = fallbackId
         await loadSession(fallbackId)
-        await persistIndex()
       }
-      else {
-        await createSession(characterId, { setActive: true })
+      await persistIndex()
+      return
+    }
+
+    const replacementSessionId = await createSession(characterId, { setActive: wasActive })
+    if (!wasActive) {
+      // The synchronized leader may be displaying a different character, but
+      // this replacement is still the canonical fallback for the character
+      // whose final session was deleted. Persist that index choice without
+      // navigating the leader's window-local selection.
+      const replacementCharacterIndex = index.value?.characters[characterId]
+      if (replacementCharacterIndex) {
+        replacementCharacterIndex.activeSessionId = replacementSessionId
+        await persistIndex()
       }
     }
   }
@@ -644,10 +681,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
 
       activeSessionId.value = characterIndex.activeSessionId
-      await loadSession(characterIndex.activeSessionId)
-      if (isStaleEpoch())
-        return
-      ensureSession(characterIndex.activeSessionId)
+      // Use the public action so follower hydration is routed to the elected
+      // leader instead of becoming a stale full-state proposal.
+      await useChatSessionStore().loadSession(characterIndex.activeSessionId)
     })()
     try {
       await ensureActivePromise
@@ -719,6 +755,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         messages: result.messages,
         toSeq: result.seq,
       })
+      cloudHydratedSessions.add(sessionId)
     }
     catch (err) {
       console.warn('[chat-sync] pullMessages failed for', sessionId, errorMessageFrom(err))
@@ -742,6 +779,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * pass is scheduled in `finally` so catch-up pulls do not get lost.
    */
   async function reconcileCloudSessions(): Promise<void> {
+    if (!ownsCloudSync)
+      return
     if (cloudReconcileTask) {
       pendingReconcile = true
       return cloudReconcileTask
@@ -750,7 +789,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const myEpoch = reconcileEpoch
     const isStaleEpoch = () => myEpoch !== reconcileEpoch
 
-    cloudReconcileTask = (async () => {
+    const reconcileTask = (async () => {
       const currentUserId = getCurrentUserId()
       if (currentUserId === 'local') {
         console.info('[chat-sync] reconcile skipped: anonymous user')
@@ -907,6 +946,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       cloudSyncReady.value = true
     })().finally(() => {
+      if (cloudReconcileTask !== reconcileTask)
+        return
       cloudReconcileTask = undefined
       // A second 'open' event fired while we were running — schedule a
       // follow-up so its catch-up window is not lost. Skip if the epoch
@@ -920,7 +961,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
     })
 
-    return cloudReconcileTask
+    cloudReconcileTask = reconcileTask
+    return reconcileTask
   }
 
   /**
@@ -929,6 +971,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * from the auth `watch`.
    */
   function ensureCloudWsClient() {
+    if (!ownsCloudSync)
+      return
     if (getCurrentUserId() === 'local') {
       console.info('[chat-sync] WS skipped: anonymous user')
       return
@@ -985,6 +1029,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     cloudMapper = undefined
   }
 
+  /** Starts or stops cloud synchronization when this window gains or loses synchronized-store leadership. */
+  function setCloudSyncOwnership(owns: boolean) {
+    if (ownsCloudSync === owns)
+      return
+
+    ownsCloudSync = owns
+    if (!ready.value)
+      return
+    if (owns)
+      ensureCloudWsClient()
+    else if (wsClient)
+      teardownCloudWsClient()
+  }
+
   /**
    * Drop every in-memory session for the current user. Used when the auth
    *  user changes — we must NOT keep account A's sessions visible (or
@@ -1002,6 +1060,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     sessionMetas.value = {}
     sessionGenerations.value = {}
     loadedSessions.clear()
+    staleSessions.clear()
+    cloudHydratedSessions.clear()
     loadingSessions.clear()
     index.value = null
     activeSessionId.value = ''
@@ -1231,7 +1291,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // mid-send) before the WS even opens. The drain itself runs after
       // reconcile completes, but the count is observable immediately.
       await refreshOutboxPendingCount()
-      ensureCloudWsClient()
+      if (ownsCloudSync)
+        ensureCloudWsClient()
     })()
 
     try {
@@ -1272,22 +1333,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     },
   })
 
-  function setActiveSession(sessionId: string) {
+  /** Selects and hydrates one conversation only in the current window. */
+  async function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
 
-    const characterId = getCurrentCharacterId()
-    const characterIndex = index.value?.characters[characterId]
-    if (characterIndex) {
-      characterIndex.activeSessionId = sessionId
-      void persistIndex()
-    }
-
-    if (ready.value) {
-      void loadSession(sessionId)
-    }
-    else if (!hasKnownSession(sessionId)) {
+    if (ready.value)
+      await useChatSessionStore().loadSession(sessionId)
+    else if (!hasKnownSession(sessionId))
       ensureSession(sessionId)
-    }
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1306,6 +1359,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       Object.keys(snapshot.sessionMessages).map(sessionId => [sessionId, sessionGenerations.value[sessionId] ?? 0]),
     )
     loadedSessions.clear()
+    staleSessions.clear()
+    cloudHydratedSessions.clear()
     for (const sessionId of Object.keys(snapshot.sessionMessages)) {
       loadedSessions.add(sessionId)
     }
@@ -1349,6 +1404,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     sessionMetas.value = {}
     sessionGenerations.value = {}
     loadedSessions.clear()
+    staleSessions.clear()
+    cloudHydratedSessions.clear()
     loadingSessions.clear()
 
     index.value = {
@@ -1362,6 +1419,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function getSessionMessages(sessionId: string) {
     ensureSession(sessionId)
     return sessionMessages.value[sessionId] ?? []
+  }
+
+  /** Returns persisted/in-memory messages without creating an unloaded session fallback. */
+  function getSessionMessagesIfLoaded(sessionId: string) {
+    return sessionMessages.value[sessionId]
   }
 
   function getSessionGeneration(sessionId: string) {
@@ -1432,6 +1494,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     sessionMetas.value = {}
     sessionGenerations.value = {}
     loadedSessions.clear()
+    staleSessions.clear()
+    cloudHydratedSessions.clear()
     loadingSessions.clear()
 
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
@@ -1448,6 +1512,39 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     await ensureActiveSessionForCharacter()
   }
+
+  let lastActiveSessionMeta: ChatSessionMeta | undefined
+
+  // Session data is synchronized, but selection belongs to this window. If
+  // another window deletes the selected session, repair this window locally
+  // instead of leaving it pointed at an ID that can no longer hydrate.
+  watch([
+    activeSessionId,
+    () => Object.values(sessionMetas.value),
+    () => hasKnownSession(activeSessionId.value),
+  ], ([sessionId, metas, isKnown]) => {
+    const meta = metas.find(candidate => candidate.sessionId === sessionId)
+    if (meta) {
+      lastActiveSessionMeta = meta
+      return
+    }
+    if (!sessionId || isKnown)
+      return
+
+    const characterId = lastActiveSessionMeta?.sessionId === sessionId
+      ? lastActiveSessionMeta.characterId
+      : getCurrentCharacterId()
+    const fallbackSessionId = metas
+      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId())
+      ?.sessionId
+
+    if (fallbackSessionId) {
+      void setActiveSession(fallbackSessionId)
+    }
+    // If no fallback exists yet, wait for the synchronized delete action.
+    // Its elected leader creates the single replacement; creating here in
+    // every follower would fan one deletion out into several empty chats.
+  })
 
   watch([userId, activeCardId], () => {
     if (!ready.value)
@@ -1470,7 +1567,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   watch(userId, (next) => {
     teardownCloudWsClient()
     clearInMemoryState()
-    if (next && next !== 'local') {
+    if (ownsCloudSync && next && next !== 'local') {
       ensureCloudWsClient()
     }
     // Rehydrate for the new user. We trigger here (instead of relying on the
@@ -1485,7 +1582,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   })
 
   return {
-    ready,
     isReady,
     initialize,
 
@@ -1505,18 +1601,24 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,
+    getSessionMessagesIfLoaded,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,
     bumpSessionGeneration,
     getSessionGenerationValue,
+    // Pinia can synchronize only refs returned by a setup store.
+    index,
 
     forkSession,
     exportSessions,
     importSessions,
     createSession,
     loadSession,
+    refreshSession,
     deleteSession,
+
+    setCloudSyncOwnership,
 
     cloudSyncReady,
     outboxPendingCount,
@@ -1524,7 +1626,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 }, {
   synced: {
-    actions: ['deleteMessage', 'importSessions'],
+    actions: ['createSession', 'deleteMessage', 'importSessions', 'loadSession', 'refreshSession'],
     state: true,
   },
 })
