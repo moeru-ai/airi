@@ -1,5 +1,4 @@
 import type { I18n } from '../../libs/i18n'
-import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { join, resolve } from 'node:path'
@@ -28,7 +27,6 @@ export interface OnboardingWindowManager {
 export function setupOnboardingWindowManager(params: {
   serverChannel: ServerChannel
   i18n: I18n
-  windowAuthManager: WindowAuthManager
 }): OnboardingWindowManager {
   const closeCallbacks = new Set<() => void>()
 
@@ -74,7 +72,7 @@ export function setupOnboardingWindowManager(params: {
     })
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
-    createAuthService({ context, window: newWindow, windowAuthManager: params.windowAuthManager })
+    createAuthService({ context, window: newWindow })
 
     await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding'))
 

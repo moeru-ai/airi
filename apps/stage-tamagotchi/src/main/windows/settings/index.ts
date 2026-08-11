@@ -1,5 +1,4 @@
 import type { I18n } from '../../libs/i18n'
-import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
@@ -37,7 +36,6 @@ export function setupSettingsWindowReusableFunc(params: {
   godotStageManager: GodotStageManager
   mcpStdioManager: McpStdioManager
   i18n: I18n
-  windowAuthManager: WindowAuthManager
   globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
 }): SettingsWindowManager {
@@ -76,7 +74,6 @@ export function setupSettingsWindowReusableFunc(params: {
       godotStageManager: params.godotStageManager,
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
-      windowAuthManager: params.windowAuthManager,
       globalShortcut: params.globalShortcut,
       spotlightWindow: params.spotlightWindow,
     })

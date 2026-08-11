@@ -1,6 +1,7 @@
 import { nextTick } from 'vue'
 
 import { initializeAuth } from '../libs/auth'
+import { usePiniaSynced } from '../libs/pinia'
 import { getStreamingTtsAvailable, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthStore } from '../stores/auth'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
@@ -37,7 +38,14 @@ const STREAMING_SPEECH_PROVIDER_ID = 'official-provider-speech-streaming'
  * auxiliary windows do not depend on the transient Stage scene lifecycle.
  */
 export function useAuthProviderSync() {
-  initializeAuth()
+  void initializeAuth()
+
+  // A replacement leader has no active refresh timer. Restore the auth
+  // lifecycle when this renderer acquires leadership after another closes.
+  usePiniaSynced().onLeadershipChange((isLeader) => {
+    if (isLeader)
+      void initializeAuth()
+  })
 
   const authStore = useAuthStore()
   const providersStore = useProviderStore()
