@@ -85,6 +85,7 @@ describe('provider store synchronization boundary', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757361703
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3761020549
   it('keeps a stale model request from overwriting the latest provider cache (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
     const store = useProviderStore()
@@ -140,8 +141,74 @@ describe('provider store synchronization boundary', () => {
       contextLength: 0,
       deprecated: false,
     }])
-    await staleLoad
+    const staleResult = await staleLoad
+    expect(staleResult.map(model => model.id)).toEqual(['fresh-model'])
+    expect(() => structuredClone(staleResult)).not.toThrow()
     expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['fresh-model'])
     expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3761020555
+  it('returns the fresh model snapshot when a stale request fails (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    store.initializeProvider(providerId)
+    Object.assign(configStore.getProviderConfig(providerId)!, {
+      apiKey: 'not-needed',
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+
+    const definition = store.getProviderDefinition(providerId)
+    const listModels = definition.extraMethods?.listModels
+    if (!listModels)
+      throw new Error('Expected FunASR model listing support')
+
+    type ListedModels = Awaited<ReturnType<typeof listModels>>
+    let rejectFirstRequest!: (reason?: unknown) => void
+    let resolveSecondRequest!: (models: ListedModels) => void
+    const firstRequest = new Promise<ListedModels>((_resolve, reject) => {
+      rejectFirstRequest = reject
+    })
+    const secondRequest = new Promise<ListedModels>((resolve) => {
+      resolveSecondRequest = resolve
+    })
+    let requestCount = 0
+    vi.spyOn(definition.extraMethods!, 'listModels').mockImplementation(async () => {
+      requestCount++
+      return requestCount === 1 ? firstRequest : secondRequest
+    })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    try {
+      const staleLoad = store.fetchModelsForProvider(providerId)
+      await vi.waitFor(() => expect(requestCount).toBe(1))
+      const freshLoad = store.fetchModelsForProvider(providerId)
+      await vi.waitFor(() => expect(requestCount).toBe(2))
+
+      resolveSecondRequest([{
+        id: 'fresh-model',
+        name: 'Fresh model',
+        provider: providerId,
+        description: '',
+        contextLength: 0,
+        deprecated: false,
+      }])
+      await freshLoad
+
+      const staleError = new Error('stale request failed')
+      rejectFirstRequest(staleError)
+      const staleResult = await staleLoad
+
+      expect(staleResult.map(model => model.id)).toEqual(['fresh-model'])
+      expect(() => structuredClone(staleResult)).not.toThrow()
+      expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready')
+      expect(store.providerRuntimeState[providerId]?.modelError).toBeNull()
+      expect(consoleError).toHaveBeenCalledWith(`Error fetching models for ${providerId}:`, staleError)
+    }
+    finally {
+      consoleError.mockRestore()
+    }
   })
 })

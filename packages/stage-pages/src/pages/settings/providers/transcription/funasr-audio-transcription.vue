@@ -139,7 +139,7 @@ onMounted(() => providersStore.initializeProvider(providerId))
       </ProviderSettingsContainer>
 
       <div :class="['w-full md:w-[60%]', 'flex flex-col gap-6']">
-        <div w-full rounded-xl>
+        <div :class="['w-full', 'rounded-xl']">
           <TranscriptionPlayground
             :generate-transcription="handleGenerateTranscription"
             :api-key-configured="playgroundConfigured"

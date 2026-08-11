@@ -118,6 +118,13 @@ export interface ProviderRuntimeState {
   modelError: string | null
 }
 
+function cloneModelSnapshot(models: readonly ModelInfo[]): ModelInfo[] {
+  return models.map(({ capabilities, ...model }) => ({
+    ...model,
+    ...(capabilities ? { capabilities: [...capabilities] } : {}),
+  }))
+}
+
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
 // authoritative state by pinia-plugin-synced.
@@ -685,9 +692,9 @@ export const useProviderStore = defineStore('provider', () => {
           model_count: normalizedModels.length,
           duration_ms: Date.now() - startedAt,
         })
-        // A newer request owns the cache. Return its current snapshot instead of
-        // exposing this stale response to callers that also consume the result.
-        return providerRuntimeState.value[providerId]?.models || []
+        // A newer request owns the cache. Synced action results cross a
+        // structuredClone boundary, so return a plain copy of its snapshot.
+        return cloneModelSnapshot(providerRuntimeState.value[providerId]?.models ?? [])
       }
 
       // Transform and store the models
@@ -742,6 +749,12 @@ export const useProviderStore = defineStore('provider', () => {
         error_code: 'provider_error',
         duration_ms: Date.now() - startedAt,
       })
+
+      // The current owner can finish while this stale request rejects. Return
+      // its cloneable snapshot so the caller can use the fresh model list.
+      if (latestModelListRequestIds.get(providerId) !== requestId)
+        return cloneModelSnapshot(providerRuntimeState.value[providerId]?.models ?? [])
+
       return []
     }
   }
