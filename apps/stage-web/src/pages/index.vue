@@ -45,12 +45,15 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
 const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
+
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-web:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -91,6 +94,7 @@ async function startAudioInteraction() {
 
     if (shouldUseStreamInput.value && stream.value) {
       await transcribeForMediaStream(stream.value, {
+        consumerId: transcriptionConsumerId,
         onSentenceEnd: text => void sendVoiceInputTextToChat(text),
       })
       return
@@ -128,6 +132,7 @@ async function handleSpeechEnd() {
 
 function stopAudioInteraction() {
   try {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
     void stopStreamingTranscription(true)

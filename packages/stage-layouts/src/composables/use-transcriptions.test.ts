@@ -20,6 +20,7 @@ function createMockStore() {
 const mockTranscribedContent = 'test content'
 function createMockPipeline() {
   return {
+    removeStreamingTranscriptionConsumer: vi.fn(),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: { onSentenceEnd: (delta: string) => void }) => {
       options.onSentenceEnd(mockTranscribedContent)
     }),
@@ -330,6 +331,7 @@ describe('useTranscriptions', () => {
       await nextTick()
       expect(isListening.value).toBe(false)
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
     })
 
     it('should stop streaming on unmount', async () => {
@@ -351,6 +353,7 @@ describe('useTranscriptions', () => {
       app.unmount()
       await nextTick()
       expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalled()
+      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
   })
 
