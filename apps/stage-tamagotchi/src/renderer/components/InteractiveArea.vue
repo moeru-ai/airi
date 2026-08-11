@@ -21,10 +21,12 @@ import { useRouter } from 'vue-router'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 
+import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 
 const router = useRouter()
 const messageInput = ref('')
+useHearingInputChannel(messageInput)
 const lastEnterTime = ref(0)
 const attachments = ref<{ type: 'image', data: string, mimeType: string, url: string }[]>([])
 
