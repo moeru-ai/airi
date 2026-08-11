@@ -106,14 +106,13 @@ async function setupMocks() {
     },
   }))
 
-  vi.doMock('uiohook-napi', () => ({
-    uIOhook: {
-      on: vi.fn(),
-      removeListener: vi.fn(),
-      start: vi.fn(),
-      stop: vi.fn(),
-    },
-    UiohookKey: new Proxy({}, { get: () => 0 }),
+  vi.doMock('./global-shortcut-uiohook', () => ({
+    createUiohookDriver: () => ({
+      tryRegister: vi.fn(async (binding: ShortcutBinding) => ({ id: binding.id, ok: true })),
+      unregisterById: vi.fn(),
+      unregisterAll: vi.fn(),
+      dispose: vi.fn(),
+    }),
   }))
 
   vi.doMock('@moeru/eventa', async (importOriginal) => {
@@ -182,7 +181,7 @@ describe('setupGlobalShortcutService', () => {
     registerMockWindow(service, ctx)
 
     const handler = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!
-    const result = handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean }
+    const result = await handler({ ...exampleBinding('ptt'), receiveKeyUps: true }) as { id: string, ok: boolean }
     expect(result).toEqual({ id: 'ptt', ok: true })
     expect(m.registerMock).not.toHaveBeenCalled()
   })
