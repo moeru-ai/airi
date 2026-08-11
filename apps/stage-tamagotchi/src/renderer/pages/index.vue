@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
+import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
@@ -14,7 +14,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-import { IS_DEV } from '@proj-airi/stage-shared'
+import { hearingInputChannelName, IS_DEV } from '@proj-airi/stage-shared'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -359,6 +359,46 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
 
 // Caption overlay broadcast channel
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+const { post: postHearingInput } = useBroadcastChannel<HearingInputChannelEvent, HearingInputChannelEvent>({ name: hearingInputChannelName })
+const hearingInputClearTimers = new Map<ReturnType<typeof setTimeout>, string>()
+let hearingInputSequence = 0
+let activeHearingInputSourceId: string | undefined
+
+function currentHearingInputSourceId() {
+  activeHearingInputSourceId ??= `stage-tamagotchi:${++hearingInputSequence}`
+  return activeHearingInputSourceId
+}
+
+function postHearingInputEvent(event: HearingInputChannelEvent) {
+  const { error } = tryCatch(() => postHearingInput(event))
+  if (error)
+    console.warn('[Main Page] Failed to post Hearing input text:', error)
+}
+
+function replaceHearingInput(text: string) {
+  postHearingInputEvent({
+    operation: 'replace',
+    sourceId: currentHearingInputSourceId(),
+    text,
+  })
+}
+
+function clearHearingInput(sourceId = activeHearingInputSourceId) {
+  if (!sourceId)
+    return
+
+  postHearingInputEvent({ operation: 'clear', sourceId })
+  if (sourceId === activeHearingInputSourceId)
+    activeHearingInputSourceId = undefined
+}
+
+function scheduleHearingInputClear(sourceId: string) {
+  const timer = setTimeout(() => {
+    hearingInputClearTimers.delete(timer)
+    clearHearingInput(sourceId)
+  }, 250)
+  hearingInputClearTimers.set(timer, sourceId)
+}
 
 /**
  * Reports a voice input pipeline failure to both the console and visible app UI.
@@ -527,6 +567,10 @@ function handleStreamingSentenceEnd(delta: string) {
   if (!finalText || !finalText.trim())
     return
 
+  const sourceId = currentHearingInputSourceId()
+  replaceHearingInput(finalText)
+  scheduleHearingInputClear(sourceId)
+  activeHearingInputSourceId = undefined
   postSpeakerCaption(finalText, 'replace')
   void sendVoiceInputTextToChat(finalText)
 }
@@ -536,6 +580,7 @@ function handleStreamingTranscriptionUpdate(text: string) {
   if (isVoiceInputSuppressed())
     return
 
+  replaceHearingInput(text)
   postSpeakerCaption(text, 'replace')
 }
 
@@ -627,6 +672,7 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
   const flushTranscript = options.flushTranscript ?? true
 
   clearAssistantSpeechResumeTimer()
+  clearHearingInput()
   voiceInputGeneration += 1
   removeStreamingTranscriptionConsumer(transcriptionConsumerId)
 
@@ -696,6 +742,12 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  for (const [timer, sourceId] of hearingInputClearTimers) {
+    clearTimeout(timer)
+    clearHearingInput(sourceId)
+  }
+  hearingInputClearTimers.clear()
+  clearHearingInput()
   postModelSettingsRuntimeEvent({
     type: 'owner-gone',
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
