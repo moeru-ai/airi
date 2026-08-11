@@ -2,6 +2,8 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { ShortcutBinding, ShortcutRegistrationResult } from '@proj-airi/stage-shared/global-shortcut'
 import type { BrowserWindow } from 'electron'
 
+import type { UiohookDriver } from './global-shortcut-uiohook'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { formatElectronAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
@@ -15,7 +17,6 @@ import {
   electronShortcutUnregisterAll,
 } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
-import { createUiohookDriver } from './global-shortcut-uiohook'
 
 export type EventaContext = ReturnType<typeof createContext>['context']
 
@@ -57,10 +58,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     }
   }
 
-  const uiohookDriver = createUiohookDriver({
-    broadcastTriggered,
-    logger: log,
-  })
+  let uiohookDriver: UiohookDriver | undefined
 
   function tryRegisterElectron(binding: ShortcutBinding): ShortcutRegistrationResult {
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
@@ -79,7 +77,23 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     return { id: binding.id, ok: true }
   }
 
-  function tryRegisterUiohook(binding: ShortcutBinding): ShortcutRegistrationResult {
+  async function tryRegisterUiohook(binding: ShortcutBinding): Promise<ShortcutRegistrationResult> {
+    if (!uiohookDriver) {
+      // NOTICE:
+      // uiohook-napi@1.5.5 ships an x86-64 binary in its Linux ARM64 prebuild.
+      // Loading the existing driver only when needed keeps AIRI startup working.
+      // Source: https://app.unpkg.com/uiohook-napi@1.5.5/files/prebuilds/linux-arm64
+      // Remove this workaround when that prebuild contains an ARM64 binary.
+      try {
+        const { createUiohookDriver } = await import('./global-shortcut-uiohook')
+        uiohookDriver = createUiohookDriver({ broadcastTriggered, logger: log })
+      }
+      catch (error) {
+        log.withError(error).warn('uiohook driver is unavailable on this system')
+        return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Unsupported }
+      }
+    }
+
     const result = uiohookDriver.tryRegister(binding)
     if (result.ok)
       active.set(binding.id, { binding, owner: 'renderer', driver: 'uiohook' })
@@ -127,12 +141,12 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
       }
     }
     else {
-      uiohookDriver.unregisterById(id)
+      uiohookDriver?.unregisterById(id)
     }
     active.delete(id)
   }
 
-  function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult {
+  function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult | Promise<ShortcutRegistrationResult> {
     if (active.has(binding.id)) {
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
     }
@@ -189,7 +203,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   const dispose: GlobalShortcutService['dispose'] = () => {
     unregisterAll(true)
-    uiohookDriver.dispose()
+    uiohookDriver?.dispose()
     contexts.clear()
   }
 
