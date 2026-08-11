@@ -2,6 +2,8 @@
 export interface StreamingTranscriptionCallbacks {
   onSentenceEnd?: (delta: string) => void
   onSpeechEnd?: (text: string) => void
+  /** Receives the complete current transcript after each provider update. */
+  onTranscriptionUpdate?: (text: string) => void
 }
 
 /** A consumer with a stable identity and its current callbacks. */
@@ -24,6 +26,7 @@ export class StreamingTranscriptionConsumers {
     this.consumers.set(consumer.consumerId, {
       onSentenceEnd: consumer.onSentenceEnd,
       onSpeechEnd: consumer.onSpeechEnd,
+      onTranscriptionUpdate: consumer.onTranscriptionUpdate,
     })
   }
 
@@ -40,6 +43,11 @@ export class StreamingTranscriptionConsumers {
   /** Sends completed speech text to all current consumers. */
   emitSpeechEnd(text: string) {
     this.emit('onSpeechEnd', text)
+  }
+
+  /** Sends the complete current transcript to all current consumers. */
+  emitTranscriptionUpdate(text: string) {
+    this.emit('onTranscriptionUpdate', text)
   }
 
   private emit(callbackName: keyof StreamingTranscriptionCallbacks, text: string) {
