@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useScroll } from '@vueuse/core'
+import { useLocalStorage, useScroll } from '@vueuse/core'
 import { MotionConfig } from 'motion-v'
 import { TooltipProvider } from 'reka-ui'
 import { useData, useRoute, withBase } from 'vitepress'
@@ -31,12 +31,14 @@ watch(isDark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
+const shouldReduceMotion = useLocalStorage('docs:settings/reduce-motion', false)
+
 watch(lang, () => locale.value = lang.value, { immediate: true })
 </script>
 
 <template>
   <TooltipProvider>
-    <MotionConfig reduced-motion="user">
+    <MotionConfig :reduced-motion="shouldReduceMotion ? 'always' : 'user'">
       <div class="h-full min-h-screen flex flex-col items-center font-sans-rounded">
         <header
           class="sticky top-0 z-20 h-[68px] w-full py-4 transition-all duration-500"
