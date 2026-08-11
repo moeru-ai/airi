@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
@@ -357,9 +358,6 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
 })
 
 // Caption overlay broadcast channel
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
 
 /**
@@ -499,8 +497,8 @@ async function ensureLiveAudioInputStream() {
 /**
  * Sends voice captions as best-effort overlay updates without interrupting chat ingestion.
  */
-function postSpeakerCaption(text: string) {
-  const { error } = tryCatch(() => postCaption({ type: 'caption-speaker', text }))
+function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelEvent['operation']> = 'append') {
+  const { error } = tryCatch(() => postCaption({ operation, type: 'caption-speaker', text }))
   if (error)
     console.warn('[Main Page] Failed to post voice input caption:', error)
 }
@@ -529,8 +527,16 @@ function handleStreamingSentenceEnd(delta: string) {
   if (!finalText || !finalText.trim())
     return
 
-  postSpeakerCaption(finalText)
+  postSpeakerCaption(finalText, 'replace')
   void sendVoiceInputTextToChat(finalText)
+}
+
+/** Replaces the speaker caption with the provider's current volatile transcript. */
+function handleStreamingTranscriptionUpdate(text: string) {
+  if (isVoiceInputSuppressed())
+    return
+
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Publishes the provider's final streaming-ASR text to the caption overlay. */
@@ -538,7 +544,7 @@ function handleStreamingSpeechEnd(text: string) {
   if (isVoiceInputSuppressed())
     return
 
-  postSpeakerCaption(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -593,6 +599,7 @@ async function startAudioInteractionConsumers() {
       consumerId: transcriptionConsumerId,
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
+      onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
