@@ -45,6 +45,18 @@ export const FUNASR_TRANSCRIPTION_MODELS = [
   },
 ]
 
+/**
+ * Normalizes the FunASR OpenAI-compatible API base URL.
+ * Undefined input selects the local default, while an explicitly blank value is rejected.
+ *
+ * @example
+ * normalizeBaseUrl('  https://speech.example.com/v1  ')
+ * // => 'https://speech.example.com/v1/'
+ *
+ * @example
+ * normalizeBaseUrl(undefined)
+ * // => 'http://localhost:8000/v1/'
+ */
 function normalizeBaseUrl(baseUrl: string | undefined) {
   const value = baseUrl === undefined ? FUNASR_BASE_URL : baseUrl.trim()
   if (!value)
@@ -102,6 +114,14 @@ function createFunASRValidators() {
   }
 }
 
+/**
+ * Credential-optional FunASR transcription provider for OpenAI-compatible endpoints.
+ *
+ * It defaults to the local FunASR server and SenseVoice model, exposes the fixed
+ * {@link FUNASR_TRANSCRIPTION_MODELS} catalog, and forwards language and prompt
+ * transcription options supplied by Hearing. An API key remains available for
+ * protected gateways but is not required for local use.
+ */
 export const providerFunASRAudioTranscription = defineProvider<FunASRConfig>({
   id: 'funasr-audio-transcription',
   name: 'FunASR',
