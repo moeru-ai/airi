@@ -35,8 +35,8 @@ the API and Auth container ports private.
 
 ## Service boundaries
 
-- `AUTH_SERVER_URL` is the public issuer origin used for JWKS, issuer, and
-  audience validation. With Caddy routing, it remains `https://api.airi.build`.
+- `AUTH_SERVER_URL` is Auth's canonical public issuer origin used for JWKS,
+  issuer, and audience validation. It must exactly equal Auth's `PUBLIC_URL`.
 - `/internal/auth/*` is reachable only on the deployment's trusted private
   network. The public edge must reject `/internal/*` and the API service must
   not have its own public ingress.
@@ -46,3 +46,16 @@ the API and Auth container ports private.
   under `server/apps/auth` is imported.
 - `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to
   `https://admin.airi.build`.
+
+## Railway
+
+Deploy this as the Resource API Railway service with Config File Path
+`/server/apps/api/railway.toml`; keep the service Root Directory at the
+repository root because the Dockerfile copies shared workspace packages. The
+config owns its Dockerfile, start command, `/readyz` healthcheck, and the
+watch patterns for every copied build input.
+
+Set `AUTH_SERVER_INTERNAL_URL` from Auth's Railway private domain. It is only
+the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.
+See [`server/README.md`](../../README.md#railway-deployment) for the complete
+cross-service variable and migration contract.

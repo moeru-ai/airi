@@ -1,11 +1,9 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "/server/apps/api/production/railway/Dockerfile"
+dockerfilePath = "/server/apps/auth/Dockerfile"
 watchPatterns = [
-  "server/apps/api/**",
+  "server/apps/auth/**",
   "server/packages/auth-shared/**",
-  "server/packages/drizzle-migration/**",
-  "packages/server-sdk-shared/**",
   "package.json",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
@@ -14,6 +12,6 @@ watchPatterns = [
 ]
 
 [deploy]
-startCommand = "pnpm -F @proj-airi/api-server start"
+startCommand = "pnpm -F @proj-airi/auth-server start"
 healthcheckPath = "/readyz"
 healthcheckTimeout = 100

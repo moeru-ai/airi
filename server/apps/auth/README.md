@@ -42,6 +42,21 @@ pnpm dev:backend
 stay on its private network. The internal `/internal/*` boundary has no
 application token, and Caddy rejects that path at the public edge.
 
+## Railway
+
+Deploy this as the Auth Railway service with Config File Path
+`/server/apps/auth/railway.toml`; keep the service Root Directory at the
+repository root because the Dockerfile copies workspace manifests and
+`server/packages/auth-shared`. The config owns its Dockerfile, start command,
+`/readyz` healthcheck, and the watch patterns for each copied build input.
+
+Set `PUBLIC_URL` to this service's canonical public issuer URL, and make the
+Resource API's `AUTH_SERVER_URL` exactly the same value. Set
+`RESOURCE_SERVER_URL` from the Resource API's Railway private domain; do not
+run shared database migrations from Auth. See
+[`server/README.md`](../../README.md#railway-deployment) for the complete
+service contract.
+
 ## Do not use it for
 
 - Product APIs, billing, model routing, chat, or WebSocket business state.
