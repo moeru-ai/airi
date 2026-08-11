@@ -347,7 +347,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     return typeof model === 'string' ? model : 'sensevoice'
   })
 
-  let pendingDestinationModelProvider = ''
+  // This watcher state belongs to one destination-model request. A newer load for the same
+  // provider replaces the request id, so an older response cannot update the active model.
+  let nextDestinationModelRequestId = 0
+  let pendingDestinationModelRequest: { providerId: string, requestId?: number } | undefined
 
   function syncDestinationModel(providerId: string, freshlyListedModels: readonly { id: string }[] = []) {
     if (activeTranscriptionProvider.value !== providerId)
@@ -381,16 +384,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
   // Resolve the provider transition synchronously so the later model assignment wins.
   watch(activeTranscriptionProvider, async (providerId, previousProviderId) => {
     verboseJsonNotSupported.value = false
-    pendingDestinationModelProvider = ''
+    pendingDestinationModelRequest = undefined
     if (providerId === 'funasr-audio-transcription') {
       activeTranscriptionModel.value = activeFunASRConfiguredModel.value
       await loadModelsForProvider(providerId)
     }
     else if (previousProviderId !== undefined) {
       activeTranscriptionModel.value = ''
-      pendingDestinationModelProvider = providerId
+      pendingDestinationModelRequest = { providerId }
       if (syncDestinationModel(providerId))
-        pendingDestinationModelProvider = ''
+        pendingDestinationModelRequest = undefined
     }
   }, { flush: 'sync', immediate: true })
 
@@ -441,13 +444,23 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   async function loadModelsForProvider(provider: string) {
+    const destinationRequest = pendingDestinationModelRequest?.providerId === provider
+      ? { providerId: provider, requestId: ++nextDestinationModelRequestId }
+      : undefined
+    if (destinationRequest)
+      pendingDestinationModelRequest = destinationRequest
+
     let freshlyListedModels: readonly { id: string }[] = []
     if (providersStore.supportsModelListing(provider)) {
       freshlyListedModels = await providersStore.fetchModelsForProvider(provider)
     }
 
-    if (pendingDestinationModelProvider === provider && syncDestinationModel(provider, freshlyListedModels))
-      pendingDestinationModelProvider = ''
+    if (destinationRequest
+      && pendingDestinationModelRequest?.providerId === destinationRequest.providerId
+      && pendingDestinationModelRequest.requestId === destinationRequest.requestId
+      && syncDestinationModel(provider, freshlyListedModels)) {
+      pendingDestinationModelRequest = undefined
+    }
   }
 
   async function getModelsForProvider(provider: string) {

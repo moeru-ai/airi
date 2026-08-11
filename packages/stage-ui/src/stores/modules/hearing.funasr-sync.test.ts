@@ -337,6 +337,65 @@ describe('funASR Hearing model synchronization', () => {
     expect(providerConfigStore.getProviderConfig(providerId)).not.toHaveProperty('model')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757074253
+  it('ignores an earlier model response after the same provider is selected again (GitHub #2122)', async () => {
+    const providersStore = useProviderStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'browser-web-speech-api'
+    const fetchModelsForProvider = providersStore.fetchModelsForProvider.bind(providersStore)
+    type ListedModels = Awaited<ReturnType<typeof fetchModelsForProvider>>
+    let resolveFirstRequest!: (models: ListedModels) => void
+    let resolveSecondRequest!: (models: ListedModels) => void
+    const firstRequest = new Promise<ListedModels>((resolve) => {
+      resolveFirstRequest = resolve
+    })
+    const secondRequest = new Promise<ListedModels>((resolve) => {
+      resolveSecondRequest = resolve
+    })
+    let requestCount = 0
+
+    vi.spyOn(providersStore, 'fetchModelsForProvider').mockImplementation(async (requestedProviderId) => {
+      if (requestedProviderId !== providerId)
+        return fetchModelsForProvider(requestedProviderId)
+
+      requestCount++
+      return requestCount === 1 ? firstRequest : secondRequest
+    })
+
+    hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
+    await vi.waitFor(() => {
+      expect(hearingStore.activeTranscriptionModel).toBe('sensevoice')
+    })
+
+    hearingStore.activeTranscriptionProvider = providerId
+    const firstLoad = hearingStore.loadModelsForProvider(providerId)
+    hearingStore.activeTranscriptionProvider = 'openai-compatible-audio-transcription'
+    hearingStore.activeTranscriptionProvider = providerId
+    const secondLoad = hearingStore.loadModelsForProvider(providerId)
+
+    resolveFirstRequest([{
+      id: 'stale-model',
+      name: 'Stale model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await firstLoad
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+
+    resolveSecondRequest([{
+      id: 'fresh-model',
+      name: 'Fresh model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await secondLoad
+    expect(hearingStore.activeTranscriptionModel).toBe('fresh-model')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3694431137
   it('resolves the destination model on every provider switch (GitHub #2122)', async () => {
     const providerConfigStore = useProviderConfigStore()

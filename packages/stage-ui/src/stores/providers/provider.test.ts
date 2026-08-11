@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
 
 vi.mock('vue-i18n', () => ({
@@ -63,5 +64,23 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState['official-provider']?.models).toEqual([
       expect.objectContaining({ id: 'auto' }),
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757074245
+  it('does not refresh models when only the selected model changes (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    store.initializeProvider(providerId)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    configStore.setProviderStatus(providerId, 'configured')
+    await store.refreshModelsForChangedCredentials()
+    expect(configStore.getProvider(providerId)?.status).toBe('configured')
+
+    const listModels = vi.spyOn(store.getProviderDefinition(providerId).extraMethods!, 'listModels')
+    configStore.getProviderConfig(providerId)!.model = 'paraformer'
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(listModels).not.toHaveBeenCalled()
   })
 })
