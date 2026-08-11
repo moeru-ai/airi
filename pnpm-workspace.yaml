@@ -31,9 +31,6 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
-  '@xsai/generate-text@0.5.0-beta.8': patches/@xsai__generate-text@0.5.0-beta.8.patch
-  '@xsai/shared-chat@0.5.0-beta.8': patches/@xsai__shared-chat@0.5.0-beta.8.patch
-  '@xsai/stream-text@0.5.0-beta.8': patches/@xsai__stream-text@0.5.0-beta.8.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
@@ -425,7 +422,7 @@ catalog:
   wxt: ^0.20.24
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
-  xsschema: 0.5.0-beta.2
+  xsschema: 0.5.0-beta.8
   yaml: ^2.8.3
   yauzl: ^3.3.0
   zod: ^4.3.6
