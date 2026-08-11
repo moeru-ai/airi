@@ -1,5 +1,6 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 
+import { useStreamingTranscriptionInput } from '@proj-airi/stage-ui/composables/use-streaming-transcription-input'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -28,6 +29,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
   const isListening = ref(false)
   const transcriptionConsumerId = `interactive-area:${useId()}`
+  const streamingInput = useStreamingTranscriptionInput(messageInput)
 
   // Auto-send logic
   let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -60,6 +62,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
   const stopStreaming = async () => {
     removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+    streamingInput.clear()
 
     if (!isListening.value)
       return
@@ -181,15 +184,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
         onSentenceEnd: (delta) => {
-          if (delta && delta.trim()) {
-            console.info('Received transcription delta:', delta, { source: 'useTranscriptions' })
-            // Append transcribed text to message input
-            const currentText = messageInput.value.trim()
-            messageInput.value = currentText ? `${currentText} ${delta}` : delta
+          if (streamingInput.commit(delta)) {
+            console.info('Received final transcription:', delta, { source: 'useTranscriptions' })
             debouncedAutoSend()
           }
         },
-        // Omit onSpeechEnd to avoid re-adding user-deleted text; use sentence deltas only.
+        onSpeechEnd: streamingInput.clear,
+        onTranscriptionUpdate: streamingInput.replace,
       })
 
       // Only set listening to true if transcription started successfully
@@ -198,6 +199,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
       console.info('Streaming transcription initiated successfully', { source: 'useTranscriptions' })
     }
     catch (err) {
+      streamingInput.clear()
       console.error('Transcription error:', err, { source: 'useTranscriptions' })
       isListening.value = false
       throw err

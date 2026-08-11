@@ -1,8 +1,9 @@
 import type { Span } from '@opentelemetry/api'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { WithUnknown } from '@xsai/shared'
-import type { StreamTranscriptionResult, StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
+import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 
+import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { StreamingTranscriptionCallbacks, StreamingTranscriptionConsumer } from './streaming-transcription-consumers'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
@@ -90,11 +91,11 @@ export interface StreamTranscriptionStreamInputOptions extends Omit<XSAIStreamTr
   inputAudioStream: ReadableStream<ArrayBuffer>
 }
 
-export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => StreamTranscriptionResult
+export type StreamTranscription = (options: WithUnknown<StreamTranscriptionFileInputOptions | StreamTranscriptionStreamInputOptions>) => AIRIStreamTranscriptionResult
 
 type GenerateTranscriptionResponse = Awaited<ReturnType<typeof generateTranscription>>
 type HearingTranscriptionGenerateResult = GenerateTranscriptionResponse & { mode: 'generate' }
-type HearingTranscriptionStreamResult = StreamTranscriptionResult & { mode: 'stream' }
+type HearingTranscriptionStreamResult = AIRIStreamTranscriptionResult & { mode: 'stream' }
 export type HearingTranscriptionResult = HearingTranscriptionGenerateResult | HearingTranscriptionStreamResult
 
 type HearingTranscriptionInput = File | {
@@ -573,6 +574,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
   const streamingCallbacks = {
     onSentenceEnd: (delta: string) => streamingConsumers.emitSentenceEnd(delta),
     onSpeechEnd: (text: string) => streamingConsumers.emitSpeechEnd(text),
+    onTranscriptionUpdate: (text: string) => streamingConsumers.emitTranscriptionUpdate(text),
   }
   const {
     trackAudioDeviceUnavailable,
@@ -841,26 +843,34 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     session: NonNullable<typeof streamingSession.value>,
     result: HearingTranscriptionResult,
   ) {
-    if (result.mode !== 'stream' || !result.textStream)
+    if (result.mode !== 'stream' || !result.fullStream)
       return
 
     const sessionSpan = asrSpan
     const sessionCallbacks = session.callbacks
     void (async () => {
       let fullText = ''
+      let latestSnapshotIsFinal = false
       try {
-        const reader = result.textStream.getReader()
+        const reader = result.fullStream.getReader()
 
         while (true) {
           const { done, value } = await reader.read()
           if (done)
             break
-          if (!value)
+          if (value.type === 'transcript.text.snapshot') {
+            latestSnapshotIsFinal = value.isFinal
+            fullText = value.text
+            sessionCallbacks?.onTranscriptionUpdate?.(fullText)
+            continue
+          }
+          if (value.type !== 'transcript.text.delta' || !value.delta)
             continue
 
-          fullText += value
-          sessionSpan?.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: value })
-          sessionCallbacks?.onSentenceEnd?.(value)
+          fullText += value.delta
+          sessionCallbacks?.onTranscriptionUpdate?.(fullText)
+          sessionSpan?.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: value.delta })
+          sessionCallbacks?.onSentenceEnd?.(value.delta)
         }
       }
       catch (err) {
@@ -868,6 +878,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
           console.error('Error reading text stream:', err)
       }
       finally {
+        if (latestSnapshotIsFinal && fullText.trim()) {
+          sessionSpan?.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: fullText })
+          sessionCallbacks?.onSentenceEnd?.(fullText)
+        }
         sessionSpan?.setAttribute(IOAttributes.ASRText, fullText)
         sessionSpan?.end()
         if (asrSpan === sessionSpan)
@@ -972,7 +986,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       supportsStreamInput: supportsStreamInput.value,
       hasStream: !!stream,
       providerId: activeTranscriptionProvider.value,
-      hasCallbacks: !!(options.onSentenceEnd || options.onSpeechEnd),
+      hasCallbacks: !!(options.onSentenceEnd || options.onSpeechEnd || options.onTranscriptionUpdate),
     })
 
     if (!supportsStreamInput.value) {

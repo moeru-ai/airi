@@ -3,6 +3,23 @@ import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/
 
 type AudioChunk = ArrayBuffer | ArrayBufferView
 
+/** A complete transcript snapshot that replaces earlier volatile text. */
+export interface StreamTranscriptionSnapshot {
+  durationMilliseconds: number
+  isFinal: boolean
+  locale: string
+  startMilliseconds: number
+  text: string
+  type: 'transcript.text.snapshot'
+}
+
+export type AIRIStreamTranscriptionDelta = StreamTranscriptionDelta | StreamTranscriptionSnapshot
+
+/** xsAI stream result with AIRI's replaceable snapshot event. */
+export interface AIRIStreamTranscriptionResult extends Omit<StreamTranscriptionResult, 'fullStream'> {
+  fullStream: ReadableStream<AIRIStreamTranscriptionDelta>
+}
+
 /** Options for adapting an SSE transcription request to xsAI stream results. */
 export interface StreamTranscriptionOptions {
   abortSignal?: AbortSignal
@@ -33,7 +50,7 @@ function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream
   return stream as ReadableStream<AudioChunk>
 }
 
-function parseSSELine(line: string): StreamTranscriptionDelta | undefined {
+function parseSSELine(line: string): AIRIStreamTranscriptionDelta | undefined {
   if (!line || !line.startsWith('data:'))
     return undefined
 
@@ -42,14 +59,14 @@ function parseSSELine(line: string): StreamTranscriptionDelta | undefined {
   if (!data)
     return undefined
 
-  return JSON.parse(data) as StreamTranscriptionDelta
+  return JSON.parse(data) as AIRIStreamTranscriptionDelta
 }
 
 function createSSETransformer() {
   const decoder = new TextDecoder()
   let buffer = ''
 
-  return new TransformStream<Uint8Array, StreamTranscriptionDelta>({
+  return new TransformStream<Uint8Array, AIRIStreamTranscriptionDelta>({
     transform: (chunk, controller) => {
       buffer += decoder.decode(chunk, { stream: true })
       const lines = buffer.split('\n')
@@ -78,16 +95,16 @@ function createSSETransformer() {
  * The provider owns transport details. This adapter owns only request input,
  * SSE parsing, and the result streams consumed by Hearing.
  */
-export function streamTranscription(options: StreamTranscriptionOptions): StreamTranscriptionResult {
+export function streamTranscription(options: StreamTranscriptionOptions): AIRIStreamTranscriptionResult {
   const audioStream = resolveAudioStream(options)
   const fetcher = options.fetch ?? globalThis.fetch
   const deferredText = createDeferred<string>()
 
   let text = ''
   let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
-  let fullStreamCtrl: ReadableStreamDefaultController<StreamTranscriptionDelta> | undefined
+  let fullStreamCtrl: ReadableStreamDefaultController<AIRIStreamTranscriptionDelta> | undefined
 
-  const fullStream = new ReadableStream<StreamTranscriptionDelta>({
+  const fullStream = new ReadableStream<AIRIStreamTranscriptionDelta>({
     start(controller) {
       fullStreamCtrl = controller
     },
@@ -119,12 +136,15 @@ export function streamTranscription(options: StreamTranscriptionOptions): Stream
 
       await response.body
         .pipeThrough(createSSETransformer())
-        .pipeTo(new WritableStream<StreamTranscriptionDelta>({
+        .pipeTo(new WritableStream<AIRIStreamTranscriptionDelta>({
           write: (chunk) => {
             fullStreamCtrl?.enqueue(chunk)
             if (chunk.type === 'transcript.text.delta') {
               text += chunk.delta
               textStreamCtrl?.enqueue(chunk.delta)
+            }
+            else if (chunk.type === 'transcript.text.snapshot') {
+              text = chunk.text
             }
           },
           close: () => {

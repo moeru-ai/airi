@@ -60,4 +60,17 @@ describe('streaming transcription consumers', () => {
 
     consoleError.mockRestore()
   })
+
+  it('routes complete transcript updates independently from final sentences', () => {
+    const consumers = new StreamingTranscriptionConsumers()
+    const onSentenceEnd = vi.fn()
+    const onTranscriptionUpdate = vi.fn()
+    consumers.register({ consumerId: 'input', onSentenceEnd, onTranscriptionUpdate })
+
+    consumers.emitTranscriptionUpdate('provider correction')
+
+    expect(onTranscriptionUpdate).toHaveBeenCalledOnce()
+    expect(onTranscriptionUpdate).toHaveBeenCalledWith('provider correction')
+    expect(onSentenceEnd).not.toHaveBeenCalled()
+  })
 })
