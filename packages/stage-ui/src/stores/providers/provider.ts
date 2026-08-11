@@ -203,6 +203,10 @@ export const useProviderStore = defineStore('provider', () => {
   })
   const providerValidationInFlight = new Map<string, Promise<boolean>>()
   const providerRevalidationLoops = new Map<string, { pause: () => void, resume: () => void }>()
+  // Model discovery is isolated per provider. Only the newest request may publish
+  // cache or status state; older responses retain no ownership after a new load starts.
+  let nextModelListRequestId = 0
+  const latestModelListRequestIds = new Map<string, number>()
 
   // Server-driven availability overrides for providers whose visibility can
   // only be decided at runtime from the backend (e.g. the streaming TTS
@@ -521,6 +525,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   function deleteProvider(providerId: string) {
     void providerConfigStore.removeProvider(providerId)
+    latestModelListRequestIds.delete(providerId)
     delete providerRuntimeState.value[providerId]
   }
 
@@ -546,6 +551,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   async function resetProviderSettings() {
     await providerConfigStore.resetProviders()
+    latestModelListRequestIds.clear()
     providerRuntimeState.value = {}
 
     providerRevalidationLoops.forEach(loop => loop.pause())
@@ -648,6 +654,8 @@ export const useProviderStore = defineStore('provider', () => {
     if (!config && definition.requiresCredentials !== false)
       return []
 
+    const requestId = ++nextModelListRequestId
+    latestModelListRequestIds.set(providerId, requestId)
     initializeProviderRuntimeState(providerId)
     providerRuntimeState.value = {
       ...providerRuntimeState.value,
@@ -669,6 +677,18 @@ export const useProviderStore = defineStore('provider', () => {
           deprecated: model.deprecated,
           provider: providerId,
         }))
+
+      if (latestModelListRequestIds.get(providerId) !== requestId) {
+        trackModelListLoaded({
+          provider_id: providerId,
+          provider_mode: analyticsProviderMode(providerId),
+          model_count: normalizedModels.length,
+          duration_ms: Date.now() - startedAt,
+        })
+        // A newer request owns the cache. Return its current snapshot instead of
+        // exposing this stale response to callers that also consume the result.
+        return providerRuntimeState.value[providerId]?.models || []
+      }
 
       // Transform and store the models
       // A synced snapshot can replace this provider entry while the request is
@@ -706,7 +726,7 @@ export const useProviderStore = defineStore('provider', () => {
     catch (error) {
       console.error(`Error fetching models for ${providerId}:`, error)
       const currentRuntimeState = providerRuntimeState.value[providerId]
-      if (currentRuntimeState) {
+      if (latestModelListRequestIds.get(providerId) === requestId && currentRuntimeState) {
         providerRuntimeState.value = {
           ...providerRuntimeState.value,
           [providerId]: {

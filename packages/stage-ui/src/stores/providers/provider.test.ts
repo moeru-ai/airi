@@ -83,4 +83,65 @@ describe('provider store synchronization boundary', () => {
 
     expect(listModels).not.toHaveBeenCalled()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757361703
+  it('keeps a stale model request from overwriting the latest provider cache (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    store.initializeProvider(providerId)
+    Object.assign(configStore.getProviderConfig(providerId)!, {
+      apiKey: 'not-needed',
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+
+    const definition = store.getProviderDefinition(providerId)
+    const listModels = definition.extraMethods?.listModels
+    if (!listModels)
+      throw new Error('Expected FunASR model listing support')
+
+    type ListedModels = Awaited<ReturnType<typeof listModels>>
+    let resolveFirstRequest!: (models: ListedModels) => void
+    let resolveSecondRequest!: (models: ListedModels) => void
+    const firstRequest = new Promise<ListedModels>((resolve) => {
+      resolveFirstRequest = resolve
+    })
+    const secondRequest = new Promise<ListedModels>((resolve) => {
+      resolveSecondRequest = resolve
+    })
+    let requestCount = 0
+    vi.spyOn(definition.extraMethods!, 'listModels').mockImplementation(async () => {
+      requestCount++
+      return requestCount === 1 ? firstRequest : secondRequest
+    })
+
+    const staleLoad = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(requestCount).toBe(1))
+    const freshLoad = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(requestCount).toBe(2))
+
+    resolveSecondRequest([{
+      id: 'fresh-model',
+      name: 'Fresh model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await freshLoad
+    expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['fresh-model'])
+
+    resolveFirstRequest([{
+      id: 'stale-model',
+      name: 'Stale model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    await staleLoad
+    expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['fresh-model'])
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready')
+  })
 })
