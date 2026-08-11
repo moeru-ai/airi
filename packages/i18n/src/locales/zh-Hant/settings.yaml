@@ -51,18 +51,16 @@ dialogs:
     no-models-help: >-
       請返回上一步並檢查您的 API Key，或檢查網路連線。
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
-      notificationsTitle: Notifications
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
-      stateGranted: Granted
-      stateNotGranted: Not granted
+      title: 權限管理
+      description: 您現在可以授予所需權限，或繼續並稍後在系統設定中配置。
+      notificationsTitle: 通知
+      notificationsDescription: 允許提醒以及重要的狀態更新。
+      microphoneTitle: 麥克風
+      microphoneDescription: 允許 AIRI 使用麥克風進行語音輸入和轉錄。
+      requestAction: 請求取得
+      optionalHint: 即使沒有授予這些權限，您也可以繼續。
+      stateGranted: 已授權
+      stateNotGranted: 未授權
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what happened?
@@ -1455,6 +1453,9 @@ pages:
     general:
       description: 深色主題、語言等選項
       title: 通用
+    permissions:
+      description: 查看目前權限狀態
+      title: 權限管理
     description: 自訂你的舞台外觀！
     sections:
       section:

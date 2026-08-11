@@ -93,9 +93,6 @@ function createAdminMetricsReader(db: Database) {
     inFlight = (async () => {
       const currentTime = Date.now()
       const yesterday = new Date(currentTime - 24 * 60 * 60 * 1000)
-      const weekAgo = new Date(currentTime - 7 * 24 * 60 * 60 * 1000)
-      const monthAgo = new Date(currentTime - 30 * 24 * 60 * 60 * 1000)
-
       const [
         users,
         sessions,
@@ -107,9 +104,6 @@ function createAdminMetricsReader(db: Database) {
           totalUsers: count(),
           verifiedUsers: sql<number>`count(*) filter (where ${userTable.emailVerified} = true)`,
           adminSeats: sql<number>`count(*) filter (where 'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*')))`,
-          active24h: sql<number>`count(*) filter (where ${userTable.lastSeenAt} > ${yesterday})`,
-          active7d: sql<number>`count(*) filter (where ${userTable.lastSeenAt} > ${weekAgo})`,
-          active30d: sql<number>`count(*) filter (where ${userTable.lastSeenAt} > ${monthAgo})`,
         }).from(userTable),
         db
           .select({
@@ -134,11 +128,6 @@ function createAdminMetricsReader(db: Database) {
         verifiedUsers: Number(users[0]?.verifiedUsers ?? 0),
         activeSessions: Number(sessions[0]?.activeSessions ?? 0),
         distinctActiveUsers: Number(sessions[0]?.distinctActiveUsers ?? 0),
-        rollingActiveUsers: {
-          '24h': Number(users[0]?.active24h ?? 0),
-          '7d': Number(users[0]?.active7d ?? 0),
-          '30d': Number(users[0]?.active30d ?? 0),
-        },
         currentFlux: Number(currentFlux[0]?.total ?? 0),
         issuedFlux: Number(issuedFlux[0]?.total ?? 0),
         llmRequests24h: Number(llmUsage24h[0]?.count ?? 0),

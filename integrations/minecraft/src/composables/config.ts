@@ -59,8 +59,8 @@ export const configSchema = z.object({
     }).optional(),
     password: z.string().optional(),
     version: z.string().trim().min(1, 'BOT_VERSION cannot be empty').optional(),
-    // In-game username of the bot's owner ("主人"). Binds the relayed "主人" role to the real
-    // player so the bot recognizes its master in-world (e.g. does not flee when the master hits it).
+    // In-game username of the bot's owner. Binds the relayed master role to the real player so the
+    // bot recognizes its master in-world (e.g. does not flee when the master hits it).
     masterUsername: z.string().trim().min(1).optional(),
   }),
   airi: z.object({

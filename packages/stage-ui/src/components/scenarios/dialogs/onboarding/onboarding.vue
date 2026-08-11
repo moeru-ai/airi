@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProviderMode } from '../../../../composables/use-analytics'
-import type { ProviderMetadata } from '../../../../stores/providers'
+import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type {
   OnboardingStep,
   OnboardingStepGuard,
@@ -20,7 +20,8 @@ import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
-import { useProvidersStore } from '../../../../stores/providers'
+import { useProviderConfigStore } from '../../../../stores/providers/config'
+import { useProviderStore } from '../../../../stores/providers/provider'
 
 interface Emits {
   (e: 'configured'): void
@@ -38,8 +39,11 @@ const direction = ref<'next' | 'previous'>('next')
 const pendingProviderConfig = ref<ProviderConfigData | null>(null)
 const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCompleted } = useAnalytics()
 
-const providersStore = useProvidersStore()
-const { providers, allChatProvidersMetadata } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
+const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
   activeProvider,

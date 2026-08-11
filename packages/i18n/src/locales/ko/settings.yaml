@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       이전 단계로 돌아가서 API 키를 확인하거나 네트워크 연결을 확인해 주세요.
     permissions:
-      title: 알림
-      description: 지금 알림을 받도록 허용할 수 있고 나중에 허용할 수 있어요.
+      title: 권한 관리
+      description: 지금 필요한 권한을 허용하거나 계속 진행한 뒤 나중에 설정할 수 있어요.
       notificationsTitle: 알림
-      notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: iOS 설정 열기
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: 요청 전
-      stateRequesting: 요청 중...
+      notificationsDescription: 미리 알림과 중요한 상태 업데이트를 허용합니다.
+      microphoneTitle: 마이크
+      microphoneDescription: AIRI가 음성 입력 및 텍스트 변환에 마이크를 사용하도록 허용합니다.
+      requestAction: 액세스 요청
+      optionalHint: 이 권한을 허용하지 않아도 계속할 수 있어요.
       stateGranted: 허용됨
       stateNotGranted: 허용되지 않음
   bug-report:
@@ -1455,6 +1453,9 @@ pages:
     general:
       description: 어두운 테마, 언어 등.
       title: 일반
+    permissions:
+      description: 현재 권한 상태를 확인합니다.
+      title: 권한 관리
     description: 무대를 커스터마이징하세요!
     sections:
       section:

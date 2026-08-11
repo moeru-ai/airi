@@ -51,18 +51,16 @@ dialogs:
     no-models-help: >-
       Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
     permissions:
-      title: Thông báo
-      description: Bạn có thể cho phép thông báo ngay bây giờ hoặc tiếp tục và chỉnh lại sau.
+      title: Quản lý quyền
+      description: Bạn có thể cấp các quyền cần thiết ngay bây giờ hoặc tiếp tục và thiết lập sau.
       notificationsTitle: Thông báo
       notificationsDescription: Cho phép nhắc nhở và các cập nhật trạng thái quan trọng.
-      notificationsAction: Yêu cầu quyền thông báo
-      notificationsNotGrantedHint: Nếu từ chối, bạn có thể bật thông báo ở Cài đặt iOS.
-      openSettings: Mở Cài đặt iOS
-      optionalHint: Bạn có thể tiếp tục kể cả khi quyền thông báo không được cấp quyền.
-      stateUnknown: Không được yêu cầu
-      stateRequesting: Đang yêu cầu...
+      microphoneTitle: Micrô
+      microphoneDescription: Cho phép AIRI sử dụng micrô để nhập giọng nói và phiên âm.
+      requestAction: Yêu cầu quyền truy cập
+      optionalHint: Bạn vẫn có thể tiếp tục ngay cả khi chưa cấp các quyền này.
       stateGranted: Đã cấp quyền
-      stateNotGranted: Khônh được cấp quyền
+      stateNotGranted: Không được cấp quyền
   bug-report:
     title: Báo lỗi (´;ω;`)ヾ(･∀･`)
     subtitle: Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể cho chúng tôi biết chuyện gì đã xảy ra không?
@@ -1455,6 +1453,9 @@ pages:
     general:
       description: Chế độ tối, ngôn ngữ, v.v.
       title: Chung
+    permissions:
+      description: Xem trạng thái quyền hiện tại.
+      title: Quản lý quyền
     description: Tùy chỉnh thiết lập bối cảnh của bạn!
     sections:
       section:

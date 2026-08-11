@@ -9,7 +9,7 @@
   makeWrapper,
   gitMinimal,
   nodejs,
-  pnpm_10,
+  pnpm_11,
   pnpmConfigHook,
 
   electron_41,
@@ -18,7 +18,7 @@
 }:
 
 let
-  pnpm = pnpm_10;
+  pnpm = pnpm_11;
   electron = electron_41;
   libraryPath = lib.makeLibraryPath [
     libxt
@@ -67,9 +67,8 @@ in
   buildPhase = ''
     runHook preBuild
 
-    pnpm run build:packages
+    pnpm -F @proj-airi/stage-tamagotchi... run build
     cd apps/stage-tamagotchi
-    pnpm run build
     pnpm exec electron-builder build \
       --dir --${if stdenvNoCC.isLinux then "linux" else "mac"} \
       -c.electronDist="${electron.dist}" \

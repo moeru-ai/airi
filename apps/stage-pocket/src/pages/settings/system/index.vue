@@ -21,6 +21,12 @@ const settings = computed(() => [
     to: '/settings/system/color-scheme',
   },
   {
+    title: t('settings.pages.system.permissions.title'),
+    description: t('settings.pages.system.permissions.description'),
+    icon: 'i-solar:shield-check-bold-duotone',
+    to: '/settings/system/permissions',
+  },
+  {
     title: t('settings.pages.system.developer.title'),
     description: t('settings.pages.system.developer.description'),
     icon: 'i-solar:code-bold-duotone',

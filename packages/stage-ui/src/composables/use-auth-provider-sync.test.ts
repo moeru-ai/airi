@@ -47,9 +47,9 @@ vi.mock('../stores/auth', () => ({
   }),
 }))
 
-vi.mock('../stores/providers', () => ({
-  useProvidersStore: () => ({
-    getProviderMetadata: () => ({}),
+vi.mock('../stores/providers/provider', () => ({
+  useProviderStore: () => ({
+    findProviderDefinition: () => ({}),
     forceProviderConfigured: syncMocks.forceProviderConfigured,
     setProviderUnconfigured: syncMocks.setProviderUnconfigured,
     setProviderAvailabilityOverride: syncMocks.setProviderAvailabilityOverride,

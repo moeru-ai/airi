@@ -58,6 +58,17 @@ function createCjkPathSettingsText(): string {
   })
 }
 
+function createSpacePathSettingsText(): string {
+  return JSON.stringify({
+    Version: 3,
+    FileReferences: {
+      Moc: 'Avatar Model.moc3',
+      Textures: ['Avatar Model.4096/texture 00.png'],
+    },
+    Groups: [],
+  })
+}
+
 const appleDoubleHeader = new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0, 77, 97, 99, 32, 79, 83, 32, 88])
 
 describe('live2d zip loader settings sanitization', () => {
@@ -118,6 +129,47 @@ describe('live2d zip loader settings sanitization', () => {
     // settings.resolveURL('测试角色.moc3') !== encodeURI(file.webkitRelativePath)
     //
     // The loader now keeps both sides as decoded archive paths, matching its unzip and upload stages.
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
+
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+        URL.revokeObjectURL(resourceUrl)
+      delete FileLoader.filesMap[objectUrl]
+    }
+  })
+
+  it('loads a zip model whose settings and resources contain spaces', async () => {
+    await import('./live2d-zip-loader')
+    const { FileLoader, Live2DModel, ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('Model Package/Avatar Model.model3.json', createSpacePathSettingsText())
+    zip.file('Model Package/Avatar Model.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('Model Package/Avatar Model.4096/texture 00.png', new Uint8Array([1, 2, 3]))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = Object.assign(await ZipLoader.unzip(reader, settings), { settings })
+    const objectUrl = `zip://test/${settings.url}`
+    Object.assign(settings, { _objectURL: objectUrl })
+
+    // ROOT CAUSE:
+    //
+    // ModelSettings.resolveURL percent-encodes spaces while ZipLoader and OPFS preserve
+    // decoded archive paths. FileLoader therefore rejects resources that are present.
+    //
+    // Model Package/Avatar Model.moc3
+    // !== Model%20Package/Avatar%20Model.moc3
+    //
+    // We fixed this by comparing canonical decoded archive paths at the loader boundary.
     const context = {
       source: files,
       options: {},

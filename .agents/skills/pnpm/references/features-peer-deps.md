@@ -7,126 +7,98 @@ description: Handling peer dependencies with auto-install and resolution rules
 
 pnpm has strict peer dependency handling by default. It provides configuration options to control how peer dependencies are resolved and reported.
 
+All peer-dependency settings live in `pnpm-workspace.yaml` (camelCase). The `package.json#pnpm` field is no longer read.
+
 ## Auto-Install Peer Dependencies
 
-By default, pnpm automatically installs peer dependencies:
+By default (since v8), pnpm automatically installs missing non-optional peer dependencies:
 
-```ini
-# .npmrc (default is true since pnpm v8)
-auto-install-peers=true
+```yaml title="pnpm-workspace.yaml"
+autoInstallPeers: true
 ```
 
-When enabled, pnpm automatically adds missing peer dependencies based on the best matching version.
+On conflicting requirements (e.g. one dep needs `react@^16`, another `react@^17`), pnpm installs nothing and prints a warning — resolve it manually.
 
 ## Strict Peer Dependencies
 
-Control whether peer dependency issues cause errors:
-
-```ini
-# Fail on peer dependency issues (default: false)
-strict-peer-dependencies=true
+```yaml title="pnpm-workspace.yaml"
+strictPeerDependencies: true   # default false
 ```
 
-When strict, pnpm will fail if:
-- Peer dependency is missing
-- Installed version doesn't match required range
+When strict, commands fail on a missing or invalid peer dependency in the tree.
+
+## Resolve from workspace root
+
+```yaml title="pnpm-workspace.yaml"
+resolvePeersFromWorkspaceRoot: true   # default; install shared peers once at the root
+```
+
+## Deduplicate peers
+
+```yaml title="pnpm-workspace.yaml"
+dedupePeerDependents: true   # default; share package instances across projects when peers match
+dedupePeers: false           # v10.33+: version-only peer suffixes (name@version), fewer instances
+```
 
 ## Peer Dependency Rules
 
-Configure peer dependency behavior in `package.json`:
-
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "ignoreMissing": ["@babel/*", "eslint"],
-      "allowedVersions": {
-        "react": "17 || 18"
-      },
-      "allowAny": ["@types/*"]
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  ignoreMissing:
+    - '@babel/*'
+    - eslint
+  allowedVersions:
+    react: '17 || 18'
+  allowAny:
+    - '@types/*'
 ```
 
 ### ignoreMissing
 
-Suppress warnings for missing peer dependencies:
+Suppress warnings for missing peer dependencies. Patterns: exact name (`react`), scope (`@babel/*`), or `*` (not recommended).
 
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "ignoreMissing": [
-        "@babel/*",
-        "eslint",
-        "webpack"
-      ]
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  ignoreMissing:
+    - '@babel/*'
+    - eslint
+    - webpack
 ```
-
-Use patterns:
-- `"react"` - exact package name
-- `"@babel/*"` - all packages in scope
-- `"*"` - all packages (not recommended)
 
 ### allowedVersions
 
-Allow specific versions that would otherwise cause warnings:
+Allow specific versions that would otherwise warn. Target a specific parent with `parent>peer`.
 
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "react": "17 || 18",
-        "webpack": "4 || 5",
-        "@types/react": "*"
-      }
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  allowedVersions:
+    react: '17'
+    'button@2>react': '17'   # only when react is a peer of button@2
 ```
 
 ### allowAny
 
-Allow any version for specified peer dependencies:
+Resolve matching peers from any version, ignoring the declared range.
 
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "allowAny": ["@types/*", "eslint"]
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  allowAny:
+    - '@types/*'
+    - eslint
 ```
 
-## Adding Peer Dependencies via Hooks
+## Adding Peer Dependencies via packageExtensions
 
-Use `.pnpmfile.cjs` to add missing peer dependencies:
+Declaratively add a missing peer dependency without JS:
 
-```js
-// .pnpmfile.cjs
-function readPackage(pkg, context) {
-  // Add missing peer dependency
-  if (pkg.name === 'problematic-package') {
-    pkg.peerDependencies = {
-      ...pkg.peerDependencies,
+```yaml title="pnpm-workspace.yaml"
+packageExtensions:
+  problematic-package:
+    peerDependencies:
       react: '*'
-    }
-  }
-  return pkg
-}
-
-module.exports = {
-  hooks: {
-    readPackage
-  }
-}
 ```
+
+For conditional logic, use a `readPackage` hook in `.pnpmfile.mjs` instead.
 
 ## Peer Dependencies in Workspaces
 
@@ -141,7 +113,7 @@ Workspace packages can satisfy peer dependencies:
   }
 }
 
-// packages/components/package.json
+// packages/components/package.json  
 {
   "peerDependencies": {
     "react": "^17.0.0 || ^18.0.0"
@@ -183,42 +155,30 @@ catalog:
 
 ### Suppress ESLint Plugin Warnings
 
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "ignoreMissing": [
-        "eslint",
-        "@typescript-eslint/parser"
-      ]
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  ignoreMissing:
+    - eslint
+    - '@typescript-eslint/parser'
 ```
 
 ### Allow Multiple Major Versions
 
-```json
-{
-  "pnpm": {
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "webpack": "4 || 5",
-        "postcss": "7 || 8"
-      }
-    }
-  }
-}
+```yaml title="pnpm-workspace.yaml"
+peerDependencyRules:
+  allowedVersions:
+    webpack: '4 || 5'
+    postcss: '7 || 8'
 ```
 
 ## Debugging Peer Dependencies
 
 ```bash
+# Report unmet/missing peers straight from the lockfile (v11)
+pnpm peers check
+
 # See why a package is installed
 pnpm why <package>
-
-# List all peer dependency warnings
-pnpm install --reporter=append-only 2>&1 | grep -i peer
 
 # Check dependency tree
 pnpm list --depth=Infinity
@@ -226,25 +186,16 @@ pnpm list --depth=Infinity
 
 ## Best Practices
 
-1. **Enable auto-install-peers** for convenience (default in pnpm v8+)
-
-2. **Use peerDependencyRules** instead of ignoring all warnings
-
+1. **Keep `autoInstallPeers` on** for convenience (default in v8+)
+2. **Use `peerDependencyRules`** instead of blanket-ignoring warnings
 3. **Document suppressed warnings** explaining why they're safe
-
-4. **Keep peer deps ranges wide** in libraries:
-   ```json
-   {
-     "peerDependencies": {
-       "react": "^17.0.0 || ^18.0.0"
-     }
-   }
-   ```
-
-5. **Test with different peer versions** if you support multiple majors
+4. **Keep peer ranges wide** in libraries (e.g. `"react": "^17 || ^18"`)
+5. **Run `pnpm peers check`** in CI to catch peer regressions
 
 <!--
 Source references:
-- https://pnpm.io/package_json#pnpmpeerdependencyrules
-- https://pnpm.io/npmrc#auto-install-peers
+- https://pnpm.io/settings#peerdependencyrules
+- https://pnpm.io/settings#autoinstallpeers
+- https://pnpm.io/cli/peers
 -->
+

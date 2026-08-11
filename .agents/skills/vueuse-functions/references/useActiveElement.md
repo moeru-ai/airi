@@ -70,8 +70,8 @@ export interface UseActiveElementOptions
    */
   triggerOnRemoval?: boolean
 }
-export type UseActiveElementReturn<T extends HTMLElement = HTMLElement>
-  = ShallowRef<T | null | undefined>
+export type UseActiveElementReturn<T extends HTMLElement = HTMLElement> =
+  ShallowRef<T | null | undefined>
 /**
  * Reactive `document.activeElement`
  *

@@ -15,7 +15,8 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import {
   FieldCheckbox,
   FieldInput,
@@ -30,7 +31,8 @@ import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
 const { t } = useI18n()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const airiCardStore = useAiriCardStore()
 const { allAudioSpeechProvidersMetadata, configuredSpeechProvidersMetadata } = storeToRefs(providersStore)
@@ -334,7 +336,7 @@ function syncOpenAICompatibleSettings() {
   if (activeSpeechProvider.value !== 'openai-compatible-audio-speech')
     return
 
-  const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+  const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
   // Sync model from provider config (override any existing value from previous provider)
   if (providerConfig?.model) {
     activeSpeechModel.value = providerConfig.model as string
@@ -420,7 +422,7 @@ async function generateTestSpeech() {
     return
   }
 
-  const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+  const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
 
   // For OpenAI Compatible providers, fall back to provider config for model and voice
   let model = activeSpeechModel.value

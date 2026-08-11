@@ -105,7 +105,7 @@ export interface UseElementBoundingOptions {
    *
    * @default 'sync'
    */
-  updateTiming?: 'sync' | 'next-frame'
+  updateTiming?: "sync" | "next-frame"
 }
 export interface UseElementBoundingReturn {
   height: ShallowRef<number>

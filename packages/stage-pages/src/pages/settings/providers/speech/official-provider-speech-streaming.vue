@@ -5,10 +5,11 @@ import {
   ProviderSettingsLayout,
   SpeechPlayground,
 } from '@proj-airi/stage-ui/components'
-import { getDefaultStreamingModel, streamingSynthesize } from '@proj-airi/stage-ui/libs'
+import { getDefaultStreamingModel, selectProviderMetadata, streamingSynthesize } from '@proj-airi/stage-ui/libs'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -18,15 +19,20 @@ import { useRouter } from 'vue-router'
 const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const speechStore = useSpeechStore()
 const { isAuthenticated, credits, needsLogin } = storeToRefs(authStore)
 
 const providerId = 'official-provider-speech-streaming'
-const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+const providerMetadata = computed(() => selectProviderMetadata(
+  providersStore.getProviderDefinition(providerId),
+  t,
+  { id: providerId },
+))
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
-const providerConfig = computed(() => providersStore.getProviderConfig(providerId))
+const providerConfig = computed(() => providerStore.getProviderConfig(providerId))
 
 // Model picker. The catalog and the default model id both come from the
 // server's `/api/v1/audio/models/streaming` response (operator-controlled

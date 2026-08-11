@@ -13,7 +13,7 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -21,9 +21,9 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 const sourceProviderId = route.params.providerId as string
 const providerId = `vision-${sourceProviderId}`
-const providersStore = useProvidersStore()
+const providerStore = useProviderConfigStore()
 const visionStore = useVisionStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(visionStore)
 
 // Define computed properties for credentials
@@ -106,7 +106,7 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'Base URL of your provider'"
+          :placeholder="providerMetadata?.defaultConfig.baseUrl as string || 'Base URL of your provider'"
         />
       </ProviderAdvancedSettings>
 

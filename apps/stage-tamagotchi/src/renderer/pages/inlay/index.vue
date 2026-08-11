@@ -4,11 +4,14 @@ import type { BackgroundMaterialType, VibrancyType } from '@proj-airi/electron-e
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { FieldCombobox } from '@proj-airi/ui'
+import { useAsyncState } from '@vueuse/core'
 import { ref, watch } from 'vue'
 
+const getIsWindows = useElectronEventaInvoke(electron.app.isWindows)
 const setVibrancy = useElectronEventaInvoke(electron.window.setVibrancy)
 const setBackgroundMaterial = useElectronEventaInvoke(electron.window.setBackgroundMaterial)
 
+const { state: isWindows } = useAsyncState(() => getIsWindows(), false)
 const vibrancy = ref<NonNullable<VibrancyType>>()
 const backgroundMaterial = ref<NonNullable<BackgroundMaterialType>>()
 
@@ -63,6 +66,7 @@ watch(
       />
 
       <FieldCombobox
+        v-if="isWindows"
         v-model="backgroundMaterial"
         label="Background Material"
         description="Set the background material of the window."

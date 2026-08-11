@@ -96,6 +96,47 @@ useSortable('#dv', list)
 </template>
 ```
 
+### Using Component
+
+```vue
+<script setup lang="ts">
+import { UseSortable } from '@vueuse/integrations/useSortable/component'
+import { shallowRef } from 'vue'
+
+const list = shallowRef([
+  { id: 1, name: 'a' },
+  { id: 2, name: 'b' },
+  { id: 3, name: 'c' },
+])
+</script>
+
+<template>
+  <UseSortable v-model="list" as="ol" :options="{ animation: 150 }">
+    <li v-for="item in list" :key="item.id">
+      {{ item.name }}
+    </li>
+  </UseSortable>
+</template>
+```
+
+You can also access the helper functions like `start`, `stop`, and `option` from the slot scope:
+
+```vue
+<template>
+  <UseSortable v-slot="{ stop, start }" v-model="list">
+    <button @click="stop()">
+      Stop Sorting
+    </button>
+    <button @click="start()">
+      Start Sorting
+    </button>
+    <div v-for="item in list" :key="item.id">
+      {{ item.name }}
+    </div>
+  </UseSortable>
+</template>
+```
+
 ### Return Values
 
 | Property | Description                                                      |
@@ -180,8 +221,8 @@ export interface UseSortableReturn {
   option: (<K extends keyof Sortable.Options>(
     name: K,
     value: Sortable.Options[K],
-  ) => void)
-  & (<K extends keyof Sortable.Options>(name: K) => Sortable.Options[K])
+  ) => void) &
+    (<K extends keyof Sortable.Options>(name: K) => Sortable.Options[K])
 }
 export interface UseSortableOptions extends Options, ConfigurableDocument {
   /**

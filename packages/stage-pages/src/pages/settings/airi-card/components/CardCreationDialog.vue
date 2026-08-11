@@ -12,7 +12,7 @@ import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { Button, FieldInput, FieldValues } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
@@ -63,7 +63,7 @@ const cardStore = useAiriCardStore()
 const consciousnessStore = useConsciousnessStore()
 const visionStore = useVisionStore()
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const displayModelsStore = useDisplayModelsStore()
 const stageModelStore = useSettingsStageModel()
 const artistryStore = useArtistryStore()
@@ -203,8 +203,7 @@ watch(() => [consciousnessProvider.value, visionProvider.value, speechProvider.v
   }
   if (spProvider) {
     await speechStore.loadVoicesForProvider(spProvider)
-    const metadata = providersStore.getProviderMetadata(spProvider)
-    if (metadata?.capabilities.listModels) {
+    if (providersStore.supportsModelListing(spProvider)) {
       await providersStore.fetchModelsForProvider(spProvider)
     }
   }
@@ -231,8 +230,7 @@ watch(selectedVisionProvider, async (newProvider, oldProvider) => {
 watch(selectedSpeechProvider, async (newProvider, oldProvider) => {
   if (oldProvider !== undefined && newProvider !== oldProvider && newProvider) {
     await speechStore.loadVoicesForProvider(newProvider)
-    const metadata = providersStore.getProviderMetadata(newProvider)
-    if (metadata?.capabilities.listModels) {
+    if (providersStore.supportsModelListing(newProvider)) {
       await providersStore.fetchModelsForProvider(newProvider)
     }
     // Reset model and voice selection

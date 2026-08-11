@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       Veuillez revenir à l’étape précédente et vérifier votre clé API, ou bien vérifier la connexion réseau.
     permissions:
-      title: Notifications
-      description: Vous pouvez autoriser les notifications maintenant ou continuer et les configurer plus tard.
+      title: Gestion des autorisations
+      description: Vous pouvez accorder les autorisations nécessaires maintenant ou les configurer plus tard.
       notificationsTitle: Notifications
       notificationsDescription: Autorisez les rappels et les mises à jour de statut importantes.
-      notificationsAction: Demander l'autorisation de notification
-      notificationsNotGrantedHint: En cas de refus, vous pourrez activer les notifications plus tard dans les Réglages iOS.
-      openSettings: Ouvrir les Réglages iOS
-      optionalHint: Vous pouvez continuer même si l'autorisation de notification n'est pas accordée.
-      stateUnknown: Non demandé
-      stateRequesting: Demande en cours...
+      microphoneTitle: Microphone
+      microphoneDescription: Autorisez AIRI à utiliser le microphone pour la saisie vocale et la transcription.
+      requestAction: Demander l’accès
+      optionalHint: Vous pouvez continuer même si ces autorisations ne sont pas accordées.
       stateGranted: Accordée
       stateNotGranted: Non accordée
   bug-report:
@@ -1455,6 +1453,9 @@ pages:
     general:
       description: Thème sombre, langues, etc.
       title: Général
+    permissions:
+      description: Consultez l’état actuel des autorisations.
+      title: Gestion des autorisations
     description: Personnalisez votre scène !
     sections:
       section:

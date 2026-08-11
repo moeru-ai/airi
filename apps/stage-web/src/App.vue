@@ -2,7 +2,7 @@
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
-import { isAnalyticsAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -39,7 +39,6 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
-const analyticsStore = useSharedAnalyticsStore()
 const inferencePreload = useInferencePreload()
 
 const primaryColor = computed(() => {
@@ -84,7 +83,7 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
-  analyticsStore.initialize()
+  initializeAnalytics()
   await displayModelsStore.initialize()
   cardStore.initialize()
 

@@ -1,6 +1,6 @@
 ---
 title: 버전
-description: AIRI 의 여러 버전과 받는 방법
+description: AIRI의 여러 버전과 받는 방법
 ---
 
 <script setup>
@@ -16,7 +16,7 @@ import ReleasesList from '../../../../.vitepress/components/ReleasesList.vue'
 
 <ReleasesList type="releases" :limit="5" />
 
-[GitHub 에서 모든 릴리스 보기 →](https://github.com/moeru-ai/airi/releases)
+[GitHub에서 모든 릴리스 보기 →](https://github.com/moeru-ai/airi/releases)
 
 ## 나이틀리 빌드 다운로드
 

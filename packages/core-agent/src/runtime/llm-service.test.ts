@@ -29,7 +29,7 @@ const provider = {
 
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
-  totalUsage: Promise<{ prompt_tokens: number, completion_tokens: number, total_tokens: number } | undefined> = Promise.resolve(undefined),
+  totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
 ) {
   return {
     steps,
@@ -44,7 +44,7 @@ describe('streamFrom tool error capture', () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
-      Promise.resolve({ prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 }),
+      Promise.resolve({ inputTokens: 12, outputTokens: 8, totalTokens: 20 }),
     ))
 
     await streamFrom({
@@ -84,7 +84,7 @@ describe('streamFrom tool error capture', () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
       Promise.resolve([]),
-      Promise.resolve({} as { prompt_tokens: number, completion_tokens: number, total_tokens: number }),
+      Promise.resolve({} as { inputTokens: number, outputTokens: number, totalTokens: number }),
     ))
 
     await streamFrom({

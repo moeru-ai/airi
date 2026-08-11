@@ -1,6 +1,6 @@
 ---
 title: 기여하기
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 안녕하세요! 이 프로젝트에 기여하는 데 관심을 가져 주셔서 감사합니다. 이 가이드가 첫걸음을 도와드릴 거예요.
@@ -17,9 +17,9 @@ description: Project AIRI 에 기여하기
 
 0. [Visual Studio](https://visualstudio.microsoft.com/downloads/) 를 내려받고 다음 안내를 따르세요: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
 
-   > Visual Studio 를 설치할 때 Windows SDK 와 C++ 빌드 도구를 반드시 함께 설치하세요.
+   > Visual Studio를 설치할 때 Windows SDK와 C++ 빌드 도구를 반드시 함께 설치하세요.
 
-1. PowerShell 을 엽니다
+1. PowerShell을 엽니다
 2. [`scoop`](https://scoop.sh/) 을 설치합니다
 
    ```powershell
@@ -27,20 +27,20 @@ description: Project AIRI 에 기여하기
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. `scoop` 으로 `git`, Node.js, `rustup`, `msvc` 를 설치합니다
+3. `scoop`으로 `git`, Node.js, `rustup`, `msvc`를 설치합니다
 
    ```powershell
    scoop install git nodejs rustup
 
    # Rust 의존성용
-   # crates 나 apps/tamagotchi 를 개발하지 않는다면 필요 없습니다
+   # crates나 apps/tamagotchi를 개발하지 않는다면 필요 없습니다
    scoop install main/rust-msvc
    # Rust & Windows 전용
    rustup toolchain install stable-x86_64-pc-windows-msvc
    rustup default stable-x86_64-pc-windows-msvc
    ```
 
-4. `corepack` 으로 `pnpm` 을 설치합니다
+4. `corepack`으로 `pnpm`을 설치합니다
 
    ```powershell
    corepack enable
@@ -53,13 +53,13 @@ description: Project AIRI 에 기여하기
 <summary>macOS 설정</summary>
 
 0. 터미널(또는 iTerm2, Ghostty, Kitty 등)을 엽니다
-1. `brew` 로 `git` 과 `node` 를 설치합니다
+1. `brew`로 `git`과 `node`를 설치합니다
 
    ```shell
    brew install git node
    ```
 
-2. `corepack` 으로 `pnpm` 을 설치합니다
+2. `corepack`으로 `pnpm`을 설치합니다
 
    ```shell
    corepack enable
@@ -72,9 +72,9 @@ description: Project AIRI 에 기여하기
 <summary>Linux 설정</summary>
 
 0. 터미널을 엽니다
-1. [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) 를 따라 `node` 를 설치합니다
-2. [Git](https://git-scm.com/downloads/linux) 안내를 따라 `git` 을 설치합니다
-3. `corepack` 으로 `pnpm` 을 설치합니다
+1. [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents)를 따라 `node`를 설치합니다
+2. [Git](https://git-scm.com/downloads/linux) 안내를 따라 `git`을 설치합니다
+3. `corepack`으로 `pnpm`을 설치합니다
 
    ```shell
    corepack enable
@@ -154,10 +154,10 @@ npm i -g @antfu/ni
 
 설치하고 나면
 
-- `pnpm install`, `npm install`, `yarn install` 대신 `ni` 를 쓸 수 있습니다.
-- `pnpm run`, `npm run`, `yarn run` 대신 `nr` 을 쓸 수 있습니다.
+- `pnpm install`, `npm install`, `yarn install` 대신 `ni`를 쓸 수 있습니다.
+- `pnpm run`, `npm run`, `yarn run` 대신 `nr`을 쓸 수 있습니다.
 
-패키지 매니저가 무엇인지 신경 쓸 필요가 없습니다. `ni` 가 알맞은 것을 골라 줍니다.
+패키지 매니저가 무엇인지 신경 쓸 필요가 없습니다. `ni`가 알맞은 것을 골라 줍니다.
 :::
 
 ## 개발하고 싶은 애플리케이션 고르기
@@ -178,7 +178,7 @@ pnpm lint && pnpm typecheck
 
 ::: tip
 
-[@antfu/ni](https://github.com/antfu-collective/ni) 를 설치했다면 `nr` 로 명령을 실행할 수 있습니다:
+[@antfu/ni](https://github.com/antfu-collective/ni)를 설치했다면 `nr`로 명령을 실행할 수 있습니다:
 
 ```shell
 nr lint && nr typecheck
@@ -219,4 +219,4 @@ git remote add upstream https://github.com/moeru-ai/airi.git
 
 ## 우와! 해내셨네요!
 
-축하합니다! 이 프로젝트에 첫 기여를 하셨습니다. 이제 메인테이너가 여러분의 Pull Request 를 리뷰할 때까지 기다리시면 됩니다.
+축하합니다! 이 프로젝트에 첫 기여를 하셨습니다. 이제 메인테이너가 여러분의 Pull Request를 리뷰할 때까지 기다리시면 됩니다.

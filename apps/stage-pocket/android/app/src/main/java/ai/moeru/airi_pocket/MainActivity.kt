@@ -27,6 +27,7 @@ class MainActivity : BridgeActivity() {
     private var webSocketBridge: HostWebSocketBridge? = null
 
     override fun load() {
+        registerPlugin(MicrophonePermissionPlugin::class.java)
         super.load()
 
         val bridge = bridge ?: return

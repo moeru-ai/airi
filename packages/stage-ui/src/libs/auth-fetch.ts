@@ -1,5 +1,5 @@
-import { getAnalyticsIdentitySnapshot } from '../stores/analytics/client'
 import { useAuthStore } from '../stores/auth'
+import { getAnalyticsIdentitySnapshot } from './analytics'
 import { getAuthToken } from './auth'
 import { SERVER_URL } from './server'
 

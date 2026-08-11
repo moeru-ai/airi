@@ -12,20 +12,23 @@ import {
   TranscriptionPlayground,
 } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
+import { FUNASR_TRANSCRIPTION_MODELS } from '@proj-airi/stage-ui/libs/providers/providers/funasr'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
-import { FUNASR_TRANSCRIPTION_MODELS } from '@proj-airi/stage-ui/stores/providers/funasr'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Button, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 
 const providerId = 'funasr-audio-transcription'
 const hearingStore = useHearingStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerConfigStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerConfigStore)
 
 function defaultOption(key: string): string {
-  return providersStore.getProviderMetadata(providerId)?.defaultOptions?.()[key] as string | undefined || ''
+  const defaults = providersStore.getDefaultProviderConfig(providerId) as Record<string, unknown>
+  return defaults[key] as string | undefined || ''
 }
 
 function providerSetting(key: string, fallback: string): string {
