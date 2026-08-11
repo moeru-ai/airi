@@ -1298,9 +1298,6 @@ pages:
       azure-openai:
         description: Azure OpenAI API
         title: Azure OpenAI
-      funasr:
-        description: Nhận dạng giọng nói cục bộ với FunASR, SenseVoice và Fun-ASR-Nano.
-        title: FunASR
       openai-compatible:
         description: Tương thích OpenAI
         title: Tương thích OpenAI

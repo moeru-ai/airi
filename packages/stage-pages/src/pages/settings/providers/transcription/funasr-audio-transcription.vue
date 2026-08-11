@@ -88,7 +88,7 @@ onMounted(() => providersStore.initializeProvider(providerId))
     :provider-icon-color="providerMetadata?.iconColor"
     :on-back="() => router.back()"
   >
-    <div flex="~ col md:row gap-6">
+    <div :class="['flex flex-col gap-6', 'md:flex-row']">
       <ProviderSettingsContainer class="w-full md:w-[40%]">
         <ProviderBasicSettings
           :title="t('settings.pages.providers.common.section.basic.title')"
@@ -138,7 +138,7 @@ onMounted(() => providersStore.initializeProvider(providerId))
         </Alert>
       </ProviderSettingsContainer>
 
-      <div flex="~ col gap-6" class="w-full md:w-[60%]">
+      <div :class="['w-full md:w-[60%]', 'flex flex-col gap-6']">
         <div w-full rounded-xl>
           <TranscriptionPlayground
             :generate-transcription="handleGenerateTranscription"

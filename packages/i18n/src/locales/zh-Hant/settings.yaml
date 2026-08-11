@@ -1298,9 +1298,6 @@ pages:
       azure-openai:
         description: Azure OpenAI API
         title: Azure OpenAI
-      funasr:
-        description: 使用 FunASR、SenseVoice 和 Fun-ASR-Nano 的本機語音辨識。
-        title: FunASR
       openai-compatible:
         description: OpenAI 相容
         title: OpenAI 兼容性

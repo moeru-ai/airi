@@ -1298,9 +1298,6 @@ pages:
       azure-openai:
         description: Azure OpenAI API
         title: Azure OpenAI
-      funasr:
-        description: Локальное распознавание речи с FunASR, SenseVoice и Fun-ASR-Nano.
-        title: FunASR
       openai-compatible:
         description: Совместимый с OpenAI
         title: OpenAI Compatible

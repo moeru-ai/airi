@@ -71,4 +71,13 @@ describe('providerFunASRAudioTranscription', () => {
       prompt: 'AIRI',
     })
   })
+
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3756986599
+  it('rejects an explicitly cleared base URL (GitHub #2122)', () => {
+    expect(() => providerFunASRAudioTranscription.createProvider({
+      apiKey: 'not-needed',
+      baseUrl: '',
+      model: 'sensevoice',
+    })).toThrow('FunASR Base URL is required')
+  })
 })

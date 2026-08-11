@@ -46,7 +46,9 @@ export const FUNASR_TRANSCRIPTION_MODELS = [
 ]
 
 function normalizeBaseUrl(baseUrl: string | undefined) {
-  const value = baseUrl?.trim() || FUNASR_BASE_URL
+  const value = baseUrl === undefined ? FUNASR_BASE_URL : baseUrl.trim()
+  if (!value)
+    throw new Error('FunASR Base URL is required')
   return value.endsWith('/') ? value : `${value}/`
 }
 

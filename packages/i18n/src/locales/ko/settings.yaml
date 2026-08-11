@@ -1298,9 +1298,6 @@ pages:
       azure-openai:
         description: Azure OpenAI API
         title: Azure OpenAI
-      funasr:
-        description: FunASR, SenseVoice 및 Fun-ASR-Nano를 사용하는 로컬 음성 인식.
-        title: FunASR
       openai-compatible:
         description: OpenAI 호환
         title: OpenAI 호환
