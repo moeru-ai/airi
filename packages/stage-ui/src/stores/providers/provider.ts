@@ -118,8 +118,11 @@ export interface ProviderRuntimeState {
   modelError: string | null
 }
 
-function cloneModelSnapshot(models: readonly ModelInfo[]): ModelInfo[] {
-  return models.map(({ capabilities, ...model }) => ({
+function cloneReadyModelSnapshot(runtimeState: ProviderRuntimeState | undefined): ModelInfo[] {
+  if (runtimeState?.modelStatus !== 'ready')
+    return []
+
+  return runtimeState.models.map(({ capabilities, ...model }) => ({
     ...model,
     ...(capabilities ? { capabilities: [...capabilities] } : {}),
   }))
@@ -692,9 +695,9 @@ export const useProviderStore = defineStore('provider', () => {
           model_count: normalizedModels.length,
           duration_ms: Date.now() - startedAt,
         })
-        // A newer request owns the cache. Synced action results cross a
-        // structuredClone boundary, so return a plain copy of its snapshot.
-        return cloneModelSnapshot(providerRuntimeState.value[providerId]?.models ?? [])
+        // A newer request owns the cache. Only expose its cloneable snapshot
+        // after it finishes, or callers could treat an old cache as fresh.
+        return cloneReadyModelSnapshot(providerRuntimeState.value[providerId])
       }
 
       // Transform and store the models
@@ -750,10 +753,10 @@ export const useProviderStore = defineStore('provider', () => {
         duration_ms: Date.now() - startedAt,
       })
 
-      // The current owner can finish while this stale request rejects. Return
-      // its cloneable snapshot so the caller can use the fresh model list.
+      // The current owner can finish while this stale request rejects. Expose
+      // its cloneable snapshot only when that newer request is ready.
       if (latestModelListRequestIds.get(providerId) !== requestId)
-        return cloneModelSnapshot(providerRuntimeState.value[providerId]?.models ?? [])
+        return cloneReadyModelSnapshot(providerRuntimeState.value[providerId])
 
       return []
     }

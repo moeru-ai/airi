@@ -148,6 +148,78 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready')
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3761872565
+  it('does not return an old cache while the owning model request is loading (GitHub #2122)', async () => {
+    const providerId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    store.initializeProvider(providerId)
+    Object.assign(configStore.getProviderConfig(providerId)!, {
+      apiKey: 'not-needed',
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+
+    const definition = store.getProviderDefinition(providerId)
+    const listModels = definition.extraMethods?.listModels
+    if (!listModels)
+      throw new Error('Expected FunASR model listing support')
+
+    type ListedModels = Awaited<ReturnType<typeof listModels>>
+    let resolveStaleRequest!: (models: ListedModels) => void
+    let resolveOwningRequest!: (models: ListedModels) => void
+    const staleRequest = new Promise<ListedModels>((resolve) => {
+      resolveStaleRequest = resolve
+    })
+    const owningRequest = new Promise<ListedModels>((resolve) => {
+      resolveOwningRequest = resolve
+    })
+    let requestCount = 0
+    vi.spyOn(definition.extraMethods!, 'listModels').mockImplementation(async () => {
+      requestCount++
+      if (requestCount === 1) {
+        return [{
+          id: 'old-endpoint-model',
+          name: 'Old endpoint model',
+          provider: providerId,
+          description: '',
+          contextLength: 0,
+          deprecated: false,
+        }]
+      }
+      return requestCount === 2 ? staleRequest : owningRequest
+    })
+
+    await store.fetchModelsForProvider(providerId)
+    const staleLoad = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(requestCount).toBe(2))
+    const owningLoad = store.fetchModelsForProvider(providerId)
+    await vi.waitFor(() => expect(requestCount).toBe(3))
+
+    resolveStaleRequest([{
+      id: 'stale-model',
+      name: 'Stale model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    expect(await staleLoad).toEqual([])
+    expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['old-endpoint-model'])
+    expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('loading')
+
+    resolveOwningRequest([{
+      id: 'fresh-model',
+      name: 'Fresh model',
+      provider: providerId,
+      description: '',
+      contextLength: 0,
+      deprecated: false,
+    }])
+    expect((await owningLoad).map(model => model.id)).toEqual(['fresh-model'])
+    expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['fresh-model'])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3761020555
   it('returns the fresh model snapshot when a stale request fails (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
