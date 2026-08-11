@@ -8,15 +8,10 @@ import { z } from 'zod'
 import { defineProvider } from '../../registry'
 
 const PROVIDER_ID = 'minimax-speech'
-
-// Global (minimax.io) and CN (minimaxi.com) share the same request shape and only
-// differ by host, so the region is selected purely through the configured base URL.
-// The default targets the global endpoint; CN users point baseUrl at api.minimaxi.com.
 const DEFAULT_BASE_URL = 'https://api.minimax.io'
 const DEFAULT_MODEL = 'speech-2.8-hd'
 const DEFAULT_VOICE = 'English_Graceful_Lady'
 
-// Current MiniMax T2A model catalog. `hd` favours prosody quality, `turbo` favours latency.
 const MINIMAX_SPEECH_MODELS = [
   'speech-2.8-hd',
   'speech-2.8-turbo',
@@ -28,14 +23,41 @@ const MINIMAX_SPEECH_MODELS = [
   'speech-01-turbo',
 ] as const
 
-// Supported synthesis output containers accepted by the `audio_setting.format` field.
-const SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'flac', 'pcm'] as const
-type AudioFormat = (typeof SUPPORTED_AUDIO_FORMATS)[number]
+const MINIMAX_VOICE_CLONE_MODELS = [
+  'speech-2.8-hd',
+  'speech-2.6-hd',
+  'speech-02-hd',
+  'speech-01-hd',
+] as const
 
+const SUPPORTED_AUDIO_FORMATS = ['mp3', 'wav', 'flac', 'pcm'] as const
+const SUPPORTED_OUTPUT_FORMATS = ['hex', 'url'] as const
+const minimaxVoiceCloneModelSchema = z.enum(MINIMAX_VOICE_CLONE_MODELS)
+
+type AudioFormat = (typeof SUPPORTED_AUDIO_FORMATS)[number]
+type OutputFormat = (typeof SUPPORTED_OUTPUT_FORMATS)[number]
+type MiniMaxVoiceCloneModel = z.infer<typeof minimaxVoiceCloneModelSchema>
 
 const minimaxSpeechConfigSchema = z.object({
   apiKey: z.string(),
-  baseUrl: z.string().default('https://api.minimax.io'),
+  baseUrl: z.string().default(DEFAULT_BASE_URL),
+  model: z.string().default(DEFAULT_MODEL),
+  voice: z.string().default(DEFAULT_VOICE),
+  format: z.enum(SUPPORTED_AUDIO_FORMATS).default('mp3'),
+  output_format: z.enum(SUPPORTED_OUTPUT_FORMATS).default('hex'),
+  stream: z.boolean().optional(),
+  speed: z.number().optional(),
+  vol: z.number().optional(),
+  pitch: z.number().optional(),
+  sample_rate: z.number().optional(),
+  bitrate: z.number().optional(),
+  channel: z.number().optional(),
+  language_boost: z.string().optional(),
+  subtitle_enable: z.boolean().optional(),
+  voice_setting: z.record(z.string(), z.unknown()).optional(),
+  audio_setting: z.record(z.string(), z.unknown()).optional(),
+  pronunciation_dict: z.record(z.string(), z.unknown()).optional(),
+  voice_modify: z.record(z.string(), z.unknown()).optional(),
 })
 
 type MinimaxSpeechConfig = z.input<typeof minimaxSpeechConfigSchema>
@@ -242,9 +264,40 @@ async function probeMinimaxCredentials(config: MinimaxSpeechConfig): Promise<str
   return outcome.kind === 'rejected' ? outcome.reason : ''
 }
 
-function normalizeBaseUrl(value: unknown): string {
-  const base = typeof value === 'string' ? value.trim() : ''
-  return (base || DEFAULT_BASE_URL).replace(/\/+$/, '')
+interface MiniMaxUploadResponse extends MinimaxBaseResponse {
+  file?: {
+    file_id?: number | string
+  }
+}
+
+interface MiniMaxVoiceCloneResponse extends MinimaxBaseResponse {
+  voice_id?: string
+}
+
+/** Input for uploading sample audio and creating a MiniMax cloned voice. */
+export interface MiniMaxVoiceCloneInput {
+  file: Blob
+  fileName: string
+  voiceId: string
+  model: MiniMaxVoiceCloneModel
+}
+
+/** Identifiers returned after MiniMax creates a cloned voice. */
+export interface MiniMaxVoiceCloneResult {
+  fileId: number | string
+  voiceId: string
+}
+
+const AUDIO_MIME_BY_FORMAT: Record<AudioFormat, string> = {
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  flac: 'audio/flac',
+  pcm: 'audio/L16',
+}
+
+function normalizeBaseUrl(value: unknown) {
+  const baseUrl = typeof value === 'string' ? value.trim() : ''
+  return (baseUrl || DEFAULT_BASE_URL).replace(/\/+$/, '')
 }
 
 function normalizeFormat(value: unknown): AudioFormat {
@@ -252,17 +305,24 @@ function normalizeFormat(value: unknown): AudioFormat {
   return (SUPPORTED_AUDIO_FORMATS as readonly string[]).includes(format) ? format as AudioFormat : 'mp3'
 }
 
-function toNumber(value: unknown, fallback: number): number {
+function normalizeOutputFormat(value: unknown): OutputFormat {
+  return value === 'url' ? 'url' : 'hex'
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function toNumber(value: unknown, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
-/** Turns a model id such as `speech-02-hd` into a display name `Speech 02 HD`. */
-function formatModelName(id: string): string {
+function formatModelName(id: string) {
   return id
     .split('-')
     .map((segment) => {
       if (/^\d/.test(segment))
-        return segment // version segment such as 2.8 or 02, keep verbatim
+        return segment
       if (segment === 'hd')
         return 'HD'
       return segment.charAt(0).toUpperCase() + segment.slice(1)
@@ -270,26 +330,41 @@ function formatModelName(id: string): string {
     .join(' ')
 }
 
-/** Decodes a hex string (MiniMax streams audio as hex) into raw bytes. */
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(Math.floor(hex.length / 2))
-  for (let i = 0; i < bytes.length; i++)
-    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+function hexToBytes(hex: string) {
+  if (!/^(?:[\da-f]{2})+$/i.test(hex))
+    throw new Error('MiniMax TTS returned invalid hex audio data')
+
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let index = 0; index < bytes.length; index++)
+    bytes[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16)
   return bytes
 }
 
-/**
- * Reads a synthesis control from the request body first and the stored provider
- * options second. The body wins because per-request `extraBody` overrides
- * take precedence over the persisted provider configuration.
- */
-function pickField(body: Record<string, unknown>, options: Record<string, unknown>, key: string): unknown {
-  return body[key] ?? options[key]
+async function parseJsonResponse<T extends MinimaxBaseResponse>(response: Response, operation: string): Promise<T> {
+  if (!response.ok)
+    throw new Error(await readMinimaxRefusal(response, `${operation} failed: ${response.status} ${response.statusText}`))
+
+  const data = await response.json() as T
+  const refusal = minimaxRefusal(data, `${operation} failed`)
+  if (refusal)
+    throw new Error(refusal)
+  return data
 }
 
-async function collectStreamingAudio(body: ReadableStream<Uint8Array>) {
+function combineAudioChunks(chunks: Uint8Array[]) {
+  const combined = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.length, 0))
+  let offset = 0
+  for (const chunk of chunks) {
+    combined.set(chunk, offset)
+    offset += chunk.length
+  }
+  return combined
+}
+
+async function collectStreamingAudio(body: ReadableStream<Uint8Array<ArrayBuffer>>) {
   // MiniMax streams SSE events that contain hex-encoded audio chunks.
   const audioChunks: Uint8Array[] = []
+  let summaryAudio = ''
   const events = body
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(new EventSourceParserStream())
@@ -313,21 +388,20 @@ async function collectStreamingAudio(body: ReadableStream<Uint8Array>) {
     if (refusal)
       throw new Error(refusal)
 
-    // Status 2 is the final summary. Its audio duplicates prior chunks.
-    if (event.data?.audio && event.data.status !== 2) {
-      const bytes = new Uint8Array(event.data.audio.length / 2)
-      for (let index = 0; index < event.data.audio.length; index += 2)
-        bytes[index / 2] = Number.parseInt(event.data.audio.slice(index, index + 2), 16)
-      audioChunks.push(bytes)
+    const audio = event.data?.audio
+    if (audio) {
+      if (event.data?.status === 2)
+        summaryAudio = audio
+      else
+        audioChunks.push(hexToBytes(audio))
     }
   }
 
-  const combined = new Uint8Array(audioChunks.reduce((sum, chunk) => sum + chunk.length, 0))
-  let offset = 0
-  for (const chunk of audioChunks) {
-    combined.set(chunk, offset)
-    offset += chunk.length
-  }
+  // A summary supplies audio only when the stream contains no audio chunks.
+  if (audioChunks.length === 0 && summaryAudio)
+    audioChunks.push(hexToBytes(summaryAudio))
+
+  const combined = combineAudioChunks(audioChunks)
 
   // A stream can end with no audio at all. Returning that as a success
   // presents an empty player with no error, which reads as a working
@@ -335,6 +409,10 @@ async function collectStreamingAudio(body: ReadableStream<Uint8Array>) {
   if (combined.byteLength === 0)
     throw new Error('MiniMax returned no audio for this request.')
   return combined
+}
+
+function pickField(body: Record<string, unknown>, options: Record<string, unknown>, key: string) {
+  return body[key] ?? options[key]
 }
 
 function createAudioFetch(apiKey: string, baseUrl: string, options: Record<string, unknown>) {
@@ -347,31 +425,42 @@ function createAudioFetch(apiKey: string, baseUrl: string, options: Record<strin
     if (typeof text !== 'string' || !text)
       throw new Error('Missing input text for MiniMax TTS')
 
-    const voiceId = (body.voice as string) || (options.voice as string) || DEFAULT_VOICE
-    const model = (body.model as string) || (options.model as string) || DEFAULT_MODEL
-    const format = normalizeFormat(pickField(body, options, 'format') ?? body.response_format)
+    const configuredVoiceSetting = pickField(body, options, 'voice_setting')
+    const configuredAudioSetting = pickField(body, options, 'audio_setting')
+    const voiceSetting = isRecord(configuredVoiceSetting) ? configuredVoiceSetting : {}
+    const audioSetting = isRecord(configuredAudioSetting) ? configuredAudioSetting : {}
+    const model = typeof body.model === 'string' && body.model
+      ? body.model
+      : typeof options.model === 'string' && options.model ? options.model : DEFAULT_MODEL
+    const voiceId = typeof body.voice === 'string' && body.voice
+      ? body.voice
+      : typeof options.voice === 'string' && options.voice ? options.voice : DEFAULT_VOICE
+    const format = normalizeFormat(body.format ?? body.response_format ?? audioSetting.format ?? options.format)
+    const outputFormat = normalizeOutputFormat(body.output_format ?? options.output_format)
+    const requestedStream = body.stream ?? options.stream
+    const stream = format === 'mp3' && outputFormat === 'hex' && requestedStream !== false
 
     const requestBody: Record<string, unknown> = {
       model,
       text,
-      // Streaming keeps memory bounded for long inputs; hex chunks are reassembled below.
-      stream: true,
-      output_format: 'hex',
+      stream,
+      output_format: stream ? 'hex' : outputFormat,
       voice_setting: {
+        ...voiceSetting,
         voice_id: voiceId,
-        speed: toNumber(pickField(body, options, 'speed'), 1),
-        vol: toNumber(pickField(body, options, 'vol') ?? pickField(body, options, 'volume'), 1),
-        pitch: toNumber(pickField(body, options, 'pitch'), 0),
+        speed: toNumber(pickField(body, options, 'speed') ?? voiceSetting.speed, 1),
+        vol: toNumber(pickField(body, options, 'vol') ?? pickField(body, options, 'volume') ?? voiceSetting.vol, 1),
+        pitch: toNumber(pickField(body, options, 'pitch') ?? voiceSetting.pitch, 0),
       },
       audio_setting: {
-        sample_rate: toNumber(pickField(body, options, 'sample_rate'), 32000),
-        bitrate: toNumber(pickField(body, options, 'bitrate'), 128000),
+        ...audioSetting,
+        sample_rate: toNumber(pickField(body, options, 'sample_rate') ?? audioSetting.sample_rate, 32000),
+        bitrate: toNumber(pickField(body, options, 'bitrate') ?? audioSetting.bitrate, 128000),
         format,
-        channel: toNumber(pickField(body, options, 'channel'), 1),
+        channel: toNumber(pickField(body, options, 'channel') ?? audioSetting.channel, 1),
       },
     }
 
-    // Optional fields are only forwarded when explicitly provided so MiniMax applies its own defaults otherwise.
     const languageBoost = pickField(body, options, 'language_boost')
     if (typeof languageBoost === 'string' && languageBoost)
       requestBody.language_boost = languageBoost
@@ -381,11 +470,11 @@ function createAudioFetch(apiKey: string, baseUrl: string, options: Record<strin
       requestBody.subtitle_enable = subtitleEnable
 
     const pronunciationDict = pickField(body, options, 'pronunciation_dict')
-    if (pronunciationDict && typeof pronunciationDict === 'object')
+    if (isRecord(pronunciationDict))
       requestBody.pronunciation_dict = pronunciationDict
 
     const voiceModify = pickField(body, options, 'voice_modify')
-    if (voiceModify && typeof voiceModify === 'object')
+    if (isRecord(voiceModify))
       requestBody.voice_modify = voiceModify
 
     const response = await globalThis.fetch(`${baseUrl}/v1/t2a_v2`, {
@@ -395,35 +484,97 @@ function createAudioFetch(apiKey: string, baseUrl: string, options: Record<strin
         'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify(requestBody),
+      signal: init.signal,
     })
 
-    if (!response.ok || !response.body)
+    if (!response.ok)
       throw new Error(await readMinimaxRefusal(response, `MiniMax TTS request failed: ${response.status} ${response.statusText}`))
 
-    if ((response.headers.get('content-type') ?? '').includes('application/json'))
-      throw new Error(await readMinimaxRefusal(response, 'MiniMax rejected the synthesis request.'))
+    if (stream) {
+      if ((response.headers.get('content-type') ?? '').includes('application/json'))
+        throw new Error(await readMinimaxRefusal(response, 'MiniMax rejected the synthesis request.'))
+      if (!response.body)
+        throw new Error('MiniMax TTS response has no body')
+      const audio = await collectStreamingAudio(response.body)
+      return new Response(audio.buffer as ArrayBuffer, {
+        status: 200,
+        headers: { 'Content-Type': AUDIO_MIME_BY_FORMAT[format] },
+      })
+    }
 
-    const combined = await collectStreamingAudio(response.body)
+    const data = await parseJsonResponse<MinimaxStreamEvent>(response, 'MiniMax TTS request')
+    const audio = data.data?.audio
+    if (!audio)
+      throw new Error('MiniMax TTS returned no audio data')
 
-    return new Response(combined.buffer as ArrayBuffer, {
+    if (outputFormat === 'url') {
+      const audioResponse = await globalThis.fetch(audio, { signal: init.signal })
+      if (!audioResponse.ok)
+        throw new Error(`MiniMax TTS audio download failed: ${audioResponse.status} ${audioResponse.statusText}`)
+      const downloadedAudio = await audioResponse.arrayBuffer()
+      if (downloadedAudio.byteLength === 0)
+        throw new Error('MiniMax returned no audio for this request.')
+      return new Response(downloadedAudio, {
+        status: 200,
+        headers: { 'Content-Type': audioResponse.headers.get('Content-Type') || AUDIO_MIME_BY_FORMAT[format] },
+      })
+    }
+
+    const bytes = hexToBytes(audio)
+    return new Response(bytes.buffer as ArrayBuffer, {
       status: 200,
       headers: { 'Content-Type': AUDIO_MIME_BY_FORMAT[format] },
     })
   }
 }
 
-function createSpeechProvider(apiKey: string, baseUrl: string): SpeechProviderWithExtraOptions<string, Record<string, unknown>> {
+function createSpeechProvider(apiKey: string, baseUrl: string, defaults: Record<string, unknown>): SpeechProviderWithExtraOptions<string, Record<string, unknown>> {
   return {
     speech: (model?: string, options?: Record<string, unknown>) => {
-      const resolvedOptions = options ?? {}
+      const resolvedOptions = { ...defaults, ...options }
       return {
+        ...resolvedOptions,
         baseURL: `${baseUrl}/v1/`,
         fetch: createAudioFetch(apiKey, baseUrl, resolvedOptions),
-        ...resolvedOptions,
-        model: model || (resolvedOptions.model as string | undefined) || DEFAULT_MODEL,
+        model: model || (typeof resolvedOptions.model === 'string' ? resolvedOptions.model : DEFAULT_MODEL),
       }
     },
   }
+}
+
+/** Uploads clone audio, then creates the voice on the selected regional endpoint. */
+export async function createMiniMaxVoiceClone(config: { apiKey: string, baseUrl?: string }, input: MiniMaxVoiceCloneInput): Promise<MiniMaxVoiceCloneResult> {
+  const apiKey = config.apiKey.trim()
+  const baseUrl = normalizeBaseUrl(config.baseUrl)
+  const model = minimaxVoiceCloneModelSchema.parse(input.model)
+  const uploadForm = new FormData()
+  uploadForm.append('purpose', 'voice_clone')
+  uploadForm.append('file', input.file, input.fileName)
+
+  const uploadResponse = await globalThis.fetch(`${baseUrl}/v1/files/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: uploadForm,
+  })
+  const upload = await parseJsonResponse<MiniMaxUploadResponse>(uploadResponse, 'MiniMax voice clone upload')
+  const fileId = upload.file?.file_id
+  if (fileId === undefined)
+    throw new Error('MiniMax voice clone upload returned no file_id')
+
+  const cloneResponse = await globalThis.fetch(`${baseUrl}/v1/voice_clone`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      file_id: fileId,
+      voice_id: input.voiceId,
+      model,
+    }),
+  })
+  const clone = await parseJsonResponse<MiniMaxVoiceCloneResponse>(cloneResponse, 'MiniMax voice clone request')
+  return { fileId, voiceId: clone.voice_id || input.voiceId }
 }
 
 export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minimax-speech'>({
@@ -437,7 +588,26 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
   iconColor: 'i-lobe-icons:minimax-color',
   createProviderConfig: () => minimaxSpeechConfigSchema,
   createProvider(config) {
-    return createSpeechProvider(config.apiKey.trim(), normalizeBaseUrl(config.baseUrl))
+    const defaults: Record<string, unknown> = {
+      model: config.model,
+      voice: config.voice,
+      format: config.format,
+      output_format: config.output_format,
+      stream: config.stream,
+      speed: config.speed,
+      vol: config.vol,
+      pitch: config.pitch,
+      sample_rate: config.sample_rate,
+      bitrate: config.bitrate,
+      channel: config.channel,
+      language_boost: config.language_boost,
+      subtitle_enable: config.subtitle_enable,
+      voice_setting: config.voice_setting,
+      audio_setting: config.audio_setting,
+      pronunciation_dict: config.pronunciation_dict,
+      voice_modify: config.voice_modify,
+    }
+    return createSpeechProvider(config.apiKey.trim(), normalizeBaseUrl(config.baseUrl), defaults)
   },
   validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
   validators: {
@@ -470,15 +640,15 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
   },
   extraMethods: {
     listModels: async () => MINIMAX_SPEECH_MODELS.map(id => ({
-    id,
-    name: formatModelName(id),
-    provider: PROVIDER_ID,
-    description: id.endsWith('-turbo')
-      ? 'Fast TTS model for low-latency scenarios'
-      : 'High-definition TTS model with natural prosody',
-    deprecated: false,
-    capabilities: ['text-to-speech'],
-  })),
+      id,
+      name: formatModelName(id),
+      provider: PROVIDER_ID,
+      description: id.endsWith('-turbo')
+        ? 'Fast TTS model for low-latency scenarios'
+        : 'High-definition TTS model with natural prosody',
+      capabilities: ['text-to-speech'],
+      deprecated: false,
+    })),
     voiceCatalogConfig: () => ({}),
     listVoices: async (config) => {
       const outcome = await requestMinimaxVoices(config)
@@ -489,10 +659,11 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
         throw new Error(outcome.reason)
 
       if (outcome.kind === 'unreachable')
-        return builtinMinimaxVoices
+        return builtinMinimaxVoices.map(voice => ({ ...voice, compatibleModels: [...MINIMAX_SPEECH_MODELS] }))
 
       // An account with no voices yet still needs entries to choose from.
-      return outcome.voices.length > 0 ? outcome.voices : builtinMinimaxVoices
+      return (outcome.voices.length > 0 ? outcome.voices : builtinMinimaxVoices)
+        .map(voice => ({ ...voice, compatibleModels: [...MINIMAX_SPEECH_MODELS] }))
     },
   },
 })

@@ -20,7 +20,9 @@ function mockSseResponse(events: unknown[]): Response {
   return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } })
 }
 
-afterEach(() => { vi.unstubAllGlobals() })
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 describe('minimaxSpeech request construction', () => {
   it('uses the default model and versioned base URL', async () => {
@@ -54,9 +56,7 @@ describe('minimaxSpeech request construction', () => {
   })
 
   it('forwards configurable request fields and output format', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(mockSseResponse([
-      { data: { audio: '0102', status: 1 }, base_resp: { status_code: 0 } },
-    ]))
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ data: { audio: '0102' }, base_resp: { status_code: 0 } }), { headers: { 'Content-Type': 'application/json' } }))
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = await getSpeechProvider({ apiKey: 'test-key' })
