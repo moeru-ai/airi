@@ -6,6 +6,7 @@ import {
   normalizeGeneratedTranscriptionText,
   resolveActiveTranscriptionModel,
   resolveActiveTranscriptionProviderError,
+  resolveOpenAICompatibleTranscriptionModel,
   resolveStreamTranscriptionExecutor,
   resolveTranscriptionFileName,
   resolveTranscriptionProviderOptions,
@@ -84,6 +85,16 @@ describe('resolveActiveTranscriptionModel', () => {
    */
   it('prefers the explicit hearing model over the provider config model', () => {
     expect(resolveActiveTranscriptionModel('whisper-1', { model: 'FunAudioLLM/SenseVoiceSmall' })).toBe('whisper-1')
+  })
+})
+
+describe('resolveOpenAICompatibleTranscriptionModel', () => {
+  it('preserves an explicitly cleared provider model', () => {
+    expect(resolveOpenAICompatibleTranscriptionModel({ model: '' })).toBe('')
+  })
+
+  it('uses the displayed default only when the provider has never stored a model', () => {
+    expect(resolveOpenAICompatibleTranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('whisper-1')
   })
 })
 

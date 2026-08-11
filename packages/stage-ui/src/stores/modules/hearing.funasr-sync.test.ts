@@ -139,6 +139,24 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757471642
+  it('persists the first custom model for OpenAI-compatible transcription (GitHub #2122)', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    const hearingStore = useHearingStore()
+    const providerId = 'openai-compatible-audio-transcription'
+    const providerConfig = providerConfigStore.getProviderConfig(providerId)!
+
+    expect(providerConfig).not.toHaveProperty('model')
+    hearingStore.activeTranscriptionProvider = providerId
+    await nextTick()
+
+    hearingStore.activeTranscriptionModel = 'custom/funasr-model'
+
+    await vi.waitFor(() => {
+      expect(providerConfig.model).toBe('custom/funasr-model')
+    })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3710847062
   it('rehydrates FunASR models when provider settings reset its runtime cache (GitHub #2122)', async () => {
     persistedSettings.set('settings/hearing/active-provider', 'funasr-audio-transcription')

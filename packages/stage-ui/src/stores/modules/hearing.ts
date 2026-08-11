@@ -292,6 +292,17 @@ export function resolveActiveTranscriptionModel(activeModel: string, providerCon
 }
 
 /**
+ * Resolves the model displayed by the OpenAI-compatible transcription settings page.
+ * An explicitly stored empty string is user-owned state; only a missing model receives the UI default.
+ */
+export function resolveOpenAICompatibleTranscriptionModel(providerConfig?: Record<string, unknown>) {
+  if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
+    return providerConfig.model
+
+  return 'whisper-1'
+}
+
+/**
  * Resolves extra transcription request options from provider config and UI locale.
  *
  * Use when:
@@ -415,8 +426,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   watch(activeTranscriptionModel, (model) => {
-    const config = providerStore.getProviderConfig(activeTranscriptionProvider.value)
-    if (!config || !Object.hasOwn(config, 'model') || typeof config.model !== 'string')
+    const providerId = activeTranscriptionProvider.value
+    const config = providerStore.getProviderConfig(providerId)
+    const ownsStoredModel = Object.hasOwn(config ?? {}, 'model') && typeof config?.model === 'string'
+    if (!config || (providerId !== 'openai-compatible-audio-transcription' && !ownsStoredModel))
       return
 
     if (config.model !== model)

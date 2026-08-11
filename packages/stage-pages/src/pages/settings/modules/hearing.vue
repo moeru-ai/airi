@@ -6,7 +6,7 @@ import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple
 import { useAnalytics, useAudioAnalyzer, useAudioRecorder, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { CONFIDENCE_THRESHOLD_DISABLED, resolveOpenAICompatibleTranscriptionModel, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -308,17 +308,7 @@ function syncOpenAICompatibleSettings() {
     return
 
   const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
-  // Always sync model from provider config (override any existing value from previous provider)
-  if (providerConfig?.model) {
-    activeTranscriptionModel.value = providerConfig.model as string
-    updateCustomModelName(providerConfig.model as string)
-  }
-  else {
-    // If no model in provider config, use default
-    const defaultModel = 'whisper-1'
-    activeTranscriptionModel.value = defaultModel
-    updateCustomModelName(defaultModel)
-  }
+  updateCustomModelName(resolveOpenAICompatibleTranscriptionModel(providerConfig))
 }
 
 onStopRecord(async (recording) => {
