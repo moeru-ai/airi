@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -23,7 +23,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const { askPermission, startStream } = audioDeviceSettingsStore
 
   const isListening = ref(false)

@@ -148,6 +148,53 @@ function createHarness() {
  * await runtime.ingest('hello', { model, chatProvider })
  */
 describe('createChatOrchestratorRuntime', () => {
+  // ROOT CAUSE:
+  //
+  // The marker parser buffered 24 literal characters plus its marker-safety tail.
+  // Providers that emitted small, slow deltas therefore showed no visible text for several seconds.
+  //
+  // We fixed this by keeping only the marker-safety tail before the first foreground update.
+  it('updates the foreground stream before a slow response reaches 24 characters', async () => {
+    const harness = createHarness()
+    let patchesBeforeFinish = 0
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      for (const text of '1234567890')
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+
+      patchesBeforeFinish = harness.foregroundPatches.length
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('show a slow response', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    expect(patchesBeforeFinish).toBeGreaterThan(1)
+    expect(harness.foregroundPatches.some(message => message.content === '1234')).toBe(true)
+  })
+
+  it('stores tool names with the user message and omits them from provider messages', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('use a widget', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      toolReferences: [{ name: 'stage_widgets' }],
+    })
+
+    const storedUserMessage = harness.sessionMessages['session-1']?.find(message => message.role === 'user')
+    const providerMessages = harness.stream.mock.calls[0]?.[2]
+    const providerUserMessage = providerMessages?.find(message => message.role === 'user')
+
+    expect(storedUserMessage).toMatchObject({
+      role: 'user',
+      tools: [{ name: 'stage_widgets' }],
+    })
+    expect(providerUserMessage).not.toHaveProperty('tools')
+  })
+
   /**
    * @example
    * Hook order and prompt composition stay compatible with the stage-ui facade.

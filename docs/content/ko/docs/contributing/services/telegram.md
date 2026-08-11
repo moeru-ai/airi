@@ -1,6 +1,6 @@
 ---
 title: Telegram 봇
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 ### Telegram 봇 연동
@@ -18,7 +18,7 @@ docker compose up -d
 cp .env .env.local
 ```
 
-`.env.local` 에서 인증 정보를 수정하세요.
+`.env.local`에서 인증 정보를 수정하세요.
 
 데이터베이스 마이그레이션
 

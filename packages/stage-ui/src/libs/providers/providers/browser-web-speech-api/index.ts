@@ -1,8 +1,8 @@
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { z } from 'zod'
 
-import { createWebSpeechAPIProvider } from '../../../../stores/providers/web-speech-api'
 import { defineProvider } from '../registry'
+import { createWebSpeechAPIProvider } from './provider'
 
 const webSpeechApiConfigSchema = z.object({
   language: z.string().default('en-US'),
@@ -10,6 +10,9 @@ const webSpeechApiConfigSchema = z.object({
   interimResults: z.boolean().default(true),
   maxAlternatives: z.number().int().positive().default(1),
 })
+
+export type { WebSpeechAPIExtraOptions } from './provider'
+export { createWebSpeechAPIProvider, streamWebSpeechAPITranscription } from './provider'
 
 function isWebSpeechApiAvailable() {
   if (typeof window === 'undefined')

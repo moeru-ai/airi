@@ -7,7 +7,8 @@ import { useAnalytics, useAudioAnalyzer, useAudioRecorder, useVoiceInputSession 
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { until } from '@vueuse/core'
@@ -32,12 +33,14 @@ const {
   confidenceThreshold,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const { configuredTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
-const { stopStream, startStream } = useSettingsAudioDevice()
-const { audioInputs, selectedAudioInput, stream } = storeToRefs(useSettingsAudioDevice())
+const settingsAudioDeviceStore = useSettingsAudioDevice()
+const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
 const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
@@ -304,7 +307,7 @@ function syncOpenAICompatibleSettings() {
   if (activeTranscriptionProvider.value !== 'openai-compatible-audio-transcription')
     return
 
-  const providerConfig = providersStore.getProviderConfig(activeTranscriptionProvider.value)
+  const providerConfig = providerStore.getProviderConfig(activeTranscriptionProvider.value)
   // Always sync model from provider config (override any existing value from previous provider)
   if (providerConfig?.model) {
     activeTranscriptionModel.value = providerConfig.model as string
@@ -523,8 +526,8 @@ watch(activeTranscriptionProvider, async (provider) => {
 }, { immediate: true })
 
 onMounted(async () => {
-  // Audio devices are loaded on demand when user requests them
   syncOpenAICompatibleSettings()
+  await askPermission()
 })
 
 onUnmounted(() => {
@@ -554,10 +557,7 @@ onUnmounted(() => {
             v-model="selectedAudioInput"
             label="Audio Input Device"
             description="Select the audio input device for your hearing module."
-            :options="audioInputs.map(input => ({
-              label: input.label || input.deviceId,
-              value: input.deviceId,
-            }))"
+            :options="audioInputOptions"
             placeholder="Select an audio input device"
             layout="vertical"
           />

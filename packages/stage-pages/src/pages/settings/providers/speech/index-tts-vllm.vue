@@ -6,7 +6,8 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { Callout } from '@proj-airi/ui'
 import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,8 +18,9 @@ const providerId = 'index-tts-vllm'
 const defaultModel = 'IndexTTS-1.5'
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-// const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+// const { configs: providers } = storeToRefs(providerStore)
 
 // Check if API key is configured
 // const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
@@ -44,7 +46,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
   const model = providerConfig.model as string | undefined || defaultModel

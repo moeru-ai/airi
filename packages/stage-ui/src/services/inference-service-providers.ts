@@ -1,8 +1,10 @@
-import type { InferenceServiceProvider, InferenceServiceProviders } from '../models/inference-service-providers'
+import type { InferenceServiceProvider, ProviderValidationStatus } from '../libs/providers/types'
 
 import { nanoid } from 'nanoid'
 
-import { getDefinedProvider, listProviders } from '../libs/providers/providers'
+import { getDefinedProvider } from '../libs/providers/providers'
+
+type InferenceServiceProviders = Record<string, InferenceServiceProvider>
 
 interface RequestOptions {
   init: { signal: AbortSignal }
@@ -21,7 +23,14 @@ export interface InferenceServiceProvidersRemoteClient {
     v1: {
       providers: {
         '$get': (params?: undefined, options?: RequestOptions) => Promise<RemoteResponse<unknown[]>>
-        '$post': (params: { json: InferenceServiceProvider }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
+        '$post': (params: { json: {
+          id: string
+          definitionId: string
+          name: string
+          config: Record<string, unknown>
+          validated: boolean
+          validationBypassed: boolean
+        } }, options?: RequestOptions) => Promise<RemoteResponse<unknown>>
         ':id': {
           $delete: (params: { param: { id: string } }, options?: RequestOptions) => Promise<{ ok: boolean }>
           $patch: (params: {
@@ -49,23 +58,9 @@ export interface InferenceServiceProviderServiceOptions {
 }
 
 /**
- * Provider config validation state to persist remotely.
- */
-export interface PatchConfigParams {
-  /** Whether the provider config has passed validation. */
-  validated: boolean
-  /** Whether validation was intentionally bypassed by the user. */
-  validationBypassed: boolean
-}
-
-/**
  * Inference service provider domain operations used by controller stores.
  */
 export interface InferenceServiceProvidersService {
-  /** Gets one built-in provider definition. */
-  getDefinition: (definitionId: string) => ReturnType<typeof getDefinedProvider>
-  /** Lists built-in provider definitions. */
-  listDefinitions: typeof listProviders
   /** Builds an optimistic local provider config. */
   buildLocal: (definitionId: string, initialConfig?: Record<string, unknown>) => InferenceServiceProvider
   /** Fetches and indexes remote provider configs. */
@@ -79,7 +74,7 @@ export interface InferenceServiceProvidersService {
     client: InferenceServiceProvidersRemoteClient,
     providerId: string,
     config: Record<string, unknown>,
-    params: PatchConfigParams,
+    status: ProviderValidationStatus,
     options?: InferenceServiceProviderServiceOptions,
   ) => Promise<InferenceServiceProvider>
 }
@@ -102,38 +97,35 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     return options?.abortSignal ? { init: { signal: options.abortSignal } } : undefined
   }
 
-  function getDefinition(definitionId: string) {
-    return getDefinedProvider(definitionId)
-  }
-
-  function listDefinitions() {
-    return listProviders()
-  }
-
   function buildLocal(definitionId: string, initialConfig: Record<string, unknown> = {}): InferenceServiceProvider {
-    const definition = getDefinition(definitionId)
+    const definition = getDefinedProvider(definitionId)
     if (!definition)
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
 
     return {
       id: nanoid(),
       definitionId,
-      name: definition.name,
       config: initialConfig,
-      validated: false,
-      validationBypassed: false,
+      status: 'unconfigured',
     }
   }
 
   function normalize(value: unknown): InferenceServiceProvider {
-    const item = value as InferenceServiceProvider
+    const item = value as InferenceServiceProvider & {
+      validated: boolean
+      validationBypassed: boolean
+    }
+    let status: ProviderValidationStatus = 'unconfigured'
+    if (item.validated)
+      status = 'configured'
+    else if (item.validationBypassed)
+      status = 'bypassed'
+
     return {
       id: item.id,
       definitionId: item.definitionId,
-      name: item.name,
       config: item.config,
-      validated: item.validated,
-      validationBypassed: item.validationBypassed,
+      status,
     }
   }
 
@@ -160,10 +152,10 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       json: {
         id: provider.id,
         definitionId: provider.definitionId,
-        name: provider.name,
+        name: getDefinedProvider(provider.definitionId)?.name ?? provider.definitionId,
         config: provider.config,
-        validated: provider.validated,
-        validationBypassed: provider.validationBypassed,
+        validated: provider.status === 'configured',
+        validationBypassed: provider.status === 'bypassed',
       },
     }, requestOptions(options))
     if (!res.ok)
@@ -188,7 +180,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
     client: InferenceServiceProvidersRemoteClient,
     providerId: string,
     config: Record<string, unknown>,
-    params: PatchConfigParams,
+    status: ProviderValidationStatus,
     options?: InferenceServiceProviderServiceOptions,
   ): Promise<InferenceServiceProvider> {
     options?.abortSignal?.throwIfAborted()
@@ -196,8 +188,8 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
       param: { id: providerId },
       json: {
         config,
-        validated: params.validated,
-        validationBypassed: params.validationBypassed,
+        validated: status === 'configured',
+        validationBypassed: status === 'bypassed',
       },
     }, requestOptions(options))
     if (!res.ok)
@@ -209,8 +201,6 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
   }
 
   return {
-    getDefinition,
-    listDefinitions,
     buildLocal,
     fetchRemote,
     createRemote,

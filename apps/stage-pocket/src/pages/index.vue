@@ -14,10 +14,10 @@ import { IS_DEV } from '@proj-airi/stage-shared'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -50,10 +50,10 @@ const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatOrchestratorStore()
+const chatStore = useChatStore()
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 

@@ -303,7 +303,7 @@ describe('tools/character/orchestrator/spark-command', () => {
   })
 
   it('reports a broadcast without crashing when the channel sender clears destinations', async () => {
-    // The real sendSparkCommand (stores/llm.ts) deletes command.destinations to broadcast to every
+    // The real sendSparkCommand (stores/ai/chat-llm/llm.ts) deletes command.destinations to broadcast to every
     // authenticated peer; the success message must not then call .join on undefined.
     const sendSparkCommand = vi.fn((command: { destinations?: unknown }) => {
       delete command.destinations

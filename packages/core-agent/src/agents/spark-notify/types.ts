@@ -1,4 +1,9 @@
-import type { ToolChoice } from '@xsai/shared-chat'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
+import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { Message, Tool, ToolChoice } from '@xsai/shared-chat'
+
+import type { StreamEvent } from '../../types/llm'
+import type { SparkNotifyCommandDraft } from './tools'
 
 /**
  * Runtime-only prompt hints used to reshape how one spark event is serialized for the model.
@@ -87,7 +92,7 @@ export interface SparkNotifyResponseControl {
 /**
  * Trace event emitted by the spark-notify runtime.
  */
-export interface SparkTraceEvent {
+export interface SparkNotifyRuntimeEvent {
   /** Trace event category describing which stage of the notify run emitted the payload. */
   type:
     | 'messages-rendered'
@@ -104,9 +109,79 @@ export interface SparkTraceEvent {
 /**
  * Optional tracing hooks for spark-notify runtime integrations.
  */
-export interface SparkNotifyTracingHooks {
-  /** Optional sink that receives ordered trace events from the notify runtime. */
-  onTrace?: (event: SparkTraceEvent) => void
+export interface SparkNotifySelectedChat {
+  /** Provider identifier used for telemetry and diagnostics. */
+  providerId: string
+  /** Model identifier selected by the host. */
+  model: string
+  /** Resolved chat provider used for this notify run. */
+  provider: ChatProvider
+}
+
+/** One fully resolved Spark Notify turn. */
+export interface SparkNotifyTurn {
+  /** Source protocol event that the agent must handle. */
+  event: WebSocketEventOf<'spark:notify'>
+  /** Host-selected model and provider for this execution. */
+  selectedChat: SparkNotifySelectedChat
+  /** Host-owned system prompt for this character. */
+  systemPrompt: string
+  /** Runtime-only response controls for this turn. */
+  control?: SparkNotifyResponseControl
+  /** Resolved tool and response policy for this turn. */
+  policy: SparkNotifyRuntimePolicy
+}
+
+/** Completed request passed to the host-owned selected-chat runner. */
+export interface SparkNotifyRunRequest {
+  /** Resolved model and provider for this run. */
+  selectedChat: SparkNotifySelectedChat
+  /** Provider-ready messages produced by the agent and its plugins. */
+  messages: Message[]
+  /** Tools exposed for this one model call. */
+  tools: Tool[]
+  /** Tool handling policy for this run. */
+  policy: Pick<SparkNotifyRuntimePolicy, 'supportsTools' | 'toolChoice' | 'waitForTools'>
+  /** Normalized provider stream events. */
+  onStreamEvent: (event: StreamEvent) => void | Promise<void>
+}
+
+/** Host boundary that runs a selected chat model. */
+export interface SparkNotifyRunner {
+  /** Runs the provider stream for one fully prepared Spark Notify turn. */
+  run: (request: SparkNotifyRunRequest) => Promise<void>
+}
+
+/** Per-turn result emitted by a Spark Notify plugin. */
+export interface SparkNotifyPluginResult {
+  /** Command drafts collected by a plugin tool. */
+  commands?: SparkNotifyCommandDraft[]
+  /** Whether a plugin selected the no-response path. */
+  noResponse?: boolean
+}
+
+/** Per-turn hooks returned by a Spark Notify plugin. */
+export interface SparkNotifyPluginSession {
+  /** Additional system instruction blocks appended in plugin order. */
+  systemInstructions?: string[]
+  /** Additional user-message blocks appended in plugin order. */
+  userSections?: string[]
+  /** Tools that this plugin exposes for the turn. */
+  tools?: Tool[]
+  /** Receives ordered runtime events for this one turn. */
+  onEvent?: (event: SparkNotifyRuntimeEvent) => void | Promise<void>
+  /** Reads the plugin result after tool execution and stream completion. */
+  getResult?: () => SparkNotifyPluginResult
+  /** Reads runtime events emitted by tool callbacks during the provider run. */
+  getPendingEvents?: () => SparkNotifyRuntimeEvent[]
+}
+
+/** Composable capability that contributes behavior to one Spark Notify turn. */
+export interface SparkNotifyPlugin {
+  /** Stable identifier used for diagnostics and plugin ordering. */
+  name: string
+  /** Creates isolated turn state, tools, and observers for one notify event. */
+  prepare: (turn: SparkNotifyTurn) => SparkNotifyPluginSession | Promise<SparkNotifyPluginSession | undefined> | undefined
 }
 
 /**
