@@ -122,7 +122,11 @@ function cloneReadyModelSnapshot(runtimeState: ProviderRuntimeState | undefined)
   if (runtimeState?.modelStatus !== 'ready')
     return []
 
-  return runtimeState.models.map(({ capabilities, ...model }) => ({
+  return cloneModelSnapshot(runtimeState.models)
+}
+
+function cloneModelSnapshot(models: readonly ModelInfo[]): ModelInfo[] {
+  return models.map(({ capabilities, ...model }) => ({
     ...model,
     ...(capabilities ? { capabilities: [...capabilities] } : {}),
   }))
@@ -217,6 +221,7 @@ export const useProviderStore = defineStore('provider', () => {
   // cache or status state; older responses retain no ownership after a new load starts.
   let nextModelListRequestId = 0
   const latestModelListRequestIds = new Map<string, number>()
+  const latestModelListRequests = new Map<string, Promise<ModelInfo[]>>()
 
   // Server-driven availability overrides for providers whose visibility can
   // only be decided at runtime from the backend (e.g. the streaming TTS
@@ -536,6 +541,7 @@ export const useProviderStore = defineStore('provider', () => {
   function deleteProvider(providerId: string) {
     void providerConfigStore.removeProvider(providerId)
     latestModelListRequestIds.delete(providerId)
+    latestModelListRequests.delete(providerId)
     delete providerRuntimeState.value[providerId]
   }
 
@@ -562,6 +568,7 @@ export const useProviderStore = defineStore('provider', () => {
   async function resetProviderSettings() {
     await providerConfigStore.resetProviders()
     latestModelListRequestIds.clear()
+    latestModelListRequests.clear()
     providerRuntimeState.value = {}
 
     providerRevalidationLoops.forEach(loop => loop.pause())
@@ -653,8 +660,15 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
-  // Function to fetch models for a specific provider
-  async function fetchModelsForProvider(providerId: string) {
+  async function waitForLatestModelListResult(providerId: string): Promise<ModelInfo[]> {
+    const latestRequest = latestModelListRequests.get(providerId)
+    if (latestRequest)
+      return cloneModelSnapshot(await latestRequest)
+
+    return cloneReadyModelSnapshot(providerRuntimeState.value[providerId])
+  }
+
+  async function runModelListRequest(providerId: string): Promise<ModelInfo[]> {
     const startedAt = Date.now()
     const definition = findProviderDefinition(providerId)
     if (!definition)
@@ -695,9 +709,9 @@ export const useProviderStore = defineStore('provider', () => {
           model_count: normalizedModels.length,
           duration_ms: Date.now() - startedAt,
         })
-        // A newer request owns the cache. Only expose its cloneable snapshot
-        // after it finishes, or callers could treat an old cache as fresh.
-        return cloneReadyModelSnapshot(providerRuntimeState.value[providerId])
+        // Share the current owner's result so callers never consume an old
+        // cache or miss a fallback selected from the fresh response.
+        return waitForLatestModelListResult(providerId)
       }
 
       // Transform and store the models
@@ -753,13 +767,23 @@ export const useProviderStore = defineStore('provider', () => {
         duration_ms: Date.now() - startedAt,
       })
 
-      // The current owner can finish while this stale request rejects. Expose
-      // its cloneable snapshot only when that newer request is ready.
+      // Share the current owner's result even when this stale request rejects.
       if (latestModelListRequestIds.get(providerId) !== requestId)
-        return cloneReadyModelSnapshot(providerRuntimeState.value[providerId])
+        return waitForLatestModelListResult(providerId)
 
       return []
     }
+  }
+
+  // Function to fetch models for a specific provider
+  function fetchModelsForProvider(providerId: string): Promise<ModelInfo[]> {
+    const request = runModelListRequest(providerId)
+    latestModelListRequests.set(providerId, request)
+
+    return request.finally(() => {
+      if (latestModelListRequests.get(providerId) === request)
+        latestModelListRequests.delete(providerId)
+    })
   }
 
   // Get models for a specific provider

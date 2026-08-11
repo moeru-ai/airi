@@ -89,7 +89,7 @@ onMounted(() => providersStore.initializeProvider(providerId))
     :on-back="() => router.back()"
   >
     <div :class="['flex flex-col gap-6', 'md:flex-row']">
-      <ProviderSettingsContainer class="w-full md:w-[40%]">
+      <ProviderSettingsContainer :class="['w-full', 'md:w-[40%]']">
         <ProviderBasicSettings
           :title="t('settings.pages.providers.common.section.basic.title')"
           :description="t('settings.pages.providers.common.section.basic.description')"
@@ -118,15 +118,15 @@ onMounted(() => providersStore.initializeProvider(providerId))
 
         <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
           <template #title>
-            <div class="w-full flex items-center justify-between">
+            <div :class="['w-full', 'flex items-center justify-between']">
               <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <Button class="ml-2 flex-shrink-0" size="sm" color="orange" variant="primary" @click="forceValid">
+              <Button :class="['ml-2', 'flex-shrink-0']" size="sm" color="orange" variant="primary" @click="forceValid">
                 {{ t('settings.pages.providers.common.continueAnyway') }}
               </Button>
             </div>
           </template>
           <template #content>
-            <div class="whitespace-pre-wrap break-all">
+            <div :class="['whitespace-pre-wrap', 'break-all']">
               {{ validationMessage }}
             </div>
           </template>

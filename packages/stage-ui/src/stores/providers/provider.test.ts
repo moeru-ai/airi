@@ -149,7 +149,8 @@ describe('provider store synchronization boundary', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3761872565
-  it('does not return an old cache while the owning model request is loading (GitHub #2122)', async () => {
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3761935865
+  it('waits for the owning model request instead of returning an old cache (GitHub #2122)', async () => {
     const providerId = 'funasr-audio-transcription'
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
@@ -192,6 +193,11 @@ describe('provider store synchronization boundary', () => {
 
     await store.fetchModelsForProvider(providerId)
     const staleLoad = store.fetchModelsForProvider(providerId)
+    let staleLoadSettled = false
+    const staleResult = staleLoad.then((models) => {
+      staleLoadSettled = true
+      return models
+    })
     await vi.waitFor(() => expect(requestCount).toBe(2))
     const owningLoad = store.fetchModelsForProvider(providerId)
     await vi.waitFor(() => expect(requestCount).toBe(3))
@@ -204,7 +210,8 @@ describe('provider store synchronization boundary', () => {
       contextLength: 0,
       deprecated: false,
     }])
-    expect(await staleLoad).toEqual([])
+    await new Promise(resolve => setTimeout(resolve, 0))
+    const staleLoadSettledBeforeOwner = staleLoadSettled
     expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['old-endpoint-model'])
     expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('loading')
 
@@ -217,6 +224,8 @@ describe('provider store synchronization boundary', () => {
       deprecated: false,
     }])
     expect((await owningLoad).map(model => model.id)).toEqual(['fresh-model'])
+    expect(staleLoadSettledBeforeOwner).toBe(false)
+    expect((await staleResult).map(model => model.id)).toEqual(['fresh-model'])
     expect(store.getModelsForProvider(providerId).map(model => model.id)).toEqual(['fresh-model'])
   })
 
@@ -255,9 +264,19 @@ describe('provider store synchronization boundary', () => {
 
     try {
       const staleLoad = store.fetchModelsForProvider(providerId)
+      let staleLoadSettled = false
+      const staleResult = staleLoad.then((models) => {
+        staleLoadSettled = true
+        return models
+      })
       await vi.waitFor(() => expect(requestCount).toBe(1))
       const freshLoad = store.fetchModelsForProvider(providerId)
       await vi.waitFor(() => expect(requestCount).toBe(2))
+
+      const staleError = new Error('stale request failed')
+      rejectFirstRequest(staleError)
+      await new Promise(resolve => setTimeout(resolve, 0))
+      const staleLoadSettledBeforeOwner = staleLoadSettled
 
       resolveSecondRequest([{
         id: 'fresh-model',
@@ -269,12 +288,11 @@ describe('provider store synchronization boundary', () => {
       }])
       await freshLoad
 
-      const staleError = new Error('stale request failed')
-      rejectFirstRequest(staleError)
-      const staleResult = await staleLoad
+      const models = await staleResult
 
-      expect(staleResult.map(model => model.id)).toEqual(['fresh-model'])
-      expect(() => structuredClone(staleResult)).not.toThrow()
+      expect(staleLoadSettledBeforeOwner).toBe(false)
+      expect(models.map(model => model.id)).toEqual(['fresh-model'])
+      expect(() => structuredClone(models)).not.toThrow()
       expect(store.providerRuntimeState[providerId]?.modelStatus).toBe('ready')
       expect(store.providerRuntimeState[providerId]?.modelError).toBeNull()
       expect(consoleError).toHaveBeenCalledWith(`Error fetching models for ${providerId}:`, staleError)
