@@ -5,7 +5,7 @@ import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { nextTick, onScopeDispose, ref, toValue, watch } from 'vue'
+import { nextTick, onScopeDispose, ref, toValue, useId, watch } from 'vue'
 
 interface TranscriptionOptions {
   messageInputRef: Ref<string>
@@ -19,7 +19,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
-  const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+  const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
@@ -27,6 +27,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const { askPermission, startStream } = audioDeviceSettingsStore
 
   const isListening = ref(false)
+  const transcriptionConsumerId = `interactive-area:${useId()}`
 
   // Auto-send logic
   let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -58,6 +59,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }
 
   const stopStreaming = async () => {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+
     if (!isListening.value)
       return
 
@@ -176,6 +179,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     // Set listening state AFTER successful call
     try {
       await transcribeForMediaStream(stream.value, {
+        consumerId: transcriptionConsumerId,
         onSentenceEnd: (delta) => {
           if (delta && delta.trim()) {
             console.info('Received transcription delta:', delta, { source: 'useTranscriptions' })

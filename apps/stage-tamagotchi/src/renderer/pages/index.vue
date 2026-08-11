@@ -325,11 +325,13 @@ const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
 const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
   flushDelayMs: 1200,
@@ -588,17 +590,20 @@ async function startAudioInteractionConsumers() {
       return
 
     await transcribeForMediaStream(currentStream, {
+      consumerId: transcriptionConsumerId,
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
+      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       return
     }
 
     if (transcriptionError.value) {
       streamingTranscriptionUnavailable.value = true
+      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       console.warn('[Main Page] Streaming transcription unavailable; using recorder-backed fallback:', transcriptionError.value)
     }
@@ -616,6 +621,7 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
 
   clearAssistantSpeechResumeTimer()
   voiceInputGeneration += 1
+  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
 
   await Promise.all([
     stopStreamingTranscription(true),

@@ -46,6 +46,7 @@ const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioA
 const { audioContext } = storeToRefs(useAudioContext())
 const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
 const {
+  removeStreamingTranscriptionConsumer,
   transcribeForRecording,
   transcribeForMediaStream,
   stopStreamingTranscription,
@@ -54,6 +55,11 @@ const {
   supportsStreamInput,
   error: transcriptionPipelineError,
 } = storeToRefs(hearingSpeechInputPipeline)
+
+/** Identifies monitoring callbacks in the shared streaming transcription session. */
+const monitoringTranscriptionConsumerId = 'hearing-settings:monitoring'
+/** Identifies test callbacks in the shared streaming transcription session. */
+const testTranscriptionConsumerId = 'hearing-settings:test'
 
 const animationFrame = ref<number>()
 
@@ -149,6 +155,7 @@ async function handleSpeechStart() {
     // Use both callbacks to support incremental updates and final transcript replacement.
     // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
     await transcribeForMediaStream(stream.value, {
+      consumerId: monitoringTranscriptionConsumerId,
       onSentenceEnd: (delta) => {
         transcriptions.value.push(delta)
       },
@@ -248,6 +255,7 @@ async function stopAudioMonitoring() {
     animationFrame.value = undefined
   }
 
+  removeStreamingTranscriptionConsumer(monitoringTranscriptionConsumerId)
   await stopStreamingTranscription(true, activeTranscriptionProvider.value)
   if (stream.value) { // Stop media stream
     stopStream()
@@ -397,6 +405,7 @@ async function startSTTTest() {
       console.info('Starting STT test with streaming input for provider:', activeTranscriptionProvider.value)
 
       await transcribeForMediaStream(stream.value, {
+        consumerId: testTranscriptionConsumerId,
         onSentenceEnd: (delta) => {
           if (delta && delta.trim()) {
             testStreamingText.value += `${delta} `
@@ -467,6 +476,7 @@ async function stopSTTTest() {
   isTestingSTT.value = false
   isTranscribing.value = false
   testStatusMessage.value = 'Stopped'
+  removeStreamingTranscriptionConsumer(testTranscriptionConsumerId)
 
   try {
     // Stop streaming transcription if active
