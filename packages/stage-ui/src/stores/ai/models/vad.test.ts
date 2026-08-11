@@ -113,4 +113,18 @@ describe('useVAD', () => {
 
     expect(onSpeechAudio).toHaveBeenCalledWith({ buffer })
   })
+
+  it('forwards canceled speech only to the dedicated cancel handler', async () => {
+    const onSpeechCancel = vi.fn()
+    const onSpeechEnd = vi.fn()
+    const { useVAD } = await import('./vad')
+    const vad = useVAD('vad-worker-url', { onSpeechCancel, onSpeechEnd })
+
+    await vad.init()
+    vadMocks.handlers.get('speech-start')?.()
+    vadMocks.handlers.get('speech-cancel')?.()
+
+    expect(onSpeechCancel).toHaveBeenCalledOnce()
+    expect(onSpeechEnd).not.toHaveBeenCalled()
+  })
 })

@@ -657,6 +657,19 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          playground:
+            current: 当前转写
+            description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
+            empty: 开始监听，然后对着所选麦克风说话。
+            error-title: 转写错误
+            listening: 正在等待语音……
+            no-transcription: 此段音频中未识别到语音。
+            segment: '语音片段 {number}'
+            start: 开始监听
+            stop: 停止监听
+            title: 听觉测试面板
+            transcribing: 正在转写……
+            transcription-failed: 转写失败。
           confidence-threshold:
             title: 置信度阈值
             description: >-

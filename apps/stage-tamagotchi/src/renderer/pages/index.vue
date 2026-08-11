@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
@@ -13,7 +14,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-import { IS_DEV } from '@proj-airi/stage-shared'
+import { hearingInputChannelName, IS_DEV } from '@proj-airi/stage-shared'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -325,11 +326,13 @@ const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
 const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
   flushDelayMs: 1200,
@@ -355,10 +358,47 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
 })
 
 // Caption overlay broadcast channel
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+const { post: postHearingInput } = useBroadcastChannel<HearingInputChannelEvent, HearingInputChannelEvent>({ name: hearingInputChannelName })
+const hearingInputClearTimers = new Map<ReturnType<typeof setTimeout>, string>()
+let hearingInputSequence = 0
+let activeHearingInputSourceId: string | undefined
+
+function currentHearingInputSourceId() {
+  activeHearingInputSourceId ??= `stage-tamagotchi:${++hearingInputSequence}`
+  return activeHearingInputSourceId
+}
+
+function postHearingInputEvent(event: HearingInputChannelEvent) {
+  const { error } = tryCatch(() => postHearingInput(event))
+  if (error)
+    console.warn('[Main Page] Failed to post Hearing input text:', error)
+}
+
+function replaceHearingInput(text: string) {
+  postHearingInputEvent({
+    operation: 'replace',
+    sourceId: currentHearingInputSourceId(),
+    text,
+  })
+}
+
+function clearHearingInput(sourceId = activeHearingInputSourceId) {
+  if (!sourceId)
+    return
+
+  postHearingInputEvent({ operation: 'clear', sourceId })
+  if (sourceId === activeHearingInputSourceId)
+    activeHearingInputSourceId = undefined
+}
+
+function scheduleHearingInputClear(sourceId: string) {
+  const timer = setTimeout(() => {
+    hearingInputClearTimers.delete(timer)
+    clearHearingInput(sourceId)
+  }, 250)
+  hearingInputClearTimers.set(timer, sourceId)
+}
 
 /**
  * Reports a voice input pipeline failure to both the console and visible app UI.
@@ -497,8 +537,8 @@ async function ensureLiveAudioInputStream() {
 /**
  * Sends voice captions as best-effort overlay updates without interrupting chat ingestion.
  */
-function postSpeakerCaption(text: string) {
-  const { error } = tryCatch(() => postCaption({ type: 'caption-speaker', text }))
+function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelEvent['operation']> = 'append') {
+  const { error } = tryCatch(() => postCaption({ operation, type: 'caption-speaker', text }))
   if (error)
     console.warn('[Main Page] Failed to post voice input caption:', error)
 }
@@ -527,8 +567,21 @@ function handleStreamingSentenceEnd(delta: string) {
   if (!finalText || !finalText.trim())
     return
 
-  postSpeakerCaption(finalText)
+  const sourceId = currentHearingInputSourceId()
+  replaceHearingInput(finalText)
+  scheduleHearingInputClear(sourceId)
+  activeHearingInputSourceId = undefined
+  postSpeakerCaption(finalText, 'replace')
   void sendVoiceInputTextToChat(finalText)
+}
+
+/** Replaces the speaker caption with the provider's current volatile transcript. */
+function handleStreamingTranscriptionUpdate(text: string) {
+  if (isVoiceInputSuppressed())
+    return
+
+  replaceHearingInput(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Publishes the provider's final streaming-ASR text to the caption overlay. */
@@ -536,7 +589,7 @@ function handleStreamingSpeechEnd(text: string) {
   if (isVoiceInputSuppressed())
     return
 
-  postSpeakerCaption(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -588,17 +641,21 @@ async function startAudioInteractionConsumers() {
       return
 
     await transcribeForMediaStream(currentStream, {
+      consumerId: transcriptionConsumerId,
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
+      onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
+      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       return
     }
 
     if (transcriptionError.value) {
       streamingTranscriptionUnavailable.value = true
+      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       console.warn('[Main Page] Streaming transcription unavailable; using recorder-backed fallback:', transcriptionError.value)
     }
@@ -615,7 +672,9 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
   const flushTranscript = options.flushTranscript ?? true
 
   clearAssistantSpeechResumeTimer()
+  clearHearingInput()
   voiceInputGeneration += 1
+  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
 
   await Promise.all([
     stopStreamingTranscription(true),
@@ -683,6 +742,12 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  for (const [timer, sourceId] of hearingInputClearTimers) {
+    clearTimeout(timer)
+    clearHearingInput(sourceId)
+  }
+  hearingInputClearTimers.clear()
+  clearHearingInput()
   postModelSettingsRuntimeEvent({
     type: 'owner-gone',
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,

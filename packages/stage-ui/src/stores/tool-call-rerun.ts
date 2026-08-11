@@ -45,6 +45,16 @@ export function replaceToolCallResult(message: ChatAssistantMessage, result: Too
 
   return {
     ...message,
+    providerTranscript: message.providerTranscript?.map((providerMessage) => {
+      if (providerMessage.role === 'tool' && providerMessage.tool_call_id === result.id) {
+        return {
+          ...providerMessage,
+          content: result.result ?? '',
+        }
+      }
+
+      return providerMessage
+    }),
     slices: message.slices.map((slice) => {
       if (slice.type === 'tool-call-result' && slice.id === result.id)
         return resultSlice

@@ -1,5 +1,6 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import type { StreamTranscriptionSnapshot } from '../../stream-transcription'
 import type { EventStartTranscription, ServerEvent, ServerEvents } from './session'
 
 import { tryCatch } from '@moeru/std'
@@ -58,6 +59,7 @@ function createWaiter(timeoutMs: number, abortSignal?: AbortSignal) {
 }
 
 const DEFAULT_SESSION_OPTIONS: EventStartTranscription['payload'] = {
+  enable_intermediate_result: true,
   format: 'pcm',
   sample_rate: 16000,
 }
@@ -104,12 +106,16 @@ function toArrayBuffer(chunk: AudioChunk): ArrayBuffer {
 
 const sseEncoder = new TextEncoder()
 
-function encodeSSE(payload: { delta: string, type: 'transcript.text.delta' | 'transcript.text.done' }): Uint8Array {
+type AliyunTranscriptionSSEEvent
+  = | StreamTranscriptionSnapshot
+    | { delta: string, type: 'transcript.text.done' }
+
+function encodeSSE(payload: AliyunTranscriptionSSEEvent): Uint8Array {
   return sseEncoder.encode(`data: ${JSON.stringify(payload)}\n\n`)
 }
 
 interface InternalRealtimeOptions extends CreateAliyunStreamTranscriptionOptions {
-  onSentenceFinal?: (payload: ServerEvents['SentenceEnd']) => Promise<void> | void
+  onTranscriptSnapshot?: (snapshot: StreamTranscriptionSnapshot) => Promise<void> | void
   idleTimeoutMs?: number
   stopAckTimeoutMs?: number
 }
@@ -125,7 +131,7 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
     abortSignal,
     hooks,
     onSessionTerminated,
-    onSentenceFinal,
+    onTranscriptSnapshot,
     idleTimeoutMs = 8000,
     stopAckTimeoutMs = 2000,
   } = options
@@ -148,6 +154,30 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
   const stopWaiter = createWaiter(stopAckTimeoutMs, abortSignal)
   let stopping = false
   let cleanupPromise: Promise<void> | undefined
+  const sentenceStartMillisecondsByIndex = new Map<number, number>()
+  const sentenceTextByIndex = new Map<number, string>()
+
+  function transcriptSnapshot(
+    payload: Pick<ServerEvents['TranscriptionResultChanged'], 'index' | 'result' | 'time'>,
+    isFinal: boolean,
+  ): StreamTranscriptionSnapshot {
+    sentenceTextByIndex.set(payload.index, payload.result)
+    const orderedText = [...sentenceTextByIndex.entries()]
+      .sort(([leftIndex], [rightIndex]) => leftIndex - rightIndex)
+      .map(([, text]) => text.trim())
+      .filter(Boolean)
+      .join('\n')
+    const startMilliseconds = Math.min(...sentenceStartMillisecondsByIndex.values(), payload.time)
+
+    return {
+      type: 'transcript.text.snapshot',
+      text: orderedText,
+      isFinal,
+      locale: 'und',
+      startMilliseconds,
+      durationMilliseconds: Math.max(0, payload.time - startMilliseconds),
+    }
+  }
 
   async function requestStop(reason?: unknown) {
     if (stopping)
@@ -253,9 +283,22 @@ async function startRealtimeSession(options: InternalRealtimeOptions): Promise<A
           case 'TranscriptionStarted':
             onTranscriptionStarted()
             break
-          case 'SentenceEnd':
-            await onSentenceFinal?.(event.payload as ServerEvents['SentenceEnd'])
+          case 'SentenceBegin': {
+            const payload = event.payload as ServerEvents['SentenceBegin']
+            sentenceStartMillisecondsByIndex.set(payload.index, payload.time)
             break
+          }
+          case 'TranscriptionResultChanged': {
+            const payload = event.payload as ServerEvents['TranscriptionResultChanged']
+            await onTranscriptSnapshot?.(transcriptSnapshot(payload, false))
+            break
+          }
+          case 'SentenceEnd': {
+            const payload = event.payload as ServerEvents['SentenceEnd']
+            sentenceStartMillisecondsByIndex.set(payload.index, payload.begin_time)
+            await onTranscriptSnapshot?.(transcriptSnapshot(payload, true))
+            break
+          }
           case 'TranscriptionCompleted':
             stopWaiter.trigger()
             await cleanup(undefined, { sendStop: false, closeSocket: false })
@@ -342,12 +385,8 @@ export function createAliyunNLSProvider(
                     controller.error(error instanceof Error ? error : new Error(String(error)))
                   }
                 },
-                onSentenceFinal: async (payload) => {
-                  const text = payload.result ? `${payload.result}\n` : ''
-                  if (text)
-                    controller.enqueue(encodeSSE({ delta: text, type: 'transcript.text.delta' }))
-
-                  controller.enqueue(encodeSSE({ delta: '', type: 'transcript.text.done' }))
+                onTranscriptSnapshot: async (snapshot) => {
+                  controller.enqueue(encodeSSE(snapshot))
                 },
               }).then((handle) => {
                 sessionHandle = handle

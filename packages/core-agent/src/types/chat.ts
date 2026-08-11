@@ -27,6 +27,14 @@ export interface ChatAssistantMessage extends AssistantMessage {
     isError?: boolean
     result?: string | CommonContentPart[]
   }[]
+  /**
+   * Exact provider messages that xsAI added for this assistant turn.
+   *
+   * The chat UI keeps one aggregated assistant message. Tool loops can contain
+   * multiple assistant and tool messages, so this transcript preserves their
+   * protocol order for the next provider request.
+   */
+  providerTranscript?: Message[]
   categorization?: {
     speech: string
     reasoning: string
