@@ -194,6 +194,14 @@ export interface ProviderDefinition<TConfig extends any = any> {
    */
   requiresCredentials?: boolean
 
+  /**
+   * Makes an available provider selectable without persisted validation state.
+   * Use this only when the availability probe is sufficient configuration.
+   *
+   * @default false
+   */
+  autoConfigureWhenAvailable?: boolean
+
   createProviderConfig: (contextOptions: { t: ComposerTranslation }) => $ZodType<TConfig>
   onboardingFields?: (ctx: { t: ComposerTranslation }) => ProviderOnboardingField[]
   createProvider: (config: TConfig) => ProviderInstance

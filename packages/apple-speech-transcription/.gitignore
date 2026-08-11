@@ -1,0 +1,3 @@
+.turbo/
+build/
+native/**/*.node
