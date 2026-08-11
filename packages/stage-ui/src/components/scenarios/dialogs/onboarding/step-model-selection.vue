@@ -3,41 +3,27 @@ import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './typ
 
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../../misc/alert.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
-import { useProviderStore } from '../../../../stores/providers/provider'
 import { RadioCardManySelect } from '../../../menu'
 
 const props = defineProps<{
-  providerId: string
-  selectedModelId: string
-  onSelectModel: (modelId: string) => void
   onNext: OnboardingStepNextHandler
   onPrevious: OnboardingStepPrevHandler
 }>()
 const { t } = useI18n()
 
-// The step reads models for the DRAFT provider instead of the committed
-// `activeProvider`, so the onboarding owner can commit provider and model
-// together on the final action (see onboarding.vue saveProviderConfiguration).
-const providersStore = useProviderStore()
-const providerModels = computed(() => providersStore.getModelsForProvider(props.providerId))
-const isLoadingProviderModels = computed(() => providersStore.isLoadingModels[props.providerId] || false)
-const providerModelError = computed(() => providersStore.modelLoadError[props.providerId] || null)
-
 const consciousnessStore = useConsciousnessStore()
 const {
+  activeModel,
   modelSearchQuery,
+  providerModels,
+  isLoadingActiveProviderModels,
+  activeProviderModelError,
 } = storeToRefs(consciousnessStore)
-
-const selectedModelId = computed({
-  get: () => props.selectedModelId,
-  set: modelId => props.onSelectModel(modelId),
-})
 </script>
 
 <template>
@@ -59,7 +45,7 @@ const selectedModelId = computed({
     <!-- Using the new RadioCardManySelect component -->
     <div class="min-h-0 flex flex-1 flex-col gap-4 overflow-hidden">
       <Alert
-        v-if="providerModels.length === 0 && !isLoadingProviderModels"
+        v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
         type="error"
       >
         <template #title>
@@ -73,11 +59,11 @@ const selectedModelId = computed({
       </Alert>
 
       <RadioCardManySelect
-        v-model="selectedModelId"
+        v-model="activeModel"
         v-model:search-query="modelSearchQuery"
         class="min-h-0 flex flex-1 flex-col"
         fill-available-height
-        :items="providerModels.toSorted((a, b) => a.id === selectedModelId ? -1 : b.id === selectedModelId ? 1 : 0)"
+        :items="providerModels.toSorted((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
         :searchable="true"
         :allow-custom="true"
         :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -89,13 +75,13 @@ const selectedModelId = computed({
         :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
       />
 
-      <Alert v-if="providerModelError" type="error">
+      <Alert v-if="activeProviderModelError" type="error">
         <template #title>
           {{ t('settings.dialogs.onboarding.validationFailed') }}
         </template>
         <template #content>
           <div class="whitespace-pre-wrap break-all">
-            {{ providerModelError }}
+            {{ activeProviderModelError }}
           </div>
         </template>
       </Alert>
@@ -106,8 +92,8 @@ const selectedModelId = computed({
       <Button
 
         class="w-full"
-        :disabled="!selectedModelId"
-        :loading="isLoadingProviderModels"
+        :disabled="!activeModel"
+        :loading="isLoadingActiveProviderModels"
         :label="t('settings.dialogs.onboarding.saveAndContinue')"
         @click="props.onNext"
       />

@@ -1369,7 +1369,7 @@ pages:
         description: openrouter.ai
         title: OpenRouter
       opencode-go:
-        description: Low-cost subscription for open coding models.
+        description: OpenCode Go provides low-cost access to coding models.
         title: OpenCode Go
       openrouter-audio-speech:
         description: openrouter.ai

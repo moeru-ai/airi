@@ -15,11 +15,6 @@ interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, b
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
   normalizeModelId?: (modelId: string) => string
-  /**
-   * The model that represents provider health for the Chat Completions check.
-   * Catalog order remains a display concern and cannot change this policy.
-   */
-  validationModel?: string
   schedule?: {
     mode: 'once' | 'interval'
     intervalMs?: number
@@ -93,12 +88,7 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   config: TConfig,
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
-  validationModel?: string,
 ): Promise<string | null> {
-  const explicitModel = validationModel?.trim()
-  if (explicitModel)
-    return explicitModel
-
   try {
     const models = await resolveModels(config, provider, providerExtra)
     const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
@@ -121,7 +111,6 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     chatOk: boolean
     errorMessage?: string
     error?: unknown
-    model?: string
   }
 
   async function runChatCheck(
@@ -129,7 +118,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
     provider: ProviderInstance,
     providerExtra: ProviderExtraMethods<TConfig> | undefined,
   ): Promise<ChatCheckResult> {
-    const model = await pickValidationModel(config, provider, providerExtra, options?.validationModel)
+    const model = await pickValidationModel(config, provider, providerExtra)
     const normalizedModel = model ? options?.normalizeModelId?.(model) ?? model : model
 
     if (!normalizedModel) {
@@ -154,16 +143,16 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
         max_tokens: 1,
       })
 
-      return { connectivityOk: true, chatOk: true, model: normalizedModel }
+      return { connectivityOk: true, chatOk: true }
     }
     catch (e) {
       if (isNetworkError(e)) {
-        return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e), model: normalizedModel }
+        return { connectivityOk: false, chatOk: false, error: e, errorMessage: errorMessageFrom(e) }
       }
 
       const status = extractStatusCode(e)
       const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
-      return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e), model: normalizedModel }
+      return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
     }
   }
 
@@ -300,12 +289,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
   if (checks.includes(ProviderValidationCheck.ChatCompletions)) {
     validatorConfig.validateProvider?.push(({ t }) => ({
       id: 'openai-compatible:check-chat-completions',
-      name: [
-        t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
-        options?.validationModel
-          ? `(${options.normalizeModelId?.(options.validationModel) ?? options.validationModel})`
-          : '',
-      ].filter(Boolean).join(' '),
+      name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-supports-chat-completion.title'),
       schedule: options?.schedule,
       validator: async (config, provider, providerExtra, contextOptions) => {
         const errors: Array<{ error: unknown }> = []
@@ -316,8 +300,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
           contextOptions as { validationCache?: Map<string, unknown> } | undefined,
         )
         if (!result.chatOk) {
-          const modelDescription = result.model ? ` for model "${result.model}"` : ''
-          errors.push({ error: new Error(`Chat completions check failed${modelDescription}: ${result.errorMessage || 'Unknown error.'}`) })
+          errors.push({ error: new Error(`Chat completions check failed: ${result.errorMessage || 'Unknown error.'}`) })
         }
 
         return {

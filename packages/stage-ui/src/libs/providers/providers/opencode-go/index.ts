@@ -12,8 +12,6 @@ const OPENCODE_GO_DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1/'
 const OPENCODE_GO_MODEL_PREFIX = 'opencode-go/'
 /** An impossible model id keeps credential validation from starting generation. */
 const OPENCODE_GO_CREDENTIAL_CHECK_MODEL_ID = 'airi-credential-check-model-does-not-exist'
-/** Catalog display order must not select the model used for provider validation. */
-const OPENCODE_GO_VALIDATION_MODEL_ID = 'kimi-k3'
 
 const opencodeGoConfigSchema = z.object({
   apiKey: z
@@ -35,7 +33,7 @@ const chatCompletionModels = [
   { id: 'grok-4.5', name: 'Grok 4.5' },
   { id: 'glm-5.2', name: 'GLM-5.2' },
   { id: 'glm-5.1', name: 'GLM-5.1' },
-  { id: OPENCODE_GO_VALIDATION_MODEL_ID, name: 'Kimi K3' },
+  { id: 'kimi-k3', name: 'Kimi K3' },
   { id: 'kimi-k2.7-code', name: 'Kimi K2.7 Code' },
   { id: 'kimi-k2.6', name: 'Kimi K2.6' },
   { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
@@ -111,15 +109,13 @@ async function validateOpenCodeGoCredentials(config: OpenCodeGoConfig) {
 const openCodeGoValidators = createOpenAICompatibleValidators<OpenCodeGoConfig>({
   checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
   normalizeModelId: stripModelPrefix,
-  validationModel: `${OPENCODE_GO_MODEL_PREFIX}${OPENCODE_GO_VALIDATION_MODEL_ID}`,
 }) ?? {}
 
 export const providerOpenCodeGo = defineProvider<OpenCodeGoConfig>({
   id: 'opencode-go',
-  order: 8,
   name: 'OpenCode Go',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.opencode-go.title'),
-  description: 'Low-cost subscription for open coding models.',
+  description: 'OpenCode Go provides low-cost access to coding models.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.opencode-go.description'),
   tasks: ['chat'],
   icon: 'i-lobe-icons:opencode',

@@ -11,7 +11,7 @@ import type {
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref, shallowRef } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
@@ -20,7 +20,6 @@ import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
-import { resolveOnboardingProviders } from '../../../../stores/onboarding-provider-catalog'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
@@ -43,21 +42,23 @@ const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCom
 const providersStore = useProviderStore()
 
 const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
-  activeModel,
   activeProvider,
 } = storeToRefs(consciousnessStore)
 
 // Popular providers for first-time setup
 const popularProviders = computed(() => {
-  return resolveOnboardingProviders(allChatProvidersMetadata.value)
+  const popular = ['openai', 'azure-openai', 'anthropic', 'amazon-bedrock', 'google-generative-ai', 'groq', 'nvidia', 'openrouter-ai', 'ollama', 'deepseek', 'player2', 'openai-compatible']
+  return allChatProvidersMetadata.value
+    .filter(provider => popular.includes(provider.id))
+    .sort((a, b) => popular.indexOf(a.id) - popular.indexOf(b.id))
 })
 
 // Selected provider and form data
 const selectedProviderId = ref('')
-const selectedModelId = shallowRef('')
 
 // Computed selected provider
 const selectedProvider = computed(() => {
@@ -72,14 +73,7 @@ const selectedProviderType = computed<ProviderMode>(() => {
 
 // Reset validation state when provider changes
 function selectProvider(provider: ProviderMetadata) {
-  if (selectedProviderId.value !== provider.id)
-    selectedModelId.value = ''
-
   selectedProviderId.value = provider.id
-}
-
-function selectModel(modelId: string) {
-  selectedModelId.value = modelId
 }
 
 const requestPreviousStep: OnboardingStepPrevHandler = () => {
@@ -95,7 +89,6 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
   if (!selectedProvider.value)
     return
 
-  const providerId = selectedProvider.value.id
   const config: Record<string, unknown> = {}
 
   if (data.apiKey)
@@ -111,23 +104,17 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     }
   }
 
-  const currentConfig = providerStore.getProviderConfig(providerId) ?? {}
-  providerStore.ensureProvider(providerId, providerId, currentConfig)
-  providerStore.markProviderAdded(providerId)
-  await providerStore.updateProviderConfig(providerId, {
-    ...currentConfig,
+  providers.value[selectedProvider.value.id] = {
+    ...providers.value[selectedProvider.value.id],
     ...config,
-  }, 'configured')
+  }
 
-  // NOTICE: `activeProvider` is intentionally NOT committed here. The
-  // provider selection stays a draft until the final step, so closing the
-  // dialog on the model step cannot leave the persisted consciousness state
-  // half-configured (provider set, model empty). handleSave commits both.
+  activeProvider.value = selectedProvider.value.id
 
   await nextTick()
 
   try {
-    await consciousnessStore.loadModelsForProvider(providerId)
+    await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
   }
   catch (err) {
     console.error('[onboarding] Failed to load models for provider:', err)
@@ -177,11 +164,6 @@ const allSteps = computed<OnboardingStep[]>(() => {
     {
       id: 'model-selection',
       component: StepModelSelection,
-      props: () => ({
-        providerId: selectedProviderId.value,
-        selectedModelId: selectedModelId.value,
-        onSelectModel: selectModel,
-      }),
     },
   ]
 
@@ -193,16 +175,6 @@ const isLastStep = computed(() => step.value === allSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
 async function handleSave() {
-  if (!selectedProvider.value || !selectedModelId.value)
-    return
-
-  // Commit the provider and model as one onboarding result. The model step
-  // keeps a local draft so closing a separate Electron renderer cannot leave
-  // the persisted consciousness state half-configured.
-  activeProvider.value = selectedProvider.value.id
-  activeModel.value = selectedModelId.value
-  await nextTick()
-
   trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
   trackOnboardingCompleted({
     selected_provider_type: selectedProviderType.value,
