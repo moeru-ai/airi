@@ -41,7 +41,7 @@ const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
 const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
 const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
@@ -199,6 +199,10 @@ const {
   },
   onSpeechEnd: () => {
     void handleSpeechEnd()
+  },
+  onSpeechCancel: () => {
+    if (!isTestingSTT.value && !shouldUseStreamInput.value)
+      void discardRecord()
   },
 })
 

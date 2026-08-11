@@ -19,6 +19,7 @@ interface UseVADOptions {
   onSpeechStart?: () => void
   onSpeechAudio?: (event: { buffer: Float32Array }) => void
   onSpeechEnd?: () => void
+  onSpeechCancel?: () => void
   onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
 }
 
@@ -119,6 +120,12 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       vad.value.on('speech-end', () => {
         isSpeech.value = false
         options?.onSpeechEnd?.()
+      })
+
+      vad.value.on('speech-cancel', () => {
+        finishActiveSpan(true)
+        isSpeech.value = false
+        options?.onSpeechCancel?.()
       })
 
       vad.value.on('speech-ready', (event) => {

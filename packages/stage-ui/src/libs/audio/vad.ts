@@ -24,6 +24,8 @@ export interface VADEvents {
   'speech-audio': { buffer: Float32Array }
   // Emitted when speech has ended
   'speech-end': void
+  // Emitted when detected speech is too short to produce a segment
+  'speech-cancel': void
   // Emitted when a complete speech segment is ready for transcription
   'speech-ready': { buffer: Float32Array, duration: number }
   // Emitted for status updates and errors
