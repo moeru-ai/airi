@@ -134,6 +134,7 @@ export function useVoiceInputSession(
     isSpeechHistory,
     inferenceError: vadError,
     minSilenceDurationMs: vadMinSilenceDurationMs,
+    loading: vadLoading,
   } = useVAD(workletUrl, {
     threshold: options.vad?.threshold,
     minSilenceDurationMs: options.vad?.minSilenceDurationMs,
@@ -144,6 +145,13 @@ export function useVoiceInputSession(
     },
     onSpeechEnd: () => {
       void stopSegment('vad')
+    },
+    onSpeechCancel: () => {
+      const segment = activeRecordingSegment.value
+      if (!segment || segment.trigger !== 'vad')
+        return
+
+      void discardActiveRecorderSegment(segment)
     },
     onSpeechReady: ({ buffer }) => {
       const segment = activeRecordingSegment.value
@@ -604,6 +612,7 @@ export function useVoiceInputSession(
     isSpeechProb,
     isSpeechHistory,
     vadLoaded,
+    vadLoading,
     vadError,
 
     startSegment,

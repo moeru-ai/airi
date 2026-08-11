@@ -36,6 +36,22 @@ describe('createVadStreamingSession', () => {
     expect(stop).toHaveBeenCalledTimes(1)
   })
 
+  it('starts a fresh provider session for speech detected after the first segment stops', async () => {
+    const start = vi.fn(async () => {})
+    const stop = vi.fn(async () => {})
+    const session = createVadStreamingSession({ start, stop })
+
+    session.onSpeechStart()
+    session.onSpeechEnd()
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1))
+
+    session.onSpeechStart()
+    session.onSpeechEnd()
+    await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(2))
+
+    expect(start).toHaveBeenCalledTimes(2)
+  })
+
   it('does not start another session after disposal', async () => {
     const start = vi.fn(async () => {})
     const stop = vi.fn(async () => {})

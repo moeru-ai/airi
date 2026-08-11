@@ -634,7 +634,15 @@ export function createAuth(
     baseURL: env.API_SERVER_URL,
     trustedOrigins: request => getAuthTrustedOrigins(env, request),
 
-    advanced: {},
+    advanced: {
+      // Caddy reconstructs this header from Cloudflare's client address before
+      // forwarding to the private API service. Better Auth otherwise defaults
+      // to X-Forwarded-For, which contains the proxy chain and can collapse
+      // unrelated clients into a shared rate-limit bucket.
+      ipAddress: {
+        ipAddressHeaders: ['x-real-ip'],
+      },
+    },
 
     // NOTICE: skipStateCookieCheck required for Capacitor mobile apps.
     // Default state strategy is 'database' (we have a DB), but better-auth
