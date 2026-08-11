@@ -30,10 +30,11 @@ const provider = {
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
   totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
+  messages: Promise<Message[]> = Promise.resolve([]),
 ) {
   return {
     steps,
-    messages: Promise.resolve([]),
+    messages,
     usage: Promise.resolve(undefined),
     totalUsage,
   }
@@ -43,6 +44,42 @@ describe('streamFrom tool errors', () => {
   beforeEach(() => {
     streamTextMock.mockReset()
   })
+
+  it('emits the final xsAI messages after all tool rounds finish', async () => {
+    const onMessages = vi.fn()
+    const finalMessages: Message[] = [
+      { role: 'user', content: 'Check the weather.' },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          {
+            id: 'call-weather',
+            type: 'function',
+            function: { name: 'weather', arguments: '{}' },
+          },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'call-weather', content: 'sunny' },
+      { role: 'assistant', content: 'The weather is sunny.' },
+    ]
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve(undefined),
+      Promise.resolve(finalMessages),
+    ))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: finalMessages.slice(0, 1),
+      options: { onMessages },
+    })
+
+    expect(onMessages).toHaveBeenCalledTimes(1)
+    expect(onMessages).toHaveBeenCalledWith(finalMessages)
+  })
+
   it('requests final streaming usage and emits the reported token totals once', async () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(

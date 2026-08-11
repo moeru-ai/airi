@@ -219,6 +219,9 @@ export async function streamFrom({
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
+        const finalMessages = await streamResult.messages
+        await options?.onMessages?.(finalMessages)
+
         // Ignore any late provider error event emitted after xsAI has already
         // resolved the authoritative full-step lifecycle.
         stepsSettled = true
@@ -266,6 +269,8 @@ export async function streamFrom({
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
+      // `steps` can reject before the success path awaits `messages`.
+      // Keep this rejection sink so xsAI cannot create an unhandled rejection.
       void streamResult.messages.catch(error => console.error('Stream messages error:', error))
       void streamResult.usage.catch(error => console.error('Stream usage error:', error))
       // `steps` and `totalUsage` reject independently when xsAI fails a
