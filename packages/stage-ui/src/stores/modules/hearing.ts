@@ -943,6 +943,9 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
       onSpeechEnd: () => {
         vadSession.lifecycle.onSpeechEnd()
       },
+      onSpeechCancel: () => {
+        vadSession.lifecycle.onSpeechEnd()
+      },
     })
     const lifecycle = createVadStreamingSession({
       start: async () => await startVadRealtimeTranscription(providerId, options, vadSession),

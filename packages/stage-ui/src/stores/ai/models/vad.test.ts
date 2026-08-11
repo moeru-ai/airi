@@ -114,28 +114,7 @@ describe('useVAD', () => {
     expect(onSpeechAudio).toHaveBeenCalledWith({ buffer })
   })
 
-  // https://github.com/moeru-ai/airi/pull/2258#discussion_r3759400512
-  it('runs speech-end cleanup when canceled speech has no cancel handler', async () => {
-    // ROOT CAUSE:
-    //
-    // End-only consumers did not receive the new speech-cancel event. Their
-    // recorder or streaming session therefore remained active after VAD
-    // rejected a segment that was shorter than minSpeechDurationMs.
-    //
-    // We use the end handler as the terminal fallback when a consumer does not
-    // provide a dedicated cancel handler.
-    const onSpeechEnd = vi.fn()
-    const { useVAD } = await import('./vad')
-    const vad = useVAD('vad-worker-url', { onSpeechEnd })
-
-    await vad.init()
-    vadMocks.handlers.get('speech-start')?.()
-    vadMocks.handlers.get('speech-cancel')?.()
-
-    expect(onSpeechEnd).toHaveBeenCalledOnce()
-  })
-
-  it('uses the dedicated cancel handler instead of speech-end cleanup', async () => {
+  it('forwards canceled speech only to the dedicated cancel handler', async () => {
     const onSpeechCancel = vi.fn()
     const onSpeechEnd = vi.fn()
     const { useVAD } = await import('./vad')

@@ -43,7 +43,7 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
@@ -63,6 +63,7 @@ const {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
   onSpeechEnd: () => handleSpeechEnd(),
+  onSpeechCancel: () => handleSpeechCancel(),
 })
 
 let stopOnStopRecord: (() => void) | undefined
@@ -124,6 +125,11 @@ async function handleSpeechEnd() {
   }
 
   stopRecord()
+}
+
+async function handleSpeechCancel() {
+  if (!shouldUseStreamInput.value)
+    await discardRecord()
 }
 
 function stopAudioInteraction() {

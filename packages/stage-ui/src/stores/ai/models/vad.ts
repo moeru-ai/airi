@@ -125,11 +125,7 @@ export function useVAD(workerUrl: string, options?: UseVADOptions) {
       vad.value.on('speech-cancel', () => {
         finishActiveSpan(true)
         isSpeech.value = false
-        // Cancellation is terminal for every consumer. A dedicated handler can
-        // discard invalid audio, while end-only consumers still release their
-        // recorder or provider session.
-        const onSpeechCancel = options?.onSpeechCancel ?? options?.onSpeechEnd
-        onSpeechCancel?.()
+        options?.onSpeechCancel?.()
       })
 
       vad.value.on('speech-ready', (event) => {
