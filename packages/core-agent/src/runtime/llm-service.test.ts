@@ -80,6 +80,40 @@ describe('streamFrom tool errors', () => {
     expect(onMessages).toHaveBeenCalledWith(finalMessages)
   })
 
+  it('ignores provider errors after steps resolve while final messages are pending', async () => {
+    let onEvent: ((event: unknown) => Promise<void>) | undefined
+    let resolveMessages: ((messages: Message[]) => void) | undefined
+    const messages = new Promise<Message[]>((resolve) => {
+      resolveMessages = resolve
+    })
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      onEvent = options.onEvent
+      return createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), messages)
+    })
+
+    // ROOT CAUSE:
+    //
+    // Final message persistence used to delay the steps-settled marker. A late
+    // provider error could then reject a stream whose authoritative steps
+    // promise had already resolved.
+    //
+    // We mark steps settled before awaiting the final transcript, while still
+    // treating transcript persistence failures as real stream failures.
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+    })
+
+    await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
+    await Promise.resolve()
+    await onEvent!({ type: 'error', message: 'stream failed', cause: new Error('stream failed') })
+    resolveMessages?.([])
+
+    await expect(pending).resolves.toBeUndefined()
+  })
+
   it('requests final streaming usage and emits the reported token totals once', async () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(

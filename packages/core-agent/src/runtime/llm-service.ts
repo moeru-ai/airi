@@ -219,12 +219,22 @@ export async function streamFrom({
       // Keep `steps.then(resolveOnce)` so evaluation runners observe the real end
       // of the stream lifecycle instead of an intermediate tool boundary.
       void streamResult.steps.then(async () => {
-        const finalMessages = await streamResult.messages
-        await options?.onMessages?.(finalMessages)
-
         // Ignore any late provider error event emitted after xsAI has already
         // resolved the authoritative full-step lifecycle.
         stepsSettled = true
+        try {
+          const finalMessages = await streamResult.messages
+          await options?.onMessages?.(finalMessages)
+        }
+        catch (error) {
+          // Transcript persistence is part of the completed response contract,
+          // unlike late provider events and optional usage observation.
+          if (!settled) {
+            settled = true
+            reject(error)
+          }
+          return
+        }
         try {
           await options?.onStreamEvent?.({ type: 'finish' } as const)
         }
