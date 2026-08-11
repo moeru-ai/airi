@@ -17,7 +17,7 @@ export type StreamEvent
     | { type: 'reasoning-delta', text: string }
     | ({ type: 'finish' } & any)
     | ({ type: 'tool-call' } & CompletionToolCall)
-    | (CompletionToolResult & { type: 'tool-error' })
+    | (CompletionToolResult & { type: 'tool-error', isError: true })
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
     | { type: 'error', error: any }
 
@@ -35,7 +35,6 @@ export interface StreamOptions {
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
-  captureToolErrors?: boolean
   /** Provider tool-selection directive for one request. */
   toolChoice?: ToolChoice
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
