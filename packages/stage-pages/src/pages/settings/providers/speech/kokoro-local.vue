@@ -58,8 +58,13 @@ const model = computed({
     return getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
   },
   set(val: string) {
+    // The combobox can write back the v-model before onMounted runs, at which
+    // point the provider may not be registered yet and synced actions are still
+    // async. Skip the write in that window; onMounted persists the default model
+    // right after registration, and later user selections always hit a config.
     const config = providerStore.getProviderConfig(providerId)
-    config.model = val
+    if (config)
+      config.model = val
   },
 })
 
@@ -80,7 +85,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
       throw new Error('Failed to initialize speech provider')
     }
 
-    const config = providerStore.getProviderConfig(providerId)
+    const config = providerStore.getProviderConfig(providerId) ?? {}
     const selectedModel = config.model as string | undefined || defaultModel
 
     const result = await speechStore.speech(
@@ -115,7 +120,14 @@ onMounted(async () => {
     // Fetch available models first
     await providersStore.fetchModelsForProvider(providerId)
 
-    const config = providerStore.getProviderConfig(providerId)
+    // Direct navigation to this page can happen before the provider is added from
+    // the catalog, in which case getProviderConfig() returns undefined and reading
+    // `config.model` throws. ensureProvider is a synced (async) action: it returns
+    // a Promise, not the provider, so await it and re-read the config afterwards.
+    if (!providerStore.getProviderConfig(providerId)) {
+      await providerStore.ensureProvider(providerId, providerId, {})
+    }
+    const config = providerStore.getProviderConfig(providerId) ?? {}
 
     // Persist the default model if none is saved yet so validation passes on first visit
     if (!config.model) {
@@ -145,6 +157,9 @@ watch(model, async (newValue) => {
       voicesLoading.value = true
 
       const config = providerStore.getProviderConfig(providerId)
+      if (!config)
+        return
+
       const validationResult = await providersStore.validateProviderConfig(providerId, config)
 
       if (validationResult.valid) {
