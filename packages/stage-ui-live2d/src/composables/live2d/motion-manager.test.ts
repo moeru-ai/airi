@@ -6,10 +6,12 @@ import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './moti
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { createBeatSyncController } from './beat-sync'
 import {
   resolveIdleMotionGroup,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginBeatSync,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
 } from './motion-manager'
@@ -396,5 +398,71 @@ describe('useLive2DMotionManagerUpdate frame timing', () => {
     hookUpdate(1000)
 
     expect(contexts[0].deltaMs).toBe(0)
+  })
+})
+
+describe('beat sync clock domain', () => {
+  // ROOT CAUSE:
+  //
+  // Beats arrive from the audio pipeline with no render frame in hand, so
+  // `scheduleBeat` stamps its segments off the page clock. The plugin then
+  // evaluated those segments against the model's clock instead:
+  //
+  //   beatSync.updateTargets(ctx.nowMs)
+  //
+  // `ctx.nowMs` is `Live2DModel.elapsedTime`. It is seeded from
+  // `performance.now()` in the constructor but only starts accumulating once
+  // `modelLoaded` registers the model on the shared ticker, and every frame
+  // afterwards adds a `Ticker.deltaMS` clamped to `maxElapsedMS`. The whole
+  // asynchronous model load, plus every stall past that clamp, is permanent lag,
+  // so on a real page `ctx.nowMs` runs seconds behind the segment timestamps.
+  // `updateTargets` therefore took its `now < segment.start` branch on every
+  // frame, pinning the head to the segment's starting pose:
+  //
+  //   targetZ stayed at the pre-beat angle, so ParamAngleZ never left it
+  //
+  // We fixed this by giving the controller one clock. `updateTargets()` defaults
+  // to the same page clock `scheduleBeat` stamps with, and the plugin no longer
+  // forwards the model clock into it. The spring still integrates on
+  // `ctx.deltaMs`, which stays generation-normalized frame delta.
+  it('drives the head from a beat scheduled while the model clock lags page time', () => {
+    const pageNow = vi.spyOn(performance, 'now')
+
+    try {
+      // The page has been up for 12s and the model spent almost all of it
+      // loading, so its own elapsed clock is only a few frames old.
+      pageNow.mockReturnValue(12_000)
+      const beatSync = createBeatSyncController({
+        baseAngles: () => ({ x: 0, y: 0, z: 0 }),
+        initialStyle: 'punchy-v',
+      })
+
+      // The first beat only primes the controller; the second one is what lays
+      // down segments to animate through.
+      beatSync.scheduleBeat()
+      pageNow.mockReturnValue(12_500)
+      beatSync.scheduleBeat()
+
+      const plugin = useMotionUpdatePluginBeatSync(beatSync)
+      // The model joined the ticker three frames ago, so its clock reads ~48ms
+      // against the 12.5s the page has behind it.
+      const ctx = createContext({ nowMs: 48, deltaMs: 16 })
+      for (const id of ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ'])
+        ctx.model.setParameterValueById(id, 0)
+
+      for (let frame = 1; frame <= 4; frame++) {
+        pageNow.mockReturnValue(12_500 + frame * 16)
+        ctx.nowMs = 48 + frame * 16
+        plugin(ctx)
+      }
+
+      // `punchy-v` opens on a left top pose (negative yaw and roll), so four
+      // frames into the beat the head has to be off its resting angle.
+      expect(ctx.model.getParameterValueById('ParamAngleZ') as number).toBeLessThan(0)
+      expect(ctx.model.getParameterValueById('ParamAngleY') as number).toBeLessThan(0)
+    }
+    finally {
+      pageNow.mockRestore()
+    }
   })
 })

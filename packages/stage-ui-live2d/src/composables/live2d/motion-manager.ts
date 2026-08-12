@@ -21,9 +21,12 @@ export interface MotionManagerUpdateContext {
    * Elapsed model time in milliseconds, normalized from whatever unit this
    * model's generation reports (see {@link useLive2DMotionManagerUpdate}).
    *
-   * Shares its origin with `performance.now()`: `Live2DModel` seeds
-   * `elapsedTime` from that clock and then accumulates `ticker.deltaMS`, so
-   * timestamps produced outside the render loop stay comparable to this.
+   * Model-relative, not page-relative. `Live2DModel.elapsedTime` seeds from
+   * `performance.now()` but only advances once the model finishes loading and
+   * joins the shared ticker, and each frame adds a `Ticker.deltaMS` clamped to
+   * `maxElapsedMS`. It is monotonic and every plugin sees the same value, so it
+   * is fine for scheduling *within* the frame loop; it must never be compared
+   * against a timestamp taken outside it.
    */
   nowMs: number
   /** Time since the previous hooked frame, in milliseconds. `0` on the first frame. */
@@ -201,18 +204,23 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
 export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
   return (ctx) => {
-    // Beat segments are stamped with `performance.now()` by `scheduleBeat`,
-    // which is the same clock `ctx.nowMs` is derived from.
-    beatSync.updateTargets(ctx.nowMs)
+    // Beat segments are stamped by `scheduleBeat` off the audio pipeline, on the
+    // page clock the controller owns; evaluating them has to read that same
+    // clock. `ctx.nowMs` is the model's own elapsed time, which trails page time
+    // by the model's load duration plus every clamped frame since, so segment
+    // starts would sit permanently in its future and the head would never move.
+    beatSync.updateTargets()
 
     // Semi-implicit Euler approach
     const stiffness = 120 // Higher -> Snappier
     const damping = 16 // Higher -> Less bounce
     const mass = 1
-    // Both coefficients are per-second, so the step has to be seconds too.
-    // Integrating this spring with a millisecond step puts it far past the
-    // explicit-Euler stability limit (~2/sqrt(stiffness) = 0.18s) and it
-    // diverges within a couple of frames instead of settling on the target.
+    // The spring integrates against the render loop, so it keeps using the
+    // generation-normalized frame delta rather than the beat clock. Both
+    // coefficients are per-second, so the step has to be seconds too:
+    // integrating with a millisecond step puts it far past the explicit-Euler
+    // stability limit (~2/sqrt(stiffness) = 0.18s) and it diverges within a
+    // couple of frames instead of settling on the target.
     const dt = ctx.deltaMs / 1000
 
     let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
