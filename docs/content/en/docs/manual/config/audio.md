@@ -11,7 +11,7 @@ Speech synthesis (TTS) reads AIRI's text responses aloud; speech recognition (AS
 2. Use the provider playground, when available, to synthesize a short test sentence.
 3. Open **Settings → Modules → Speech** and select the configured provider, model, and voice.
 
-See **Service Providers → Speech Synthesis (TTS)** in the sidebar for provider-specific instructions. If your provider implements the OpenAI speech interface, see [OpenAI Compatible API (TTS)](./providers/speech/openai.md).
+See **Service Providers → Speech** in the sidebar for provider-specific instructions. If your provider implements the OpenAI speech interface, see [OpenAI Compatible API (TTS)](./providers/speech/openai.md).
 
 ## Configure speech recognition (ASR/STT)
 
@@ -20,7 +20,7 @@ See **Service Providers → Speech Synthesis (TTS)** in the sidebar for provider
 3. Select the correct microphone, click **Start Monitoring**, and say a brief sentence.
 4. Confirm that the text appears correctly in the recognition result area.
 
-Refer to **Service Providers → Speech Recognition (ASR/STT)** in the sidebar for provider-specific instructions. If your provider supports the OpenAI-compatible transcription interface, refer to [OpenAI Compatible API (ASR/STT)](./providers/transcription/openai.md).
+See **Service Providers → Transcription** in the sidebar for provider-specific instructions. If your provider supports the OpenAI-compatible transcription interface, see [OpenAI Compatible API (ASR/STT)](./providers/transcription/openai.md).
 
 ## FAQ
 

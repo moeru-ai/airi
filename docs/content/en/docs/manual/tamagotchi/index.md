@@ -1,6 +1,6 @@
 ---
 title: Desktop Quick Start
-description: How to get started with Project AIRI Desktop
+description: How to get started with the Desktop ver.
 ---
 
 ## Start chatting first
@@ -16,7 +16,7 @@ After installing and starting AIRI, complete the onboarding flow:
 7. Click **Open Chat**, enter the message and send it.
 
 ::: tip Using Ollama locally?
-Ollama allows AIRI Desktop's local development and packaged-app origins by default, so a local desktop setup normally does not require `OLLAMA_ORIGINS`. If you access AIRI from a non-default remote web origin and encounter a CORS error, add that exact origin to `OLLAMA_ORIGINS` and restart Ollama. Do not use a wildcard or expose Ollama to the public internet.
+By default, Ollama allows requests from the development and packaged-app origins of the Desktop ver. Thus, a local setup does not usually require `OLLAMA_ORIGINS`. If a CORS error occurs from a non-default remote web origin, add that exact origin to `OLLAMA_ORIGINS`. Then restart Ollama. Do not use a wildcard or expose Ollama to the public internet.
 :::
 
 <br />

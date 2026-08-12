@@ -42,7 +42,7 @@ Open **Settings → Providers → Transcription** to configure a transcription p
 
 ### Vision capture is currently desktop-only
 
-Screen and window capture are currently available in AIRI Desktop. See [Configure vision](../config/vision.md) for provider setup and the desktop Vision Capture workflow.
+Screen and window capture are currently available in the Desktop ver. See [Configure vision](../config/vision.md) for provider setup and the desktop Vision Capture workflow.
 
 ## Character Card
 

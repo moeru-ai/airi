@@ -502,7 +502,7 @@ Deletion and reset operations in this section cannot be undone. Confirm the sele
 Use **Move desktop window to center** to restore the desktop stage to the center of the current screen.
 
 ::: tip Desktop-only data controls
-Opening the app data folder and resetting desktop settings or status are available only in AIRI Desktop, not in the web or mobile apps.
+These data controls are available only in the Desktop ver. They are not available in the web or mobile apps.
 :::
 
 <a id="chapter-4-connection"></a>
@@ -589,7 +589,7 @@ The upper area provides access to **About**, **Characters**, and the account men
 
 ###### Flux
 
-Flux is the balance used by AIRI's official services. After signing in, open **Flux** to view the balance, usage statistics, and transaction history. When purchasing is enabled for the current deployment, you can choose an available package; AIRI Desktop completes checkout in the system browser. Requests to official chat, vision, or speech services may consume Flux. Third-party providers bill usage separately.
+Flux is the balance used by AIRI's official services. After you sign in, open **Flux** to view your balance, usage statistics, and transaction history. If the current deployment supports purchases, you can select an available package. The Desktop ver. opens checkout in the system browser. Requests to official chat, vision, or speech services can consume Flux. Third-party providers bill usage separately.
 
 ###### Settings
 

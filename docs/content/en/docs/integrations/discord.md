@@ -22,7 +22,7 @@ Keep the Bot Token and AIRI Auth Token only in AIRI's local settings or the bot 
 cp integrations/discord-bot/.env integrations/discord-bot/.env.local
 ```
 
-In AIRI Desktop, open **Settings → Connection**. Show and copy the **Auth Token**, then add these values to **integrations/discord-bot/.env.local**:
+In the Desktop ver., open **Settings → Connection**. Show and copy the **Auth Token**. Then add these values to **integrations/discord-bot/.env.local**:
 
 ```env
 AIRI_URL=ws://localhost:6121/ws

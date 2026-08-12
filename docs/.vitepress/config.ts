@@ -142,7 +142,7 @@ export default defineConfig<ThemeConfig>({
               {
                 text: 'Quick Start',
                 items: [
-                  { text: 'Desktop Version', link: withBase('/en/docs/manual/tamagotchi/') },
+                  { text: 'Desktop ver.', link: withBase('/en/docs/manual/tamagotchi/') },
                   { text: 'Web Version', link: withBase('/en/docs/manual/web/') },
                 ],
               },

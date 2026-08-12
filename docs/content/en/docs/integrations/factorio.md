@@ -3,7 +3,7 @@ title: Factorio
 description: Connect AIRI to a trusted Factorio server
 ---
 
-The Factorio integration lets AIRI connect to an external game service using the server address, port, and player name. AIRI Desktop provides the connection settings, but you must supply a reachable Factorio server and a compatible server-side integration.
+The Factorio integration connects AIRI to an external game service. The Desktop ver. provides settings for the server address, port, and player name. You must supply a reachable Factorio server and a compatible server-side integration.
 
 ## Prerequisites
 
@@ -27,4 +27,4 @@ This integration exchanges context and action requests with the game server. Do 
 - Check that the device running AIRI can reach the server address and port.
 - Confirm that no firewall, VPN, or server allowlist blocks the connection.
 - Confirm that the username matches the player name on the server.
-- If the settings are saved but AIRI still cannot interact, inspect the server-side integration logs. AIRI Desktop does not include a ready-to-deploy Factorio bot service.
+- If the settings are saved but AIRI still cannot interact, inspect the server-side integration logs. The Desktop ver. does not include a ready-to-deploy Factorio bot service.

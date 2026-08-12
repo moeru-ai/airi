@@ -23,7 +23,7 @@ cp integrations/minecraft/.env integrations/minecraft/.env.local
 
 Edit **integrations/minecraft/.env.local** and provide the required Minecraft server, AIRI, and model-service settings.
 
-In AIRI Desktop, open **Settings → Connection**, show and copy the **Auth Token**, and add these AIRI channel settings:
+In the Desktop ver., open **Settings → Connection**. Show and copy the **Auth Token**. Then add these AIRI channel settings:
 
 ```env
 AIRI_WS_BASEURL=ws://localhost:6121/ws

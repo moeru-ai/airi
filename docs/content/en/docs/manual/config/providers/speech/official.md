@@ -36,4 +36,4 @@ In **Settings → Modules → Speech**, keep **Official Speech Provider** select
 
 ## Troubleshooting
 
-If the provider is unavailable, confirm that you are signed in, AIRI can reach the official service, and your account has enough Flux. Open **Settings → Flux** to view available packages. AIRI Desktop opens checkout in the system browser; builds or deployments with purchasing disabled do not show a purchase option.
+If the provider is unavailable, confirm that you are signed in and that AIRI can reach the official service. Also confirm that your account has enough Flux. Open **Settings → Flux** to view the available packages. The Desktop ver. opens checkout in the system browser. A purchase option does not appear if the build or deployment does not support purchases.

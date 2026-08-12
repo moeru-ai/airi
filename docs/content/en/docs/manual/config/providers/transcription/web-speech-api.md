@@ -11,7 +11,7 @@ If you're just trying out speech input quickly on the web, and your browser supp
 
 ## Confirm browser support
 
-1. Use AIRI Web. The Web Speech API provider is not available in AIRI Desktop (Electron).
+1. Use AIRI Web. The Web Speech API provider is not available in the Desktop ver. (Electron).
 2. Confirm that the current browser supports the Web Speech API and is ready to allow microphone permissions.
 
 ::: warning Browser restrictions

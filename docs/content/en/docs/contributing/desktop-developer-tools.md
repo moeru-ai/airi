@@ -1,9 +1,9 @@
 ---
 title: Desktop Developer Tools
-description: Understand and use the diagnostic and validation tools under Settings → System → Developer in AIRI Desktop
+description: Use the diagnostic and validation tools under Settings → System → Developer in the Desktop ver.
 ---
 
-The **System → Developer** page in AIRI Desktop contains tools for development, troubleshooting, and validating experimental features. They do not improve everyday chat or character interactions, and you do not need to configure them after installation. Use them only when reproducing a problem, developing a feature, or collecting diagnostics requested by a maintainer.
+The **System → Developer** page in the Desktop ver. contains tools for development, troubleshooting, and validation of experimental features. These tools do not improve everyday chat or character interactions. You do not need to configure them after installation. Use them only to reproduce a problem, develop a feature, or collect diagnostics for a maintainer.
 
 This page covers the desktop app only. The web app also has development pages, but its available features and runtime environment differ.
 
