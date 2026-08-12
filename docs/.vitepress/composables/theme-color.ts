@@ -1,7 +1,7 @@
 import Color from 'colorjs.io'
 
 import { withRetry } from '@moeru/std'
-import { useDark } from '@vueuse/core'
+import { useData } from 'vitepress'
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
   return async () => {
@@ -18,15 +18,21 @@ export function themeColorFromPropertyOf(colorFromClass: string, property: strin
   }
 }
 
+/**
+ * Resolves a theme color from a static value or per-scheme values.
+ *
+ * `useData()` must run here (factory body, called from `setup()`): inside the
+ * returned async closure the inject context is gone and it would throw.
+ * Reading VitePress' `isDark` also avoids stray `useDark()` instances that
+ * force the theme back to the system preference.
+ */
 export function themeColorFromValue(value: string | { light: string, dark: string }): () => Promise<string> {
+  const { isDark } = useData()
   return async () => {
     if (typeof value === 'string') {
       return value
     }
-    else {
-      const dark = useDark()
-      return dark.value ? value.dark : value.light
-    }
+    return isDark.value ? value.dark : value.light
   }
 }
 

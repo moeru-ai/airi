@@ -1,6 +1,6 @@
 ---
 title: 문서 사이트
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 ### 문서 사이트

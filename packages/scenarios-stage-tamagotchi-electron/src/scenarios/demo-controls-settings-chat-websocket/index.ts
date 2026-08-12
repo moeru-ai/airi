@@ -1,9 +1,9 @@
-import type { ManualRuntime } from './shared/types.ts'
+import type { ManualRuntime } from './shared/types'
 
-import { defineStageTamagotchiScenario } from '../../context.ts'
-import { manualCaptureSections } from './manifest.ts'
-import { formatStepFailure, resetScenarioOutputDirectories } from './shared/output.ts'
-import { runCaptureStep } from './shared/steps.ts'
+import { defineStageTamagotchiScenario } from '../../context'
+import { manualCaptureSections } from './manifest'
+import { formatStepFailure, resetScenarioOutputDirectories } from './shared/output'
+import { runCaptureStep } from './shared/steps'
 
 export default defineStageTamagotchiScenario({
   id: 'demo-controls-settings-chat-websocket',

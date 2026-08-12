@@ -50,9 +50,7 @@ const displayName = computed(() =>
 
 <template>
   <div class="user-card">
-    <h3 class="name">
-      {{ displayName }}
-    </h3>
+    <h3 class="name">{{ displayName }}</h3>
   </div>
 </template>
 
@@ -146,12 +144,8 @@ p { line-height: 1.6; }
 ```vue
 <template>
   <article class="article">
-    <h1 class="article-title">
-      {{ title }}
-    </h1>
-    <p class="article-subtitle">
-      {{ subtitle }}
-    </p>
+    <h1 class="article-title">{{ title }}</h1>
+    <p class="article-subtitle">{{ subtitle }}</p>
   </article>
 </template>
 
@@ -178,7 +172,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <input ref="input">
+  <input ref="input" />
 </template>
 ```
 
@@ -187,7 +181,7 @@ onMounted(() => {
 **BAD:**
 ```vue
 <template>
-  <div :style="{ 'font-size': `${fontSize}px`, 'background-color': bg }">
+  <div :style="{ 'font-size': fontSize + 'px', 'background-color': bg }">
     Content
   </div>
 </template>
@@ -196,7 +190,7 @@ onMounted(() => {
 **GOOD:**
 ```vue
 <template>
-  <div :style="{ fontSize: `${fontSize}px`, backgroundColor: bg }">
+  <div :style="{ fontSize: fontSize + 'px', backgroundColor: bg }">
     Content
   </div>
 </template>
@@ -264,16 +258,15 @@ const activeUsers = computed(() => users.value.filter(u => u.active))
 ```vue
 <template>
   <!-- DANGEROUS: untrusted input can inject scripts -->
-  <article v-html="userProvidedContent" />
+  <article v-html="userProvidedContent"></article>
 </template>
 ```
 
 **GOOD:**
 ```vue
 <script setup>
-import DOMPurify from 'dompurify'
-
 import { computed } from 'vue'
+import DOMPurify from 'dompurify'
 
 const props = defineProps<{
   trustedHtml?: string
@@ -288,7 +281,7 @@ const safeHtml = computed(() => DOMPurify.sanitize(props.trustedHtml ?? ''))
   <p>{{ props.plainText }}</p>
 
   <!-- Only for trusted/sanitized HTML -->
-  <article v-html="safeHtml" />
+  <article v-html="safeHtml"></article>
 </template>
 ```
 

@@ -1,11 +1,12 @@
 import type { Context } from 'hono'
 
 import type { Database } from '../../libs/db'
+import type { UserMetricsSnapshot, UserMetricsSnapshotRecorder } from '../../otel/gauges/user-metrics-snapshot'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { BillingService } from '../../services/domain/billing/billing-service'
 import type { HonoEnv } from '../../types/hono'
 
-import { and, asc, count, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, count, countDistinct, desc, eq, gt, ilike, isNull, or, sql } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { integer, maxLength, maxValue, minValue, nonEmpty, number, object, optional, pipe, safeParse, string } from 'valibot'
 
@@ -19,6 +20,7 @@ import { createBadRequestError, createNotFoundError } from '../../utils/error'
 import { createQueryIntegerSchema } from '../../utils/http-query'
 
 const MAX_FLUX_ADJUSTMENT = 1_000_000_000
+const ADMIN_METRICS_CACHE_TTL_MS = 60_000
 
 const ListUsersQuerySchema = object({
   limit: createQueryIntegerSchema({
@@ -56,6 +58,103 @@ export interface AdminRoutesDeps {
   db: Database
   billingService: BillingService
   configKV: ConfigKVService
+  userMetricsRecorder: UserMetricsSnapshotRecorder
+}
+
+interface AdminMetricsSnapshot extends UserMetricsSnapshot {
+  verifiedUsers: number
+  currentFlux: number
+  issuedFlux: number
+  llmRequests24h: number
+  llmFlux24h: number
+  adminSeats: number
+  grafanaEmbedUrl: null
+}
+
+interface AdminMetricsRead {
+  value: AdminMetricsSnapshot
+  refreshedAt: number
+}
+
+function createAdminMetricsReader(db: Database) {
+  let cached: (AdminMetricsRead & { expiresAt: number }) | undefined
+  let inFlight: Promise<AdminMetricsRead> | undefined
+
+  return async function readAdminMetrics(): Promise<AdminMetricsRead> {
+    const now = Date.now()
+    if (cached && cached.expiresAt > now)
+      return cached
+
+    // A polling burst can arrive immediately after expiry. Share that refresh
+    // within this API process so only one set of aggregate queries reaches DB.
+    if (inFlight)
+      return inFlight
+
+    inFlight = (async () => {
+      const currentTime = Date.now()
+      const yesterday = new Date(currentTime - 24 * 60 * 60 * 1000)
+      const [
+        users,
+        sessions,
+        currentFlux,
+        issuedFlux,
+        llmUsage24h,
+      ] = await Promise.all([
+        db.select({
+          totalUsers: count(),
+          verifiedUsers: sql<number>`count(*) filter (where ${userTable.emailVerified} = true)`,
+          adminSeats: sql<number>`count(*) filter (where 'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*')))`,
+        }).from(userTable),
+        db
+          .select({
+            activeSessions: count(),
+            distinctActiveUsers: countDistinct(sessionTable.userId),
+          })
+          .from(sessionTable)
+          .where(gt(sessionTable.expiresAt, new Date(currentTime))),
+        db.select({ total: sql<number>`coalesce(sum(${userFlux.flux}), 0)::int` }).from(userFlux).where(isNull(userFlux.deletedAt)),
+        db.select({ total: sql<number>`coalesce(sum(${fluxTransaction.amount}) filter (where ${fluxTransaction.type} in ('credit', 'initial', 'promo')), 0)::int` }).from(fluxTransaction),
+        db
+          .select({
+            count: count(),
+            total: sql<number>`coalesce(sum(${llmRequestLog.fluxConsumed}), 0)::int`,
+          })
+          .from(llmRequestLog)
+          .where(gt(llmRequestLog.createdAt, yesterday)),
+      ])
+
+      const value: AdminMetricsSnapshot = {
+        totalUsers: Number(users[0]?.totalUsers ?? 0),
+        verifiedUsers: Number(users[0]?.verifiedUsers ?? 0),
+        activeSessions: Number(sessions[0]?.activeSessions ?? 0),
+        distinctActiveUsers: Number(sessions[0]?.distinctActiveUsers ?? 0),
+        currentFlux: Number(currentFlux[0]?.total ?? 0),
+        issuedFlux: Number(issuedFlux[0]?.total ?? 0),
+        llmRequests24h: Number(llmUsage24h[0]?.count ?? 0),
+        llmFlux24h: Number(llmUsage24h[0]?.total ?? 0),
+        adminSeats: Number(users[0]?.adminSeats ?? 0),
+        grafanaEmbedUrl: null,
+      }
+
+      // Expiry starts after the refresh finishes; slow aggregate queries should
+      // not shorten the period during which the completed snapshot is reused.
+      const refreshedAt = Date.now()
+      cached = {
+        value,
+        refreshedAt,
+        expiresAt: refreshedAt + ADMIN_METRICS_CACHE_TTL_MS,
+      }
+      return cached
+    })()
+
+    try {
+      return await inFlight
+    }
+    finally {
+      // Failed refreshes are intentionally not cached, so the next poll retries.
+      inFlight = undefined
+    }
+  }
 }
 
 function serializeUser(row: {
@@ -142,6 +241,8 @@ async function ensureUserExists(db: Database, userId: string) {
 }
 
 export function createAdminRoutes(deps: AdminRoutesDeps) {
+  const readAdminMetrics = createAdminMetricsReader(deps.db)
+
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .use('*', adminGuard)
@@ -161,42 +262,9 @@ export function createAdminRoutes(deps: AdminRoutesDeps) {
     })
 
     .get('/metrics', async (c) => {
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-
-      const [
-        totalUsers,
-        verifiedUsers,
-        activeSessions,
-        currentFlux,
-        issuedFlux,
-        llmRequests24h,
-        llmFlux24h,
-        adminUsers,
-      ] = await Promise.all([
-        deps.db.select({ count: count() }).from(userTable),
-        deps.db.select({ count: count() }).from(userTable).where(eq(userTable.emailVerified, true)),
-        deps.db.select({ count: count() }).from(sessionTable).where(gt(sessionTable.expiresAt, new Date())),
-        deps.db.select({ total: sql<number>`coalesce(sum(${userFlux.flux}), 0)::int` }).from(userFlux).where(isNull(userFlux.deletedAt)),
-        deps.db.select({ total: sql<number>`coalesce(sum(${fluxTransaction.amount}) filter (where ${fluxTransaction.type} in ('credit', 'initial', 'promo')), 0)::int` }).from(fluxTransaction),
-        deps.db.select({ count: count() }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
-        deps.db.select({ total: sql<number>`coalesce(sum(${llmRequestLog.fluxConsumed}), 0)::int` }).from(llmRequestLog).where(gt(llmRequestLog.createdAt, yesterday)),
-        deps.db
-          .select({ count: count() })
-          .from(userTable)
-          .where(sql<boolean>`'admin' = any(regexp_split_to_array(coalesce(${userTable.role}, ''), '\\s*,\\s*'))`),
-      ])
-
-      return c.json({
-        totalUsers: Number(totalUsers[0]?.count ?? 0),
-        verifiedUsers: Number(verifiedUsers[0]?.count ?? 0),
-        activeSessions: Number(activeSessions[0]?.count ?? 0),
-        currentFlux: Number(currentFlux[0]?.total ?? 0),
-        issuedFlux: Number(issuedFlux[0]?.total ?? 0),
-        llmRequests24h: Number(llmRequests24h[0]?.count ?? 0),
-        llmFlux24h: Number(llmFlux24h[0]?.total ?? 0),
-        adminSeats: Number(adminUsers[0]?.count ?? 0),
-        grafanaEmbedUrl: null,
-      })
+      const snapshot = await readAdminMetrics()
+      deps.userMetricsRecorder.record(snapshot.value, snapshot.refreshedAt)
+      return c.json(snapshot.value)
     })
 
     .get('/users', async (c) => {

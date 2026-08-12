@@ -1,6 +1,6 @@
 import type { DefaultTheme } from 'vitepress'
 
-import type { ThemeConfig } from './theme/config.ts'
+import type { ThemeConfig } from './theme/config'
 
 import { join, posix, resolve } from 'node:path'
 import { env } from 'node:process'
@@ -15,7 +15,7 @@ import { tasklist } from '@mdit/plugin-tasklist'
 import { defineConfig, postcssIsolateStyles } from 'vitepress'
 
 import { version } from '../../package.json'
-import { webLive } from './constants.ts'
+import { webLive } from './constants'
 import { teamMembers } from './contributors'
 import {
   discord,
@@ -137,6 +137,7 @@ export default defineConfig<ThemeConfig>({
           {
             text: 'Manual',
             icon: 'lucide:book-open',
+            link: withBase('/en/docs/manual/'),
             items: [
               {
                 text: 'Quick Start',
@@ -295,11 +296,6 @@ export default defineConfig<ThemeConfig>({
               { text: 'Before Story v0.0.1', link: withBase('/en/docs/chronicles/version-v0.0.1/') },
             ],
           },
-          {
-            text: 'Characters',
-            icon: 'lucide:scan-face',
-            link: withBase('/en/characters/'),
-          },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
         homepage: {
@@ -383,12 +379,12 @@ export default defineConfig<ThemeConfig>({
                   { text: '先前的故事 v0.0.1', link: withBase('/zh-Hans/docs/chronicles/version-v0.0.1/') },
                 ],
               },
-              { text: '角色', link: withBase('/zh-Hans/characters/') },
             ],
           },
           {
             text: '用户手册',
             icon: 'lucide:book-open',
+            link: withBase('/zh-Hans/docs/manual/'),
             items: [
               {
                 text: '快速开始',
@@ -622,6 +618,7 @@ export default defineConfig<ThemeConfig>({
           {
             text: 'マニュアル',
             icon: 'lucide:book-open',
+            link: withBase('/ja/docs/manual/'),
             items: [
               {
                 text: 'クイックスタート',
@@ -677,11 +674,6 @@ export default defineConfig<ThemeConfig>({
               { text: '初公開 v0.1.0', link: withBase('/ja/docs/chronicles/version-v0.1.0/') },
               { text: '前日譚 v0.0.1', link: withBase('/ja/docs/chronicles/version-v0.0.1/') },
             ],
-          },
-          {
-            text: 'キャラクター',
-            icon: 'lucide:scan-face',
-            link: withBase('/ja/characters/'),
           },
         ] as (DefaultTheme.SidebarItem & { icon?: string })[],
 
@@ -763,6 +755,7 @@ export default defineConfig<ThemeConfig>({
           {
             text: '사용 설명서',
             icon: 'lucide:book-open',
+            link: withBase('/ko/docs/manual/'),
             items: [
               {
                 text: '빠른 시작',

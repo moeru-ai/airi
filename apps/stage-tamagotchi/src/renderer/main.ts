@@ -6,13 +6,14 @@ import Tres from '@tresjs/core'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
-import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/stores/analytics/client'
+import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
+import { setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
 import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { routes } from 'vue-router/auto-routes'
+import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
@@ -39,11 +40,13 @@ import '@fontsource/m-plus-rounded-1c/index.css'
 import '@fontsource-variable/nunito/index.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/stores/analytics/posthog')
+  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/analytics/posthog')
   return createPosthogAdapter(options)
 })
 
 const pinia = createPinia()
+const synced = setupSynced()
+pinia.use(synced.pinia)
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -51,7 +54,16 @@ const router = createRouter({
   routes: setupLayouts(routes as RouteRecordRaw[]),
 })
 
+if (import.meta.hot) {
+  handleHotUpdate(router, (updatedRoutes) => {
+    router.clearRoutes()
+    for (const route of setupLayouts(updatedRoutes))
+      router.addRoute(route)
+  })
+}
+
 createApp(App)
+  .use(synced.vue)
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)

@@ -1,4 +1,4 @@
-import { createChatProvider, createModelProvider, merge } from '@xsai-ext/providers/utils'
+import { createChatProvider, createModelProvider, createSpeechProvider, createTranscriptionProvider, merge } from '@xsai-ext/providers/utils'
 import { z } from 'zod'
 
 import { ProviderValidationCheck } from '../../types'
@@ -54,4 +54,51 @@ export const providerCometAPI = defineProvider<CometApiConfig>({
       checks: [ProviderValidationCheck.ModelList, ProviderValidationCheck.ChatCompletions],
     }),
   },
+})
+
+export const providerCometAPISpeech = defineProvider<CometApiConfig>({
+  id: 'comet-api-speech',
+  name: 'CometAPI Speech',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
+  description: 'cometapi.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
+  tasks: ['text-to-speech'],
+  icon: 'i-lobe-icons:cometapi',
+  createProviderConfig: providerCometAPI.createProviderConfig,
+  createProvider(config) {
+    return merge(
+      createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
+      createSpeechProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
+    )
+  },
+  validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
+  validators: createOpenAICompatibleValidators({ checks: [ProviderValidationCheck.ModelList] }),
+})
+
+export const providerCometAPITranscription = defineProvider<CometApiConfig>({
+  id: 'comet-api-transcription',
+  name: 'CometAPI Transcription',
+  nameLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.title'),
+  description: 'cometapi.com',
+  descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.comet-api.description'),
+  tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
+  icon: 'i-lobe-icons:cometapi',
+  capabilities: {
+    transcription: { protocol: 'http', generateOutput: true, streamOutput: false, streamInput: false },
+  },
+  createProviderConfig: providerCometAPI.createProviderConfig,
+  createProvider(config) {
+    const provider = merge(
+      createModelProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
+      createTranscriptionProvider({ apiKey: config.apiKey, baseURL: config.baseUrl! }),
+    )
+    const transcription = provider.transcription.bind(provider)
+    provider.transcription = (model: string, extraOptions?: Record<string, unknown>) => ({
+      ...transcription(model),
+      ...extraOptions,
+    })
+    return provider
+  },
+  validationRequiredWhen: config => Boolean(config.apiKey?.trim()),
+  validators: createOpenAICompatibleValidators({ checks: [ProviderValidationCheck.ModelList] }),
 })

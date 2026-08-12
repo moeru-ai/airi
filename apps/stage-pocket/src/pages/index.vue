@@ -14,10 +14,10 @@ import { IS_DEV } from '@proj-airi/stage-shared'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -46,14 +46,17 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatOrchestratorStore()
+const chatStore = useChatStore()
+
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-pocket:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -66,6 +69,7 @@ const {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
   onSpeechEnd: () => handleSpeechEnd(),
+  onSpeechCancel: () => handleSpeechCancel(),
 })
 
 let stopOnStopRecord: (() => void) | undefined
@@ -104,6 +108,7 @@ async function handleSpeechStart() {
     // Use both callbacks to support incremental updates and final transcript replacement.
     // ChatArea uses only onSentenceEnd to avoid re-adding deleted text.
     await transcribeForMediaStream(stream.value, {
+      consumerId: transcriptionConsumerId,
       onSentenceEnd: (delta) => {
         const finalText = delta
         if (!finalText || !finalText.trim()) {
@@ -139,8 +144,14 @@ async function handleSpeechEnd() {
   stopRecord()
 }
 
+async function handleSpeechCancel() {
+  if (!shouldUseStreamInput.value)
+    await discardRecord()
+}
+
 function stopAudioInteraction() {
   try {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
     // Stop any active streaming transcription sessions to prevent session leakage

@@ -19,10 +19,8 @@ describe('services inference-service-providers', () => {
 
     expect(provider.id).toBeDefined()
     expect(provider.definitionId).toBe(providerOpenAICompatible.id)
-    expect(provider.name).toBe('OpenAI Compatible')
     expect(provider.config).toEqual({})
-    expect(provider.validated).toBe(false)
-    expect(provider.validationBypassed).toBe(false)
+    expect(provider.status).toBe('unconfigured')
   })
 
   /**
@@ -30,18 +28,15 @@ describe('services inference-service-providers', () => {
    * const provider = inferenceServiceProvidersService.buildLocal('atlascloud', { apiKey: '...' })
    */
   it('lists Atlas Cloud as a built-in OpenAI-compatible provider', () => {
-    const definitions = inferenceServiceProvidersService.listDefinitions()
-    const definition = definitions.find(definition => definition.id === providerAtlasCloud.id)
     const schema = providerAtlasCloud.createProviderConfig({ t: (key: string) => key })
 
-    expect(definition?.name).toBe('Atlas Cloud')
+    expect(providerAtlasCloud.name).toBe('Atlas Cloud')
     expect(parseSchema(schema, { apiKey: 'test-key' })).toEqual({
       apiKey: 'test-key',
       baseUrl: ATLASCLOUD_DEFAULT_BASE_URL,
     })
     expect(inferenceServiceProvidersService.buildLocal(providerAtlasCloud.id, { apiKey: 'test-key' })).toEqual(expect.objectContaining({
       definitionId: providerAtlasCloud.id,
-      name: 'Atlas Cloud',
       config: { apiKey: 'test-key' },
     }))
   })
@@ -108,7 +103,7 @@ describe('services inference-service-providers', () => {
       'provider-1': expect.objectContaining({
         config: { baseUrl: 'https://example.com/v1/' },
         id: 'provider-1',
-        validated: true,
+        status: 'configured',
       }),
     })
   })

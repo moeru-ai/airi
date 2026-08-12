@@ -127,6 +127,20 @@
       "when": 1782912836523,
       "tag": "0017_nappy_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785833974268,
+      "tag": "0018_blushing_scarlet_witch",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785843526589,
+      "tag": "0019_low_namora",
+      "breakpoints": true
     }
   ]
 }

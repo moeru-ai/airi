@@ -1,181 +1,46 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
-import { createAuthClient } from 'better-auth/vue'
-
 import { useAuthStore } from '../stores/auth'
+import { authClient } from './auth-client'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
 import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
-import { SERVER_URL } from './server'
 
-export type OAuthProvider = 'google' | 'github'
+export type OAuthProvider = 'google' | 'github' | 'steam'
 
-// NOTICE: reads the same localStorage key ('auth/v1/token') that useAuthStore's
-// `token` ref writes via useLocalStorage. We bypass the store here because
-// authClient is initialized at module scope, before Pinia is active — calling
-// useAuthStore() at this point would throw. The two stay in sync because
-// useLocalStorage and raw localStorage share the same underlying storage entry.
+/** Returns the access token from the active auth store. */
 export function getAuthToken(): string | null {
-  return localStorage.getItem('auth/v1/token')
+  return useAuthStore().token
 }
 
-export const authClient = createAuthClient({
-  baseURL: SERVER_URL,
-  fetchOptions: {
-    // NOTICE: better-auth's client hardcodes `credentials: "include"` by default
-    // (config.mjs L40), which causes cookies to be sent alongside the Authorization
-    // header. We override with "omit" so only the Bearer token is used for auth.
-    // This works because restOfFetchOptions is spread AFTER the default (L47).
-    credentials: 'omit',
-    auth: {
-      type: 'Bearer',
-      token: () => getAuthToken() ?? '',
-    },
-  },
-})
-
-let initialized = false
+export { authClient }
 
 export async function initializeAuth() {
-  if (initialized)
-    return
-
-  // NOTICE: OIDC callback is handled by the dedicated callback page
-  // (e.g. /auth/callback). initializeAuth() only restores existing
-  // sessions and refresh schedules — it does NOT consume the code.
-
-  initialized = true
-
-  const authStore = useAuthStore()
-
-  // Normalize "half-cleared" persisted state before anything reads it.
-  //
-  // Why: `refreshToken` was added to the auth store before `oidcClientId`
-  // (commit c73ceeb1f predates f1fe161bc), and `clearOIDCState` (now removed)
-  // used to clear only the OIDC pair. Browsers that saw either code path can
-  // end up with a refreshToken but no oidcClientId, which makes
-  // `refreshTokenNow()` early-return forever — 401s then silently accumulate
-  // on non-home pages until the user lands on a route that calls fetchSession.
-  //
-  // Treat any mismatch as an unauthenticated session; the user will get a
-  // fresh OIDC login prompt via the standard 401→needsLogin path.
-  const hasRefreshToken = !!authStore.refreshToken
-  const hasClientId = !!authStore.oidcClientId
-  if (hasRefreshToken !== hasClientId)
-    authStore.clearAllAuthState()
-
-  // NOTICE: restoreRefreshSchedule must complete BEFORE fetchSession when
-  // the persisted access token is already expired. Otherwise fetchSession
-  // hits /get-session with the stale Bearer, gets 401, and wipes
-  // refreshToken + oidcClientId before the scheduled refresh can run —
-  // silently logging the user out on reload.
-  authStore.onTokenRefreshed(async (accessToken) => {
-    authStore.token = accessToken
-    await fetchSession()
-  })
-
-  await authStore.restoreRefreshSchedule()
-  await fetchSession().catch(() => {})
+  await useAuthStore().initialize()
 }
 
 /**
  * Persist OIDC tokens locally and schedule refresh.
  */
 export async function applyOIDCTokens(tokens: TokenResponse, clientId: string): Promise<void> {
-  const authStore = useAuthStore()
-  authStore.token = tokens.access_token
-  if (tokens.refresh_token)
-    authStore.refreshToken = tokens.refresh_token
-  // Persist the ID token so signOut() can drive RP-Initiated Logout via
-  // `id_token_hint`. Token rotation does not refresh the ID token, so the
-  // value captured here at sign-in time is the one we use for the lifetime
-  // of the local session.
-  if (tokens.id_token)
-    authStore.idToken = tokens.id_token
-
-  // Persist client info for refresh after page reload
-  authStore.oidcClientId = clientId
-  if (tokens.expires_in)
-    authStore.tokenExpiry = Date.now() + tokens.expires_in * 1000
-
-  authStore.scheduleTokenRefresh(tokens.expires_in)
+  await useAuthStore().completeSignIn({
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token,
+    idToken: tokens.id_token,
+    expiresIn: tokens.expires_in,
+    clientId,
+  })
 }
 
 export async function fetchSession() {
-  const { data } = await authClient.getSession()
-  const authStore = useAuthStore()
-
-  if (data) {
-    authStore.user = data.user
-    authStore.session = data.session
-    return true
-  }
-
-  // Session expired or invalid — clear stale auth state from localStorage
-  authStore.clearAllAuthState()
-  return false
+  return await useAuthStore().fetchSession()
 }
 
 export async function listSessions() {
-  return await authClient.listSessions()
+  return await useAuthStore().listSessions()
 }
 
 export async function signOut() {
-  const authStore = useAuthStore()
-
-  // Capture the bits we need before clearOIDCState() wipes them.
-  const idTokenHint = authStore.idToken
-  const clientId = authStore.oidcClientId
-  const bearerToken = authStore.token
-
-  // NOTICE:
-  // Authoritative server-side sign-out FIRST, then local clear. Do NOT make
-  // this optimistic.
-  //
-  // Why: the better-auth session cookie is SameSite=Lax. A top-level
-  // navigation to `/oauth2/authorize` (i.e. clicking "sign in" right after
-  // logout) will attach that cookie. If we clear local state first and let
-  // the user trigger a fresh OIDC flow before /end-session has actually
-  // deleted the session row, the server resolves the still-live row and
-  // silently re-issues tokens for the just-logged-out account. The user
-  // ends up logged back in as the previous identity.
-  //
-  // We pay the round-trip latency on the logout click in exchange for
-  // killing that race. Callers must display a loading indicator while
-  // awaiting (profile.vue gates the button via `signOutLoading`).
-  //
-  // OIDC RP-Initiated Logout (`/api/auth/oauth2/end-session`) is the
-  // Bearer-friendly path: it accepts `id_token_hint`, decodes the `sid`
-  // claim, and deletes the corresponding `session` row via
-  // `internalAdapter.deleteSession(session.token)`. Source:
-  // node_modules/@better-auth/oauth-provider/dist/index.mjs L996+. Requires
-  // the trusted OIDC client to be seeded with `enableEndSession: true`.
-  //
-  // Fallback to /api/auth/sign-out for sessions that pre-date id_token
-  // persistence (applyOIDCTokens started saving id_token in this branch);
-  // without it, those legacy sessions would skip server cleanup and hit
-  // exactly the silent-re-login bug described above.
-  try {
-    if (idTokenHint && clientId) {
-      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-      url.searchParams.set('id_token_hint', idTokenHint)
-      url.searchParams.set('client_id', clientId)
-      await fetch(url.toString(), { method: 'GET' })
-    }
-    else if (bearerToken) {
-      const url = new URL('/api/auth/sign-out', SERVER_URL)
-      await fetch(url.toString(), {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${bearerToken}` },
-      })
-    }
-  }
-  catch {
-    // Network failure: still clear local state below. Server-side row will
-    // expire by TTL; the local refreshToken/idToken/clientId are about to
-    // be wiped, so the local user has no way to spend it in the meantime.
-  }
-
-  authStore.clearAllAuthState()
+  await useAuthStore().signOut()
 }
 
 /**
@@ -189,6 +54,12 @@ export async function signInOIDC(params: OIDCFlowParams) {
 
   if (!provider) {
     window.location.href = url
+    return
+  }
+
+  if (provider === 'steam') {
+    // Steam is OpenID 2.0; only the Steam plugin endpoint can start it.
+    await authClient.signIn.steam({ callbackURL: url.toString() })
     return
   }
 

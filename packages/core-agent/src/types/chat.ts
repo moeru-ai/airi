@@ -27,6 +27,14 @@ export interface ChatAssistantMessage extends AssistantMessage {
     isError?: boolean
     result?: string | CommonContentPart[]
   }[]
+  /**
+   * Exact provider messages that xsAI added for this assistant turn.
+   *
+   * The chat UI keeps one aggregated assistant message. Tool loops can contain
+   * multiple assistant and tool messages, so this transcript preserves their
+   * protocol order for the next provider request.
+   */
+  providerTranscript?: Message[]
   categorization?: {
     speech: string
     reasoning: string
@@ -34,6 +42,11 @@ export interface ChatAssistantMessage extends AssistantMessage {
 }
 
 export type ChatMessage = ChatAssistantMessage | SystemMessage | ToolMessage | UserMessage
+
+/** Identifies one model-facing tool without storing its runtime executor. */
+export interface ChatToolReference {
+  name: string
+}
 
 export interface ErrorMessage {
   role: 'error'
@@ -47,7 +60,13 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
   createdAt: number
 }
 
-export type ChatHistoryItem = (ChatMessage | ErrorMessage) & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
+  context?: ContextMessage
+  createdAt?: number
+  id?: string
+  /** Tools selected for this message. The runtime rebuilds executors from these names. */
+  tools?: ChatToolReference[]
+}
 
 export interface ChatStreamEventContext {
   /** Stable correlation id shared by every hook emitted for one user turn. */

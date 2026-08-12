@@ -29,10 +29,10 @@ import { useAttrs } from 'vue'
 
 const attrs = useAttrs()
 
-console.log(attrs.data - testid) // Syntax error
-console.log(attrs.dataTestid) // undefined for data-testid
-console.log(attrs['on-click']) // undefined
-console.log(attrs['@click']) // undefined
+console.log(attrs.data-testid)  // Syntax error
+console.log(attrs.dataTestid)   // undefined for data-testid
+console.log(attrs['on-click'])  // undefined
+console.log(attrs['@click'])    // undefined
 </script>
 ```
 
@@ -72,7 +72,7 @@ console.log(attrs.onMouseEnter)
 **BAD:**
 ```vue
 <script setup>
-import { useAttrs, watch, watchEffect } from 'vue'
+import { watch, watchEffect, useAttrs } from 'vue'
 
 const attrs = useAttrs()
 

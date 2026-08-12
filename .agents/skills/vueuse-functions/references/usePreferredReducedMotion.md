@@ -27,7 +27,7 @@ const preferredMotion = usePreferredReducedMotion()
 ## Type Declarations
 
 ```ts
-export type ReducedMotionType = 'reduce' | 'no-preference'
+export type ReducedMotionType = "reduce" | "no-preference"
 /**
  * Reactive prefers-reduced-motion media query.
  *

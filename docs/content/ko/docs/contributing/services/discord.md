@@ -1,6 +1,6 @@
 ---
 title: Discord 봇
-description: Project AIRI 에 기여하기
+description: Project AIRI에 기여하기
 ---
 
 ### Discord 봇 연동
@@ -15,7 +15,7 @@ cd integrations/discord-bot
 cp .env .env.local
 ```
 
-`.env.local` 에서 인증 정보를 수정하세요.
+`.env.local`에서 인증 정보를 수정하세요.
 
 봇 실행하기
 

@@ -25,14 +25,14 @@ const { stopAllSpeaking } = useStopSpeakingButton()
           v-if="nowSpeaking"
           key="active"
           :class="iconClass"
-          i-carbon:face-activated
+          i-ph:speaker-simple-high
           text-red-500
         />
         <div
           v-else
           key="idle"
           :class="iconClass"
-          i-carbon:face-neutral
+          i-ph:speaker-none
           text="neutral-800 dark:neutral-300"
         />
       </Transition>

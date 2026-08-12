@@ -1,34 +1,24 @@
 /**
  * Better-auth client factory for the auth-only SPA (`apps/ui-server-auth`).
  *
- * Use when:
- * - Calling any `/api/auth/*` endpoint from the auth UI (profile read/write,
- *   sign-in / sign-up, password reset, linked accounts management). Lets us
- *   reuse better-auth's typed client surface instead of re-deriving response
- *   shapes from `unknown` JSON in N hand-written wrappers.
+ * Separate from the stage-ui singleton because that client is Bearer-only:
+ * it omits cookies and injects the auth-store token on every request, which
+ * makes no sense on the page the session cookie was just set on. This client
+ * uses better-auth's cookie defaults (`credentials: 'include'`) instead.
  *
- * Why a separate factory (vs. importing the singleton in
- * `packages/stage-ui/src/libs/auth.ts`):
- * - Stage-UI's client is configured for **Bearer-only** access (`credentials:
- *   'omit'` so cookies don't tag along with OIDC JWTs). It also injects a
- *   Bearer token from the auth store on every request — nonsense in this
- *   app, since the auth UI is the page the cookie was *just* set on.
- * - This client uses the better-auth defaults (cookies via
- *   `credentials: 'include'`) and skips the Bearer header. That matches
- *   what the auth UI actually has at hand.
- *
- * Test seam:
- * - Pass `fetchImpl` to substitute `globalThis.fetch`. Better-auth wires it
- *   as `customFetchImpl` (see node_modules/better-auth/dist/client/config.mjs
- *   L+: the spread of `restOfFetchOptions` happens after the default, so a
- *   user-supplied value wins). Production callers omit `fetchImpl` and we
- *   memoise per `apiServerUrl` so we don't rebuild on every render.
+ * Test seam: pass `fetchImpl` to substitute `globalThis.fetch` (wired as
+ * `customFetchImpl`; see node_modules/better-auth/dist/client/config.mjs L+
+ * — the `restOfFetchOptions` spread happens after the default, so a
+ * user-supplied value wins). With `fetchImpl` we don't memoise, so tests
+ * can't leak state between cases; production callers memoise per
+ * `apiServerUrl`.
  *
  * Removal condition: better-auth ships a hosted typed client for OIDC IdP
  * setups where one process is both IdP and resource server. Until then,
  * one factory per credential mode is the cleanest contract.
  */
 
+import { steamClient } from '@proj-airi/stage-ui/libs/steam-auth-client'
 import { createAuthClient } from 'better-auth/vue'
 
 export interface AuthClientArgs {
@@ -40,39 +30,31 @@ export interface AuthClientArgs {
   fetchImpl?: typeof fetch
 }
 
-const cache = new Map<string, ReturnType<typeof createAuthClient>>()
+type AuthClient = ReturnType<typeof createAuthClient<{
+  baseURL: string
+  plugins: ReturnType<typeof steamClient>[]
+}>>
+
+const clientCache = new Map<string, AuthClient>()
 
 /**
- * Build (or reuse) a better-auth client pointed at the given server.
- *
- * Use when:
- * - Any module needs to call `/api/auth/*` from the auth UI.
- *
- * Expects:
- * - `apiServerUrl` is a fully-qualified origin (e.g. `https://api.airi.test`
- *   or `http://localhost:3000`). Trailing slash optional; better-auth
- *   normalises.
- *
- * Returns:
- * - A typed client whose methods (`getSession`, `updateUser`, `listAccounts`,
- *   etc.) match the better-auth endpoint surface. Tokens / cookies handled
- *   via `credentials: 'include'` defaults.
+ * Cookie-credentialed better-auth client for the auth UI, with the Steam
+ * plugin wired in (`linkSteam` / `signIn.steam`). Unlike the Bearer-only
+ * stage-ui singleton, this client carries the session cookie.
  */
-export function getAuthClient(args: AuthClientArgs): ReturnType<typeof createAuthClient> {
+export function getAuthClient(args: AuthClientArgs): AuthClient {
   if (args.fetchImpl) {
-    // Tests: never cache, never share. The injected fetchImpl is the whole
-    // point of the call.
     return createAuthClient({
       baseURL: args.apiServerUrl,
+      plugins: [steamClient()],
       fetchOptions: { customFetchImpl: args.fetchImpl },
     })
   }
 
-  const cached = cache.get(args.apiServerUrl)
-  if (cached)
-    return cached
-
-  const client = createAuthClient({ baseURL: args.apiServerUrl })
-  cache.set(args.apiServerUrl, client)
+  const client = clientCache.get(args.apiServerUrl) ?? createAuthClient({
+    baseURL: args.apiServerUrl,
+    plugins: [steamClient()],
+  })
+  clientCache.set(args.apiServerUrl, client)
   return client
 }

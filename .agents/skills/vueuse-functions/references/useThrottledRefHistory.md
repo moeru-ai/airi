@@ -24,7 +24,7 @@ const { history, undo, redo } = useThrottledRefHistory(counter, { deep: true, th
 ```ts
 export type UseThrottledRefHistoryOptions<Raw, Serialized = Raw> = Omit<
   UseRefHistoryOptions<Raw, Serialized>,
-  'eventFilter'
+  "eventFilter"
 > & {
   throttle?: MaybeRef<number>
   trailing?: boolean

@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
-import { useProvidersStore } from '../providers'
+import { useProviderStore } from '../providers/provider'
 import { toSignedPercent, useSpeechStore } from './speech'
 
 const i18nState = vi.hoisted(() => ({
@@ -117,12 +117,10 @@ describe('speech store helpers', () => {
    * await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, 'volcengine/seed-tts-2.0')
    */
   it('does not load streaming voices before server availability is confirmed', async () => {
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
-    const listVoices = vi.fn(async () => [])
-    const metadata = providersStore.providerMetadata[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID]
-    metadata.capabilities.listVoices = listVoices
-    providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID].isConfigured = false
+    const listVoices = vi.spyOn(providersStore, 'listProviderVoices')
+    providersStore.setProviderUnconfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
 
     const voices = await speechStore.loadVoicesForProvider(
       OFFICIAL_SPEECH_STREAMING_PROVIDER_ID,
@@ -138,11 +136,12 @@ describe('speech store helpers', () => {
    * speechStore.ensureActiveSpeechModel()
    */
   it('keeps a real Voice Pack TTS model selected for the regular official provider', () => {
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'volcengine/pool-a'
     speechStore.activeSpeechVoiceId = 'voice-a'
+    providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = [
       { id: 'volcengine/pool-a', name: 'volcengine/pool-a', provider: OFFICIAL_SPEECH_PROVIDER_ID },
       { id: 'microsoft/v1', name: 'microsoft/v1', provider: OFFICIAL_SPEECH_PROVIDER_ID },
@@ -181,7 +180,7 @@ describe('speech store helpers', () => {
       })
     }) as typeof fetch)
 
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'volcengine/seed-tts-2.0'
@@ -193,6 +192,7 @@ describe('speech store helpers', () => {
       languages: [],
     }
     try {
+      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
         providerOfficialSpeech.createProvider({}),
@@ -244,13 +244,14 @@ describe('speech store helpers', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
 
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechModel = 'old-model'
     speechStore.activeSpeechVoiceId = 'old-model-voice'
 
     try {
+      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
         providerOfficialSpeech.createProvider({}),
@@ -303,11 +304,12 @@ describe('speech store helpers', () => {
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
 
-    const providersStore = useProvidersStore()
+    const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
 
     try {
+      providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
       providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
         {},
         providerOfficialSpeech.createProvider({}),

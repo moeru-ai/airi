@@ -48,10 +48,19 @@ export default defineConfig({
     // (where the consequent is the error itself, not its `.message`). Antfu's
     // default no-restricted-syntax patterns are preserved alongside.
     'no-restricted-syntax': [
-      'warn',
+      'error',
       {
         selector: 'ConditionalExpression[test.type=\'BinaryExpression\'][test.operator=\'instanceof\'][test.right.name=\'Error\'][consequent.type=\'MemberExpression\'][consequent.property.name=\'message\']',
         message: 'Avoid `error instanceof Error ? error.message : ...`. Use `errorMessageFrom(error)` from \'@moeru/std\' (or `errorMessageFromUnknown(error, fallback)` from \'@proj-airi/stage-shared\'). Pair with `?? \'fallback\'` when a default is needed.',
+      },
+      {
+        selector: [
+          'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+          'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+          'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+          'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+        ].join(', '),
+        message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
       },
       'TSEnumDeclaration[const=true]',
       'TSExportAssignment',
@@ -77,6 +86,15 @@ export default defineConfig({
       {
         selector: 'CallExpression[callee.type=\'MemberExpression\'][callee.object.name=\'vi\'][callee.property.name=\'hoisted\']',
         message: 'Do not use vi.hoisted. If a test needs a collaborator spy, expose an explicit dependency injection point instead of hoisting module mocks.',
+      },
+      {
+        selector: [
+          'ImportDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+          'ExportNamedDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+          'ExportAllDeclaration[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+          'ImportExpression[source.value=/^\\.{1,2}\\/.*\\.[cm]?[jt]sx?$/]',
+        ].join(', '),
+        message: 'Omit TypeScript and JavaScript source extensions from relative imports, dynamic imports, and re-exports.',
       },
     ],
   },

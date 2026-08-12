@@ -52,7 +52,7 @@ const {
     @page-change="fetchData"
     @page-size-change="fetchData"
   >
-    <div class="inline-grid grid-cols-2 items-center gap-x-4 gap-y-2">
+    <div class="gap-x-4 gap-y-2 grid-cols-2 inline-grid items-center">
       <div opacity="50">
         total:
       </div>
@@ -188,10 +188,10 @@ export interface UseOffsetPaginationReturn {
 }
 export type UseOffsetPaginationInfinityPageReturn = Omit<
   UseOffsetPaginationReturn,
-  'isLastPage'
+  "isLastPage"
 >
 export declare function useOffsetPagination(
-  options: Omit<UseOffsetPaginationOptions, 'total'>,
+  options: Omit<UseOffsetPaginationOptions, "total">,
 ): UseOffsetPaginationInfinityPageReturn
 export declare function useOffsetPagination(
   options: UseOffsetPaginationOptions,

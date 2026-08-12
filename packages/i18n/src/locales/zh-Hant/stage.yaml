@@ -14,6 +14,13 @@ chat:
     cloud-badge: 已同步至雲端
     new-chat-fallback: 新對話
     delete: 刪除對話
+render-error:
+  title: '{renderer} 無法算繪這個模型'
+  description: 模型已經選取，但舞台無法顯示它。
+  report-description: |-
+    {renderer} 無法算繪選取的模型。
+    模型 ID：{modelId}
+    錯誤：{error}
 message: 說點什麼...
 send-mode:
   title: 傳送按鍵

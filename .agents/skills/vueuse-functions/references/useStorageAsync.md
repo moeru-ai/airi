@@ -4,7 +4,7 @@ category: State
 
 # useStorageAsync
 
-Reactive Storage in with async support.
+Reactive Storage with async support.
 
 ## Usage
 
@@ -92,7 +92,7 @@ const accessToken = useStorageAsync('access.token', '', SomeAsyncStorage, {
 ```ts
 export interface UseStorageAsyncOptions<T> extends Omit<
   UseStorageOptions<T>,
-  'serializer'
+  "serializer"
 > {
   /**
    * Custom data serialization

@@ -51,16 +51,14 @@ dialogs:
     no-models-help: >-
       请返回上一步并检查您的 API Key，或检查网络连接。
     permissions:
-      title: 通知
-      description: 您现在可以允许通知或者继续并稍后设置。
+      title: 权限管理
+      description: 您现在可以授予所需权限，或继续并稍后在系统设置中配置。
       notificationsTitle: 通知
       notificationsDescription: 允许提醒以及重要的状态更新。
-      notificationsAction: 需要获取消息通知权限
-      notificationsNotGrantedHint: 如果拒绝，您可以稍后从 iOS 设置中启用通知。
-      openSettings: 打开系统/偏好设置
-      optionalHint: 即使没有授予通知权限，您也可以继续。
-      stateUnknown: 未请求
-      stateRequesting: 正在获取...
+      microphoneTitle: 麦克风
+      microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      requestAction: 请求获取
+      optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
   bug-report:
@@ -659,6 +657,19 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          playground:
+            current: 当前转写
+            description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
+            empty: 开始监听，然后对着所选麦克风说话。
+            error-title: 转写错误
+            listening: 正在等待语音……
+            no-transcription: 此段音频中未识别到语音。
+            segment: '语音片段 {number}'
+            start: 开始监听
+            stop: 停止监听
+            title: 听觉测试面板
+            transcribing: 正在转写……
+            transcription-failed: 转写失败。
           confidence-threshold:
             title: 置信度阈值
             description: >-
@@ -1452,6 +1463,9 @@ pages:
     general:
       description: 深色主题、语言等选项
       title: 通用
+    permissions:
+      description: 查看当前权限状态
+      title: 权限管理
     description: 自定义你的舞台外观！
     sections:
       section:

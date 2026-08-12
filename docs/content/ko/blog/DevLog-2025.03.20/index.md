@@ -22,7 +22,7 @@ import SteinsGateMayori from '../../../en/blog/DevLog-2025.03.20/assets/steins-g
 다시 안녕하세요! 지난 DevLog 이후 10일이 지났습니다.
 
 사용자 인터페이스를 크게 개선했고, 더 많은 LLM 프로바이더와 음성 프로바이더를 통합할 수 있게 됐으며,
-Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를 처음으로 올렸습니다.
+Discord와 bilibili를 비롯한 여러 소셜 미디어 플랫폼에 AIRI를 처음으로 올렸습니다.
 
 들려드리고 싶은 이야기가 정말 많습니다.
 
@@ -32,7 +32,7 @@ Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를
 
 <img :src="Gelbana" alt="Gelbana" />
 
-> 아, 걱정 마세요. 우리의 사랑스러운 [AIRI](https://github.com/moeru-ai/airi) 가 이렇게 젤바나가
+> 아, 걱정 마세요. 우리의 사랑스러운 [AIRI](https://github.com/moeru-ai/airi)가 이렇게 젤바나가
 > 되지는 않습니다. 다만 [_슈타인즈 게이트_](https://myanimelist.net/anime/9253/Steins_Gate)
 > 애니메이션을 아직 안 보셨다면 꼭 한번 보세요~!
 
@@ -62,11 +62,11 @@ Discord 와 bilibili 를 비롯한 여러 소셜 미디어 플랫폼에 AIRI 를
 비즈니스 워크플로 안에서 UI 컴포넌트를 디버깅하는 일이 분명 고통스러워지고 속도도 느려질 것이
 뻔했습니다.
 
-그래서 [`Histoire`](https://histoire.dev) 라는 훌륭한 도구를 도입하기로 결정했습니다.
+그래서 [`Histoire`](https://histoire.dev)라는 훌륭한 도구를 도입하기로 결정했습니다.
 기본적으로는 [Storybook](https://storybook.js.org/) 이지만
-[Vite](https://vitejs.dev) 와 [Vue.js](https://vuejs.org) 조합에 훨씬 더 자연스럽게 어울립니다.
+[Vite](https://vitejs.dev)와 [Vue.js](https://vuejs.org) 조합에 훨씬 더 자연스럽게 어울립니다.
 
-[@sumimakito](https://github.com/sumimakito) 가 작업을 마치고 녹화한 첫인상입니다:
+[@sumimakito](https://github.com/sumimakito)가 작업을 마치고 녹화한 첫인상입니다:
 
 <ThemedVideo muted autoplay :src="histoireFirstLook" />
 
@@ -86,16 +86,16 @@ OKLCH 색 팔레트 전체를 캔버스에 한 번에 펼쳐 놓고 참고할 �
 <img class="light" :src="HistoireLogo" alt="project airi logo for histoire" />
 <img class="dark" :src="HistoireLogoDark" alt="project airi logo for histoire" />
 
-아 참, UI 컴포넌트 전체는 여느 때처럼 Netlify 의 `/ui/` 경로에 배포해 두었습니다. UI 요소들이
+아 참, UI 컴포넌트 전체는 여느 때처럼 Netlify의 `/ui/` 경로에 배포해 두었습니다. UI 요소들이
 어떻게 생겼는지 궁금하셨다면 편하게 살펴보세요:
 [https://airi.moeru.ai/ui/](https://airi.moeru.ai/ui/)
 
-이 DevLog 에서 다 다루지 못할 만큼 다른 기능도 많습니다:
+이 DevLog에서 다 다루지 못할 만큼 다른 기능도 많습니다:
 
 - [x] 모든 LLM 프로바이더 지원.
-- [x] 메뉴 내비게이션 UI 의 애니메이션과 전환 개선.
+- [x] 메뉴 내비게이션 UI의 애니메이션과 전환 개선.
 - [x] 필드 간격 개선, 새로운 폼!
-- [x] 컴포넌트 ([로드맵](https://github.com/moeru-ai/airi/issues/42) 의 거의 모든 할 일 컴포넌트)
+- [x] 컴포넌트 ([로드맵](https://github.com/moeru-ai/airi/issues/42)의 거의 모든 할 일 컴포넌트)
   - [x] Form
     - [x] Radio
     - [x] Radio Group
@@ -121,23 +121,23 @@ OKLCH 색 팔레트 전체를 캔버스에 한 번에 펼쳐 놓고 참고할 �
 <img class="light" :src="NewUIV4Speech" alt="brand new speech design" />
 <img class="dark" :src="NewUIV4SpeechDark" alt="brand new speech design" />
 
-마침내 음성 모델 설정을 지원하게 됐습니다 🎉! (이전에는 ElevenLabs 만 설정할 수 있었습니다.)
-저희가 함께 만들고 있는 또 다른 멋진 프로젝트 `unspeech` 의
+마침내 음성 모델 설정을 지원하게 됐습니다 🎉! (이전에는 ElevenLabs만 설정할 수 있었습니다.)
+저희가 함께 만들고 있는 또 다른 멋진 프로젝트 `unspeech`의
 [새 `v0.1.2` 버전](https://github.com/moeru-ai/unspeech/releases/tag/v0.1.2) 덕분에
-[`@xsai/generate-speech`](https://xsai.js.org/docs/packages/generate/speech) 를 통해
+[`@xsai/generate-speech`](https://xsai.js.org/docs/packages/generate/speech)를 통해
 Microsoft Speech 서비스(일명 Azure AI Speech 서비스, 또는 Cognitive Speech 서비스)를 호출할 수 있게 됐습니다.
-즉 Microsoft 용 OpenAI API 호환 TTS 를 드디어 갖게 된 것이죠.
+즉 Microsoft용 OpenAI API 호환 TTS를 드디어 갖게 된 것이죠.
 
 그런데 이걸 지원하는 게 왜 그렇게 중요했을까요?
 
-Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microsoft 였고, 목소리 이름은 `Ashley`,
+Neuro-sama의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microsoft 였고, 목소리 이름은 `Ashley`,
 여기에 피치를 `+20%` 하면 Neuro-sama 첫 버전과 같은 목소리를 얻을 수 있기 때문입니다. 직접 들어 보세요:
 
 <audio controls style="width: 100%;">
   <source src="/en/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3" />
 </audio>
 
-똑같지 않나요, 정말 대단합니다! 즉 새로운 **음성** 능력으로 마침내 Neuro-sama 가 하는 일에
+똑같지 않나요, 정말 대단합니다! 즉 새로운 **음성** 능력으로 마침내 Neuro-sama가 하는 일에
 가까이 다가갈 수 있다는 뜻입니다!
 
 <img :src="SteinsGateMayori" alt="애니메이션 슈타인즈 게이트의 등장인물" />
@@ -158,7 +158,7 @@ Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microso
 <ThemedVideo controls muted autoplay :src="airiDemo" />
 
 거의 똑같습니다. 하지만 저희 이야기는 여기서 끝나지 않습니다. 지금은 아직 기억(memory)과
-더 나은 모션 제어를 구현하지 못했고, 전사 설정 UI 도 빠져 있습니다. 이달이 끝나기 전에는
+더 나은 모션 제어를 구현하지 못했고, 전사 설정 UI도 빠져 있습니다. 이달이 끝나기 전에는
 끝낼 수 있으면 좋겠네요.
 
 앞으로 계획하고 있는 것들:
@@ -170,7 +170,7 @@ Neuro-sama 의 아주 초기 버전에서 TTS 서비스를 담당한 게 Microso
 - [ ] 모션 임베딩
 - [ ] Speaches 설정 UI
 
-오늘의 DevLog 는 여기까지입니다. 여기까지 읽어 주신 모든 분께 감사드립니다.
+오늘의 DevLog는 여기까지입니다. 여기까지 읽어 주신 모든 분께 감사드립니다.
 
 내일 또 만나요.
 

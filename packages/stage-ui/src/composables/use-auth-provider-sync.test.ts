@@ -18,6 +18,8 @@ const syncState = vi.hoisted(() => ({
 }))
 
 const syncMocks = vi.hoisted(() => ({
+  initializeAuth: vi.fn(async () => {}),
+  leadershipHook: undefined as ((isLeader: boolean) => void) | undefined,
   forceProviderConfigured: vi.fn(),
   setProviderUnconfigured: vi.fn(),
   setProviderAvailabilityOverride: vi.fn(),
@@ -28,7 +30,16 @@ const syncMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../libs/auth', () => ({
-  initializeAuth: vi.fn(),
+  initializeAuth: syncMocks.initializeAuth,
+}))
+
+vi.mock('../libs/pinia', () => ({
+  usePiniaSynced: () => ({
+    onLeadershipChange: (hook: (isLeader: boolean) => void) => {
+      syncMocks.leadershipHook = hook
+      return vi.fn()
+    },
+  }),
 }))
 
 vi.mock('../libs/providers', () => ({
@@ -47,9 +58,9 @@ vi.mock('../stores/auth', () => ({
   }),
 }))
 
-vi.mock('../stores/providers', () => ({
-  useProvidersStore: () => ({
-    getProviderMetadata: () => ({}),
+vi.mock('../stores/providers/provider', () => ({
+  useProviderStore: () => ({
+    findProviderDefinition: () => ({}),
     forceProviderConfigured: syncMocks.forceProviderConfigured,
     setProviderUnconfigured: syncMocks.setProviderUnconfigured,
     setProviderAvailabilityOverride: syncMocks.setProviderAvailabilityOverride,
@@ -109,6 +120,7 @@ describe('useAuthProviderSync', () => {
   beforeEach(() => {
     syncState.authenticatedHook = undefined
     syncState.logoutHook = undefined
+    syncMocks.leadershipHook = undefined
     syncState.activeProvider = ''
     syncState.activeModel = ''
     syncState.activeVisionProvider = ''
@@ -120,6 +132,16 @@ describe('useAuthProviderSync', () => {
     syncState.activeTranscriptionModel = ''
     vi.clearAllMocks()
     syncMocks.fetchModelsForProvider.mockResolvedValue([])
+  })
+
+  it('restores auth initialization when this renderer becomes the leader', async () => {
+    useAuthProviderSync()
+    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(1)
+
+    syncMocks.leadershipHook?.(true)
+    await Promise.resolve()
+
+    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(2)
   })
 
   it('activates every official provider after direct sign-in when no custom provider is selected', async () => {

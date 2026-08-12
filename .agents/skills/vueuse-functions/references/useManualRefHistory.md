@@ -5,7 +5,7 @@ related: useRefHistory
 
 # useManualRefHistory
 
-Manually track the change history of a ref when the using calls `commit()`, also provides undo and redo functionality
+Manually track the change history of a ref when the user calls `commit()`, also provides undo and redo functionality
 
 ## Usage
 
@@ -148,7 +148,7 @@ export interface UseManualRefHistoryReturn<Raw, Serialized> {
   /**
    * An array of history records for undo, newest comes to first
    */
-  history: Ref<UseRefHistoryRecord<Serialized>[]>
+  history: ComputedRef<UseRefHistoryRecord<Serialized>[]>
   /**
    * Last history point, source can be different if paused
    */

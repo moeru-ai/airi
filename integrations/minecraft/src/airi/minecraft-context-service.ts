@@ -1,7 +1,6 @@
 import type { ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
 
 import type { MineflayerWithAgents } from '../cognitive/types'
-import type { AiriBridge } from './airi-bridge'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
@@ -18,11 +17,32 @@ interface MinecraftStatusSnapshot {
   masterUsername?: string
 }
 
+interface MinecraftContextBot {
+  username: MineflayerWithAgents['username']
+  bot: {
+    entity?: {
+      position?: Pick<MineflayerWithAgents['bot']['entity']['position'], 'x' | 'y' | 'z'>
+    }
+    health?: MineflayerWithAgents['bot']['health']
+    game?: {
+      gameMode?: MineflayerWithAgents['bot']['game']['gameMode']
+    }
+    players?: Partial<Record<Extract<keyof MineflayerWithAgents['bot']['players'], string>, unknown>>
+  }
+}
+
+interface MinecraftContextBridge {
+  onModuleAnnounced: (listener: (event: ModuleAnnouncedEvent) => void) => () => void
+  sendContextUpdate: (update: ContextUpdate) => void
+  setCommandAvailable: (available: boolean) => void
+}
+
 const STATUS_CONTEXT_ID = 'minecraft:status'
 const STATUS_LANE = 'minecraft:status'
 const STATUS_REFRESH_INTERVAL_MS = 5_000
+const DESKTOP_RELAY_TOOL_NAME = 'builtIn_emitSparkCommand'
 
-function toPositionString(bot: MineflayerWithAgents) {
+function toPositionString(bot: MinecraftContextBot) {
   const position = bot.bot.entity?.position
   return position
     ? `x: ${position.x.toFixed(1)}, y: ${position.y.toFixed(1)}, z: ${position.z.toFixed(1)}`
@@ -32,11 +52,25 @@ function toPositionString(bot: MineflayerWithAgents) {
 function buildStatusText(snapshot: MinecraftStatusSnapshot) {
   return [
     `Bot online: ${snapshot.botUsername}`,
+    'Desktop command relay: available.',
+    `When the user asks to instruct or control this Minecraft bot, call the ${DESKTOP_RELAY_TOOL_NAME} tool.`,
+    'Set destinations to ["minecraft-bot"], set intent to "action", and put the user\'s Minecraft instruction in guidance.options[0].label and guidance.options[0].steps.',
+    'Do not claim that an instruction was relayed unless the tool call succeeds.',
     `Server: ${snapshot.serverHost}:${snapshot.serverPort}`,
     `Position: ${snapshot.position}`,
     `Health: ${snapshot.health}/20, Mode: ${snapshot.gameMode}`,
     `Other players online: ${snapshot.otherPlayers.length > 0 ? snapshot.otherPlayers.join(', ') : 'none'}`,
     ...(snapshot.masterUsername ? [`Master (your owner) in-game username: ${snapshot.masterUsername}`] : []),
+  ].join('\n')
+}
+
+function buildOfflineStatusText(serverHost: string, serverPort: number, masterUsername?: string) {
+  return [
+    'Bot offline: no active Minecraft bot.',
+    'Desktop command relay: unavailable.',
+    `Do not call the ${DESKTOP_RELAY_TOOL_NAME} tool for Minecraft until a later status context says that the bot is online.`,
+    `Configured server: ${serverHost}:${serverPort}`,
+    ...(masterUsername ? [`Configured in-game master username: ${masterUsername}`] : []),
   ].join('\n')
 }
 
@@ -51,8 +85,22 @@ function collectFrontendDestinations(event: ModuleAnnouncedEvent) {
   return [`instance:${instanceId}`]
 }
 
+/**
+ * Publishes Minecraft capability and status context through the AIRI server event seam.
+ *
+ * Use when:
+ * - A Stage runtime must discover how to relay a user instruction without Minecraft-specific UI code.
+ * - The integration must reject relayed commands while no bot runtime is active.
+ *
+ * Expects:
+ * - {@link bindBot} and {@link unbindBot} follow the Mineflayer runtime lifecycle.
+ * - The AIRI bridge is initialized before status updates are published.
+ *
+ * Returns:
+ * - Replace-self status context that describes relay availability and the existing generic relay tool.
+ */
 export class MinecraftContextService {
-  private runtimeBot: MineflayerWithAgents | null = null
+  private runtimeBot: MinecraftContextBot | null = null
   private currentSnapshot: MinecraftStatusSnapshot | null = null
   private lastPublishedText = ''
   private refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -63,7 +111,7 @@ export class MinecraftContextService {
   private readonly masterUsername?: string
 
   constructor(private readonly deps: {
-    airiBridge: Pick<AiriBridge, 'onModuleAnnounced' | 'sendContextUpdate'>
+    airiBridge: MinecraftContextBridge
     serverHost: string
     serverPort: number
     masterUsername?: string
@@ -89,8 +137,9 @@ export class MinecraftContextService {
     })
   }
 
-  bindBot(bot: MineflayerWithAgents) {
+  bindBot(bot: MinecraftContextBot) {
     this.runtimeBot = bot
+    this.deps.airiBridge.setCommandAvailable(true)
     this.refreshStatusSnapshot()
     this.publishStatus({ force: true })
 
@@ -104,23 +153,26 @@ export class MinecraftContextService {
   }
 
   unbindBot() {
+    const wasBound = this.runtimeBot !== null
+
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer)
       this.refreshTimer = null
     }
 
+    this.deps.airiBridge.setCommandAvailable(false)
     this.runtimeBot = null
     this.currentSnapshot = null
-    this.lastPublishedText = ''
+
+    if (wasBound)
+      this.publishStatus({ force: true })
   }
 
   publishStatus(options: { force?: boolean, destinations?: string[] } = {}) {
     const snapshot = this.refreshStatusSnapshot()
-    if (!snapshot) {
-      return
-    }
-
-    const text = buildStatusText(snapshot)
+    const text = snapshot
+      ? buildStatusText(snapshot)
+      : buildOfflineStatusText(this.serverHost, this.serverPort, this.masterUsername)
     if (!options.force && text === this.lastPublishedText) {
       return
     }
@@ -132,7 +184,8 @@ export class MinecraftContextService {
       text,
       hints: [
         'status',
-        snapshot.botUsername,
+        snapshot ? 'online' : 'offline',
+        ...(snapshot ? [snapshot.botUsername] : []),
       ],
       strategy: ContextUpdateStrategy.ReplaceSelf,
     }

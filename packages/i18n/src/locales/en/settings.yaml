@@ -58,16 +58,14 @@ dialogs:
       Please return to the previous step and check your API key, or check the
       network connection.
     permissions:
-      title: Notifications
-      description: You can allow notifications now or continue and set it up later.
+      title: Permission management
+      description: You can grant the required permissions now or continue and configure them later.
       notificationsTitle: Notifications
       notificationsDescription: Allow reminders and important status updates.
-      notificationsAction: Request notification permission
-      notificationsNotGrantedHint: If denied, you can enable notifications later from iOS Settings.
-      openSettings: Open iOS Settings
-      optionalHint: You can continue even if notification permission is not granted.
-      stateUnknown: Not requested
-      stateRequesting: Requesting...
+      microphoneTitle: Microphone
+      microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      requestAction: Request access
+      optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
   bug-report:
@@ -688,6 +686,19 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          playground:
+            current: Current transcript
+            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
+            empty: Start monitoring and speak into the selected microphone.
+            error-title: Transcription error
+            listening: Listening for speech…
+            no-transcription: No speech was recognized in this audio.
+            segment: 'Speech segment {number}'
+            start: Start monitoring
+            stop: Stop monitoring
+            title: Hearing playground
+            transcribing: Transcribing…
+            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Confidence Threshold
             description: >-
@@ -1512,6 +1523,9 @@ pages:
     general:
       description: Dark theme, languages, etc.
       title: General
+    permissions:
+      description: View current permission status.
+      title: Permission Management
     description: Customize your stage!
     sections:
       section:

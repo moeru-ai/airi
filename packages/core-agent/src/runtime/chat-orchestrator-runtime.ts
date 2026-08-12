@@ -3,7 +3,7 @@ import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
-import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, ErrorMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -14,7 +14,7 @@ import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 
-const STREAMING_UI_FLUSH_CHUNK_SIZE = 24
+const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
 function prependTextToContent<T extends { content?: unknown }>(msg: T, text: string): T {
   const content = msg.content
@@ -58,6 +58,8 @@ export interface ChatOrchestratorSendOptions {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
+  /** Serializable tool names stored with the user message for later requests. */
+  toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
 }
@@ -394,23 +396,33 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]) {
+  function buildProviderMessages(sessionMessagesForSend: ChatHistoryItem[]): Array<Message | ErrorMessage> {
     const nowTs = now()
 
-    return sessionMessagesForSend.map((msg) => {
-      const { context: _context, id: _id, createdAt: _createdAt, ...withoutContext } = msg
+    return sessionMessagesForSend.flatMap<Message | ErrorMessage>((msg) => {
+      const { context: _context, id: _id, createdAt: _createdAt, tools: _tools, ...withoutContext } = msg
       const rawMessage = unwrapMessage(withoutContext)
 
       if (rawMessage.role === 'user') {
-        return prependTextToContent(rawMessage, formatTimePrefix(getStablePromptTimestamp(msg, nowTs)))
+        return [prependTextToContent(rawMessage, formatTimePrefix(getStablePromptTimestamp(msg, nowTs)))]
       }
 
       if (rawMessage.role === 'assistant') {
-        const { slices: _slices, tool_results: _toolResults, categorization: _categorization, ...rest } = rawMessage as ChatAssistantMessage
-        return unwrapMessage(rest)
+        const {
+          slices: _slices,
+          tool_results: _toolResults,
+          providerTranscript,
+          categorization: _categorization,
+          ...rest
+        } = rawMessage as ChatAssistantMessage
+
+        if (providerTranscript?.length)
+          return providerTranscript.map(message => unwrapMessage(message))
+
+        return [unwrapMessage(rest)]
       }
 
-      return rawMessage
+      return [rawMessage]
     })
   }
 
@@ -541,6 +553,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         content: finalContent,
         createdAt: sendingCreatedAt,
         id: roundId,
+        ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
 
@@ -613,7 +626,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           }
           patchForegroundStream(sessionId, buildingMessage)
         },
-        minLiteralEmitLength: STREAMING_UI_FLUSH_CHUNK_SIZE,
+        // The parser keeps its own marker-safety tail. Emit each safe literal
+        // chunk so slow providers update the chat before they reach 24 characters.
+        minLiteralEmitLength: 1,
       })
 
       const toolCallQueue = createQueue<ChatSlices>({
@@ -706,6 +721,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
+      let providerTranscript: Message[] | undefined
+      const providerInputMessageCount = newMessages.length
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
@@ -721,7 +738,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         },
         tools: options.tools,
         waitForTools: true,
-        captureToolErrors: true,
+        onMessages: (messages) => {
+          const currentTurnMessages = messages.slice(providerInputMessageCount)
+          const hasToolRound = currentTurnMessages.some(message =>
+            message.role === 'tool'
+            || (message.role === 'assistant' && Boolean(message.tool_calls?.length)),
+          )
+
+          if (hasToolRound)
+            providerTranscript = structuredClone(currentTurnMessages)
+        },
         onUsage: (usage) => {
           generationUsage = usage
           deps.onLlmGeneration?.({
@@ -783,8 +809,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 reasoning: nextReasoning,
               }
               const crossesBoundary
-                = Math.floor(nextReasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
-                  > Math.floor(reasoning.length / STREAMING_UI_FLUSH_CHUNK_SIZE)
+                = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                  > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
               if (!reasoning || crossesBoundary)
                 patchForegroundStream(sessionId, buildingMessage)
               break
@@ -798,6 +824,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       await parser.end()
+      buildingMessage.providerTranscript = providerTranscript
       deps.onAssistantResponseRendered?.({
         ...correlation,
         model: options.model,

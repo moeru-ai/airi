@@ -49,11 +49,8 @@ import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
-import { registerActiveSessionsGauge } from './otel/gauges/active-sessions'
-import { registerDistinctActiveUsersGauge } from './otel/gauges/distinct-active-users'
-import { registerRollingActiveUsersGauge } from './otel/gauges/rolling-active-users'
-import { registerTotalUsersGauge } from './otel/gauges/total-users'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
+import { createDiscardingUserMetricsSnapshotRecorder, registerUserMetricsSnapshotGauges } from './otel/gauges/user-metrics-snapshot'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAdminRoutes } from './routes/admin'
 import { createAdminUiRoutes } from './routes/admin-ui'
@@ -128,6 +125,9 @@ interface AppDeps {
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const userMetricsRecorder = deps.otel
+    ? registerUserMetricsSnapshotGauges(deps.otel.auth)
+    : createDiscardingUserMetricsSnapshotRecorder()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -456,6 +456,7 @@ export async function buildApp(deps: AppDeps) {
       db: deps.db,
       billingService: deps.billingService,
       configKV: deps.configKV,
+      userMetricsRecorder,
     }))
 
     /**
@@ -823,21 +824,7 @@ export async function createApp() {
     providerCatalogService,
     ttsConcurrencyLedger,
   })
-  // Register the cluster-wide ObservableGauges for sessions / users. Each
-  // replica polls the same DB (cached inside each gauge, in-flight coalesced);
-  // dashboards aggregate with avg()/max(), not sum(). See
-  // observability-conventions.md.
-  //
-  // Both gauges share the same `session` table: `user.active_sessions` is
-  // `COUNT(*)` (row inflation prone), `user.distinct_active` is
-  // `COUNT(DISTINCT user_id)` (real active-user count). Comparing the two
-  // surfaces session-row leakage from missing GC + per-OIDC-token row
-  // creation.
   if (resolved.otel) {
-    registerTotalUsersGauge(resolved.otel.auth.totalUsers, resolved.db, resolved.otel.observability.metricReadErrors)
-    registerActiveSessionsGauge(resolved.otel.auth.activeSessions, resolved.db, resolved.otel.observability.metricReadErrors)
-    registerDistinctActiveUsersGauge(resolved.otel.auth.distinctActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
-    registerRollingActiveUsersGauge(resolved.otel.auth.rollingActiveUsers, resolved.db, resolved.otel.observability.metricReadErrors)
     registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
     registerWsOnlineUsersGauge(resolved.otel.engagement.wsUsersOnline, resolved.redis, resolved.otel.observability.metricReadErrors)
   }

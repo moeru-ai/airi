@@ -12,7 +12,7 @@
 import { detectWebGPU, getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 
 import { getKokoroAdapter } from '../libs/inference/adapters/kokoro'
-import { useProvidersStore } from '../stores/providers'
+import { useProviderConfigStore } from '../stores/providers/config'
 import { getDefaultKokoroModel, KOKORO_MODELS } from '../workers/kokoro/constants'
 import { useModelPreload } from './use-model-preload'
 
@@ -36,12 +36,12 @@ export function useInferencePreload(options: UseInferencePreloadOptions = {}) {
     // Ensure WebGPU capabilities are cached for downstream use
     await detectWebGPU()
 
-    const providersStore = useProvidersStore()
+    const providerStore = useProviderConfigStore()
     const tasks: { modelId: string, loader: (signal: AbortSignal) => Promise<void> }[] = []
 
     // Check if Kokoro TTS is configured
-    if (providersStore.configuredProviders['kokoro-local']) {
-      const config = providersStore.getProviderConfig('kokoro-local')
+    if (providerStore.configuredProviders['kokoro-local']) {
+      const config = providerStore.getProviderConfig('kokoro-local')
       const capabilities = getCachedWebGPUCapabilities()
       const hasWebGPU = capabilities?.supported ?? false
       const fp16Supported = capabilities?.fp16Supported ?? false
