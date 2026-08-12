@@ -57,5 +57,6 @@ export const cubism2Loader: Live2DGenerationLoader = {
   assetReferences: references,
   isLoadedModel: model => 'getParamFloat' in model.coreModel && 'setParamFloat' in model.coreModel,
   prepareModel: prepareCubism2Model,
+  disableIdleEyeMovement: () => {},
   runtimeTimeToMilliseconds: time => time,
 }

@@ -2,7 +2,7 @@ import type { JSONObject } from 'pixi-live2d-display'
 
 import type { Live2DGenerationLoader } from '../loader'
 
-import { prepareCubism4Model } from './model'
+import { disableCubism4IdleEyeMovement, prepareCubism4Model } from './model'
 
 function references(json: JSONObject) {
   const result: ReturnType<Live2DGenerationLoader['assetReferences']> = []
@@ -58,5 +58,6 @@ export const cubism4Loader: Live2DGenerationLoader = {
   assetReferences: references,
   isLoadedModel: model => !('getParamFloat' in model.coreModel) || !('setParamFloat' in model.coreModel),
   prepareModel: prepareCubism4Model,
+  disableIdleEyeMovement: disableCubism4IdleEyeMovement,
   runtimeTimeToMilliseconds: time => time * 1000,
 }

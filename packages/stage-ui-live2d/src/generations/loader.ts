@@ -14,6 +14,10 @@ export interface Live2DAssetReference {
 
 export interface LoadedLive2DModel {
   coreModel: object
+  motionManager: {
+    groups: { idle?: string }
+    motionGroups: Partial<Record<string, (object | null | undefined)[]>>
+  }
   settings?: object
   updateWebGLContext?: (gl: WebGLRenderingContext, contextId: number) => void
   eyeBlink?: unknown
@@ -29,6 +33,7 @@ export interface Live2DGenerationLoader {
   assetReferences: (json: JSONObject) => Live2DAssetReference[]
   isLoadedModel: (model: LoadedLive2DModel) => boolean
   prepareModel: (model: LoadedLive2DModel, renderer: object) => void
+  disableIdleEyeMovement: (model: LoadedLive2DModel) => void
   runtimeTimeToMilliseconds: (time: number) => number
 }
 
@@ -77,4 +82,9 @@ export function loaderForModel(model: LoadedLive2DModel): Live2DGenerationLoader
   if (matches.length !== 1)
     throw new Error(`Expected exactly one Live2D generation for the loaded model, found ${matches.length}.`)
   return matches[0]
+}
+
+/** Applies AIRI's idle eye policy through the loaded model's generation boundary. */
+export function disableIdleEyeMovement(model: LoadedLive2DModel): void {
+  loaderForModel(model).disableIdleEyeMovement(model)
 }

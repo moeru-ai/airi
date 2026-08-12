@@ -8,7 +8,7 @@ async function archive(files: Record<string, string | Uint8Array>): Promise<Blob
   const zip = new JSZip()
   for (const [path, contents] of Object.entries(files))
     zip.file(path, contents)
-  const bytes = await zip.generateAsync({ type: 'uint8array' })
+  const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })
   const buffer = new ArrayBuffer(bytes.byteLength)
   new Uint8Array(buffer).set(bytes)
   return new Blob([buffer])
@@ -47,5 +47,54 @@ describe('live2D validation runtime capability', () => {
     expect(report.status).toBe('VALID')
     expect(report.runtimeFamily).toBe('cubism3-plus')
     expect(cubism4Only).not.toHaveBeenCalled()
+  })
+})
+
+describe('loose Cubism 4 MOC validation', () => {
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('accepts a valid loose MOC3 archive for PR #2197', async () => {
+    const file = await archive({
+      'model/model.moc3': new Uint8Array([77, 79, 67, 51, 4]),
+      'model/texture.png': '',
+    })
+
+    const report = await validateLive2DZip(file, cubism4Only)
+
+    expect(report.status).toBe('VALID')
+    expect(report.structureType).toBe('Heuristic (Loose Files)')
+    expect(report.mocInfo).toEqual({
+      format: 'moc3',
+      header: 'MOC3',
+      ver: 4,
+      size: 5,
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('rejects an invalid loose MOC3 header for PR #2197', async () => {
+    const file = await archive({
+      'model/model.moc3': new Uint8Array([66, 65, 68, 33, 4]),
+      'model/texture.png': '',
+    })
+
+    const report = await validateLive2DZip(file, cubism4Only)
+
+    expect(report.status).toBe('INVALID')
+    expect(report.errors).toContain('Invalid MOC3 header: "BAD!" (expected "MOC3").')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('rejects a loose MOC3 larger than 100 MB for PR #2197', async () => {
+    const moc = new Uint8Array(100 * 1024 * 1024 + 1)
+    moc.set([77, 79, 67, 51, 4])
+    const file = await archive({
+      'model/model.moc3': moc,
+      'model/texture.png': '',
+    })
+
+    const report = await validateLive2DZip(file, cubism4Only)
+
+    expect(report.status).toBe('INVALID')
+    expect(report.errors).toContain('MOC3 is larger than 100 MB and likely exceeds browser memory limits.')
   })
 })

@@ -9,6 +9,7 @@ import { decodeZipFileName } from './decode-zip-filename'
 import { resolveLive2DRuntime } from './live2d-runtime'
 
 export type Live2DRuntimeFamily = 'cubism2' | 'cubism3-plus'
+type Live2DMocFormat = 'moc' | 'moc3'
 
 export interface Live2DValidationReport {
   fileName: string
@@ -21,7 +22,7 @@ export interface Live2DValidationReport {
   warnings: string[]
   checks: string[]
   mocInfo?: {
-    format: 'moc' | 'moc3'
+    format: Live2DMocFormat
     header: string
     ver: number | null
     size: number
@@ -40,6 +41,32 @@ function normalizeArchivePath(baseDir: string, relativePath: string): string {
       stack.push(part)
   }
   return stack.join('/')
+}
+
+async function auditMoc(
+  zip: JSZip,
+  path: string,
+  format: Live2DMocFormat,
+  report: Live2DValidationReport,
+): Promise<void> {
+  const bytes = await zip.file(path)!.async('uint8array')
+  const headerLength = format === 'moc' ? 3 : 4
+  const header = String.fromCharCode(...bytes.slice(0, headerLength))
+  const expectedHeader = format === 'moc' ? 'moc' : 'MOC3'
+
+  report.mocInfo = {
+    format,
+    header,
+    ver: format === 'moc3' ? bytes[4] : null,
+    size: bytes.length,
+  }
+
+  if (header !== expectedHeader)
+    report.errors.push(`Invalid ${format.toUpperCase()} header: "${header}" (expected "${expectedHeader}").`)
+  if (bytes.length > 100 * 1024 * 1024)
+    report.errors.push(`${format.toUpperCase()} is larger than 100 MB and likely exceeds browser memory limits.`)
+  else if (bytes.length > 30 * 1024 * 1024)
+    report.warnings.push(`${format.toUpperCase()} is larger than 30 MB and may perform poorly in a browser.`)
 }
 
 /**
@@ -75,6 +102,7 @@ export async function validateLive2DZip(
   }
 
   let selectedSettings: ReturnType<typeof selectLive2DSettings> | undefined
+  let mocAudit: { path: string, format: Live2DMocFormat } | undefined
   try {
     const candidates = await Promise.all(settingsFiles.map(async path => ({
       path,
@@ -88,6 +116,7 @@ export async function validateLive2DZip(
       report.runtimeFamily = 'cubism3-plus'
       report.structureType = 'Heuristic (Loose Files)'
       report.checks.push(`Heuristic match found: unique MOC file ${mocFiles[0]}.`)
+      mocAudit = { path: mocFiles[0], format: 'moc3' }
     }
     else {
       selectedSettings = selectLive2DSettings(candidates)
@@ -130,31 +159,22 @@ export async function validateLive2DZip(
       const mocReference = references.find(reference => reference.kind === 'MOC')?.path
       if (mocReference) {
         const mocPath = normalizeArchivePath(baseDir, mocReference)
-        const mocFile = zip.file(mocPath)
-        if (mocFile) {
-          const bytes = await mocFile.async('uint8array')
-          const format = report.runtimeFamily === 'cubism2' ? 'moc' : 'moc3'
-          const headerLength = format === 'moc' ? 3 : 4
-          const header = String.fromCharCode(...bytes.slice(0, headerLength))
-          const expectedHeader = format === 'moc' ? 'moc' : 'MOC3'
-          report.mocInfo = {
-            format,
-            header,
-            ver: format === 'moc3' ? bytes[4] : null,
-            size: bytes.length,
-          }
-          if (header !== expectedHeader)
-            report.errors.push(`Invalid ${format.toUpperCase()} header: "${header}" (expected "${expectedHeader}").`)
-          if (bytes.length > 100 * 1024 * 1024)
-            report.errors.push(`${format.toUpperCase()} is larger than 100 MB and likely exceeds browser memory limits.`)
-          else if (bytes.length > 30 * 1024 * 1024)
-            report.warnings.push(`${format.toUpperCase()} is larger than 30 MB and may perform poorly in a browser.`)
-        }
+        if (zip.file(mocPath))
+          mocAudit = { path: mocPath, format: report.runtimeFamily === 'cubism2' ? 'moc' : 'moc3' }
       }
       report.checks.push(`Validated ${references.length} referenced Cubism assets.`)
     }
     catch (error) {
       report.errors.push(`JSON parse error in ${report.entryPoint}: ${errorMessageFrom(error) ?? 'Unknown validation error'}`)
+    }
+  }
+
+  if (mocAudit) {
+    try {
+      await auditMoc(zip, mocAudit.path, mocAudit.format, report)
+    }
+    catch (error) {
+      report.errors.push(`MOC audit failed for "${mocAudit.path}": ${errorMessageFrom(error) ?? 'unknown validation error'}`)
     }
   }
 

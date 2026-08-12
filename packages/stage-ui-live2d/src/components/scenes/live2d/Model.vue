@@ -28,6 +28,7 @@ import {
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { disableIdleEyeMovement } from '../../../generations/loader'
 import { useL2dViewControl, useLive2dParams } from '../../../stores'
 import { resolveLive2DRuntime, setupLive2DModel } from '../../../utils/live2d-runtime'
 
@@ -291,6 +292,8 @@ async function loadModel() {
     if (detectedIdleGroup)
       motionManager.groups.idle = detectedIdleGroup
 
+    disableIdleEyeMovement(internalModel)
+
     availableMotions.value = Object
       .entries(motionManager.definitions)
       .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
@@ -310,20 +313,6 @@ async function loadModel() {
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
     const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
-    // Configure the selected motion to loop
-    if (selectedMotionGroup !== null && selectedMotionIndex) {
-      const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
-      if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
-        const motionIndex = Number.parseInt(selectedMotionIndex)
-        const motion = motionManager.motionGroups[groupIndex][motionIndex]
-        if (motion && motion._looper) {
-          // Force the motion to loop
-          motion._looper.loopDuration = 0 // 0 means infinite loop
-          console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)
-        }
-      }
-    }
-
     if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
         console.info('Playing selected runtime motion:', selectedMotionGroup, selectedMotionIndex)
@@ -332,20 +321,6 @@ async function loadModel() {
           index: Number.parseInt(selectedMotionIndex),
         }
       }, 300)
-    }
-
-    // Remove eye ball movements from idle motion group to prevent conflicts
-    // This is too hacky
-    // FIXME: it cannot blink if loading a model only have idle motion
-    if (motionManager.groups.idle) {
-      motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
-        motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
-            curve.id = `_${curve.id}`
-          }
-        })
-      })
     }
 
     // This is hacky too

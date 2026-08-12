@@ -240,7 +240,7 @@ export default defineConfig({
     DownloadLive2DSDK(),
     Cubism2Core({
       distribution: 'bundle',
-      sources: process.env.AIRI_CUBISM2_CORE_PATH
+      sources: process.env.AIRI_CUBISM2_CORE_PATH && process.env.AIRI_CUBISM2_CORE_SHA256
         ? [{ path: process.env.AIRI_CUBISM2_CORE_PATH, sha256: process.env.AIRI_CUBISM2_CORE_SHA256, optional: true }]
         : [],
     }),
