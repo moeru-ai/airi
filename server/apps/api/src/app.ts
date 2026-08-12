@@ -1,6 +1,6 @@
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
-import type { ApiOtelInstance } from './otel'
+import type { OtelInstance } from './otel'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
@@ -110,7 +110,7 @@ interface AppDeps {
   envelopeCrypto: EnvelopeCrypto
   redis: Redis
   env: Env
-  otel: ApiOtelInstance | null
+  otel: OtelInstance | null
   userDeletionService: UserDeletionService
   llmRouter: LlmRouterService
   providerCatalogService: ProviderCatalogService
@@ -119,7 +119,7 @@ interface AppDeps {
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
   const userMetricsRecorder = deps.otel
-    ? registerUserMetricsSnapshotGauges(deps.otel.user)
+    ? registerUserMetricsSnapshotGauges(deps.otel.auth)
     : createDiscardingUserMetricsSnapshotRecorder()
 
   const app = new Hono<HonoEnv>()
