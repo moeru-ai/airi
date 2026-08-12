@@ -7,6 +7,7 @@ import type { asrModelSchema, ConfigKVService, llmModelSchema, llmRouterConfigSc
 import { useLogger } from '@guiiai/logg'
 
 import { createBadRequestError } from '../../../../utils/error'
+import { STEPFUN_STREAMING_TTS_KEY_CONTEXT } from '../../../adapters/config-kv'
 
 /**
  * AAD label used when encrypting/decrypting the streaming TTS upstream key.
@@ -16,7 +17,6 @@ import { createBadRequestError } from '../../../../utils/error'
  * `DECRYPT_FAILED` at session start.
  */
 const STREAMING_TTS_AAD_MODEL_NAME = 'streaming-tts'
-const STEPFUN_STREAMING_TTS_AAD_MODEL_NAME = 'stepfun-streaming-tts'
 
 /** Default key entry id per provider. Operator can override per request. */
 const DEFAULT_KEY_ENTRY_IDS = {
@@ -168,12 +168,12 @@ export interface StepfunSliceInput {
 /** Operator-owned native StepFun websocket TTS configuration. */
 export interface StepfunStreamingSliceInput {
   kind: 'stepfun-streaming'
-  /** Enables StepFun for the shared official streaming TTS provider. */
-  enabled: boolean
+  /** Controls explicit availability and ownership of the global streaming default. */
+  rollout: 'disabled' | 'available' | 'default'
   /** `wss://api.stepfun.com/v1/realtime/audio` or the Step Plan equivalent. */
   upstreamURL: string
-  models: Array<{ id: string, name?: string, description?: string }>
-  defaultModel: string
+  models: StepfunStreamingTtsUpstream['models']
+  defaultModel: StepfunStreamingTtsUpstream['defaultModel']
   voices: Array<{ id: string, name?: string, description?: string, labels?: Record<string, unknown>, languages?: Array<{ code: string, title: string }> }>
   instruction?: string
   plaintextKey?: string
@@ -514,7 +514,7 @@ export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: Envelope
 export function buildStepfunStreamingSlice(input: StepfunStreamingSliceInput, envelope: EnvelopeCrypto): StepfunStreamingSlice {
   const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS['stepfun-streaming']
   const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
-    modelName: STEPFUN_STREAMING_TTS_AAD_MODEL_NAME,
+    modelName: STEPFUN_STREAMING_TTS_KEY_CONTEXT,
     keyEntryId,
   })
   return {
@@ -522,7 +522,7 @@ export function buildStepfunStreamingSlice(input: StepfunStreamingSliceInput, en
     kind: input.kind,
     keyEntryId,
     value: {
-      enabled: input.enabled,
+      rollout: input.rollout,
       baseURL: input.upstreamURL,
       keys: [{ id: keyEntryId, ciphertext }],
       models: input.models,
@@ -733,7 +733,7 @@ function buildStepfunStreamingSlicePreservingKey(
     kind: input.kind,
     keyEntryId: key.id,
     value: {
-      enabled: input.enabled,
+      rollout: input.rollout,
       baseURL: input.upstreamURL,
       keys: [key],
       models: input.models,
@@ -1088,7 +1088,7 @@ function slicesFromStepfunStreaming(config: StepfunStreamingTtsUpstream | null):
   const key = config.keys[0]
   return [{
     kind: 'stepfun-streaming',
-    enabled: config.enabled,
+    rollout: config.rollout,
     upstreamURL: config.baseURL,
     models: config.models,
     defaultModel: config.defaultModel,
@@ -1204,7 +1204,6 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       missingKeys: [
         ...(routerConfig ? [] : ['LLM_ROUTER_CONFIG']),
         ...(unspeech ? [] : ['UNSPEECH_UPSTREAM']),
-        ...(stepfunStreaming ? [] : ['STEPFUN_STREAMING_TTS_UPSTREAM']),
         ...(chatModel ? [] : ['DEFAULT_CHAT_MODEL']),
         ...(ttsModel ? [] : ['DEFAULT_TTS_MODEL']),
       ],

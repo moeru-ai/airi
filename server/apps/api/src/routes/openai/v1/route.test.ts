@@ -1964,6 +1964,62 @@ describe('v1CompletionsRoutes', () => {
       expect(data.default).toBe('volcengine/seed-tts-2.0')
     })
 
+    it('exposes StepFun for explicit selection without replacing the current default', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV({
+        UNSPEECH_UPSTREAM: {
+          restBaseURL: 'http://unspeech.local:5933',
+          streaming: {
+            baseURL: 'wss://unspeech.local',
+            keys: [{ id: 'volc-key', ciphertext: 'enc' }],
+            models: [{ id: 'volcengine/seed-tts-2.0' }],
+            defaultModel: 'volcengine/seed-tts-2.0',
+          },
+        },
+        STEPFUN_STREAMING_TTS_UPSTREAM: {
+          rollout: 'available',
+          baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+          keys: [{ id: 'step-key', ciphertext: 'enc' }],
+          models: [{ id: 'stepfun/step-tts-2' }],
+          defaultModel: 'stepfun/step-tts-2',
+          voices: [{ id: 'lively-girl', labels: {}, languages: [] }],
+        },
+      }))
+
+      const res = await app.fetch(new Request('http://localhost/api/v1/audio/models/streaming'), { user: testUser } as any)
+      const data = await res.json() as { models: Array<{ id: string }>, default: string }
+
+      expect(data.models.map(model => model.id)).toEqual(['volcengine/seed-tts-2.0', 'stepfun/step-tts-2'])
+      expect(data.default).toBe('volcengine/seed-tts-2.0')
+    })
+
+    it('switches only the default when StepFun rollout is default', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV({
+        UNSPEECH_UPSTREAM: {
+          restBaseURL: 'http://unspeech.local:5933',
+          streaming: {
+            baseURL: 'wss://unspeech.local',
+            keys: [{ id: 'volc-key', ciphertext: 'enc' }],
+            models: [{ id: 'volcengine/seed-tts-2.0' }],
+            defaultModel: 'volcengine/seed-tts-2.0',
+          },
+        },
+        STEPFUN_STREAMING_TTS_UPSTREAM: {
+          rollout: 'default',
+          baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+          keys: [{ id: 'step-key', ciphertext: 'enc' }],
+          models: [{ id: 'stepfun/step-tts-2' }],
+          defaultModel: 'stepfun/step-tts-2',
+          voices: [{ id: 'lively-girl', labels: {}, languages: [] }],
+        },
+      }))
+
+      const res = await app.fetch(new Request('http://localhost/api/v1/audio/models/streaming'), { user: testUser } as any)
+      const data = await res.json() as { models: Array<{ id: string }>, default: string }
+
+      expect(data.models.map(model => model.id)).toEqual(['volcengine/seed-tts-2.0', 'stepfun/step-tts-2'])
+      expect(data.default).toBe('stepfun/step-tts-2')
+    })
+
     it('returns default: null when operator has not set a streaming default', async () => {
       const app = createTestApp(
         createMockFluxService(),
@@ -1985,6 +2041,28 @@ describe('v1CompletionsRoutes', () => {
       )
 
       const data = await res.json() as { default: string | null }
+      expect(data.default).toBeNull()
+    })
+
+    it('keeps default null when StepFun is only available for explicit selection', async () => {
+      const app = createTestApp(createMockFluxService(), createMockConfigKV({
+        STEPFUN_STREAMING_TTS_UPSTREAM: {
+          rollout: 'available',
+          baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+          keys: [{ id: 'step-key', ciphertext: 'enc' }],
+          models: [{ id: 'stepfun/step-tts-2' }],
+          defaultModel: 'stepfun/step-tts-2',
+          voices: [{ id: 'lively-girl', labels: {}, languages: [] }],
+        },
+      }))
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/models/streaming', { method: 'GET' }),
+        { user: testUser } as any,
+      )
+      const data = await res.json() as { available: boolean, default: string | null }
+
+      expect(data.available).toBe(true)
       expect(data.default).toBeNull()
     })
 
@@ -2408,6 +2486,33 @@ describe('v1CompletionsRoutes', () => {
       globalThis.fetch = vi.fn(async () => new Response(body, { status })) as any
     }
 
+    it('returns StepFun voices only for the canonical configured model id', async () => {
+      const configKV = createMockConfigKV({
+        STEPFUN_STREAMING_TTS_UPSTREAM: {
+          rollout: 'available',
+          baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+          keys: [{ id: 'step-key', ciphertext: 'enc' }],
+          models: [{ id: 'stepfun/step-tts-2' }],
+          defaultModel: 'stepfun/step-tts-2',
+          voices: [{ id: 'lively-girl', name: 'Lively Girl', labels: {}, languages: [] }],
+        },
+      })
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const exact = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=stepfun/step-tts-2'),
+        { user: testUser } as any,
+      )
+      const alias = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=step-tts-2'),
+        { user: testUser } as any,
+      )
+
+      expect(exact.status).toBe(200)
+      expect(await exact.json()).toMatchObject({ voices: [{ id: 'lively-girl' }] })
+      expect(alias.status).toBe(400)
+    })
+
     it('returns the streaming-model bucket of DEFAULT_TTS_VOICES when ?model= matches', async () => {
       mockUnspeechVoices([{ id: 'zh_female_vv_uranus_bigtts', name: 'Vivi 2.0' }])
       const configKV = createMockConfigKV({
@@ -2428,6 +2533,36 @@ describe('v1CompletionsRoutes', () => {
       expect(res.status).toBe(200)
       const data = await res.json() as { recommended: Record<string, string> }
       expect(data.recommended).toEqual({ 'zh-cn': 'zh_female_vv_uranus_bigtts' })
+    })
+
+    it('normalizes a canonical unSpeech model id before querying its voice catalog', async () => {
+      let requestedURL = ''
+      globalThis.fetch = vi.fn(async (input) => {
+        requestedURL = String(input)
+        return new Response(JSON.stringify({ voices: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }) as any
+      const configKV = createMockConfigKV({
+        UNSPEECH_UPSTREAM: {
+          restBaseURL: 'http://unspeech.local:5933',
+          streaming: {
+            baseURL: 'ws://unspeech.local:5933/v1/audio/speech/stream',
+            keys: [{ id: 'k1', ciphertext: 'enc' }],
+            models: [{ id: 'volcengine/seed-tts-2.0' }],
+          },
+        },
+      })
+      const app = createTestApp(createMockFluxService(), configKV)
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/audio/voices/streaming?model=volcengine/seed-tts-2.0'),
+        { user: testUser } as any,
+      )
+
+      expect(res.status).toBe(200)
+      expect(new URL(requestedURL).searchParams.get('model')).toBe('seed-tts-2.0')
     })
 
     it('returns empty recommended when ?model= is omitted', async () => {

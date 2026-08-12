@@ -5,6 +5,7 @@ import { useLogger } from '@guiiai/logg'
 import { ofetch } from 'ofetch'
 
 import { catalogVoiceResponse } from '../../../../../services/domain/provider-catalog/provider-voices'
+import { isUnspeechStreamingModelEnabled, streamingTtsModelResourceId } from '../../../../../services/domain/streaming-tts-policy'
 import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
 
 const VOICE_PACK_MODEL_ID = 'voice-pack'
@@ -81,35 +82,42 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
    * No empty-array fallback: the UI surfaces a real failure state.
    */
   async function listStreamingVoices(input: ListStreamingVoicesInput) {
-    const stepfun = await deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM')
-    if (stepfun?.enabled) {
-      const model = input.model
-      const matchedModel = model
-        ? stepfun.models.find(item => item.id === model || item.id === `stepfun/${model}`)
-        : undefined
-      if (model && !matchedModel)
-        throw createBadRequestError('streaming voices: model is not enabled', 'STREAMING_TTS_MODEL_NOT_ENABLED')
-
-      const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[matchedModel?.id ?? stepfun.defaultModel] ?? {}
+    const [stepfun, unspeech] = await Promise.all([
+      deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM'),
+      deps.configKV.getOptional('UNSPEECH_UPSTREAM'),
+    ])
+    const model = input.model
+    const stepfunAvailable = stepfun != null && stepfun.rollout !== 'disabled'
+    const selectedStepfunModel = stepfunAvailable
+      ? model
+        ? stepfun.models.find(item => item.id === model)
+        : stepfun.rollout === 'default'
+          ? stepfun.models.find(item => item.id === stepfun.defaultModel)
+          : undefined
+      : undefined
+    if (stepfun && selectedStepfunModel) {
+      const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[selectedStepfunModel.id] ?? {}
       return Response.json({ voices: stepfun.voices, recommended })
     }
 
-    const unspeech = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
+    const unspeechModels = unspeech?.streaming?.models ?? []
+    const unspeechModelEnabled = model == null
+      || (unspeech?.streaming != null && isUnspeechStreamingModelEnabled(unspeechModels, model))
+    if (!unspeechModelEnabled)
+      throw createBadRequestError('streaming voices: model is not enabled', 'STREAMING_TTS_MODEL_NOT_ENABLED')
     if (!unspeech?.streaming?.baseURL)
       throw createServiceUnavailableError('streaming tts upstream not configured', 'STREAMING_TTS_NOT_CONFIGURED')
 
     // Pass through the api_resource_id (e.g. `seed-tts-2.0`). unspeech
     // filters the embedded Volcengine catalogue server-side; absent model
     // means "return everything streaming-safe".
-    const model = input.model
-
     let voicesURL: string
     try {
       const u = new URL(unspeech.restBaseURL)
       u.pathname = '/api/voices'
       const params = new URLSearchParams({ provider: 'volcengine' })
       if (model)
-        params.set('model', model)
+        params.set('model', streamingTtsModelResourceId(model))
       u.search = `?${params.toString()}`
       voicesURL = u.toString()
     }
@@ -173,34 +181,28 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
   }
 
   async function listStreamingSpeechModels() {
-    const stepfun = await deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM')
-    if (stepfun?.enabled) {
-      return Response.json({
-        available: true,
-        models: stepfun.models.map(m => ({
-          id: m.id,
-          name: m.name ?? m.id,
-          description: m.description,
-        })),
-        default: stepfun.defaultModel,
-      })
-    }
-
-    const unspeech = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
-    const models = unspeech?.streaming?.models ?? []
+    const [stepfun, unspeech] = await Promise.all([
+      deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM'),
+      deps.configKV.getOptional('UNSPEECH_UPSTREAM'),
+    ])
+    const unspeechModels = unspeech?.streaming?.models ?? []
+    const stepfunModels = stepfun?.rollout === 'disabled' ? [] : (stepfun?.models ?? [])
+    const models = [...unspeechModels, ...stepfunModels]
     // `available` is the operator-controlled visibility switch the client gates
     // the streaming provider on. It tracks whether `UNSPEECH_UPSTREAM.streaming`
     // is configured at all — not whether `models[]` happens to be empty — so an
     // operator who has wired the upstream but not yet curated models still
     // surfaces the provider rather than silently hiding it.
     return Response.json({
-      available: !!unspeech?.streaming?.baseURL,
+      available: !!unspeech?.streaming?.baseURL || stepfunModels.length > 0,
       models: models.map(m => ({
         id: m.id,
         name: m.name ?? m.id,
         description: m.description,
       })),
-      default: unspeech?.streaming?.defaultModel ?? null,
+      default: stepfun?.rollout === 'default'
+        ? stepfun.defaultModel
+        : (unspeech?.streaming?.defaultModel ?? null),
     })
   }
 

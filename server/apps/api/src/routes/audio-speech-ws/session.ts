@@ -1,17 +1,13 @@
-import type { WSContext } from 'hono/ws'
-import type { RawData } from 'ws'
+import type { Buffer } from 'node:buffer'
 
-import type { StepfunStreamingTtsUpstream, UnspeechUpstream } from '../../services/adapters/config-kv'
-import type { FluxService } from '../../services/domain/flux'
+import type { WSContext } from 'hono/ws'
+
+import type { StreamingTtsProviderEvent, StreamingTtsStartCommand, StreamingTtsTransport } from './providers/types'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
-import { Buffer } from 'node:buffer'
-
-import WebSocket from 'ws'
-
 import { useLogger } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
-import { ofetch } from 'ofetch'
 
 import { fluxBalanceBucket } from '../../services/domain/flux-balance'
 import { ApiError } from '../../utils/error'
@@ -23,34 +19,41 @@ import {
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../utils/observability'
-import { bufferToString, readUsageChars, toBufferLike } from './protocol'
+import { resolveStreamingTtsProvider, StreamingTtsResolutionError } from './provider'
+import { createStepfunTransport } from './providers/stepfun'
+import { createUnspeechTransport } from './providers/unspeech'
 
 const log = useLogger('audio-speech-ws').useGlobalConfig()
 
-/**
- * Conservative pre-flight estimate: assume the worst-case streaming session
- * synthesises ~2k input chars before billing materialises. Users below this
- * affordability threshold are refused before the upstream ws is dialed —
- * mirrors the pre-flight pattern at /audio/speech (handleTTS).
- */
 const STREAMING_PREFLIGHT_CHARS_ESTIMATE = 2000
-
+const MAX_STREAMING_INPUT_CHARS = 20000
+const MAX_STREAMING_TEXT_FRAMES = 512
 const STREAM_MODEL_LABEL_FALLBACK = 'streaming-tts'
-const STEPFUN_STREAMING_TTS_AAD_MODEL_NAME = 'stepfun-streaming-tts'
 
 const tracer = trace.getTracer('audio-speech-ws')
 
 /**
- * Mutable state for one streaming speech websocket connection.
+ * One-way lifecycle for a client session. `settling` is entered exactly once
+ * before transport shutdown and owns all asynchronous persistence work.
  */
+type SessionPhase = 'awaiting-start' | 'connecting' | 'streaming' | 'finishing' | 'settling' | 'closed'
+
+interface SessionOutcome {
+  kind: 'completed' | 'cancelled' | 'failed' | 'blocked'
+  status: number
+  reason: string
+}
+
+type ClientCommand
+  = | { type: 'start', value: StreamingTtsStartCommand }
+    | { type: 'text', text: string }
+    | { type: 'finish' }
+    | { type: 'cancel' }
+
+/** Mutable state for one streaming speech websocket connection. */
 export interface AudioSpeechSessionState {
-  /** Stores the accepted client websocket. */
   attachClient: (ws: WSContext) => void
-  /** Reads config, checks balance, decrypts the upstream key, and dials upstream after the start frame is accepted. */
-  dialUpstream: () => Promise<void>
-  /** Forwards a client frame or queues it while the upstream connection opens. */
   handleClientMessage: (message: { data: unknown }, ws: WSContext) => void
-  /** Cancels upstream and finalizes the span when the client disconnects. */
   handleClientClose: () => void
 }
 
@@ -65,18 +68,11 @@ export interface AudioSpeechSessionAnalytics {
 }
 
 /**
- * Creates the per-connection streaming speech state machine.
+ * Creates a provider-neutral streaming TTS session.
  *
- * Use when:
- * - A Hono websocket connection has been accepted for a verified user.
- * - Client frames must be proxied to unSpeech while billing and request logs
- *   are handled at session end.
- *
- * Expects:
- * - `UNSPEECH_UPSTREAM.streaming` has a base URL and at least one encrypted key.
- *
- * Returns:
- * - A connection-scoped state object with no global peer registry.
+ * The session owns client command ordering, affordability, bounded input,
+ * billing, telemetry, and one terminal outcome. Provider websocket protocols
+ * remain behind {@link StreamingTtsTransport}.
  */
 export function createSessionState(
   userId: string,
@@ -87,42 +83,121 @@ export function createSessionState(
   const startedAt = Date.now()
   const analytics = normalizeAnalytics(analyticsInput)
   const span = tracer.startSpan('llm.gateway.tts.stream', {
-    attributes: {
-      [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream',
-    },
+    attributes: { [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream' },
   })
 
+  let phase: SessionPhase = 'awaiting-start'
   let clientWs: WSContext | null = null
-  let upstreamWs: WebSocket | null = null
-  let upstreamReady = false
-  let closed = false
-  let billed = false
-  let startFrameAccepted = false
-  let startValidationStarted = false
-  let dialStarted = false
-  let totalInputChars = 0
+  let transport: StreamingTtsTransport | null = null
+  let messageChain = Promise.resolve()
+  let receivedInputChars = 0
+  let acceptedInputChars = 0
+  let textFrameCount = 0
+  let affordabilityCheckedChars = 0
   let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
   let voiceLabel: string | undefined
-  let startFrame: StreamingTtsStartFrame | null = null
-  let provider: StreamingProvider | null = null
-  let stepfunSessionId: string | null = null
-  let stepfunSessionCreated = false
-  /**
-   * Frames the client sent before the upstream finished dialing. Buffered to
-   * avoid silently dropping the `start` frame; flushed in arrival order once
-   * the upstream ws transitions to OPEN.
-   */
-  const pendingClientFrames: Array<{ data: Buffer | string, isBinary: boolean }> = []
+  let providerLabel: 'unspeech' | 'stepfun' | undefined
 
   function attachClient(ws: WSContext) {
     clientWs = ws
   }
 
-  async function dialUpstream() {
-    if (dialStarted)
+  function handleClientMessage(message: { data: unknown }, ws: WSContext) {
+    if (isTerminalPhase())
       return
-    dialStarted = true
+
+    const command = parseClientCommand(message.data)
+    // Cancel is an out-of-band terminal command. It must not wait behind
+    // provider/configuration I/O already queued by start or text commands.
+    if (command?.type === 'cancel') {
+      settleSession({ kind: 'cancelled', status: 499, reason: 'client_cancelled' })
+      return
+    }
+
+    messageChain = messageChain
+      .then(() => processClientCommand(command))
+      .catch((error) => {
+        log.withError(error).warn('streaming tts client command failed')
+        failSession(errorCode(error), errorMessageFrom(error) ?? 'Streaming TTS client command failed')
+        try {
+          ws.close(1011, errorCode(error))
+        }
+        catch {}
+      })
+  }
+
+  function handleClientClose() {
+    settleSession({ kind: 'cancelled', status: 499, reason: 'client_disconnected' })
+  }
+
+  async function processClientCommand(command: ClientCommand | null) {
+    if (phase === 'settling' || phase === 'closed')
+      return
+
+    if (!command) {
+      failSession('invalid_client_frame', 'Invalid streaming TTS client frame', 1008)
+      return
+    }
+
+    if (command.type === 'start') {
+      if (phase !== 'awaiting-start') {
+        failSession('unexpected_start_frame', 'Streaming TTS start frame must be sent exactly once', 1008)
+        return
+      }
+      await startSession(command.value)
+      return
+    }
+
+    if (phase === 'awaiting-start') {
+      failSession('invalid_start_frame', 'The first streaming TTS frame must be start', 1008)
+      return
+    }
+
+    // `handleClientMessage` settles cancel before queueing. Keep this guard so
+    // the command union remains exhaustive if another caller is introduced.
+    if (command.type === 'cancel') {
+      settleSession({ kind: 'cancelled', status: 499, reason: 'client_cancelled' })
+      return
+    }
+
+    if (!transport || isTerminalPhase())
+      return
+
+    if (command.type === 'finish') {
+      if (phase === 'finishing') {
+        failSession('duplicate_finish_frame', 'Streaming TTS finish frame was already sent', 1008)
+        return
+      }
+      phase = 'finishing'
+      transport.send({ type: 'finish' })
+      return
+    }
+
+    if (phase === 'finishing') {
+      failSession('text_after_finish', 'Streaming TTS text cannot follow finish', 1008)
+      return
+    }
+
+    const nextChars = receivedInputChars + command.text.length
+    const nextFrames = textFrameCount + 1
+    if (nextChars > MAX_STREAMING_INPUT_CHARS || nextFrames > MAX_STREAMING_TEXT_FRAMES) {
+      failSession('streaming_tts_input_limit_exceeded', 'Streaming TTS session input exceeds the configured limit', 1009)
+      return
+    }
+
+    await ensureAffordable(nextChars)
+    if (isTerminalPhase())
+      return
+    receivedInputChars = nextChars
+    textFrameCount = nextFrames
+    transport.send({ type: 'text', text: command.text })
+  }
+
+  async function startSession(start: StreamingTtsStartCommand) {
+    phase = 'connecting'
+    modelLabel = start.model
+    voiceLabel = start.voice
 
     void opts.productEventService.track({
       userId,
@@ -137,518 +212,190 @@ export function createSessionState(
       },
     })
 
-    if (!provider) {
-      closeWithError(1008, 'streaming_tts_not_configured')
-      return
+    let resolved
+    try {
+      resolved = await resolveStreamingTtsProvider(start, opts.configKV)
     }
+    catch (error) {
+      if (error instanceof StreamingTtsResolutionError) {
+        failSession(error.code, error.message, error.closeCode)
+        return
+      }
+      throw error
+    }
+    if (isTerminalPhase())
+      return
 
-    // Pre-flight balance check: refuse before dialing if the user cannot
-    // afford the worst-case session.
     try {
       const flux = await opts.fluxService.getFlux(userId)
       preflightFluxBalance = flux.flux
       await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
+      affordabilityCheckedChars = STREAMING_PREFLIGHT_CHARS_ESTIMATE
     }
-    catch (err) {
-      log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
-      // assertCanAfford throws PaymentRequiredError (402) — translate to ws
-      // policy-violation close. The client can read the close code/reason to
-      // surface a 'top up' prompt.
-      if (isPaymentRequiredError(err))
-        closeWithBlockedPreflight(1008, 'insufficient_flux')
-      else
-        closeWithError(1011, 'flux_preflight_failed')
+    catch (error) {
+      if (isPaymentRequiredError(error)) {
+        blockForInsufficientBalance()
+        return
+      }
+      failSession('flux_preflight_failed', 'Streaming TTS affordability check failed')
       return
     }
+    if (isTerminalPhase())
+      return
 
-    // Decrypt the first key. Streaming surface does not do per-attempt key
-    // rotation: a live ws cannot transparently switch upstream mid-session
-    // without breaking audio continuity. Fallback policy belongs at the
-    // session-retry layer (next client connect), not inline.
-    const entry = provider.keys[0]
+    const key = resolved.keys[0]
     let keyPlaintext: Buffer
     try {
-      keyPlaintext = opts.envelopeCrypto.decryptKey(entry.ciphertext, {
-        modelName: provider.aadModelName,
-        keyEntryId: entry.id,
+      keyPlaintext = opts.envelopeCrypto.decryptKey(key.ciphertext, {
+        modelName: resolved.keyContext,
+        keyEntryId: key.id,
       })
     }
-    catch (err) {
-      log.withError(err).withFields({ keyEntryId: entry.id }).error('decrypt failed for streaming tts key')
-      closeWithError(1011, 'decrypt_failed')
+    catch (error) {
+      log.withError(error).withFields({ keyEntryId: key.id }).error('decrypt failed for streaming tts key')
+      failSession('decrypt_failed', 'Streaming TTS credential could not be decrypted')
       return
     }
 
-    const upstreamURL = provider.baseURL
-    span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL, upstreamURL)
-    span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, entry.id)
-
-    let upstream: WebSocket
-    try {
-      upstream = new WebSocket(upstreamURL, {
-        headers: {
-          Authorization: `Bearer ${keyPlaintext.toString('utf8')}`,
-        },
-      })
-    }
-    finally {
-      // Wipe plaintext immediately — the ws lib has already serialized the
-      // header into its outgoing handshake buffer.
-      keyPlaintext.fill(0)
-    }
-
-    upstreamWs = upstream
-
-    upstream.on('open', () => {
-      upstreamReady = true
-      if (provider?.kind === 'stepfun')
-        return
-      // Flush anything the client sent during dial.
-      for (const frame of pendingClientFrames) {
-        try {
-          upstream.send(frame.data, { binary: frame.isBinary })
-        }
-        catch (err) {
-          log.withError(err).warn('failed to flush queued client frame')
-        }
-      }
-      pendingClientFrames.length = 0
-    })
-
-    upstream.on('message', (data, isBinary) => {
-      handleUpstreamMessage(data, isBinary)
-    })
-
-    upstream.on('close', (code, reason) => {
-      log.withFields({ userId, code, reason: reason?.toString() }).debug('upstream ws closed')
-      settleStepfunSession('upstream_closed')
-    })
-
-    upstream.on('error', (err) => {
-      log.withError(err).withFields({ userId }).warn('upstream ws error')
-      span.recordException(err)
-      span.setStatus({ code: SpanStatusCode.ERROR, message: err.message })
-      void opts.productEventService.track({
-        userId,
-        feature: 'tts',
-        action: 'speech_failed',
-        status: 'failed',
-        source: analytics.source,
-        model: modelLabel,
-        reason: 'upstream_error',
-        metadata: {
-          duration_ms: Date.now() - startedAt,
-          trigger: analytics.trigger,
-          ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
-        },
-      })
-      try {
-        clientWs?.send(JSON.stringify({
-          event: 'error',
-          code: 'upstream_error',
-          message: err.message,
-        }))
-      }
-      catch {}
-      settleStepfunSession('upstream_error')
-    })
-  }
-
-  function handleClientMessage(message: { data: unknown }, ws: WSContext) {
-    if (closed)
-      return
-
-    const isBinary = !(typeof message.data === 'string')
-    const payload: Buffer | string = typeof message.data === 'string'
-      ? message.data
-      : message.data instanceof Buffer
-        ? message.data
-        : message.data instanceof ArrayBuffer
-          ? Buffer.from(message.data)
-          : Buffer.from(message.data as ArrayBufferLike)
-
-    if (!startValidationStarted) {
-      if (isBinary || typeof payload !== 'string') {
-        closeWithError(1008, 'invalid_start_frame')
-        return
-      }
-
-      const parsedStartFrame = parseStartFrame(payload)
-      if (!parsedStartFrame) {
-        closeWithError(1008, 'invalid_start_frame')
-        return
-      }
-
-      startValidationStarted = true
-      modelLabel = parsedStartFrame.model
-      voiceLabel = parsedStartFrame.voice
-      startFrame = parsedStartFrame
-      pendingClientFrames.push({ data: payload, isBinary })
-      void validateStartFrame(parsedStartFrame).then((resolvedProvider) => {
-        if (!resolvedProvider || closed)
-          return
-        provider = resolvedProvider
-        startFrameAccepted = true
-        void dialUpstream()
-      }).catch((err) => {
-        log.withError(err).error('streaming tts start validation failed unexpectedly')
-        closeWithError(1011, 'streaming_tts_start_validation_failed')
-      })
-      return
-    }
-
-    // Sniff input chars from text frames so billing has a fallback when
-    // upstream usage.text_words is absent. Only the `text` event contributes;
-    // start/finish/cancel do not.
-    if (!isBinary && typeof payload === 'string') {
-      maybeAccountInputChars(payload)
-    }
-
-    if (!startFrameAccepted && !dialStarted) {
-      pendingClientFrames.push({ data: payload, isBinary })
-      return
-    }
-
-    if (!upstreamWs || !upstreamReady) {
-      pendingClientFrames.push({ data: payload, isBinary })
-      return
-    }
-
-    if (provider?.kind === 'stepfun' && !stepfunSessionCreated) {
-      pendingClientFrames.push({ data: payload, isBinary })
-      return
-    }
-
-    try {
-      if (provider?.kind === 'stepfun') {
-        for (const frame of stepfunClientFrames(payload, isBinary, stepfunSessionId))
-          upstreamWs.send(frame)
-      }
-      else {
-        upstreamWs.send(payload, { binary: isBinary })
-      }
-    }
-    catch (err) {
-      log.withError(err).warn('failed to forward client frame to upstream')
-      try {
-        ws.close(1011, 'upstream_send_failed')
-      }
-      catch {}
-    }
-  }
-
-  function handleClientClose() {
-    if (closed)
-      return
-    // Client dropped — best-effort cancel upstream so the upstream session
-    // releases its resources. We do not wait for SessionCanceled ack.
-    if (upstreamWs && upstreamReady && provider?.kind === 'unspeech') {
-      try {
-        upstreamWs.send(JSON.stringify({ event: 'cancel' }))
-      }
-      catch {}
-    }
-    settleStepfunSession('client_disconnected')
-  }
-
-  function handleUpstreamMessage(data: RawData, isBinary: boolean) {
-    if (provider?.kind === 'stepfun') {
-      handleStepfunMessage(data, isBinary)
-      return
-    }
-    if (!clientWs)
-      return
-    if (isBinary) {
-      // Audio binary frames pass through verbatim.
-      try {
-        clientWs.send(toBufferLike(data))
-      }
-      catch (err) {
-        log.withError(err).warn('failed to forward upstream audio to client')
-      }
-      return
-    }
-
-    // Control frame: forward to client AND inspect for usage / model labels.
-    const text = bufferToString(data)
-    try {
-      clientWs.send(text)
-    }
-    catch (err) {
-      log.withError(err).warn('failed to forward upstream control frame to client')
-    }
-
-    try {
-      const evt = JSON.parse(text) as { event?: string, payload?: Record<string, unknown> }
-      handleUpstreamControlEvent(evt)
-    }
-    catch {
-      // unspeech only ever sends JSON on text frames per the v1 spec; a parse
-      // failure here is a bug in unspeech or a wire corruption. Don't kill
-      // the session over it — the client gets the raw frame regardless.
-    }
-  }
-
-  function handleUpstreamControlEvent(evt: { event?: string, payload?: Record<string, unknown> }) {
-    switch (evt.event) {
-      case 'session.finished': {
-        // Pull authoritative usage from upstream when present. Falls back to
-        // the client-text-frame estimate accumulated in handleClientMessage.
-        const usageChars = readUsageChars(evt.payload)
-        const billUnits = usageChars ?? totalInputChars
-        if (billUnits > 0)
-          void billSession(billUnits, 'session.finished')
-        else
-          finalize()
-        break
-      }
-      case 'error': {
-        const code = typeof evt.payload?.code === 'string' ? evt.payload.code : 'upstream_error'
-        log.withFields({ userId, code, message: String(evt.payload?.message ?? '') }).warn('upstream sent error event')
-        span.setStatus({ code: SpanStatusCode.ERROR, message: code })
-        break
-      }
-      // session.started / sentence.* / subtitle — no server-side action, pure
-      // pass-through to client.
-    }
-  }
-
-  /**
-   * Translates StepFun's JSON/Base64 websocket events into AIRI's established
-   * streaming wire protocol so the browser can keep consuming binary audio
-   * and `sentence.*` / `session.finished` control frames unchanged.
-   */
-  function handleStepfunMessage(data: RawData, isBinary: boolean) {
-    if (!clientWs || !upstreamWs || !provider || provider.kind !== 'stepfun')
-      return
-    if (isBinary) {
-      log.warn('StepFun streaming TTS unexpectedly sent a binary frame')
-      return
-    }
-
-    let event: StepfunServerEvent
-    try {
-      event = JSON.parse(bufferToString(data)) as StepfunServerEvent
-    }
-    catch {
-      log.warn('StepFun streaming TTS sent a malformed JSON frame')
-      return
-    }
-
-    switch (event.type) {
-      case 'tts.connection.done': {
-        const sessionId = event.data?.session_id
-        if (!sessionId || !startFrame) {
-          closeWithError(1011, 'stepfun_invalid_connection_event')
-          return
-        }
-        stepfunSessionId = sessionId
-        upstreamWs.send(JSON.stringify(stepfunCreateFrame(sessionId, startFrame, provider.instruction)))
-        break
-      }
-      case 'tts.response.created': {
-        if (!stepfunSessionId || event.data?.session_id !== stepfunSessionId)
-          return
-        stepfunSessionCreated = true
-        clientWs.send(JSON.stringify({ event: 'session.started' }))
-        const frames = pendingClientFrames.splice(0)
-        for (const frame of frames) {
-          for (const translated of stepfunClientFrames(frame.data, frame.isBinary, stepfunSessionId))
-            upstreamWs.send(translated)
-        }
-        break
-      }
-      case 'tts.response.sentence.start':
-        forwardStepfunControl('sentence.start', event.data)
-        break
-      case 'tts.response.sentence.end':
-        forwardStepfunControl('sentence.end', event.data)
-        break
-      case 'tts.response.subtitle':
-        forwardStepfunControl('subtitle', event.data)
-        break
-      case 'tts.response.audio.delta': {
-        const audio = event.data?.audio
-        if (typeof audio !== 'string') {
-          closeWithError(1011, 'stepfun_invalid_audio_event')
-          return
-        }
-        clientWs.send(Buffer.from(audio, 'base64'))
-        break
-      }
-      case 'tts.response.audio.done':
-        clientWs.send(JSON.stringify({ event: 'session.finished' }))
-        settleStepfunSession('stepfun.audio.done')
-        break
-      case 'tts.response.error': {
-        const code = event.data?.code ?? 'stepfun_upstream_error'
-        const message = event.data?.message ?? code
-        span.setStatus({ code: SpanStatusCode.ERROR, message })
-        clientWs.send(JSON.stringify({ event: 'error', code, message }))
-        settleStepfunSession('stepfun.response.error')
-        break
-      }
-    }
-  }
-
-  function forwardStepfunControl(event: 'sentence.start' | 'sentence.end' | 'subtitle', payload: Record<string, unknown> | undefined) {
-    try {
-      clientWs?.send(JSON.stringify({ event, payload: payload ?? {} }))
-    }
-    catch (err) {
-      log.withError(err).warn('failed to forward StepFun control frame to client')
-    }
-  }
-
-  /**
-   * StepFun does not report character usage on terminal events. Once text has
-   * been handed to its session, bill the accepted text even when a client
-   * cancels or the provider errors before `tts.response.audio.done` arrives.
-   */
-  function settleStepfunSession(reason: string) {
-    if (provider?.kind === 'stepfun' && totalInputChars > 0) {
-      void billSession(totalInputChars, reason)
-      return
-    }
-    finalize()
-  }
-
-  function maybeAccountInputChars(rawText: string) {
-    try {
-      const parsed = JSON.parse(rawText) as { event?: string, text?: string }
-      if (parsed.event === 'text' && typeof parsed.text === 'string') {
-        totalInputChars += parsed.text.length
-      }
-      else if (parsed.event === 'start') {
-        // Capture model label for OTel attrs / request log.
-        const model = (parsed as Record<string, unknown>).model
-        if (typeof model === 'string' && model.length > 0)
-          modelLabel = model
-        const voice = (parsed as Record<string, unknown>).voice
-        if (typeof voice === 'string' && voice.length > 0)
-          voiceLabel = voice
-      }
-    }
-    catch {
-      // Non-JSON text frame from client — ignore for billing, will fail
-      // upstream-side anyway.
-    }
-  }
-
-  async function validateStartFrame(frame: StreamingTtsStartFrame): Promise<StreamingProvider | null> {
-    let stepfun: StepfunStreamingTtsUpstream | null
-    let unspeech: UnspeechUpstream | null
-    try {
-      const [loadedStepfun, loadedUnspeech] = await Promise.all([
-        opts.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM'),
-        opts.configKV.getOptional('UNSPEECH_UPSTREAM'),
-      ])
-      stepfun = (loadedStepfun as StepfunStreamingTtsUpstream | null | undefined) ?? null
-      unspeech = (loadedUnspeech as UnspeechUpstream | null | undefined) ?? null
-    }
-    catch (err) {
-      log.withError(err).error('streaming tts configuration read failed before start')
-      closeWithError(1011, 'config_unavailable')
-      return null
-    }
-
-    if (stepfun?.enabled) {
-      if (!stepfun.models.some(model => model.id === frame.model)) {
-        closeWithError(1008, 'streaming_tts_model_not_enabled')
-        return null
-      }
-      if (!stepfun.voices.some(voice => voice.id === frame.voice)) {
-        closeWithError(1008, 'streaming_tts_voice_not_enabled')
-        return null
-      }
-      return {
-        kind: 'stepfun',
-        baseURL: stepfunURL(stepfun.baseURL, frame.model),
-        keys: stepfun.keys,
-        aadModelName: STEPFUN_STREAMING_TTS_AAD_MODEL_NAME,
-        instruction: stepfun.instruction,
-      }
-    }
-
-    const upstreamConfig = unspeech?.streaming
-    if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || upstreamConfig.keys.length === 0) {
-      closeWithError(1008, 'streaming_tts_not_configured')
-      return null
-    }
-
-    const configuredModels = upstreamConfig.models ?? []
-    if (!configuredModels.some((model: { id: string }) => model.id === frame.model)) {
-      closeWithError(1008, 'streaming_tts_model_not_enabled')
-      return null
-    }
-
-    const resourceId = streamingModelResourceId(frame.model)
-    const voicesURL = streamingVoicesURL(unspeech.restBaseURL, resourceId)
-    if (!voicesURL) {
-      closeWithError(1011, 'streaming_tts_voice_catalog_unavailable')
-      return null
-    }
-
-    let data: { voices?: unknown[] }
-    try {
-      data = await ofetch(voicesURL, { timeout: 5000 }) as { voices?: unknown[] }
-    }
-    catch (err) {
-      log.withError(err).withFields({ voicesURL }).warn('streaming tts voice catalog fetch failed')
-      closeWithError(1011, 'streaming_tts_voice_catalog_unavailable')
-      return null
-    }
-
-    const voices = Array.isArray(data.voices) ? data.voices : []
-    if (!voices.some(voice => streamingVoiceId(voice) === frame.voice)) {
-      closeWithError(1008, 'streaming_tts_voice_not_enabled')
-      return null
-    }
-
-    return {
-      kind: 'unspeech',
-      baseURL: upstreamConfig.baseURL,
-      keys: upstreamConfig.keys,
-      aadModelName: STREAM_MODEL_LABEL_FALLBACK,
-    }
-  }
-
-  async function billSession(units: number, reason: string) {
-    if (billed)
-      return
-    billed = true
+    providerLabel = resolved.kind
+    span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL, resolved.upstreamURL)
+    span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, key.id)
     span.setAttribute(GEN_AI_ATTR_REQUEST_MODEL, modelLabel)
 
-    let flux: Awaited<ReturnType<FluxService['getFlux']>>
+    const transportOptions = {
+      start,
+      upstreamURL: resolved.upstreamURL,
+      keyEntryId: key.id,
+      keyPlaintext,
+      onEvent: handleProviderEvent,
+      timeouts: opts.streamingTtsTimeouts,
+    }
     try {
-      flux = await opts.fluxService.getFlux(userId)
+      transport = resolved.kind === 'stepfun'
+        ? createStepfunTransport({ ...transportOptions, instruction: resolved.instruction })
+        : createUnspeechTransport(transportOptions)
     }
-    catch (err) {
-      log.withError(err).withFields({ userId }).warn('flux read failed at session end')
-      finalize()
-      return
+    catch (error) {
+      keyPlaintext.fill(0)
+      failSession('upstream_connect_failed', errorMessageFrom(error) ?? 'Streaming TTS upstream connection failed')
     }
+  }
 
-    let fluxConsumed = 0
+  async function ensureAffordable(nextChars: number) {
+    if (nextChars <= affordabilityCheckedChars)
+      return
+    if (preflightFluxBalance === undefined)
+      throw new Error('Streaming TTS affordability state is unavailable')
+
+    const nextCheck = Math.ceil(nextChars / STREAMING_PREFLIGHT_CHARS_ESTIMATE) * STREAMING_PREFLIGHT_CHARS_ESTIMATE
     try {
-      const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
-        opts.ttsMeter.accumulate({
-          userId,
-          units,
-          currentBalance: flux.flux,
-          requestId,
-          metadata: { model: modelLabel },
-        }))
-      fluxConsumed = result.fluxDebited
-      span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
+      await opts.ttsMeter.assertCanAfford(userId, nextCheck, preflightFluxBalance)
+      affordabilityCheckedChars = nextCheck
     }
-    catch (err) {
-      // Billing failure is surfaced but does not retroactively reject the
-      // already-delivered audio — the user got the audio, the meter retains
-      // the debt for the next request to settle (per FluxMeter rollback path).
-      log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
-      span.recordException(err as Error)
-      span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
+    catch (error) {
+      if (isPaymentRequiredError(error)) {
+        blockForInsufficientBalance(nextCheck)
+        return
+      }
+      throw error
+    }
+  }
+
+  function handleProviderEvent(event: StreamingTtsProviderEvent) {
+    if (phase === 'settling' || phase === 'closed')
+      return
+
+    switch (event.type) {
+      case 'started':
+        if (phase === 'connecting')
+          phase = 'streaming'
+        sendClient({ event: 'session.started' })
+        return
+      case 'input-accepted':
+        acceptedInputChars += event.chars
+        return
+      case 'audio':
+        if (!sendClient(event.data))
+          settleSession({ kind: 'cancelled', status: 499, reason: 'client_unavailable' })
+        return
+      case 'control':
+        if (!sendClient({ event: event.event, payload: event.payload }))
+          settleSession({ kind: 'cancelled', status: 499, reason: 'client_unavailable' })
+        return
+      case 'completed':
+        sendClient({ event: 'session.finished' })
+        settleSession(
+          { kind: 'completed', status: 200, reason: 'session_finished' },
+          Math.max(event.usageChars ?? 0, acceptedInputChars),
+        )
+        return
+      case 'failed':
+        sendClient({ event: 'error', code: event.code, message: event.message })
+        settleSession({ kind: 'failed', status: 502, reason: event.code })
+        return
+      case 'closed':
+        settleSession({ kind: 'failed', status: 502, reason: event.reason || `upstream_closed_${event.code}` })
+    }
+  }
+
+  function failSession(code: string, message: string, closeCode = 1011) {
+    if (phase === 'settling' || phase === 'closed')
+      return
+    span.setStatus({ code: SpanStatusCode.ERROR, message: code })
+    sendClient({ event: 'error', code, message })
+    settleSession(
+      { kind: 'failed', status: closeCode === 1008 || closeCode === 1009 ? 400 : 500, reason: code },
+      acceptedInputChars,
+      { code: closeCode, reason: code },
+    )
+  }
+
+  function settleSession(
+    outcome: SessionOutcome,
+    units = acceptedInputChars,
+    clientClose?: { code: number, reason: string },
+  ) {
+    if (phase === 'settling' || phase === 'closed')
+      return
+    phase = 'settling'
+
+    // Closing transport and client is synchronous with the terminal decision.
+    // Billing and logging must never keep provider generation alive.
+    transport?.abort()
+    closeClient(clientClose?.code, clientClose?.reason)
+
+    if (outcome.kind !== 'completed')
+      span.setStatus({ code: SpanStatusCode.ERROR, message: outcome.reason })
+
+    void persistOutcome(outcome, units).finally(() => {
+      if (phase === 'closed')
+        return
+      phase = 'closed'
+      span.end()
+    })
+  }
+
+  async function persistOutcome(outcome: SessionOutcome, units: number) {
+    let fluxConsumed = 0
+    if (units > 0) {
+      try {
+        const flux = await opts.fluxService.getFlux(userId)
+        const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
+          opts.ttsMeter.accumulate({
+            userId,
+            units,
+            currentBalance: flux.flux,
+            requestId,
+            metadata: { model: modelLabel },
+          }))
+        fluxConsumed = result.fluxDebited
+        span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
+      }
+      catch (error) {
+        log.withError(error).withFields({ userId, units, reason: outcome.reason }).error('billing accumulate failed for streaming tts')
+        span.recordException(error as Error)
+        span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
+      }
     }
 
     const durationMs = Date.now() - startedAt
@@ -656,22 +403,21 @@ export function createSessionState(
       await opts.requestLogService.logRequest({
         userId,
         model: modelLabel,
-        status: 200,
+        status: outcome.status,
         durationMs,
         fluxConsumed,
       })
     }
-    catch (err) {
-      log.withError(err).warn('failed to write request log for streaming tts')
+    catch (error) {
+      log.withError(error).warn('failed to write request log for streaming tts')
     }
 
-    void opts.productEventService.track({
+    const common = {
       userId,
-      feature: 'tts',
-      action: 'speech_succeeded',
-      status: 'succeeded',
+      feature: 'tts' as const,
       source: analytics.source,
       model: modelLabel,
+      provider: providerLabel,
       metadata: {
         input_chars: units,
         duration_ms: durationMs,
@@ -679,113 +425,134 @@ export function createSessionState(
         trigger: analytics.trigger,
         ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
       },
-    })
-
-    finalize()
+    }
+    if (outcome.kind === 'completed') {
+      void opts.productEventService.track({
+        ...common,
+        action: 'speech_succeeded',
+        status: 'succeeded',
+      })
+    }
+    else if (outcome.kind === 'blocked') {
+      void opts.productEventService.track({
+        ...common,
+        action: 'speech_blocked',
+        status: 'blocked',
+        reason: 'insufficient_balance',
+        metadata: {
+          ...common.metadata,
+          block_reason: 'insufficient_balance',
+          balance_state: 'insufficient',
+          flux_balance_bucket: fluxBalanceBucket(preflightFluxBalance),
+        },
+      })
+    }
+    else if (outcome.kind === 'cancelled') {
+      void opts.productEventService.track({
+        ...common,
+        action: 'speech_cancelled',
+        status: 'cancelled',
+        reason: outcome.reason,
+      })
+    }
+    else {
+      void opts.productEventService.track({
+        ...common,
+        action: 'speech_failed',
+        status: 'failed',
+        reason: outcome.reason,
+      })
+    }
   }
 
-  function finalize() {
-    if (closed)
+  function blockForInsufficientBalance(requiredUnits = STREAMING_PREFLIGHT_CHARS_ESTIMATE) {
+    if (isTerminalPhase())
       return
-    closed = true
+    sendClient({ event: 'error', code: 'insufficient_flux', message: 'insufficient_flux' })
+    settleSession(
+      { kind: 'blocked', status: 402, reason: 'insufficient_balance' },
+      acceptedInputChars,
+      { code: 1008, reason: 'insufficient_flux' },
+    )
+    span.setAttribute('airi.billing.required_units', requiredUnits)
+  }
+
+  function sendClient(value: Record<string, unknown> | ArrayBuffer): boolean {
+    if (!clientWs)
+      return false
     try {
-      upstreamWs?.close()
+      clientWs.send(value instanceof ArrayBuffer ? value : JSON.stringify(value))
+      return true
+    }
+    catch (error) {
+      log.withError(error).warn('failed to send streaming tts frame to client')
+      return false
+    }
+  }
+
+  function closeClient(code?: number, reason?: string) {
+    try {
+      clientWs?.close(code, reason)
     }
     catch {}
-    try {
-      clientWs?.close()
-    }
-    catch {}
-    span.end()
   }
 
-  function closeWithError(code: number, reason: string) {
-    if (closed)
-      return
-    span.setStatus({ code: SpanStatusCode.ERROR, message: reason })
-    void opts.productEventService.track({
-      userId,
-      feature: 'tts',
-      action: 'speech_failed',
-      status: 'failed',
-      source: analytics.source,
-      model: modelLabel,
-      reason,
-      metadata: {
-        close_code: code,
-        duration_ms: Date.now() - startedAt,
-        trigger: analytics.trigger,
-        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
-      },
-    })
-    if (clientWs) {
-      try {
-        clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
-      }
-      catch {}
-      try {
-        clientWs.close(code, reason)
-      }
-      catch {}
-    }
-    closed = true
-    span.end()
+  function isTerminalPhase() {
+    return phase === 'settling' || phase === 'closed'
   }
 
-  function closeWithBlockedPreflight(code: number, reason: string) {
-    if (closed)
-      return
-    void opts.productEventService.track({
-      userId,
-      feature: 'tts',
-      action: 'speech_blocked',
-      status: 'blocked',
-      source: analytics.source,
-      model: modelLabel,
-      reason: 'insufficient_balance',
-      metadata: {
-        block_reason: 'insufficient_balance',
-        balance_state: 'insufficient',
-        flux_balance_bucket: fluxBalanceBucket(preflightFluxBalance),
-        billing_units: STREAMING_PREFLIGHT_CHARS_ESTIMATE,
-        close_code: code,
-        duration_ms: Date.now() - startedAt,
-        trigger: analytics.trigger,
-        ...streamingVoiceMetadata(voiceLabel, analytics.voiceType),
-      },
-    })
-    if (clientWs) {
-      try {
-        clientWs.send(JSON.stringify({ event: 'error', code: reason, message: reason }))
-      }
-      catch {}
-      try {
-        clientWs.close(code, reason)
-      }
-      catch {}
-    }
-    closed = true
-    span.end()
+  return { attachClient, handleClientMessage, handleClientClose }
+}
+
+function parseClientCommand(data: unknown): ClientCommand | null {
+  if (typeof data !== 'string')
+    return null
+
+  let parsed: Record<string, unknown>
+  try {
+    const value = JSON.parse(data) as unknown
+    if (!isRecord(value))
+      return null
+    parsed = value
+  }
+  catch {
+    return null
   }
 
-  return {
-    attachClient,
-    dialUpstream,
-    handleClientMessage,
-    handleClientClose,
+  switch (parsed.event) {
+    case 'start':
+      if (typeof parsed.model !== 'string' || parsed.model.length === 0)
+        return null
+      if (typeof parsed.voice !== 'string' || parsed.voice.length === 0)
+        return null
+      return {
+        type: 'start',
+        value: {
+          model: parsed.model,
+          voice: parsed.voice,
+          responseFormat: typeof parsed.response_format === 'string' ? parsed.response_format : undefined,
+          extraBody: isRecord(parsed.extra_body) ? parsed.extra_body : undefined,
+        },
+      }
+    case 'text':
+      return typeof parsed.text === 'string' && parsed.text.length > 0
+        ? { type: 'text', text: parsed.text }
+        : null
+    case 'finish':
+      return { type: 'finish' }
+    case 'cancel':
+      return { type: 'cancel' }
+    default:
+      return null
   }
 }
 
 function normalizeAnalytics(input: AudioSpeechSessionAnalytics): Required<AudioSpeechSessionAnalytics> {
   return {
-    trigger: normalizeTrigger(input.trigger),
+    trigger: input.trigger === 'auto' ? 'auto' : 'manual',
     source: normalizeSource(input.source),
     voiceType: normalizeVoiceType(input.voiceType),
   }
-}
-
-function normalizeTrigger(trigger: AudioSpeechSessionAnalytics['trigger']): StreamingTtsTrigger {
-  return trigger === 'auto' ? 'auto' : 'manual'
 }
 
 function normalizeSource(source: AudioSpeechSessionAnalytics['source']): StreamingTtsSource {
@@ -800,9 +567,6 @@ function normalizeSource(source: AudioSpeechSessionAnalytics['source']): Streami
   }
 }
 
-/**
- * Normalizes streaming TTS voice type into bounded analytics values.
- */
 function normalizeVoiceType(voiceType: AudioSpeechSessionAnalytics['voiceType']): StreamingTtsVoiceType {
   switch (voiceType) {
     case 'official_default':
@@ -815,9 +579,6 @@ function normalizeVoiceType(voiceType: AudioSpeechSessionAnalytics['voiceType'])
   }
 }
 
-/**
- * Builds reusable streaming TTS voice metadata after the start frame is known.
- */
 function streamingVoiceMetadata(voiceId: string | undefined, voiceType: StreamingTtsVoiceType): Record<string, unknown> {
   return {
     ...(voiceId ? { voice_id: voiceId } : {}),
@@ -825,189 +586,16 @@ function streamingVoiceMetadata(voiceId: string | undefined, voiceType: Streamin
   }
 }
 
-function isPaymentRequiredError(err: unknown): boolean {
-  if (err instanceof ApiError)
-    return err.statusCode === 402
-  return typeof err === 'object'
-    && err != null
-    && 'statusCode' in err
-    && (err as { statusCode?: unknown }).statusCode === 402
+function isPaymentRequiredError(error: unknown): boolean {
+  if (error instanceof ApiError)
+    return error.statusCode === 402
+  return isRecord(error) && error.statusCode === 402
 }
 
-interface StreamingProvider {
-  kind: 'unspeech' | 'stepfun'
-  baseURL: string
-  keys: Array<{ id: string, ciphertext: string }>
-  aadModelName: string
-  instruction?: string
-}
-
-interface StepfunServerEvent {
-  type?: string
-  data?: {
-    session_id?: string
-    text?: string
-    audio?: string
-    code?: string
-    message?: string
-    [key: string]: unknown
-  }
-}
-
-interface StreamingTtsStartFrame {
-  event: 'start'
-  model: string
-  voice: string
-  responseFormat?: string
-  extraBody?: Record<string, unknown>
-}
-
-function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {
-  try {
-    const parsed = JSON.parse(rawText) as Record<string, unknown>
-    if (parsed.event !== 'start')
-      return null
-    if (typeof parsed.model !== 'string' || parsed.model.length === 0)
-      return null
-    if (typeof parsed.voice !== 'string' || parsed.voice.length === 0)
-      return null
-    return {
-      event: 'start',
-      model: parsed.model,
-      voice: parsed.voice,
-      responseFormat: typeof parsed.response_format === 'string' ? parsed.response_format : undefined,
-      extraBody: isRecord(parsed.extra_body) ? parsed.extra_body : undefined,
-    }
-  }
-  catch {
-    return null
-  }
-}
-
-/**
- * Builds the provider websocket URL while treating the operator's configured
- * base path as authoritative: direct API and Step Plan differ only by path.
- */
-function stepfunURL(baseURL: string, model: string): string {
-  const url = new URL(baseURL)
-  url.searchParams.set('model', streamingModelResourceId(model))
-  return url.toString()
-}
-
-function stepfunCreateFrame(sessionId: string, start: StreamingTtsStartFrame, instruction: string | undefined): Record<string, unknown> {
-  const extraBody = start.extraBody ?? {}
-  const responseFormat = stepfunStreamingFormat(start.responseFormat)
-  const sampleRate = numberFromRecord(extraBody, 'sample_rate')
-    ?? numberFromRecord(isRecord(extraBody.audio) ? extraBody.audio : undefined, 'sample_rate')
-  const speedRatio = numberFromRecord(extraBody, 'speed_ratio')
-  const volumeRatio = numberFromRecord(extraBody, 'volume_ratio')
-  const requestInstruction = stringFromRecord(extraBody, 'instruction')
-
-  return {
-    type: 'tts.create',
-    data: {
-      session_id: sessionId,
-      voice_id: start.voice,
-      response_format: responseFormat,
-      text_normalization: 'standard',
-      mode: 'default',
-      ...(sampleRate ? { sample_rate: sampleRate } : {}),
-      ...(speedRatio ? { speed_ratio: speedRatio } : {}),
-      ...(volumeRatio ? { volume_ratio: volumeRatio } : {}),
-      ...(requestInstruction ?? instruction ? { instruction: requestInstruction ?? instruction } : {}),
-    },
-  }
-}
-
-/**
- * Converts AIRI's provider-neutral client frames into StepFun commands.
- * The `start` frame is intentionally consumed by {@link stepfunCreateFrame}.
- */
-function stepfunClientFrames(payload: Buffer | string, isBinary: boolean, sessionId: string | null): string[] {
-  if (isBinary || !sessionId || typeof payload !== 'string')
-    return []
-
-  let frame: { event?: unknown, text?: unknown }
-  try {
-    frame = JSON.parse(payload) as { event?: unknown, text?: unknown }
-  }
-  catch {
-    return []
-  }
-
-  if (frame.event === 'text' && typeof frame.text === 'string') {
-    return splitStepfunText(frame.text).map(text => JSON.stringify({
-      type: 'tts.text.delta',
-      data: { session_id: sessionId, text },
-    }))
-  }
-  if (frame.event === 'finish')
-    return [JSON.stringify({ type: 'tts.text.done', data: { session_id: sessionId } })]
-  return []
-}
-
-/**
- * AIRI concatenates audio deltas until a sentence boundary before decoding.
- * StepFun's non-streaming delta formats are independent files, so request a
- * stream variant whenever the provider offers one.
- */
-function stepfunStreamingFormat(value: string | undefined): 'mp3_stream' | 'opus_stream' | 'flac_stream' {
-  switch (value) {
-    case 'opus':
-      return 'opus_stream'
-    case 'flac':
-      return 'flac_stream'
-    default:
-      return 'mp3_stream'
-  }
-}
-
-/** Splits only at Unicode code-point boundaries, as StepFun caps one delta at 1000 characters. */
-function splitStepfunText(text: string): string[] {
-  const characters = Array.from(text)
-  const chunks: string[] = []
-  for (let start = 0; start < characters.length; start += 1000)
-    chunks.push(characters.slice(start, start + 1000).join(''))
-  return chunks
+function errorCode(error: unknown): string {
+  return error instanceof StreamingTtsResolutionError ? error.code : 'streaming_tts_internal_error'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value != null && !Array.isArray(value)
-}
-
-function numberFromRecord(record: Record<string, unknown> | undefined, key: string): number | undefined {
-  const value = record?.[key]
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-function stringFromRecord(record: Record<string, unknown> | undefined, key: string): string | undefined {
-  const value = record?.[key]
-  return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-function streamingModelResourceId(model: string): string {
-  return model.includes('/') ? model.split('/', 2)[1] : model
-}
-
-function streamingVoicesURL(restBaseURL: string, resourceId: string): string | null {
-  try {
-    const url = new URL(restBaseURL)
-    url.pathname = '/api/voices'
-    // NOTICE: The streaming websocket path is currently backed only by the
-    // Volcengine Unspeech adapter. If another streaming provider is added,
-    // thread provider identity through the start-frame validation path instead
-    // of deriving it from the model id here.
-    url.search = new URLSearchParams({ provider: 'volcengine', model: resourceId }).toString()
-    return url.toString()
-  }
-  catch {
-    return null
-  }
-}
-
-function streamingVoiceId(voice: unknown): string | null {
-  if (typeof voice !== 'object' || voice == null)
-    return null
-  const id = (voice as { id?: unknown }).id
-  return typeof id === 'string' && id.length > 0 ? id : null
 }

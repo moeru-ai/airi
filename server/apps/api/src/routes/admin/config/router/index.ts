@@ -24,6 +24,7 @@ import {
 
 import { adminGuard } from '../../../../middlewares/admin-guard'
 import { authGuard } from '../../../../middlewares/auth'
+import { STEPFUN_STREAMING_TTS_MODEL_IDS } from '../../../../services/adapters/config-kv'
 import { createBadRequestError } from '../../../../utils/error'
 
 /**
@@ -106,18 +107,16 @@ const StepfunSliceSchema = object({
   existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
-const STEPFUN_STREAMING_MODEL_ID = /^stepfun\/(?:stepaudio-2\.5-tts|step-tts-2|step-tts-mini)$/
-
 const StepfunStreamingSliceSchema = pipe(object({
   kind: literal('stepfun-streaming'),
-  enabled: boolean(),
+  rollout: picklist(['disabled', 'available', 'default']),
   upstreamURL: pipe(string(), regex(/^wss?:\/\/\S+$/, 'upstreamURL must start with ws:// or wss://'), maxLength(500)),
   models: pipe(array(object({
-    id: pipe(string(), regex(STEPFUN_STREAMING_MODEL_ID, 'models[].id must be a supported StepFun streaming model'), maxLength(200)),
+    id: picklist(STEPFUN_STREAMING_TTS_MODEL_IDS, 'models[].id must be a supported StepFun streaming model'),
     name: optional(pipe(string(), nonEmpty(), maxLength(200))),
     description: optional(pipe(string(), nonEmpty(), maxLength(500))),
   })), minLength(1, 'models must not be empty')),
-  defaultModel: pipe(string(), regex(STEPFUN_STREAMING_MODEL_ID, 'defaultModel must be a supported StepFun streaming model'), maxLength(200)),
+  defaultModel: picklist(STEPFUN_STREAMING_TTS_MODEL_IDS, 'defaultModel must be a supported StepFun streaming model'),
   voices: pipe(array(object({
     id: pipe(string(), nonEmpty('voices[].id is required'), maxLength(200)),
     name: optional(pipe(string(), nonEmpty(), maxLength(200))),
@@ -129,7 +128,7 @@ const StepfunStreamingSliceSchema = pipe(object({
   plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
   keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
   existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
-}), check(config => new Set(config.models.map(model => model.id)).size === config.models.length, 'models[].id must be unique'), check(config => config.models.some(model => model.id === config.defaultModel), 'defaultModel must be present in models'))
+}), check(config => new Set(config.models.map(model => model.id)).size === config.models.length, 'models[].id must be unique'), check(config => config.models.some(model => model.id === config.defaultModel), 'defaultModel must be present in models'), check(config => new Set(config.voices.map(voice => voice.id)).size === config.voices.length, 'voices[].id must be unique'))
 
 const AliyunNlsAsrSliceSchema = object({
   kind: literal('aliyun-nls-asr'),
@@ -220,7 +219,8 @@ const BodySchema = object({
 /**
  * Admin route for seeding / patching the LLM router config tree. Mounted
  * at `POST /api/admin/config/router`; the only supported way to write
- * `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
+ * `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`,
+ * `STEPFUN_STREAMING_TTS_UPSTREAM`, and the
  * `DEFAULT_{CHAT,TTS}_MODEL` aliases.
  *
  * Body shape (discriminated on `slices[].kind`):
@@ -246,6 +246,11 @@ const BodySchema = object({
  *       { "kind": "stepfun", "modelName": "stepfun/stepaudio-2.5-tts",
  *         "upstreamModel": "stepaudio-2.5-tts",
  *         "defaultVoice": "cixingnansheng", "plaintextKey": "..." },
+ *       { "kind": "stepfun-streaming", "rollout": "available",
+ *         "upstreamURL": "wss://api.stepfun.com/v1/realtime/audio",
+ *         "models": [{ "id": "stepfun/step-tts-2" }],
+ *         "defaultModel": "stepfun/step-tts-2",
+ *         "voices": [{ "id": "lively-girl" }], "plaintextKey": "..." },
  *       { "kind": "aliyun-nls-asr", "modelName": "auto",
  *         "accessKeyId": "...", "appKey": "...", "plaintextKey": "..." },
  *       { "kind": "unspeech",

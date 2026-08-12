@@ -292,7 +292,7 @@ describe('buildStepfunStreamingSlice', () => {
   it('encrypts the native websocket credential under its dedicated AAD label', () => {
     const built = buildStepfunStreamingSlice({
       kind: 'stepfun-streaming',
-      enabled: false,
+      rollout: 'disabled' as const,
       upstreamURL: 'wss://api.stepfun.com/v1/realtime/audio',
       models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
       defaultModel: 'stepfun/step-tts-2',
@@ -302,7 +302,7 @@ describe('buildStepfunStreamingSlice', () => {
 
     expect(built.target).toBe('stepfun-streaming')
     expect(built.value).toMatchObject({
-      enabled: false,
+      rollout: 'disabled' as const,
       baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
       defaultModel: 'stepfun/step-tts-2',
       voices: [{ id: 'lively-girl', labels: {}, languages: [] }],
@@ -584,10 +584,10 @@ describe('createAdminRouterConfigService', () => {
     const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
     const stepfunSlice = {
       kind: 'stepfun-streaming' as const,
-      enabled: false,
+      rollout: 'disabled' as const,
       upstreamURL: 'wss://api.stepfun.com/v1/realtime/audio',
-      models: [{ id: 'stepfun/step-tts-2' }],
-      defaultModel: 'stepfun/step-tts-2',
+      models: [{ id: 'stepfun/step-tts-2' as const }],
+      defaultModel: 'stepfun/step-tts-2' as const,
       voices: [{ id: 'lively-girl' }],
       plaintextKey: 'stepfun-secret',
     }
@@ -724,6 +724,7 @@ describe('createAdminRouterConfigService', () => {
     expect(current.request.defaults.chatModel).toBe('chat-live')
     expect(JSON.stringify(current.preview)).toContain('<ciphertext: 17 chars>')
     expect(JSON.stringify(current.preview)).not.toContain('secret-ciphertext')
+    expect(current.missingKeys).not.toContain('STEPFUN_STREAMING_TTS_UPSTREAM')
   })
 
   it('current classifies Bedrock and generic OpenAI-compatible LLM upstreams by baseURL', async () => {
