@@ -1,6 +1,6 @@
 import type { ChatStreamEvent, ContextMessage } from '../../../types/chat'
 
-import { createContext, defineEventa, linkChannel } from '@moeru/eventa'
+import { defineEventa } from '@moeru/eventa'
 import { createContext as createBroadcastChannelContext } from '@moeru/eventa/adapters/broadcast-channel'
 
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
@@ -9,18 +9,13 @@ export const contextUpdateEvent = defineEventa<ContextMessage>('stage:context:up
 export const chatStreamEvent = defineEventa<ChatStreamEvent>('stage:chat:stream')
 
 function createBroadcastLink(name: string) {
-  const localContext = createContext()
   const broadcastChannel = new BroadcastChannel(name)
   const broadcast = createBroadcastChannelContext(broadcastChannel, { closeOnDispose: true })
-  const link = linkChannel(localContext, broadcast.context)
 
   return {
     broadcastContext: broadcast.context,
-    localContext,
     dispose(reason?: unknown) {
-      link.dispose()
       broadcast.dispose(reason)
-      localContext.abort(reason)
     },
   }
 }
@@ -37,10 +32,10 @@ export function createContextChannel() {
 
   return {
     emitContext(message: ContextMessage) {
-      return contexts.localContext.emit(contextUpdateEvent, message)
+      return contexts.broadcastContext.emit(contextUpdateEvent, message)
     },
     emitStream(event: ChatStreamEvent) {
-      return stream.localContext.emit(chatStreamEvent, event)
+      return stream.broadcastContext.emit(chatStreamEvent, event)
     },
     onContext(listener: (message: ContextMessage) => void | Promise<void>) {
       return contexts.broadcastContext.on(contextUpdateEvent, (event, options) => {
