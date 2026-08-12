@@ -14,6 +14,7 @@ import {
   buildNextRouterConfig,
   buildOpenRouterSlice,
   buildStepfunSlice,
+  buildStepfunStreamingSlice,
   buildUnspeechSlice,
   createAdminRouterConfigService,
   redactCiphertext,
@@ -287,6 +288,29 @@ describe('buildStepfunSlice', () => {
   })
 })
 
+describe('buildStepfunStreamingSlice', () => {
+  it('encrypts the native websocket credential under its dedicated AAD label', () => {
+    const built = buildStepfunStreamingSlice({
+      kind: 'stepfun-streaming',
+      enabled: false,
+      upstreamURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
+      defaultModel: 'stepfun/step-tts-2',
+      voices: [{ id: 'lively-girl', name: 'Lively Girl' }],
+      plaintextKey: 'stepfun-secret',
+    }, freshEnvelope())
+
+    expect(built.target).toBe('stepfun-streaming')
+    expect(built.value).toMatchObject({
+      enabled: false,
+      baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      defaultModel: 'stepfun/step-tts-2',
+      voices: [{ id: 'lively-girl', labels: {}, languages: [] }],
+    })
+    expect(built.value.keys[0]?.id).toBe('stepfun-streaming-prod-1')
+  })
+})
+
 describe('buildUnspeechSlice', () => {
   it('writes restBaseURL with no streaming subtree when the slice omits streaming', () => {
     const envelope = freshEnvelope()
@@ -554,6 +578,25 @@ describe('createAdminRouterConfigService', () => {
         { kind: 'unspeech', restBaseURL: 'http://b' },
       ],
     })).rejects.toThrow(/At most one unspeech/i)
+  })
+
+  it('rejects multiple native StepFun streaming slices', async () => {
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const stepfunSlice = {
+      kind: 'stepfun-streaming' as const,
+      enabled: false,
+      upstreamURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      models: [{ id: 'stepfun/step-tts-2' }],
+      defaultModel: 'stepfun/step-tts-2',
+      voices: [{ id: 'lively-girl' }],
+      plaintextKey: 'stepfun-secret',
+    }
+
+    await expect(service.apply({
+      mode: 'merge',
+      dryRun: true,
+      slices: [stepfunSlice, stepfunSlice],
+    })).rejects.toThrow(/At most one stepfun-streaming/i)
   })
 
   it('merge mode reads existing LLM_ROUTER_CONFIG and preserves untouched models', async () => {

@@ -5,8 +5,10 @@ import { Hono } from 'hono'
 import {
   array,
   boolean,
+  check,
   literal,
   maxLength,
+  minLength,
   nonEmpty,
   object,
   optional,
@@ -104,6 +106,31 @@ const StepfunSliceSchema = object({
   existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
 })
 
+const STEPFUN_STREAMING_MODEL_ID = /^stepfun\/(?:stepaudio-2\.5-tts|step-tts-2|step-tts-mini)$/
+
+const StepfunStreamingSliceSchema = pipe(object({
+  kind: literal('stepfun-streaming'),
+  enabled: boolean(),
+  upstreamURL: pipe(string(), regex(/^wss?:\/\/\S+$/, 'upstreamURL must start with ws:// or wss://'), maxLength(500)),
+  models: pipe(array(object({
+    id: pipe(string(), regex(STEPFUN_STREAMING_MODEL_ID, 'models[].id must be a supported StepFun streaming model'), maxLength(200)),
+    name: optional(pipe(string(), nonEmpty(), maxLength(200))),
+    description: optional(pipe(string(), nonEmpty(), maxLength(500))),
+  })), minLength(1, 'models must not be empty')),
+  defaultModel: pipe(string(), regex(STEPFUN_STREAMING_MODEL_ID, 'defaultModel must be a supported StepFun streaming model'), maxLength(200)),
+  voices: pipe(array(object({
+    id: pipe(string(), nonEmpty('voices[].id is required'), maxLength(200)),
+    name: optional(pipe(string(), nonEmpty(), maxLength(200))),
+    description: optional(pipe(string(), nonEmpty(), maxLength(500))),
+    labels: optional(record(string(), string())),
+    languages: optional(array(object({ code: pipe(string(), nonEmpty()), title: pipe(string(), nonEmpty()) }))),
+  })), minLength(1, 'voices must not be empty')),
+  instruction: optional(pipe(string(), nonEmpty(), maxLength(200))),
+  plaintextKey: optional(pipe(string(), nonEmpty('plaintextKey must not be empty when provided'), maxLength(MAX_KEY_LENGTH))),
+  keyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+  existingKeyEntryId: optional(pipe(string(), nonEmpty(), maxLength(200), NO_PIPE)),
+}), check(config => new Set(config.models.map(model => model.id)).size === config.models.length, 'models[].id must be unique'), check(config => config.models.some(model => model.id === config.defaultModel), 'defaultModel must be present in models'))
+
 const AliyunNlsAsrSliceSchema = object({
   kind: literal('aliyun-nls-asr'),
   modelName: pipe(string(), nonEmpty('modelName is required'), maxLength(200), NO_PIPE),
@@ -162,6 +189,7 @@ const SliceSchema = variant('kind', [
   AzureSliceSchema,
   DashscopeSliceSchema,
   StepfunSliceSchema,
+  StepfunStreamingSliceSchema,
   AliyunNlsAsrSliceSchema,
   UnspeechSliceSchema,
 ])

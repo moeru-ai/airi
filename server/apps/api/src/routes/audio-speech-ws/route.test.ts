@@ -28,6 +28,7 @@ interface MockUpstream {
 async function startMockUpstream(
   scriptedResponses: MockUpstream['scriptedResponses'],
   voices: Array<{ id: string, name?: string }> = [{ id: 'mock', name: 'Mock Voice' }],
+  protocol: 'unspeech' | 'stepfun' = 'unspeech',
 ): Promise<MockUpstream> {
   const receivedFrames: MockUpstream['receivedFrames'] = []
   let observedAuth: string | undefined
@@ -45,6 +46,12 @@ async function startMockUpstream(
 
   wss.on('connection', (ws, req) => {
     observedAuth = req.headers.authorization
+    if (protocol === 'stepfun') {
+      ws.send(JSON.stringify({
+        type: 'tts.connection.done',
+        data: { session_id: 'stepfun-session' },
+      }))
+    }
     let replayed = false
     ws.on('message', async (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
@@ -63,11 +70,23 @@ async function startMockUpstream(
         return
 
       let triggerReplay = false
+      if (protocol === 'stepfun') {
+        if (!isBinary) {
+          const event = JSON.parse(decoded as string) as { type?: string }
+          if (event.type === 'tts.create') {
+            ws.send(JSON.stringify({ type: 'tts.response.created', data: { session_id: 'stepfun-session' } }))
+            return
+          }
+          if (event.type === 'tts.text.done')
+            triggerReplay = true
+        }
+      }
+
       if (isBinary) {
         // Streaming protocol's only legal client→server binary frames
         // would be raw audio (we never send any in tests).
       }
-      else {
+      else if (protocol === 'unspeech') {
         try {
           const ev = JSON.parse(decoded as string) as { event?: string }
           if (ev.event === 'finish' || ev.event === 'cancel')
@@ -165,6 +184,13 @@ function makeFakeDeps(overrides: {
   fluxBalance: number
   decryptedKey?: string
   streamingModels?: Array<{ id: string, name?: string, description?: string }>
+  stepfunStreaming?: {
+    enabled: boolean
+    baseURL: string
+    models: Array<{ id: string, name?: string, description?: string }>
+    defaultModel: string
+    voices: Array<{ id: string, name?: string }>
+  }
 }) {
   const ttsMeter = {
     assertCanAfford: vi.fn(async (_userId: string, _newUnits: number, currentBalance: number) => {
@@ -204,6 +230,16 @@ function makeFakeDeps(overrides: {
             ],
           },
         }
+      }
+      if (key === 'STEPFUN_STREAMING_TTS_UPSTREAM') {
+        const config = overrides.stepfunStreaming
+        return config
+          ? {
+              ...config,
+              keys: [{ id: 'test-key-1', ciphertext: 'ENCRYPTED_PLACEHOLDER' }],
+              voices: config.voices.map(voice => ({ ...voice, labels: {}, languages: [] })),
+            }
+          : null
       }
       return null
     }),
@@ -309,6 +345,85 @@ describe('audio-speech-ws route', () => {
         voice_id: 'mock',
         voice_type: 'official_selected',
       }),
+    }))
+  })
+
+  it('translates the AIRI stream protocol to native StepFun websocket events', async () => {
+    const audioPayload = Buffer.from('STEPFUN_AUDIO', 'utf8').toString('base64')
+    const text = 'x'.repeat(2001)
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { type: 'tts.response.sentence.start', data: { session_id: 'stepfun-session', text: 'hello' } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.delta', data: { session_id: 'stepfun-session', audio: audioPayload } } },
+      { kind: 'json', payload: { type: 'tts.response.sentence.end', data: { session_id: 'stepfun-session', text: 'hello' } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.done', data: { session_id: 'stepfun-session', audio: '' } } },
+    ], [{ id: 'lively-girl', name: 'Lively Girl' }], 'stepfun')
+
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        enabled: true,
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl', name: 'Lively Girl' }],
+      },
+    })
+    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const events = handlers('user-stepfun')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 200))
+
+    const upstreamFrames = upstream.receivedFrames.map(frame => JSON.parse(frame.data as string))
+    expect(upstreamFrames.map(frame => frame.type)).toEqual(['tts.create', 'tts.text.delta', 'tts.text.delta', 'tts.text.delta', 'tts.text.done'])
+    expect(upstreamFrames[0].data).toMatchObject({
+      session_id: 'stepfun-session',
+      voice_id: 'lively-girl',
+      mode: 'default',
+      response_format: 'mp3_stream',
+    })
+    expect(upstreamFrames.slice(1, 4).map(frame => frame.data.text.length)).toEqual([1000, 1000, 1])
+
+    const clientTextFrames = client.sent.filter(s => s.kind === 'text').map(s => JSON.parse(s.data as string))
+    expect(clientTextFrames.map(frame => frame.event)).toEqual(['session.started', 'sentence.start', 'sentence.end', 'session.finished'])
+    expect(client.sent.filter(s => s.kind === 'binary')).toHaveLength(1)
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-stepfun', units: 2001 }))
+  })
+
+  it('settles StepFun text usage when the client cancels before audio completion', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl', name: 'Lively Girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        enabled: true,
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl', name: 'Lively Girl' }],
+      },
+    })
+    const events = createAudioSpeechWsHandlers(deps as any)('user-stepfun-cancel')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'paid text' }),
+    ])
+    events.onClose?.(new Event('close') as any, client.ctx)
+    await new Promise(r => setTimeout(r, 100))
+
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-stepfun-cancel',
+      units: 9,
     }))
   })
 

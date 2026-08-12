@@ -2,7 +2,7 @@ import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
 import type { EnvelopeCrypto } from '../../../../utils/envelope-crypto'
-import type { asrModelSchema, ConfigKVService, llmModelSchema, llmRouterConfigSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
+import type { asrModelSchema, ConfigKVService, llmModelSchema, llmRouterConfigSchema, stepfunStreamingTtsUpstreamSchema, ttsModelSchema, unspeechUpstreamSchema } from '../../../adapters/config-kv'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -16,6 +16,7 @@ import { createBadRequestError } from '../../../../utils/error'
  * `DECRYPT_FAILED` at session start.
  */
 const STREAMING_TTS_AAD_MODEL_NAME = 'streaming-tts'
+const STEPFUN_STREAMING_TTS_AAD_MODEL_NAME = 'stepfun-streaming-tts'
 
 /** Default key entry id per provider. Operator can override per request. */
 const DEFAULT_KEY_ENTRY_IDS = {
@@ -25,6 +26,7 @@ const DEFAULT_KEY_ENTRY_IDS = {
   'azure': 'azure-tts-prod-1',
   'dashscope-cosyvoice': 'dashscope-tts-prod-1',
   'stepfun': 'stepfun-tts-prod-1',
+  'stepfun-streaming': 'stepfun-streaming-prod-1',
   'unspeech': 'volcengine-prod-1',
   'aliyun-nls-asr': 'aliyun-nls-asr-prod-1',
 } as const
@@ -39,6 +41,7 @@ type LlmModel = InferOutput<typeof llmModelSchema>
 type TtsModel = InferOutput<typeof ttsModelSchema>
 type AsrModel = InferOutput<typeof asrModelSchema>
 type UnspeechUpstream = InferOutput<typeof unspeechUpstreamSchema>
+type StepfunStreamingTtsUpstream = InferOutput<typeof stepfunStreamingTtsUpstreamSchema>
 type KeyEntry = LlmModel['upstreams'][number]['keys'][number]
 type LlmSliceKind = 'openrouter' | 'bedrock' | 'openai-compatible'
 
@@ -57,6 +60,7 @@ export type SliceInput
     | AzureSliceInput
     | DashscopeSliceInput
     | StepfunSliceInput
+    | StepfunStreamingSliceInput
     | AliyunNlsAsrSliceInput
     | UnspeechSliceInput
 
@@ -161,6 +165,22 @@ export interface StepfunSliceInput {
   existingKeyEntryId?: string
 }
 
+/** Operator-owned native StepFun websocket TTS configuration. */
+export interface StepfunStreamingSliceInput {
+  kind: 'stepfun-streaming'
+  /** Enables StepFun for the shared official streaming TTS provider. */
+  enabled: boolean
+  /** `wss://api.stepfun.com/v1/realtime/audio` or the Step Plan equivalent. */
+  upstreamURL: string
+  models: Array<{ id: string, name?: string, description?: string }>
+  defaultModel: string
+  voices: Array<{ id: string, name?: string, description?: string, labels?: Record<string, unknown>, languages?: Array<{ code: string, title: string }> }>
+  instruction?: string
+  plaintextKey?: string
+  keyEntryId?: string
+  existingKeyEntryId?: string
+}
+
 export interface UnspeechSliceInput {
   kind: 'unspeech'
   /** unspeech REST root: `http(s)://host:port` (no trailing slash, no path). */
@@ -235,7 +255,14 @@ interface UnspeechSlice {
   keyEntryId: string | null
 }
 
-type BuiltSlice = LlmModelSlice | TtsModelSlice | AsrModelSlice | UnspeechSlice
+interface StepfunStreamingSlice {
+  target: 'stepfun-streaming'
+  kind: 'stepfun-streaming'
+  value: StepfunStreamingTtsUpstream
+  keyEntryId: string
+}
+
+type BuiltSlice = LlmModelSlice | TtsModelSlice | AsrModelSlice | UnspeechSlice | StepfunStreamingSlice
 
 /**
  * Encrypts an OpenRouter slice into the LLM_ROUTER_CONFIG.llm shape.
@@ -483,6 +510,33 @@ export function buildUnspeechSlice(input: UnspeechSliceInput, envelope: Envelope
   }
 }
 
+/** Encrypts the native StepFun streaming TTS configuration. */
+export function buildStepfunStreamingSlice(input: StepfunStreamingSliceInput, envelope: EnvelopeCrypto): StepfunStreamingSlice {
+  const keyEntryId = input.keyEntryId ?? DEFAULT_KEY_ENTRY_IDS['stepfun-streaming']
+  const ciphertext = envelope.encryptKey(requiredPlaintextKey(input.plaintextKey, input.kind), {
+    modelName: STEPFUN_STREAMING_TTS_AAD_MODEL_NAME,
+    keyEntryId,
+  })
+  return {
+    target: 'stepfun-streaming',
+    kind: input.kind,
+    keyEntryId,
+    value: {
+      enabled: input.enabled,
+      baseURL: input.upstreamURL,
+      keys: [{ id: keyEntryId, ciphertext }],
+      models: input.models,
+      defaultModel: input.defaultModel,
+      voices: input.voices.map(voice => ({
+        ...voice,
+        labels: voice.labels ?? {},
+        languages: voice.languages ?? [],
+      })),
+      ...(input.instruction ? { instruction: input.instruction } : {}),
+    },
+  }
+}
+
 function requiredPlaintextKey(value: string | undefined, kind: SliceInput['kind']): string {
   if (value?.trim())
     return value
@@ -665,6 +719,35 @@ function buildUnspeechSlicePreservingKey(input: UnspeechSliceInput, envelope: En
   }
 }
 
+function buildStepfunStreamingSlicePreservingKey(
+  input: StepfunStreamingSliceInput,
+  envelope: EnvelopeCrypto,
+  existing: StepfunStreamingTtsUpstream | undefined | null,
+): StepfunStreamingSlice {
+  if (input.plaintextKey?.trim())
+    return buildStepfunStreamingSlice(input, envelope)
+
+  const key = preservedKeyOrThrow(existing ?? undefined, input.existingKeyEntryId ?? input.keyEntryId, input.kind)
+  return {
+    target: 'stepfun-streaming',
+    kind: input.kind,
+    keyEntryId: key.id,
+    value: {
+      enabled: input.enabled,
+      baseURL: input.upstreamURL,
+      keys: [key],
+      models: input.models,
+      defaultModel: input.defaultModel,
+      voices: input.voices.map(voice => ({
+        ...voice,
+        labels: voice.labels ?? {},
+        languages: voice.languages ?? [],
+      })),
+      ...(input.instruction ? { instruction: input.instruction } : {}),
+    },
+  }
+}
+
 /**
  * Encrypts a slice input. Routes to the per-kind builder.
  *
@@ -678,6 +761,7 @@ export function buildSlice(
   existing?: {
     routerConfig?: LlmRouterConfig | null
     unspeech?: UnspeechUpstream | null
+    stepfunStreaming?: StepfunStreamingTtsUpstream | null
   },
 ): BuiltSlice {
   switch (input.kind) {
@@ -695,6 +779,8 @@ export function buildSlice(
       return buildAliyunNlsAsrSlicePreservingKey(input, envelope, existing?.routerConfig?.asr?.models[input.modelName])
     case 'unspeech':
       return buildUnspeechSlicePreservingKey(input, envelope, existing?.unspeech)
+    case 'stepfun-streaming':
+      return buildStepfunStreamingSlicePreservingKey(input, envelope, existing?.stepfunStreaming)
   }
 }
 
@@ -811,7 +897,7 @@ export interface ApplyInput {
 
 export interface AppliedSummary {
   kind: SliceInput['kind']
-  target: 'llm-router' | 'unspeech'
+  target: 'llm-router' | 'unspeech' | 'stepfun-streaming'
   surface?: 'llm' | 'tts' | 'asr'
   modelName?: string
   keyEntryId: string | null
@@ -823,6 +909,7 @@ export interface ApplyResult {
   preview: {
     LLM_ROUTER_CONFIG?: unknown
     UNSPEECH_UPSTREAM?: unknown
+    STEPFUN_STREAMING_TTS_UPSTREAM?: unknown
     DEFAULT_CHAT_MODEL?: string
     DEFAULT_TTS_MODEL?: string
     DEFAULT_TTS_VOICES?: Record<string, Record<string, string>>
@@ -843,6 +930,9 @@ export interface CurrentRouterConfigResult {
 function sliceNeedsExistingKey(slice: SliceInput): boolean {
   if (slice.kind === 'unspeech')
     return slice.streaming != null && !slice.streaming.plaintextKey?.trim()
+
+  if (slice.kind === 'stepfun-streaming')
+    return !slice.plaintextKey?.trim()
 
   return !slice.plaintextKey?.trim()
 }
@@ -991,6 +1081,24 @@ function slicesFromUnspeech(unspeech: UnspeechUpstream | null): UnspeechSliceInp
   }]
 }
 
+function slicesFromStepfunStreaming(config: StepfunStreamingTtsUpstream | null): StepfunStreamingSliceInput[] {
+  if (!config)
+    return []
+
+  const key = config.keys[0]
+  return [{
+    kind: 'stepfun-streaming',
+    enabled: config.enabled,
+    upstreamURL: config.baseURL,
+    models: config.models,
+    defaultModel: config.defaultModel,
+    voices: config.voices,
+    instruction: config.instruction,
+    keyEntryId: key?.id,
+    existingKeyEntryId: key?.id,
+  }]
+}
+
 function azureRegionFromBaseURL(baseURL: string): string | null {
   const match = /^https:\/\/([^.]+)\.tts\.speech\.microsoft\.com\//u.exec(baseURL)
   return match?.[1] ?? null
@@ -1045,12 +1153,14 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     const [
       routerConfig,
       unspeech,
+      stepfunStreaming,
       chatModel,
       ttsModel,
       ttsVoices,
     ] = await Promise.all([
       deps.configKV.getOptional('LLM_ROUTER_CONFIG'),
       deps.configKV.getOptional('UNSPEECH_UPSTREAM'),
+      deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM'),
       deps.configKV.getOptional('DEFAULT_CHAT_MODEL'),
       deps.configKV.getOptional('DEFAULT_TTS_MODEL'),
       deps.configKV.getOptional('DEFAULT_TTS_VOICES'),
@@ -1059,6 +1169,7 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     const slices: SliceInput[] = [
       ...slicesFromRouterConfig(routerConfig ?? null),
       ...slicesFromUnspeech(unspeech ?? null),
+      ...slicesFromStepfunStreaming(stepfunStreaming ?? null),
     ]
     const defaults: NonNullable<ApplyInput['defaults']> = {}
     if (chatModel)
@@ -1073,6 +1184,8 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       preview.LLM_ROUTER_CONFIG = redactCiphertext(routerConfig)
     if (unspeech)
       preview.UNSPEECH_UPSTREAM = redactCiphertext(unspeech)
+    if (stepfunStreaming)
+      preview.STEPFUN_STREAMING_TTS_UPSTREAM = redactCiphertext(stepfunStreaming)
     if (chatModel)
       preview.DEFAULT_CHAT_MODEL = chatModel
     if (ttsModel)
@@ -1091,6 +1204,7 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       missingKeys: [
         ...(routerConfig ? [] : ['LLM_ROUTER_CONFIG']),
         ...(unspeech ? [] : ['UNSPEECH_UPSTREAM']),
+        ...(stepfunStreaming ? [] : ['STEPFUN_STREAMING_TTS_UPSTREAM']),
         ...(chatModel ? [] : ['DEFAULT_CHAT_MODEL']),
         ...(ttsModel ? [] : ['DEFAULT_TTS_MODEL']),
       ],
@@ -1110,14 +1224,20 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     if (unspeechCount > 1)
       throw createBadRequestError('At most one unspeech slice per request', 'INVALID_BODY')
 
-    const hasRouterInput = input.slices.some(s => s.kind !== 'unspeech')
+    const stepfunStreamingCount = input.slices.filter(s => s.kind === 'stepfun-streaming').length
+    if (stepfunStreamingCount > 1)
+      throw createBadRequestError('At most one stepfun-streaming slice per request', 'INVALID_BODY')
+
+    const hasRouterInput = input.slices.some(s => s.kind !== 'unspeech' && s.kind !== 'stepfun-streaming')
     const hasUnspeechInput = input.slices.some(s => s.kind === 'unspeech')
+    const hasStepfunStreamingInput = input.slices.some(s => s.kind === 'stepfun-streaming')
     const shouldReadRouterConfig = hasRouterInput
       && (input.mode === 'merge' || input.slices.some(sliceNeedsExistingKey))
     const shouldReadUnspeech = hasUnspeechInput
-    const [existingRouterConfig, existingUnspeech] = await Promise.all([
+    const [existingRouterConfig, existingUnspeech, existingStepfunStreaming] = await Promise.all([
       shouldReadRouterConfig ? deps.configKV.getOptional('LLM_ROUTER_CONFIG') : Promise.resolve(null),
       shouldReadUnspeech ? deps.configKV.getOptional('UNSPEECH_UPSTREAM') : Promise.resolve(null),
+      hasStepfunStreamingInput ? deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM') : Promise.resolve(null),
     ])
 
     // Step 1: encrypt new keys and preserve existing ciphertexts when the
@@ -1125,10 +1245,12 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     const built = input.slices.map(s => buildSlice(s, deps.envelope, {
       routerConfig: existingRouterConfig,
       unspeech: existingUnspeech,
+      stepfunStreaming: existingStepfunStreaming,
     }))
 
     const routerSlices = built.filter((s): s is LlmModelSlice | TtsModelSlice | AsrModelSlice => s.target === 'llm-router')
     const unspeechSlice = built.find((s): s is UnspeechSlice => s.target === 'unspeech')
+    const stepfunStreamingSlice = built.find((s): s is StepfunStreamingSlice => s.target === 'stepfun-streaming')
 
     // Step 2: build the next LLM_ROUTER_CONFIG tree if any LLM/TTS/ASR slice
     // was supplied. `merge` reads existing first; `reset` skips the read.
@@ -1159,11 +1281,15 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
       }
     }
 
+    const nextStepfunStreaming = stepfunStreamingSlice?.value
+
     const preview: ApplyResult['preview'] = {}
     if (nextRouterConfig)
       preview.LLM_ROUTER_CONFIG = redactCiphertext(nextRouterConfig)
     if (nextUnspeech)
       preview.UNSPEECH_UPSTREAM = redactCiphertext(nextUnspeech)
+    if (nextStepfunStreaming)
+      preview.STEPFUN_STREAMING_TTS_UPSTREAM = redactCiphertext(nextStepfunStreaming)
     if (input.defaults?.chatModel)
       preview.DEFAULT_CHAT_MODEL = input.defaults.chatModel
     if (input.defaults?.ttsModel)
@@ -1171,7 +1297,7 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     if (input.defaults?.ttsVoices)
       preview.DEFAULT_TTS_VOICES = input.defaults.ttsVoices
 
-    const applied: AppliedSummary[] = built.map(s => s.target === 'unspeech'
+    const applied: AppliedSummary[] = built.map(s => s.target === 'unspeech' || s.target === 'stepfun-streaming'
       ? { kind: s.kind, target: s.target, keyEntryId: s.keyEntryId }
       : { kind: s.kind, target: s.target, surface: s.surface, modelName: s.modelName, keyEntryId: s.keyEntryId })
 
@@ -1195,6 +1321,10 @@ export function createAdminRouterConfigService(deps: AdminRouterConfigDeps) {
     if (nextUnspeech) {
       await deps.configKV.set('UNSPEECH_UPSTREAM', nextUnspeech as never)
       invalidatedKeys.push('UNSPEECH_UPSTREAM')
+    }
+    if (nextStepfunStreaming) {
+      await deps.configKV.set('STEPFUN_STREAMING_TTS_UPSTREAM', nextStepfunStreaming as never)
+      invalidatedKeys.push('STEPFUN_STREAMING_TTS_UPSTREAM')
     }
     if (input.defaults?.chatModel) {
       await deps.configKV.set('DEFAULT_CHAT_MODEL', input.defaults.chatModel)

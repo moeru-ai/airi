@@ -164,10 +164,47 @@ export const streamingTtsUpstreamSchema = object({
   defaultModel: optional(string()),
 })
 
+/**
+ * Dedicated StepFun streaming TTS configuration.
+ *
+ * StepFun's websocket protocol is not compatible with unSpeech's streaming
+ * wire format, so it owns an explicit configuration entry and enable switch.
+ * Keeping the switch in this record lets operators validate the provider
+ * without changing the current streaming default before a measured rollout.
+ */
+export const stepfunStreamingTtsUpstreamSchema = pipe(object({
+  enabled: optional(boolean(), false),
+  baseURL: pipe(string(), nonEmpty('STEPFUN_STREAMING_TTS_UPSTREAM.baseURL must not be empty')),
+  keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'STEPFUN_STREAMING_TTS_UPSTREAM.keys must contain at least 1 entry')),
+  models: pipe(
+    array(object({
+      id: pipe(string(), nonEmpty('STEPFUN_STREAMING_TTS_UPSTREAM.models[].id must not be empty')),
+      name: optional(string()),
+      description: optional(string()),
+    })),
+    check(v => v.length >= 1, 'STEPFUN_STREAMING_TTS_UPSTREAM.models must contain at least 1 entry'),
+  ),
+  defaultModel: pipe(string(), nonEmpty('STEPFUN_STREAMING_TTS_UPSTREAM.defaultModel must not be empty')),
+  voices: pipe(
+    array(object({
+      id: pipe(string(), nonEmpty('STEPFUN_STREAMING_TTS_UPSTREAM.voices[].id must not be empty')),
+      name: optional(string()),
+      description: optional(string()),
+      labels: optional(record(string(), any()), {}),
+      languages: optional(array(object({ code: string(), title: string() })), []),
+    })),
+    check(v => v.length >= 1, 'STEPFUN_STREAMING_TTS_UPSTREAM.voices must contain at least 1 entry'),
+  ),
+  instruction: optional(pipe(string(), nonEmpty('STEPFUN_STREAMING_TTS_UPSTREAM.instruction must not be empty'))),
+}), check(config => new Set(config.models.map(model => model.id)).size === config.models.length, 'STEPFUN_STREAMING_TTS_UPSTREAM.models[].id must be unique'), check(config => config.models.some(model => model.id === config.defaultModel), 'STEPFUN_STREAMING_TTS_UPSTREAM.defaultModel must be present in models'))
+
 export const unspeechUpstreamSchema = object({
   restBaseURL: pipe(string(), nonEmpty('UNSPEECH_UPSTREAM.restBaseURL must not be empty')),
   streaming: optional(streamingTtsUpstreamSchema),
 })
+
+export type UnspeechUpstream = InferOutput<typeof unspeechUpstreamSchema>
+export type StepfunStreamingTtsUpstream = InferOutput<typeof stepfunStreamingTtsUpstreamSchema>
 
 export const ttsModelSchema = pipe(
   object({
@@ -281,6 +318,11 @@ const ConfigEntrySchemas = {
   // carry the upstream-provider API key (Volcengine X-Api-Key), not an
   // unspeech tenant token (unspeech itself is unauthenticated).
   UNSPEECH_UPSTREAM: optional(unspeechUpstreamSchema),
+  // A dedicated native StepFun WebSocket provider. It is deliberately
+  // separate from UNSPEECH_UPSTREAM because their request/response protocols
+  // differ. `enabled: false` keeps the existing Volcengine path active until
+  // an operator completes a measured switch.
+  STEPFUN_STREAMING_TTS_UPSTREAM: optional(stepfunStreamingTtsUpstreamSchema),
 } as const
 
 type ConfigDefinitions = {

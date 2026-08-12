@@ -1,6 +1,7 @@
 import type { WSContext } from 'hono/ws'
 import type { RawData } from 'ws'
 
+import type { StepfunStreamingTtsUpstream, UnspeechUpstream } from '../../services/adapters/config-kv'
 import type { FluxService } from '../../services/domain/flux'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
@@ -35,6 +36,7 @@ const log = useLogger('audio-speech-ws').useGlobalConfig()
 const STREAMING_PREFLIGHT_CHARS_ESTIMATE = 2000
 
 const STREAM_MODEL_LABEL_FALLBACK = 'streaming-tts'
+const STEPFUN_STREAMING_TTS_AAD_MODEL_NAME = 'stepfun-streaming-tts'
 
 const tracer = trace.getTracer('audio-speech-ws')
 
@@ -102,6 +104,10 @@ export function createSessionState(
   let preflightFluxBalance: number | undefined
   let modelLabel = STREAM_MODEL_LABEL_FALLBACK
   let voiceLabel: string | undefined
+  let startFrame: StreamingTtsStartFrame | null = null
+  let provider: StreamingProvider | null = null
+  let stepfunSessionId: string | null = null
+  let stepfunSessionCreated = false
   /**
    * Frames the client sent before the upstream finished dialing. Buffered to
    * avoid silently dropping the `start` frame; flushed in arrival order once
@@ -131,18 +137,7 @@ export function createSessionState(
       },
     })
 
-    let unspeech: Awaited<ReturnType<AudioSpeechWsHandlersOptions['configKV']['getOptional']>>
-    try {
-      unspeech = await opts.configKV.getOptional('UNSPEECH_UPSTREAM')
-    }
-    catch (err) {
-      log.withError(err).error('UNSPEECH_UPSTREAM read failed')
-      closeWithError(1011, 'config_unavailable')
-      return
-    }
-
-    const upstreamConfig = unspeech?.streaming
-    if (!upstreamConfig || !upstreamConfig.baseURL || upstreamConfig.keys.length === 0) {
+    if (!provider) {
       closeWithError(1008, 'streaming_tts_not_configured')
       return
     }
@@ -170,11 +165,11 @@ export function createSessionState(
     // rotation: a live ws cannot transparently switch upstream mid-session
     // without breaking audio continuity. Fallback policy belongs at the
     // session-retry layer (next client connect), not inline.
-    const entry = upstreamConfig.keys[0]
+    const entry = provider.keys[0]
     let keyPlaintext: Buffer
     try {
       keyPlaintext = opts.envelopeCrypto.decryptKey(entry.ciphertext, {
-        modelName: STREAM_MODEL_LABEL_FALLBACK,
+        modelName: provider.aadModelName,
         keyEntryId: entry.id,
       })
     }
@@ -184,7 +179,7 @@ export function createSessionState(
       return
     }
 
-    const upstreamURL = upstreamConfig.baseURL
+    const upstreamURL = provider.baseURL
     span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL, upstreamURL)
     span.setAttribute(AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID, entry.id)
 
@@ -206,6 +201,8 @@ export function createSessionState(
 
     upstream.on('open', () => {
       upstreamReady = true
+      if (provider?.kind === 'stepfun')
+        return
       // Flush anything the client sent during dial.
       for (const frame of pendingClientFrames) {
         try {
@@ -224,7 +221,7 @@ export function createSessionState(
 
     upstream.on('close', (code, reason) => {
       log.withFields({ userId, code, reason: reason?.toString() }).debug('upstream ws closed')
-      finalize()
+      settleStepfunSession('upstream_closed')
     })
 
     upstream.on('error', (err) => {
@@ -253,7 +250,7 @@ export function createSessionState(
         }))
       }
       catch {}
-      finalize()
+      settleStepfunSession('upstream_error')
     })
   }
 
@@ -276,19 +273,21 @@ export function createSessionState(
         return
       }
 
-      const startFrame = parseStartFrame(payload)
-      if (!startFrame) {
+      const parsedStartFrame = parseStartFrame(payload)
+      if (!parsedStartFrame) {
         closeWithError(1008, 'invalid_start_frame')
         return
       }
 
       startValidationStarted = true
-      modelLabel = startFrame.model
-      voiceLabel = startFrame.voice
+      modelLabel = parsedStartFrame.model
+      voiceLabel = parsedStartFrame.voice
+      startFrame = parsedStartFrame
       pendingClientFrames.push({ data: payload, isBinary })
-      void validateStartFrame(startFrame).then((accepted) => {
-        if (!accepted || closed)
+      void validateStartFrame(parsedStartFrame).then((resolvedProvider) => {
+        if (!resolvedProvider || closed)
           return
+        provider = resolvedProvider
         startFrameAccepted = true
         void dialUpstream()
       }).catch((err) => {
@@ -315,8 +314,19 @@ export function createSessionState(
       return
     }
 
+    if (provider?.kind === 'stepfun' && !stepfunSessionCreated) {
+      pendingClientFrames.push({ data: payload, isBinary })
+      return
+    }
+
     try {
-      upstreamWs.send(payload, { binary: isBinary })
+      if (provider?.kind === 'stepfun') {
+        for (const frame of stepfunClientFrames(payload, isBinary, stepfunSessionId))
+          upstreamWs.send(frame)
+      }
+      else {
+        upstreamWs.send(payload, { binary: isBinary })
+      }
     }
     catch (err) {
       log.withError(err).warn('failed to forward client frame to upstream')
@@ -332,16 +342,20 @@ export function createSessionState(
       return
     // Client dropped — best-effort cancel upstream so the upstream session
     // releases its resources. We do not wait for SessionCanceled ack.
-    if (upstreamWs && upstreamReady) {
+    if (upstreamWs && upstreamReady && provider?.kind === 'unspeech') {
       try {
         upstreamWs.send(JSON.stringify({ event: 'cancel' }))
       }
       catch {}
     }
-    finalize()
+    settleStepfunSession('client_disconnected')
   }
 
   function handleUpstreamMessage(data: RawData, isBinary: boolean) {
+    if (provider?.kind === 'stepfun') {
+      handleStepfunMessage(data, isBinary)
+      return
+    }
     if (!clientWs)
       return
     if (isBinary) {
@@ -399,6 +413,106 @@ export function createSessionState(
     }
   }
 
+  /**
+   * Translates StepFun's JSON/Base64 websocket events into AIRI's established
+   * streaming wire protocol so the browser can keep consuming binary audio
+   * and `sentence.*` / `session.finished` control frames unchanged.
+   */
+  function handleStepfunMessage(data: RawData, isBinary: boolean) {
+    if (!clientWs || !upstreamWs || !provider || provider.kind !== 'stepfun')
+      return
+    if (isBinary) {
+      log.warn('StepFun streaming TTS unexpectedly sent a binary frame')
+      return
+    }
+
+    let event: StepfunServerEvent
+    try {
+      event = JSON.parse(bufferToString(data)) as StepfunServerEvent
+    }
+    catch {
+      log.warn('StepFun streaming TTS sent a malformed JSON frame')
+      return
+    }
+
+    switch (event.type) {
+      case 'tts.connection.done': {
+        const sessionId = event.data?.session_id
+        if (!sessionId || !startFrame) {
+          closeWithError(1011, 'stepfun_invalid_connection_event')
+          return
+        }
+        stepfunSessionId = sessionId
+        upstreamWs.send(JSON.stringify(stepfunCreateFrame(sessionId, startFrame, provider.instruction)))
+        break
+      }
+      case 'tts.response.created': {
+        if (!stepfunSessionId || event.data?.session_id !== stepfunSessionId)
+          return
+        stepfunSessionCreated = true
+        clientWs.send(JSON.stringify({ event: 'session.started' }))
+        const frames = pendingClientFrames.splice(0)
+        for (const frame of frames) {
+          for (const translated of stepfunClientFrames(frame.data, frame.isBinary, stepfunSessionId))
+            upstreamWs.send(translated)
+        }
+        break
+      }
+      case 'tts.response.sentence.start':
+        forwardStepfunControl('sentence.start', event.data)
+        break
+      case 'tts.response.sentence.end':
+        forwardStepfunControl('sentence.end', event.data)
+        break
+      case 'tts.response.subtitle':
+        forwardStepfunControl('subtitle', event.data)
+        break
+      case 'tts.response.audio.delta': {
+        const audio = event.data?.audio
+        if (typeof audio !== 'string') {
+          closeWithError(1011, 'stepfun_invalid_audio_event')
+          return
+        }
+        clientWs.send(Buffer.from(audio, 'base64'))
+        break
+      }
+      case 'tts.response.audio.done':
+        clientWs.send(JSON.stringify({ event: 'session.finished' }))
+        settleStepfunSession('stepfun.audio.done')
+        break
+      case 'tts.response.error': {
+        const code = event.data?.code ?? 'stepfun_upstream_error'
+        const message = event.data?.message ?? code
+        span.setStatus({ code: SpanStatusCode.ERROR, message })
+        clientWs.send(JSON.stringify({ event: 'error', code, message }))
+        settleStepfunSession('stepfun.response.error')
+        break
+      }
+    }
+  }
+
+  function forwardStepfunControl(event: 'sentence.start' | 'sentence.end' | 'subtitle', payload: Record<string, unknown> | undefined) {
+    try {
+      clientWs?.send(JSON.stringify({ event, payload: payload ?? {} }))
+    }
+    catch (err) {
+      log.withError(err).warn('failed to forward StepFun control frame to client')
+    }
+  }
+
+  /**
+   * StepFun does not report character usage on terminal events. Once text has
+   * been handed to its session, bill the accepted text even when a client
+   * cancels or the provider errors before `tts.response.audio.done` arrives.
+   */
+  function settleStepfunSession(reason: string) {
+    if (provider?.kind === 'stepfun' && totalInputChars > 0) {
+      void billSession(totalInputChars, reason)
+      return
+    }
+    finalize()
+  }
+
   function maybeAccountInputChars(rawText: string) {
     try {
       const parsed = JSON.parse(rawText) as { event?: string, text?: string }
@@ -421,34 +535,58 @@ export function createSessionState(
     }
   }
 
-  async function validateStartFrame(frame: StreamingTtsStartFrame): Promise<boolean> {
-    let unspeech: Awaited<ReturnType<AudioSpeechWsHandlersOptions['configKV']['getOptional']>>
+  async function validateStartFrame(frame: StreamingTtsStartFrame): Promise<StreamingProvider | null> {
+    let stepfun: StepfunStreamingTtsUpstream | null
+    let unspeech: UnspeechUpstream | null
     try {
-      unspeech = await opts.configKV.getOptional('UNSPEECH_UPSTREAM')
+      const [loadedStepfun, loadedUnspeech] = await Promise.all([
+        opts.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM'),
+        opts.configKV.getOptional('UNSPEECH_UPSTREAM'),
+      ])
+      stepfun = (loadedStepfun as StepfunStreamingTtsUpstream | null | undefined) ?? null
+      unspeech = (loadedUnspeech as UnspeechUpstream | null | undefined) ?? null
     }
     catch (err) {
-      log.withError(err).error('UNSPEECH_UPSTREAM read failed before streaming tts start')
+      log.withError(err).error('streaming tts configuration read failed before start')
       closeWithError(1011, 'config_unavailable')
-      return false
+      return null
+    }
+
+    if (stepfun?.enabled) {
+      if (!stepfun.models.some(model => model.id === frame.model)) {
+        closeWithError(1008, 'streaming_tts_model_not_enabled')
+        return null
+      }
+      if (!stepfun.voices.some(voice => voice.id === frame.voice)) {
+        closeWithError(1008, 'streaming_tts_voice_not_enabled')
+        return null
+      }
+      return {
+        kind: 'stepfun',
+        baseURL: stepfunURL(stepfun.baseURL, frame.model),
+        keys: stepfun.keys,
+        aadModelName: STEPFUN_STREAMING_TTS_AAD_MODEL_NAME,
+        instruction: stepfun.instruction,
+      }
     }
 
     const upstreamConfig = unspeech?.streaming
     if (!unspeech?.restBaseURL || !upstreamConfig?.baseURL || upstreamConfig.keys.length === 0) {
       closeWithError(1008, 'streaming_tts_not_configured')
-      return false
+      return null
     }
 
     const configuredModels = upstreamConfig.models ?? []
     if (!configuredModels.some((model: { id: string }) => model.id === frame.model)) {
       closeWithError(1008, 'streaming_tts_model_not_enabled')
-      return false
+      return null
     }
 
     const resourceId = streamingModelResourceId(frame.model)
     const voicesURL = streamingVoicesURL(unspeech.restBaseURL, resourceId)
     if (!voicesURL) {
       closeWithError(1011, 'streaming_tts_voice_catalog_unavailable')
-      return false
+      return null
     }
 
     let data: { voices?: unknown[] }
@@ -458,16 +596,21 @@ export function createSessionState(
     catch (err) {
       log.withError(err).withFields({ voicesURL }).warn('streaming tts voice catalog fetch failed')
       closeWithError(1011, 'streaming_tts_voice_catalog_unavailable')
-      return false
+      return null
     }
 
     const voices = Array.isArray(data.voices) ? data.voices : []
     if (!voices.some(voice => streamingVoiceId(voice) === frame.voice)) {
       closeWithError(1008, 'streaming_tts_voice_not_enabled')
-      return false
+      return null
     }
 
-    return true
+    return {
+      kind: 'unspeech',
+      baseURL: upstreamConfig.baseURL,
+      keys: upstreamConfig.keys,
+      aadModelName: STREAM_MODEL_LABEL_FALLBACK,
+    }
   }
 
   async function billSession(units: number, reason: string) {
@@ -691,10 +834,32 @@ function isPaymentRequiredError(err: unknown): boolean {
     && (err as { statusCode?: unknown }).statusCode === 402
 }
 
+interface StreamingProvider {
+  kind: 'unspeech' | 'stepfun'
+  baseURL: string
+  keys: Array<{ id: string, ciphertext: string }>
+  aadModelName: string
+  instruction?: string
+}
+
+interface StepfunServerEvent {
+  type?: string
+  data?: {
+    session_id?: string
+    text?: string
+    audio?: string
+    code?: string
+    message?: string
+    [key: string]: unknown
+  }
+}
+
 interface StreamingTtsStartFrame {
   event: 'start'
   model: string
   voice: string
+  responseFormat?: string
+  extraBody?: Record<string, unknown>
 }
 
 function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {
@@ -710,11 +875,114 @@ function parseStartFrame(rawText: string): StreamingTtsStartFrame | null {
       event: 'start',
       model: parsed.model,
       voice: parsed.voice,
+      responseFormat: typeof parsed.response_format === 'string' ? parsed.response_format : undefined,
+      extraBody: isRecord(parsed.extra_body) ? parsed.extra_body : undefined,
     }
   }
   catch {
     return null
   }
+}
+
+/**
+ * Builds the provider websocket URL while treating the operator's configured
+ * base path as authoritative: direct API and Step Plan differ only by path.
+ */
+function stepfunURL(baseURL: string, model: string): string {
+  const url = new URL(baseURL)
+  url.searchParams.set('model', streamingModelResourceId(model))
+  return url.toString()
+}
+
+function stepfunCreateFrame(sessionId: string, start: StreamingTtsStartFrame, instruction: string | undefined): Record<string, unknown> {
+  const extraBody = start.extraBody ?? {}
+  const responseFormat = stepfunStreamingFormat(start.responseFormat)
+  const sampleRate = numberFromRecord(extraBody, 'sample_rate')
+    ?? numberFromRecord(isRecord(extraBody.audio) ? extraBody.audio : undefined, 'sample_rate')
+  const speedRatio = numberFromRecord(extraBody, 'speed_ratio')
+  const volumeRatio = numberFromRecord(extraBody, 'volume_ratio')
+  const requestInstruction = stringFromRecord(extraBody, 'instruction')
+
+  return {
+    type: 'tts.create',
+    data: {
+      session_id: sessionId,
+      voice_id: start.voice,
+      response_format: responseFormat,
+      text_normalization: 'standard',
+      mode: 'default',
+      ...(sampleRate ? { sample_rate: sampleRate } : {}),
+      ...(speedRatio ? { speed_ratio: speedRatio } : {}),
+      ...(volumeRatio ? { volume_ratio: volumeRatio } : {}),
+      ...(requestInstruction ?? instruction ? { instruction: requestInstruction ?? instruction } : {}),
+    },
+  }
+}
+
+/**
+ * Converts AIRI's provider-neutral client frames into StepFun commands.
+ * The `start` frame is intentionally consumed by {@link stepfunCreateFrame}.
+ */
+function stepfunClientFrames(payload: Buffer | string, isBinary: boolean, sessionId: string | null): string[] {
+  if (isBinary || !sessionId || typeof payload !== 'string')
+    return []
+
+  let frame: { event?: unknown, text?: unknown }
+  try {
+    frame = JSON.parse(payload) as { event?: unknown, text?: unknown }
+  }
+  catch {
+    return []
+  }
+
+  if (frame.event === 'text' && typeof frame.text === 'string') {
+    return splitStepfunText(frame.text).map(text => JSON.stringify({
+      type: 'tts.text.delta',
+      data: { session_id: sessionId, text },
+    }))
+  }
+  if (frame.event === 'finish')
+    return [JSON.stringify({ type: 'tts.text.done', data: { session_id: sessionId } })]
+  return []
+}
+
+/**
+ * AIRI concatenates audio deltas until a sentence boundary before decoding.
+ * StepFun's non-streaming delta formats are independent files, so request a
+ * stream variant whenever the provider offers one.
+ */
+function stepfunStreamingFormat(value: string | undefined): 'mp3_stream' | 'opus_stream' | 'flac_stream' {
+  switch (value) {
+    case 'opus':
+      return 'opus_stream'
+    case 'flac':
+      return 'flac_stream'
+    default:
+      return 'mp3_stream'
+  }
+}
+
+/** Splits only at Unicode code-point boundaries, as StepFun caps one delta at 1000 characters. */
+function splitStepfunText(text: string): string[] {
+  const characters = Array.from(text)
+  const chunks: string[] = []
+  for (let start = 0; start < characters.length; start += 1000)
+    chunks.push(characters.slice(start, start + 1000).join(''))
+  return chunks
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value != null && !Array.isArray(value)
+}
+
+function numberFromRecord(record: Record<string, unknown> | undefined, key: string): number | undefined {
+  const value = record?.[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function stringFromRecord(record: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = record?.[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 function streamingModelResourceId(model: string): string {

@@ -81,6 +81,19 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
    * No empty-array fallback: the UI surfaces a real failure state.
    */
   async function listStreamingVoices(input: ListStreamingVoicesInput) {
+    const stepfun = await deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM')
+    if (stepfun?.enabled) {
+      const model = input.model
+      const matchedModel = model
+        ? stepfun.models.find(item => item.id === model || item.id === `stepfun/${model}`)
+        : undefined
+      if (model && !matchedModel)
+        throw createBadRequestError('streaming voices: model is not enabled', 'STREAMING_TTS_MODEL_NOT_ENABLED')
+
+      const recommended = (await deps.configKV.getOptional('DEFAULT_TTS_VOICES'))?.[matchedModel?.id ?? stepfun.defaultModel] ?? {}
+      return Response.json({ voices: stepfun.voices, recommended })
+    }
+
     const unspeech = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
     if (!unspeech?.streaming?.baseURL)
       throw createServiceUnavailableError('streaming tts upstream not configured', 'STREAMING_TTS_NOT_CONFIGURED')
@@ -160,6 +173,19 @@ export function createSpeechCatalogOperation(deps: V1RouteDeps): SpeechCatalogOp
   }
 
   async function listStreamingSpeechModels() {
+    const stepfun = await deps.configKV.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM')
+    if (stepfun?.enabled) {
+      return Response.json({
+        available: true,
+        models: stepfun.models.map(m => ({
+          id: m.id,
+          name: m.name ?? m.id,
+          description: m.description,
+        })),
+        default: stepfun.defaultModel,
+      })
+    }
+
     const unspeech = await deps.configKV.getOptional('UNSPEECH_UPSTREAM')
     const models = unspeech?.streaming?.models ?? []
     // `available` is the operator-controlled visibility switch the client gates
