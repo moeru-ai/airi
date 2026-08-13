@@ -246,6 +246,41 @@ describe('useMotionUpdatePluginIdleFocus', () => {
     expect(idleEyeFocus.update).toHaveBeenCalledWith(context.internalModel, context.nowMs)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2197
+  it('runs final idle focus after the SDK handles an idle frame', () => {
+    const idleEyeFocus = { update: vi.fn() }
+    const context = createContext({
+      live2dForceIdleEyeAnimation: ref(true),
+    })
+    const hookedUpdate = vi.fn(() => true)
+    const { register, hookUpdate } = useLive2DMotionManagerUpdate({
+      internalModel: context.internalModel,
+      motionManager: context.motionManager,
+      modelParameters: context.modelParameters,
+      live2dEyeTrackingEnabled: context.live2dEyeTrackingEnabled,
+      live2dEyeFocusSourceActive: context.live2dEyeFocusSourceActive,
+      live2dIdleAnimationEnabled: context.live2dIdleAnimationEnabled,
+      live2dForceIdleEyeAnimation: context.live2dForceIdleEyeAnimation,
+      live2dAutoBlinkEnabled: context.live2dAutoBlinkEnabled,
+      live2dForceAutoBlinkEnabled: context.live2dForceAutoBlinkEnabled,
+      lastUpdateAtMs: ref(0),
+    })
+
+    // ROOT CAUSE:
+    //
+    // The SDK marks active idle-motion frames as handled. A post-stage idle
+    // focus plugin does not run on those frames, so its saccade clock stalls.
+    //
+    // Registering idle focus in the final stage keeps its existing gates while
+    // making it run after handled SDK updates.
+    register(useMotionUpdatePluginIdleFocus(idleEyeFocus), 'final')
+
+    hookUpdate(context.model, 1, hookedUpdate)
+
+    expect(hookedUpdate).toHaveBeenCalledTimes(1)
+    expect(idleEyeFocus.update).toHaveBeenCalledTimes(1)
+  })
+
   it('runs idle eye focus on frames where no motion updated parameters', () => {
     const idleEyeFocus = { update: vi.fn() }
     const context = createContext({
