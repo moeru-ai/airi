@@ -598,6 +598,18 @@ function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
 
 const voiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
+  onLog(level, event, message, details) {
+    const output = `[Voice Input] ${event}: ${message}`
+    if (level === 'error') {
+      console.error(output, details ?? {})
+      return
+    }
+    if (level === 'warn') {
+      console.warn(output, details ?? {})
+      return
+    }
+    console.info(output, details ?? {})
+  },
   canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
