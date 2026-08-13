@@ -250,8 +250,8 @@ function parseDesktopEntryFields(source: string): Map<string, string> {
 export function assertFlatpakDesktopEntryContract(source: string): void {
   const fields = parseDesktopEntryFields(source)
   const executable = fields.get('Exec')?.split(' ')[0]
-  if (executable !== 'airi.sh')
-    throw new Error('Flatpak desktop entry must use Exec=airi.sh')
+  if (executable !== 'airi')
+    throw new Error('Flatpak desktop entry must use Exec=airi')
   if (fields.get('Icon') !== 'ai.moeru.airi')
     throw new Error('Flatpak desktop entry must use Icon=ai.moeru.airi')
 }

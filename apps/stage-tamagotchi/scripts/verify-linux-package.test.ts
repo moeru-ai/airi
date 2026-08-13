@@ -398,12 +398,19 @@ describe('linux desktop entry verification', () => {
     expect(() => assertDesktopEntryContract('[Desktop Entry]\nExec=/opt/AIRI/airi\nIcon=missing\n')).toThrow('Desktop entry must use Icon=airi')
   })
 
-  it('accepts the Flatpak launcher and application icon', () => {
-    expect(() => assertFlatpakDesktopEntryContract('[Desktop Entry]\nExec=airi.sh %U\nIcon=ai.moeru.airi\n')).not.toThrow()
+  // https://github.com/moeru-ai/airi/pull/2278#discussion_r3776522471
+  // ROOT CAUSE:
+  //
+  // The desktop entry launches /app/bin/airi, which links to the zypak wrapper.
+  // The verifier required airi.sh instead, so it rejected every built Flatpak.
+  //
+  // We fixed this by requiring the launcher name that the desktop entry exports.
+  it('accepts the exported Flatpak launcher and application icon', () => {
+    expect(() => assertFlatpakDesktopEntryContract('[Desktop Entry]\nExec=airi %U\nIcon=ai.moeru.airi\n')).not.toThrow()
   })
 
-  it('rejects a Flatpak entry with the direct Electron command', () => {
-    expect(() => assertFlatpakDesktopEntryContract('[Desktop Entry]\nExec=airi %U\nIcon=ai.moeru.airi\n')).toThrow('Flatpak desktop entry must use Exec=airi.sh')
+  it('rejects a Flatpak entry that bypasses the exported launcher', () => {
+    expect(() => assertFlatpakDesktopEntryContract('[Desktop Entry]\nExec=airi.sh %U\nIcon=ai.moeru.airi\n')).toThrow('Flatpak desktop entry must use Exec=airi')
   })
 })
 
