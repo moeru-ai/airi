@@ -1,22 +1,24 @@
 {
-  "name": "@proj-airi/audio-input-e2e",
+  "name": "@proj-airi/vitest-plugin-fakemic",
   "type": "module",
   "version": "0.11.3",
   "private": true,
-  "description": "End-to-end audio input contracts for AIRI Web and Electron",
+  "description": "Fake microphone test runtime and Vitest integration",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
     "url": "https://github.com/moeru-ai"
   },
   "license": "MIT",
+  "exports": "./src/index.ts",
   "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@pnpm/find-workspace-dir": "catalog:",
-    "@proj-airi/stage-shared": "workspace:^",
     "playwright": "catalog:",
-    "valibot": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:vitest"
   },
   "devDependencies": {
     "@types/node": "catalog:"
