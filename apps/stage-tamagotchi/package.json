@@ -196,6 +196,7 @@
     "get-port-please": "catalog:",
     "h3": "catalog:",
     "less": "catalog:",
+    "minimatch": "catalog:",
     "mkcert": "catalog:",
     "std-env": "catalog:",
     "superjson": "catalog:",

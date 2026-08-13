@@ -5,6 +5,7 @@ import type { Configuration } from 'electron-builder'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { minimatch } from 'minimatch'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 
@@ -18,6 +19,14 @@ const releaseOptions = {
   release: true,
   autoTag: false,
   tag: ['0.11.3'],
+}
+
+function isIncludedByLinuxFilePatterns(path: string, architecture: 'arm64' | 'x64'): boolean {
+  const exclusions = electronBuilderConfig.linux.files
+    .filter((pattern): pattern is string => typeof pattern === 'string' && pattern.startsWith('!'))
+    .map(pattern => pattern.slice(1).replaceAll('${arch}', architecture))
+
+  return exclusions.every(pattern => !minimatch(path, pattern, { dot: true }))
 }
 
 describe('linux package configuration', () => {
@@ -34,8 +43,41 @@ describe('linux package configuration', () => {
       '!**/onnxruntime-node/bin/napi-v3/linux/!(${arch}){,/**/*}',
       '!**/uiohook-napi/prebuilds/!(linux-${arch}){,/**/*}',
       '!**/electron-click-drag-plugin/build/Release/!(linux-${arch}){,/**/*}',
-      '!**/node_modules/@img/{sharp,sharp-libvips}-!(linux-${arch}){,/**/*}',
+      '!**/node_modules/@img/sharp-!(linux-${arch}|libvips-*){,/**/*}',
+      '!**/node_modules/@img/sharp-libvips-!(linux-${arch}){,/**/*}',
     ])
+  })
+
+  it('keeps the target Sharp and libvips packages while excluding foreign packages', () => {
+    // ROOT CAUSE:
+    //
+    // The combined Sharp brace pattern lets the `sharp-` branch consume the `libvips-` prefix.
+    // Its negative extglob then excludes the target libvips package with every foreign package.
+    // The fix must use non-overlapping exclusions for the two native package families.
+    expect(isIncludedByLinuxFilePatterns(
+      'node_modules/@img/sharp-linux-arm64/lib/sharp-linux-arm64.node',
+      'arm64',
+    )).toBe(true)
+    expect(isIncludedByLinuxFilePatterns(
+      'node_modules/@img/sharp-libvips-linux-arm64/lib/libvips-cpp.so',
+      'arm64',
+    )).toBe(true)
+    expect(isIncludedByLinuxFilePatterns(
+      'node_modules/@img/sharp-linux-x64/lib/sharp-linux-x64.node',
+      'arm64',
+    )).toBe(false)
+    expect(isIncludedByLinuxFilePatterns(
+      'node_modules/@img/sharp-libvips-linux-x64/lib/libvips-cpp.so',
+      'arm64',
+    )).toBe(false)
+    expect(isIncludedByLinuxFilePatterns(
+      'node_modules/@img/sharp-linux-x64/lib/sharp-linux-x64.node',
+      'x64',
+    )).toBe(true)
+    expect(isIncludedByLinuxFilePatterns(
+      'node_modules/@img/sharp-libvips-linux-x64/lib/libvips-cpp.so',
+      'x64',
+    )).toBe(true)
   })
 
   // ROOT CAUSE:
@@ -223,9 +265,9 @@ describe('flatpak package configuration', () => {
         type: 'file',
       }),
       expect.objectContaining({
-        'dest': 'build',
-        'path': 'build/icon-512.png',
-        'type': 'file',
+        dest: 'build',
+        path: 'build/icon-512.png',
+        type: 'file',
       }),
       expect.objectContaining({
         path: 'ai.moeru.airi.metainfo.xml',

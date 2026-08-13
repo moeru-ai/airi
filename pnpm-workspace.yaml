@@ -310,6 +310,7 @@ catalog:
   mineflayer-pathfinder: ^2.4.5
   mineflayer-pvp: ^1.3.2
   mineflayer-tool: ^1.2.0
+  minimatch: ^10.2.6
   minisearch: ^7.2.0
   mkcert: ^3.2.0
   motion-v: ^2.2.1

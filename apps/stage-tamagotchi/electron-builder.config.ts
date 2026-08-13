@@ -240,7 +240,8 @@ export default {
       '!**/onnxruntime-node/bin/napi-v3/linux/!(${arch}){,/**/*}',
       '!**/uiohook-napi/prebuilds/!(linux-${arch}){,/**/*}',
       '!**/electron-click-drag-plugin/build/Release/!(linux-${arch}){,/**/*}',
-      '!**/node_modules/@img/{sharp,sharp-libvips}-!(linux-${arch}){,/**/*}',
+      '!**/node_modules/@img/sharp-!(linux-${arch}|libvips-*){,/**/*}',
+      '!**/node_modules/@img/sharp-libvips-!(linux-${arch}){,/**/*}',
     ],
     // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
     publish: {
