@@ -30,10 +30,11 @@ const provider = {
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
   totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),
+  messages: Promise<Message[]> = Promise.resolve([]),
 ) {
   return {
     steps,
-    messages: Promise.resolve([]),
+    messages,
     usage: Promise.resolve(undefined),
     totalUsage,
   }
@@ -43,6 +44,76 @@ describe('streamFrom tool errors', () => {
   beforeEach(() => {
     streamTextMock.mockReset()
   })
+
+  it('emits the final xsAI messages after all tool rounds finish', async () => {
+    const onMessages = vi.fn()
+    const finalMessages: Message[] = [
+      { role: 'user', content: 'Check the weather.' },
+      {
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          {
+            id: 'call-weather',
+            type: 'function',
+            function: { name: 'weather', arguments: '{}' },
+          },
+        ],
+      },
+      { role: 'tool', tool_call_id: 'call-weather', content: 'sunny' },
+      { role: 'assistant', content: 'The weather is sunny.' },
+    ]
+    streamTextMock.mockReturnValueOnce(createMockStreamResult(
+      Promise.resolve([]),
+      Promise.resolve(undefined),
+      Promise.resolve(finalMessages),
+    ))
+
+    await streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: finalMessages.slice(0, 1),
+      options: { onMessages },
+    })
+
+    expect(onMessages).toHaveBeenCalledTimes(1)
+    expect(onMessages).toHaveBeenCalledWith(finalMessages)
+  })
+
+  it('ignores provider errors after steps resolve while final messages are pending', async () => {
+    let onEvent: ((event: unknown) => Promise<void>) | undefined
+    let resolveMessages: ((messages: Message[]) => void) | undefined
+    const messages = new Promise<Message[]>((resolve) => {
+      resolveMessages = resolve
+    })
+
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      onEvent = options.onEvent
+      return createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), messages)
+    })
+
+    // ROOT CAUSE:
+    //
+    // Final message persistence used to delay the steps-settled marker. A late
+    // provider error could then reject a stream whose authoritative steps
+    // promise had already resolved.
+    //
+    // We mark steps settled before awaiting the final transcript, while still
+    // treating transcript persistence failures as real stream failures.
+    const pending = streamFrom({
+      model: 'model-a',
+      chatProvider: provider,
+      messages: [{ role: 'user', content: 'hello' }] as Message[],
+    })
+
+    await vi.waitFor(() => expect(onEvent).toBeTypeOf('function'))
+    await Promise.resolve()
+    await onEvent!({ type: 'error', message: 'stream failed', cause: new Error('stream failed') })
+    resolveMessages?.([])
+
+    await expect(pending).resolves.toBeUndefined()
+  })
+
   it('requests final streaming usage and emits the reported token totals once', async () => {
     const onUsage = vi.fn()
     streamTextMock.mockReturnValueOnce(createMockStreamResult(

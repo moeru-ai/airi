@@ -223,6 +223,19 @@ export async function streamFrom({
         // resolved the authoritative full-step lifecycle.
         stepsSettled = true
         try {
+          const finalMessages = await streamResult.messages
+          await options?.onMessages?.(finalMessages)
+        }
+        catch (error) {
+          // Transcript persistence is part of the completed response contract,
+          // unlike late provider events and optional usage observation.
+          if (!settled) {
+            settled = true
+            reject(error)
+          }
+          return
+        }
+        try {
           await options?.onStreamEvent?.({ type: 'finish' } as const)
         }
         catch (error) {
@@ -266,6 +279,8 @@ export async function streamFrom({
         rejectOnce(error)
         console.error('Stream steps error:', error)
       })
+      // `steps` can reject before the success path awaits `messages`.
+      // Keep this rejection sink so xsAI cannot create an unhandled rejection.
       void streamResult.messages.catch(error => console.error('Stream messages error:', error))
       void streamResult.usage.catch(error => console.error('Stream usage error:', error))
       // `steps` and `totalUsage` reject independently when xsAI fails a

@@ -18,6 +18,8 @@
     "dev:ui": "pnpm -rF @proj-airi/stage-ui run story:dev",
     "dev:web": "pnpm -rF @proj-airi/stage-web run dev",
     "dev:web:https": "pnpm -rF @proj-airi/stage-web run dev:https",
+    "dev:server-auth": "pnpm -rF @proj-airi/ui-server-auth run dev",
+    "dev:backend": "docker compose -f server/docker-compose.yaml up --build",
     "dev:pocket:ios": "pnpm -rF @proj-airi/stage-pocket run dev:ios",
     "dev:pocket:android": "pnpm -rF @proj-airi/stage-pocket run dev:android",
     "dev:server": "pnpm -rF @proj-airi/server-runtime run dev",

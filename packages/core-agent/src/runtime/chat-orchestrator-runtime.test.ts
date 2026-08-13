@@ -195,6 +195,101 @@ describe('createChatOrchestratorRuntime', () => {
     expect(providerUserMessage).not.toHaveProperty('tools')
   })
 
+  // ROOT CAUSE:
+  //
+  // xsAI kept the assistant tool call and tool result in its private message copy.
+  // AIRI stored only UI slices, then removed those slices from the next provider request.
+  //
+  // We fixed this by storing the provider transcript on the finalized UI message.
+  // The next request expands that transcript back into chronological provider messages.
+  it('includes completed tool rounds in the next provider request', async () => {
+    const harness = createHarness()
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
+      await options?.onStreamEvent?.({
+        type: 'tool-call',
+        toolCallId: 'call-weather',
+        toolName: 'weather',
+        args: '{}',
+      } as StreamEvent)
+      await options?.onStreamEvent?.({
+        type: 'tool-result',
+        toolCallId: 'call-weather',
+        result: 'sunny',
+      } as StreamEvent)
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'The weather is sunny.' })
+
+      await (options as StreamOptions & { onMessages?: (messages: Message[]) => void })?.onMessages?.([
+        ...messages,
+        {
+          role: 'assistant',
+          content: '',
+          tool_calls: [
+            {
+              id: 'call-weather',
+              type: 'function',
+              function: {
+                name: 'weather',
+                arguments: '{}',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          tool_call_id: 'call-weather',
+          content: 'sunny',
+        },
+        {
+          role: 'assistant',
+          content: 'The weather is sunny.',
+        },
+      ])
+    })
+
+    await harness.runtime.ingest('What is the weather?', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+    await harness.runtime.ingest('Can you repeat that?', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const messages = harness.stream.mock.calls[1]?.[2]
+
+    expect(messages?.map(message => message.role)).toEqual([
+      'system',
+      'user',
+      'assistant',
+      'tool',
+      'assistant',
+      'user',
+    ])
+    expect(messages?.[2]).toMatchObject({
+      role: 'assistant',
+      tool_calls: [
+        {
+          id: 'call-weather',
+          type: 'function',
+          function: {
+            name: 'weather',
+            arguments: '{}',
+          },
+        },
+      ],
+    })
+    expect(messages?.[3]).toEqual({
+      role: 'tool',
+      tool_call_id: 'call-weather',
+      content: 'sunny',
+    })
+    expect(messages?.[4]).toEqual({
+      role: 'assistant',
+      content: 'The weather is sunny.',
+    })
+  })
+
   /**
    * @example
    * Hook order and prompt composition stay compatible with the stage-ui facade.

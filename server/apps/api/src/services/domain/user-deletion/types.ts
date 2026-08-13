@@ -68,22 +68,26 @@ export interface UserDeletionHandler {
  * Coordinator for account deletion across business modules.
  *
  * Use when:
- * - Wiring better-auth's `user.deleteUser.beforeDelete` hook in `libs/auth.ts`.
+ * - Serving the authenticated internal request emitted by Auth server's
+ *   `user.deleteUser.beforeDelete` hook.
  * - Implementing an admin-triggered deletion path (future).
  *
  * Expects:
  * - All handlers are registered at app-composition time before the first
  *   request hits `beforeDelete`. Late registration is allowed but discouraged.
  */
-export interface UserDeletionService {
-  /**
-   * Register a handler. Throws if `handler.name` is already registered —
-   * names must be unique so logs and metrics can attribute work cleanly.
-   */
-  register: (handler: UserDeletionHandler) => void
+export interface UserDeletionExecutor {
   /**
    * Run every registered handler in priority order. Returns when all
    * handlers complete, or throws the first handler error and stops.
    */
   softDeleteAll: (input: { userId: string, reason: UserDeletionReason }) => Promise<void>
+}
+
+export interface UserDeletionService extends UserDeletionExecutor {
+  /**
+   * Register a handler. Throws if `handler.name` is already registered —
+   * names must be unique so logs and metrics can attribute work cleanly.
+   */
+  register: (handler: UserDeletionHandler) => void
 }

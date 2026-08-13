@@ -2,9 +2,9 @@ import type { Database } from '../../../libs/db'
 
 import { eq } from 'drizzle-orm'
 
-import { createNotFoundError } from '../../../utils/error'
+import * as accountsSchema from '@proj-airi/auth-shared'
 
-import * as accountsSchema from '../../../schemas/accounts'
+import { createNotFoundError } from '../../../utils/error'
 
 export interface UserSelector {
   /** Select by user id. Exactly one of `userId` / `email` must be set. */

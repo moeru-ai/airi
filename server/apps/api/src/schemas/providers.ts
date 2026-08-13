@@ -1,10 +1,10 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
+import { user } from '@proj-airi/auth-shared'
 import { relations } from 'drizzle-orm'
 import { boolean, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
-import { user } from './accounts'
 
 // NOTICE: bare ownerId is intentional — no FK to user.id. better-auth hard-deletes
 // the user row; a cascade would wipe these soft-delete archive rows.

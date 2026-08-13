@@ -1,62 +1,61 @@
 # `@proj-airi/api-server`
 
-HTTP and WebSocket backend for AIRI. This app owns auth, billing, chat synchronization, gateway forwarding, and server-side observability export.
+Project AIRI's resource API. Authentication is a separate workspace app at
+`server/apps/auth`; this package does not instantiate Better Auth or expose
+auth/OIDC routes.
 
-## What It Does
+## Responsibilities
 
-- Serves the Hono-based API and WebSocket endpoints.
-- Uses Postgres as the source of truth for users, billing, and durable state.
-- Uses Redis for cache, KV, Pub/Sub, and Streams.
-- Forwards GenAI requests to the configured upstream gateway and records billing from usage.
-- Exports traces, metrics, and logs through OpenTelemetry.
+- Hono business APIs and WebSocket endpoints.
+- Characters, chats, providers, Flux, Stripe, model routing, and billing.
+- PostgreSQL migration ownership for the currently shared database.
+- Redis cache, configuration KV, and cross-instance Pub/Sub.
+- Local verification of Auth-issued OIDC JWTs through public JWKS.
 
-## How To Use It
-
-Install dependencies from the repo root and run scoped commands:
+## Run locally
 
 ```sh
+pnpm -F @proj-airi/api-server dev
 pnpm -F @proj-airi/api-server typecheck
 pnpm -F @proj-airi/api-server exec vitest run
 pnpm -F @proj-airi/api-server build
 ```
 
-To run the API together with local PostgreSQL and Redis, use:
+Run the complete local backend from the repository root:
 
 ```sh
 pnpm dev:backend
 ```
 
-## `AUTH_UI_URL`
+For source-level debugging, start `@proj-airi/api-server` and
+`@proj-airi/auth-server` separately instead.
 
-`apps/ui-server-auth` is deployed separately from the server image. The API server still owns the historical `/auth/*` entrypoints and redirects them to **`AUTH_UI_URL`**.
+`server/docker-compose.yaml` exposes the local Caddy gateway at `http://localhost:6112` and keeps
+the API and Auth container ports private.
 
-Default:
+## Service boundaries
 
-`AUTH_UI_URL=https://accounts.airi.build/ui`
+- `AUTH_SERVER_URL` is Auth's canonical public issuer origin used for JWKS,
+  issuer, and audience validation. It must exactly equal Auth's `PUBLIC_URL`.
+- `/internal/auth/*` is reachable only on the deployment's trusted private
+  network. The public edge must reject `/internal/*` and the API service must
+  not have its own public ingress.
+- `AUTH_SERVER_INTERNAL_URL` optionally sends JWKS fetches directly to Auth on
+  the private network while issuer and audience remain `AUTH_SERVER_URL`.
+- Auth tables and principal types come from `@proj-airi/auth-shared`; no module
+  under `server/apps/auth` is imported.
+- `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to
+  `https://admin.airi.build`.
 
-Set this when previewing or deploying auth UI to a different Cloudflare URL.
+## Railway
 
-## `ADMIN_UI_URL`
+Deploy this as the Resource API Railway service with Config File Path
+`/server/apps/api/railway.toml`; keep the service Root Directory at the
+repository root because the Dockerfile copies shared workspace packages. The
+config owns its Dockerfile, start command, `/readyz` healthcheck, and the
+watch patterns for every copied build input.
 
-The admin UI is deployed from the standalone `proj-airi` repository. The API server still owns the historical `/admin/*` entrypoints and redirects them to **`ADMIN_UI_URL`**.
-
-Default:
-
-`ADMIN_UI_URL=https://admin.airi.build`
-
-Set this when previewing or deploying admin UI to a different Cloudflare URL.
-
-## `RATE_LIMIT_TRUSTED_PROXY`
-
-Keep this unset for local and self-hosted deployments. Set
-`RATE_LIMIT_TRUSTED_PROXY=railway` when the API runs behind the trusted
-Railway/Caddy boundary so anonymous auth requests are keyed by Railway's
-canonical `X-Real-IP` instead of the gateway socket address.
-
-## `ADDITIONAL_TRUSTED_ORIGINS` (LAN / Capacitor dev)
-
-When the mobile dev server uses a non-localhost origin (for example `https://10.x.x.x:5273` from `cap copy ios` / `capacitor.config.json`), set **`ADDITIONAL_TRUSTED_ORIGINS`** in `server/apps/api/.env.local` to a comma-separated list of exact origins (parsed and normalized at startup). Example:
-
-`ADDITIONAL_TRUSTED_ORIGINS=https://10.0.0.129:5273,https://198.18.0.1:5273`
-
-Restart the API server after changing this variable.
+Set `AUTH_SERVER_INTERNAL_URL` from Auth's Railway private domain. It is only
+the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.
+See [`server/README.md`](../../README.md#railway-deployment) for the complete
+cross-service variable and migration contract.
