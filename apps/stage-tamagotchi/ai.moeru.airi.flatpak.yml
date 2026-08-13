@@ -25,6 +25,7 @@ finish-args:
   # Filesystem permissions
   - --filesystem=xdg-download:rw
   - --filesystem=xdg-config/airi:create
+  # Electron uses ~/.config/airi when XDG_CONFIG_HOME is not set.
   - --filesystem=~/.config/airi:create
 
 modules:
