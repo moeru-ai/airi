@@ -150,3 +150,16 @@ docs/ai/context/verifications/
 # Generated from packages/i18n/glossary/terms.yaml at upload time. Never committed, so it
 # cannot drift from its source.
 packages/i18n/glossary/glossary.tbx
+
+# proxy-router runtime state and WireGuard credentials — never commit live data
+/tools/proxy-router/providers/**/*.conf
+/tools/proxy-router/wgcf-account.toml
+/tools/proxy-router/wgcf-account.toml.*
+/tools/proxy-router/wgcf-profile.conf
+/tools/proxy-router/router.json
+/tools/proxy-router/sing-box.json
+/tools/proxy-router/sing-box.json.debug
+/tools/proxy-router/sing-box.json.last-good
+/tools/proxy-router/sing-box.pid
+/tools/proxy-router/sing-box.log*
+/tools/proxy-router/state/

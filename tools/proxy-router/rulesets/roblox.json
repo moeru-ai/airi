@@ -1,0 +1,13 @@
+{
+  "provider": "cloudflare",
+  "description": "Roblox AS22697 announced IPv4/IPv6 ranges for selective UDP/TUN routing",
+  "source": "RIPE RIS announced-prefixes, queried 2026-08-12",
+  "ip_cidr": [
+    "128.116.0.0/17",
+    "103.140.28.0/23",
+    "141.193.3.0/24",
+    "205.201.62.0/24",
+    "2620:135:6000::/40",
+    "2620:2b:e000::/48"
+  ]
+}

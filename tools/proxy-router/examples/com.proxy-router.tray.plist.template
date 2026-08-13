@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.proxy-router.tray</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>@PYTHON@</string>
+        <string>@ROOT@/examples/proxy_tray.py</string>
+        <string>--root</string>
+        <string>@ROOT@</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>ProcessType</key>
+    <string>Interactive</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>@PATH@</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>@LOG_DIR@/proxy-tray.log</string>
+    <key>StandardErrorPath</key>
+    <string>@LOG_DIR@/proxy-tray.log</string>
+</dict>
+</plist>

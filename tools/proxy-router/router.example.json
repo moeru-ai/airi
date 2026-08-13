@@ -1,0 +1,97 @@
+{
+  "port": 2080,
+  "providers": {
+    "proton": {
+      "directory": "providers/proton",
+      "cooldown_seconds": 60
+    },
+    "cloudflare": {
+      "directory": "providers/cloudflare",
+      "cooldown_seconds": 60,
+      "error_policy": {
+        "429": {
+          "action": "cooldown",
+          "seconds": 300
+        }
+      }
+    }
+  },
+  "routes": [
+    {
+      "id": "opencode-zen",
+      "domains": [
+        "opencode.ai"
+      ],
+      "provider": "proton"
+    },
+    {
+      "id": "roblox",
+      "domains": [
+        "roblox.com",
+        "rbxcdn.com",
+        "robloxlabs.com",
+        "rblx.com"
+      ],
+      "provider": "cloudflare"
+    }
+  ],
+  "routing": {
+    "mode": "vpn-list",
+    "vpn_domains": []
+  },
+  "vpn": {
+    "address": [
+      "172.19.0.1/30"
+    ],
+    "mtu": 1500,
+    "stack": "system",
+    "dns_transport": "udp"
+  },
+  "egress": {
+    "probe_url": "https://www.cloudflare.com/cdn-cgi/trace",
+    "probe_timeout": 8,
+    "block_seconds": 3600,
+    "upstream_cooldown_seconds": 300,
+    "fail_threshold": 2,
+    "slow_latency_ms": 1200,
+    "ok_window": 86400
+  },
+  "error_policy": {
+    "default": {
+      "action": "cooldown",
+      "seconds": 300
+    },
+    "429": {
+      "action": "exhaust",
+      "seconds": 900
+    },
+    "503": {
+      "action": "cooldown",
+      "seconds": 120
+    },
+    "timeout": {
+      "action": "cooldown",
+      "seconds": 60
+    },
+    "tls": {
+      "action": "cooldown",
+      "seconds": 300
+    },
+    "connection": {
+      "action": "cooldown",
+      "seconds": 300
+    },
+    "1010": {
+      "action": "block",
+      "seconds": 3600
+    },
+    "403": {
+      "action": "block",
+      "seconds": 3600
+    }
+  },
+  "rotation": {
+    "interval_seconds": 7200,
+    "jitter_seconds": 300
+  }
+}
