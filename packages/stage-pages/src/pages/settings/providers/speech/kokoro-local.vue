@@ -124,14 +124,19 @@ onMounted(async () => {
     // the catalog, in which case getProviderConfig() returns undefined and reading
     // `config.model` throws. ensureProvider is a synced (async) action: it returns
     // a Promise, not the provider, so await it and re-read the config afterwards.
+    // Seed with capability-aware defaults (matching createProviderConfig) instead
+    // of an empty object, so fp16-capable hardware keeps its fp16-webgpu default.
     if (!providerStore.getProviderConfig(providerId)) {
-      await providerStore.ensureProvider(providerId, providerId, {})
+      await providerStore.ensureProvider(providerId, providerId, {
+        model: getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value),
+        voiceId: '',
+      })
     }
     const config = providerStore.getProviderConfig(providerId) ?? {}
 
     // Persist the default model if none is saved yet so validation passes on first visit
     if (!config.model) {
-      config.model = getDefaultKokoroModel(hasWebGPU.value)
+      config.model = getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
     }
 
     const validationResult = await providersStore.validateProviderConfig(providerId, config)
