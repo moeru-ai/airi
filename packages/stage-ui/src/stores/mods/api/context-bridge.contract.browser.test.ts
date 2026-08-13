@@ -577,7 +577,7 @@ describe('context bridge contract', () => {
     streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
     await vi.waitFor(() => {
       expect(chatOrchestratorMock.sending).toBe(true)
-      expect(beginStreamMock).toHaveBeenCalledTimes(1)
+      expect(beginStreamMock).toHaveBeenCalledWith('turn-1')
     })
 
     streamSender.postMessage({ type: 'token-literal', literal: 'hello', sessionId: 'remote-session', context })
@@ -638,7 +638,7 @@ describe('context bridge contract', () => {
 
     streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
     await vi.waitFor(() => {
-      expect(beginStreamMock).toHaveBeenCalledTimes(1)
+      expect(beginStreamMock).toHaveBeenCalledWith('turn-1')
     })
 
     currentGeneration = 8

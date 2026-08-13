@@ -1,6 +1,7 @@
 import type { Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
 import type { TimedEvent } from '@opentelemetry/sdk-trace-base/build/esm/TimedEvent'
+import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 
 import { context, trace } from '@opentelemetry/api'
 import { hrTimeToNanoseconds } from '@opentelemetry/core'
@@ -12,21 +13,7 @@ export type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
 const TRACER_NAME = 'ai.moeru.airi.io-tracer'
 const BROADCAST_CHANNEL = 'io-tracer-channel' // TODO: Use simple BroadcastChannel for now
 
-export interface SerializedSpan {
-  traceId: string
-  spanId: string
-  parentSpanId: string
-  name: string
-  kind: number
-  startTimeNano: string
-  endTimeNano: string
-  attributes: Record<string, unknown>
-  events: { name: string, timeNano: string, attributes: Record<string, unknown> }[]
-  status: { code: number, message: string }
-  ended: boolean
-}
-
-function serializeSpan(span: ReadableSpan): SerializedSpan {
+function serializeSpan(span: ReadableSpan): SerializedIOSpan {
   const ctx = span.spanContext()
   const parentCtx = span.parentSpanContext
   return {
@@ -48,7 +35,7 @@ function serializeSpan(span: ReadableSpan): SerializedSpan {
   }
 }
 
-export function deserializeSpan(s: SerializedSpan): ReadableSpan {
+export function deserializeSpan(s: SerializedIOSpan): ReadableSpan {
   const nanoToHr = (nano: string): [number, number] => {
     const n = Number(nano)
     return [Math.floor(n / 1e9), n % 1e9]

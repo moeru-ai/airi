@@ -12,6 +12,7 @@ const vadMock = vi.hoisted(() => ({
   options: undefined as {
     onSpeechStart?: () => void
     onSpeechEnd?: () => void
+    onSpeechCancel?: () => void
     onSpeechReady?: (event: { buffer: Float32Array, duration: number }) => void
     minSilenceDurationMs?: number
   } | undefined,
@@ -40,6 +41,7 @@ vi.mock('../../stores/ai/models/vad', async () => {
         isSpeechProb: vue.ref(0),
         isSpeechHistory: vue.ref([]),
         inferenceError: vue.ref(),
+        loading: vue.ref(false),
         minSilenceDurationMs: vue.toRef(options?.minSilenceDurationMs ?? 1200),
       }
     },
@@ -157,6 +159,29 @@ describe('useVoiceInputSession', () => {
     await vi.waitFor(() => expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledOnce())
 
     expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledWith(recorderRecording)
+  })
+
+  it('discards a VAD recording when the detected speech is shorter than the minimum duration', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+      await audioRecorderMock.onStopRecordHook?.(new Blob(['noise'], { type: 'audio/wav' }))
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+    })
+
+    await expect(session.startSegment('vad')).resolves.toBe(true)
+    vadMock.options?.onSpeechCancel?.()
+
+    await vi.waitFor(() => expect(session.activeRecordingTrigger.value).toBeUndefined())
+    expect(audioRecorderMock.stopRecord).toHaveBeenCalledOnce()
+    expect(hearingPipelineMock.transcribeForRecording).not.toHaveBeenCalled()
   })
 
   it('clears the active recorder segment when discarding fails during stop', async () => {

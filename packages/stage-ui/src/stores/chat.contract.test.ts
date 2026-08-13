@@ -112,6 +112,56 @@ vi.mock('../composables', () => ({
   }),
 }))
 
+vi.mock('../libs/analytics', () => ({
+  getAnalytics: () => ({
+    emit: (event: { name: string }, properties: unknown) => {
+      switch (event.name) {
+        case '$ai_generation':
+          chatAnalyticsMocks.trackAiGeneration(properties)
+          break
+        case 'assistant_response_rendered':
+          chatAnalyticsMocks.trackAssistantResponseRendered(properties)
+          break
+        case 'chat_activation_failed':
+          chatAnalyticsMocks.trackChatActivationFailed(properties)
+          break
+        case 'chat_activation_started':
+          chatAnalyticsMocks.trackChatActivationStarted(properties)
+          break
+        case 'chat_activation_succeeded':
+          chatAnalyticsMocks.trackChatActivationSucceeded(properties)
+          break
+        case 'llm_first_token':
+          chatAnalyticsMocks.trackLlmFirstToken(properties)
+          break
+        case 'llm_request_started':
+          chatAnalyticsMocks.trackLlmRequestStarted(properties)
+          break
+        case 'message_round':
+          chatAnalyticsMocks.trackMessageRound(properties)
+          break
+        case 'message_round_failed':
+          chatAnalyticsMocks.trackMessageRoundFailed(properties)
+          break
+        case 'message_send_started':
+          chatAnalyticsMocks.trackMessageSendStarted(properties)
+          break
+        case 'message_sent':
+          chatAnalyticsMocks.trackMessageSent(properties)
+          break
+        case 'second_turn_started':
+          chatAnalyticsMocks.trackSecondTurnStarted(properties)
+          break
+        default:
+          return false
+      }
+
+      return true
+    },
+    recordFirstMessage: trackFirstMessageMock,
+  }),
+}))
+
 vi.mock('../composables/use-io-tracer', () => ({
   activeTurnSpan: ioTracerMocks.activeTurnSpan,
   startSpan: ioTracerMocks.startSpanMock,
@@ -468,7 +518,7 @@ describe('chat store contract', () => {
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, messages: Message[], options: any) => {
       composedMessages = messages
       expect(options.waitForTools).toBe(true)
-      expect(options.captureToolErrors).toBe(true)
+      expect(options.captureToolErrors).toBeUndefined()
 
       await options.onStreamEvent({ type: 'text-delta', text: 'hello' })
       await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })

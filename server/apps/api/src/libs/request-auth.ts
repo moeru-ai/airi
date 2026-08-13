@@ -1,32 +1,32 @@
-import type auth from '../scripts/auth'
-import type { AuthInstance } from './auth'
-import type { Env } from './env'
+import type { AuthSession } from '@proj-airi/auth-shared'
+
+import type { Database } from './db'
 
 import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 
+import { isUserBannedNow } from '@proj-airi/auth-shared'
+import { eq } from 'drizzle-orm'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
-export interface RequestAuthSession {
-  user: typeof auth.$Infer.Session.user
-  session: typeof auth.$Infer.Session.session
+import * as authSchema from '@proj-airi/auth-shared'
+
+interface RequestAuthEnv {
+  AUTH_SERVER_URL: string
+  AUTH_SERVER_INTERNAL_URL?: string
+  TEST_AUTH_TOKEN: string
+  TEST_AUTH_USER_ID: string
+  TEST_AUTH_USER_EMAIL: string
+  TEST_AUTH_USER_NAME: string
+  TEST_AUTH_USER_ROLE: string
 }
 
-/**
- * Whether a user is currently banned, honoring `banExpires`.
- *
- * The better-auth `admin` plugin auto-clears an expired ban only on the next
- * login attempt (`session.create.before`); the stateless OIDC JWT hot path
- * never creates a session, so we evaluate expiry here too — a `banned` row
- * whose `banExpires` is in the past is treated as not banned.
- */
-export function isUserBannedNow(user: { banned?: boolean | null, banExpires?: Date | string | null }): boolean {
-  if (!user.banned)
-    return false
-  if (user.banExpires == null)
-    return true
-  return new Date(user.banExpires).getTime() > Date.now()
+interface TokenIssuerEnv {
+  AUTH_SERVER_URL: string
+  AUTH_SERVER_INTERNAL_URL?: string
 }
+
+export type RequestAuthSession = AuthSession
 
 function readBearerToken(headers: Headers): string | null {
   const authorization = headers.get('authorization')
@@ -43,7 +43,7 @@ function timingSafeStringEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 
-function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession | null {
+function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): AuthSession | null {
   if (!env.TEST_AUTH_TOKEN || !timingSafeStringEqual(accessToken, env.TEST_AUTH_TOKEN))
     return null
 
@@ -65,7 +65,7 @@ function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession
       lastSeenAt: now,
       createdAt: now,
       updatedAt: now,
-    } as RequestAuthSession['user'],
+    } as AuthSession['user'],
     session: {
       id: `test-auth:${env.TEST_AUTH_USER_ID}`,
       token: accessToken,
@@ -75,19 +75,21 @@ function resolveTestAuthToken(env: Env, accessToken: string): RequestAuthSession
       expiresAt,
       ipAddress: null,
       userAgent: null,
-    } as RequestAuthSession['session'],
+    } as AuthSession['session'],
   }
 }
 
-let cachedJWKS: ReturnType<typeof createRemoteJWKSet> | null = null
+const cachedJWKS = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
 
-function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
-  if (!cachedJWKS) {
-    cachedJWKS = createRemoteJWKSet(
-      new URL('/api/auth/jwks', env.API_SERVER_URL),
-    )
-  }
-  return cachedJWKS
+function getJWKS(env: TokenIssuerEnv): ReturnType<typeof createRemoteJWKSet> {
+  const jwksUrl = new URL('/api/auth/jwks', env.AUTH_SERVER_INTERNAL_URL ?? env.AUTH_SERVER_URL).toString()
+  const cached = cachedJWKS.get(jwksUrl)
+  if (cached)
+    return cached
+
+  const jwks = createRemoteJWKSet(new URL(jwksUrl))
+  cachedJWKS.set(jwksUrl, jwks)
+  return jwks
 }
 
 /**
@@ -96,32 +98,28 @@ function getJWKS(env: Env): ReturnType<typeof createRemoteJWKSet> {
  * Still requires one findUserById call to build the full RequestAuthSession.
  */
 async function resolveJWTAccessToken(
-  auth: AuthInstance,
-  env: Env,
+  db: Database,
+  env: TokenIssuerEnv,
   accessToken: string,
-): Promise<RequestAuthSession | null> {
+): Promise<AuthSession | null> {
   try {
     const jwks = getJWKS(env)
     // NOTICE: better-auth's jwt() plugin sets issuer to the full baseURL
     // including the path prefix (e.g. "http://localhost:3000/api/auth"),
     // not just the server origin.
     const { payload } = await jwtVerify(accessToken, jwks, {
-      issuer: `${env.API_SERVER_URL}/api/auth`,
-      audience: env.API_SERVER_URL,
+      issuer: `${env.AUTH_SERVER_URL}/api/auth`,
+      audience: env.AUTH_SERVER_URL,
     })
 
     if (!payload.sub)
       return null
 
-    const ctx = await auth.$context
-    // NOTICE:
-    // internalAdapter.findUserById is typed as better-auth's base User and omits
-    // the admin-plugin fields (banned/role/banReason/banExpires), but the query
-    // selects the full row so the runtime value carries them. Widen to the
-    // inferred session user so `banned` is visible to isUserBannedNow and the
-    // RequestAuthSession return type matches.
-    // Removal condition: better-auth's adapter return type includes plugin fields.
-    const user = await ctx.internalAdapter.findUserById(payload.sub) as RequestAuthSession['user'] | null
+    // The resource server deliberately reads only its authorization projection.
+    // It does not instantiate Better Auth or depend on its internal adapter.
+    const user = await db.query.user.findFirst({
+      where: eq(authSchema.user.id, payload.sub),
+    })
     if (!user)
       return null
 
@@ -144,44 +142,17 @@ async function resolveJWTAccessToken(
   }
 }
 
-/**
- * Resolve a session from request headers WITHOUT applying the ban gate.
- *
- * Use when:
- * - A caller needs the verified principal but will make its own ban decision,
- *   e.g. the OIDC `/oauth2/userinfo` guard that wants to 403 a banned subject
- *   distinctly from an invalid/expired token.
- *
- * Do NOT use this on request-serving paths to obtain `c.get('user')` — that is
- * what {@link resolveRequestAuth} is for, and it applies the ban gate. Using
- * this resolver there would silently let banned principals through.
- */
-export async function resolveSessionIgnoringBan(
-  auth: AuthInstance,
-  env: Env,
+export async function resolveRequestAuth(
+  db: Database,
+  env: RequestAuthEnv,
   headers: Headers,
-): Promise<RequestAuthSession | null> {
-  const session = await auth.api.getSession({ headers })
-  if (session?.user && session?.session)
-    return session
-
+): Promise<AuthSession | null> {
   const accessToken = readBearerToken(headers)
   if (!accessToken)
     return null
 
   const testSession = resolveTestAuthToken(env, accessToken)
-  if (testSession)
-    return testSession
-
-  return await resolveJWTAccessToken(auth, env, accessToken)
-}
-
-export async function resolveRequestAuth(
-  auth: AuthInstance,
-  env: Env,
-  headers: Headers,
-): Promise<RequestAuthSession | null> {
-  const resolved = await resolveSessionIgnoringBan(auth, env, headers)
+  const resolved = testSession ?? await resolveJWTAccessToken(db, env, accessToken)
   if (!resolved)
     return null
 

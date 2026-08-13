@@ -1,8 +1,8 @@
-import type auth from '../scripts/auth'
+import type { RequestAuthSession } from '../libs/request-auth'
 
 export interface HonoEnv {
   Variables: {
-    user: typeof auth.$Infer.Session.user | null
-    session: typeof auth.$Infer.Session.session | null
+    user: RequestAuthSession['user'] | null
+    session: RequestAuthSession['session'] | null
   }
 }

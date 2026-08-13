@@ -31,9 +31,6 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
-  '@xsai/generate-text@0.5.0-beta.8': patches/@xsai__generate-text@0.5.0-beta.8.patch
-  '@xsai/shared-chat@0.5.0-beta.8': patches/@xsai__shared-chat@0.5.0-beta.8.patch
-  '@xsai/stream-text@0.5.0-beta.8': patches/@xsai__stream-text@0.5.0-beta.8.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
@@ -118,7 +115,7 @@ catalog:
   '@mediapipe/tasks-vision': ^0.10.34
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.19
-  '@moeru/eventa': 1.0.0-beta.14
+  '@moeru/eventa': 1.0.0-beta.13
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.1.0-beta.7
   '@moeru/three-mmd-physics-ammo': 0.1.0-beta.7
@@ -330,7 +327,7 @@ catalog:
   pathe: ^2.0.3
   pg: ^8.20.0
   pinia: ^3.0.4
-  pinia-plugin-synced: 0.0.2
+  pinia-plugin-synced: ^0.1.0
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.60.0
@@ -425,7 +422,7 @@ catalog:
   wxt: ^0.20.24
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
-  xsschema: 0.5.0-beta.2
+  xsschema: 0.5.0-beta.8
   yaml: ^2.8.3
   yauzl: ^3.3.0
   zod: ^4.3.6

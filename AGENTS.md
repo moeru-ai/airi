@@ -19,6 +19,12 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Structure & Responsibilities
 
+- **Hosted backend** (`server/`)
+  - `server/apps/api`: Hono resource API and business domains.
+  - `server/apps/auth`: standalone Better Auth and OIDC service.
+  - `server/packages`: backend-private schema and Node infrastructure packages.
+  - `server/dev/caddy`: local-only Auth/API edge routing.
+  - `server/docker-compose.yaml`: complete local backend stack.
 - **Apps**
   - `apps/stage-web`: Web app; composables/stores in `src/composables`, `src/stores`; pages in `src/pages`; devtools in `src/pages/devtools`; router config via `vite.config.ts`.
   - `apps/stage-tamagotchi`: Electron app; renderer pages in `src/renderer/pages`; devtools in `src/renderer/pages/devtools`; settings layout at `src/renderer/layouts/settings.vue`; router config via `electron.vite.config.ts`.
@@ -49,6 +55,7 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 - `packages/stage-shared`: Shared logic across stage-ui, stage-ui-three, stage-web, stage-tamagotchi.
 - `packages/ui`: Standardized primitives (inputs/textarea/buttons/layout) built on reka-ui.
 - `packages/i18n`: All translations.
+- Hosted backend: `server/apps/api`, `server/apps/auth`, `server/packages`, and local tooling under `server/dev`.
 - Server channel: `packages/server-runtime`, `packages/server-sdk`, `packages/server-shared` (power `services/` and `plugins/`).
 - Legacy desktop: `crates/` (old Tauri; Electron is current).
 - Pages: `packages/stage-pages` (shared bases); `apps/stage-web/src/pages` and `apps/stage-tamagotchi/src/renderer/pages` for app-specific pages; devtools live in each app’s `.../pages/devtools`.

@@ -37,6 +37,7 @@
     "./libs/providers/providers/browser-web-speech-api": "./src/libs/providers/providers/browser-web-speech-api/index.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
+    "./models/*": "./src/models/*.ts",
     "./services/*": "./src/services/*.ts",
     "./tools/mcp": "./src/tools/mcp.ts",
     "./stores/character": "./src/stores/character/index.ts",
