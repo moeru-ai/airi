@@ -168,6 +168,17 @@ describe('linux Flatpak package verification', () => {
     expect(() => assertFlatpakPackageContract(validFlatpakPackage, 'arm64')).not.toThrow()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2278#discussion_r3776441935
+  // ROOT CAUSE:
+  //
+  // The package contract checks files/lib/airi/airi, but the launch verifier used
+  // files/bin/airi/airi. The files/bin/airi entry is a launcher symlink, not a directory.
+  //
+  // We fixed this by returning the checked executable path for the launch verifier.
+  it('returns the checked Flatpak executable path', () => {
+    expect(assertFlatpakPackageContract(validFlatpakPackage, 'arm64')).toBe('./files/lib/airi/airi')
+  })
+
   it('accepts the expected x64 Flatpak architecture', () => {
     expect(() => assertFlatpakPackageContract({
       ...validFlatpakPackage,

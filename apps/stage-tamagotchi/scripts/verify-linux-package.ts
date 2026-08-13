@@ -178,8 +178,9 @@ export function assertRpmPackageContract(inspection: RpmPackageInspection, relea
 
 /**
  * Makes sure that a Flatpak exports AIRI's launcher, icon, and matching native payload.
+ * Returns the checked executable entry for later architecture checks.
  */
-export function assertFlatpakPackageContract(inspection: FlatpakPackageInspection, releaseArchitecture: ReleaseArchitecture): void {
+export function assertFlatpakPackageContract(inspection: FlatpakPackageInspection, releaseArchitecture: ReleaseArchitecture): string {
   if (inspection.appId !== 'ai.moeru.airi')
     throw new Error(`Expected Flatpak application ai.moeru.airi, received ${inspection.appId}`)
 
@@ -193,10 +194,11 @@ export function assertFlatpakPackageContract(inspection: FlatpakPackageInspectio
   if (inspection.command !== 'airi.sh')
     throw new Error(`Expected Flatpak command airi.sh, received ${inspection.command}`)
 
+  const executablePath = './files/lib/airi/airi'
   assertDesktopPackageEntries(
     inspection.entries,
     releaseArchitecture,
-    './files/lib/airi/airi',
+    executablePath,
     './export/share/applications/',
     './export/share/icons/',
   )
@@ -204,6 +206,8 @@ export function assertFlatpakPackageContract(inspection: FlatpakPackageInspectio
   const launcher = inspection.entries.find(entry => entry.path === './files/bin/airi.sh')
   if (!launcher || !isRegularFile(launcher) || !isExecutable(launcher))
     throw new Error('Flatpak launcher is missing or is not executable: ./files/bin/airi.sh')
+
+  return executablePath
 }
 
 /**
@@ -654,9 +658,9 @@ export async function verifyFlatpakPackage(packagePath: string, architecture: Re
   let installedAppId: string | undefined
   try {
     const { checkoutPath, inspection } = await inspectFlatpakPackage(resolvedPackagePath, runtimeRoot)
-    assertFlatpakPackageContract(inspection, architecture)
+    const executableEntryPath = assertFlatpakPackageContract(inspection, architecture)
 
-    const executablePath = join(checkoutPath, 'files', 'bin', 'airi', 'airi')
+    const executablePath = join(checkoutPath, executableEntryPath)
     const desktopEntryPath = join(checkoutPath, 'export', 'share', 'applications', 'ai.moeru.airi.desktop')
     const [{ stdout: elfHeader }, desktopEntry] = await Promise.all([
       execFile('readelf', ['--file-header', executablePath], { encoding: 'utf8' }),
