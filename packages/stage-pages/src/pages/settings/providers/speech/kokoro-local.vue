@@ -58,10 +58,19 @@ const model = computed({
     return getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value)
   },
   set(val: string) {
-    // The combobox can write back the v-model before onMounted runs, at which
-    // point the provider may not be registered yet and synced actions are still
-    // async. Skip the write in that window; onMounted persists the default model
-    // right after registration, and later user selections always hit a config.
+    // NOTICE:
+    // Why this workaround is needed: the combobox can write back the v-model
+    // before onMounted runs, when the provider may not be registered yet and
+    // synced actions are still async. Skipping the write in that window is
+    // safe because onMounted persists the default model right after
+    // registration, and later user selections always hit a config.
+    // Root cause: direct navigation registers the provider inside onMounted
+    // (ensureProvider), so a pre-mount combobox write would hit
+    // getProviderConfig() === undefined and throw.
+    // Source: PR #2273 review (codex bot), kokoro-local direct navigation path.
+    // Removal condition: when the settings page guarantees the provider is
+    // registered before the combobox can write (e.g. provider pre-registered
+    // at app init), this guard can be deleted.
     const config = providerStore.getProviderConfig(providerId)
     if (config)
       config.model = val
@@ -130,6 +139,9 @@ onMounted(async () => {
       await providerStore.ensureProvider(providerId, providerId, {
         model: getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value),
         voiceId: '',
+        // Match getDefaultProviderConfig() shape (baseUrl: '' for providers
+        // without a base URL) so shouldListProvider() comparison stays clean.
+        baseUrl: '',
       })
     }
     const config = providerStore.getProviderConfig(providerId) ?? {}
