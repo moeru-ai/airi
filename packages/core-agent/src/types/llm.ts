@@ -24,6 +24,8 @@ export type StreamEvent
 export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
+  /** Provider that owns this request. Internal adapters use this for provider-specific transport metadata. */
+  providerId?: string
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
   /** Called once with the final xsAI message list after all tool rounds finish. */
   onMessages?: (messages: Message[]) => void | Promise<void>

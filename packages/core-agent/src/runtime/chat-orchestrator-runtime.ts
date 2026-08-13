@@ -47,11 +47,29 @@ function cloneStreamingMessage(message: StreamingAssistantMessage): StreamingAss
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
+export interface ChatOrchestratorProviderCandidate {
+  /** Stable provider identifier used for routing and telemetry. */
+  providerId: string
+  /** Provider model identifier used for this attempt. */
+  model: string
+  /** Concrete chat provider implementation used for this attempt. */
+  chatProvider: ChatProvider
+}
+
+/** Resolves one fallback candidate when the previous provider cannot start a response. */
+export type ChatOrchestratorProviderCandidateSource
+  = ChatOrchestratorProviderCandidate
+    | (() => Promise<ChatOrchestratorProviderCandidate | undefined>)
+
 export interface ChatOrchestratorSendOptions {
   /** Provider model identifier used for the outbound LLM request. */
   model: string
   /** Concrete chat provider implementation selected by the caller. */
   chatProvider: ChatProvider
+  /** Provider that owns the primary model. Defaults to the active provider. */
+  providerId?: string
+  /** Ordered candidates tried after the primary provider fails before output. */
+  fallbackCandidates?: ChatOrchestratorProviderCandidateSource[]
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
   /** Image attachments appended to the user message content parts. */
@@ -74,6 +92,48 @@ interface QueuedSend {
     resolve: () => void
     reject: (error: unknown) => void
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function statusCodeFrom(error: unknown): number | undefined {
+  const statusError = error as {
+    cause?: {
+      response?: { status?: unknown }
+      status?: unknown
+      statusCode?: unknown
+    }
+    response?: { status?: unknown }
+    status?: unknown
+    statusCode?: unknown
+  } | undefined
+  const candidates = [
+    statusError?.status,
+    statusError?.statusCode,
+    statusError?.response?.status,
+    statusError?.cause?.status,
+    statusError?.cause?.statusCode,
+    statusError?.cause?.response?.status,
+  ]
+  for (const candidate of candidates) {
+    if (typeof candidate === 'number')
+      return candidate
+  }
+
+  return undefined
+}
+
+function canFallbackFrom(error: unknown): boolean {
+  if (isAbortError(error))
+    return false
+
+  const status = statusCodeFrom(error)
+  if (status === undefined)
+    return true
+
+  return [401, 403, 404, 408, 425, 429].includes(status) || status >= 500
 }
 
 /**
@@ -493,7 +553,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
     patchForegroundStream(sessionId, buildingMessage)
     const sendSource = options.input ? 'voice' : 'text'
-    const activeProvider = deps.getActiveProvider?.() ?? ''
+    const primaryProviderId = options.providerId ?? deps.getActiveProvider?.() ?? ''
+    const providerCandidateSources: ChatOrchestratorProviderCandidateSource[] = [
+      {
+        providerId: primaryProviderId,
+        model: options.model,
+        chatProvider: options.chatProvider,
+      },
+      ...(options.fallbackCandidates ?? []),
+    ]
+    let currentCandidate = providerCandidateSources[0] as ChatOrchestratorProviderCandidate
     // The user message is the durable start of a round, so its ID also serves
     // as the correlation key for every telemetry milestone emitted by it.
     const correlation: ChatRoundCorrelation = {
@@ -507,7 +576,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ...correlation,
         source: sendSource,
         model: options.model,
-        provider: activeProvider,
+        provider: primaryProviderId,
       })
     }
     deps.onMessageSendStarted?.({
@@ -565,7 +634,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         messageText: sendingMessage,
         source: sendSource,
         model: options.model,
-        provider: activeProvider,
+        provider: primaryProviderId,
         roundId,
         turnIndex,
       })
@@ -576,7 +645,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionMessages: sessionMessagesForSend,
       })
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      let categorizer: ReturnType<typeof createStreamingCategorizer> | undefined
+      const getCategorizer = () => {
+        categorizer ??= createStreamingCategorizer(currentCandidate.providerId)
+        return categorizer
+      }
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
@@ -584,9 +657,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (shouldAbort())
             return
 
-          categorizer.consume(literal)
+          const currentCategorizer = getCategorizer()
+          currentCategorizer.consume(literal)
 
-          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          const speechOnly = currentCategorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
           if (speechOnly.trim()) {
@@ -617,7 +691,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          const finalCategorization = categorizeResponse(fullText, currentCandidate.providerId)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -718,116 +792,170 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
-      const llmRequestStartedAt = monotonicNow()
-      let llmFirstTokenEmitted = false
+      let llmRequestStartedAt = 0
       let generationUsage: LlmUsage = { source: 'unavailable' }
+      let generationUsageReported = false
       let providerTranscript: Message[] | undefined
       const providerInputMessageCount = newMessages.length
-      deps.onLlmRequestStarted?.({
-        ...correlation,
-        model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
-        hasVoice: !!options.input,
-      })
+      let generationCompleted = false
+      let lastProviderError: unknown
+      for (const candidateSource of providerCandidateSources) {
+        let candidate: ChatOrchestratorProviderCandidate | undefined
+        try {
+          candidate = typeof candidateSource === 'function'
+            ? await candidateSource()
+            : candidateSource
+        }
+        catch (error) {
+          if (isAbortError(error))
+            throw error
+          lastProviderError = error
+          continue
+        }
 
-      await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
-        headers,
-        requestCorrelation: {
-          conversationId: correlation.conversationId,
-          roundId: correlation.roundId,
-        },
-        tools: options.tools,
-        waitForTools: true,
-        onMessages: (messages) => {
-          const currentTurnMessages = messages.slice(providerInputMessageCount)
-          const hasToolRound = currentTurnMessages.some(message =>
-            message.role === 'tool'
-            || (message.role === 'assistant' && Boolean(message.tool_calls?.length)),
-          )
+        if (!candidate)
+          continue
 
-          if (hasToolRound)
-            providerTranscript = structuredClone(currentTurnMessages)
-        },
-        onUsage: (usage) => {
-          generationUsage = usage
-          deps.onLlmGeneration?.({
-            ...correlation,
-            model: options.model,
-            provider: activeProvider,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            totalTokens: usage.totalTokens,
-            usageSource: usage.source,
+        currentCandidate = candidate
+        llmRequestStartedAt = monotonicNow()
+        let attemptProducedOutput = false
+        let llmFirstTokenEmitted = false
+        generationUsage = { source: 'unavailable' }
+        generationUsageReported = false
+        providerTranscript = undefined
+
+        deps.onLlmRequestStarted?.({
+          ...correlation,
+          model: candidate.model,
+          provider: candidate.providerId || 'unknown',
+          hasVoice: !!options.input,
+        })
+
+        try {
+          await deps.llm.stream(candidate.model, candidate.chatProvider, newMessages as Message[], {
+            headers,
+            providerId: candidate.providerId,
+            requestCorrelation: {
+              conversationId: correlation.conversationId,
+              roundId: correlation.roundId,
+            },
+            tools: options.tools,
+            waitForTools: true,
+            onMessages: (messages) => {
+              const currentTurnMessages = messages.slice(providerInputMessageCount)
+              const hasToolRound = currentTurnMessages.some(message =>
+                message.role === 'tool'
+                || (message.role === 'assistant' && Boolean(message.tool_calls?.length)),
+              )
+
+              if (hasToolRound)
+                providerTranscript = structuredClone(currentTurnMessages)
+            },
+            onUsage: (usage) => {
+              generationUsage = usage
+              generationUsageReported = true
+            },
+            onStreamEvent: async (event: StreamEvent) => {
+              if (event.type !== 'error' && event.type !== 'finish')
+                attemptProducedOutput = true
+
+              switch (event.type) {
+                case 'tool-call':
+                  toolCallQueue.enqueue({
+                    type: 'tool-call',
+                    toolCall: event,
+                  })
+
+                  break
+                case 'tool-result':
+                  toolCallQueue.enqueue({
+                    type: 'tool-call-result',
+                    id: event.toolCallId,
+                    result: event.result,
+                  })
+
+                  break
+                case 'tool-error':
+                  toolCallQueue.enqueue({
+                    type: 'tool-call-result',
+                    id: event.toolCallId,
+                    isError: true,
+                    result: event.result,
+                  })
+
+                  break
+                case 'text-delta':
+                  if (!llmFirstTokenEmitted) {
+                    llmFirstTokenEmitted = true
+                    deps.onLlmFirstToken?.({
+                      ...correlation,
+                      model: candidate.model,
+                      ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+                    })
+                  }
+                  fullText += event.text
+                  await parser.consume(event.text)
+                  break
+                case 'reasoning-delta': {
+                  if (shouldAbort())
+                    return
+
+                  const { reasoning = '' } = buildingMessage.categorization ?? {}
+                  const nextReasoning = reasoning + event.text
+                  buildingMessage.categorization = {
+                    speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
+                    reasoning: nextReasoning,
+                  }
+                  const crossesBoundary
+                    = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                      > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                  if (!reasoning || crossesBoundary)
+                    patchForegroundStream(sessionId, buildingMessage)
+                  break
+                }
+                case 'finish':
+                  break
+                case 'error':
+                  throw event.error ?? new Error('Stream error')
+              }
+            },
           })
-        },
-        onStreamEvent: async (event: StreamEvent) => {
-          switch (event.type) {
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
 
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
+          generationCompleted = true
+          break
+        }
+        catch (error) {
+          if (attemptProducedOutput || !canFallbackFrom(error))
+            throw error
 
-              break
-            case 'tool-error':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                isError: true,
-                result: event.result,
-              })
+          lastProviderError = error
+          console.warn(
+            `[chat] Provider "${candidate.providerId}" failed before output. Trying the next configured provider.`,
+            error,
+          )
+        }
+      }
 
-              break
-            case 'text-delta':
-              if (!llmFirstTokenEmitted) {
-                llmFirstTokenEmitted = true
-                deps.onLlmFirstToken?.({
-                  ...correlation,
-                  model: options.model,
-                  ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
-                })
-              }
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'reasoning-delta': {
-              if (shouldAbort())
-                return
+      if (!generationCompleted)
+        throw lastProviderError ?? new Error('No available chat provider or model found')
 
-              const { reasoning = '' } = buildingMessage.categorization ?? {}
-              const nextReasoning = reasoning + event.text
-              buildingMessage.categorization = {
-                speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
-                reasoning: nextReasoning,
-              }
-              const crossesBoundary
-                = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-                  > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-              if (!reasoning || crossesBoundary)
-                patchForegroundStream(sessionId, buildingMessage)
-              break
-            }
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
-        },
-      })
+      if (generationUsageReported) {
+        deps.onLlmGeneration?.({
+          ...correlation,
+          model: currentCandidate.model,
+          provider: currentCandidate.providerId,
+          inputTokens: generationUsage.inputTokens,
+          outputTokens: generationUsage.outputTokens,
+          totalTokens: generationUsage.totalTokens,
+          usageSource: generationUsage.source,
+        })
+      }
 
       await parser.end()
       buildingMessage.providerTranscript = providerTranscript
       deps.onAssistantResponseRendered?.({
         ...correlation,
-        model: options.model,
+        model: currentCandidate.model,
         latencyMs: Math.round(monotonicNow() - llmRequestStartedAt),
       })
 
@@ -863,7 +991,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ...correlation,
         durationMs,
         hasVoice: !!options.input,
-        model: options.model,
+        model: currentCandidate.model,
         inputTokens: generationUsage.inputTokens,
         outputTokens: generationUsage.outputTokens,
         totalTokens: generationUsage.totalTokens,
@@ -874,8 +1002,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           ...correlation,
           durationMs,
           source: sendSource,
-          model: options.model,
-          provider: activeProvider,
+          model: currentCandidate.model,
+          provider: currentCandidate.providerId,
         })
       }
     }
@@ -884,8 +1012,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onMessageRoundFailed?.({
         ...correlation,
         source: sendSource,
-        model: options.model,
-        provider: activeProvider,
+        model: currentCandidate.model,
+        provider: currentCandidate.providerId,
         failureStage: 'llm_response',
         errorCode: 'llm_response_failed',
       })
@@ -893,8 +1021,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.onChatActivationFailed?.({
           ...correlation,
           source: sendSource,
-          model: options.model,
-          provider: activeProvider,
+          model: currentCandidate.model,
+          provider: currentCandidate.providerId,
           failureStage: 'llm_response',
           errorCode: 'llm_response_failed',
         })

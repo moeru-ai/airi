@@ -72,11 +72,16 @@ const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const getProviderInstanceMock = vi.fn()
+const fetchModelsForProviderMock = vi.fn()
+const getModelsForProviderMock = vi.fn()
+const supportsModelListingMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
+const configuredChatProvidersMetadataRef = ref<Array<{ id: string }>>([{ id: 'mock-provider' }])
+const isAuthenticatedRef = ref(true)
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
 let currentGeneration = 1
@@ -226,7 +231,17 @@ vi.mock('./ai/chat-llm/tools', () => ({
 
 vi.mock('./providers/provider', () => ({
   useProviderStore: () => ({
+    configuredChatProvidersMetadata: configuredChatProvidersMetadataRef,
+    fetchModelsForProvider: fetchModelsForProviderMock,
+    getModelsForProvider: getModelsForProviderMock,
     getProviderInstance: getProviderInstanceMock,
+    supportsModelListing: supportsModelListingMock,
+  }),
+}))
+
+vi.mock('./auth', () => ({
+  useAuthStore: () => ({
+    isAuthenticated: isAuthenticatedRef,
   }),
 }))
 
@@ -286,6 +301,9 @@ describe('chat store contract', () => {
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
     getProviderInstanceMock.mockReset().mockResolvedValue(provider)
+    fetchModelsForProviderMock.mockReset().mockResolvedValue([])
+    getModelsForProviderMock.mockReset().mockReturnValue([])
+    supportsModelListingMock.mockReset().mockReturnValue(false)
     getToolsByNamesMock.mockReset().mockImplementation(names => names.map(name => ({
       type: 'function',
       function: {
@@ -299,6 +317,9 @@ describe('chat store contract', () => {
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'gpt-test'
+    configuredChatProvidersMetadataRef.value = [{ id: 'mock-provider' }]
+    isAuthenticatedRef.value = true
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -336,6 +357,63 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  // ROOT CAUSE:
+  //
+  // A persisted official provider with an empty model bypassed login sync.
+  // The send action then rejected the turn before it reached the official auto route.
+  //
+  // The send action now resolves the official provider and auto model together.
+  it('sends with official auto when the persisted official model is empty', async () => {
+    activeProviderRef.value = 'official-provider'
+    activeModelRef.value = ''
+    configuredChatProvidersMetadataRef.value = [{ id: 'official-provider' }]
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: 'hello',
+    })
+
+    expect(getProviderInstanceMock).toHaveBeenCalledWith('official-provider')
+    expect(llmStreamMock).toHaveBeenCalledWith(
+      'auto',
+      provider,
+      expect.any(Array),
+      expect.objectContaining({ providerId: 'official-provider' }),
+    )
+  })
+
+  it('falls back from the active provider to official auto before output', async () => {
+    llmStreamMock.mockRejectedValueOnce(new Error('active provider unavailable'))
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'text-delta', text: 'official reply' })
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: 'use the next provider',
+    })
+
+    expect(getProviderInstanceMock.mock.calls.map(([providerId]) => providerId)).toEqual([
+      'mock-provider',
+      'official-provider',
+    ])
+    expect(llmStreamMock.mock.calls.map(([model]) => model)).toEqual(['gpt-test', 'auto'])
+    expect(llmStreamMock.mock.calls[1]?.[3]?.headers).toEqual({
+      [AIRI_CHAT_APP_SURFACE_HEADER]: 'web',
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+    expect(sessionMessages['session-1']?.filter(message => message.role === 'user')).toHaveLength(1)
+    expect(sessionMessages['session-1']?.filter(message => message.role === 'assistant')).toHaveLength(1)
   })
 
   it('forwards one correlation identity across every PostHog chat milestone', async () => {

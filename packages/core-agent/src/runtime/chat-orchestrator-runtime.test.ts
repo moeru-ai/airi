@@ -3,6 +3,7 @@ import type { Message } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ChatOrchestratorSendOptions } from './chat-orchestrator-runtime'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
@@ -148,6 +149,101 @@ function createHarness() {
  * await runtime.ingest('hello', { model, chatProvider })
  */
 describe('createChatOrchestratorRuntime', () => {
+  // ROOT CAUSE:
+  //
+  // The runtime accepted only one provider and model for a chat turn. A provider
+  // failure therefore ended the turn even when the caller had another usable provider.
+  //
+  // The runtime now tries the next candidate before the failed attempt emits output.
+  it('falls back before output and stores the user turn once', async () => {
+    const harness = createHarness()
+    const fallbackProvider = {
+      chat: () => ({ baseURL: 'https://fallback.example.com/' }),
+    } as unknown as ChatProvider
+    const unavailableCandidate = vi.fn(async () => undefined)
+    const fallbackCandidate = vi.fn(async () => ({
+      model: 'fallback-model',
+      providerId: 'fallback-provider',
+      chatProvider: fallbackProvider,
+    }))
+
+    harness.stream.mockRejectedValueOnce(new Error('primary provider unavailable'))
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'fallback reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    await harness.runtime.ingest('use a fallback', {
+      model: 'primary-model',
+      providerId: 'primary-provider',
+      chatProvider: provider,
+      fallbackCandidates: [unavailableCandidate, fallbackCandidate],
+    } as ChatOrchestratorSendOptions)
+
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+    expect(unavailableCandidate).toHaveBeenCalledTimes(1)
+    expect(fallbackCandidate).toHaveBeenCalledTimes(1)
+    expect(harness.stream.mock.calls[0]?.slice(0, 2)).toEqual(['primary-model', provider])
+    expect(harness.stream.mock.calls[1]?.slice(0, 2)).toEqual(['fallback-model', fallbackProvider])
+    expect(harness.sessionMessages['session-1']?.filter(message => message.role === 'user')).toHaveLength(1)
+    expect(harness.sessionMessages['session-1']?.filter(message => message.role === 'assistant')).toHaveLength(1)
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([
+      expect.objectContaining({
+        model: 'fallback-model',
+        provider: 'fallback-provider',
+      }),
+    ])
+  })
+
+  it('does not fall back after the provider emits visible output', async () => {
+    const harness = createHarness()
+    const fallbackProvider = {
+      chat: () => ({ baseURL: 'https://fallback.example.com/' }),
+    } as unknown as ChatProvider
+
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      throw new Error('stream failed after output')
+    })
+
+    await expect(harness.runtime.ingest('do not duplicate this turn', {
+      model: 'primary-model',
+      providerId: 'primary-provider',
+      chatProvider: provider,
+      fallbackCandidates: [{
+        model: 'fallback-model',
+        providerId: 'fallback-provider',
+        chatProvider: fallbackProvider,
+      }],
+    } as ChatOrchestratorSendOptions)).rejects.toThrow('stream failed after output')
+
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not fall back for a non-retryable request error', async () => {
+    const harness = createHarness()
+    const fallbackCandidate = vi.fn(async () => ({
+      model: 'fallback-model',
+      providerId: 'fallback-provider',
+      chatProvider: provider,
+    }))
+    const requestError = Object.assign(new Error('invalid request'), {
+      cause: { status: 400 },
+    })
+
+    harness.stream.mockRejectedValueOnce(requestError)
+
+    await expect(harness.runtime.ingest('keep this request on one provider', {
+      model: 'primary-model',
+      providerId: 'primary-provider',
+      chatProvider: provider,
+      fallbackCandidates: [fallbackCandidate],
+    })).rejects.toThrow('invalid request')
+
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+    expect(fallbackCandidate).not.toHaveBeenCalled()
+  })
+
   // ROOT CAUSE:
   //
   // The marker parser buffered 24 literal characters plus its marker-safety tail.

@@ -15,6 +15,8 @@ export type {
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,
   ChatOrchestratorPromptProjection,
+  ChatOrchestratorProviderCandidate,
+  ChatOrchestratorProviderCandidateSource,
   ChatOrchestratorRuntime,
   ChatOrchestratorRuntimeDeps,
   ChatOrchestratorRuntimeState,

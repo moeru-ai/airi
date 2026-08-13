@@ -27,8 +27,10 @@ import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
+import { useAuthStore } from './auth'
 import { createMinecraftContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
+import { resolveChatProviderRoute } from './chat/provider-fallback'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
@@ -145,10 +147,13 @@ export const useChatStore = defineStore('chat', () => {
   // the system prompt is composed, which would expose web_search on the first turn
   // without its paired prompt-injection defense.
   useWebSearchStore()
+  const authStore = useAuthStore()
   const consciousnessStore = useConsciousnessStore()
   const providerStore = useProviderStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
+  const { isAuthenticated } = storeToRefs(authStore)
+  const { configuredChatProvidersMetadata } = storeToRefs(providerStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
@@ -172,7 +177,7 @@ export const useChatStore = defineStore('chat', () => {
   ) {
     let llmTextLength = 0
     const headers = { ...options?.headers }
-    if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
+    if (getProviderMode(options?.providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
       headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
       headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.roundId
       headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
@@ -343,19 +348,25 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
-    const providerId = activeProvider.value
-    const modelId = activeModel.value
-    if (!providerId || !modelId)
-      throw new Error('No active chat provider or model configured')
+    const route = await resolveChatProviderRoute({
+      activeProvider: activeProvider.value,
+      activeModel: activeModel.value,
+      authenticated: isAuthenticated.value,
+      configuredProviderIds: configuredChatProvidersMetadata.value.map(provider => provider.id),
+    }, {
+      fetchModels: providerStore.fetchModelsForProvider,
+      getCachedModels: providerStore.getModelsForProvider,
+      getProviderInstance: providerId => providerStore.getProviderInstance<ChatProvider>(providerId),
+      supportsModelListing: providerStore.supportsModelListing,
+    })
 
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    const chatProvider = await providerStore.getProviderInstance<ChatProvider>(providerId)
-    if (!chatProvider)
-      throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     await runtime.ingest(payload.text, {
-      model: modelId,
-      chatProvider,
+      model: route.primary.model,
+      providerId: route.primary.providerId,
+      chatProvider: route.primary.chatProvider,
+      fallbackCandidates: route.fallbackCandidates,
       attachments: payload.attachments,
       input: payload.input,
       toolReferences: payload.tools,
