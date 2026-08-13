@@ -18,7 +18,44 @@ import {
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta } from '../../windows/shared/window'
 
-export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
+const mouseInputLeaseDuration = 2000
+
+export function createWindowService(params: {
+  context: ReturnType<typeof createContext>['context']
+  window: BrowserWindow
+  manageWindowInteractivity?: boolean
+}) {
+  const manageWindowInteractivity = params.manageWindowInteractivity ?? true
+  let mouseInputLeaseTimeout: ReturnType<typeof setTimeout> | undefined
+
+  function clearMouseInputLease() {
+    clearTimeout(mouseInputLeaseTimeout)
+    mouseInputLeaseTimeout = undefined
+  }
+
+  function restoreMouseInput() {
+    clearMouseInputLease()
+    params.window.setIgnoreMouseEvents(false)
+  }
+
+  function setIgnoreMouseEvents(ignore: boolean, options: { forward: boolean }) {
+    clearMouseInputLease()
+    params.window.setIgnoreMouseEvents(ignore, options)
+
+    if (!ignore)
+      return
+
+    // NOTICE:
+    // The renderer renews this lease while it needs click-through behavior.
+    // A renderer failure stops renewal, and the main process restores mouse input.
+    // Source/context: https://github.com/moeru-ai/airi/issues/2160
+    // Removal condition: Electron automatically resets click-through state after renderer failure.
+    mouseInputLeaseTimeout = setTimeout(restoreMouseInput, mouseInputLeaseDuration)
+  }
+
+  if (manageWindowInteractivity)
+    restoreMouseInput()
+
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
     return {
       focused: params.window.isFocused(),
@@ -54,6 +91,12 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   params.window.on('restore', () => emitWindowLifecycle('restore'))
   params.window.on('focus', () => emitWindowLifecycle('focus'))
   params.window.on('blur', () => emitWindowLifecycle('blur'))
+  if (manageWindowInteractivity) {
+    params.window.on('closed', clearMouseInputLease)
+    params.window.webContents.on('render-process-gone', restoreMouseInput)
+    params.window.webContents.on('unresponsive', restoreMouseInput)
+    params.window.webContents.on('did-start-navigation', restoreMouseInput)
+  }
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
@@ -76,7 +119,10 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electron.window.setIgnoreMouseEvents, (opts, options) => {
     if (opts && params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      params.window.setIgnoreMouseEvents(...opts)
+      if (manageWindowInteractivity)
+        setIgnoreMouseEvents(...opts)
+      else
+        params.window.setIgnoreMouseEvents(...opts)
     }
   })
 

@@ -306,7 +306,10 @@ function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
 }
 
 export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater {
-  if (options.enabled === false)
+  // Flatpak owns application installation and updates. Electron Updater must
+  // not select the DEB or RPM updater from files inside the sandbox.
+  const isFlatpak = process.platform === 'linux' && Boolean(process.env.FLATPAK_ID?.trim())
+  if (options.enabled === false || isFlatpak)
     return createDisabledAutoUpdater(options)
 
   const semaphore = new Semaphore(1)

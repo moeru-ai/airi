@@ -41,6 +41,7 @@ import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
+import { useWindowInteractivityLease } from '../composables/use-window-interactivity-lease'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -60,7 +61,6 @@ const componentStateStage = ref<'pending' | 'loading' | 'mounted'>('pending')
 const stageMounted = computed(() => componentStateStage.value === 'mounted')
 const isLoading = computed(() => !stageMounted.value)
 
-const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
@@ -140,7 +140,8 @@ const isTransparentForMouseEvents = computed(() => {
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
-const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
+const invokeSetIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
+const { setIgnoreMouseEvents } = useWindowInteractivityLease({ invokeSetIgnoreMouseEvents })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
@@ -255,17 +256,15 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  */
 function handleFadeOnHoverInteractionChange() {
   if (stagePaused.value) {
-    isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
+    setIgnoreMouseEvents(false)
     return
   }
 
   if (hearingDialogOpen.value) {
     // Hearing dialog/drawer is open; keep window interactive
-    isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
+    setIgnoreMouseEvents(false)
     return
   }
 
@@ -274,9 +273,8 @@ function handleFadeOnHoverInteractionChange() {
 
   if (insideControls || nearBorder) {
     // Inside interactive controls or near resize border: do NOT ignore events
-    isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
-    setIgnoreMouseEvents([false, { forward: true }])
+    setIgnoreMouseEvents(false)
   }
   else {
     const interaction = resolveFadeOnHoverInteraction({
@@ -286,9 +284,8 @@ function handleFadeOnHoverInteractionChange() {
       transparentForPointer: isTransparentForMouseEvents.value,
     })
 
-    isIgnoringMouseEvents.value = interaction.ignoreMouseEvents
     shouldFadeOnCursorWithin.value = interaction.fadeStage
-    setIgnoreMouseEvents([interaction.ignoreMouseEvents, { forward: true }])
+    setIgnoreMouseEvents(interaction.ignoreMouseEvents)
   }
 }
 

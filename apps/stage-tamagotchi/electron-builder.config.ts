@@ -233,6 +233,15 @@ export default {
       'deb',
       'rpm',
     ],
+    files: [
+      // Native packages publish binaries for several operating systems and architectures.
+      // Keep only the Linux payload that matches the current electron-builder matrix target.
+      '!**/onnxruntime-node/bin/napi-v3/!(linux){,/**/*}',
+      '!**/onnxruntime-node/bin/napi-v3/linux/!(${arch}){,/**/*}',
+      '!**/uiohook-napi/prebuilds/!(linux-${arch}){,/**/*}',
+      '!**/electron-click-drag-plugin/build/Release/!(linux-${arch}){,/**/*}',
+      '!**/node_modules/@img/{sharp,sharp-libvips}-!(linux-${arch}){,/**/*}',
+    ],
     // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
     publish: {
       provider: 'github',
@@ -246,6 +255,12 @@ export default {
     executableName: 'airi',
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
     icon: 'build/icons/icon.png',
+  },
+  deb: {
+    afterRemove: 'build/after-remove-linux.tpl',
+  },
+  rpm: {
+    afterRemove: 'build/after-remove-linux.tpl',
   },
   appImage: {
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',

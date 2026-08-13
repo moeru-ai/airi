@@ -54,16 +54,16 @@ export function buildFeatureFlags({
   otherEnabledFeatures?: string[]
   forceCoreAudioTap?: boolean
 }): string {
-  const featureFlags = [...Object.values(DefaultFeatureFlags), ...(otherEnabledFeatures ?? [])]
+  const featureFlags = new Set([...Object.values(DefaultFeatureFlags), ...(otherEnabledFeatures ?? [])])
 
   if (forceCoreAudioTap) {
-    featureFlags.push(CoreAudioTapFeatureFlags.MacCoreAudioTapSystemAudioLoopbackOverride)
+    featureFlags.add(CoreAudioTapFeatureFlags.MacCoreAudioTapSystemAudioLoopbackOverride)
   }
   else {
-    featureFlags.push(ScreenCaptureKitFeatureFlags.MacScreenCaptureKitSystemAudioLoopbackOverride)
+    featureFlags.add(ScreenCaptureKitFeatureFlags.MacScreenCaptureKitSystemAudioLoopbackOverride)
   }
 
-  return featureFlags.join(',')
+  return [...featureFlags].join(',')
 }
 
 let initMainCalled = false
@@ -93,6 +93,7 @@ export interface GetLoopbackAudioMediaStreamOptions {
 
 let setSourceMutex: MutexInterface
 let screenCaptureSourceMutexHandle: string | undefined
+let screenCaptureSourceOwnerWindowId: number | undefined
 let setSourceMutexTimeoutHandle: NodeJS.Timeout | undefined
 
 export function initScreenCaptureForMain(options: InitMainOptions = {}): void {
@@ -142,6 +143,22 @@ function resetScreenCaptureSource() {
   clearTimeout(setSourceMutexTimeoutHandle)
   setSourceMutexTimeoutHandle = undefined
   screenCaptureSourceMutexHandle = undefined
+  screenCaptureSourceOwnerWindowId = undefined
+}
+
+function releaseScreenCaptureSource(params: { handle?: string, ownerWindowId?: number } = {}): boolean {
+  if (!screenCaptureSourceMutexHandle)
+    return false
+
+  if (params.handle && params.handle !== screenCaptureSourceMutexHandle)
+    return false
+
+  if (params.ownerWindowId && params.ownerWindowId !== screenCaptureSourceOwnerWindowId)
+    return false
+
+  resetScreenCaptureSource()
+  setSourceMutex.release()
+  return true
 }
 
 /**
@@ -203,6 +220,12 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
   const { context } = createContext(ipcMain, window, { onlySameWindow: true })
   const session = sessionModule.defaultSession
 
+  const releaseWindowCaptureSource = () => {
+    releaseScreenCaptureSource({ ownerWindowId: windowId })
+  }
+  window.on('closed', releaseWindowCaptureSource)
+  window.webContents.on('render-process-gone', releaseWindowCaptureSource)
+
   defineInvokeHandler(context, screenCapture.checkMacOSPermission, async () => checkMacOSScreenCapturePermission())
   defineInvokeHandler(context, screenCapture.requestMacOSPermission, async () => requestMacOSScreenCapturePermission())
 
@@ -233,27 +256,33 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
     const handle = nanoid()
     setSourceMutexTimeoutHandle = undefined
     screenCaptureSourceMutexHandle = handle
+    screenCaptureSourceOwnerWindowId = windowId
 
     try {
       session.setDisplayMediaRequestHandler(async (_request, callback) => {
-        const sources = await desktopCapturer.getSources(request.options)
-        const source = sources.find(source => source.id === request.sourceId)
-        if (!source) {
-          throw new Error(`Source with id ${request.sourceId} not found.`)
-        }
+        try {
+          const sources = await desktopCapturer.getSources(request.options)
+          const source = sources.find(source => source.id === request.sourceId)
+          if (!source) {
+            throw new Error(`Source with id ${request.sourceId} not found.`)
+          }
 
-        callback({
-          video: source,
-          audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
-        })
+          callback({
+            video: source,
+            audio: options?.loopbackWithMute ? LoopbackAudioTypes.LoopbackWithMute : LoopbackAudioTypes.Loopback,
+          })
+        }
+        catch (error) {
+          releaseScreenCaptureSource({ handle })
+          throw error
+        }
       })
 
       setSourceMutexTimeoutHandle = setTimeout(() => {
         if (screenCaptureSourceMutexHandle !== handle)
           return
 
-        resetScreenCaptureSource()
-        setSourceMutex.release()
+        releaseScreenCaptureSource({ handle })
 
         log
           .withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) })
@@ -271,18 +300,14 @@ export function initScreenCaptureForWindow(window: BrowserWindow, options?: Init
         .withError(e)
         .error('screenCaptureSetSourceEx failed for window')
 
-      resetScreenCaptureSource()
-      setSourceMutex.release()
+      releaseScreenCaptureSource({ handle })
       throw e
     }
   })
 
   defineInvokeHandler(context, screenCapture.resetSource, async (mutexHandle) => {
-    if (screenCaptureSourceMutexHandle !== mutexHandle)
+    if (!releaseScreenCaptureSource({ handle: mutexHandle }))
       return
-
-    resetScreenCaptureSource()
-    setSourceMutex.release()
 
     log.withFields({ windowId, windowTitle: tryWindowTitle(window, windowTitle) }).debug('setSourceMutex released by window')
   })

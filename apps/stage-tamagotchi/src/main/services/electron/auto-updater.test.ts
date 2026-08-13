@@ -11,10 +11,6 @@ const isDevState = vi.hoisted(() => ({
   value: false,
 }))
 
-const stdEnvState = vi.hoisted(() => ({
-  isWindows: false,
-}))
-
 const updaterState = vi.hoisted(() => ({
   instance: createUpdaterMock(),
 }))
@@ -43,12 +39,6 @@ vi.mock('@electron-toolkit/utils', () => ({
     get dev() {
       return isDevState.value
     },
-  },
-}))
-
-vi.mock('std-env', () => ({
-  get isWindows() {
-    return stdEnvState.isWindows
   },
 }))
 
@@ -123,9 +113,9 @@ describe('setupAutoUpdater', () => {
     appMock.getVersion.mockReturnValue('0.9.0-beta.4')
     appMock.getPath.mockImplementation((name: string) => name === 'logs' ? '/tmp/airi/logs' : `/tmp/${name}`)
     isDevState.value = false
-    stdEnvState.isWindows = false
     delete process.env.UPDATE_SERVER_URL
     delete process.env.AIRI_UPDATE_CHANNEL
+    delete process.env.FLATPAK_ID
     mockGitHubReleasesFetch()
   })
 
@@ -193,6 +183,39 @@ describe('setupAutoUpdater', () => {
     expect(updaterState.instance.checkForUpdates).not.toHaveBeenCalled()
     expect(updaterState.instance.downloadUpdate).not.toHaveBeenCalled()
     expect(updaterState.instance.quitAndInstall).not.toHaveBeenCalled()
+  })
+
+  it.runIf(process.platform === 'linux')('keeps Flatpak outside the GitHub updater flow on the Linux host', async () => {
+    // ROOT CAUSE:
+    //
+    // The Flatpak build copies the DEB/RPM unpacked tree, including its
+    // `package-type` marker. Electron Updater then selects a host package
+    // manager inside the sandbox. AIRI also starts an update check even
+    // though Flatpak owns installation and updates.
+    //
+    // The fix must use Flatpak's runtime identity and keep this service
+    // disabled without a build-time platform replacement.
+    process.env.FLATPAK_ID = 'ai.moeru.airi'
+
+    try {
+      const fetchSpy = mockGitHubReleasesFetch()
+      const { setupAutoUpdater } = await import('./auto-updater')
+      const service = setupAutoUpdater()
+
+      await service.checkForUpdates()
+      await service.downloadUpdate()
+      await service.quitAndInstall()
+
+      expect(service.state.status).toBe('disabled')
+      expect(fetchSpy).not.toHaveBeenCalled()
+      expect(updaterState.instance.on).not.toHaveBeenCalled()
+      expect(updaterState.instance.checkForUpdates).not.toHaveBeenCalled()
+      expect(updaterState.instance.downloadUpdate).not.toHaveBeenCalled()
+      expect(updaterState.instance.quitAndInstall).not.toHaveBeenCalled()
+    }
+    finally {
+      delete process.env.FLATPAK_ID
+    }
   })
 
   it('supports explicit stable lane selection for future dynamic channel switching', async () => {
@@ -296,17 +319,15 @@ describe('setupAutoUpdater', () => {
     expect(updaterState.instance.allowPrerelease).toBe(false)
   })
 
-  it('uses silent relaunch install on Windows only', async () => {
-    stdEnvState.isWindows = true
+  it('uses the install arguments for the real host platform', async () => {
     const { setupAutoUpdater } = await import('./auto-updater')
     const service = setupAutoUpdater()
 
     await service.quitAndInstall()
-    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith(true, true)
 
-    stdEnvState.isWindows = false
-    updaterState.instance.quitAndInstall.mockClear()
-    await service.quitAndInstall()
-    expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith()
+    if (process.platform === 'win32')
+      expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith(true, true)
+    else
+      expect(updaterState.instance.quitAndInstall).toHaveBeenCalledWith()
   })
 })
