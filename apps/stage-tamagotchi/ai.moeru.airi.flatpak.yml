@@ -34,7 +34,7 @@ modules:
     build-commands:
       - mkdir -p /app/bin
       - mkdir -p /app/lib/airi
-      - cp -r ./* /app/lib/airi/
+      - cp -r payload/. /app/lib/airi/
       - install airi.sh /app/bin/airi.sh
       - chmod +x /app/lib/airi/airi
       # Desktop-file launches run Exec=airi directly inside the sandbox; the manifest
@@ -50,15 +50,17 @@ modules:
       - type: dir
         only-arches: [x86_64]
         path: dist/linux-unpacked
+        dest: payload
       - type: dir
         only-arches: [aarch64]
         path: dist/linux-arm64-unpacked
+        dest: payload
       - type: file
         path: ai.moeru.airi.desktop
       - type: file
         path: ai.moeru.airi.metainfo.xml
-      - type: dir
-        path: build
+      - type: file
+        path: build/icon-512.png
         dest: build
       # First discovered by [@gg582](https://github.com/gg582) in https://github.com/moeru-ai/airi/pull/647
       #
