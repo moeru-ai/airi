@@ -112,8 +112,9 @@ export async function runTimedProcess(
       clearTimeout(timeout)
       const result = { exitCode, signal, timedOut }
       if (!stopPromise) {
-        resolveOnce(result)
-        return
+        stopPromise = child.pid === undefined
+          ? Promise.resolve()
+          : stopProcessGroup(child.pid, 'SIGTERM')
       }
 
       stopPromise

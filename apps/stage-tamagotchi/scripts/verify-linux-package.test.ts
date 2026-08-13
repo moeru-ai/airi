@@ -335,6 +335,46 @@ describe('linux launch smoke result', () => {
     }
   })
 
+  // https://github.com/moeru-ai/airi/pull/2278#discussion_r3776743829
+  it.skipIf(isWindows)('stops child processes when the wrapper exits before the timer', async () => {
+    // ROOT CAUSE:
+    //
+    // The detached wrapper can exit while an Electron child remains in its process group.
+    // The verifier resolved immediately and left the child active during later workflow steps.
+    //
+    // We fixed this by stopping the process group before resolving an early close.
+    const runtimeRoot = await mkdtemp(join(tmpdir(), 'airi-early-exit-'))
+    const processFile = join(runtimeRoot, 'processes.json')
+    const childSource = 'process.on(\'SIGTERM\', () => {}); setInterval(() => {}, 1000)'
+    const wrapperSource = [
+      'const { spawn } = require(\'node:child_process\')',
+      'const { writeFileSync } = require(\'node:fs\')',
+      `const child = spawn(process.execPath, ['-e', ${JSON.stringify(childSource)}], { stdio: 'ignore' })`,
+      'child.unref()',
+      `writeFileSync(${JSON.stringify(processFile)}, JSON.stringify({ wrapper: process.pid, child: child.pid }))`,
+    ].join(';')
+
+    let processIds: { child: number, wrapper: number } | undefined
+    try {
+      const result = await runTimedProcess(process.execPath, ['-e', wrapperSource], process.env, undefined, 5_000)
+      processIds = JSON.parse(await readFile(processFile, 'utf8'))
+
+      expect(result.timedOut).toBe(false)
+      expect(isProcessActive(processIds!.child)).toBe(false)
+    }
+    finally {
+      if (processIds !== undefined) {
+        try {
+          process.kill(-processIds.wrapper, 'SIGKILL')
+        }
+        catch {
+          // The fixed implementation already stopped the process group.
+        }
+      }
+      await rm(runtimeRoot, { recursive: true, force: true })
+    }
+  })
+
   it.skipIf(isWindows)('accepts a process group that exits before the escalation signal', async () => {
     // ROOT CAUSE:
     //
