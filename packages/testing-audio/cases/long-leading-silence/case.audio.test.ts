@@ -43,6 +43,7 @@ describe('audio input pipeline', () => {
     await expect(audio).not.toHaveTranscriptions([
       ['There is no meaning to your existence, just let go.'],
     ])
+    await expect(audio).toHaveCompletedTranscription()
   })
 
   it('does not preserve the complete phrase with Aliyun NLS', {
@@ -78,5 +79,6 @@ describe('audio input pipeline', () => {
     await expect(audio).not.toHaveTranscriptions([
       ['There is no meaning to your existence, just let go.'],
     ])
+    await expect(audio).toHaveCompletedTranscription()
   })
 })

@@ -54,6 +54,7 @@ describe('audio input pipeline', () => {
     const finalTranscriptions = await audio.transcriptionResults(expectedTranscriptions.length)
     const streamingUpdates = await audio.streamingTranscriptionUpdates()
     expect(streamingUpdates.some(update => !finalTranscriptions.includes(update))).toBe(true)
+    await expect(audio).toHaveCompletedTranscription()
   })
 
   it('keeps two Aliyun NLS utterances in streaming transcription', {
@@ -101,5 +102,6 @@ describe('audio input pipeline', () => {
     const finalTranscriptions = await audio.transcriptionResults(expectedTranscriptions.length)
     const streamingUpdates = await audio.streamingTranscriptionUpdates()
     expect(streamingUpdates.some(update => !finalTranscriptions.includes(update))).toBe(true)
+    await expect(audio).toHaveCompletedTranscription()
   })
 })

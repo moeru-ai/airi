@@ -1,12 +1,12 @@
 import { describe, expect, it } from '../../src'
 import { configureModuleConsciousness, configureModuleHearing, configureModuleSpeech, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
-import { assistantMessages, enableChatMicrophone, openChat } from '../shared/interactions'
+import { enableChatMicrophone } from '../shared/interactions'
 import { aliyunNlsAsr, openaiAsr, openaiLlm, openaiTts } from '../shared/providers'
 
 describe('audio input pipeline', () => {
   // An OpenAI-compatible TTS Provider generated the fixture in mono 16 kHz PCM WAV format.
   // The fixture contains 14 seconds of leading silence for VAD initialization and 3 seconds of trailing silence.
-  // Its warm-up phrase gives the VAD time to start. Only "Please say hello." is required in the transcript.
+  // Its warm-up phrase gives the VAD time to start. The final "say hello" command is required in the transcript.
   it('runs an OpenAI-compatible request through the complete pipeline', {
     input: new URL('./input.test.wav', import.meta.url),
     // This case keeps AIRI's default VAD and selects every remote Provider explicitly.
@@ -72,16 +72,22 @@ describe('audio input pipeline', () => {
     }
 
     await expect(audio).toHaveTranscriptions([
-      ['Please say hello.'],
+      ['Please say hello.', 'Say hello.'],
     ], { match: 'contains' })
 
-    await expect.poll(async () => (await audio.completedSpans('LLM inference')).length, { timeout: 60_000 }).toBeGreaterThanOrEqual(1)
-    await expect.poll(async () => (await audio.completedSpans('TTS synthesis')).length, { timeout: 60_000 }).toBeGreaterThanOrEqual(1)
-    await expect.poll(async () => (await audio.completedSpans('Audio playback')).length, { timeout: 60_000 }).toBeGreaterThanOrEqual(1)
+    const turn = await audio.waitForTurn()
 
-    await openChat(audio)
-    const messages = await assistantMessages(audio).allTextContents()
-    expect(messages.at(-1)).toMatch(/.+/s)
+    expect(turn.chat.messages).toHaveLength(2)
+    expect(turn.chat.messages.map(message => message.role)).toEqual(['user', 'assistant'])
+    expect(turn.llm.inputMessages).toHaveLength(2)
+    expect(turn.llm.inputMessages.filter(message => message.role === 'user')).toHaveLength(1)
+    expect(turn.llm.outputChunks.length).toBeGreaterThan(0)
+    expect(turn.llm.outputCharacters).toBeGreaterThan(0)
+    expect(turn.tts.audioSegments.length).toBeGreaterThan(0)
+    for (const segment of turn.tts.audioSegments) {
+      expect(segment.text.length).toBeGreaterThan(0)
+      expect(segment.durationMs).toBeGreaterThan(100)
+    }
   })
 
   it('transcribes the greeting with Aliyun NLS', {
@@ -117,5 +123,6 @@ describe('audio input pipeline', () => {
     await expect(audio).toHaveTranscriptions([
       ['Please say hello.'],
     ], { match: 'contains' })
+    await expect(audio).toHaveCompletedTranscription()
   })
 })

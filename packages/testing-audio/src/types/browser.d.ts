@@ -1,7 +1,9 @@
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
 
 declare global {
   interface BrowserAudioInputState {
+    piniaActionEvents: PiniaActionEvent[]
     spans: SerializedIOSpan[]
     streamingTranscriptionReady: boolean
     streamingTranscriptionUpdates: string[]

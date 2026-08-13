@@ -37,6 +37,12 @@ interface SpeechInput {
   providerConfig: Record<string, unknown>
 }
 
+interface SpeechAnalytics {
+  trigger: 'auto' | 'manual'
+  source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+}
+
 export const useSpeechStore = defineStore('speech', () => {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
@@ -301,14 +307,15 @@ export const useSpeechStore = defineStore('speech', () => {
     input: string,
     voice: string,
     providerConfig: Record<string, any> = {},
+    analytics: SpeechAnalytics = {
+      trigger: 'manual',
+      source: 'manual_preview',
+      voice_type: resolveVoiceType(voice),
+    },
   ): Promise<ArrayBuffer> {
     const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
       || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-      ? withAiriTtsAnalytics(providerConfig, {
-          trigger: 'manual',
-          source: 'manual_preview',
-          voice_type: resolveVoiceType(voice),
-        })
+      ? withAiriTtsAnalytics(providerConfig, analytics)
       : providerConfig
     const response = await generateSpeech({
       ...provider.speech(model, requestProviderConfig),
@@ -321,11 +328,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   function withAiriTtsAnalytics(
     providerConfig: Record<string, any>,
-    analytics: {
-      trigger: 'auto' | 'manual'
-      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
-    },
+    analytics: SpeechAnalytics,
   ): Record<string, any> {
     return {
       ...providerConfig,

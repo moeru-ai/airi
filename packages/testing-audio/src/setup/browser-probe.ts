@@ -1,4 +1,5 @@
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
 
 /**
  * Installs passive browser probes before the application starts.
@@ -8,7 +9,8 @@ import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
  * `BrowserContext.addInitScript`
  *   -> {@link stubForBrowser}
  *     -> `window.fetch`
- *     -> `BroadcastChannel('io-tracer-channel')`
+ *     -> Pinia action tracing channel
+ *     -> I/O tracing channel
  *
  * Upstream:
  * - `BrowserContext.addInitScript`
@@ -16,9 +18,14 @@ import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
  * Downstream:
  * - `window.__airiAudioInputE2E`
  */
-export function stubForBrowser() {
-  const state: BrowserAudioInputState = { spans: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], vadReady: false }
+export function stubForBrowser(piniaActionChannelName: string) {
+  const state: BrowserAudioInputState = { piniaActionEvents: [], spans: [], streamingTranscriptionReady: false, streamingTranscriptionUpdates: [], transcriptionAudio: [], transcriptionResults: [], vadReady: false }
   window.__airiAudioInputE2E = state
+
+  const piniaActionChannel = new BroadcastChannel(piniaActionChannelName)
+  piniaActionChannel.addEventListener('message', (message: MessageEvent<PiniaActionEvent>) => {
+    state.piniaActionEvents.push(message.data)
+  })
 
   const originalConsoleInfo = console.info.bind(console)
   console.info = (...values: unknown[]) => {

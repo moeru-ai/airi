@@ -12,6 +12,12 @@ export interface TranscriptionExpectationOptions {
   match?: 'exact' | 'contains'
 }
 
+/** Sets the wait limit for a transcription action assertion. */
+export interface TranscriptionActionExpectationOptions {
+  /** Maximum time to wait for a completed ASR action. @default 60000 */
+  timeout?: number
+}
+
 declare module 'vitest' {
   interface Assertion<T> {
     toHaveCapturedTranscriptionAudio: T extends AudioInputObservations
@@ -23,6 +29,9 @@ declare module 'vitest' {
           options?: TranscriptionExpectationOptions,
         ) => Promise<void>
       : never
+    toHaveCompletedTranscription: T extends AudioInputObservations
+      ? (options?: TranscriptionActionExpectationOptions) => Promise<void>
+      : never
   }
 }
 
@@ -30,13 +39,13 @@ declare module 'vitest' {
 export const expect = vitestExpect
 
 /**
- * Normalizes a transcript for speech-recognition comparison.
+ * Normalizes speech text for transcript comparison.
  *
  * @example
- * normalizeTranscript(' Hello, AIRI! ')
+ * normalizeSpeechText(' Hello, AIRI! ')
  * // => 'helloairi'
  */
-function normalizeTranscript(value: string): string {
+function normalizeSpeechText(value: string): string {
   return value
     .normalize('NFKC')
     .toLocaleLowerCase()
@@ -79,8 +88,8 @@ export function installAudioInputMatchers(): void {
       options: TranscriptionExpectationOptions = {},
     ) {
       const actual = await session.transcriptionResults(expected.length)
-      const normalizedActual = actual.map(normalizeTranscript)
-      const normalizedExpected = expected.map(alternatives => alternatives.map(normalizeTranscript))
+      const normalizedActual = actual.map(normalizeSpeechText)
+      const normalizedExpected = expected.map(alternatives => alternatives.map(normalizeSpeechText))
       const match = options.match ?? 'exact'
       const pass = normalizedActual.length === normalizedExpected.length
         && normalizedActual.every((transcript, index) => (
@@ -96,5 +105,57 @@ export function installAudioInputMatchers(): void {
           : `Expected transcriptions ${JSON.stringify(expected)}, but received ${JSON.stringify(actual)}.`,
       }
     },
+    async toHaveCompletedTranscription(
+      session: AudioInputObservations,
+      options: TranscriptionActionExpectationOptions = {},
+    ) {
+      const result = await waitForTranscription(session, options.timeout ?? 60_000)
+      return {
+        pass: result.complete,
+        message: () => result.complete
+          ? 'Expected the transcription action not to complete.'
+          : `Expected the transcription action to complete, but ${result.summary}.`,
+      }
+    },
   })
+}
+
+const transcriptionActions = [
+  { storeId: 'modules:hearing:speech:audio-input-pipeline', actionName: 'transcribeForRecording' },
+  { storeId: 'modules:hearing:speech:audio-input-pipeline', actionName: 'transcribeForMediaStream' },
+]
+
+async function waitForTranscription(
+  session: AudioInputObservations,
+  timeout: number,
+): Promise<{ complete: boolean, failed: boolean, summary: string }> {
+  const deadline = Date.now() + timeout
+  let result = transcriptionResult(await session.piniaActionEvents())
+
+  while (!result.complete && !result.failed && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 100))
+    result = transcriptionResult(await session.piniaActionEvents())
+  }
+  return result
+}
+
+function transcriptionResult(
+  events: Awaited<ReturnType<AudioInputObservations['piniaActionEvents']>>,
+): { complete: boolean, failed: boolean, summary: string } {
+  const matchingEvents = events.filter(event => transcriptionActions.some(action => (
+    event.storeId === action.storeId && event.actionName === action.actionName
+  )))
+  const latestTerminalEvent = matchingEvents.findLast(event => event.status !== 'started')
+  if (latestTerminalEvent?.status === 'failed') {
+    return {
+      complete: false,
+      failed: true,
+      summary: `ASR failed${latestTerminalEvent.errorMessage ? `: ${latestTerminalEvent.errorMessage}` : ''}`,
+    }
+  }
+  return {
+    complete: latestTerminalEvent?.status === 'completed',
+    failed: false,
+    summary: 'ASR did not complete',
+  }
 }
