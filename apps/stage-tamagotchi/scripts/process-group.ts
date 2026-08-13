@@ -10,9 +10,9 @@ export interface TimedProcessResult {
   timedOut: boolean
 }
 
-function isProcessGroupActive(pid: number): boolean {
+function signalProcessGroup(pid: number, signal: Signals | 0): boolean {
   try {
-    process.kill(-pid, 0)
+    process.kill(-pid, signal)
     return true
   }
   catch (error) {
@@ -23,27 +23,24 @@ function isProcessGroupActive(pid: number): boolean {
   }
 }
 
+function isProcessGroupActive(pid: number): boolean {
+  return signalProcessGroup(pid, 0)
+}
+
 /**
  * Stops a detached process group and waits until its child processes are gone.
  *
  * The function sends the requested signal first. It sends SIGKILL after a one-second grace period.
  */
 export async function stopProcessGroup(pid: number, signal: Signals): Promise<void> {
-  try {
-    // Electron owns renderer and utility children. One group signal keeps their shutdown order visible.
-    process.kill(-pid, signal)
-  }
-  catch (error) {
-    const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-    if (code === 'ESRCH')
-      return
-    throw error
-  }
+  // Electron owns renderer and utility children. One group signal keeps their shutdown order visible.
+  if (!signalProcessGroup(pid, signal))
+    return
 
   if (signal !== 'SIGKILL') {
     await new Promise(resolveDelay => setTimeout(resolveDelay, 1_000))
     if (isProcessGroupActive(pid))
-      process.kill(-pid, 'SIGKILL')
+      signalProcessGroup(pid, 'SIGKILL')
   }
 
   for (let attempt = 0; attempt < 100; attempt += 1) {

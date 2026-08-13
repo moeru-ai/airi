@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { isWindows } from 'std-env'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { runTimedProcess, stopProcessGroup } from './process-group'
 import {
@@ -205,6 +205,11 @@ describe('linux Flatpak package verification', () => {
 })
 
 describe('linux launch smoke result', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.restoreAllMocks()
+  })
+
   it('accepts an app that stays active for the smoke-test window', () => {
     expect(isSuccessfulLaunchSmoke({ exitCode: null, signal: 'SIGTERM', timedOut: true })).toBe(true)
   })
@@ -317,6 +322,31 @@ describe('linux launch smoke result', () => {
       }
       await rm(runtimeRoot, { recursive: true, force: true })
     }
+  })
+
+  it.skipIf(isWindows)('accepts a process group that exits before the escalation signal', async () => {
+    // ROOT CAUSE:
+    //
+    // A process group can exit after the active check and before the escalation signal.
+    // The resulting ESRCH means that cleanup is complete, but the verifier reports a failure.
+    // The fix must treat ESRCH from the escalation signal as a successful shutdown.
+    vi.useFakeTimers()
+    const kill = vi.spyOn(process, 'kill')
+    kill
+      .mockImplementationOnce(() => true)
+      .mockImplementationOnce(() => true)
+      .mockImplementationOnce(() => {
+        throw Object.assign(new Error('No such process'), { code: 'ESRCH' })
+      })
+      .mockImplementationOnce(() => {
+        throw Object.assign(new Error('No such process'), { code: 'ESRCH' })
+      })
+
+    const stopPromise = stopProcessGroup(42, 'SIGTERM')
+    await vi.advanceTimersByTimeAsync(1_000)
+
+    await expect(stopPromise).resolves.toBeUndefined()
+    expect(kill).toHaveBeenNthCalledWith(3, -42, 'SIGKILL')
   })
 })
 
