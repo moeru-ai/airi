@@ -14,6 +14,7 @@ import {
   buildNextRouterConfig,
   buildOpenRouterSlice,
   buildStepfunSlice,
+  buildStepfunStreamingSlice,
   buildUnspeechSlice,
   createAdminRouterConfigService,
   redactCiphertext,
@@ -287,6 +288,29 @@ describe('buildStepfunSlice', () => {
   })
 })
 
+describe('buildStepfunStreamingSlice', () => {
+  it('encrypts the native websocket credential under its dedicated AAD label', () => {
+    const built = buildStepfunStreamingSlice({
+      kind: 'stepfun-streaming',
+      rollout: 'disabled' as const,
+      upstreamURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
+      defaultModel: 'stepfun/step-tts-2',
+      voices: [{ id: 'lively-girl', name: 'Lively Girl' }],
+      plaintextKey: 'stepfun-secret',
+    }, freshEnvelope())
+
+    expect(built.target).toBe('stepfun-streaming')
+    expect(built.value).toMatchObject({
+      rollout: 'disabled' as const,
+      baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      defaultModel: 'stepfun/step-tts-2',
+      voices: [{ id: 'lively-girl', labels: {}, languages: [] }],
+    })
+    expect(built.value.keys[0]?.id).toBe('stepfun-streaming-prod-1')
+  })
+})
+
 describe('buildUnspeechSlice', () => {
   it('writes restBaseURL with no streaming subtree when the slice omits streaming', () => {
     const envelope = freshEnvelope()
@@ -556,6 +580,25 @@ describe('createAdminRouterConfigService', () => {
     })).rejects.toThrow(/At most one unspeech/i)
   })
 
+  it('rejects multiple native StepFun streaming slices', async () => {
+    const service = createAdminRouterConfigService({ configKV: kv.service, envelope, redis })
+    const stepfunSlice = {
+      kind: 'stepfun-streaming' as const,
+      rollout: 'disabled' as const,
+      upstreamURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      models: [{ id: 'stepfun/step-tts-2' as const }],
+      defaultModel: 'stepfun/step-tts-2' as const,
+      voices: [{ id: 'lively-girl' }],
+      plaintextKey: 'stepfun-secret',
+    }
+
+    await expect(service.apply({
+      mode: 'merge',
+      dryRun: true,
+      slices: [stepfunSlice, stepfunSlice],
+    })).rejects.toThrow(/At most one stepfun-streaming/i)
+  })
+
   it('merge mode reads existing LLM_ROUTER_CONFIG and preserves untouched models', async () => {
     // Seed an existing entry directly into the fake store, matching the
     // shape configKV.getOptional would have returned after a prior admin call.
@@ -681,6 +724,7 @@ describe('createAdminRouterConfigService', () => {
     expect(current.request.defaults.chatModel).toBe('chat-live')
     expect(JSON.stringify(current.preview)).toContain('<ciphertext: 17 chars>')
     expect(JSON.stringify(current.preview)).not.toContain('secret-ciphertext')
+    expect(current.missingKeys).not.toContain('STEPFUN_STREAMING_TTS_UPSTREAM')
   })
 
   it('current classifies Bedrock and generic OpenAI-compatible LLM upstreams by baseURL', async () => {

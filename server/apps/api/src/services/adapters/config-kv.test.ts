@@ -88,6 +88,24 @@ describe('configKVService', () => {
       })
   })
 
+  it('rejects unsupported native StepFun models at the ConfigKV boundary', async () => {
+    redis._store.set(configRedisKey('STEPFUN_STREAMING_TTS_UPSTREAM'), JSON.stringify({
+      rollout: 'available',
+      baseURL: 'wss://api.stepfun.com/v1/realtime/audio',
+      keys: [{ id: 'step-key', ciphertext: 'encrypted' }],
+      models: [{ id: 'stepfun/unsupported-model' }],
+      defaultModel: 'stepfun/unsupported-model',
+      voices: [{ id: 'lively-girl' }],
+    }))
+
+    await expect(service.getOptional('STEPFUN_STREAMING_TTS_UPSTREAM'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
   it('set should write value to Redis with prefix', async () => {
     await service.set('FLUX_PER_REQUEST', 10)
 

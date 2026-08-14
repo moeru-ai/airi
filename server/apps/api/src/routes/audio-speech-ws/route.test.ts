@@ -2,6 +2,8 @@ import type { AddressInfo } from 'node:net'
 
 import type { WSContext, WSEvents } from 'hono/ws'
 
+import type { AudioSpeechWsHandlersOptions } from './types'
+
 import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
 
@@ -22,15 +24,24 @@ interface MockUpstream {
   receivedFrames: Array<{ kind: 'text' | 'binary', data: string | Buffer }>
   /** Auth header observed during handshake. */
   observedAuth: string | undefined
+  disconnectedClients: number
   close: () => Promise<void>
 }
 
 async function startMockUpstream(
   scriptedResponses: MockUpstream['scriptedResponses'],
   voices: Array<{ id: string, name?: string }> = [{ id: 'mock', name: 'Mock Voice' }],
+  protocol: 'unspeech' | 'stepfun' = 'unspeech',
+  options: {
+    stepfunCreatedDelayMs?: number
+    suppressStepfunConnectionDone?: boolean
+    suppressStepfunCreated?: boolean
+    scriptedResponseDelayMs?: number
+  } = {},
 ): Promise<MockUpstream> {
   const receivedFrames: MockUpstream['receivedFrames'] = []
   let observedAuth: string | undefined
+  let disconnectedClients = 0
 
   const httpServer = createServer((req, res) => {
     if (req.url?.startsWith('/api/voices')) {
@@ -45,7 +56,16 @@ async function startMockUpstream(
 
   wss.on('connection', (ws, req) => {
     observedAuth = req.headers.authorization
+    if (protocol === 'stepfun' && !options.suppressStepfunConnectionDone) {
+      ws.send(JSON.stringify({
+        type: 'tts.connection.done',
+        data: { session_id: 'stepfun-session' },
+      }))
+    }
     let replayed = false
+    ws.on('close', () => {
+      disconnectedClients += 1
+    })
     ws.on('message', async (data, isBinary) => {
       const buf = Buffer.isBuffer(data) ? data : Buffer.from(data as ArrayBuffer)
       const decoded = isBinary ? buf : buf.toString('utf8')
@@ -63,11 +83,28 @@ async function startMockUpstream(
         return
 
       let triggerReplay = false
+      if (protocol === 'stepfun') {
+        if (!isBinary) {
+          const event = JSON.parse(decoded as string) as { type?: string }
+          if (event.type === 'tts.create') {
+            if (options.suppressStepfunCreated)
+              return
+            if (options.stepfunCreatedDelayMs)
+              await new Promise(resolve => setTimeout(resolve, options.stepfunCreatedDelayMs))
+            if (ws.readyState === 1)
+              ws.send(JSON.stringify({ type: 'tts.response.created', data: { session_id: 'stepfun-session' } }))
+            return
+          }
+          if (event.type === 'tts.text.done')
+            triggerReplay = true
+        }
+      }
+
       if (isBinary) {
         // Streaming protocol's only legal client→server binary frames
         // would be raw audio (we never send any in tests).
       }
-      else {
+      else if (protocol === 'unspeech') {
         try {
           const ev = JSON.parse(decoded as string) as { event?: string }
           if (ev.event === 'finish' || ev.event === 'cancel')
@@ -85,7 +122,7 @@ async function startMockUpstream(
 
       replayed = true
       for (const resp of scriptedResponses) {
-        await new Promise(resolve => setTimeout(resolve, 5))
+        await new Promise(resolve => setTimeout(resolve, options.scriptedResponseDelayMs ?? 5))
 
         if (resp.kind === 'json')
           ws.send(JSON.stringify(resp.payload), { binary: false })
@@ -108,6 +145,9 @@ async function startMockUpstream(
     receivedFrames,
     get observedAuth() {
       return observedAuth
+    },
+    get disconnectedClients() {
+      return disconnectedClients
     },
     async close() {
       wss.close()
@@ -145,7 +185,7 @@ function makeMockClientWs(): MockClientWs {
     },
     readyState: 1,
     binaryType: 'arraybuffer',
-    raw: {} as any,
+    raw: {},
     protocol: '',
     url: null,
   } as unknown as WSContext
@@ -165,13 +205,21 @@ function makeFakeDeps(overrides: {
   fluxBalance: number
   decryptedKey?: string
   streamingModels?: Array<{ id: string, name?: string, description?: string }>
+  stepfunStreaming?: {
+    rollout: 'disabled' | 'available' | 'default'
+    baseURL: string
+    models: Array<{ id: string, name?: string, description?: string }>
+    defaultModel: string
+    voices: Array<{ id: string, name?: string }>
+  }
+  streamingTtsTimeouts?: { handshakeMs?: number, completionMs?: number }
 }) {
   const ttsMeter = {
     assertCanAfford: vi.fn(async (_userId: string, _newUnits: number, currentBalance: number) => {
       if (currentBalance <= 0)
         throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
     }),
-    accumulate: vi.fn(async () => ({
+    accumulate: vi.fn(async (_input: Parameters<AudioSpeechWsHandlersOptions['ttsMeter']['accumulate']>[0]) => ({
       fluxDebited: 1,
       debtAfter: 0,
       balanceAfter: overrides.fluxBalance - 1,
@@ -182,7 +230,7 @@ function makeFakeDeps(overrides: {
     getFlux: vi.fn(async () => ({ flux: overrides.fluxBalance })),
   }
   const requestLogService = {
-    logRequest: vi.fn(async () => undefined),
+    logRequest: vi.fn(async (_input: Parameters<AudioSpeechWsHandlersOptions['requestLogService']['logRequest']>[0]) => undefined),
   }
   const productEventService = {
     track: vi.fn(async () => undefined),
@@ -205,6 +253,16 @@ function makeFakeDeps(overrides: {
           },
         }
       }
+      if (key === 'STEPFUN_STREAMING_TTS_UPSTREAM') {
+        const config = overrides.stepfunStreaming
+        return config
+          ? {
+              ...config,
+              keys: [{ id: 'test-key-1', ciphertext: 'ENCRYPTED_PLACEHOLDER' }],
+              voices: config.voices.map(voice => ({ ...voice, labels: {}, languages: [] })),
+            }
+          : null
+      }
       return null
     }),
   }
@@ -212,7 +270,21 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService, productEventService }
+  return {
+    configKV,
+    envelopeCrypto,
+    fluxService,
+    ttsMeter,
+    requestLogService,
+    productEventService,
+    streamingTtsTimeouts: overrides.streamingTtsTimeouts,
+  }
+}
+
+function createTestHandlers(deps: ReturnType<typeof makeFakeDeps>) {
+  // The fixture intentionally implements only the service methods exercised by
+  // this route. Keep the partial-service adaptation at this single test boundary.
+  return createAudioSpeechWsHandlers(deps as unknown as AudioSpeechWsHandlersOptions)
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -220,13 +292,13 @@ async function driveClientSession(events: WSEvents, client: MockClientWs, client
   // onOpen handles the initial dial. The route fires `void dialUpstream()`
   // which is async, so we await a microtask tick to let the upstream
   // dialing kick off.
-  events.onOpen?.(new Event('open') as any, client.ctx)
+  events.onOpen?.(new Event('open'), client.ctx)
   await new Promise(r => setTimeout(r, 50))
 
   for (const frame of clientFrames) {
     const isBinary = Buffer.isBuffer(frame)
     const data = isBinary ? frame : String(frame)
-    events.onMessage?.({ data } as any, client.ctx)
+    events.onMessage?.(new MessageEvent('message', { data }), client.ctx)
     await new Promise(r => setTimeout(r, 20))
   }
 }
@@ -249,7 +321,7 @@ describe('audio-speech-ws route', () => {
     ])
 
     const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
-    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const handlers = createTestHandlers(deps)
     const events = handlers('user-123', { voiceType: 'official_selected' })
     const client = makeMockClientWs()
 
@@ -284,7 +356,7 @@ describe('audio-speech-ws route', () => {
     // sniff-from-text-frame fallback (which would be the input string
     // length of "hello streaming tts" = 19).
     expect(deps.ttsMeter.accumulate).toHaveBeenCalledTimes(1)
-    expect((deps.ttsMeter.accumulate.mock.calls[0] as any[])[0]).toMatchObject({
+    expect(deps.ttsMeter.accumulate.mock.calls[0]?.[0]).toMatchObject({
       userId: 'user-123',
       units: 42,
       metadata: { model: 'volcengine/seed-tts-2.0' },
@@ -293,7 +365,7 @@ describe('audio-speech-ws route', () => {
     // Request log gets the model label from the start frame, not the
     // hardcoded fallback.
     expect(deps.requestLogService.logRequest).toHaveBeenCalledTimes(1)
-    expect((deps.requestLogService.logRequest.mock.calls[0] as any[])[0]).toMatchObject({
+    expect(deps.requestLogService.logRequest.mock.calls[0]?.[0]).toMatchObject({
       userId: 'user-123',
       model: 'volcengine/seed-tts-2.0',
       status: 200,
@@ -312,10 +384,475 @@ describe('audio-speech-ws route', () => {
     }))
   })
 
+  it('translates the AIRI stream protocol to native StepFun websocket events', async () => {
+    const audioPayload = Buffer.from('STEPFUN_AUDIO', 'utf8').toString('base64')
+    const text = 'x'.repeat(2001)
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { type: 'tts.response.sentence.start', data: { session_id: 'stepfun-session', text: 'hello' } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.delta', data: { session_id: 'stepfun-session', audio: audioPayload } } },
+      { kind: 'json', payload: { type: 'tts.response.sentence.end', data: { session_id: 'stepfun-session', text: 'hello' } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.done', data: { session_id: 'stepfun-session', audio: '' } } },
+    ], [{ id: 'lively-girl', name: 'Lively Girl' }], 'stepfun')
+
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'default',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl', name: 'Lively Girl' }],
+      },
+    })
+    const handlers = createTestHandlers(deps)
+    const events = handlers('user-stepfun')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 200))
+
+    const upstreamFrames = upstream.receivedFrames.map(frame => JSON.parse(frame.data as string))
+    expect(upstreamFrames.map(frame => frame.type)).toEqual(['tts.create', 'tts.text.delta', 'tts.text.delta', 'tts.text.delta', 'tts.text.done'])
+    expect(upstreamFrames[0].data).toMatchObject({
+      session_id: 'stepfun-session',
+      voice_id: 'lively-girl',
+      mode: 'default',
+      response_format: 'mp3_stream',
+    })
+    expect(upstreamFrames.slice(1, 4).map(frame => frame.data.text.length)).toEqual([1000, 1000, 1])
+
+    const clientTextFrames = client.sent.filter(s => s.kind === 'text').map(s => JSON.parse(s.data as string))
+    expect(clientTextFrames.map(frame => frame.event)).toEqual(['session.started', 'sentence.start', 'sentence.end', 'session.finished'])
+    expect(client.sent.filter(s => s.kind === 'binary')).toHaveLength(1)
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-stepfun', units: 2001 }))
+  })
+
+  it('closes StepFun immediately and records cancellation separately from billing', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl', name: 'Lively Girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'default',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2', name: 'Step TTS 2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl', name: 'Lively Girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-cancel')
+    const client = makeMockClientWs()
+    let releaseBilling: (() => void) | undefined
+    deps.ttsMeter.accumulate.mockImplementation(async () => new Promise((resolve) => {
+      releaseBilling = () => resolve({
+        fluxDebited: 1,
+        debtAfter: 0,
+        balanceAfter: 99,
+        unbilledFlux: 0,
+      })
+    }))
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'paid text' }),
+    ])
+    events.onClose?.(new CloseEvent('close'), client.ctx)
+    await new Promise(r => setTimeout(r, 30))
+
+    expect(upstream.disconnectedClients).toBe(1)
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'user-stepfun-cancel',
+      units: 9,
+    }))
+    expect(deps.requestLogService.logRequest).not.toHaveBeenCalled()
+
+    releaseBilling?.()
+    await new Promise(r => setTimeout(r, 30))
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 499 }))
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'speech_cancelled',
+      status: 'cancelled',
+      reason: 'client_disconnected',
+    }))
+    expect(deps.productEventService.track).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'speech_succeeded' }))
+  })
+
+  it('cancels immediately while start configuration is still pending', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const readConfig = deps.configKV.getOptional.getMockImplementation()
+    let releaseConfig: (() => void) | undefined
+    const configGate = new Promise<void>((resolve) => {
+      releaseConfig = resolve
+    })
+    deps.configKV.getOptional.mockImplementation(async (key) => {
+      await configGate
+      return readConfig?.(key) ?? null
+    })
+    const events = createTestHandlers(deps)('user-stepfun-explicit-cancel')
+    const client = makeMockClientWs()
+
+    events.onOpen?.(new Event('open'), client.ctx)
+    events.onMessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+    }), client.ctx)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    events.onMessage?.(new MessageEvent('message', {
+      data: JSON.stringify({ event: 'cancel' }),
+    }), client.ctx)
+    await new Promise(resolve => setTimeout(resolve, 30))
+
+    expect(client.closed).toBe(true)
+    expect(upstream.observedAuth).toBeUndefined()
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 499 }))
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'speech_cancelled',
+      status: 'cancelled',
+      reason: 'client_cancelled',
+    }))
+
+    releaseConfig?.()
+    await new Promise(resolve => setTimeout(resolve, 30))
+    expect(upstream.observedAuth).toBeUndefined()
+  })
+
+  it('fails and releases a StepFun connection that never completes its handshake', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl' }], 'stepfun', { suppressStepfunConnectionDone: true })
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      streamingTtsTimeouts: { handshakeMs: 25, completionMs: 100 },
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-timeout')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+    ])
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(client.sent.filter(frame => frame.kind === 'text').map(frame => JSON.parse(frame.data as string))).toContainEqual(
+      expect.objectContaining({ event: 'error', code: 'stepfun_handshake_timeout' }),
+    )
+    expect(upstream.disconnectedClients).toBe(1)
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+  })
+
+  it('fails and releases an unSpeech connection that never completes after finish', async () => {
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { event: 'session.started' } },
+    ])
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      streamingTtsTimeouts: { handshakeMs: 100, completionMs: 25 },
+    })
+    const events = createTestHandlers(deps)('user-unspeech-timeout')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'mock' }),
+      JSON.stringify({ event: 'text', text: 'timeout input' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(resolve => setTimeout(resolve, 80))
+
+    expect(client.sent.filter(frame => frame.kind === 'text').map(frame => JSON.parse(frame.data as string))).toContainEqual(
+      expect.objectContaining({ event: 'error', code: 'unspeech_completion_timeout' }),
+    )
+    expect(upstream.disconnectedClients).toBe(1)
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({ units: 13 }))
+  })
+
+  it('keeps a long StepFun completion alive while audio progress continues', async () => {
+    const audio = Buffer.from('progress').toString('base64')
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { type: 'tts.response.audio.delta', data: { session_id: 'stepfun-session', audio } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.delta', data: { session_id: 'stepfun-session', audio } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.delta', data: { session_id: 'stepfun-session', audio } } },
+      { kind: 'json', payload: { type: 'tts.response.audio.done', data: { session_id: 'stepfun-session' } } },
+    ], [{ id: 'lively-girl' }], 'stepfun', { scriptedResponseDelayMs: 15 })
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      streamingTtsTimeouts: { handshakeMs: 100, completionMs: 25 },
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-progress')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'long healthy output' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(resolve => setTimeout(resolve, 100))
+
+    expect(client.sent.filter(frame => frame.kind === 'binary')).toHaveLength(3)
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
+    expect(deps.productEventService.track).not.toHaveBeenCalledWith(expect.objectContaining({ reason: 'stepfun_completion_timeout' }))
+  })
+
+  it('never bills less than text accepted by unSpeech when upstream usage under-reports', async () => {
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { event: 'session.started' } },
+      { kind: 'json', payload: { event: 'session.finished', payload: { usage: { text_words: 0 } } } },
+    ])
+    const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
+    const events = createTestHandlers(deps)('user-unspeech-under-report')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/seed-tts-2.0', voice: 'mock' }),
+      JSON.stringify({ event: 'text', text: 'accepted text' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(resolve => setTimeout(resolve, 80))
+
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({ units: 13 }))
+  })
+
+  it('allows unSpeech to validate the model when the curated model list is empty', async () => {
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { event: 'session.started' } },
+      { kind: 'json', payload: { event: 'session.finished', payload: {} } },
+    ])
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      restBaseURL: upstream.restBaseURL,
+      fluxBalance: 100,
+      streamingModels: [],
+    })
+    const events = createTestHandlers(deps)('user-unspeech-upstream-policy')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'volcengine/upstream-model', voice: 'mock' }),
+      JSON.stringify({ event: 'text', text: 'hello' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(resolve => setTimeout(resolve, 80))
+
+    expect(upstream.observedAuth).toBe('Bearer mock-upstream-token')
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
+  })
+
+  it('does not bill text that never reached a created StepFun session', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl' }], 'stepfun', { stepfunCreatedDelayMs: 200 })
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-unaccepted')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'not accepted' }),
+    ])
+    events.onClose?.(new CloseEvent('close'), client.ctx)
+    await new Promise(r => setTimeout(r, 30))
+
+    expect(deps.ttsMeter.accumulate).not.toHaveBeenCalled()
+    expect(upstream.receivedFrames.map(frame => JSON.parse(frame.data as string).type)).toEqual(['tts.create'])
+  })
+
+  it('records a StepFun response error as failure while charging only accepted text', async () => {
+    upstream = await startMockUpstream([
+      { kind: 'json', payload: { type: 'tts.response.error', data: { session_id: 'stepfun-session', code: 'provider_busy', message: 'busy' } } },
+    ], [{ id: 'lively-girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-error')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'bill accepted text' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 80))
+
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({ units: 18 }))
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({ action: 'speech_failed', reason: 'provider_busy' }))
+    expect(deps.productEventService.track).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'speech_succeeded' }))
+  })
+
+  it('rejects StepFun events that do not belong to the active session', async () => {
+    upstream = await startMockUpstream([
+      {
+        kind: 'json',
+        payload: {
+          type: 'tts.response.audio.delta',
+          data: { session_id: 'another-session', audio: Buffer.from('wrong-session').toString('base64') },
+        },
+      },
+    ], [{ id: 'lively-girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-correlation')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'hello' }),
+      JSON.stringify({ event: 'finish' }),
+    ])
+    await new Promise(r => setTimeout(r, 80))
+
+    const controlFrames = client.sent.filter(frame => frame.kind === 'text').map(frame => JSON.parse(frame.data as string))
+    expect(controlFrames).toContainEqual(expect.objectContaining({ event: 'error', code: 'stepfun_session_mismatch' }))
+    expect(client.sent.filter(frame => frame.kind === 'binary')).toHaveLength(0)
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+  })
+
+  it('rejects an oversized streaming session before forwarding text upstream', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-limit')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'x'.repeat(20001) }),
+    ])
+    await new Promise(r => setTimeout(r, 30))
+
+    expect(client.closeCode).toBe(1009)
+    expect(upstream.receivedFrames.map(frame => JSON.parse(frame.data as string).type)).toEqual(['tts.create'])
+    expect(deps.ttsMeter.accumulate).not.toHaveBeenCalled()
+  })
+
+  it('rejects a StepFun response format that cannot preserve the client contract', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    const events = createTestHandlers(deps)('user-stepfun-format')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl', response_format: 'aac' }),
+    ])
+
+    expect(upstream.observedAuth).toBeUndefined()
+    expect(client.sent.filter(frame => frame.kind === 'text').map(frame => JSON.parse(frame.data as string))).toContainEqual(
+      expect.objectContaining({ event: 'error', code: 'streaming_tts_response_format_not_supported' }),
+    )
+  })
+
+  it('bills accepted text when a later affordability window is blocked', async () => {
+    upstream = await startMockUpstream([], [{ id: 'lively-girl' }], 'stepfun')
+    const deps = makeFakeDeps({
+      upstreamURL: upstream.url,
+      fluxBalance: 100,
+      stepfunStreaming: {
+        rollout: 'available',
+        baseURL: upstream.url,
+        models: [{ id: 'stepfun/step-tts-2' }],
+        defaultModel: 'stepfun/step-tts-2',
+        voices: [{ id: 'lively-girl' }],
+      },
+    })
+    deps.ttsMeter.assertCanAfford.mockImplementation(async (_userId, units) => {
+      if (units > 2000)
+        throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
+    })
+    const events = createTestHandlers(deps)('user-stepfun-window')
+    const client = makeMockClientWs()
+
+    await driveClientSession(events, client, [
+      JSON.stringify({ event: 'start', model: 'stepfun/step-tts-2', voice: 'lively-girl' }),
+      JSON.stringify({ event: 'text', text: 'x'.repeat(2000) }),
+      JSON.stringify({ event: 'text', text: 'x' }),
+    ])
+    await new Promise(r => setTimeout(r, 50))
+
+    expect(client.closeCode).toBe(1008)
+    expect(deps.ttsMeter.accumulate).toHaveBeenCalledWith(expect.objectContaining({ units: 2000 }))
+    expect(deps.requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 402 }))
+    expect(deps.productEventService.track).toHaveBeenCalledWith(expect.objectContaining({ action: 'speech_blocked' }))
+  })
+
   it('refuses the session with insufficient_flux when the user is broke', async () => {
     upstream = await startMockUpstream([])
     const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 0 })
-    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const handlers = createTestHandlers(deps)
     const events = handlers('user-broke', { trigger: 'auto', source: 'chat_auto_tts' })
     const client = makeMockClientWs()
 
@@ -353,9 +890,9 @@ describe('audio-speech-ws route', () => {
 
   it('refuses with streaming_tts_not_configured when UNSPEECH_UPSTREAM.streaming is empty', async () => {
     const deps = makeFakeDeps({ upstreamURL: 'ws://unused', fluxBalance: 100 })
-    deps.configKV.getOptional = vi.fn(async () => null) as any
+    deps.configKV.getOptional.mockImplementation(async () => null)
 
-    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const handlers = createTestHandlers(deps)
     const events = handlers('user-noconf')
     const client = makeMockClientWs()
 
@@ -380,7 +917,7 @@ describe('audio-speech-ws route', () => {
       fluxBalance: 100,
       streamingModels: [{ id: 'volcengine/seed-tts-2.0', name: 'Seed-TTS 2.0' }],
     })
-    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const handlers = createTestHandlers(deps)
     const events = handlers('user-disabled-model')
     const client = makeMockClientWs()
 
@@ -406,7 +943,7 @@ describe('audio-speech-ws route', () => {
   it('refuses an unknown streaming voice before dialing upstream', async () => {
     upstream = await startMockUpstream([], [{ id: 'enabled-voice', name: 'Enabled Voice' }])
     const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
-    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const handlers = createTestHandlers(deps)
     const events = handlers('user-disabled-voice')
     const client = makeMockClientWs()
 
@@ -439,7 +976,7 @@ describe('audio-speech-ws route', () => {
     ])
 
     const deps = makeFakeDeps({ upstreamURL: upstream.url, restBaseURL: upstream.restBaseURL, fluxBalance: 100 })
-    const handlers = createAudioSpeechWsHandlers(deps as any)
+    const handlers = createTestHandlers(deps)
     const events = handlers('user-no-usage')
     const client = makeMockClientWs()
 
@@ -452,7 +989,7 @@ describe('audio-speech-ws route', () => {
     await new Promise(r => setTimeout(r, 200))
 
     expect(deps.ttsMeter.accumulate).toHaveBeenCalledTimes(1)
-    expect((deps.ttsMeter.accumulate.mock.calls[0] as any[])[0]).toMatchObject({
+    expect(deps.ttsMeter.accumulate.mock.calls[0]?.[0]).toMatchObject({
       userId: 'user-no-usage',
       units: 10, // "hello" + "world" = 10 chars
     })
