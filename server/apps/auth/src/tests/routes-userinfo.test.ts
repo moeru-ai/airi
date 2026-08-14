@@ -121,6 +121,18 @@ describe('auth UI routes', () => {
     expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code&provider=github')
   })
 
+  it('keeps the Steam provider hint on the OIDC sign-in redirect', async () => {
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+    handler.mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
+    }))
+
+    const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=steam')
+
+    expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code&provider=steam')
+  })
+
   it('does not forward an unknown provider to the auth UI', async () => {
     const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
     handler.mockResolvedValueOnce(new Response(null, {

@@ -31,7 +31,7 @@ export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
 export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 
-const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github'])
+const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
 
 /** Builds a route URL below the configured standalone Auth UI base. */
 export function buildAuthUiUrl(authUiUrl: string, path: string, search = ''): string {
