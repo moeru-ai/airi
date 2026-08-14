@@ -328,11 +328,10 @@ const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(he
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
+const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
-/** Identifies this page in the shared streaming transcription session. */
-const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
   flushDelayMs: 1200,
@@ -575,7 +574,7 @@ function handleStreamingSentenceEnd(delta: string) {
   void sendVoiceInputTextToChat(finalText)
 }
 
-/** Replaces the speaker caption with the provider's current volatile transcript. */
+/** Replaces the caption with the provider's current volatile transcript. */
 function handleStreamingTranscriptionUpdate(text: string) {
   if (isVoiceInputSuppressed())
     return
@@ -599,6 +598,18 @@ function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
 
 const voiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
+  onLog(level, event, message, details) {
+    const output = `[Voice Input] ${event}: ${message}`
+    if (level === 'error') {
+      console.error(output, details ?? {})
+      return
+    }
+    if (level === 'warn') {
+      console.warn(output, details ?? {})
+      return
+    }
+    console.info(output, details ?? {})
+  },
   canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
@@ -648,14 +659,12 @@ async function startAudioInteractionConsumers() {
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
-      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       return
     }
 
     if (transcriptionError.value) {
       streamingTranscriptionUnavailable.value = true
-      removeStreamingTranscriptionConsumer(transcriptionConsumerId)
       await stopStreamingTranscription(true)
       console.warn('[Main Page] Streaming transcription unavailable; using recorder-backed fallback:', transcriptionError.value)
     }
@@ -674,7 +683,6 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
   clearAssistantSpeechResumeTimer()
   clearHearingInput()
   voiceInputGeneration += 1
-  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
 
   await Promise.all([
     stopStreamingTranscription(true),
@@ -742,6 +750,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
   for (const [timer, sourceId] of hearingInputClearTimers) {
     clearTimeout(timer)
     clearHearingInput(sourceId)

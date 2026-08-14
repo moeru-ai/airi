@@ -33,6 +33,7 @@ lerna-debug.log*
 # Audio binaries
 *.pcm
 *.wav
+!*.test.wav
 *.ogg
 *.mp3
 
@@ -133,7 +134,8 @@ plugins-development
 apps/stage-pocket/ios/buildServer.json
 apps/stage-pocket/airi-pocket.jks
 apps/stage-tamagotchi/electron.vite.config.*.mjs
-.docs/superpowers
+docs/superpowers
+docs/research
 
 # Tools - ghfs
 .ghfs/

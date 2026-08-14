@@ -1,6 +1,3 @@
-import type Redis from 'ioredis'
-
-import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
@@ -28,10 +25,10 @@ import type { EnvelopeCrypto } from './utils/envelope-crypto'
 
 import process from 'node:process'
 
+import Redis from 'ioredis'
 import Stripe from 'stripe'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
-import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
 import { Hono } from 'hono'
@@ -40,11 +37,9 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
-import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
-import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
@@ -62,17 +57,16 @@ import { createAdminUsersRoutes } from './routes/admin/users'
 import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
-import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
+import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
-import { createEmailService } from './services/adapters/email'
 import { createPosthogSink } from './services/adapters/posthog'
 import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
 import { createAdminRouterConfigService } from './services/domain/admin/router-config'
@@ -97,7 +91,6 @@ import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
-  auth: AuthInstance
   db: Database
   characterService: CharacterService
   chatService: ChatService
@@ -133,9 +126,8 @@ export async function buildApp(deps: AppDeps) {
     .use('*', async (c, next) => {
       await next()
 
-      // NOTICE: All API responses should be non-cacheable. Auth responses can
-      // carry session state through redirects, and stale API payloads are not
-      // safe to serve from edge caches after user/account mutations.
+      // NOTICE: Stale API payloads are unsafe to serve from edge caches after
+      // user, billing, or configuration mutations.
       c.res.headers.set('Cache-Control', 'no-store, no-cache, private, max-age=0')
       c.res.headers.set('Pragma', 'no-cache')
       c.res.headers.set('Expires', '0')
@@ -183,7 +175,7 @@ export async function buildApp(deps: AppDeps) {
       return createUnauthorizedWsEvents()
 
     const session = await resolveRequestAuth(
-      deps.auth,
+      deps.db,
       deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
@@ -211,7 +203,7 @@ export async function buildApp(deps: AppDeps) {
       return createUnauthorizedWsEvents()
 
     const session = await resolveRequestAuth(
-      deps.auth,
+      deps.db,
       deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
@@ -229,7 +221,7 @@ export async function buildApp(deps: AppDeps) {
   // the request body is a live microphone PCM stream rather than a bounded JSON
   // payload. Auth is resolved manually here for the same reason.
   app.post('/api/v1/audio/transcriptions/stream', createAudioTranscriptionStreamHandler({
-    auth: deps.auth,
+    db: deps.db,
     env: deps.env,
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
@@ -265,7 +257,7 @@ export async function buildApp(deps: AppDeps) {
   })
 
   const builtApp = app
-    .use('*', sessionMiddleware(deps.auth, deps.env))
+    .use('*', sessionMiddleware(deps.db, deps.env))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
@@ -343,16 +335,9 @@ export async function buildApp(deps: AppDeps) {
       ui: 'https://airi.moeru.ai',
     }))
 
-    /**
-     * Auth routes: sign-in page, token auth helpers, electron callback
-     * relay, well-known metadata, and better-auth catch-all.
-     */
-    .route('/', await createAuthRoutes({
-      auth: deps.auth,
-      db: deps.db,
-      env: deps.env,
-      configKV: deps.configKV,
-      rateLimitMetrics: deps.otel?.rateLimit,
+    .route('/internal/auth', createInternalAuthRoutes({
+      userDeletionService: deps.userDeletionService,
+      productEventService: deps.productEventService,
     }))
 
     /**
@@ -410,8 +395,8 @@ export async function buildApp(deps: AppDeps) {
 
     /**
      * Admin per-user balance override (set balance, incl. 0 for testing).
-     * Account ban/unban live under the better-auth admin plugin at
-     * `/api/auth/admin/ban-user` / `/api/auth/admin/unban-user`.
+     * Account ban/unban live on the Auth service under the Better Auth
+     * admin plugin at `/api/auth/admin/ban-user` and `/api/auth/admin/unban-user`.
      */
     .route('/api/admin/users', createAdminUsersRoutes(deps.adminUsersService))
 
@@ -561,7 +546,7 @@ export async function createApp() {
         'Redis',
         logger,
         async (attempt) => {
-          const instance = createRedis(dependsOn.env.REDIS_URL)
+          const instance = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
 
           try {
             await instance.connect()
@@ -585,15 +570,6 @@ export async function createApp() {
   const configKV = injeca.provide('datastore:configKV', {
     dependsOn: { redis },
     build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
-  })
-
-  const emailService = injeca.provide('services:email', {
-    dependsOn: { env: parsedEnv, otel },
-    build: ({ dependsOn }) => createEmailService({
-      apiKey: dependsOn.env.RESEND_API_KEY,
-      fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
-      fromName: dependsOn.env.RESEND_FROM_NAME,
-    }, undefined, dependsOn.otel?.email),
   })
 
   const posthogSink = injeca.provide('services:posthogSink', {
@@ -675,24 +651,6 @@ export async function createApp() {
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
       return service
-    },
-  })
-
-  const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, productEventService },
-    build: async ({ dependsOn }) => {
-      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
-      await seedTrustedClients(dependsOn.db, dependsOn.env)
-      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
-      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
-      for (const client of trustedClients) {
-        logger.withFields({
-          clientId: client.clientId,
-          clientName: client.name,
-          redirectUris: client.redirectUris.join(', '),
-        }).log('OIDC trusted client ready')
-      }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.productEventService)
     },
   })
 
@@ -799,7 +757,6 @@ export async function createApp() {
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
-    auth,
     characterService,
     chatService,
     providerService,
@@ -824,13 +781,14 @@ export async function createApp() {
     providerCatalogService,
     ttsConcurrencyLedger,
   })
+  // User/account gauges are passive snapshots refreshed by the admin route;
+  // Auth owns authentication event counters and performs no periodic DB reads.
   if (resolved.otel) {
     registerTtsPoolGauge(resolved.otel.gateway.poolInflight, resolved.ttsConcurrencyLedger, resolved.otel.observability.metricReadErrors)
     registerWsOnlineUsersGauge(resolved.otel.engagement.wsUsersOnline, resolved.redis, resolved.otel.observability.metricReadErrors)
   }
 
-  const { app, injectWebSocket } = await buildApp({
-    auth: resolved.auth,
+  const appDeps = {
     db: resolved.db,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
@@ -854,9 +812,11 @@ export async function createApp() {
     userDeletionService: resolved.userDeletionService,
     llmRouter: resolved.llmRouter,
     providerCatalogService: resolved.providerCatalogService,
-  })
+  }
 
-  logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
+  const { app, injectWebSocket } = await buildApp(appDeps)
+
+  logger.withFields({ role: 'api', hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
 
   return {
     app,
@@ -864,22 +824,4 @@ export async function createApp() {
     port: resolved.env.PORT,
     hostname: resolved.env.HOST,
   }
-}
-
-function handleProcessError(error: unknown, type: string) {
-  useLogger().withError(error).error(type)
-}
-
-export async function runApiServer(): Promise<void> {
-  const { app: honoApp, injectWebSocket, port, hostname } = await createApp()
-  const server = serve({ fetch: honoApp.fetch, port, hostname })
-  injectWebSocket(server)
-
-  process.on('uncaughtException', error => handleProcessError(error, 'Uncaught exception'))
-  process.on('unhandledRejection', error => handleProcessError(error, 'Unhandled rejection'))
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('close', () => resolve())
-    server.once('error', error => reject(error))
-  })
 }

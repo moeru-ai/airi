@@ -171,6 +171,8 @@ export const useChatStore = defineStore('chat', () => {
     options?: StreamOptions,
   ) {
     let llmTextLength = 0
+    let llmOutputChunkCount = 0
+    const llmOutputChunkLengths: number[] = []
     const headers = { ...options?.headers }
     if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
       headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
@@ -188,7 +190,11 @@ export const useChatStore = defineStore('chat', () => {
     const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
       [IOAttributes.Subsystem]: IOSubsystems.LLM,
       [IOAttributes.GenAIRequestModel]: model,
+      [IOAttributes.LLMInputMessageCount]: messages.length,
+      [IOAttributes.LLMInputUserMessageCount]: messages.filter(message => message.role === 'user').length,
+      [IOAttributes.TurnId]: options?.requestCorrelation?.roundId ?? '',
     })
+    llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, messages.map(message => message.role))
     const llmRequestTs = performance.now()
     let llmFirstTokenEmitted = false
 
@@ -198,6 +204,8 @@ export const useChatStore = defineStore('chat', () => {
         headers,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
+            llmOutputChunkCount += 1
+            llmOutputChunkLengths.push(event.text.length)
             if (!llmFirstTokenEmitted) {
               llmFirstTokenEmitted = true
               llmSpan.addEvent(IOEvents.LLMFirstToken, {
@@ -210,10 +218,11 @@ export const useChatStore = defineStore('chat', () => {
           await options?.onStreamEvent?.(event)
         },
       })
-
-      llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)
     }
     finally {
+      llmSpan.setAttribute(IOAttributes.LLMOutputChunkCount, llmOutputChunkCount)
+      llmSpan.setAttribute(IOAttributes.LLMOutputChunkLengths, llmOutputChunkLengths)
+      llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)
       llmSpan.end()
     }
   }

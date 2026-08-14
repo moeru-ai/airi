@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     projects: [
+      'server/apps/auth',
       'server/apps/api',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi',
@@ -18,6 +19,7 @@ export default defineConfig({
       'packages/server-runtime',
       'packages/server-sdk',
       'packages/stage-shared',
+      'packages/vitest-plugin-fakemic',
     ],
   },
 })

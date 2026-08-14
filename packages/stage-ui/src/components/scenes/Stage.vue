@@ -26,7 +26,6 @@ import { useBroadcastChannel } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
-import { generateSpeech } from '@xsai/generate-speech'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 
@@ -520,24 +519,18 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       // Non-streaming providers only: synth via REST. Streaming provider
       // was already early-returned above; it owns its own ws path opened
       // in `onBeforeMessageComposed`.
-      const providerConfigWithAnalytics = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
-        ? {
-            ...speechRequest.providerConfig,
-            extraBody: {
-              ...(speechRequest.providerConfig.extraBody as Record<string, unknown> | undefined),
-              airi_analytics: {
-                trigger: 'auto',
-                source: 'chat_auto_tts',
-                voice_type: resolveStageVoiceType(),
-              },
-            },
-          }
-        : speechRequest.providerConfig
-      const res = await generateSpeech({
-        ...provider.speech(model, providerConfigWithAnalytics),
-        input: speechRequest.input,
-        voice: voice.id,
-      })
+      const res = await speechStore.speech(
+        provider,
+        model,
+        speechRequest.input,
+        voice.id,
+        speechRequest.providerConfig,
+        {
+          trigger: 'auto',
+          source: 'chat_auto_tts',
+          voice_type: resolveStageVoiceType(),
+        },
+      )
 
       if (signal.aborted || !res || res.byteLength === 0)
         return null

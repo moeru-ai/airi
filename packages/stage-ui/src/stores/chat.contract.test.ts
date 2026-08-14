@@ -1,7 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
-import { IOSpanNames } from '@proj-airi/stage-shared'
+import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
@@ -584,6 +584,20 @@ describe('chat store contract', () => {
     expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ role: 'system' })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
+    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(
+      IOSpanNames.LLMInference,
+      expect.anything(),
+      expect.objectContaining({
+        [IOAttributes.LLMInputMessageCount]: 2,
+        [IOAttributes.LLMInputUserMessageCount]: 1,
+        [IOAttributes.TurnId]: expect.any(String),
+      }),
+    )
+    const llmSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.LLMInference)
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMInputMessageRoles, ['system', 'user'])
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkCount, 1)
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
+    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
 
     // System message stays untouched: keeping it 100% static is what makes
     // the prefix permanently KV-cache friendly across turns and across day

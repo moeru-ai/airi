@@ -115,7 +115,7 @@ catalog:
   '@mediapipe/tasks-vision': ^0.10.34
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.19
-  '@moeru/eventa': 1.0.0-beta.14
+  '@moeru/eventa': 1.0.0-beta.15
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.1.0-beta.7
   '@moeru/three-mmd-physics-ammo': 0.1.0-beta.7
@@ -327,7 +327,7 @@ catalog:
   pathe: ^2.0.3
   pg: ^8.20.0
   pinia: ^3.0.4
-  pinia-plugin-synced: 0.0.2
+  pinia-plugin-synced: ^0.1.0
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.60.0
