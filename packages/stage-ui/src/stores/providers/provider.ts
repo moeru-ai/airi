@@ -418,9 +418,10 @@ export const useProviderStore = defineStore('provider', () => {
    * direct navigation). Keeping that stale seed would make the page load the
    * wrong model and shouldListProvider() flag the passive seed as a user edit.
    * Only a config that exactly matches the stale default is replaced — a real
-   * user edit is never clobbered.
+   * user edit is never clobbered. Replacement additionally requires the
+   * caller to opt in via `replaceUntouchedSeed` (see below).
    */
-  function refreshProviderDefaultConfig(providerId: string) {
+  function refreshProviderDefaultConfig(providerId: string, options: { replaceUntouchedSeed?: boolean } = {}) {
     const definition = getProviderDefinition(providerId)
     const meta = providerMetadata[providerId]
     if (!definition || !meta)
@@ -434,12 +435,20 @@ export const useProviderStore = defineStore('provider', () => {
     // JSON equality check. A config whose default fields are untouched is
     // still the passive seed and safe to replace; any deviation means the
     // user edited it and it must not be clobbered.
-    const isUntouchedPassiveSeed = saved && Object.keys(previousDefault)
-      .every((key) => {
-        const savedValue = (saved as Record<string, unknown>)[key]
-        const defaultValue = (previousDefault as Record<string, unknown>)[key]
-        return savedValue === defaultValue
-      })
+    //
+    // Value equality alone cannot distinguish a passive seed from a user's
+    // deliberate choice: on a reload with an empty WebGPU cache, a user who
+    // manually picked fp32-webgpu on fp16 hardware has a saved config that
+    // exactly equals the stale default. The caller therefore opts in to
+    // replacement only when it knows the config was created during this
+    // mount (no pre-existing persisted config).
+    const isUntouchedPassiveSeed = saved && options.replaceUntouchedSeed === true
+      && Object.keys(previousDefault)
+        .every((key) => {
+          const savedValue = (saved as Record<string, unknown>)[key]
+          const defaultValue = (previousDefault as Record<string, unknown>)[key]
+          return savedValue === defaultValue
+        })
     if (isUntouchedPassiveSeed) {
       providerConfigStore.replaceProviderConfig(providerId, getDefaultProviderConfig(providerId))
     }

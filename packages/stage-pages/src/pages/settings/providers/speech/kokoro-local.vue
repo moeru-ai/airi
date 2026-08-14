@@ -21,6 +21,15 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { t } = useI18n()
 
+// Whether a provider config already existed before this mount (i.e. before
+// the child SpeechProviderSettings can seed one). A persisted config is
+// user-owned and must never be replaced — on a reload with an empty WebGPU
+// cache, a manually chosen model can be value-identical to the stale default
+// seed. Configs created during this mount are passive seeds that
+// refreshProviderDefaultConfig() may refresh when they still hold the stale
+// default.
+const hadConfigBeforeMount = !!providerStore.getProviderConfig(providerId)
+
 // Get available voices for Kokoro
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
@@ -141,7 +150,9 @@ onMounted(async () => {
   // while the dirty comparison still uses the stale one would make
   // shouldListProvider() treat this passive seed as user-modified and
   // list Kokoro as dirty/unconfigured.
-  providersStore.refreshProviderDefaultConfig(providerId)
+  providersStore.refreshProviderDefaultConfig(providerId, {
+    replaceUntouchedSeed: !hadConfigBeforeMount,
+  })
 
   try {
     voicesLoading.value = true
