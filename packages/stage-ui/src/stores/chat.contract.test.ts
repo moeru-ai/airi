@@ -1,6 +1,7 @@
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Message, Tool } from '@xsai/shared-chat'
 
+import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -71,6 +72,8 @@ const createMinecraftContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
+const loadSessionMock = vi.fn()
+const deleteSessionMock = vi.fn()
 const getProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 
@@ -194,6 +197,9 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] = []
     },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
+    getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
+    loadSession: loadSessionMock,
+    deleteSession: deleteSessionMock,
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
     setSessionMessages: (sessionId: string, messages: any[]) => {
@@ -285,6 +291,8 @@ describe('chat store contract', () => {
     persistSessionMessagesMock.mockReset()
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
+    loadSessionMock.mockReset().mockResolvedValue(true)
+    deleteSessionMock.mockReset().mockResolvedValue(undefined)
     getProviderInstanceMock.mockReset().mockResolvedValue(provider)
     getToolsByNamesMock.mockReset().mockImplementation(names => names.map(name => ({
       type: 'function',
@@ -336,6 +344,51 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('hydrates the target session before sending for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A synchronized follower could target a session known only by metadata.
+    // Reading through getSessionMessages before hydration created a fresh
+    // system-only history that could overwrite the persisted conversation.
+    delete sessionMessages['session-2']
+    loadSessionMock.mockImplementationOnce(async () => {
+      sessionMessages['session-2'] = [
+        { role: 'system', content: 'persisted system prompt', createdAt: 1, id: 'system-2' },
+      ]
+      return true
+    })
+    llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: ChatProvider, _messages: Message[], options: any) => {
+      await options.onStreamEvent({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-2', text: 'continue persisted chat' })
+
+    expect(loadSessionMock).toHaveBeenCalledWith('session-2')
+    expect(loadSessionMock.mock.invocationCallOrder[0]).toBeLessThan(ensureSessionMock.mock.invocationCallOrder[0])
+    expect(sessionMessages['session-2']?.[0]).toMatchObject({
+      content: 'persisted system prompt',
+      id: 'system-2',
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('does not create fallback history when target hydration fails for Issue #2085', async () => {
+    delete sessionMessages['session-2']
+    loadSessionMock.mockResolvedValueOnce(false)
+
+    const store = useChatStore()
+    await expect(
+      store.send({ sessionId: 'session-2', text: 'do not overwrite history' }),
+    )
+      .rejects
+      .toThrow('Failed to load the target chat session')
+
+    expect(ensureSessionMock).not.toHaveBeenCalledWith('session-2')
+    expect(sessionMessages['session-2']).toBeUndefined()
   })
 
   it('forwards one correlation identity across every PostHog chat milestone', async () => {
@@ -650,30 +703,31 @@ describe('chat store contract', () => {
     expect(specialHook.mock.calls[0]?.[1].turnId.length).toBeGreaterThan(0)
   })
 
-  /**
-   * @example
-   * store.sending = true
-   * await nextTick()
-   * expect(store.sending).toBe(true)
-   */
-  it('keeps sending writable for context bridge and chat sync consumers', async () => {
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743261505
+  it('preserves a synchronized sending snapshot without replaying it through the follower runtime for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Applying `sending: true` invoked the follower's idle runtime, whose
+    // derived state cleared the synchronized stream payload and could target
+    // that follower's unrelated local selection.
     const store = useChatStore()
-
-    expect(store.sending).toBe(false)
-
-    store.sending = true
+    store.$patch({
+      sending: true,
+      activeSendSessionId: 'session-b',
+      activeStreamingMessage: {
+        role: 'assistant',
+        content: 'authority stream',
+        slices: [],
+        tool_results: [],
+      },
+    })
     await nextTick()
+
     expect(store.sending).toBe(true)
-
-    store.sending = false
-    await nextTick()
-    expect(store.sending).toBe(false)
+    expect(store.activeSendSessionId).toBe('session-b')
+    expect(store.activeStreamingMessage?.content).toBe('authority stream')
   })
 
-  /**
-   * @example
-   * store.sending = false while a local runtime send is still streaming.
-   */
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
     let releaseStream: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
@@ -711,11 +765,6 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  /**
-   * @example
-   * createMinecraftContext() returns a runtime context update.
-   * The facade passes it into the core runtime before prompt snapshots are read.
-   */
   it('ingests runtime context providers before composing prompt snapshots', async () => {
     const minecraftContext = {
       id: 'minecraft-context',
@@ -788,11 +837,60 @@ describe('chat store contract', () => {
     await firstSend
   })
 
-  /**
-   * @example
-   * store.getPendingQueuedSendSnapshot()
-   * // => [{ sessionId, generation, cancelled, messagePreview, hasAttachments, inputType }]
-   */
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3742939573
+  it('does not recreate a deleted session when queued work is cancelled for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Cancelling queued work rejects the public send action. Its generic error
+    // handler used to recreate a system-plus-error history after deletion,
+    // leaving a ghost conversation that no longer had session metadata.
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+    })
+    deleteSessionMock.mockImplementationOnce(async () => {
+      currentGeneration += 1
+      delete sessionMessages['session-1']
+    })
+
+    const store = useChatStore()
+    const firstSend = store.send({
+      sessionId: 'session-1',
+      text: 'active turn',
+    })
+    const activeOutcome = firstSend.then(
+      () => 'resolved',
+      error => errorMessageFrom(error) ?? 'unknown error',
+    )
+    const queuedSend = store.send({
+      sessionId: 'session-1',
+      text: 'must be cancelled',
+    })
+    const queuedOutcome = queuedSend.then(
+      () => 'resolved',
+      error => errorMessageFrom(error) ?? 'unknown error',
+    )
+
+    await vi.waitFor(() => {
+      expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(store.pendingQueuedSendCount).toBe(1)
+    })
+    await store.deleteSession('session-1')
+
+    expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(await queuedOutcome).toBe('Chat session was reset before send could start')
+    expect(sessionMessages['session-1']).toBeUndefined()
+
+    releaseFirstSend?.()
+    expect(await activeOutcome).toBe('Chat session was removed before send completed')
+    expect(llmStreamMock).toHaveBeenCalledTimes(1)
+    expect(sessionMessages['session-1']).toBeUndefined()
+  })
+
   it('mirrors pending queued send snapshots from the core runtime', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {

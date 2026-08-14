@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
@@ -14,9 +13,7 @@ import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/mainten
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
-import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea, useTheme } from '@proj-airi/ui'
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
@@ -39,16 +36,28 @@ const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { cleanupMessages } = useChatMaintenanceStore()
-const { messages } = storeToRefs(chatSession)
+const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { sending } = storeToRefs(chatOrchestrator)
+const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const isActiveSessionSending = computed(() => (
+  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  || isReceivingRemoteStream.value
+))
+const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
+  ? activeStreamingMessage.value
+  : streamingMessage.value)
 const { trackChatMessageDeleted, trackChatMessagesCleared } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
-function handleDeleteMessage(index: number) {
+async function handleDeleteMessage(index: number) {
   const message = messages.value[index]
-  messages.value = messages.value.filter((_, messageIndex) => messageIndex !== index)
+  await chatSession.deleteMessage({
+    sessionId: activeSessionId.value,
+    messageId: message?.id,
+    index,
+  })
   trackChatMessageDeleted({
     source: 'history',
     message_role: message?.role ?? 'unknown',
@@ -70,17 +79,12 @@ const backgroundDialogOpen = ref(false)
 const sessionsDrawerOpen = ref(false)
 
 const screenSafeArea = useScreenSafeArea()
-const providersStore = useProviderStore()
-const providerStore = useProviderConfigStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
-
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { viewControlsEnabled: l2dViewCtrlEnabled } = useL2dViewControl()
 const { viewControlsEnabled: threeViewCtrlEnabled } = useThreeViewControl()
 const settingsAudioDevice = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(settingsAudioDevice)
-const { ingest, onAfterMessageComposed } = chatOrchestrator
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -112,23 +116,24 @@ async function handleSend() {
   }
 
   const textToSend = messageInput.value
+  const targetSessionId = chatSession.activeSessionId
   messageInput.value = ''
 
   try {
-    const providerConfig = providerStore.getProviderConfig(activeProvider.value)
-
-    await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
+    await chatOrchestrator.send({
+      sessionId: targetSessionId,
+      text: textToSend,
     })
   }
   catch (error) {
-    messageInput.value = textToSend
-    chatSession.appendSessionMessage(chatSession.activeSessionId, {
-      role: 'error',
-      content: errorMessageFrom(error) ?? 'Failed to send message',
-    })
+    const errorMessage = errorMessageFrom(error) ?? String(error)
+    const wasCancelledForDeletedSession
+      = errorMessage.includes('Chat session was reset before send could start')
+        || errorMessage.includes('Chat session was removed before send completed')
+    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
+      const currentDraft = messageInput.value
+      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
+    }
   }
 }
 
@@ -158,9 +163,6 @@ watch([enabled, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
-onAfterMessageComposed(async () => {
-})
-
 onUnmounted(() => {
   teardownAnalyzer()
 })
@@ -179,8 +181,8 @@ onMounted(() => {
           v-if="!threeViewCtrlEnabled && !l2dViewCtrlEnabled"
           variant="mobile"
           :messages="historyMessages"
-          :sending="sending"
-          :streaming-message="streamingMessage"
+          :sending="isActiveSessionSending"
+          :streaming-message="visibleStreamingMessage"
           max-w="[calc(100%-3.5rem)]"
           w-full self-start pb-3 pl-3
           class="chat-history"
