@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 
 interface AxisConfig {
   min?: number
@@ -126,6 +126,10 @@ function stopDrag() {
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
 }
+
+onUnmounted(() => {
+  stopDrag()
+})
 </script>
 
 <template>

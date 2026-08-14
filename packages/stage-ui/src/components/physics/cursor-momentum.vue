@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 const momentum = ref(1) // Base momentum
 const currentValue = ref(0)
 let lastTimestamp = 0
+let animationFrameId: number | undefined
 
 // Physics parameters with defaults
 const FRICTION = toRef(() => props.friction)
@@ -32,7 +33,7 @@ function updateMomentum(timestamp: number) {
   // Update value based on current momentum
   currentValue.value += momentum.value * deltaTime
 
-  requestAnimationFrame(updateMomentum)
+  animationFrameId = requestAnimationFrame(updateMomentum)
 }
 
 function handleMouseMove(event: MouseEvent) {
@@ -48,11 +49,13 @@ function handleMouseMove(event: MouseEvent) {
 
 onMounted(() => {
   window.addEventListener('mousemove', handleMouseMove)
-  requestAnimationFrame(updateMomentum)
+  animationFrameId = requestAnimationFrame(updateMomentum)
 })
 
 onUnmounted(() => {
   window.removeEventListener('mousemove', handleMouseMove)
+  if (animationFrameId !== undefined)
+    cancelAnimationFrame(animationFrameId)
 })
 
 // Expose values and momentum to parent
