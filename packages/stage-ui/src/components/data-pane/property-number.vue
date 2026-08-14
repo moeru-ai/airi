@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 interface RangeConfig {
   min?: number
@@ -137,6 +137,10 @@ function stopDrag() {
   document.removeEventListener('mouseup', stopDrag)
   document.body.style.cursor = ''
 }
+
+onUnmounted(() => {
+  stopDrag()
+})
 </script>
 
 <template>
