@@ -411,13 +411,26 @@ export const useProviderStore = defineStore('provider', () => {
    * up before capability detection completes, the cached default is stale;
    * refreshing it keeps the dirty comparison (isProviderConfigDirty) in sync
    * with what a later capability-aware seed saves.
+   *
+   * Also replaces a saved config that still equals the stale default: a child
+   * component may have passively seeded the provider before capability
+   * detection ran (e.g. SpeechProviderSettings calling initializeProvider on
+   * direct navigation). Keeping that stale seed would make the page load the
+   * wrong model and shouldListProvider() flag the passive seed as a user edit.
+   * Only a config that exactly matches the stale default is replaced — a real
+   * user edit is never clobbered.
    */
   function refreshProviderDefaultConfig(providerId: string) {
     const definition = getProviderDefinition(providerId)
     const meta = providerMetadata[providerId]
     if (!definition || !meta)
       return
+    const previousDefault = getDefaultProviderConfig(providerId)
     meta.defaultConfig = getSchemaDefault(definition.createProviderConfig({ t })) as Record<string, unknown>
+    const saved = providerCredentials.value[providerId]
+    if (saved && JSON.stringify(saved) === JSON.stringify(previousDefault)) {
+      providerConfigStore.replaceProviderConfig(providerId, getDefaultProviderConfig(providerId))
+    }
   }
 
   function initializeProviderRuntimeState(providerId: string) {
