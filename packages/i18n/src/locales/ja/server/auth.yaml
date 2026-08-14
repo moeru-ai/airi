@@ -57,6 +57,8 @@ signIn:
     useDifferentEmail: Use a different email
   divider:
     or: or
+  message:
+    redirecting: '{provider} に移動しています…'
   error:
     fallback: Sign in failed
     unknown: An unknown error occurred

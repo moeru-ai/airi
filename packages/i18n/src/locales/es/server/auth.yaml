@@ -57,6 +57,8 @@ signIn:
     useDifferentEmail: Usar un correo electrónico diferente
   divider:
     or: o
+  message:
+    redirecting: Redirigiendo a {provider}…
   error:
     fallback: Error en el inicio de sesión
     unknown: S produjo un error inesperado

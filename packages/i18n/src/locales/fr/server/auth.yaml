@@ -57,6 +57,8 @@ signIn:
     useDifferentEmail: Utiliser une adresse e-mail différente
   divider:
     or: ou
+  message:
+    redirecting: Redirection vers {provider}…
   error:
     fallback: Échec de la connexion
     unknown: Une erreur inconnue s'est produite

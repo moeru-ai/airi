@@ -86,6 +86,17 @@ const requestedProvider = computed<OAuthProvider | null>(() => {
   return provider as OAuthProvider
 })
 
+const requestedProviderName = computed(() => {
+  if (!requestedProvider.value)
+    return ''
+
+  return defaultSignInProviders.find(provider => provider.id === requestedProvider.value)?.name ?? requestedProvider.value
+})
+
+const isProviderHandoffActive = computed(() =>
+  requestedProvider.value !== null && pendingProvider.value === requestedProvider.value,
+)
+
 const stepHeading = computed(() => {
   if (step.value === 'password')
     return t('server.auth.signIn.step.password.heading')
@@ -274,6 +285,29 @@ async function handleEmailSignUp(event: Event) {
 
 <template>
   <main
+    v-if="isProviderHandoffActive"
+    :class="[
+      'min-h-screen flex flex-col items-center justify-center px-6 py-10 font-cuteen',
+    ]"
+  >
+    <section
+      :class="['flex flex-col items-center text-center']"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div
+        :class="['i-svg-spinners:ring-resize mb-5 h-9 w-9 text-neutral-600 dark:text-neutral-300']"
+        aria-hidden="true"
+      />
+      <div :class="['text-lg font-semibold']">
+        {{ t('server.auth.signIn.message.redirecting', { provider: requestedProviderName }) }}
+      </div>
+    </section>
+  </main>
+
+  <main
+    v-else
     :class="[
       'min-h-screen flex flex-col items-center justify-center px-6 py-10 font-cuteen',
     ]"
