@@ -30,6 +30,12 @@ const { t } = useI18n()
 // default.
 const hadConfigBeforeMount = !!providerStore.getProviderConfig(providerId)
 
+// Gates the model watcher while onMounted performs initial seeding. Without
+// it, the child SpeechProviderSettings seeding the stale default (or this
+// refresh swapping in the capability-aware one) would fire the watcher and
+// queue a stale model load ahead of the correct one.
+const initialSeeding = ref(true)
+
 // Get available voices for Kokoro
 const availableVoices = computed(() => {
   return speechStore.availableVoices[providerId] || []
@@ -205,12 +211,15 @@ onMounted(async () => {
   }
   finally {
     voicesLoading.value = false
+    // Initial seeding is done (or failed - either way the watcher is safe
+    // to resume; a failed seed just means validation errors were logged).
+    initialSeeding.value = false
   }
 })
 
 // Watch for model changes and reload model + voices
 watch(model, async (newValue) => {
-  if (newValue) {
+  if (newValue && !initialSeeding.value) {
     try {
       voicesLoading.value = true
 
