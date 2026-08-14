@@ -117,7 +117,12 @@ function normalizeTrustedAdminRedirect(redirect: string): string | null {
 }
 
 export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
-  const client = getAuthClient({ apiServerUrl: params.apiServerUrl, fetchImpl: params.fetchImpl })
+  const requestController = new AbortController()
+  const client = getAuthClient({
+    apiServerUrl: params.apiServerUrl,
+    fetchImpl: params.fetchImpl,
+    requestSignal: requestController.signal,
+  })
 
   // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
   // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
@@ -128,6 +133,7 @@ export async function requestSocialSignInRedirect(params: SocialSignInRedirectPa
   const result = await settleSocialSignInRequest(
     request,
     params.timeoutMs ?? SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS,
+    requestController,
   )
 
   const url = result.data?.url
@@ -138,19 +144,24 @@ export async function requestSocialSignInRedirect(params: SocialSignInRedirectPa
 }
 
 /**
- * Bounds the provider discovery request so the sign-in page can restore its
- * controls when the auth service accepts a connection but never responds.
- * Better Auth's provider actions do not share one cancellable interface for
- * OAuth2 and Steam, so a late result is ignored after the timeout wins.
+ * Bounds and cancels provider discovery so a timed-out request cannot apply a
+ * stale OAuth state cookie after the user starts another sign-in attempt.
  */
-async function settleSocialSignInRequest<T>(request: Promise<T>, timeoutMs: number): Promise<T> {
+async function settleSocialSignInRequest<T>(
+  request: Promise<T>,
+  timeoutMs: number,
+  requestController: AbortController,
+): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined
 
   try {
     return await Promise.race([
       request,
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new SocialSignInTimeoutError()), timeoutMs)
+        timeoutId = setTimeout(() => {
+          reject(new SocialSignInTimeoutError())
+          requestController.abort()
+        }, timeoutMs)
       }),
     ])
   }

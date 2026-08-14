@@ -174,14 +174,26 @@ describe('ui-server-auth sign-in flow helpers', () => {
     })).rejects.toThrow('Provider is temporarily unavailable')
   })
 
-  it('times out a stalled provider request so the sign-in UI can recover', async () => {
+  it.each(['google', 'steam'] as const)('aborts a stalled %s request when the provider timeout wins', async (provider) => {
     vi.useFakeTimers()
-    const fetchImpl = vi.fn<typeof fetch>(() => new Promise<Response>(() => {}))
+    let requestSignal: AbortSignal | null | undefined
+    let didAbort = false
+    const fetchImpl = vi.fn<typeof fetch>((_, init) => {
+      const signal = init?.signal
+      requestSignal = signal
+
+      return new Promise<Response>((_, reject) => {
+        signal?.addEventListener('abort', () => {
+          didAbort = true
+          reject(signal.reason)
+        }, { once: true })
+      })
+    })
 
     try {
       const request = requestSocialSignInRedirect({
         apiServerUrl: 'https://api.airi.test',
-        provider: 'google',
+        provider,
         callbackURL: '/',
         fetchImpl,
         timeoutMs: 50,
@@ -190,6 +202,8 @@ describe('ui-server-auth sign-in flow helpers', () => {
       const rejection = expect(request).rejects.toBeInstanceOf(SocialSignInTimeoutError)
       await vi.advanceTimersByTimeAsync(50)
       await rejection
+      expect(requestSignal?.aborted).toBe(true)
+      expect(didAbort).toBe(true)
     }
     finally {
       vi.useRealTimers()
