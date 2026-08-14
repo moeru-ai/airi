@@ -1,53 +1,55 @@
+import type {
+  ChatProvider,
+  ChatProviderWithExtraOptions,
+} from '@xsai-ext/providers/utils'
+
+import type { ProviderInstance } from '../../types'
+
 import { describe, expect, it } from 'vitest'
 
-import { providerDeepSeek, resolveDeepSeekThinking } from './index'
+import { providerDeepSeek } from './index'
 
-describe('providerDeepSeek.resolveDeepSeekThinking', () => {
-  it('should return undefined for auto mode', () => {
-    expect(resolveDeepSeekThinking('auto')).toBeUndefined()
+type DeepSeekChatProvider = ChatProvider | ChatProviderWithExtraOptions
+
+function isDeepSeekChatProvider(provider: ProviderInstance): provider is DeepSeekChatProvider {
+  return 'chat' in provider && typeof provider.chat === 'function'
+}
+
+function createDeepSeekChatProvider(
+  thinkingMode: 'auto' | 'disable' | 'enable',
+): DeepSeekChatProvider {
+  const provider = providerDeepSeek.createProvider({
+    apiKey: 'sk-test',
+    baseUrl: 'https://api.deepseek.com/',
+    thinkingMode,
   })
 
-  it('should map disable and enable to DeepSeek thinking options', () => {
-    expect(resolveDeepSeekThinking('disable')).toEqual({ type: 'disabled' })
-    expect(resolveDeepSeekThinking('enable')).toEqual({ type: 'enabled' })
-  })
+  if (!isDeepSeekChatProvider(provider))
+    throw new Error('DeepSeek provider must support chat')
 
-  it('should fallback invalid values to auto mode', () => {
-    expect(resolveDeepSeekThinking('invalid')).toBeUndefined()
-  })
-})
+  return provider
+}
 
 describe('providerDeepSeek.createProvider chat options', () => {
   it('should not set thinking when thinkingMode is auto', () => {
-    const provider = providerDeepSeek.createProvider({
-      apiKey: 'sk-test',
-      baseUrl: 'https://api.deepseek.com/',
-      thinkingMode: 'auto',
-    }) as any
+    const provider = createDeepSeekChatProvider('auto')
 
-    const chatOptions = provider.chat('deepseek-chat') as Record<string, unknown>
-    expect('thinking' in chatOptions).toBe(false)
+    expect(provider.chat('deepseek-chat')).not.toHaveProperty('thinking')
   })
 
   it('should set thinking disabled when thinkingMode is disable', () => {
-    const provider = providerDeepSeek.createProvider({
-      apiKey: 'sk-test',
-      baseUrl: 'https://api.deepseek.com/',
-      thinkingMode: 'disable',
-    }) as any
+    const provider = createDeepSeekChatProvider('disable')
 
-    const chatOptions = provider.chat('deepseek-chat') as Record<string, unknown>
-    expect(chatOptions.thinking).toEqual({ type: 'disabled' })
+    expect(provider.chat('deepseek-chat')).toMatchObject({
+      thinking: { type: 'disabled' },
+    })
   })
 
   it('should set thinking enabled when thinkingMode is enable', () => {
-    const provider = providerDeepSeek.createProvider({
-      apiKey: 'sk-test',
-      baseUrl: 'https://api.deepseek.com/',
-      thinkingMode: 'enable',
-    }) as any
+    const provider = createDeepSeekChatProvider('enable')
 
-    const chatOptions = provider.chat('deepseek-chat') as Record<string, unknown>
-    expect(chatOptions.thinking).toEqual({ type: 'enabled' })
+    expect(provider.chat('deepseek-chat')).toMatchObject({
+      thinking: { type: 'enabled' },
+    })
   })
 })

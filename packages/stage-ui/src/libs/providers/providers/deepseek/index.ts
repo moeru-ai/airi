@@ -31,7 +31,7 @@ function normalizeDeepSeekThinkingMode(value: unknown): DeepSeekThinkingMode {
   }
 }
 
-export function resolveDeepSeekThinking(modeRaw: unknown): { type: 'disabled' | 'enabled' } | undefined {
+function resolveDeepSeekThinking(modeRaw: unknown): { type: 'disabled' | 'enabled' } | undefined {
   const mode = normalizeDeepSeekThinkingMode(modeRaw)
 
   switch (mode) {
@@ -71,7 +71,7 @@ export const providerDeepSeek = defineProvider<DeepSeekConfig>({
     }),
     thinkingMode: deepSeekConfigSchema.shape.thinkingMode.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label'),
-      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.description'),
+      descriptionLocalized: t('settings.pages.providers.provider.deepseek.fields.field.thinking-mode.description'),
       section: 'advanced',
       type: 'select',
       options: [
