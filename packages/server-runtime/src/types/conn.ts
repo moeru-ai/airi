@@ -53,9 +53,10 @@ export interface AuthenticatedPeer extends NamedPeer {
   lastHeartbeatAt?: number
   healthy?: boolean
   /**
-   * REVIEW: Legacy field name kept during the better-ws migration.
-   * The value now stores peer silence duration in milliseconds, not a miss count.
-   * Rename this with the server-runtime peer state cleanup.
+   * Milliseconds since the last inbound message/heartbeat was observed from this peer,
+   * as reported by `better-ws`'s liveness tracking. Renamed from the legacy
+   * `missedHeartbeats` field (kept during the better-ws migration), which suggested a
+   * miss count but always held a duration.
    */
-  missedHeartbeats?: number
+  silentForMs?: number
 }

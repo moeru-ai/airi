@@ -277,7 +277,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
   function markPeerAlive(peerInfo: AuthenticatedPeer, options?: { parentId?: string, logMessage?: string }) {
     peerInfo.lastHeartbeatAt = Date.now()
-    peerInfo.missedHeartbeats = 0
+    peerInfo.silentForMs = 0
 
     if (peerInfo.healthy === false && peerInfo.authenticated) {
       peerInfo.healthy = true
@@ -977,7 +977,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     const peerName = p?.name
     const peerIndex = p?.index
     const peerHealthy = p?.healthy
-    const peerSilentFor = p?.missedHeartbeats
+    const peerSilentForMs = p?.silentForMs
     const safeDetails = details ?? {}
     const closeCode = typeof safeDetails.code === 'number' ? safeDetails.code : undefined
     const closeReason = typeof safeDetails.reason === 'string' ? safeDetails.reason : undefined
@@ -1012,8 +1012,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       peerName,
       peerIndex,
       peerHealthy,
-      peerMissedHeartbeats: p?.missedHeartbeats,
-      peerSilentFor,
+      peerSilentForMs,
       heartbeatLastSeenAt,
       heartbeatSilentForMs,
       heartbeatTtlMs,
@@ -1048,10 +1047,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
-    // REVIEW: better-ws now reports silence duration in milliseconds, while the
-    // AIRI runtime peer state still exposes the legacy missedHeartbeats field.
-    // Rename this business-facing field with the server-runtime state cleanup.
-    peerInfo.missedHeartbeats = silentFor
+    peerInfo.silentForMs = silentFor
 
     if (healthy) {
       peerInfo.healthy = true
@@ -1072,7 +1068,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         continue
       }
 
-      logger.withFields({ peer: id, peerName: peerInfo.name, silentFor: peerInfo.missedHeartbeats }).debug('heartbeat silent timeout expired, dropping peer')
+      logger.withFields({ peer: id, peerName: peerInfo.name, silentForMs: peerInfo.silentForMs }).debug('heartbeat silent timeout expired, dropping peer')
       peers.delete(id)
       unregisterModulePeer(peerInfo, 'heartbeat expired')
     }
