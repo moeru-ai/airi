@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createServerSignInContext, requestSocialSignInRedirect } from './sign-in'
+import {
+  createServerSignInContext,
+  requestSocialSignInRedirect,
+  SocialSignInTimeoutError,
+} from './sign-in'
 
 describe('ui-server-auth sign-in flow helpers', () => {
   it('rebuilds the OIDC callback URL without provider and prompt query params', () => {
@@ -183,7 +187,7 @@ describe('ui-server-auth sign-in flow helpers', () => {
         timeoutMs: 50,
       })
 
-      const rejection = expect(request).rejects.toThrow('Provider sign-in request timed out')
+      const rejection = expect(request).rejects.toBeInstanceOf(SocialSignInTimeoutError)
       await vi.advanceTimersByTimeAsync(50)
       await rejection
     }

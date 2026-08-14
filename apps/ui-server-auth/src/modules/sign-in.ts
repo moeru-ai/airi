@@ -28,8 +28,20 @@ export interface SocialSignInRedirectParams {
   provider: OAuthProvider
   callbackURL: string
   fetchImpl?: typeof fetch
-  /** Maximum wait for provider discovery before the UI restores sign-in controls. */
+  /**
+   * Maximum wait for provider discovery before the UI restores sign-in controls.
+   * @default 15_000
+   */
   timeoutMs?: number
+}
+
+/** Identifies a provider discovery timeout without exposing its internal message to the UI. */
+export class SocialSignInTimeoutError extends Error {
+  /** Creates the stable timeout error handled by the localized sign-in page. */
+  constructor() {
+    super('Provider sign-in request timed out')
+    this.name = 'SocialSignInTimeoutError'
+  }
 }
 
 export function createServerSignInContext(currentUrl: string, apiServerUrl: string): ServerSignInContext {
@@ -138,7 +150,7 @@ async function settleSocialSignInRequest<T>(request: Promise<T>, timeoutMs: numb
     return await Promise.race([
       request,
       new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Provider sign-in request timed out')), timeoutMs)
+        timeoutId = setTimeout(() => reject(new SocialSignInTimeoutError()), timeoutMs)
       }),
     ])
   }

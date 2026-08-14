@@ -22,7 +22,11 @@ import {
   signUpWithEmail,
 } from '../modules/email-password'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
-import { createServerSignInContext, requestSocialSignInRedirect } from '../modules/sign-in'
+import {
+  createServerSignInContext,
+  requestSocialSignInRedirect,
+  SocialSignInTimeoutError,
+} from '../modules/sign-in'
 
 type Step = 'identify' | 'password' | 'create'
 
@@ -149,7 +153,9 @@ async function handleProviderSelect(provider: OAuthProvider) {
   }
   catch (error) {
     trackLoginFailed({ method: provider })
-    errorMessage.value = describeAuthError(error) || t('server.auth.signIn.error.fallback')
+    errorMessage.value = error instanceof SocialSignInTimeoutError
+      ? t('server.auth.signIn.error.providerTimeout')
+      : describeAuthError(error) || t('server.auth.signIn.error.fallback')
     pendingProvider.value = null
   }
 }
