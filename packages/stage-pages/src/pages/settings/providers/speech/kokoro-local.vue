@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
+import { detectWebGPU } from '@proj-airi/stage-shared/webgpu'
 import {
   SpeechPlayground,
   SpeechProviderSettings,
@@ -117,11 +117,23 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 
 onMounted(async () => {
   // Check WebGPU support
-  // NOTICE: Uses synchronous check for initial render. The cached result from
-  // detectWebGPU() is populated by the providers store during initialization.
-  const capabilities = getCachedWebGPUCapabilities()
-  hasWebGPU.value = capabilities?.supported ?? (typeof navigator !== 'undefined' && !!navigator.gpu)
-  fp16Supported.value = capabilities?.fp16Supported ?? false
+  // NOTICE: Await the real detection instead of reading the sync cache.
+  // Why: direct navigation can mount this page before the app-level preload
+  // (useInferencePreload -> detectWebGPU, called from App.vue onMounted) has
+  // populated the cache, so getCachedWebGPUCapabilities() would return null
+  // and fp16Supported would wrongly fall back to false - seeding fp32-webgpu
+  // on fp16-capable hardware until a reload.
+  // Root cause: capability detection is async and app-level, while this
+  // page's capability-dependent seeding runs in its own onMounted.
+  // Source: PR #2273 review (codex bot), round 3.
+  // Removal condition: when the app guarantees WebGPU capability detection
+  // completes before any settings page mounts (e.g. preload awaited before
+  // router mount), this can revert to getCachedWebGPUCapabilities().
+  // Note: detectWebGPU() deduplicates concurrent calls (pendingDetection),
+  // so this awaits the same promise as the app preload when both race.
+  const capabilities = await detectWebGPU()
+  hasWebGPU.value = capabilities.supported
+  fp16Supported.value = capabilities.fp16Supported
 
   try {
     voicesLoading.value = true
