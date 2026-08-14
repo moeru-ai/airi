@@ -90,6 +90,73 @@ describe('oidc /oauth2/userinfo ban guard', () => {
 })
 
 describe('auth UI routes', () => {
+  it('keeps the Google provider hint on the OIDC sign-in redirect', async () => {
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+    handler.mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
+    }))
+
+    const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=google')
+
+    // ROOT CAUSE:
+    //
+    // The OIDC plugin signs only its known query fields before it redirects.
+    // It removed the mobile provider hint, so Google opened the generic sign-in page.
+    //
+    // Before: /auth/sign-in?client_id=airi-stage-pocket&response_type=code
+    // After:  /auth/sign-in?client_id=airi-stage-pocket&response_type=code&provider=google
+    expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code&provider=google')
+  })
+
+  it('keeps the GitHub provider hint on the OIDC sign-in redirect', async () => {
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+    handler.mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
+    }))
+
+    const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=github')
+
+    expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code&provider=github')
+  })
+
+  it('keeps the Steam provider hint on the OIDC sign-in redirect', async () => {
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+    handler.mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
+    }))
+
+    const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=steam')
+
+    expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code&provider=steam')
+  })
+
+  it('does not forward an unknown provider to the auth UI', async () => {
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+    handler.mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
+    }))
+
+    const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code&provider=unknown')
+
+    expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code')
+  })
+
+  it('keeps the generic sign-in redirect when the request has no provider', async () => {
+    const { routes, handler } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
+    handler.mockResolvedValueOnce(new Response(null, {
+      status: 302,
+      headers: { location: '/auth/sign-in?client_id=airi-stage-pocket&response_type=code' },
+    }))
+
+    const res = await routes.request('/api/auth/oauth2/authorize?client_id=airi-stage-pocket&response_type=code')
+
+    expect(res.headers.get('location')).toBe('/auth/sign-in?client_id=airi-stage-pocket&response_type=code')
+  })
+
   it('redirects sign-in provider shortcut to the standalone auth UI', async () => {
     const { routes } = await buildRoutes({ id: 'uid_ok', email: 'ok@example.com', banned: false, banExpires: null })
 
