@@ -123,10 +123,14 @@ export function streamTranscription(options: StreamTranscriptionOptions): AIRISt
         : new URL(typeof options.baseURL === 'string' ? options.baseURL : 'http://localhost')
       const response = await fetcher(requestTarget, {
         body: audioStream,
+        // Browser fetch requires half-duplex mode for a ReadableStream body.
+        // Keep this at the transport boundary so every SSE transcription
+        // provider receives the required request option.
+        duplex: 'half',
         headers: options.headers,
         method: 'POST',
         signal: options.abortSignal,
-      })
+      } as RequestInit & { duplex: 'half' })
 
       if (!response.ok)
         throw new Error(`Streaming transcription request failed with status ${response.status}`)
