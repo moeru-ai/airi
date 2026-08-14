@@ -428,7 +428,19 @@ export const useProviderStore = defineStore('provider', () => {
     const previousDefault = getDefaultProviderConfig(providerId)
     meta.defaultConfig = getSchemaDefault(definition.createProviderConfig({ t })) as Record<string, unknown>
     const saved = providerCredentials.value[providerId]
-    if (saved && JSON.stringify(saved) === JSON.stringify(previousDefault)) {
+    // Compare only the fields that make up the provider default: child
+    // components may have added passive fields (e.g. SpeechProviderSettings
+    // writing apiKey: '') to the seeded config, which would break a full
+    // JSON equality check. A config whose default fields are untouched is
+    // still the passive seed and safe to replace; any deviation means the
+    // user edited it and it must not be clobbered.
+    const isUntouchedPassiveSeed = saved && Object.keys(previousDefault)
+      .every((key) => {
+        const savedValue = (saved as Record<string, unknown>)[key]
+        const defaultValue = (previousDefault as Record<string, unknown>)[key]
+        return savedValue === defaultValue
+      })
+    if (isUntouchedPassiveSeed) {
       providerConfigStore.replaceProviderConfig(providerId, getDefaultProviderConfig(providerId))
     }
   }
