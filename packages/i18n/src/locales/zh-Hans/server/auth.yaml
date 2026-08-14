@@ -57,8 +57,6 @@ signIn:
     useDifferentEmail: 使用其他邮箱
   divider:
     or: 或
-  message:
-    redirecting: 正在前往 {provider}…
   error:
     fallback: 登录失败
     unknown: 发生了未知错误

@@ -57,8 +57,6 @@ signIn:
     useDifferentEmail: Sử dụng email khác
   divider:
     or: hoặc
-  message:
-    redirecting: Đang chuyển đến {provider}…
   error:
     fallback: Đăng nhập thất bại
     unknown: Lỗi không xác định đã xảy ra

@@ -169,4 +169,26 @@ describe('ui-server-auth sign-in flow helpers', () => {
       fetchImpl,
     })).rejects.toThrow('Provider is temporarily unavailable')
   })
+
+  it('times out a stalled provider request so the sign-in UI can recover', async () => {
+    vi.useFakeTimers()
+    const fetchImpl = vi.fn<typeof fetch>(() => new Promise<Response>(() => {}))
+
+    try {
+      const request = requestSocialSignInRedirect({
+        apiServerUrl: 'https://api.airi.test',
+        provider: 'google',
+        callbackURL: '/',
+        fetchImpl,
+        timeoutMs: 50,
+      })
+
+      const rejection = expect(request).rejects.toThrow('Provider sign-in request timed out')
+      await vi.advanceTimersByTimeAsync(50)
+      await rejection
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
 })

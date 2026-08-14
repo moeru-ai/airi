@@ -294,7 +294,6 @@ async function handleEmailSignUp(event: Event) {
       :class="['flex flex-col items-center text-center']"
       role="status"
       aria-live="polite"
-      aria-busy="true"
     >
       <div
         :class="['i-svg-spinners:ring-resize mb-5 h-9 w-9 text-neutral-600 dark:text-neutral-300']"

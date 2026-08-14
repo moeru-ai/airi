@@ -4,6 +4,8 @@ import { getAuthClient } from './auth-client'
 import { extractAuthError } from './auth-fetch'
 import { buildAuthUiPath } from './auth-ui-base'
 
+const SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS = 15_000
+
 const TRUSTED_ADMIN_REDIRECT_ORIGINS = [
   'https://admin.airi.build',
   'https://server-dev.airi-server-admin.pages.dev',
@@ -26,6 +28,8 @@ export interface SocialSignInRedirectParams {
   provider: OAuthProvider
   callbackURL: string
   fetchImpl?: typeof fetch
+  /** Maximum wait for provider discovery before the UI restores sign-in controls. */
+  timeoutMs?: number
 }
 
 export function createServerSignInContext(currentUrl: string, apiServerUrl: string): ServerSignInContext {
@@ -106,13 +110,40 @@ export async function requestSocialSignInRedirect(params: SocialSignInRedirectPa
   // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
   // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
   // Other providers use the standard `/sign-in/social`.
-  const result = params.provider === 'steam'
-    ? await client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
-    : await client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL, disableRedirect: true })
+  const request = params.provider === 'steam'
+    ? client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
+    : client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL, disableRedirect: true })
+  const result = await settleSocialSignInRequest(
+    request,
+    params.timeoutMs ?? SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS,
+  )
 
   const url = result.data?.url
   if (typeof url === 'string')
     return url
 
   throw new Error(extractAuthError(result.data ?? result.error) ?? 'Unexpected response')
+}
+
+/**
+ * Bounds the provider discovery request so the sign-in page can restore its
+ * controls when the auth service accepts a connection but never responds.
+ * Better Auth's provider actions do not share one cancellable interface for
+ * OAuth2 and Steam, so a late result is ignored after the timeout wins.
+ */
+async function settleSocialSignInRequest<T>(request: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Provider sign-in request timed out')), timeoutMs)
+      }),
+    ])
+  }
+  finally {
+    if (timeoutId)
+      clearTimeout(timeoutId)
+  }
 }

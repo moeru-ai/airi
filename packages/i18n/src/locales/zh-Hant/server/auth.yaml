@@ -57,8 +57,6 @@ signIn:
     useDifferentEmail: Use a different email
   divider:
     or: or
-  message:
-    redirecting: 正在前往 {provider}…
   error:
     fallback: Sign in failed
     unknown: An unknown error occurred
