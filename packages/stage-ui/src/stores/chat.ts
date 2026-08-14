@@ -23,6 +23,7 @@ import {
 } from '../libs/analytics-headers'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/analytics/events/chat'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { evaluateTurn } from '../utils/emotionEvaluator'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -32,11 +33,13 @@ import { useChatContextStore } from './chat/context-store'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useEmotionStore } from './emotion'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useWebSearchStore } from './modules/web-search'
 import { useProviderStore } from './providers/provider'
+import { useRelationshipBondStore } from './relationship-bond'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -138,6 +141,8 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 export const useChatStore = defineStore('chat', () => {
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
+  const emotionStore = useEmotionStore()
+  const relationshipBondStore = useRelationshipBondStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   // Instantiate the web-search store eagerly so its `configured` watcher registers
   // WEB_SEARCH_TOOLSET_PROMPT before getSystemPromptSupplement is read below. The
@@ -278,6 +283,20 @@ export const useChatStore = defineStore('chat', () => {
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+      const evaluation = evaluateTurn(messageText)
+      const sentimentScore = evaluation.delta.valence + evaluation.delta.trust + evaluation.delta.affection
+      emotionStore.setCurrentSession(sessionId)
+      emotionStore.applyEmotionDelta(sessionId, evaluation.delta, evaluation.reason, message.id)
+      relationshipBondStore.recordUserMessageInteraction({
+        characterId: chatSession.getSessionCharacterId?.(sessionId) ?? cardStore.activeCardId ?? 'default',
+        sessionId,
+        summary: evaluation.reason,
+        reason: evaluation.reason,
+        sentimentScore,
+        significant: evaluation.reason !== '普通对话',
+      })
+      chatSession.refreshSessionSystemMessage?.(sessionId)
+
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
@@ -327,6 +346,7 @@ export const useChatStore = defineStore('chat', () => {
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
+    const sessionId = targetSessionId ?? activeSessionId.value
     return runtime.ingest(sendingMessage, options, targetSessionId)
   }
 

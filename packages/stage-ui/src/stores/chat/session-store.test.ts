@@ -1,7 +1,7 @@
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
-import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, getActivePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
 // Refs the store reads through the mocked `useAuthStore` / `useAiriCardStore`.
@@ -111,6 +111,13 @@ beforeEach(() => {
   dropOutboxForSessionMock.mockReset().mockResolvedValue(undefined)
   getTombstonesMock.mockReset().mockResolvedValue([])
   removeTombstonesMock.mockReset().mockResolvedValue(undefined)
+})
+
+afterEach(async () => {
+  await flushMicrotasks()
+  const pinia = getActivePinia()
+  if (pinia)
+    disposePinia(pinia)
 })
 
 async function flushMicrotasks(rounds = 8) {
