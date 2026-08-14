@@ -6,12 +6,12 @@
  * makes no sense on the page the session cookie was just set on. This client
  * uses better-auth's cookie defaults (`credentials: 'include'`) instead.
  *
- * Test seam: pass `fetchImpl` to substitute `globalThis.fetch` (wired as
+ * Transport seam: pass `fetchImpl` to substitute `globalThis.fetch` (wired as
  * `customFetchImpl`; see node_modules/better-auth/dist/client/config.mjs L+
  * — the `restOfFetchOptions` spread happens after the default, so a
- * user-supplied value wins). With `fetchImpl` we don't memoise, so tests
- * can't leak state between cases; production callers memoise per
- * `apiServerUrl`.
+ * user-supplied value wins). Test fetches and request-scoped abort signals
+ * both bypass memoisation so state cannot leak into the next attempt;
+ * ordinary production callers still memoise per `apiServerUrl`.
  *
  * Removal condition: better-auth ships a hosted typed client for OIDC IdP
  * setups where one process is both IdP and resource server. Until then,
@@ -28,6 +28,11 @@ export interface AuthClientArgs {
    * every test case can install its own mock without bleed-through.
    */
   fetchImpl?: typeof fetch
+  /**
+   * Optional signal for one request-scoped client. Supplying it disables
+   * memoisation so a later sign-in attempt receives a fresh signal.
+   */
+  requestSignal?: AbortSignal
 }
 
 type AuthClient = ReturnType<typeof createAuthClient<{
@@ -43,11 +48,14 @@ const clientCache = new Map<string, AuthClient>()
  * stage-ui singleton, this client carries the session cookie.
  */
 export function getAuthClient(args: AuthClientArgs): AuthClient {
-  if (args.fetchImpl) {
+  if (args.fetchImpl || args.requestSignal) {
     return createAuthClient({
       baseURL: args.apiServerUrl,
       plugins: [steamClient()],
-      fetchOptions: { customFetchImpl: args.fetchImpl },
+      fetchOptions: {
+        ...(args.fetchImpl ? { customFetchImpl: args.fetchImpl } : {}),
+        ...(args.requestSignal ? { signal: args.requestSignal } : {}),
+      },
     })
   }
 
