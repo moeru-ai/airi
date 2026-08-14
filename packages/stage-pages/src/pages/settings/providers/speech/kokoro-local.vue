@@ -135,6 +135,14 @@ onMounted(async () => {
   hasWebGPU.value = capabilities.supported
   fp16Supported.value = capabilities.fp16Supported
 
+  // Refresh the provider's default config: metadata is selected at store
+  // setup (before capability detection), so Kokoro's default model was
+  // computed from an empty cache. Seeding a capability-accurate default
+  // while the dirty comparison still uses the stale one would make
+  // shouldListProvider() treat this passive seed as user-modified and
+  // list Kokoro as dirty/unconfigured.
+  providersStore.refreshProviderDefaultConfig(providerId)
+
   try {
     voicesLoading.value = true
 
@@ -145,16 +153,26 @@ onMounted(async () => {
     // the catalog, in which case getProviderConfig() returns undefined and reading
     // `config.model` throws. ensureProvider is a synced (async) action: it returns
     // a Promise, not the provider, so await it and re-read the config afterwards.
-    // Seed with capability-aware defaults (matching createProviderConfig) instead
-    // of an empty object, so fp16-capable hardware keeps its fp16-webgpu default.
+    // NOTICE: Seed with the provider's own default config - the same source the
+    // dirty comparison (isProviderConfigDirty -> shouldListProvider) uses - so
+    // this passive seed is not flagged as user-modified. refreshProviderDefaultConfig()
+    // above recomputed that default after capability detection, so it also keeps
+    // fp16-capable hardware on its fp16-webgpu default.
+    // Why: seeding a hand-built object here would drift from providerMetadata's
+    // defaultConfig whenever their capability sources disagree, marking a
+    // programmatic seed as a user edit.
+    // Root cause: provider registration is lazy (only triggered by navigation
+    // or catalog add), and capability-dependent defaults are selected at store
+    // setup time.
+    // Source: PR #2273 review (codex bot), rounds 1 & 4.
+    // Removal condition: when the provider is guaranteed to be registered with
+    // capability-accurate defaults before this page can mount.
     if (!providerStore.getProviderConfig(providerId)) {
-      await providerStore.ensureProvider(providerId, providerId, {
-        model: getDefaultKokoroModel(hasWebGPU.value, fp16Supported.value),
-        voiceId: '',
-        // Match getDefaultProviderConfig() shape (baseUrl: '' for providers
-        // without a base URL) so shouldListProvider() comparison stays clean.
-        baseUrl: '',
-      })
+      await providerStore.ensureProvider(
+        providerId,
+        providerId,
+        providersStore.getDefaultProviderConfig(providerId),
+      )
     }
     const config = providerStore.getProviderConfig(providerId) ?? {}
 

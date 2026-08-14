@@ -32,6 +32,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { getSchemaDefault } from '../../libs/zod'
 import { useAuthStore } from '../auth'
 import { useSettingsAnalytics } from '../settings/analytics'
 import { useProviderConfigStore } from './config'
@@ -400,6 +401,23 @@ export const useProviderStore = defineStore('provider', () => {
       ...defaultOptions,
       ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
     }
+  }
+
+  /**
+   * Re-select a provider's default config with current runtime state.
+   *
+   * Capability-dependent defaults (e.g. Kokoro's fp16 model) are computed
+   * from the WebGPU cache at metadata selection time. When the store is set
+   * up before capability detection completes, the cached default is stale;
+   * refreshing it keeps the dirty comparison (isProviderConfigDirty) in sync
+   * with what a later capability-aware seed saves.
+   */
+  function refreshProviderDefaultConfig(providerId: string) {
+    const definition = getProviderDefinition(providerId)
+    const meta = providerMetadata[providerId]
+    if (!definition || !meta)
+      return
+    meta.defaultConfig = getSchemaDefault(definition.createProviderConfig({ t })) as Record<string, unknown>
   }
 
   function initializeProviderRuntimeState(providerId: string) {
@@ -959,6 +977,7 @@ export const useProviderStore = defineStore('provider', () => {
     getProviderDefinition,
     findProviderDefinition,
     getDefaultProviderConfig,
+    refreshProviderDefaultConfig,
     validateProviderConfig,
     hasManualProviderValidators,
     supportsModelListing,
