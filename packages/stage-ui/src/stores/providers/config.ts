@@ -269,6 +269,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'addProvider',
       'removeProvider',
       'updateProviderConfig',
+      'replaceProviderConfig',
       'resetProviders',
     ],
     state: true,

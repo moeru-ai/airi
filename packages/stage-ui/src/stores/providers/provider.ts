@@ -1051,6 +1051,7 @@ export const useProviderStore = defineStore('provider', () => {
       'deleteProvider',
       'disposeProviderInstance',
       'fetchModelsForProvider',
+      'refreshProviderDefaultConfig',
       'forceProviderConfigured',
       'initializeProvider',
       'listProviderVoices',
