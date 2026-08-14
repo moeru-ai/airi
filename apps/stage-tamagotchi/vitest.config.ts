@@ -34,6 +34,7 @@ export default defineConfig({
           exclude: ['**/node_modules/**', '**/.git/**'],
           browser: {
             enabled: true,
+            headless: true,
             provider: playwright(),
             instances: [
               { browser: 'chromium' },
