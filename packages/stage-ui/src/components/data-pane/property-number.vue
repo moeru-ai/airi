@@ -139,7 +139,8 @@ function stopDrag() {
 }
 
 onUnmounted(() => {
-  stopDrag()
+  if (isDragging.value)
+    stopDrag()
 })
 </script>
 
