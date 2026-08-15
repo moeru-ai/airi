@@ -21,6 +21,7 @@ import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { streamWebSpeechAPITranscription } from '../../libs/providers/providers/browser-web-speech-api'
+import { streamOfficialTranscription } from '../../libs/providers/providers/official/stream-transcription'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
@@ -234,7 +235,7 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
-  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
+  [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamOfficialTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }
 
