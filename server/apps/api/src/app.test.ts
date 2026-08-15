@@ -22,9 +22,6 @@ function createTestDeps() {
     fluxTransactionService: {} as never,
     stripeService: {} as never,
     billingService: {} as never,
-    adminFluxGrantsService: {} as never,
-    adminRouterConfigService: {} as never,
-    adminUsersService: {} as never,
     ttsMeter: {} as never,
     requestLogService: {} as never,
     voicePackService: {} as never,
@@ -54,6 +51,15 @@ function createTestDeps() {
 }
 
 describe('business API app', () => {
+  it('does not expose management routes', async () => {
+    const { app } = await buildApp(createTestDeps())
+
+    expect((await app.request('/admin')).status).toBe(404)
+    expect((await app.request('/admin/users')).status).toBe(404)
+    expect((await app.request('/api/admin/metrics')).status).toBe(404)
+    expect((await app.request('/api/admin/graphql', { method: 'POST' })).status).toBe(404)
+  })
+
   it('does not expose Better Auth or OIDC provider routes', async () => {
     const { app } = await buildApp(createTestDeps())
 

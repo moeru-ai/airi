@@ -299,6 +299,8 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       metrics: deps.rateLimitMetrics,
       routeLabel: 'auth.api',
     }))
+    .all('/api/auth/admin', c => c.notFound())
+    .all('/api/auth/admin/*', c => c.notFound())
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()

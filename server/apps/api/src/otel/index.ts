@@ -21,7 +21,6 @@ import {
   METRIC_AIRI_FLUX_UNBILLED,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD,
-  METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE,
   METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES,
   METRIC_AIRI_GEN_AI_GATEWAY_FALLBACK_COUNT,
   METRIC_AIRI_GEN_AI_GATEWAY_KEY_EXHAUSTED_COUNT,
@@ -56,11 +55,8 @@ import {
   METRIC_STRIPE_EVENTS,
   METRIC_STRIPE_PAYMENT_FAILED,
   METRIC_STRIPE_SUBSCRIPTION_EVENT,
-  METRIC_USER_ACTIVE_SESSIONS,
-  METRIC_USER_DISTINCT_ACTIVE,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
-  METRIC_USER_TOTAL,
   METRIC_WS_CONNECTIONS_ACTIVE,
   METRIC_WS_MESSAGES_RECEIVED,
   METRIC_WS_MESSAGES_SENT,
@@ -74,56 +70,6 @@ export interface AuthMetrics {
   failures: Counter
   userRegistered: Counter
   userLogin: Counter
-  /**
-   * Gauge for the latest requested total registered-user snapshot.
-   *
-   * Use when:
-   * - Reporting current account-base size. Pair with
-   *   {@link AuthMetrics.userRegistered} for signup deltas over a time window.
-   *
-   * Expects:
-   * - Refreshed when an authorized caller requests `/api/admin/metrics`.
-   *   OTel collection only reads the in-process snapshot and never queries
-   *   Postgres. The gauge stops emitting after the bounded freshness window
-   *   so an old replica can become stale. Dashboards MUST aggregate with
-   *   `max()`/`avg()`, not `sum()`.
-   */
-  totalUsers: ObservableGauge
-  /**
-   * Latest requested active-session count from the Better Auth `session`
-   * table where `expires_at` is in the future.
-   *
-   * Why ObservableGauge instead of UpDownCounter:
-   * - UpDownCounter drifts: TTL expiration never fires a -1, and multi-
-   *   replica deploys split +1 / -1 across instances (signin on A, signout
-   *   on B). The previous implementation went unboundedly positive.
-   * - The admin metrics request refreshes this source-of-truth snapshot;
-   *   periodic OTel collection does no I/O, so telemetry cannot keep a
-   *   serverless database awake.
-   *
-   * Multi-replica note:
-   * - Only replicas with a fresh admin metrics snapshot emit a point. The
-   *   dashboard MUST aggregate with `max()` (or `avg()`), NOT `sum()`.
-   * - See `server/apps/api/docs/ai-context/observability-conventions.md`,
-   *   "Multi-Replica Considerations".
-   */
-  activeSessions: ObservableGauge
-  /**
-   * Gauge for the latest requested count of distinct users with at least one
-   * non-expired session.
-   *
-   * Use when:
-   * - Querying real "active users" — not session rows. Better Auth creates a
-   *   new `session` row per sign-in and per OIDC token refresh, and never
-   *   GCs expired rows, so {@link AuthMetrics.activeSessions} drifts up
-   *   over time even when the actual user base is small.
-   *
-   * Expects:
-   * - Refreshed by `/api/admin/metrics` using `COUNT(DISTINCT user_id)`.
-   *   Periodic collection reads memory only; dashboards MUST aggregate with
-   *   `avg()`/`max()`, not `sum()`.
-   */
-  distinctActiveUsers: ObservableGauge
 }
 
 export interface EngagementMetrics {
@@ -261,13 +207,6 @@ export interface GatewayMetrics {
    */
   subscriberState: Counter
   /**
-   * Admin endpoint write events for `LLM_ROUTER_CONFIG`. Labels: `result`
-   * (`success` | `4xx` | `5xx`), `actor_email`. Audit-trail surrogate
-   * given v1 keeps the flat-admin-role permission model (R16a known
-   * limitation).
-   */
-  configWrite: Counter
-  /**
    * Pub/Sub invalidation messages dropped because the HMAC did not verify.
    * >0 = forged or replayed message — investigate Redis access boundary.
    */
@@ -382,15 +321,6 @@ export function initOtel(env: Env): OtelInstance | null {
     }),
     userLogin: meter.createCounter(METRIC_USER_LOGIN, {
       description: 'Number of user sign-ins',
-    }),
-    totalUsers: meter.createObservableGauge(METRIC_USER_TOTAL, {
-      description: 'Fresh admin-requested total registered-user snapshot (memory-only and expires when stale; dashboard must use max(), not sum())',
-    }),
-    activeSessions: meter.createObservableGauge(METRIC_USER_ACTIVE_SESSIONS, {
-      description: 'Fresh admin-requested active-session snapshot (memory-only and expires when stale; dashboard must use max(), not sum())',
-    }),
-    distinctActiveUsers: meter.createObservableGauge(METRIC_USER_DISTINCT_ACTIVE, {
-      description: 'Fresh admin-requested distinct active-user snapshot, immune to per-row session inflation and omitted when stale (dashboard must use max(), not sum())',
     }),
   }
 
@@ -512,9 +442,6 @@ export function initOtel(env: Env): OtelInstance | null {
     subscriberState: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_SUBSCRIBER_STATE, {
       description: 'Pub/Sub subscriber lifecycle state transitions',
     }),
-    configWrite: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_WRITE, {
-      description: 'Admin endpoint LLM_ROUTER_CONFIG write events (audit-trail surrogate)',
-    }),
     configInvalidHmac: meter.createCounter(METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC, {
       description: 'Pub/Sub invalidation messages dropped due to HMAC mismatch (forged or replayed)',
     }),
@@ -603,7 +530,6 @@ export function initOtel(env: Env): OtelInstance | null {
     gateway.configReload,
     gateway.decryptFailures,
     gateway.subscriberState,
-    gateway.configWrite,
     gateway.configInvalidHmac,
     email.send,
     email.failures,
