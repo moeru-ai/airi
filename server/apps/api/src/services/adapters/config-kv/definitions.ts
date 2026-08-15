@@ -1,11 +1,6 @@
-import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
-import { errorMessageFrom } from '@moeru/std'
-import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
-
-import { createServiceUnavailableError } from '../../utils/error'
-import { configRedisKey } from '../../utils/redis-keys'
+import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -239,9 +234,9 @@ export const llmRouterConfigSchema = object({
  * Config entry schemas are the single source of truth for:
  * - runtime validation
  * - default values
- * - Redis serialization/deserialization shape
+ * - stored JSON shape
  */
-const ConfigEntrySchemas = {
+export const configEntrySchemas = {
   FLUX_PER_REQUEST: optional(number(), 5),
   INITIAL_USER_FLUX: optional(number(), 0),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
@@ -249,8 +244,6 @@ const ConfigEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  AUTH_RATE_LIMIT_MAX: optional(number(), 20),
-  AUTH_RATE_LIMIT_WINDOW_SEC: optional(number(), 60),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
@@ -273,7 +266,7 @@ const ConfigEntrySchemas = {
   DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL must not be empty')),
   DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL must not be empty')),
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
-  // so the admin endpoint (U9) is forced to populate it before traffic flows.
+  // so deployment configuration must populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),
   // Single unspeech deployment used for every TTS surface: REST audio/speech,
   // REST voices catalog, ws audio/speech/stream. `streaming` is optional —
@@ -283,75 +276,8 @@ const ConfigEntrySchemas = {
   UNSPEECH_UPSTREAM: optional(unspeechUpstreamSchema),
 } as const
 
-type ConfigDefinitions = {
-  [K in keyof typeof ConfigEntrySchemas]: InferOutput<(typeof ConfigEntrySchemas)[K]>
+export type ConfigDefinitions = {
+  [K in keyof typeof configEntrySchemas]: InferOutput<(typeof configEntrySchemas)[K]>
 }
 
-type ConfigKey = keyof ConfigDefinitions
-
-function parseValue<K extends ConfigKey>(key: K, raw: string): ConfigDefinitions[K] {
-  try {
-    return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
-  }
-  catch (error) {
-    throw createServiceUnavailableError(
-      'Service configuration is invalid',
-      'CONFIG_INVALID',
-      {
-        key,
-        message: errorMessageFrom(error) ?? 'Unknown config parse error',
-      },
-    )
-  }
-}
-
-function serializeValue<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): string {
-  return JSON.stringify(parse(ConfigEntrySchemas[key], value))
-}
-
-/**
- * Resolve a config value: read from Redis, then apply valibot default if missing.
- * Returns `undefined` if both Redis and schema have no value (required key, not set).
- */
-function resolveWithDefault<K extends ConfigKey>(key: K, raw: string | null): ConfigDefinitions[K] | undefined {
-  if (raw !== null)
-    return parseValue(key, raw)
-
-  // Use the per-key schema with `undefined` to trigger the key default
-  try {
-    return parse(ConfigEntrySchemas[key], undefined) as ConfigDefinitions[K]
-  }
-  catch {
-    return undefined
-  }
-}
-
-export function createConfigKVService(redis: Redis) {
-  return {
-    async getOptional<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K] | null> {
-      const raw = await redis.get(configRedisKey(key))
-      const value = resolveWithDefault(key, raw)
-      return value ?? null
-    },
-
-    async getOrThrow<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
-      const raw = await redis.get(configRedisKey(key))
-      const value = resolveWithDefault(key, raw)
-      if (value === undefined)
-        throw createServiceUnavailableError('Service configuration is incomplete', 'CONFIG_NOT_SET')
-
-      return value as Exclude<ConfigDefinitions[K], undefined>
-    },
-
-    async get<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
-      return this.getOrThrow(key)
-    },
-
-    async set<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): Promise<void> {
-      const serialized = serializeValue(key, value)
-      await redis.set(configRedisKey(key), serialized)
-    },
-  }
-}
-
-export type ConfigKVService = ReturnType<typeof createConfigKVService>
+export type ConfigKey = keyof ConfigDefinitions

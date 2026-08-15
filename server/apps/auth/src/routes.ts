@@ -4,7 +4,6 @@ import type { AuthInstance } from './auth'
 import type { AuthDatabase } from './db'
 import type { AuthEnv } from './env'
 import type { RateLimitMetrics } from './otel'
-import type { AuthConfigService } from './rate-limit'
 
 import { createHash } from 'node:crypto'
 
@@ -259,7 +258,6 @@ export interface AuthRoutesDeps {
   auth: AuthInstance
   db: AuthDatabase
   env: AuthEnv
-  authConfig: AuthConfigService
   rateLimitMetrics?: RateLimitMetrics | null
 }
 
@@ -272,8 +270,6 @@ export interface AuthRoutesDeps {
  * (`/auth/*`, `/api/auth/*`, `/.well-known/*`).
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
-  const rateLimitConfig = await deps.authConfig.getRateLimit()
-
   async function handleAuthRequest(request: Request): Promise<Response> {
     const response = await deps.auth.handler(request)
 
@@ -291,14 +287,16 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * Rate limited by the Auth-owned runtime configuration.
      */
     .use('/api/auth/*', rateLimiter({
-      max: rateLimitConfig.max,
-      windowSec: rateLimitConfig.windowSec,
+      max: 20,
+      windowSec: 60,
       // Proxy trust is a deployment boundary, not a property of the public
       // API URL. Custom domains and private gateways must opt in explicitly.
       trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
       metrics: deps.rateLimitMetrics,
       routeLabel: 'auth.api',
     }))
+    .all('/api/auth/admin', c => c.notFound())
+    .all('/api/auth/admin/*', c => c.notFound())
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()
@@ -359,9 +357,8 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      *
      * Account-enumeration tradeoff: this confirms whether an email is
      * registered, mirroring the standard set by Google/Linear/Notion. We
-     * accept the disclosure since the existing rate limiter applied to
-     * `/api/auth/*` (`AUTH_RATE_LIMIT_MAX` per IP per window) already throttles
-     * enumeration attempts.
+     * accept the disclosure since the existing rate limiter applies a fixed
+     * per-IP request limit to `/api/auth/*` and throttles enumeration attempts.
      */
     .on('POST', '/api/auth/check-email', async (c) => {
       const body = await c.req.json().catch(() => null) as { email?: unknown } | null

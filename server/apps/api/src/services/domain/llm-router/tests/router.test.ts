@@ -49,7 +49,6 @@ function makeMetrics(): GatewayMetrics {
     configReload: makeCounter(),
     decryptFailures: makeCounter(),
     subscriberState: makeCounter(),
-    configWrite: makeCounter(),
     configInvalidHmac: makeCounter(),
     poolSlotRejected: makeCounter(),
     poolSaturationMarked: makeCounter(),

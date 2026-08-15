@@ -44,8 +44,6 @@ the API and Auth container ports private.
   the private network while issuer and audience remain `AUTH_SERVER_URL`.
 - Auth tables and principal types come from `@proj-airi/auth-shared`; no module
   under `server/apps/auth` is imported.
-- `ADMIN_UI_URL` controls the standalone admin UI redirect and defaults to
-  `https://admin.airi.build`.
 
 ## Railway
 

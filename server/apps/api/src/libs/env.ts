@@ -52,11 +52,6 @@ const EnvSchema = object({
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
   AUTH_SERVER_INTERNAL_URL: optional(string()),
 
-  // Standalone admin UI base URL. The server keeps `/admin/*` as the historical
-  // entrypoint and redirects those requests here after the admin UI moved to
-  // the standalone proj-airi repository.
-  ADMIN_UI_URL: optional(string(), 'https://admin.airi.build'),
-
   // Canonical user-facing web app origin. Used as the Stripe redirect base
   // (success_url / cancel_url / portal return_url) when a request has no trusted
   // browser origin — notably the Electron desktop renderer, which loads from
@@ -135,13 +130,6 @@ const EnvSchema = object({
   OTEL_EXPORTER_OTLP_ENDPOINT: optional(string()),
   OTEL_EXPORTER_OTLP_HEADERS: optional(string()),
   OTEL_DEBUG: optional(string()),
-  // Admin allowlist for /api/admin/* routes. Comma-separated email addresses.
-  // Match is case-insensitive, but the user must also have `email_verified = true`
-  // — otherwise an attacker could register a fresh account with the admin email
-  // before verification and slip past the check.
-  // Empty (default) = no one is admin — production safe by default.
-  // Example: ADMIN_EMAILS=alice@example.com,bob@example.com
-  ADMIN_EMAILS: optional(string(), ''),
 })
 
 export type Env = InferOutput<typeof EnvSchema>

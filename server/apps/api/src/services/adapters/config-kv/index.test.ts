@@ -1,24 +1,28 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
-import { configRedisKey } from '../../utils/redis-keys'
-import { createConfigKVService } from './config-kv'
+import { createConfigKVService } from './index'
 
-function createMockRedis() {
+function createMockStore() {
   const store = new Map<string, string>()
   return {
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string) => { store.set(key, value) }),
+    getRaw: vi.fn(async (key: string) => store.get(key) ?? null),
+    getFreshRaw: vi.fn(async (key: string) => store.get(key) ?? null),
+    invalidateCache: vi.fn(async () => {}),
     _store: store,
   }
 }
 
 describe('configKVService', () => {
-  let redis: ReturnType<typeof createMockRedis>
+  let store: ReturnType<typeof createMockStore>
   let service: ReturnType<typeof createConfigKVService>
 
   beforeEach(() => {
-    redis = createMockRedis()
-    service = createConfigKVService(redis as any)
+    store = createMockStore()
+    service = createConfigKVService(store)
+  })
+
+  it('uses the ConfigKV schema as the key type', () => {
+    expectTypeOf(service.get('FLUX_PER_REQUEST')).toEqualTypeOf<Promise<number>>()
   })
 
   it('get should throw 503 when key is not set', async () => {
@@ -28,17 +32,17 @@ describe('configKVService', () => {
   })
 
   it('get should return numeric value when key is set', async () => {
-    redis._store.set(configRedisKey('FLUX_PER_REQUEST'), '5')
+    store._store.set('FLUX_PER_REQUEST', '5')
 
     const value = await service.getOrThrow('FLUX_PER_REQUEST')
     expect(value).toBe(5)
   })
 
-  it('get should read from correct prefixed key', async () => {
-    redis._store.set(configRedisKey('FLUX_PER_REQUEST'), '3')
+  it('get should read the requested ConfigKV key', async () => {
+    store._store.set('FLUX_PER_REQUEST', '3')
 
     await service.getOrThrow('FLUX_PER_REQUEST')
-    expect(redis.get).toHaveBeenCalledWith(configRedisKey('FLUX_PER_REQUEST'))
+    expect(store.getRaw).toHaveBeenCalledWith('FLUX_PER_REQUEST')
   })
 
   it('getOptional should return schema default when key has one', async () => {
@@ -52,22 +56,22 @@ describe('configKVService', () => {
   })
 
   it('getOptional should return numeric value when key is set', async () => {
-    redis._store.set(configRedisKey('INITIAL_USER_FLUX'), '200')
+    store._store.set('INITIAL_USER_FLUX', '200')
 
     const value = await service.getOptional('INITIAL_USER_FLUX')
     expect(value).toBe(200)
   })
 
-  it('getOptional should throw CONFIG_INVALID when Redis contains malformed JSON', async () => {
+  it('getOptional should throw CONFIG_INVALID when the store contains malformed JSON', async () => {
     // ROOT CAUSE:
     //
-    // If an operator edits config:LLM_ROUTER_CONFIG directly with invalid JSON,
+    // If an operator stores invalid LLM_ROUTER_CONFIG JSON in PostgreSQL,
     // JSON.parse used to throw SyntaxError through the request handler and log
     // it as an unhandled 500.
     //
     // We fixed this by translating stored config parse/validation failures into
     // a stable API error at the configKV boundary.
-    redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), '{"llm":{}')
+    store._store.set('LLM_ROUTER_CONFIG', '{"llm":{}')
 
     await expect(service.getOptional('LLM_ROUTER_CONFIG'))
       .rejects
@@ -77,8 +81,8 @@ describe('configKVService', () => {
       })
   })
 
-  it('getOptional should throw CONFIG_INVALID when Redis contains schema-invalid JSON', async () => {
-    redis._store.set(configRedisKey('FLUX_PER_REQUEST'), JSON.stringify('5'))
+  it('getOptional should throw CONFIG_INVALID when the store contains schema-invalid JSON', async () => {
+    store._store.set('FLUX_PER_REQUEST', JSON.stringify('5'))
 
     await expect(service.getOptional('FLUX_PER_REQUEST'))
       .rejects
@@ -88,32 +92,23 @@ describe('configKVService', () => {
       })
   })
 
-  it('set should write value to Redis with prefix', async () => {
-    await service.set('FLUX_PER_REQUEST', 10)
+  it('wraps database failures as CONFIG_UNAVAILABLE', async () => {
+    store.getRaw.mockRejectedValueOnce(new Error('database offline'))
 
-    expect(redis.set).toHaveBeenCalledWith(configRedisKey('FLUX_PER_REQUEST'), '10')
-    expect(redis._store.get(configRedisKey('FLUX_PER_REQUEST'))).toBe('10')
-  })
-
-  it('set should reject invalid values for string config keys', async () => {
-    await expect(service.set('STRIPE_FLUX_PRODUCT_ID', { id: 'prod_123' } as any))
+    await expect(service.getOrThrow('FLUX_PER_REQUEST'))
       .rejects
-      .toThrow()
-  })
-
-  it('set then get should round-trip correctly', async () => {
-    await service.set('INITIAL_USER_FLUX', 500)
-
-    const value = await service.getOrThrow('INITIAL_USER_FLUX')
-    expect(value).toBe(500)
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_UNAVAILABLE',
+      })
   })
 
   /**
    * @example
-   * service.set('LLM_ROUTER_CONFIG', { asr: { models: { auto: model } } })
+   * store._store.set('LLM_ROUTER_CONFIG', JSON.stringify(config))
    */
   it('llm router config should preserve official ASR model config', async () => {
-    await service.set('LLM_ROUTER_CONFIG', {
+    store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
       llm: { models: {} },
       tts: { models: {} },
       asr: {
@@ -136,7 +131,7 @@ describe('configKVService', () => {
         fullChainTimeoutMs: 60000,
         fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
       },
-    })
+    }))
 
     const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
     const asr = value.asr
@@ -152,7 +147,7 @@ describe('configKVService', () => {
   })
 
   it('llm router config should preserve explicit LLM and TTS provider groups', async () => {
-    await service.set('LLM_ROUTER_CONFIG', {
+    store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
       llm: {
         models: {
           'step-3.5-flash': {
@@ -240,7 +235,7 @@ describe('configKVService', () => {
         fullChainTimeoutMs: 60000,
         fallbackHttpCodes: [401, 402, 403, 429, 500, 502, 503, 504],
       },
-    })
+    }))
 
     const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
     const model = value.tts.models['stepfun/stepaudio-2.5-tts']
@@ -254,7 +249,7 @@ describe('configKVService', () => {
   })
 
   it('rejects a TTS provider group that references an unknown upstream', async () => {
-    redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), JSON.stringify({
+    store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
       llm: { models: {} },
       tts: {
         models: {
@@ -287,7 +282,7 @@ describe('configKVService', () => {
   })
 
   it('rejects least-inflight routing without an explicit concurrency cap', async () => {
-    redis._store.set(configRedisKey('LLM_ROUTER_CONFIG'), JSON.stringify({
+    store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
       llm: { models: {} },
       tts: {
         models: {
@@ -319,9 +314,11 @@ describe('configKVService', () => {
       })
   })
 
-  it('set should store string values as JSON strings', async () => {
-    await service.set('STRIPE_FLUX_PRODUCT_ID', 'prod_abc123')
+  it('refresh should bypass the ordinary store read', async () => {
+    store._store.set('STRIPE_FLUX_PRODUCT_ID', JSON.stringify('prod_abc123'))
 
-    expect(redis._store.get(configRedisKey('STRIPE_FLUX_PRODUCT_ID'))).toBe(JSON.stringify('prod_abc123'))
+    await expect(service.refresh('STRIPE_FLUX_PRODUCT_ID')).resolves.toBe('prod_abc123')
+    expect(store.getFreshRaw).toHaveBeenCalledWith('STRIPE_FLUX_PRODUCT_ID')
+    expect(store.getRaw).not.toHaveBeenCalled()
   })
 })
