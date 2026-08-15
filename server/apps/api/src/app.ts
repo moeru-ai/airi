@@ -55,6 +55,7 @@ import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
+import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createPosthogSink } from './services/adapters/posthog'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
@@ -211,6 +212,7 @@ export async function buildApp(deps: AppDeps) {
   // connection + lifecycle metrics; see services/llm-router/config-sync-subscriber.ts.
   createConfigSyncSubscriber({
     redis: deps.redis,
+    configKV: deps.configKV,
     llmRouter: deps.llmRouter,
     gatewayMetrics: deps.otel?.gateway ?? null,
     instanceId: deps.env.OTEL_SERVICE_NAME,
@@ -482,8 +484,8 @@ export async function createApp() {
   })
 
   const configKV = injeca.provide('datastore:configKV', {
-    dependsOn: { redis },
-    build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
+    dependsOn: { db, redis },
+    build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
   const posthogSink = injeca.provide('services:posthogSink', {

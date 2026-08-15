@@ -1,5 +1,4 @@
 import type { Context } from 'hono'
-import type Redis from 'ioredis'
 
 import type { RateLimitMetrics } from './otel'
 import type { HonoEnv } from './routes'
@@ -7,46 +6,7 @@ import type { HonoEnv } from './routes'
 import { isIP } from 'node:net'
 
 import { getConnInfo } from '@hono/node-server/conninfo'
-import { errorMessageFrom } from '@moeru/std'
 import { rateLimiter as createRateLimiter } from 'hono-rate-limiter'
-import { number, parse } from 'valibot'
-
-import { createServiceUnavailableError } from './error'
-
-export interface AuthRateLimitConfig {
-  max: number
-  windowSec: number
-}
-
-export function createAuthConfigService(redis: Redis) {
-  async function readNumber(key: 'AUTH_RATE_LIMIT_MAX' | 'AUTH_RATE_LIMIT_WINDOW_SEC', defaultValue: number): Promise<number> {
-    const raw = await redis.get(`config:${key}`)
-    if (raw === null)
-      return defaultValue
-
-    try {
-      return parse(number(), JSON.parse(raw))
-    }
-    catch (error) {
-      throw createServiceUnavailableError('Auth configuration is invalid', 'CONFIG_INVALID', {
-        key,
-        message: errorMessageFrom(error) ?? 'Unknown config parse error',
-      })
-    }
-  }
-
-  return {
-    async getRateLimit(): Promise<AuthRateLimitConfig> {
-      const [max, windowSec] = await Promise.all([
-        readNumber('AUTH_RATE_LIMIT_MAX', 20),
-        readNumber('AUTH_RATE_LIMIT_WINDOW_SEC', 60),
-      ])
-      return { max, windowSec }
-    },
-  }
-}
-
-export type AuthConfigService = ReturnType<typeof createAuthConfigService>
 
 interface RateLimitOptions {
   /** Max requests allowed within the window */
@@ -92,9 +52,8 @@ export function rateLimiter(opts: RateLimitOptions) {
       if (trustedProxyAddress)
         return trustedProxyAddress
 
-      // `app.request()` and fetch-style deployments have no Node incoming
-      // socket. Keep those requests in a shared bucket rather than trusting a
-      // client-controlled forwarding header.
+      // app.request() and fetch-style deployments have no Node incoming
+      // socket. Keep them in one bucket instead of trusting client headers.
       try {
         const info = getConnInfo(c)
         return info.remote?.address ?? 'anonymous'
@@ -107,14 +66,13 @@ export function rateLimiter(opts: RateLimitOptions) {
   return createRateLimiter<HonoEnv>({
     windowMs: opts.windowSec * 1000,
     limit: opts.max,
-    // NOTICE: keep `draft-6` so the middleware emits the widely supported
-    // `RateLimit-*` header set. `draft-7`/`draft-8` switch to newer combined
-    // header formats that are easier to break in existing clients and proxies.
+    // NOTICE: draft-6 keeps the widely supported RateLimit-* header set.
+    // Later drafts use combined formats that existing clients may not parse.
     standardHeaders: 'draft-6',
     keyGenerator: keyGen,
     handler: (c) => {
-      // Record before producing the 429 response so the time series captures
-      // every block, even when the response shape later changes.
+      // Record the block before producing the response so later response
+      // changes cannot remove the metric.
       const keyType = c.get('user')?.id ? 'user' : 'ip'
       opts.metrics?.blocked.add(1, {
         route: opts.routeLabel ?? 'unknown',
