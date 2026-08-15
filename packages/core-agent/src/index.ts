@@ -27,6 +27,22 @@ export type { ContextHistoryEntry, ContextIngestResult, ContextRegistry } from '
 export { createContextRegistry } from './runtime/context-registry'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
+  classifyLlmStreamError,
+  createLlmCircuitBreaker,
+  LlmCircuitOpenError,
+  withLlmStreamRetry,
+} from './runtime/llm-resilience'
+export type {
+  LlmCircuitBreaker,
+  LlmCircuitBreakerOptions,
+  LlmCircuitBreakerState,
+  LlmRetryAttemptInfo,
+  LlmRetryBackoffOptions,
+  LlmStreamErrorClassification,
+  LlmStreamErrorKind,
+  WithLlmStreamRetryOptions,
+} from './runtime/llm-resilience'
+export {
   isContentArrayRelatedError,
   isToolRelatedError,
   modelKey,

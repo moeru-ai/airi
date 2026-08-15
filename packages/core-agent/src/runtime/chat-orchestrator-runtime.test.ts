@@ -3,17 +3,27 @@ import type { Message } from '@xsai/shared-chat'
 
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ChatOrchestratorRuntimeDeps } from './chat-orchestrator-runtime'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
+import { APICallError } from '@xsai/shared'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
+import { createLlmCircuitBreaker, LlmCircuitOpenError } from './llm-resilience'
 
 const provider = {
   chat: () => ({ baseURL: 'https://example.com/' }),
 } as unknown as ChatProvider
 
-function createHarness() {
+function apiCallError(status: number) {
+  return new APICallError(`Remote sent ${status} response`, {
+    response: new Response(null, { status }),
+    responseBody: '',
+  })
+}
+
+function createHarness(overrides: { llmResilience?: ChatOrchestratorRuntimeDeps['llmResilience'] } = {}) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -41,6 +51,7 @@ function createHarness() {
     messageSendStarted: [] as unknown[],
     llmRequestStarted: [] as unknown[],
     llmFirstToken: [] as unknown[],
+    llmRetryAttempt: [] as unknown[],
     assistantResponseRendered: [] as unknown[],
     llmGeneration: [] as unknown[],
     messageRound: [] as unknown[],
@@ -82,6 +93,7 @@ function createHarness() {
     getActiveSessionId: () => 'session-1',
     getActiveProvider: () => 'mock-provider',
     getSystemPromptSupplement: () => systemPromptSupplement,
+    llmResilience: overrides.llmResilience,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? 'generated-id',
@@ -98,6 +110,7 @@ function createHarness() {
     onMessageSendStarted: event => telemetry.messageSendStarted.push(event),
     onLlmRequestStarted: event => telemetry.llmRequestStarted.push(event),
     onLlmFirstToken: event => telemetry.llmFirstToken.push(event),
+    onLlmRetryAttempt: event => telemetry.llmRetryAttempt.push(event),
     onAssistantResponseRendered: event => telemetry.assistantResponseRendered.push(event),
     onLlmGeneration: event => telemetry.llmGeneration.push(event),
     onMessageRound: event => telemetry.messageRound.push(event),
@@ -667,6 +680,98 @@ describe('createChatOrchestratorRuntime', () => {
         turnIndex: 2,
       }),
     ])
+  })
+
+  describe('lLM stream retry and circuit breaker', () => {
+    it('retries a transient provider failure before any output and still completes the round', async () => {
+      const harness = createHarness({ llmResilience: { baseDelayMs: 1, maxDelayMs: 1 } })
+      harness.stream.mockImplementationOnce(async () => {
+        throw apiCallError(503)
+      })
+
+      await harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider })
+
+      expect(harness.stream).toHaveBeenCalledTimes(2)
+      expect(harness.telemetry.messageRoundFailed).toEqual([])
+      expect(harness.telemetry.llmRetryAttempt).toEqual([expect.objectContaining({
+        attempt: 1,
+        model: 'gpt-test',
+        provider: 'mock-provider',
+        reason: 'server',
+      })])
+      expect(harness.telemetry.messageRound).toHaveLength(1)
+    })
+
+    it('does not retry once the failed attempt already streamed output', async () => {
+      // ROOT CAUSE:
+      // Retrying after partial output would duplicate that output (or a
+      // tool-call side effect) in the rendered assistant message, so a retry
+      // must never fire once anything has streamed for this round.
+      const harness = createHarness({ llmResilience: { baseDelayMs: 1, maxDelayMs: 1 } })
+      harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+        await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+        throw apiCallError(503)
+      })
+
+      await expect(harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider }))
+        .rejects
+        .toThrow('Remote sent 503 response')
+
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+      expect(harness.telemetry.llmRetryAttempt).toEqual([])
+      expect(harness.telemetry.messageRoundFailed).toEqual([expect.objectContaining({
+        errorCode: 'llm_response_failed',
+      })])
+    })
+
+    it('does not retry a non-retryable provider error', async () => {
+      const harness = createHarness({ llmResilience: { baseDelayMs: 1, maxDelayMs: 1 } })
+      harness.stream.mockImplementationOnce(async () => {
+        throw apiCallError(401)
+      })
+
+      await expect(harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider }))
+        .rejects
+        .toThrow('Remote sent 401 response')
+
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+      expect(harness.telemetry.llmRetryAttempt).toEqual([])
+    })
+
+    it('fails fast with llm_circuit_open when the shared circuit breaker is already open', async () => {
+      const circuitBreaker = createLlmCircuitBreaker({ failureThreshold: 1, cooldownMs: 60_000 })
+      circuitBreaker.recordFailure('https://example.com/-gpt-test')
+      const harness = createHarness({ llmResilience: { circuitBreaker } })
+
+      await expect(harness.runtime.ingest('hello', { model: 'gpt-test', chatProvider: provider }))
+        .rejects
+        .toBeInstanceOf(LlmCircuitOpenError)
+
+      expect(harness.stream).not.toHaveBeenCalled()
+      expect(harness.telemetry.messageRoundFailed).toEqual([expect.objectContaining({
+        errorCode: 'llm_circuit_open',
+        failureStage: 'llm_response',
+      })])
+      expect(harness.telemetry.chatActivationFailed).toEqual([expect.objectContaining({
+        errorCode: 'llm_circuit_open',
+      })])
+    })
+
+    it('shares circuit breaker failure state across model keys used by the same runtime', async () => {
+      const circuitBreaker = createLlmCircuitBreaker({ failureThreshold: 1, cooldownMs: 60_000 })
+      const harness = createHarness({ llmResilience: { circuitBreaker, baseDelayMs: 1, maxDelayMs: 1 } })
+      harness.stream.mockRejectedValueOnce(apiCallError(401))
+
+      await expect(harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider }))
+        .rejects
+        .toThrow('Remote sent 401 response')
+      expect(circuitBreaker.getState('https://example.com/-gpt-test')).toBe('open')
+
+      await expect(harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider }))
+        .rejects
+        .toBeInstanceOf(LlmCircuitOpenError)
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('rejects cancelled queued sends before they start', async () => {

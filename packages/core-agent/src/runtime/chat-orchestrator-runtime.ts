@@ -5,6 +5,7 @@ import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { ChatAssistantMessage, ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, ErrorMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
+import type { LlmCircuitBreaker, LlmRetryBackoffOptions, LlmStreamErrorKind } from './llm-resilience'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
@@ -12,6 +13,8 @@ import { formatContextPromptText } from '../messages/context-prompt'
 import { formatTimePrefix } from '../messages/datetime-prefix'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
+import { createLlmCircuitBreaker, LlmCircuitOpenError, withLlmStreamRetry } from './llm-resilience'
+import { modelKey } from './llm-service'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 
 const REASONING_UI_FLUSH_CHUNK_SIZE = 24
@@ -192,6 +195,22 @@ export interface ChatOrchestratorRuntimeDeps {
   getSystemPromptSupplement?: () => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  /**
+   * Tunes automatic retry and circuit-breaker behavior for the provider LLM
+   * stream call. Retries kick in only for errors classified as transient
+   * (rate limits, 5xx, network resets) and only before any stream output has
+   * reached the caller, since a retry cannot undo output already rendered or
+   * a tool call already sent. Omit entirely to use the built-in defaults.
+   */
+  llmResilience?: Partial<LlmRetryBackoffOptions> & {
+    /**
+     * Circuit breaker guarding provider calls, keyed per model+provider.
+     * Share one instance across runtimes that call the same providers so a
+     * failing provider trips once, not once per runtime.
+     * @default a private breaker owned by this runtime instance
+     */
+    circuitBreaker?: LlmCircuitBreaker
+  }
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -225,7 +244,7 @@ export interface ChatOrchestratorRuntimeDeps {
     model: string
     provider: string
     failureStage: 'llm_response'
-    errorCode: 'llm_response_failed'
+    errorCode: 'llm_response_failed' | 'llm_circuit_open'
   }) => void
   /** Called when a user message send begins. */
   onMessageSendStarted?: (event: ChatRoundCorrelation & {
@@ -242,6 +261,22 @@ export interface ChatOrchestratorRuntimeDeps {
   onLlmFirstToken?: (event: ChatRoundCorrelation & {
     model: string
     ttfbMs: number
+  }) => void
+  /**
+   * Called before each automatic retry of a failed provider stream request,
+   * once per retry (not for the initial attempt). Retries only ever happen
+   * before any stream output has reached the caller; see
+   * {@link withLlmStreamRetry}.
+   */
+  onLlmRetryAttempt?: (event: ChatRoundCorrelation & {
+    model: string
+    provider: string
+    /** 1-based index of the retry about to run. */
+    attempt: number
+    /** Backoff delay before this retry, in ms. */
+    delayMs: number
+    /** Coarse cause bucket the retry decision was based on. */
+    reason: LlmStreamErrorKind
   }) => void
   /** Called after the assistant stream is parsed and rendered into runtime state. */
   onAssistantResponseRendered?: (event: ChatRoundCorrelation & {
@@ -273,7 +308,7 @@ export interface ChatOrchestratorRuntimeDeps {
     model: string
     provider: string
     failureStage: 'llm_response'
-    errorCode: 'llm_response_failed'
+    errorCode: 'llm_response_failed' | 'llm_circuit_open'
   }) => void
   /** Called for context/prompt lifecycle observability. */
   onLifecycle?: (record: ChatOrchestratorLifecycleRecord) => void
@@ -352,6 +387,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const monotonicNow = deps.monotonicNow ?? (() => globalThis.performance?.now?.() ?? Date.now())
   const createId = deps.createId ?? defaultCreateId
   const unwrapMessage = deps.unwrapMessage ?? (<T>(message: T) => message)
+  const llmCircuitBreaker = deps.llmResilience?.circuitBreaker ?? createLlmCircuitBreaker()
 
   let sending = false
   let activeSendSessionId: string | undefined
@@ -747,9 +783,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const llmRequestStartedAt = monotonicNow()
       let llmFirstTokenEmitted = false
+      // NOTICE:
+      // A failed retry attempt cannot be undone: once the provider stream has
+      // emitted any text, reasoning, or tool-call event, re-sending the same
+      // request would duplicate that output (and, for tool calls, could
+      // re-trigger a side effect). This flag is the single source of truth
+      // `shouldRetry` below consults to refuse a retry once that has
+      // happened; it is intentionally never reset across attempts.
+      let streamAttemptHasOutput = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
       let providerTranscript: Message[] | undefined
       const providerInputMessageCount = newMessages.length
+      const llmModelKey = modelKey(options.model, options.chatProvider)
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
@@ -757,104 +802,125 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice: !!options.input,
       })
 
-      await deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
-        headers,
-        requestCorrelation: {
-          conversationId: correlation.conversationId,
-          roundId: correlation.roundId,
-        },
-        tools: options.tools,
-        waitForTools: true,
-        onMessages: (messages) => {
-          const currentTurnMessages = messages.slice(providerInputMessageCount)
-          const hasToolRound = currentTurnMessages.some(message =>
-            message.role === 'tool'
-            || (message.role === 'assistant' && Boolean(message.tool_calls?.length)),
-          )
+      await withLlmStreamRetry(
+        () => deps.llm.stream(options.model, options.chatProvider, newMessages as Message[], {
+          headers,
+          requestCorrelation: {
+            conversationId: correlation.conversationId,
+            roundId: correlation.roundId,
+          },
+          tools: options.tools,
+          waitForTools: true,
+          onMessages: (messages) => {
+            const currentTurnMessages = messages.slice(providerInputMessageCount)
+            const hasToolRound = currentTurnMessages.some(message =>
+              message.role === 'tool'
+              || (message.role === 'assistant' && Boolean(message.tool_calls?.length)),
+            )
 
-          if (hasToolRound)
-            providerTranscript = structuredClone(currentTurnMessages)
-        },
-        onUsage: (usage) => {
-          if (shouldAbort())
-            return
+            if (hasToolRound)
+              providerTranscript = structuredClone(currentTurnMessages)
+          },
+          onUsage: (usage) => {
+            if (shouldAbort())
+              return
 
-          generationUsage = usage
-          deps.onLlmGeneration?.({
-            ...correlation,
-            model: options.model,
-            provider: activeProvider,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            totalTokens: usage.totalTokens,
-            usageSource: usage.source,
-          })
-        },
-        onStreamEvent: async (event: StreamEvent) => {
-          if (shouldAbort())
-            return
+            generationUsage = usage
+            deps.onLlmGeneration?.({
+              ...correlation,
+              model: options.model,
+              provider: activeProvider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
+              usageSource: usage.source,
+            })
+          },
+          onStreamEvent: async (event: StreamEvent) => {
+            if (shouldAbort())
+              return
 
-          switch (event.type) {
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
+            if (event.type !== 'finish' && event.type !== 'error')
+              streamAttemptHasOutput = true
 
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
-
-              break
-            case 'tool-error':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                isError: true,
-                result: event.result,
-              })
-
-              break
-            case 'text-delta':
-              if (!llmFirstTokenEmitted) {
-                llmFirstTokenEmitted = true
-                deps.onLlmFirstToken?.({
-                  ...correlation,
-                  model: options.model,
-                  ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+            switch (event.type) {
+              case 'tool-call':
+                toolCallQueue.enqueue({
+                  type: 'tool-call',
+                  toolCall: event,
                 })
-              }
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'reasoning-delta': {
-              if (shouldAbort())
-                return
 
-              const { reasoning = '' } = buildingMessage.categorization ?? {}
-              const nextReasoning = reasoning + event.text
-              buildingMessage.categorization = {
-                speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
-                reasoning: nextReasoning,
+                break
+              case 'tool-result':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  result: event.result,
+                })
+
+                break
+              case 'tool-error':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  isError: true,
+                  result: event.result,
+                })
+
+                break
+              case 'text-delta':
+                if (!llmFirstTokenEmitted) {
+                  llmFirstTokenEmitted = true
+                  deps.onLlmFirstToken?.({
+                    ...correlation,
+                    model: options.model,
+                    ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+                  })
+                }
+                fullText += event.text
+                await parser.consume(event.text)
+                break
+              case 'reasoning-delta': {
+                if (shouldAbort())
+                  return
+
+                const { reasoning = '' } = buildingMessage.categorization ?? {}
+                const nextReasoning = reasoning + event.text
+                buildingMessage.categorization = {
+                  speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
+                  reasoning: nextReasoning,
+                }
+                const crossesBoundary
+                  = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                    > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                if (!reasoning || crossesBoundary)
+                  updateStream(sessionId, buildingMessage)
+                break
               }
-              const crossesBoundary
-                = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-                  > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-              if (!reasoning || crossesBoundary)
-                updateStream(sessionId, buildingMessage)
-              break
+              case 'finish':
+                break
+              case 'error':
+                throw event.error ?? new Error('Stream error')
             }
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
+          },
+        }),
+        {
+          ...deps.llmResilience,
+          key: llmModelKey,
+          circuitBreaker: llmCircuitBreaker,
+          shouldRetry: (_error, classification) => !streamAttemptHasOutput && !isStaleGeneration() && classification.retryable,
+          onRetryAttempt: ({ attempt, delayMs, classification }) => {
+            deps.onLlmRetryAttempt?.({
+              ...correlation,
+              model: options.model,
+              provider: activeProvider,
+              attempt,
+              delayMs,
+              reason: classification.kind,
+            })
+          },
         },
-      })
+      )
 
       // Session generation is the lifecycle correlation key. Re-check it
       // after every awaited completion boundary so deleting a session while a
@@ -938,13 +1004,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         return
 
       console.error('Error sending message:', error)
+      const errorCode = error instanceof LlmCircuitOpenError ? 'llm_circuit_open' : 'llm_response_failed'
       deps.onMessageRoundFailed?.({
         ...correlation,
         source: sendSource,
         model: options.model,
         provider: activeProvider,
         failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
+        errorCode,
       })
       if (isActivationAttempt) {
         deps.onChatActivationFailed?.({
@@ -953,7 +1020,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           model: options.model,
           provider: activeProvider,
           failureStage: 'llm_response',
-          errorCode: 'llm_response_failed',
+          errorCode,
         })
       }
       throw error
