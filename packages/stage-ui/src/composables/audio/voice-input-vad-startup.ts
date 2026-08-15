@@ -18,6 +18,7 @@ export async function startVoiceInputVadDetectionSafely(options: VoiceInputVadSt
         stream: options.stream,
       })
       await options.start(options.stream)
+      options.log?.('info', 'vad-ready', 'VAD is connected to the microphone stream.')
       return true
     }
 

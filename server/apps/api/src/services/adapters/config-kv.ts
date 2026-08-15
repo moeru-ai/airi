@@ -273,7 +273,7 @@ const ConfigEntrySchemas = {
   DEFAULT_CHAT_MODEL: pipe(string(), nonEmpty('DEFAULT_CHAT_MODEL must not be empty')),
   DEFAULT_TTS_MODEL: pipe(string(), nonEmpty('DEFAULT_TTS_MODEL must not be empty')),
   // No default — the router throws CONFIG_NOT_SET when this entry is absent
-  // so the admin endpoint (U9) is forced to populate it before traffic flows.
+  // so deployment configuration must populate it before traffic flows.
   LLM_ROUTER_CONFIG: optional(llmRouterConfigSchema),
   // Single unspeech deployment used for every TTS surface: REST audio/speech,
   // REST voices catalog, ws audio/speech/stream. `streaming` is optional —

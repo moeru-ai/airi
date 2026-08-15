@@ -445,22 +445,25 @@ export function createAuth(
       },
     }),
 
-    // NOTICE: disabledPaths prevents better-auth's built-in /token route from
-    // conflicting with oauthProvider's /oauth2/token endpoint, and locks down
-    // the admin plugin's high-blast-radius endpoints. We only expose the read +
-    // ban/session-management subset (list-users, ban-user, unban-user,
-    // list-user-sessions, revoke-user-session(s), get-user, has-permission);
-    // account-takeover-grade actions stay disabled. Role grants are managed
-    // out-of-band (manual DB update), so /admin/set-role is disabled too.
+    // NOTICE: Keep the admin plugin for its role and ban data contract. Disable
+    // all of its HTTP endpoints here, while routes.ts blocks the full namespace.
     disabledPaths: [
       '/token',
+      '/admin/ban-user',
       '/admin/create-user',
-      '/admin/update-user',
+      '/admin/get-user',
+      '/admin/has-permission',
+      '/admin/impersonate-user',
+      '/admin/list-user-sessions',
+      '/admin/list-users',
+      '/admin/remove-user',
+      '/admin/revoke-user-session',
+      '/admin/revoke-user-sessions',
       '/admin/set-role',
       '/admin/set-user-password',
-      '/admin/remove-user',
-      '/admin/impersonate-user',
       '/admin/stop-impersonating',
+      '/admin/unban-user',
+      '/admin/update-user',
     ],
 
     plugins: [

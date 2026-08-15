@@ -1,7 +1,7 @@
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
-import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 
 // Refs the store reads through the mocked `useAuthStore` / `useAiriCardStore`.
@@ -19,6 +19,14 @@ const getOutboxMock = vi.fn<(uid: string) => Promise<any[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
 const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>>()
+const addTombstoneMock = vi.fn<(uid: string, id: string) => Promise<void>>()
+const deleteCloudChatMock = vi.fn<(id: string) => Promise<void>>()
+const listChatsMock = vi.fn()
+const pullMessagesMock = vi.fn()
+const reconcileLocalAndRemoteMock = vi.fn()
+const connectCloudWsMock = vi.fn()
+let cloudWsStatus: 'idle' | 'open' = 'idle'
+let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
 
 vi.mock('pinia', async () => {
   const actual = await vi.importActual<typeof import('pinia')>('pinia')
@@ -52,7 +60,7 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
     dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
     getTombstones: (uid: string) => getTombstonesMock(uid),
-    addTombstone: vi.fn().mockResolvedValue(undefined),
+    addTombstone: (uid: string, id: string) => addTombstoneMock(uid, id),
     removeTombstones: (uid: string, ids: string[]) => removeTombstonesMock(uid, ids),
   },
 }))
@@ -74,20 +82,23 @@ vi.mock('../../libs/server', () => ({
 // sufficient. We keep `extractMessageText` realistic so message previews work.
 vi.mock('../../libs/chat-sync', () => ({
   applyCreateActions: vi.fn().mockResolvedValue([]),
-  reconcileLocalAndRemote: vi.fn().mockReturnValue({ adopt: [], claim: [], create: [] }),
+  reconcileLocalAndRemote: (...args: unknown[]) => reconcileLocalAndRemoteMock(...args),
   createCloudChatMapper: () => ({
-    listChats: vi.fn().mockResolvedValue([]),
-    deleteChat: vi.fn().mockResolvedValue(undefined),
+    listChats: () => listChatsMock(),
+    deleteChat: (id: string) => deleteCloudChatMock(id),
   }),
   createChatWsClient: () => ({
-    status: () => 'idle' as const,
-    connect: vi.fn(),
+    status: () => cloudWsStatus,
+    connect: connectCloudWsMock,
     disconnect: vi.fn(),
     destroy: vi.fn(),
     sendMessages: vi.fn().mockResolvedValue({ ok: true }),
-    pullMessages: vi.fn().mockResolvedValue({ messages: [], maxSeq: 0 }),
+    pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     onNewMessages: () => () => {},
-    onStatusChange: () => () => {},
+    onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
+      cloudStatusListener = listener
+      return () => {}
+    },
   }),
   extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
   isCloudSyncableMessage: () => false,
@@ -95,9 +106,11 @@ vi.mock('../../libs/chat-sync', () => ({
 }))
 
 const { useChatSessionStore } = await import('./session-store')
+let pinia: ReturnType<typeof createPinia>
 
 beforeEach(() => {
-  setActivePinia(createPinia())
+  pinia = createPinia()
+  setActivePinia(pinia)
   userIdRef.value = 'local'
   activeCardIdRef.value = 'default'
   systemPromptRef.value = ''
@@ -111,6 +124,18 @@ beforeEach(() => {
   dropOutboxForSessionMock.mockReset().mockResolvedValue(undefined)
   getTombstonesMock.mockReset().mockResolvedValue([])
   removeTombstonesMock.mockReset().mockResolvedValue(undefined)
+  addTombstoneMock.mockReset().mockResolvedValue(undefined)
+  deleteCloudChatMock.mockReset().mockResolvedValue(undefined)
+  listChatsMock.mockReset().mockResolvedValue([])
+  pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
+  reconcileLocalAndRemoteMock.mockReset().mockReturnValue({ adopt: [], claim: [], create: [] })
+  connectCloudWsMock.mockReset()
+  cloudWsStatus = 'idle'
+  cloudStatusListener = undefined
+})
+
+afterEach(() => {
+  disposePinia(pinia)
 })
 
 async function flushMicrotasks(rounds = 8) {
@@ -295,6 +320,291 @@ describe('chat-session-store · loadSession vs concurrent deleteSession', () => 
   })
 })
 
+describe('chat-session-store · deletion and hydration failures', () => {
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743502031
+  it('persists the fallback without changing the leader selection when a follower deletes its active session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Session selection is window-local, so the synchronized leader can be on
+    // A while the persisted index still points to B. Deleting B returned A but
+    // left the persisted index empty, so the next startup created a blank chat.
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const sessionB: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: { 'session-a': [], 'session-b': [] },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-b',
+            sessions: { 'session-a': sessionA, 'session-b': sessionB },
+          },
+        },
+      },
+    })
+
+    await store.deleteSession('session-b')
+
+    expect(store.activeSessionId).toBe('session-a')
+    expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('session-a')
+    expect(store.sessionMetas['session-b']).toBeUndefined()
+    expect(saveIndexMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      characters: expect.objectContaining({
+        default: expect.objectContaining({ activeSessionId: 'session-a' }),
+      }),
+    }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743309237
+  it('persists a replacement fallback without changing an unrelated leader selection for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // When a follower deleted the final session for one character, the leader
+    // created a replacement with local activation disabled. The replacement
+    // was indexed but the persisted character active ID stayed empty, so the
+    // next initialization created another blank conversation.
+    const leaderSession: ChatSessionMeta = {
+      sessionId: 'leader-session',
+      userId: 'local',
+      characterId: 'other-character',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const deletedSession: ChatSessionMeta = {
+      sessionId: 'deleted-session',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'leader-session',
+      sessionMessages: { 'leader-session': [], 'deleted-session': [] },
+      sessionMetas: { 'leader-session': leaderSession, 'deleted-session': deletedSession },
+      index: {
+        userId: 'local',
+        characters: {
+          'other-character': {
+            activeSessionId: 'leader-session',
+            sessions: { 'leader-session': leaderSession },
+          },
+          'default': {
+            activeSessionId: 'deleted-session',
+            sessions: { 'deleted-session': deletedSession },
+          },
+        },
+      },
+    })
+
+    await store.deleteSession('deleted-session')
+    const snapshot = store.getSnapshot()
+    const [replacementSessionId] = Object.keys(snapshot.index?.characters.default?.sessions ?? {})
+    expect(replacementSessionId).toBeDefined()
+    if (!replacementSessionId)
+      throw new Error('Expected deletion to create a replacement session')
+
+    expect(store.activeSessionId).toBe('leader-session')
+    expect(snapshot.index?.characters.default?.activeSessionId).toBe(replacementSessionId)
+    expect(snapshot.index?.characters.default?.sessions[replacementSessionId]).toBeDefined()
+    expect(saveIndexMock).toHaveBeenLastCalledWith(expect.objectContaining({
+      characters: expect.objectContaining({
+        default: expect.objectContaining({ activeSessionId: replacementSessionId }),
+      }),
+    }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628917803
+  it('keeps deleted session generations invalid for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Deletion previously removed the generation entry. A send captured at
+    // generation zero could then read the deleted session as generation zero
+    // again and continue appending messages after the chat was gone.
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'sess-1',
+      sessionMessages: { 'sess-1': [] },
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    expect(store.getSessionGeneration('sess-1')).toBe(0)
+
+    await store.deleteSession('sess-1')
+
+    expect(store.getSessionGeneration('sess-1')).toBe(1)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3628003766
+  it('reports hydration failure and permits a later retry for Issue #2085', async () => {
+    const meta: ChatSessionMeta = {
+      sessionId: 'sess-1',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    getSessionMock
+      .mockRejectedValueOnce(new Error('IndexedDB read failed'))
+      .mockResolvedValueOnce(null)
+
+    userIdRef.value = 'local'
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: '',
+      sessionMessages: {},
+      sessionMetas: { 'sess-1': meta },
+      index: null,
+    })
+
+    await expect(store.loadSession('sess-1')).resolves.toBe(false)
+    await expect(store.loadSession('sess-1')).resolves.toBe(true)
+
+    expect(getSessionMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('chat-session-store · cloud placeholder hydration', () => {
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743502032
+  it('retries cloud hydration when the reconcile pull for an adopted placeholder fails for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Reconcile creates a system-only placeholder before its first cloud pull.
+    // If that pull fails, loadSession sees the message-map entry and marks the
+    // placeholder as loaded. Selecting the chat then skips every later pull.
+    const localMeta: ChatSessionMeta = {
+      sessionId: 'local-session',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const remoteChat = {
+      id: 'remote-session',
+      type: 'bot' as const,
+      title: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+    userIdRef.value = 'cloud-user'
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: {
+        default: {
+          activeSessionId: localMeta.sessionId,
+          sessions: { [localMeta.sessionId]: localMeta },
+        },
+      },
+    })
+    getSessionMock.mockImplementation((sessionId) => {
+      if (sessionId === remoteChat.id) {
+        return Promise.resolve({
+          meta: {
+            sessionId: remoteChat.id,
+            userId: 'cloud-user',
+            characterId: 'default',
+            createdAt: Date.parse(remoteChat.createdAt),
+            updatedAt: Date.parse(remoteChat.updatedAt),
+            cloudChatId: remoteChat.id,
+          },
+          messages: [],
+        })
+      }
+      return Promise.resolve({ meta: localMeta, messages: [] })
+    })
+    listChatsMock.mockResolvedValue([remoteChat])
+    reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [remoteChat], claim: [], create: [] })
+    pullMessagesMock
+      .mockRejectedValueOnce(new Error('temporary cloud failure'))
+      .mockResolvedValueOnce({ messages: [], seq: 0 })
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    expect(cloudStatusListener).toBeDefined()
+
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(store.cloudSyncReady).toBe(true)
+    })
+    expect(pullMessagesMock).toHaveBeenCalledTimes(1)
+
+    await store.setActiveSession(remoteChat.id)
+
+    expect(pullMessagesMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('chat-session-store · cloud deletion', () => {
+  it('tombstones an unmapped cloud session before an in-flight create can finish', async () => {
+    // ROOT CAUSE:
+    //
+    // A newly created cloud session can be deleted before POST /chats binds
+    // its cloud id. Without a tombstone for the deterministic session id, the
+    // completed remote create is adopted again by the next reconcile.
+    userIdRef.value = 'cloud-user'
+    const deleted: ChatSessionMeta = {
+      sessionId: 'pending-cloud-session',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const survivor: ChatSessionMeta = {
+      sessionId: 'surviving-session',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'surviving-session',
+      sessionMessages: { 'pending-cloud-session': [], 'surviving-session': [] },
+      sessionMetas: { 'pending-cloud-session': deleted, 'surviving-session': survivor },
+      index: {
+        userId: 'cloud-user',
+        characters: {
+          default: {
+            activeSessionId: 'pending-cloud-session',
+            sessions: { 'pending-cloud-session': deleted, 'surviving-session': survivor },
+          },
+        },
+      },
+    })
+
+    await store.deleteSession('pending-cloud-session')
+
+    expect(addTombstoneMock).toHaveBeenCalledWith('cloud-user', 'pending-cloud-session')
+    expect(deleteCloudChatMock).not.toHaveBeenCalled()
+  })
+})
+
 describe('chat-session-store · active card prompt edits', () => {
   // ROOT CAUSE:
   //
@@ -394,6 +704,257 @@ describe('chat-session-store · active card prompt edits', () => {
 })
 
 describe('chat-session-store · synchronized data actions', () => {
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755711151
+  it('keeps cloud synchronization in the elected leader for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Window-local initialization opened a cloud WebSocket in every window.
+    // Follower callbacks then proposed direct full-state mutations.
+    const store = useChatSessionStore()
+    store.setCloudSyncOwnership(false)
+    await store.initialize()
+
+    userIdRef.value = 'cloud-user'
+    await nextTick()
+    expect(connectCloudWsMock).not.toHaveBeenCalled()
+
+    store.setCloudSyncOwnership(true)
+    expect(connectCloudWsMock).toHaveBeenCalledTimes(1)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743242525
+  it('initializes a new window selection from the synchronized index for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // `ready` was synchronized while selection was not. A joining window saw
+    // the leader's ready flag, skipped initialization, and remained on an
+    // empty local selection.
+    const session: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    store.$patch({
+      sessionMessages: { 'session-b': [{ id: 'system', role: 'system', content: 'prompt' }] },
+      sessionMetas: { 'session-b': session },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-b',
+            sessions: { 'session-b': session },
+          },
+        },
+      },
+    })
+
+    expect(store.$state).not.toHaveProperty('ready')
+    expect(store.activeSessionId).toBe('')
+
+    await store.initialize()
+
+    expect(store.activeSessionId).toBe('session-b')
+    expect(store.isReady).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743242529
+  it('trusts synchronized messages instead of merging a stale follower IDB record for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Follower hydration read its own older IndexedDB record and mutated the
+    // fully synchronized store, allowing that stale snapshot to overwrite the
+    // leader's newer messages or resurrect a deleted session.
+    const session: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 2,
+    }
+    getSessionMock.mockResolvedValue({
+      meta: { ...session, updatedAt: 1 },
+      messages: [{ id: 'stale', role: 'user', content: 'stale follower data' }],
+    })
+    const store = useChatSessionStore()
+    store.$patch({
+      sessionMessages: {
+        'session-b': [{ id: 'current', role: 'assistant', content: 'leader data', slices: [], tool_results: [] }],
+      },
+      sessionMetas: { 'session-b': session },
+    })
+
+    await expect(store.loadSession('session-b')).resolves.toBe(true)
+
+    expect(getSessionMock).not.toHaveBeenCalled()
+    expect(store.getSessionMessagesIfLoaded('session-b')?.map(message => message.id)).toEqual(['current'])
+  })
+
+  it('refreshes an already loaded session from IndexedDB for a completed remote stream', async () => {
+    const session: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-b': [{ id: 'system', role: 'system', content: 'prompt' }] },
+      sessionMetas: { 'session-b': session },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-b',
+            sessions: { 'session-b': session },
+          },
+        },
+      },
+    })
+    getSessionMock.mockResolvedValue({
+      meta: session,
+      messages: [
+        { id: 'system', role: 'system', content: 'prompt' },
+        { id: 'assistant', role: 'assistant', content: 'complete answer', slices: [], tool_results: [] },
+      ],
+    })
+
+    await expect(store.refreshSession('session-b')).resolves.toBe(true)
+
+    expect(getSessionMock).toHaveBeenCalledWith('session-b')
+    expect(store.getSessionMessages('session-b').map(message => message.id)).toEqual(['system', 'assistant'])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121862
+  it('moves a follower away from a session removed by another window for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Synchronized deletion removed B's metadata, but activeSessionId is
+    // intentionally window-local. A follower that also selected B therefore
+    // kept an invalid selection until it manually chose another session.
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const sessionB: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-a': [], 'session-b': [] },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-a',
+            sessions: { 'session-a': sessionA, 'session-b': sessionB },
+          },
+        },
+      },
+    })
+    await nextTick()
+
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-a': [] },
+      sessionMetas: { 'session-a': sessionA },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-a',
+            sessions: { 'session-a': sessionA },
+          },
+        },
+      },
+    })
+    await nextTick()
+
+    expect(store.activeSessionId).toBe('session-a')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743221033
+  it('waits for the leader replacement when every window loses its last session for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Every follower independently created a replacement when synchronized
+    // deletion temporarily left no metadata. Multiple windows could therefore
+    // turn one deletion into several empty chats before state converged.
+    const removedSession: ChatSessionMeta = {
+      sessionId: 'session-b',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const replacementSession: ChatSessionMeta = {
+      sessionId: 'session-c',
+      userId: 'local',
+      characterId: 'default',
+      createdAt: 2,
+      updatedAt: 2,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-b': [] },
+      sessionMetas: { 'session-b': removedSession },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-b',
+            sessions: { 'session-b': removedSession },
+          },
+        },
+      },
+    })
+    await nextTick()
+    saveSessionMock.mockClear()
+
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: {},
+      sessionMetas: {},
+      index: { userId: 'local', characters: {} },
+    })
+    await nextTick()
+
+    expect(saveSessionMock).not.toHaveBeenCalled()
+    expect(store.activeSessionId).toBe('session-b')
+
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-c': [] },
+      sessionMetas: { 'session-c': replacementSession },
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'session-c',
+            sessions: { 'session-c': replacementSession },
+          },
+        },
+      },
+    })
+    await nextTick()
+
+    expect(store.activeSessionId).toBe('session-c')
+  })
+
   it('deletes a message by its stable id from the specified session', async () => {
     const store = useChatSessionStore()
     store.applyRemoteSnapshot({
@@ -415,11 +976,29 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.getSessionMessages('session-1').map(message => message.id)).toEqual(['keep'])
   })
 
-  it('keeps the active session outside synchronized session state', () => {
+  it('keeps window-local selection out of synchronized and persisted session state', async () => {
     const store = useChatSessionStore()
-    store.activeSessionId = 'window-local-session'
+    store.applyRemoteSnapshot({
+      activeSessionId: 'persisted-session',
+      index: {
+        userId: 'local',
+        characters: {
+          default: {
+            activeSessionId: 'persisted-session',
+            sessions: {},
+          },
+        },
+      },
+      sessionMessages: {
+        'window-local-session': [{ id: 'system', role: 'system', content: 'prompt' }],
+      },
+      sessionMetas: {},
+    })
+
+    await store.setActiveSession('window-local-session')
 
     expect(store.activeSessionId).toBe('window-local-session')
     expect(store.$state).not.toHaveProperty('activeSessionId')
+    expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('persisted-session')
   })
 })

@@ -55,7 +55,7 @@ export function normalizeProviderVoiceForCatalog(value: unknown) {
 }
 
 export function catalogVoiceResponse(voice: ProviderCatalogTtsVoice) {
-  // NOTICE: Admin-generated previews may temporarily live as data URIs until
+  // NOTICE: Management previews can temporarily live as data URIs until
   // object storage is wired. Public voice catalogs stay lightweight and only
   // expose provider or storage URLs.
   const previewAudioUrl = voice.previewAudioUrl?.startsWith('data:') ? undefined : voice.previewAudioUrl

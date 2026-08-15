@@ -9,7 +9,7 @@ export const user = pgTable('user', {
   image: text('image'),
   // better-auth `admin` plugin fields. Field names must match the plugin's
   // schema (role/banned/banReason/banExpires) so its drizzle adapter resolves
-  // them. `role` gates /admin/* (role === 'admin'); `banned` is enforced by the
+  // them. `role` preserves the admin plugin contract; `banned` is enforced by the
   // plugin at session.create.before AND re-checked on the OIDC JWT hot path
   // (resolveRequestAuth / userinfo guard). Roles are granted out-of-band
   // (manual DB update) — there is no env allowlist anymore.

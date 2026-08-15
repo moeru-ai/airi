@@ -13,17 +13,6 @@ import { createUnauthorizedError } from '../utils/error'
  */
 export function sessionMiddleware(db: Database, env: Env): MiddlewareHandler<HonoEnv> {
   return async (c, next) => {
-    // Admin UI routes are public redirects. Authorization is enforced by the
-    // API endpoints they call, so avoid unnecessary token work here.
-    if (
-      c.req.path.startsWith('/admin/')
-      || c.req.path === '/admin'
-    ) {
-      c.set('user', null)
-      c.set('session', null)
-      return await next()
-    }
-
     const session = await resolveRequestAuth(db, env, c.req.raw.headers)
 
     if (!session) {

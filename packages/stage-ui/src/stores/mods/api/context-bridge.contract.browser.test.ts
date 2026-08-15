@@ -19,6 +19,7 @@ const beginStreamMock = vi.fn()
 const appendStreamLiteralMock = vi.fn()
 const finalizeStreamMock = vi.fn()
 const resetStreamMock = vi.fn()
+const refreshSessionMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
 const onReconnectedMock = vi.fn(() => () => {})
@@ -157,6 +158,7 @@ function createContextUpdateEvent(overrides: Record<string, unknown> = {}) {
 }
 
 const chatOrchestratorMock = {
+  activeSendSessionId: undefined as string | undefined,
   sending: false,
   ingest: vi.fn(),
 
@@ -237,6 +239,7 @@ vi.mock('../../chat/session-store', () => ({
       return activeSessionIdRef.value
     },
     getSessionGenerationValue: () => currentGeneration,
+    refreshSession: (sessionId: string) => refreshSessionMock(sessionId),
   }),
 }))
 
@@ -291,6 +294,7 @@ describe('context bridge contract', () => {
     appendStreamLiteralMock.mockReset()
     finalizeStreamMock.mockReset()
     resetStreamMock.mockReset()
+    refreshSessionMock.mockReset().mockResolvedValue(true)
     serverSendMock.mockReset()
     ensureConnectedMock.mockClear()
     ensureConnectedMock.mockResolvedValue(undefined)
@@ -304,6 +308,7 @@ describe('context bridge contract', () => {
     activeProviderRef.value = null
     activeModelRef.value = null
     activeSessionIdRef.value = 'session-1'
+    chatOrchestratorMock.activeSendSessionId = undefined
     currentGeneration = 7
     chatOrchestratorMock.sending = false
 
@@ -325,10 +330,6 @@ describe('context bridge contract', () => {
     closeTestChannels()
   })
 
-  /**
-   * @example
-   * Broadcast context updates record store-ingested with core result fields.
-   */
   it('records core ingest result for broadcast context updates', async () => {
     chatContextIngestMock.mockReturnValueOnce({
       sourceKey: 'weather:station-1',
@@ -361,10 +362,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  /**
-   * @example
-   * Server context updates record store-ingested before broadcast-posted.
-   */
   it('records core ingest result for server context updates before broadcasting', async () => {
     chatContextIngestMock.mockReturnValueOnce({
       sourceKey: 'weather:station-1',
@@ -399,10 +396,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  /**
-   * @example
-   * Input context updates record store-ingested and stay in chat input payload.
-   */
   it('records core ingest result for input context updates and forwards accepted updates', async () => {
     chatContextIngestMock.mockReturnValueOnce({
       sourceKey: 'weather:station-1',
@@ -453,10 +446,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  /**
-   * @example
-   * Broadcast context ingest failures record store-ingest-rejected instead of escaping.
-   */
   it('records rejected lifecycle for broadcast ingest failures without interrupting the watcher', async () => {
     chatContextIngestMock.mockImplementationOnce(() => {
       throw new Error('Cannot clone broadcast context')
@@ -485,10 +474,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  /**
-   * @example
-   * Server context ingest failures are not rebroadcast.
-   */
   it('records rejected lifecycle and skips broadcast when server context ingest fails', async () => {
     chatContextIngestMock.mockImplementationOnce(() => {
       throw new Error('Cannot clone server context')
@@ -520,10 +505,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  /**
-   * @example
-   * Input context ingest failures drop only the failed context update.
-   */
   it('records rejected lifecycle and continues text ingestion when input context ingest fails', async () => {
     chatContextIngestMock.mockImplementationOnce(() => {
       throw new Error('Cannot clone input context')
@@ -562,7 +543,14 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  it('replays remote stream lifecycle into sending and stream store APIs', async () => {
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366445
+  it('keeps a remote stream visible locally without publishing chat authority state for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Stage Pocket uses plain Pinia, so remote stream tokens update only the
+    // local stream store. The history requires a sending flag, but writing
+    // that flag to the synchronized chat store would let a follower overwrite
+    // the elected authority's stream snapshot.
     const store = useContextBridgeStore()
     await store.initialize()
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
@@ -574,18 +562,19 @@ describe('context bridge contract', () => {
       composedMessage: [],
     } satisfies ChatStreamEventContext
 
-    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
     await vi.waitFor(() => {
-      expect(chatOrchestratorMock.sending).toBe(true)
       expect(beginStreamMock).toHaveBeenCalledWith('turn-1')
     })
+    expect(chatOrchestratorMock.sending).toBe(false)
+    expect(store.isReceivingRemoteStream).toBe(true)
 
-    streamSender.postMessage({ type: 'token-literal', literal: 'hello', sessionId: 'remote-session', context })
+    streamSender.postMessage({ type: 'token-literal', literal: 'hello', sessionId: 'session-1', context })
     await vi.waitFor(() => {
       expect(appendStreamLiteralMock).toHaveBeenCalledWith('hello')
     })
 
-    streamSender.postMessage({ type: 'assistant-end', message: 'final answer', sessionId: 'remote-session', context })
+    streamSender.postMessage({ type: 'assistant-end', message: 'final answer', sessionId: 'session-1', context })
     await vi.waitFor(() => {
       expect(resetStreamMock).toHaveBeenCalledTimes(1)
     })
@@ -594,6 +583,7 @@ describe('context bridge contract', () => {
     // to avoid corrupting history by persisting a duplicate assistant message.
     expect(finalizeStreamMock).not.toHaveBeenCalled()
     expect(chatOrchestratorMock.sending).toBe(false)
+    expect(store.isReceivingRemoteStream).toBe(false)
 
     await store.dispose()
   })
@@ -624,6 +614,166 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('labels outbound stream events with the session that owns the send', async () => {
+    const outgoingStreamMessages = collectChannelMessages<{ sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    chatOrchestratorMock.activeSendSessionId = 'session-a'
+    activeSessionIdRef.value = 'session-b'
+    await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
+    await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))
+
+    expect(outgoingStreamMessages[0]?.sessionId).toBe('session-a')
+    await store.dispose()
+  })
+
+  it('clears remote stream visibility when an end hook rejects', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+    chatOrchestratorMock.onStreamEnd(async () => {
+      throw new Error('end hook failed')
+    })
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(false))
+
+    expect(resetStreamMock).toHaveBeenCalledTimes(1)
+    await store.dispose()
+  })
+
+  it('ignores stream events that do not match the active remote session', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+    streamSender.postMessage({ type: 'token-literal', literal: 'foreign token', sessionId: 'session-2', context })
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'session-2', context })
+    await waitForBroadcastDelivery()
+
+    expect(appendStreamLiteralMock).not.toHaveBeenCalledWith('foreign token')
+    expect(store.isReceivingRemoteStream).toBe(true)
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(false))
+    await store.dispose()
+  })
+
+  it('does not replace the foreground stream for an inactive remote session', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      turnId: 'turn-2',
+      message: { role: 'user', content: 'background ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'background ping', sessionId: 'session-2', context })
+    await waitForBroadcastDelivery()
+    expect(beginStreamMock).not.toHaveBeenCalled()
+    expect(store.isReceivingRemoteStream).toBe(false)
+
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'session-2', context })
+    await waitForBroadcastDelivery()
+    expect(resetStreamMock).not.toHaveBeenCalled()
+    await store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755585351
+  it('keeps remote literals received before a mid-stream session switch for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // The bridge discarded literals while their session was not selected.
+    // Selecting that session during the stream showed only later literals.
+    activeSessionIdRef.value = 'session-2'
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      turnId: 'turn-3',
+      message: { role: 'user', content: 'background ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'background ping', sessionId: 'session-1', context })
+    streamSender.postMessage({ type: 'token-literal', literal: 'first half ', sessionId: 'session-1', context })
+    await waitForBroadcastDelivery()
+    expect(beginStreamMock).not.toHaveBeenCalled()
+    expect(appendStreamLiteralMock).not.toHaveBeenCalled()
+
+    activeSessionIdRef.value = 'session-1'
+    streamSender.postMessage({ type: 'token-literal', literal: 'second half', sessionId: 'session-1', context })
+
+    await vi.waitFor(() => expect(appendStreamLiteralMock).toHaveBeenCalledTimes(2))
+    expect(beginStreamMock).toHaveBeenCalledWith('turn-3')
+    expect(appendStreamLiteralMock).toHaveBeenNthCalledWith(1, 'first half ')
+    expect(appendStreamLiteralMock).toHaveBeenNthCalledWith(2, 'second half')
+
+    await store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3755711154
+  it('reloads a completed remote stream when its Pocket session becomes active for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // A plain-Pinia Pocket tab discarded a completed background stream.
+    // Its loaded-session cache then prevented a later IndexedDB refresh.
+    activeSessionIdRef.value = 'session-1'
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      turnId: 'turn-4',
+      message: { role: 'user', content: 'background ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'background ping', sessionId: 'session-2', context })
+    streamSender.postMessage({ type: 'token-literal', literal: 'complete answer', sessionId: 'session-2', context })
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'session-2', context })
+    streamSender.postMessage({ type: 'assistant-end', message: 'complete answer', sessionId: 'session-2', context })
+    await waitForBroadcastDelivery()
+
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(resetStreamMock).not.toHaveBeenCalled()
+
+    activeSessionIdRef.value = 'session-2'
+    await vi.waitFor(() => expect(refreshSessionMock).toHaveBeenCalledWith('session-2'))
+    await vi.waitFor(() => expect(resetStreamMock).toHaveBeenCalledTimes(1))
+    expect(beginStreamMock).toHaveBeenCalledWith('turn-4')
+    expect(appendStreamLiteralMock).toHaveBeenCalledWith('complete answer')
+    expect(store.isReceivingRemoteStream).toBe(false)
+
+    await store.dispose()
+  })
+
   it('ignores remote literal and end events when generation guard is stale', async () => {
     const store = useContextBridgeStore()
     await store.initialize()
@@ -636,21 +786,22 @@ describe('context bridge contract', () => {
       composedMessage: [],
     } satisfies ChatStreamEventContext
 
-    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'remote-session', context })
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
     await vi.waitFor(() => {
       expect(beginStreamMock).toHaveBeenCalledWith('turn-1')
     })
 
     currentGeneration = 8
-    streamSender.postMessage({ type: 'token-literal', literal: 'stale-literal', sessionId: 'remote-session', context })
+    streamSender.postMessage({ type: 'token-literal', literal: 'stale-literal', sessionId: 'session-1', context })
     await waitForBroadcastDelivery()
 
-    streamSender.postMessage({ type: 'stream-end', sessionId: 'remote-session', context })
+    streamSender.postMessage({ type: 'stream-end', sessionId: 'session-1', context })
     await waitForBroadcastDelivery()
 
     expect(appendStreamLiteralMock).not.toHaveBeenCalledWith('stale-literal')
     expect(finalizeStreamMock).not.toHaveBeenCalled()
-    expect(chatOrchestratorMock.sending).toBe(true)
+    expect(chatOrchestratorMock.sending).toBe(false)
+    expect(store.isReceivingRemoteStream).toBe(false)
 
     await store.dispose()
   })

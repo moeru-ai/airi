@@ -79,6 +79,7 @@ const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
+chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
 const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
 const isSettingsWindowRoute = initialWindowRoutePath === '/settings' || initialWindowRoutePath.startsWith('/settings/')
 const isEditorWindowRoute = initialWindowRoutePath === '/editor'
@@ -99,7 +100,8 @@ async function refreshPluginRuntimeTools() {
 
 // Every renderer creates the runtime tool stores because every renderer can
 // become the leader. Only the leader discovers tools and keeps executors.
-const stopToolLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
+const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
+  chatSessionStore.setCloudSyncOwnership(isLeader)
   if (!isLeader)
     return
 
@@ -313,7 +315,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  stopToolLeadershipListener?.()
+  stopLeadershipListener?.()
   fullStageRuntime?.dispose()
 })
 </script>

@@ -142,11 +142,6 @@ function createHarness() {
   }
 }
 
-/**
- * @example
- * const runtime = createChatOrchestratorRuntime(deps)
- * await runtime.ingest('hello', { model, chatProvider })
- */
 describe('createChatOrchestratorRuntime', () => {
   // ROOT CAUSE:
   //
@@ -290,10 +285,6 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
-  /**
-   * @example
-   * Hook order and prompt composition stay compatible with the stage-ui facade.
-   */
   it('keeps hook order and appends context prompt to the latest user message', async () => {
     const harness = createHarness()
     harness.contextSnapshot['system:weather'] = [
@@ -447,11 +438,6 @@ describe('createChatOrchestratorRuntime', () => {
     expect(legacyUserMessage.createdAt).toBe(new Date(2026, 3, 25, 18, 47).getTime())
   })
 
-  /**
-   * @example
-   * deps.getSystemPromptSupplement() returns tool guidance.
-   * The runtime appends it to the existing provider system message.
-   */
   it('appends system prompt supplement to the provider system message', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []
@@ -473,11 +459,6 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
-  /**
-   * @example
-   * A session has only user history.
-   * The runtime creates a provider system message for supplemental guidance.
-   */
   it('creates a system message when only a system prompt supplement is available', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []
@@ -501,10 +482,6 @@ describe('createChatOrchestratorRuntime', () => {
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
   })
 
-  /**
-   * @example
-   * Runtime telemetry callbacks expose client-visible latency milestones.
-   */
   it('emits telemetry milestones for a successful voice-backed message round', async () => {
     const harness = createHarness()
     harness.monotonicNow.set([100, 150, 250, 400, 460])
@@ -626,10 +603,6 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.telemetry.messageRound).toHaveLength(2)
   })
 
-  /**
-   * @example
-   * await expect(runtime.ingest('hello', { model, chatProvider })).rejects.toThrow('provider rejected')
-   */
   it('emits chat activation failure telemetry without raw provider messages', async () => {
     const harness = createHarness()
     harness.stream.mockRejectedValueOnce(new Error('provider rejected with sensitive details'))
@@ -696,10 +669,6 @@ describe('createChatOrchestratorRuntime', () => {
     ])
   })
 
-  /**
-   * @example
-   * Cancelling a queued send rejects only pending work that has not started.
-   */
   it('rejects cancelled queued sends before they start', async () => {
     const harness = createHarness()
     let releaseFirstSend: (() => void) | undefined
@@ -731,10 +700,57 @@ describe('createChatOrchestratorRuntime', () => {
     await firstSend
   })
 
-  /**
-   * @example
-   * A queued send rejects if its captured session generation becomes stale.
-   */
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3714754876
+  it('suppresses completion hooks when an active send session is deleted for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Generation checks protected message mutation during a stream, but the
+    // runtime still emitted completion hooks and success analytics after the
+    // provider returned for a deleted session.
+    const harness = createHarness()
+    const completionHook = vi.fn()
+    harness.runtime.hooks.onStreamEnd(completionHook)
+    harness.runtime.hooks.onAssistantResponseEnd(completionHook)
+    harness.runtime.hooks.onAfterSend(completionHook)
+    harness.runtime.hooks.onAssistantMessage(completionHook)
+    harness.runtime.hooks.onChatTurnComplete(completionHook)
+
+    let finishStream: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await new Promise<void>((resolve) => {
+        finishStream = resolve
+      })
+      options?.onUsage?.({
+        inputTokens: 1,
+        outputTokens: 1,
+        totalTokens: 2,
+        source: 'reported',
+      })
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'deleted reply' })
+      await options?.onStreamEvent?.({ type: 'finish', finishReason: 'stop' })
+    })
+
+    const pendingSend = harness.runtime.ingest('delete this chat', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+    harness.generation.set(2)
+    finishStream?.()
+    await pendingSend
+
+    expect(completionHook).not.toHaveBeenCalled()
+    expect(harness.assistantAppended).toEqual([])
+    expect(harness.assistantTurns).toEqual([])
+    expect(harness.telemetry.assistantResponseRendered).toEqual([])
+    expect(harness.telemetry.llmGeneration).toEqual([])
+    expect(harness.telemetry.messageRound).toEqual([])
+    expect(harness.telemetry.chatActivationSucceeded).toEqual([])
+  })
+
   it('rejects stale generation sends before they start', async () => {
     const harness = createHarness()
     let releaseFirstSend: (() => void) | undefined
@@ -767,17 +783,14 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
-  /**
-   * @example
-   * runtime.setSending(true)
-   * expect(runtime.getSending()).toBe(true)
-   */
   it('keeps sending externally writable for UI facades', () => {
     const harness = createHarness()
 
     harness.runtime.setSending(true)
     expect(harness.runtime.getSending()).toBe(true)
     expect(harness.stateChanges.at(-1)).toEqual({
+      activeSendSessionId: 'session-1',
+      activeStreamingMessage: undefined,
       sending: true,
       pendingQueuedSendCount: 0,
     })
@@ -785,16 +798,66 @@ describe('createChatOrchestratorRuntime', () => {
     harness.runtime.setSending(false)
     expect(harness.runtime.getSending()).toBe(false)
     expect(harness.stateChanges.at(-1)).toEqual({
+      activeSendSessionId: undefined,
+      activeStreamingMessage: undefined,
       sending: false,
       pendingQueuedSendCount: 0,
     })
   })
 
-  /**
-   * @example
-   * const snapshot = runtime.getPendingQueuedSendSnapshot()
-   * expect(snapshot[0].inputType).toBe('input:text')
-   */
+  // https://github.com/moeru-ai/airi/issues/2085
+  it('reports the queued send target while a background session is sending for Issue #2085', async () => {
+    // ROOT CAUSE:
+    //
+    // Runtime state exposed only a global sending boolean. A window-level sync
+    // layer therefore had to infer the owner from the authority's visible
+    // session, which is wrong when a follower targets a background session.
+    const harness = createHarness()
+    let finishSend: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'background reply' })
+      await new Promise<void>((resolve) => {
+        finishSend = resolve
+      })
+    })
+
+    const pendingSend = harness.runtime.ingest('background request', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, 'session-2')
+
+    await vi.waitFor(() => {
+      expect(harness.stateChanges).toContainEqual(expect.objectContaining({
+        activeSendSessionId: 'session-2',
+        activeStreamingMessage: expect.objectContaining({
+          role: 'assistant',
+          createdAt: expect.any(Number),
+        }),
+        sending: true,
+        pendingQueuedSendCount: 0,
+      }))
+    })
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(1)
+    })
+    await vi.waitFor(() => {
+      expect(harness.stateChanges).toContainEqual(expect.objectContaining({
+        activeSendSessionId: 'session-2',
+        activeStreamingMessage: expect.objectContaining({ content: expect.stringContaining('background') }),
+      }))
+    })
+
+    finishSend?.()
+    await pendingSend
+
+    expect(harness.stateChanges.at(-1)).toEqual({
+      activeSendSessionId: undefined,
+      activeStreamingMessage: undefined,
+      sending: false,
+      pendingQueuedSendCount: 0,
+    })
+  })
+
   it('returns pending queued send snapshots with public fields', async () => {
     const harness = createHarness()
     let releaseFirstSend: (() => void) | undefined
@@ -852,10 +915,6 @@ describe('createChatOrchestratorRuntime', () => {
     await firstSend
   })
 
-  /**
-   * @example
-   * Attachments, reasoning deltas, and tool events update the assistant builder.
-   */
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []

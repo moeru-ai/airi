@@ -12,7 +12,7 @@ import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref, toRaw, watch } from 'vue'
+import { computed, ref, shallowRef, toRaw, watch } from 'vue'
 
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
@@ -89,9 +89,60 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const { post: postSparkNotifyBridgeMessage, data: incomingSparkNotifyBridgeMessage } = useBroadcastChannel<SparkNotifyBridgeMessage, SparkNotifyBridgeMessage>({ name: SPARK_NOTIFY_BRIDGE_CHANNEL_NAME })
 
   const disposeHookFns = ref<Array<() => void>>([])
-  let remoteStreamGuard: { sessionId: string, generation: number } | null = null
+  // Remote stream data belongs to this renderer only. Keeping its visibility
+  // outside the synchronized chat store prevents a follower from publishing
+  // its local runtime state over the elected authority's snapshot.
+  const remoteStreamGuard = shallowRef<{
+    sessionId: string
+    generation: number
+    turnId: string
+    started: boolean
+    completed: boolean
+    refreshing: boolean
+    pendingLiterals: string[]
+  }>()
+  const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
   let initialized = false
+
+  function presentRemoteStreamIfActive() {
+    const guard = remoteStreamGuard.value
+    if (!guard || guard.sessionId !== chatSession.activeSessionId)
+      return false
+    if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+      return false
+
+    if (!guard.started) {
+      guard.started = true
+      chatStream.beginStream(guard.turnId)
+    }
+    for (const literal of guard.pendingLiterals.splice(0))
+      chatStream.appendStreamLiteral(literal)
+    if (guard.completed && !guard.refreshing)
+      void refreshCompletedRemoteStream(guard)
+    return true
+  }
+
+  async function refreshCompletedRemoteStream(guard: NonNullable<typeof remoteStreamGuard.value>) {
+    guard.refreshing = true
+    let loaded = false
+    try {
+      loaded = await chatSession.refreshSession(guard.sessionId)
+    }
+    catch (error) {
+      console.warn('[context-bridge] Failed to refresh completed remote stream:', errorMessageFrom(error))
+    }
+    if (remoteStreamGuard.value !== guard)
+      return
+    guard.refreshing = false
+    if (!loaded || guard.sessionId !== chatSession.activeSessionId)
+      return
+    if (chatSession.getSessionGenerationValue(guard.sessionId) !== guard.generation)
+      return
+
+    chatStream.resetStream()
+    remoteStreamGuard.value = undefined
+  }
 
   function recordContextIngestRejected(options: {
     channel: 'server' | 'broadcast' | 'input'
@@ -699,49 +750,49 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
@@ -794,7 +845,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         isProcessingRemoteStream = true
 
         try {
-          // Use the receiver's active session to avoid clobbering chat state when events come from other windows/devtools.
+          // Remote UI state is correlated by session and generation. The
+          // receiver never persists these mirrored stream events.
           switch (event.type) {
             case 'before-compose':
               await chatOrchestrator.emitBeforeMessageComposedHooks(event.message, event.context)
@@ -804,58 +856,99 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'before-send':
               await chatOrchestrator.emitBeforeSendHooks(event.message, event.context)
-              remoteStreamGuard = {
-                sessionId: chatSession.activeSessionId,
-                generation: chatSession.getSessionGenerationValue(chatSession.activeSessionId),
+              remoteStreamGuard.value = {
+                sessionId: event.sessionId,
+                generation: chatSession.getSessionGenerationValue(event.sessionId),
+                turnId: event.context.turnId,
+                started: false,
+                completed: false,
+                refreshing: false,
+                pendingLiterals: [],
               }
-              chatOrchestrator.sending = true
-              chatStream.beginStream(event.context.turnId)
+              presentRemoteStreamIfActive()
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
               break
             case 'token-literal':
-              if (!remoteStreamGuard)
+              if (!remoteStreamGuard.value)
                 return
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
+              if (event.sessionId !== remoteStreamGuard.value.sessionId)
                 return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
                 return
-              chatStream.appendStreamLiteral(event.literal)
+              remoteStreamGuard.value.pendingLiterals.push(event.literal)
+              if (!presentRemoteStreamIfActive())
+                return
               await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
               break
             case 'token-special':
+              if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)
+                return
+              if (remoteStreamGuard.value.sessionId !== chatSession.activeSessionId)
+                return
+              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
+                return
               await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
               break
             case 'stream-end':
-              if (!remoteStreamGuard)
+              if (!remoteStreamGuard.value)
                 break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitStreamEndHooks(event.context)
-              // NOTICE: Remote stream events are mirrored across renderer windows for UI feedback only.
-              // Persisting them here would append assistant messages into the receiver's local session
-              // without the corresponding user message, corrupting IndexedDB history across windows.
-              chatStream.resetStream()
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
+              {
+                const guard = remoteStreamGuard.value
+                if (event.sessionId !== guard.sessionId)
+                  break
+                if (guard.sessionId !== chatSession.activeSessionId
+                  && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                  break
+                }
+                try {
+                  if (guard.sessionId === chatSession.activeSessionId
+                    && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                    await chatOrchestrator.emitStreamEndHooks(event.context)
+                  }
+                }
+                finally {
+                  if (remoteStreamGuard.value === guard) {
+                    if (guard.started
+                      && guard.sessionId === chatSession.activeSessionId
+                      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                      chatStream.resetStream()
+                    }
+                    remoteStreamGuard.value = undefined
+                  }
+                }
+              }
               break
             case 'assistant-end':
-              if (!remoteStreamGuard)
+              if (!remoteStreamGuard.value)
                 break
-              if (remoteStreamGuard.sessionId !== chatSession.activeSessionId)
-                break
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.sessionId) !== remoteStreamGuard.generation)
-                break
-              await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
-              // NOTICE: The originating renderer already persists the final assistant message.
-              // Receiver windows must not write it again, or they can overwrite the same session
-              // with assistant-only history when their local session state is stale.
-              chatStream.resetStream()
-              chatOrchestrator.sending = false
-              remoteStreamGuard = null
+              {
+                const guard = remoteStreamGuard.value
+                if (event.sessionId !== guard.sessionId)
+                  break
+                if (guard.sessionId !== chatSession.activeSessionId
+                  && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                  guard.completed = true
+                  break
+                }
+                try {
+                  if (guard.sessionId === chatSession.activeSessionId
+                    && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                    await chatOrchestrator.emitAssistantResponseEndHooks(event.message, event.context)
+                  }
+                }
+                finally {
+                  if (remoteStreamGuard.value === guard) {
+                    if (guard.started
+                      && guard.sessionId === chatSession.activeSessionId
+                      && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
+                      chatStream.resetStream()
+                    }
+                    remoteStreamGuard.value = undefined
+                  }
+                }
+              }
               break
           }
         }
@@ -864,6 +957,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopIncomingStreamWatch)
+      disposeHookFns.value.push(watch(
+        () => chatSession.activeSessionId,
+        () => presentRemoteStreamIfActive(),
+        { flush: 'sync' },
+      ))
       initialized = true
     }
     catch (error) {
@@ -905,7 +1003,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       contextChannel = undefined
 
       initialized = false
-      remoteStreamGuard = null
+      remoteStreamGuard.value = undefined
 
       for (const [requestId, waiter] of sparkNotifyBridgeWaiters) {
         if (waiter.timeout)
@@ -925,6 +1023,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     dispose,
     dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,
+    isReceivingRemoteStream,
     setSparkNotifyHostRole,
   }
 })

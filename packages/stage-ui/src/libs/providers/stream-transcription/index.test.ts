@@ -3,6 +3,38 @@ import { describe, expect, it } from 'vitest'
 import { streamTranscription } from './index'
 
 describe('streamTranscription', () => {
+  it('sets half-duplex transport for the browser audio upload', async () => {
+    // ROOT CAUSE:
+    //
+    // Browser fetch requires `duplex: 'half'` when the request body is a
+    // ReadableStream. The official provider set this in its fetch wrapper,
+    // but that wrapper does not own this adapter's stream transport.
+    //
+    // Report: T-3, Official provider transcription does not work reliably.
+    let requestInit: RequestInit | undefined
+    const audioStream = new ReadableStream<ArrayBuffer>({
+      start(controller) {
+        controller.close()
+      },
+    })
+
+    const result = streamTranscription({
+      baseURL: 'https://example.invalid/transcription',
+      fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+        requestInit = init
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close()
+          },
+        }))
+      },
+      inputAudioStream: audioStream,
+    })
+
+    await expect(result.text).resolves.toBe('')
+    expect((requestInit as RequestInit & { duplex?: string }).duplex).toBe('half')
+  })
+
   it('parses split SSE chunks and joins transcription deltas', async () => {
     const encoder = new TextEncoder()
     const responseBody = new ReadableStream<Uint8Array>({

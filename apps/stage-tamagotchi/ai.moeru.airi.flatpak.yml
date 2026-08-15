@@ -24,25 +24,46 @@ finish-args:
   - --talk-name=org.freedesktop.portal.Desktop
   - --system-talk-name=org.freedesktop.login1
   - --system-talk-name=org.freedesktop.UPower
-  - --filesystem=home:rw
+  # Filesystem permissions
+  - --filesystem=xdg-download:rw
+  - --filesystem=xdg-config/airi:create
+  # Electron uses ~/.config/airi when XDG_CONFIG_HOME is not set.
+  - --filesystem=~/.config/airi:create
 
 modules:
   - name: AIRI-App
     buildsystem: simple
     build-commands:
       - mkdir -p /app/bin
-      - mkdir -p /app/bin/airi
-      - cp -r ./* /app/bin/airi/
+      - mkdir -p /app/lib/airi
+      - cp -r payload/. /app/lib/airi/
       - install airi.sh /app/bin/airi.sh
-      - chmod +x /app/bin/airi/airi.sh
-      - chmod +x /app/bin/airi/airi
+      - chmod +x /app/lib/airi/airi
+      # Desktop-file launches run Exec=airi directly inside the sandbox; the manifest
+      # `command` does not apply to them, so /app/bin/airi must be a real entry point
+      # that resolves to the zypak wrapper script.
+      - ln -s /app/bin/airi.sh /app/bin/airi
+      - install -Dm644 ai.moeru.airi.desktop /app/share/applications/ai.moeru.airi.desktop
+      - install -Dm644 ai.moeru.airi.metainfo.xml /app/share/metainfo/ai.moeru.airi.metainfo.xml
+      # build-export rejects icons larger than the hicolor size directory they land in,
+      # so Flatpak installs the 512x512 derivative while Electron keeps the 1024x1024 source.
+      - install -Dm644 build/icon-512.png /app/share/icons/hicolor/512x512/apps/ai.moeru.airi.png
     sources:
       - type: dir
         only-arches: [x86_64]
         path: dist/linux-unpacked
+        dest: payload
       - type: dir
         only-arches: [aarch64]
         path: dist/linux-arm64-unpacked
+        dest: payload
+      - type: file
+        path: ai.moeru.airi.desktop
+      - type: file
+        path: ai.moeru.airi.metainfo.xml
+      - type: file
+        path: build/icon-512.png
+        dest: build
       # First discovered by [@gg582](https://github.com/gg582) in https://github.com/moeru-ai/airi/pull/647
       #
       # Without the correct zypak-wrapper, application launch will result in this error:

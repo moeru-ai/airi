@@ -31,6 +31,8 @@ export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
 export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 
+const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
+
 /** Builds a route URL below the configured standalone Auth UI base. */
 export function buildAuthUiUrl(authUiUrl: string, path: string, search = ''): string {
   const target = new URL(authUiUrl)
@@ -70,6 +72,30 @@ export function buildAuthUiRedirectUrl(authUiUrl: string, requestUrl: string, ap
   if (apiServerUrl)
     target.searchParams.set(AUTH_UI_PUBLIC_URL_QUERY_PARAM, new URL(apiServerUrl).origin)
   return target.toString()
+}
+
+/** Restores a trusted mobile provider hint after the OIDC plugin builds its sign-in redirect. */
+function forwardAuthUiProviderHint(requestUrl: string, response: Response): Response {
+  const request = new URL(requestUrl)
+  const provider = request.searchParams.get('provider')
+  const location = response.headers.get('location')
+
+  if (response.status < 300 || response.status >= 400 || !provider || !FORWARDED_AUTH_UI_PROVIDERS.has(provider) || !location)
+    return response
+
+  const target = new URL(location, request)
+  if (target.origin !== request.origin || target.pathname !== `${SERVER_AUTH_UI_BASE_PATH}/sign-in`)
+    return response
+
+  target.searchParams.set('provider', provider)
+
+  const headers = new Headers(response.headers)
+  headers.set('location', location.startsWith('/') ? `${target.pathname}${target.search}${target.hash}` : target.toString())
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }
 
 const remoteJwksByUrl = new Map<string, ReturnType<typeof createRemoteJWKSet>>()
@@ -254,7 +280,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
     if (!(response instanceof Response))
       throw new TypeError('Expected auth handler to return a Response')
 
-    return response
+    return forwardAuthUiProviderHint(request.url, response)
   }
 
   return new Hono<HonoEnv>()
@@ -273,6 +299,8 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
       metrics: deps.rateLimitMetrics,
       routeLabel: 'auth.api',
     }))
+    .all('/api/auth/admin', c => c.notFound())
+    .all('/api/auth/admin/*', c => c.notFound())
     .use('/api/auth/oauth2/authorize', async (c, next) => {
       await ensureDynamicFirstPartyRedirectUri(deps.db, c.req.raw, deps.env.ADDITIONAL_TRUSTED_ORIGINS)
       await next()
