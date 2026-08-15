@@ -12,6 +12,7 @@ import {
   chatActivationSucceededEvent,
   llmFirstTokenEvent,
   llmRequestStartedEvent,
+  llmRetryAttemptEvent,
   messageRoundEvent,
   messageRoundFailedEvent,
   messageSendStartedEvent,
@@ -29,6 +30,7 @@ type ChatAnalyticsCallbacks = Pick<
   | 'onLlmFirstToken'
   | 'onLlmGeneration'
   | 'onLlmRequestStarted'
+  | 'onLlmRetryAttempt'
   | 'onMessageRound'
   | 'onMessageRoundFailed'
   | 'onMessageSendStarted'
@@ -81,6 +83,18 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
         turn_index: turnIndex,
         model,
         ttfb_ms: ttfbMs,
+      })
+    },
+    onLlmRetryAttempt: ({ conversationId, roundId, turnIndex, model, provider, attempt, delayMs, reason }) => {
+      analytics.emit(llmRetryAttemptEvent, {
+        conversation_id: conversationId,
+        round_id: roundId,
+        turn_index: turnIndex,
+        model,
+        provider,
+        attempt,
+        delay_ms: delayMs,
+        reason,
       })
     },
     onAssistantResponseRendered: ({ conversationId, roundId, turnIndex, model, latencyMs }) => {

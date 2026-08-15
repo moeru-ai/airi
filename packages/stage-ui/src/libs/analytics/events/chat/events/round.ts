@@ -22,6 +22,16 @@ export const llmFirstTokenEvent = defineEvent<ChatRoundProperties & {
   ttfb_ms: number
 }>('llm_first_token')
 
+export const llmRetryAttemptEvent = defineEvent<ChatRoundProperties & {
+  model: string
+  provider: string
+  /** 1-based index of the retry that is about to run. */
+  attempt: number
+  delay_ms: number
+  /** Coarse cause bucket the retry decision was based on, e.g. `rate-limited`, `server`, `network`. */
+  reason: string
+}>('llm_retry_attempt')
+
 export const assistantResponseRenderedEvent = defineEvent<ChatRoundProperties & {
   model: string
   latency_ms: number

@@ -2,7 +2,7 @@ import type { AnalyticsRecorder } from '../../index'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { aiGenerationEvent, messageSentEvent, secondTurnStartedEvent } from './events'
+import { aiGenerationEvent, llmRetryAttemptEvent, messageSentEvent, secondTurnStartedEvent } from './events'
 import { createChatAnalyticsHooks } from './runtime'
 
 function createRecorder(): AnalyticsRecorder {
@@ -93,6 +93,36 @@ describe('createChatAnalyticsHooks', () => {
       input_tokens: 12,
       output_tokens: 8,
       total_tokens: 20,
+    })
+  })
+
+  it('records a retry attempt with its backoff delay and classified reason', () => {
+    const analytics = createRecorder()
+    const hooks = createChatAnalyticsHooks({
+      analytics,
+      getSessionMessages: () => [],
+    })
+
+    hooks.onLlmRetryAttempt?.({
+      conversationId: 'session-1',
+      roundId: 'round-1',
+      turnIndex: 1,
+      model: 'gpt-test',
+      provider: 'official-provider-chat',
+      attempt: 1,
+      delayMs: 500,
+      reason: 'server',
+    })
+
+    expect(analytics.emit).toHaveBeenCalledWith(llmRetryAttemptEvent, {
+      conversation_id: 'session-1',
+      round_id: 'round-1',
+      turn_index: 1,
+      model: 'gpt-test',
+      provider: 'official-provider-chat',
+      attempt: 1,
+      delay_ms: 500,
+      reason: 'server',
     })
   })
 })
