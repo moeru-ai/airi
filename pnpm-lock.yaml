@@ -5425,6 +5425,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
+      '@proj-airi/config-shared':
+        specifier: workspace:*
+        version: link:../../packages/config-shared
       '@proj-airi/drizzle-migration':
         specifier: workspace:*
         version: link:../../packages/drizzle-migration
@@ -5573,6 +5576,9 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
+      '@proj-airi/config-shared':
+        specifier: workspace:*
+        version: link:../../packages/config-shared
       better-auth:
         specifier: 'catalog:'
         version: 1.6.25(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(better-sqlite3@12.5.0)(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))(pg@8.20.0)(react@19.2.3)(vitest@4.1.4)(vue@3.5.32(typescript@5.9.3))
@@ -5634,6 +5640,15 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
+
+  server/packages/config-shared:
+    dependencies:
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
+      ioredis:
+        specifier: 'catalog:'
+        version: 5.10.1
 
   server/packages/drizzle-migration:
     devDependencies:

@@ -6,6 +6,7 @@ import { useLogger } from '@guiiai/logg'
 import { drizzle } from 'drizzle-orm/node-postgres'
 
 import * as authSchema from '@proj-airi/auth-shared'
+import * as configSchema from '@proj-airi/config-shared'
 
 const logger = useLogger('db')
 
@@ -34,6 +35,6 @@ export function createAuthDrizzle(env: AuthDrizzleEnv) {
     logger.withError(error).error('Unexpected pool error on idle client')
   })
 
-  const db = drizzle(pool, { schema: authSchema })
+  const db = drizzle(pool, { schema: { ...authSchema, ...configSchema } })
   return { db, pool }
 }
