@@ -4,7 +4,6 @@ import type { AuthInstance } from './auth'
 import type { AuthDatabase } from './db'
 import type { AuthEnv } from './env'
 import type { RateLimitMetrics } from './otel'
-import type { AuthConfigService } from './rate-limit'
 import type { HonoEnv } from './routes'
 
 import process from 'node:process'
@@ -14,7 +13,6 @@ import Redis from 'ioredis'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { withRetry } from '@moeru/std'
-import { createConfigKVStore } from '@proj-airi/config-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -28,7 +26,6 @@ import { parseAuthEnv } from './env'
 import { ApiError, createInternalError } from './error'
 import { getTrustedOrigin } from './origin'
 import { emitOtelLog, initAuthOtel } from './otel'
-import { createAuthConfigService } from './rate-limit'
 import { createResourceApi } from './resource-api'
 import { createAuthRoutes } from './routes'
 
@@ -65,7 +62,6 @@ export interface AuthAppDeps {
   db: AuthDatabase
   redis: Redis
   env: AuthEnv
-  authConfig: AuthConfigService
   rateLimitMetrics?: RateLimitMetrics | null
 }
 
@@ -137,7 +133,6 @@ export async function buildAuthApp(deps: AuthAppDeps) {
       auth: deps.auth,
       db: deps.db,
       env: deps.env,
-      authConfig: deps.authConfig,
       rateLimitMetrics: deps.rateLimitMetrics,
     }))
 
@@ -207,23 +202,6 @@ export async function createAuthServer() {
       return instance
     },
   })
-  const authConfig = provide(container, 'services:authConfig', {
-    dependsOn: { db, lifecycle, redis },
-    build: ({ dependsOn }) => {
-      const configLogger = useLogger('auth-config').useGlobalConfig()
-      const service = createAuthConfigService(
-        createConfigKVStore(dependsOn.db, dependsOn.redis, {
-          onCacheError: ({ error, key, operation }) => {
-            configLogger.withError(error).withFields({ key, operation }).warn('ConfigKV cache operation failed; using PostgreSQL')
-          },
-        }),
-        dependsOn.redis,
-        { logger: configLogger },
-      )
-      dependsOn.lifecycle.appHooks.onStop(() => service.stop())
-      return service
-    },
-  })
   const email = provide(container, 'services:email', {
     dependsOn: { env, otel },
     build: ({ dependsOn }) => createEmailService({
@@ -258,14 +236,13 @@ export async function createAuthServer() {
   })
 
   await start(container)
-  const dependencies = await resolve(container, { auth, authConfig, db, redis, env, otel })
+  const dependencies = await resolve(container, { auth, db, redis, env, otel })
 
   const { app } = await buildAuthApp({
     auth: dependencies.auth,
     db: dependencies.db,
     redis: dependencies.redis,
     env: dependencies.env,
-    authConfig: dependencies.authConfig,
     rateLimitMetrics: dependencies.otel?.rateLimit,
   })
 

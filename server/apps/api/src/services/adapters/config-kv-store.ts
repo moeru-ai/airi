@@ -3,8 +3,8 @@ import type Redis from 'ioredis'
 
 import { eq } from 'drizzle-orm'
 
-import { CONFIG_KV_CACHE_TTL_SECONDS, configKVCacheKey } from './contracts'
-import { configKV } from './schema'
+import { configKV } from '../../schemas/config-kv'
+import { CONFIG_KV_CACHE_TTL_SECONDS, configKVCacheKey } from './config-kv-contracts'
 
 export interface ConfigKVCacheError {
   error: unknown

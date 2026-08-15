@@ -7,7 +7,7 @@ export interface ConfigKVInvalidation {
   publishedAt: number
 }
 
-/** Returns the shared Redis cache key for one ConfigKV entry. */
+/** Returns the Redis cache key for one ConfigKV entry. */
 export function configKVCacheKey(key: string): string {
   const normalizedKey = key.trim()
   if (!normalizedKey)

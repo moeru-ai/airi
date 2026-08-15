@@ -1,10 +1,10 @@
 import type Redis from 'ioredis'
 
-import { createConfigKVStore } from '@proj-airi/config-shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { configKV } from '../../schemas'
+import { createConfigKVStore } from './config-kv-store'
 
 function createRedis() {
   const values = new Map<string, string>()
@@ -19,7 +19,7 @@ function createRedis() {
   }
 }
 
-describe('shared ConfigKV store', () => {
+describe('configKV store', () => {
   let db: Awaited<ReturnType<typeof mockDB>>
 
   beforeEach(async () => {
@@ -79,12 +79,12 @@ describe('shared ConfigKV store', () => {
 
   it('removes a stale cache entry when a fresh database read is missing', async () => {
     const redis = createRedis()
-    redis.values.set('cache:config:AUTH_RATE_LIMIT_MAX', '20')
+    redis.values.set('cache:config:FLUX_PER_REQUEST', '20')
     const store = createConfigKVStore(db, redis as unknown as Redis)
 
-    await expect(store.getFreshRaw('AUTH_RATE_LIMIT_MAX')).resolves.toBeNull()
+    await expect(store.getFreshRaw('FLUX_PER_REQUEST')).resolves.toBeNull()
 
-    expect(redis.del).toHaveBeenCalledWith('cache:config:AUTH_RATE_LIMIT_MAX')
-    expect(redis.values.has('cache:config:AUTH_RATE_LIMIT_MAX')).toBe(false)
+    expect(redis.del).toHaveBeenCalledWith('cache:config:FLUX_PER_REQUEST')
+    expect(redis.values.has('cache:config:FLUX_PER_REQUEST')).toBe(false)
   })
 })

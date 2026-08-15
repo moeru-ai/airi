@@ -5,7 +5,7 @@ import type { GatewayMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { LlmRouterService } from './router'
 
-import { CONFIG_KV_INVALIDATION_CHANNEL, parseConfigKVInvalidation } from '@proj-airi/config-shared'
+import { CONFIG_KV_INVALIDATION_CHANNEL, parseConfigKVInvalidation } from '../../adapters/config-kv-contracts'
 
 /**
  * Dependencies needed to wire the cross-instance config invalidation

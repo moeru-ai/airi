@@ -1,5 +1,6 @@
-import type { ConfigKVStore } from '@proj-airi/config-shared'
 import type { InferOutput } from 'valibot'
+
+import type { ConfigKVStore } from './config-kv-store'
 
 import { errorMessageFrom } from '@moeru/std'
 import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
@@ -238,7 +239,7 @@ export const llmRouterConfigSchema = object({
  * Config entry schemas are the single source of truth for:
  * - runtime validation
  * - default values
- * - Redis serialization/deserialization shape
+ * - stored JSON shape
  */
 const ConfigEntrySchemas = {
   FLUX_PER_REQUEST: optional(number(), 5),
@@ -248,8 +249,6 @@ const ConfigEntrySchemas = {
   // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
   // 24h gives users a long-enough window for accumulated dust to settle naturally.
   TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
-  AUTH_RATE_LIMIT_MAX: optional(number(), 20),
-  AUTH_RATE_LIMIT_WINDOW_SEC: optional(number(), 60),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config
