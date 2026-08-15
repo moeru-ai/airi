@@ -15,6 +15,10 @@ import { createAuthRoutes } from '../routes'
 function createAuthConfig(): AuthConfigService {
   return {
     getRateLimit: vi.fn(async () => ({ max: 100, windowSec: 60 })),
+    onRateLimitChange: vi.fn(() => () => true),
+    onStop: vi.fn(() => () => true),
+    start: vi.fn(async () => {}),
+    stop: vi.fn(async () => {}),
   }
 }
 

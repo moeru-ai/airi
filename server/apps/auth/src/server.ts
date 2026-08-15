@@ -14,6 +14,7 @@ import Redis from 'ioredis'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { withRetry } from '@moeru/std'
+import { createConfigKVStore } from '@proj-airi/config-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -207,8 +208,21 @@ export async function createAuthServer() {
     },
   })
   const authConfig = provide(container, 'services:authConfig', {
-    dependsOn: { redis },
-    build: ({ dependsOn }) => createAuthConfigService(dependsOn.redis),
+    dependsOn: { db, lifecycle, redis },
+    build: ({ dependsOn }) => {
+      const configLogger = useLogger('auth-config').useGlobalConfig()
+      const service = createAuthConfigService(
+        createConfigKVStore(dependsOn.db, dependsOn.redis, {
+          onCacheError: ({ error, key, operation }) => {
+            configLogger.withError(error).withFields({ key, operation }).warn('ConfigKV cache operation failed; using PostgreSQL')
+          },
+        }),
+        dependsOn.redis,
+        { logger: configLogger },
+      )
+      dependsOn.lifecycle.appHooks.onStop(() => service.stop())
+      return service
+    },
   })
   const email = provide(container, 'services:email', {
     dependsOn: { env, otel },

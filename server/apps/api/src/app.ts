@@ -28,6 +28,7 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
+import { createConfigKVStore } from '@proj-airi/config-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -211,6 +212,7 @@ export async function buildApp(deps: AppDeps) {
   // connection + lifecycle metrics; see services/llm-router/config-sync-subscriber.ts.
   createConfigSyncSubscriber({
     redis: deps.redis,
+    configKV: deps.configKV,
     llmRouter: deps.llmRouter,
     gatewayMetrics: deps.otel?.gateway ?? null,
     instanceId: deps.env.OTEL_SERVICE_NAME,
@@ -482,8 +484,12 @@ export async function createApp() {
   })
 
   const configKV = injeca.provide('datastore:configKV', {
-    dependsOn: { redis },
-    build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
+    dependsOn: { db, redis },
+    build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis, {
+      onCacheError: ({ error, key, operation }) => {
+        logger.withError(error).withFields({ key, operation }).warn('ConfigKV cache operation failed; using PostgreSQL')
+      },
+    })),
   })
 
   const posthogSink = injeca.provide('services:posthogSink', {

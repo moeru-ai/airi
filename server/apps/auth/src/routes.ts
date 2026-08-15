@@ -16,7 +16,7 @@ import { email, nonEmpty, object, pipe, safeParse, string, transform } from 'val
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
 import { createBadRequestError, createForbiddenError } from './error'
-import { rateLimiter } from './rate-limit'
+import { createReloadableRateLimiter } from './rate-limit'
 
 export interface HonoEnv {
   Variables: {
@@ -273,6 +273,19 @@ export interface AuthRoutesDeps {
  */
 export async function createAuthRoutes(deps: AuthRoutesDeps) {
   const rateLimitConfig = await deps.authConfig.getRateLimit()
+  const authRateLimiter = createReloadableRateLimiter(rateLimitConfig, {
+    // Proxy trust is a deployment boundary, not a property of the public API
+    // URL. Custom domains and private gateways must opt in explicitly.
+    trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
+    metrics: deps.rateLimitMetrics,
+    routeLabel: 'auth.api',
+  })
+  const stopReloads = deps.authConfig.onRateLimitChange(config => authRateLimiter.replace(config))
+  deps.authConfig.onStop(async () => {
+    stopReloads()
+    await authRateLimiter.shutdown()
+  })
+  await deps.authConfig.start()
 
   async function handleAuthRequest(request: Request): Promise<Response> {
     const response = await deps.auth.handler(request)
@@ -290,15 +303,7 @@ export async function createAuthRoutes(deps: AuthRoutesDeps) {
      * Powered by better-auth.
      * Rate limited by the Auth-owned runtime configuration.
      */
-    .use('/api/auth/*', rateLimiter({
-      max: rateLimitConfig.max,
-      windowSec: rateLimitConfig.windowSec,
-      // Proxy trust is a deployment boundary, not a property of the public
-      // API URL. Custom domains and private gateways must opt in explicitly.
-      trustedProxy: deps.env.RATE_LIMIT_TRUSTED_PROXY,
-      metrics: deps.rateLimitMetrics,
-      routeLabel: 'auth.api',
-    }))
+    .use('/api/auth/*', authRateLimiter.middleware)
     .all('/api/auth/admin', c => c.notFound())
     .all('/api/auth/admin/*', c => c.notFound())
     .use('/api/auth/oauth2/authorize', async (c, next) => {

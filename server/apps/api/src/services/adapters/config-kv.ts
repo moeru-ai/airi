@@ -1,11 +1,10 @@
-import type Redis from 'ioredis'
+import type { ConfigKVStore } from '@proj-airi/config-shared'
 import type { InferOutput } from 'valibot'
 
 import { errorMessageFrom } from '@moeru/std'
 import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
 
 import { createServiceUnavailableError } from '../../utils/error'
-import { configRedisKey } from '../../utils/redis-keys'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -305,13 +304,8 @@ function parseValue<K extends ConfigKey>(key: K, raw: string): ConfigDefinitions
   }
 }
 
-function serializeValue<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): string {
-  return JSON.stringify(parse(ConfigEntrySchemas[key], value))
-}
-
 /**
- * Resolve a config value: read from Redis, then apply valibot default if missing.
- * Returns `undefined` if both Redis and schema have no value (required key, not set).
+ * Resolves a config value and applies the Valibot default when the row is missing.
  */
 function resolveWithDefault<K extends ConfigKey>(key: K, raw: string | null): ConfigDefinitions[K] | undefined {
   if (raw !== null)
@@ -326,16 +320,38 @@ function resolveWithDefault<K extends ConfigKey>(key: K, raw: string | null): Co
   }
 }
 
-export function createConfigKVService(redis: Redis) {
+/**
+ * Creates the API's typed, read-only ConfigKV boundary.
+ *
+ * The shared store owns PostgreSQL and Redis cache-aside behavior. This layer
+ * preserves the API's existing validation, defaults, and error contract.
+ */
+export function createConfigKVService(store: ConfigKVStore) {
+  async function loadRaw(key: ConfigKey, fresh = false): Promise<string | null> {
+    try {
+      return fresh ? await store.getFreshRaw(key) : await store.getRaw(key)
+    }
+    catch (error) {
+      throw createServiceUnavailableError(
+        'Service configuration is unavailable',
+        'CONFIG_UNAVAILABLE',
+        {
+          key,
+          message: errorMessageFrom(error) ?? 'Unknown config store error',
+        },
+      )
+    }
+  }
+
   return {
     async getOptional<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K] | null> {
-      const raw = await redis.get(configRedisKey(key))
+      const raw = await loadRaw(key)
       const value = resolveWithDefault(key, raw)
       return value ?? null
     },
 
     async getOrThrow<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
-      const raw = await redis.get(configRedisKey(key))
+      const raw = await loadRaw(key)
       const value = resolveWithDefault(key, raw)
       if (value === undefined)
         throw createServiceUnavailableError('Service configuration is incomplete', 'CONFIG_NOT_SET')
@@ -347,9 +363,14 @@ export function createConfigKVService(redis: Redis) {
       return this.getOrThrow(key)
     },
 
-    async set<K extends ConfigKey>(key: K, value: ConfigDefinitions[K]): Promise<void> {
-      const serialized = serializeValue(key, value)
-      await redis.set(configRedisKey(key), serialized)
+    async refresh<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K] | null> {
+      const raw = await loadRaw(key, true)
+      const value = resolveWithDefault(key, raw)
+      return value ?? null
+    },
+
+    async invalidateCache<K extends ConfigKey>(key: K): Promise<void> {
+      await store.invalidateCache(key)
     },
   }
 }

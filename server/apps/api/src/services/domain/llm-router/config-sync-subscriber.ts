@@ -2,7 +2,10 @@ import type { useLogger } from '@guiiai/logg'
 import type Redis from 'ioredis'
 
 import type { GatewayMetrics } from '../../../otel'
+import type { ConfigKVService } from '../../adapters/config-kv'
 import type { LlmRouterService } from './router'
+
+import { CONFIG_KV_INVALIDATION_CHANNEL, parseConfigKVInvalidation } from '@proj-airi/config-shared'
 
 /**
  * Dependencies needed to wire the cross-instance config invalidation
@@ -15,6 +18,8 @@ export interface ConfigSyncSubscriberOptions {
    * connection in subscribe mode.
    */
   redis: Redis
+  /** Typed ConfigKV reader whose Redis cache is cleared after reconnects. */
+  configKV: Pick<ConfigKVService, 'invalidateCache'>
   /** Router service whose in-memory `LLM_ROUTER_CONFIG` cache we invalidate. */
   llmRouter: LlmRouterService
   /**
@@ -68,6 +73,19 @@ export interface ConfigSyncSubscriber {
 export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): ConfigSyncSubscriber {
   const subscriber = opts.redis.duplicate()
 
+  async function invalidateRouterState(source: 'pubsub' | 'reconnect'): Promise<void> {
+    await Promise.all([
+      opts.configKV.invalidateCache('LLM_ROUTER_CONFIG'),
+      opts.configKV.invalidateCache('UNSPEECH_UPSTREAM'),
+    ])
+    opts.llmRouter.invalidateConfig()
+    await opts.llmRouter.invalidateTtsVoicesCache()
+    opts.gatewayMetrics?.configReload.add(1, {
+      source,
+      service_instance_id: opts.instanceId,
+    })
+  }
+
   function recordSubscriberState(state: 'connected' | 'error' | 'reconnecting') {
     opts.gatewayMetrics?.subscriberState.add(1, {
       state,
@@ -76,10 +94,10 @@ export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): C
   }
 
   subscriber.on('message', (channel, message) => {
-    if (channel !== 'configkv:invalidate')
+    if (channel !== CONFIG_KV_INVALIDATION_CHANNEL)
       return
     try {
-      const payload = JSON.parse(message) as { key?: unknown }
+      const payload = parseConfigKVInvalidation(message)
       // LLM_ROUTER_CONFIG drives a model-config cache + voice-catalog cache
       // invalidation (key rotation, model add/remove, region swap all need to
       // surface immediately). UNSPEECH_UPSTREAM only affects the voice catalog
@@ -116,7 +134,16 @@ export function createConfigSyncSubscriber(opts: ConfigSyncSubscriberOptions): C
   // defaults to true.
   subscriber.on('reconnecting', () => recordSubscriberState('reconnecting'))
 
-  subscriber.subscribe('configkv:invalidate')
+  // Pub/Sub does not replay messages. Clear the derived Redis entries and all
+  // local router state whenever this connection becomes ready so a reconnect
+  // cannot keep data that changed while the subscriber was offline.
+  subscriber.on('ready', () => {
+    void invalidateRouterState('reconnect').catch((err) => {
+      opts.logger.withError(err).warn('Failed to resync ConfigKV state after subscriber reconnect')
+    })
+  })
+
+  subscriber.subscribe(CONFIG_KV_INVALIDATION_CHANNEL)
     .then(() => recordSubscriberState('connected'))
     .catch((err: unknown) => {
       opts.logger.withError(err).warn('Failed to subscribe to configkv:invalidate channel')
