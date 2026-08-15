@@ -179,7 +179,7 @@ AIRI 아이콘을 오른쪽 클릭해 트레이 메뉴를 여세요. 표시되�
 - **제공자** - 채팅, 비전, 음성 합성, 전사, Artistry 제공자를 설정합니다.
 - **데이터** - 로컬에 저장된 AIRI 데이터를 내보내거나 초기화하거나 삭제합니다.
 - **연결** - AIRI WebSocket 서버와 원격 접근을 설정합니다.
-- **시스템** - **General**, **Color Scheme**, **Window Shortcuts**, **Developer** 페이지가 있습니다. 개발자 전용 페이지는 [데스크톱 개발자 도구](/en/docs/contributing/desktop-developer-tools)를 참고하세요.
+- **시스템** - **General**, **Color Scheme**, **Window Shortcuts**, **Developer** 페이지가 있습니다. 개발자 전용 페이지는 [데스크톱 개발자 도구](/ko/docs/contributing/desktop-developer-tools)를 참고하세요.
 
 ![AIRI 설정 개요](/en/docs/manual/tamagotchi/setup-and-use/assets/manual-settings-window.avif)
 
@@ -304,7 +304,7 @@ STT 기능을 테스트하려면:
 
 AIRI가 화면이나 창을 분석하게 하려면 **시스템 → Developer → Vision Capture**를 열고 화면 녹화 권한을 부여한 뒤, 창이나 디스플레이를 선택하고 **Start ticker**를 클릭하세요. 결과를 현재 캐릭터에게 전송하려면 **Publish to character**를 켜세요.
 
-Vision Capture는 현재 데스크톱 디버깅/개발용 워크플로이며, 페이지를 벗어나면 캡처 루프가 중지됩니다. 전체 안내는 [데스크톱 개발자 도구](/en/docs/contributing/desktop-developer-tools#vision-capture)를 참고하세요.
+Vision Capture는 현재 데스크톱 디버깅/개발용 워크플로이며, 페이지를 벗어나면 캡처 루프가 중지됩니다. 전체 안내는 [데스크톱 개발자 도구](/ko/docs/contributing/desktop-developer-tools#vision-capture)를 참고하세요.
 :::
 
 
@@ -337,7 +337,7 @@ Vision Capture는 현재 데스크톱 디버깅/개발용 워크플로이며, �
 
 Discord 연동을 사용하려면 AIRI가 Discord 서버의 메시지·음성 채널에 들어갈 수 있도록 봇 서비스를 소스에서 실행해야 합니다.
 
-1. Discord 애플리케이션을 만들고 [Discord 봇 연동 가이드](/en/docs/integrations/discord)에 설명된 필수 Intents를 활성화하세요.
+1. Discord 애플리케이션을 만들고 [Discord 봇 연동 가이드](/ko/docs/integrations/discord)에 설명된 필수 Intents를 활성화하세요.
 2. 저장소에서 Discord 봇 서비스를 시작하세요.
 3. AIRI에서 **설정 → 연결**을 열고 **Auth Token**을 봇 서비스 설정에 복사하세요.
 4. **설정 → 모듈 → Discord**를 열고 **Bot Token**을 입력한 뒤 **Enable Discord Integration**을 켜고 **Save**를 클릭하세요. 실행 중인 봇 서비스가 AIRI로부터 이 설정을 전달받습니다.
@@ -348,7 +348,7 @@ Bot Token, AIRI Auth Token과 선택적 전사 자격 증명은 로컬 설정에
 
 #### X / Twitter
 
-X / Twitter 설정 폼은 있지만 AIRI 0.11.3에서는 연동이 동작하지 않습니다. 자격 증명을 입력하지 마세요. 현재 구현의 제약은 [X / Twitter 연동 가이드](/en/docs/integrations/x)를 참고하세요.
+X / Twitter 설정 폼은 있지만 AIRI 0.11.3에서는 연동이 동작하지 않습니다. 자격 증명을 입력하지 마세요. 현재 구현의 제약은 [X / Twitter 연동 가이드](/ko/docs/integrations/x)를 참고하세요.
 
 #### 웹 검색
 
@@ -356,7 +356,7 @@ X / Twitter 설정 폼은 있지만 AIRI 0.11.3에서는 연동이 동작하지 
 
 #### Minecraft
 
-Minecraft 연동을 사용하려면 로컬 에이전트 서비스를 소스에서 실행해야 합니다. [Minecraft 에이전트 연동 가이드](/en/docs/integrations/minecraft)를 따라 신뢰할 수 있는 서버, AIRI, 모델 서비스를 설정한 뒤 에이전트를 시작하세요.
+Minecraft 연동을 사용하려면 로컬 에이전트 서비스를 소스에서 실행해야 합니다. [Minecraft 에이전트 연동 가이드](/ko/docs/integrations/minecraft)를 따라 신뢰할 수 있는 서버, AIRI, 모델 서비스를 설정한 뒤 에이전트를 시작하세요.
 
 ::: warning 보안 유의 사항
 Minecraft 에이전트를 신뢰할 수 없는 공개 서버에 연결하지 마세요. 에이전트는 로컬 Minecraft 세션과 네트워크 연결을 조작하므로, 악의적인 서버가 예기치 않은 동작을 일으킬 수 있습니다.
@@ -368,7 +368,7 @@ Minecraft 에이전트를 신뢰할 수 없는 공개 서버에 연결하지 마
 
 #### Factorio
 
-**설정 → 모듈 → Factorio**를 열고 [Factorio 연동 가이드](/en/docs/integrations/factorio)를 따라 신뢰할 수 있는 서버 주소, 포트, 게임 내 사용자 이름을 입력하세요. AIRI에는 바로 배포할 수 있는 Factorio 서버 측 연동이 포함되어 있지 않습니다.
+**설정 → 모듈 → Factorio**를 열고 [Factorio 연동 가이드](/ko/docs/integrations/factorio)를 따라 신뢰할 수 있는 서버 주소, 포트, 게임 내 사용자 이름을 입력하세요. AIRI에는 바로 배포할 수 있는 Factorio 서버 측 연동이 포함되어 있지 않습니다.
 
 #### MCP 서버
 
@@ -561,7 +561,7 @@ API Key, AccessKey Secret 같은 서비스 자격 증명은 기기의 설정에�
 
 #### Developer
 
-이 페이지는 실험적 기능을 개발하고, 문제를 해결하고, 검증하는 데 사용합니다. 일반 사용자에게는 필요하지 않습니다. 전체 도구 설명은 [개발자 가이드 → 개발자 도구](/en/docs/contributing/desktop-developer-tools)에서 볼 수 있습니다.
+이 페이지는 실험적 기능을 개발하고, 문제를 해결하고, 검증하는 데 사용합니다. 일반 사용자에게는 필요하지 않습니다. 전체 도구 설명은 [개발자 가이드 → 개발자 도구](/ko/docs/contributing/desktop-developer-tools)에서 볼 수 있습니다.
 
 <a id="web-features"></a>
 ## 웹 버전 기능

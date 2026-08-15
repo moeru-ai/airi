@@ -14,7 +14,7 @@ description: AIRI의 비전 모듈에 사용할 이미지 이해 제공자와 �
 
 AIRI가 화면이나 창을 분석하게 하려면 **시스템 → 개발자 → Vision Capture**를 열고, 필요한 경우 화면 녹화 권한을 부여한 뒤 창이나 디스플레이를 선택하고 **Start ticker**를 클릭하세요. 결과를 현재 캐릭터에게 보내려면 **Publish to character**를 활성화하세요.
 
-Vision Capture는 현재의 데스크톱 디버깅/개발 워크플로이며, 페이지를 벗어나면 캡처 루프가 중지됩니다. 전체 안내는 [데스크톱 개발자 도구](/en/docs/contributing/desktop-developer-tools#vision-capture)를 참고하세요.
+Vision Capture는 현재의 데스크톱 디버깅/개발 워크플로이며, 페이지를 벗어나면 캡처 루프가 중지됩니다. 전체 안내는 [데스크톱 개발자 도구](/ko/docs/contributing/desktop-developer-tools#vision-capture)를 참고하세요.
 :::
 
 ## 비전 제공자 선택
