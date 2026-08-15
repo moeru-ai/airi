@@ -35,6 +35,7 @@ import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/prov
 import { useAuthStore } from '../auth'
 import { useSettingsAnalytics } from '../settings/analytics'
 import { useProviderConfigStore } from './config'
+import { normalizeProviderConfigDefaults } from './config-defaults'
 
 /**
  * Classifies provider ids into bounded analytics buckets.
@@ -933,7 +934,7 @@ export const useProviderStore = defineStore('provider', () => {
       return false
 
     const defaultOptions = getDefaultProviderConfig(providerId)
-    return JSON.stringify(config) !== JSON.stringify(defaultOptions)
+    return JSON.stringify(normalizeProviderConfigDefaults(config, defaultOptions)) !== JSON.stringify(defaultOptions)
   }
 
   function shouldListProvider(providerId: string) {
