@@ -9,7 +9,7 @@ LM Studio는 모델을 로컬에서 직접 실행하고 자체 API를 제공합�
 모델을 로컬에서 실행하고 모델 파일을 직접 관리하고 싶다면, LM Studio는 클라우드 API Key에 의존하지 않는 선택지입니다.
 :::
 
-## 로컬 서비스 시작하기하기
+## 로컬 서비스 시작하기
 
 1. [LM Studio 다운로드 페이지](https://lmstudio.ai/download)에서 LM Studio를 설치하고 실행한 뒤, 채팅 모델을 다운로드해 로드하세요.
 2. **Local Server**를 열고 로컬 서버를 시작하세요.

@@ -12,7 +12,7 @@ is_openai_compatible: true
 
 ## API Key 발급받기
 
-1. OpenAI 공식 서비스를 사용할 때는 [OpenAI API Keys](https://platform.openai.com/api-keys)를 열어 API Key를 만드세요. 호환 서비스를 사용할 때는 해당 서비스 제공자의 관리 콘솔을 여세요.
+1. OpenAI 공식 서비스를 사용할 때는 [OpenAI API Keys](https://platform.openai.com/api-keys)를 여세요. 호환 서비스를 사용할 때는 해당 서비스 제공자의 관리 콘솔을 여세요.
 2. API Key 또는 Developer Settings 페이지에서 API Key를 만드세요.
 3. 키를 복사해 안전한 곳에 보관하세요.
 

@@ -9,7 +9,7 @@ Alibaba Cloud NLS는 AIRI에 실시간 음성 인식(ASR)을 제공합니다. �
 이미 Alibaba Cloud 계정을 사용 중이고 실시간 음성 인식 기능이 필요하다면 Alibaba Cloud NLS를 선택할 수 있습니다.
 :::
 
-## 자격 증명 준비하기하기
+## 자격 증명 준비하기
 
 1. [Alibaba Cloud 지능형 음성 상호작용 콘솔](https://nls-portal.console.aliyun.com/overview)에서 서비스를 활성화하고 프로젝트를 만든 뒤 **AppKey**를 복사하세요.
 2. **AccessKey Management**에서 필요한 권한을 가진 RAM 사용자 AccessKey를 만드세요.
