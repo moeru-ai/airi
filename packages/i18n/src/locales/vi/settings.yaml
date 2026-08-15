@@ -5,7 +5,8 @@ animations:
     title: Tắt hiệu ứng chuyển cảnh
   use-page-specific-transitions:
     description: >-
-      Một số trang sẽ có hiệu ứng chuyển cảnh riêng, điều này sẽ ghi đè hiệu ứng chuyển cảnh mặc định
+      Một số trang sẽ có hiệu ứng chuyển cảnh riêng, điều này sẽ ghi đè hiệu ứng
+      chuyển cảnh mặc định
     title: Dùng hiệu ứng chuyển cảnh riêng cho từng trang
 dialogs:
   onboarding:
@@ -35,13 +36,21 @@ dialogs:
     retry: Thử lại
     credentialsSafeLabel: Hãy giữ các khóa API và thông tin xác thực an toàn!
     credentialsSafeLocal: >-
-      AIRI đang chạy hoàn toàn cục bộ trên PC của bạn và chúng tôi sẽ không bao giờ đánh cắp các thông tin xác thực cho các nhà cung cấp AI / LLM. Nhưng hãy nhớ rằng các khóa API của bạn là thông tin nhạy cảm. Hãy giữ chúng an toàn và không được chia sẽ với bất kỳ ai.
+      AIRI đang chạy hoàn toàn cục bộ trên PC của bạn và chúng tôi sẽ không bao
+      giờ đánh cắp các thông tin xác thực cho các nhà cung cấp AI / LLM. Nhưng
+      hãy nhớ rằng các khóa API của bạn là thông tin nhạy cảm. Hãy giữ chúng an
+      toàn và không được chia sẽ với bất kỳ ai.
     credentialsSafeOpenSource: >-
-      AIRI là dự án mã nguồn mở trên {github}, nếu bạn muốn kiểm tra cách chúng tôi xử lý các thông tin xác thực của bạn, bạn có thể kiểm tra code của chúng tôi.
+      AIRI là dự án mã nguồn mở trên {github}, nếu bạn muốn kiểm tra cách chúng
+      tôi xử lý các thông tin xác thực của bạn, bạn có thể kiểm tra code của
+      chúng tôi.
     enableChatCheck: >-
-      Cho phép AIRI gửi tín hiệu "ping" đến mô hình chat có thể dùng được đầu tiên để kiểm tra tính khả dụng
+      Cho phép AIRI gửi tín hiệu "ping" đến mô hình chat có thể dùng được đầu
+      tiên để kiểm tra tính khả dụng
     start: Bắt đầu thôi!
-    loginPrompt: Đăng nhập để sử dụng nhà cung cấp AIRI chính thức để có trải nghiệm tốt nhất.
+    loginPrompt: >-
+      Đăng nhập để sử dụng nhà cung cấp AIRI chính thức để có trải nghiệm tốt
+      nhất.
     loginAction: Đăng nhập
     setupWithoutSigningIn: Thiết lập nhà cung cấp của bạn
     flux: Flux
@@ -49,10 +58,13 @@ dialogs:
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
     no-models-help: >-
-      Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối mạng.
+      Vui lòng quay lại bước trước và kiểm tra khóa API, hoặc kiểm tra kết nối
+      mạng.
     permissions:
       title: Thông báo
-      description: Bạn có thể cho phép thông báo ngay bây giờ hoặc tiếp tục và chỉnh lại sau.
+      description: >-
+        Bạn có thể cho phép thông báo ngay bây giờ hoặc tiếp tục và chỉnh lại
+        sau.
       notificationsTitle: Thông báo
       notificationsDescription: Cho phép nhắc nhở và các cập nhật trạng thái quan trọng.
       notificationsAction: Yêu cầu quyền thông báo
@@ -65,10 +77,14 @@ dialogs:
       stateNotGranted: Khônh được cấp quyền
   bug-report:
     title: Báo lỗi (´;ω;`)ヾ(･∀･`)
-    subtitle: Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể cho chúng tôi biết chuyện gì đã xảy ra không?
+    subtitle: >-
+      Úi, xin lỗi nếu chúng tôi đã làm gì sai. Nếu không phiền thì bạn có thể kể
+      cho chúng tôi biết chuyện gì đã xảy ra không?
     trigger-label: Báo lỗi
     submit-label: Gửi báo cáo lỗi
-    triage-description: Bao gồm ảnh chụp màn hình và nội dung trang để giúp chúng tôi phân loại sự cố này.
+    triage-description: >-
+      Bao gồm ảnh chụp màn hình và nội dung trang để giúp chúng tôi phân loại sự
+      cố này.
     description-placeholder: Các bước để tái hiện, kết quả mong đợi và kết quả đã xảy ra
     include-current-page-screenshot: Bao gồm ảnh chụp màn hình trang hiện tại
     manual-media:
@@ -95,7 +111,9 @@ analytics:
   notice:
     title: Phân tích dữ liệu sử dụng
     description: >-
-      AIRI thu thập dữ liệu sử dụng một cách ẩn danh để giúp chúng tôi hiểu cách ứng dụng được dùng và cải thiện sử ổn định. Không có dữ liệu cá nhân nào được thu thập.
+      AIRI thu thập dữ liệu sử dụng một cách ẩn danh để giúp chúng tôi hiểu cách
+      ứng dụng được dùng và cải thiện sử ổn định. Không có dữ liệu cá nhân nào
+      được thu thập.
     privacyPrefix: Đọc
     privacyLink: chính sách quyền riêng tư
     onboardingHint: Bạn có thể tắt phân tích ở Cài đặt > Hệ thống > Chung.
@@ -109,9 +127,13 @@ model-select:
   panel-callout:
     support-status-header: Chúng tôi hỗ trợ cả mô hình 2D và 3D
     support-status: >
-      Nhấp vào {select-button} để chọn hoặc nhập các mô hình. Hiện tại, {zip} (cho Live2D và các Spine model) và {vrm} (cho các VRM model) đều được hỗ trợ.
+      Nhấp vào {select-button} để chọn hoặc nhập các mô hình. Hiện tại, {zip}
+      (cho Live2D và các Spine model) và {vrm} (cho các VRM model) đều được hỗ
+      trợ.
     model-type-example: >
-      Neuro-sama sử dụng mô hình 2D được vận hành bởi framework được phát triển bởi Live2D Inc, trong khi đó Grok Ani (trong Grok Companion) sử dụng mô hình 3D được vận hành bởi VRM /MMD định dạng mở.
+      Neuro-sama sử dụng mô hình 2D được vận hành bởi framework được phát triển
+      bởi Live2D Inc, trong khi đó Grok Ani (trong Grok Companion) sử dụng mô
+      hình 3D được vận hành bởi VRM /MMD định dạng mở.
   select-model:
     title: Chọn Mô Hình
     button: Chọn mô hình
@@ -144,14 +166,18 @@ live2d:
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
     description: >
-      Xuất các màu nổi bật từ canvas đang render hiện tại. Nhấp vào màu và áp dụng nó lên AIRI. Thử xuất nhiều lần với mô hình theo nhiều tư thế khác nhau nếu màu sắc chưa được như mong muốn.
+      Xuất các màu nổi bật từ canvas đang render hiện tại. Nhấp vào màu và áp
+      dụng nó lên AIRI. Thử xuất nhiều lần với mô hình theo nhiều tư thế khác
+      nhau nếu màu sắc chưa được như mong muốn.
     button-extract:
       title: Trích xuất
   animation:
     title: Hoạt ảnh
     focus:
       title: Bật theo dõi chuột
-      description: Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
+      description: >-
+        Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh
+        (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
       offset: Độ lệch mắt(%)
     force-idle-eye-animation:
       title: Chuyển động mắt nhàn rỗi (idle)
@@ -182,14 +208,14 @@ live2d:
       title: FPS
       description: Giới hạn tốc độ khung hình render
       options:
-        unlimited: '∞'
+        unlimited: ∞
     shadow: Đổ bóng
     reset-parameters: Đặt lại tham số mặc định
   clear-model-cache: Xóa bộ nhớ đệm của mô hình
   expressions:
     title: Biểu cảm
     override-toggle: Hệ thống biểu cảm
-    sdk-preset-preserved-notice: >
+    sdk-preset-preserved-notice: |
       Quản lý biểu cảm SDK và nháy mắt được giữ nguyên khi tắt.
     no-expression: Không có biểu cảm khả dụng cho mô hình này.
     llm-integration-wip: Tích hợp công cụ LLM chưa được hoàn thiện.
@@ -231,7 +257,10 @@ pages:
     connections:
       tab: Các tài khoản đã được liên kết
       title: Các tài khoản đã được liên kết
-      description: Đăng nhập AIRI thông qua các nhà cung cấp này. Hủy liên kết để thu hồi quyền truy cập, sau đó liên kết lại một lần nữa để chuyển sang tài khoản khác.
+      description: >-
+        Đăng nhập AIRI thông qua các nhà cung cấp này. Hủy liên kết để thu hồi
+        quyền truy cập, sau đó liên kết lại một lần nữa để chuyển sang tài khoản
+        khác.
       status:
         linked: Đã liên kết
         notLinked: Chưa được liên kết
@@ -248,14 +277,24 @@ pages:
         listFailed: Không thể tải các tài khoản đã liên kết.
         unlinkFailed: Không thể hủy liên kết tài khoản này.
         linkFailed: Không thể khởi động liên kết luồng (link flow).
-        accountAlreadyLinkedToDifferentUser: Tài khoản OAuth này đã được liên kết với một tài khoản AIRI khác. Hãy chọn tài khoản nhà cung cấp khác hoặc hủy liên kết tài khoản đó khỏi tài khoản AIRI kia trước.
-        oauthCallbackFailed: Không thể kết nối tài khoản OAuth này. Hãy thử lại hoặc chọn tài khoản nhà cung cấp khác.
-        lastAccount: Đây là phương thức đăng nhập duy nhất của bạn. Đặt mật khẩu trước khi hủy liên kết.
+        accountAlreadyLinkedToDifferentUser: >-
+          Tài khoản OAuth này đã được liên kết với một tài khoản AIRI khác. Hãy
+          chọn tài khoản nhà cung cấp khác hoặc hủy liên kết tài khoản đó khỏi
+          tài khoản AIRI kia trước.
+        oauthCallbackFailed: >-
+          Không thể kết nối tài khoản OAuth này. Hãy thử lại hoặc chọn tài khoản
+          nhà cung cấp khác.
+        lastAccount: >-
+          Đây là phương thức đăng nhập duy nhất của bạn. Đặt mật khẩu trước khi
+          hủy liên kết.
     security:
       tab: Bảo mật
       title: Bảo mật
       description: Thay đổi mật khẩu của bạn. Các thiết bị khác sẽ được đăng xuất.
-      setDescription: Bạn đăng nhập thông qua nhà cung cấp tài khoản mạng xã hội, vì vậy hiện tại chưa có mật khẩu. Chúng tôi sẽ gửi email liên kết bảo mật để giúp bạn đặt mật khẩu.
+      setDescription: >-
+        Bạn đăng nhập thông qua nhà cung cấp tài khoản mạng xã hội, vì vậy hiện
+        tại chưa có mật khẩu. Chúng tôi sẽ gửi email liên kết bảo mật để giúp
+        bạn đặt mật khẩu.
       currentPassword:
         label: Mật khẩu hiện tại
         placeholder: Nhập mật khẩu hiện tại
@@ -286,7 +325,9 @@ pages:
         action: Xóa tài khoản
         modal:
           title: Xóa tài khoản?
-          warning: Hành động này không thể đảo ngược. Các gói đăng ký đang hoạt đọng sẽ bị hủy, số dư Flux sẽ bị xóa sạch.
+          warning: >-
+            Hành động này không thể đảo ngược. Các gói đăng ký đang hoạt đọng sẽ
+            bị hủy, số dư Flux sẽ bị xóa sạch.
           confirmEmail:
             label: Nhập email để xác nhận
             placeholder: ''
@@ -340,25 +381,25 @@ pages:
         systemprompt: Bạn sẽ nhận tin nhắn và trả lời như một con người thực sự.
         posthistoryinstructions: Nhớ bắt chước như một con người.
       modules_info: >-
-        Cấu hình các module cho thẻ nhân vật này. Nếu không thiết lập, cấu hình mặc định sẽ được sử dụng.
+        Cấu hình các module cho thẻ nhân vật này. Nếu không thiết lập, cấu hình
+        mặc định sẽ được sử dụng.
       use_default: Sử dụng mặc định
       use_default_not_configured: Sử dụng mặc định (chưa cấu hình)
       fields_info:
         subtitle: >-
-          Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và cách nhân vật nên trả lời.
+          Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và
+          cách nhân vật nên trả lời.
         name: Tên chính thức của nhân vật.
         nickname: Có thể đặt biệt danh để ưu tiên dùng.
         description: Mô tả nhân vật này.
         notes: Thêm ghi chú cá nhân nếu muốn.
-        personality: >-
-          Miêu tả tính cách nhân vật. Nhút nhát? Tò mò? Hoặc khác?
+        personality: Miêu tả tính cách nhân vật. Nhút nhát? Tò mò? Hoặc khác?
         scenario: Hoàn cảnh xung quanh? Tình huống hiện tại?
         greetings_field: Lời chào
         greetings: Nhân vật nên chào như thế nào?
         systemprompt: Hướng dẫn AI LLM cách trả lời khi được hỏi.
         posthistoryinstructions: Đặt thông tin mà AI LLM nên đọc sau lịch sử hội thoại.
-        version: >-
-          Phiên bản thẻ, hãy tăng giá trị này nếu bạn đã chỉnh sửa thẻ từ trước.
+        version: Phiên bản thẻ, hãy tăng giá trị này nếu bạn đã chỉnh sửa thẻ từ trước.
         consciousness_model: Chọn mô hình ý thức (mô hình AI) cho nhân vật này.
         speech_model: Chọn mô hình tổng hợp tiếng nói và giọng đọc cho nhân vật này.
       errors:
@@ -369,7 +410,9 @@ pages:
         scenario: 'Lỗi: Phải có kịch bản.'
         systemprompt: 'Lỗi: Hãy cung cấp lời nhắc hệ thống'
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
-        invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Artistry provider) chứa JSON không hợp lệ.'
+        invalid_artistry_json: >-
+          Các tùy chọn cho nhà cung cấp nghệ thuật (Artistry provider) chứa JSON
+          không hợp lệ.
       none: Không
     modules: Mô-đun
     name_asc: Tên (A-Z)
@@ -425,7 +468,9 @@ pages:
         reset: Đặt lại cài đặt nhà cung cấp
       danger:
         title: Cảnh báo
-        description: Các hành động không thể khôi phục. Hãy xuất những dữ liệu cần thiết trước khi tiếp tục.
+        description: >-
+          Các hành động không thể khôi phục. Hãy xuất những dữ liệu cần thiết
+          trước khi tiếp tục.
       all:
         title: Xóa tất cả dữ liệu
         description: Xóa sạch toàn bộ thiết lập cục bộ, cấu hình nhà cung cấp và mô hình.
@@ -441,7 +486,7 @@ pages:
         reset: Đặt lại dữ liệu desktop
     confirmations:
       tooltip: Bạn chắc chứ?
-      'yes': 'Đồng ý'
+      'yes': Đồng ý
     status:
       exported: Đã xuất phiên trò chuyện.
       imported: Đã nhập phiên trò chuyện.
@@ -485,25 +530,29 @@ pages:
           parameters:
             adaptive_threshold:
               description: >-
-                Áp dụng ngưỡng thích ứng dựa trên sự biến thiên tín hiệu theo thời gian.
+                Áp dụng ngưỡng thích ứng dựa trên sự biến thiên tín hiệu theo
+                thời gian.
               label: Ngưỡng thích ứng
             buffer_duration:
               description: Thời gian của bộ đệm phân tích nội bộ.
               label: Thời lượng bộ đệm
             envelope_filter_frequency:
               description: >-
-                Tần số cho bộ lọc bao bì (envelope filter) để làm mượt các thay đổi năng lượng.
+                Tần số cho bộ lọc bao bì (envelope filter) để làm mượt các thay
+                đổi năng lượng.
               label: Tần số lọc bao bì
             highpass_filter_frequency:
               description: >-
-                Tần số cho bộ lọc thông cao giúp giảm tần số thấp như tiếng ồn trầm.
+                Tần số cho bộ lọc thông cao giúp giảm tần số thấp như tiếng ồn
+                trầm.
               label: Tần số lọc thông cao
             lowpass_filter_frequency:
-              description: >-
-                Tần số cho bộ lọc thông thấp giúp giảm tần số cao như giọng hát.
+              description: Tần số cho bộ lọc thông thấp giúp giảm tần số cao như giọng hát.
               label: Tần số lọc thông thấp
             min_beat_interval:
-              description: BPM tối đa hoặc khoảng thời gian tối thiểu giữa các nhịp được phát hiện.
+              description: >-
+                BPM tối đa hoặc khoảng thời gian tối thiểu giữa các nhịp được
+                phát hiện.
               label: BPM tối đa / Khoảng nhịp tối thiểu
             sensitivity:
               label: Độ nhạy
@@ -518,7 +567,9 @@ pages:
       description: Tạo ảnh, cảnh nền và tranh ảnh.
       page:
         title: Cấu Hình Nhà Cung Cấp Nghệ Thuật
-        description: Chọn nhà cung cấp backend đang hoạt động cho việc tạo ảnh. Các nhân vật có thể ghi đè trong cài đặt Thẻ của họ.
+        description: >-
+          Chọn nhà cung cấp backend đang hoạt động cho việc tạo ảnh. Các nhân
+          vật có thể ghi đè trong cài đặt Thẻ của họ.
       providers:
         none:
           name: Không
@@ -534,12 +585,17 @@ pages:
           description: Sử dụng Google AI Studio để xem trước ảnh và các phản ứng.
       card:
         description: Cấu hình cách AIRI tạo ảnh và các nội dung đồ họa.
-        comfyui_empty: ComfyUI workflows chưa được cấu hình. Đi tới Cài đặt → Nhà cung cấp → ComfyUI để tải mẫu workflow.
+        comfyui_empty: >-
+          ComfyUI workflows chưa được cấu hình. Đi tới Cài đặt → Nhà cung cấp →
+          ComfyUI để tải mẫu workflow.
         exposed_fields: '{count} trường được cung cấp'
         open_on_replicate: Mở bằng Replicate
         instruction_sync:
           title: ComfyUI Instruction Sync
-          description: Prompt được chỉ định đã sẵn sàng cho workflow {workflowName} của bạn. Việc áp dụng sẽ ghi đè hướng dẫn tiện ích hiện tại nên AI sẽ biết cách dùng mẫu cụ thể này.
+          description: >-
+            Prompt được chỉ định đã sẵn sàng cho workflow {workflowName} của
+            bạn. Việc áp dụng sẽ ghi đè hướng dẫn tiện ích hiện tại nên AI sẽ
+            biết cách dùng mẫu cụ thể này.
           apply: Áp Dụng Prompt Được Khuyến Nghị
           keep: Keep Existing
       provider: Nhà Cung Cấp Nghệ Thuật
@@ -553,9 +609,14 @@ pages:
           bg_widget: Kép (Ảnh Nền + Tiện Ích)
       autonomous:
         title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        description: >-
+          When enabled, the "Producer" runs in parallel to the character to
+          decide if a visual is needed. This prevents the character from
+          forgetting to manifest scenes.
         threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_description: >-
+          Use {min} for aggressive scene creation or {max} to require stronger
+          evidence before generating.
         threshold_min: Luôn Luôn Tạo (0%)
         threshold_max: Khắt Khe (100%)
       model:
@@ -624,16 +685,18 @@ pages:
       title: Minecraft
       enable: Bật tích hợp Minecraft
       enable-description: >-
-        Include Minecraft self-knowledge in Stage chat turns and keep passive runtime visibility enabled.
+        Include Minecraft self-knowledge in Stage chat turns and keep passive
+        runtime visibility enabled.
       configured: Đã cấu hình Minecraft thành công!
       read-only:
         title: Read-only shell
         description: >-
-          Stage currently exposes Minecraft as a passive shell. Runtime status and traffic are visible here, but service configuration stays in the Minecraft service files.
+          Stage currently exposes Minecraft as a passive shell. Runtime status
+          and traffic are visible here, but service configuration stays in the
+          Minecraft service files.
       setup:
         title: Thiết lập
-        description: >-
-          Bạn có thể tìm thấy các chỉ dẫn cho việc thiết lập bot trong file sau
+        description: Bạn có thể tìm thấy các chỉ dẫn cho việc thiết lập bot trong file sau
       runtime:
         title: Observed runtime
         connection: Kết nối
@@ -660,12 +723,18 @@ pages:
           confidence-threshold:
             title: Ngưỡng Tự Tin
             description: >-
-              Lọc các đoạn nhận dạng giọng nói có độ tin cậy thấp để giảm tình trạng ảo tưởng của Whisper. Giá trị càng tiến về 0 thì càng khắt khe bơn; kéo sang trái để vô hiệu. Chỉ hiệu quả với các nhà dung cấp API của Whisper (ví dụ như OpenAI, Groq).
+              Lọc các đoạn nhận dạng giọng nói có độ tin cậy thấp để giảm tình
+              trạng ảo tưởng của Whisper. Giá trị càng tiến về 0 thì càng khắt
+              khe bơn; kéo sang trái để vô hiệu. Chỉ hiệu quả với các nhà dung
+              cấp API của Whisper (ví dụ như OpenAI, Groq).
             disabled: Tắt
             verbose-json-note: >-
-              Note: Nếu nhà cung cấp của bạn không hỗ trợ phản hồi verbose_json, cài đặng này sẽ không có tác dụng.
+              Note: Nếu nhà cung cấp của bạn không hỗ trợ phản hồi verbose_json,
+              cài đặng này sẽ không có tác dụng.
             verbose-json-unsupported: >-
-              Nhà cung cấp của bạn không trả về các đoạn (segment) verbose_json. Lọc kết quả dựa trên độ tin cậy không có tác dụng cho đoạn phiên âm mới nhất.
+              Nhà cung cấp của bạn không trả về các đoạn (segment) verbose_json.
+              Lọc kết quả dựa trên độ tin cậy không có tác dụng cho đoạn phiên
+              âm mới nhất.
     memory-long-term:
       description: Cài đặt và quản lý trí nhớ dài hạn
       title: Trí nhớ dài hạn
@@ -715,7 +784,9 @@ pages:
             search_voices_results: Tìm thấy {count}/{total} giọng nói
             unsupported_voice_warning_title: Không có giọng nói được hỗ trợ
             unsupported_voice_warning_content: >-
-              Hãy thử nhà cung cấp hoặc mô hình khác. Chúng tôi đang nỗ lực cập nhật thêm giọng nói sớm nhất có thể. Nếu cần gấp, hãy báo cho chúng tôi trên GitHub.
+              Hãy thử nhà cung cấp hoặc mô hình khác. Chúng tôi đang nỗ lực cập
+              nhật thêm giọng nói sớm nhất có thể. Nếu cần gấp, hãy báo cho
+              chúng tôi trên GitHub.
             show_less: Ẩn bớt
             show_more: Hiện thêm
             title: Nhà cung cấp
@@ -753,7 +824,9 @@ pages:
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: Trạng thái thực thi
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      empty: >-
+        No MCP servers yet — click "Add server" below to create one, or paste a
+        config via "Edit JSON".
       error-title: Úi
       success-title: Xong!
       existing:
@@ -762,7 +835,9 @@ pages:
         empty: Chưa có cái nào ở đây hết. Thêm một cái vào bên dưới đi!
       add:
         title: Mới
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: >-
+          Fill in a new server, then click "Save and restart" — it'll move into
+          "Configured" above.
         pending-badge: Chưa được lưu
       status:
         unknown: chưa tải
@@ -794,7 +869,10 @@ pages:
         args:
           label: Đối số
           description: Mỗi dòng một đối số, theo thứ tự.
-          placeholder: "-y\nsome-package-name\n/tmp"
+          placeholder: |-
+            -y
+            some-package-name
+            /tmp
         cwd:
           label: Thư mục làm việc
           description: Optional directory used as the process working directory.
@@ -808,11 +886,15 @@ pages:
           label: Bật
       json:
         title: Chỉnh sửa mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        description: >-
+          Edit the raw JSON directly. Click "Apply" to load it into the form,
+          then "Save and restart" to write it to disk.
         placeholder: Dán mcp.json vào đây…
       test:
         title: Kiểm tra kết nối
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        description: >-
+          We'll spawn the server briefly to check the command works and see what
+          tools it exposes.
         pick-server-label: Máy chủ
         no-servers: Chưa có gì để kiểm tra
         no-server-selected: Chọn một máy chủ trước.
@@ -823,14 +905,18 @@ pages:
         success: Kết nối thành công! Đã tìm thấy {count} công cụ trong {ms}ms.
         failure: Kết nối thất bại sau {ms}ms
       errors:
-        empty-identifier: Server # {index} is missing an identifier.
+        empty-identifier: Server
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
         empty-command: '"{name}" đang thiếu một lệnh.'
         invalid-shape: Nhìn không giống mcp.json hợp lệ — root cần một trường "mcpServers".
       messages:
         opened: Đã mở {path} trong trình quản lý tệp của bạn
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
-        restarted: Tất cả đã được khởi động lại! {started} đã khởi động, {failed} thất bại, {skipped} đã bỏ qua.
+        json-applied: >-
+          JSON applied to the form. Click "Save and restart" to persist it to
+          disk.
+        restarted: >-
+          Tất cả đã được khởi động lại! {started} đã khởi động, {failed} thất
+          bại, {skipped} đã bỏ qua.
   flux:
     title: Flux
     buy: Mua
@@ -871,8 +957,7 @@ pages:
         validation:
           failed:
             title: Xác thực không thành công. Vui lòng kiểm tra lại cài đặt.
-            description: >-
-              Bạn vẫn có thể lưu cấu hình nếu muốn tiếp tục.
+            description: Bạn vẫn có thể lưu cấu hình nếu muốn tiếp tục.
             action: Vẫn lưu
         config:
           common:
@@ -885,7 +970,8 @@ pages:
                 base-url:
                   label: URL cơ sở
                   description: >-
-                    Địa chỉ kết nối dịch vụ. Thường là http://localhost:11434/v1 hoặc tương tự.
+                    Địa chỉ kết nối dịch vụ. Thường là http://localhost:11434/v1
+                    hoặc tương tự.
                   placeholder: URL cơ sở...
                 headers:
                   label: Tiêu đề HTTP tùy chỉnh
@@ -896,7 +982,7 @@ pages:
                     placeholder: Giá trị (Value)
                 thinking-mode:
                   label: Chế độ suy nghĩ
-                  description: >
+                  description: |
                     Kiểm soát hành vi suy nghĩ của Ollama/GPT-OSS.
                   options:
                     auto: Tự động
@@ -905,6 +991,9 @@ pages:
                     low: Thấp
                     medium: Trung bình
                     high: Cao
+                download-model:
+                  description: Tải xuống mô hình Chromium Prompt API
+                  label: Tải xuống mô hình
         validators:
           actions:
             validate: Xác thực
@@ -923,6 +1012,9 @@ pages:
             valid: Thành công
             invalid: Lỗi
           title: Kiểm tra
+          prompt-api:
+            check-availability:
+              title: tính khả dụng
         providers:
           provider:
             ollama:
@@ -931,7 +1023,9 @@ pages:
                   openai-compatible-check-connectivity:
                     label: Cần cấu hình thêm cho Ollama
                     content: >-
-                      Kiểm tra kết nối thất bại. Đối với Ollama, bạn cần đặt biến môi trường <code>OLLAMA_HOST</code> khi khởi động để cho phép kết nối. Xem hướng dẫn tại trang tài liệu.
+                      Kiểm tra kết nối thất bại. Đối với Ollama, bạn cần đặt
+                      biến môi trường <code>OLLAMA_HOST</code> khi khởi động để
+                      cho phép kết nối. Xem hướng dẫn tại trang tài liệu.
     common:
       continueAnyway: Vẫn tiếp tục
       goToModelSelection: Chọn Mô hình →
@@ -976,14 +1070,19 @@ pages:
         description: Các nhà cung cấp mô hình thị giác máy cho việc hiểu hình ảnh.
       speech:
         title: Giọng nói
-        description: 'Các nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
+        description: >-
+          Các nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ:
+          ElevenLabs, Azure Speech.
       transcription:
         title: Phiên âm
         description: >-
-          Các nhà cung cấp mô hình phiên âm (speech-to-text). Ví dụ: Whisper.cpp OpenAI, Azure Speech
+          Các nhà cung cấp mô hình phiên âm (speech-to-text). Ví dụ: Whisper.cpp
+          OpenAI, Azure Speech
       artistry:
         title: Nghệ thuật
-        description: 'Các nhà cung cấp mô hình tạo ảnh và thiết kế. Ví dụ: ComfyUI, Replicate.'
+        description: >-
+          Các nhà cung cấp mô hình tạo ảnh và thiết kế. Ví dụ: ComfyUI,
+          Replicate.
         items:
           comfyui:
             description: Chương trình tạo ảnh cục bộ.
@@ -994,12 +1093,16 @@ pages:
     helpinfo:
       title: Lần đầu tới đây?
       description: >
-        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
+        {chat} AIRI cần ít nhất một nhà cung cấp để suy nghĩ và hoạt động đúng
+        cách. Có thể coi nó như bộ não của nhân vật AIRI trong hệ thống.
     explained:
       chat: 'Nhà cung cấp mô hình tạo văn bản. Ví dụ: OpenRouter, OpenAI, Ollama.'
-      Speech: 'Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs, Azure Speech.'
+      Speech: >-
+        Nhà cung cấp mô hình giọng nói (text-to-speech). Ví dụ: ElevenLabs,
+        Azure Speech.
       Transcription: >-
-        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp, OpenAI, Azure Speech
+        Nhà cung cấp mô hình chuyển giọng nói thành văn bản. Ví dụ: Whisper.cpp,
+        OpenAI, Azure Speech
     description: LLMs, nhà cung cấp giọng nói, v.v.
     provider:
       app-local-audio-transcription:
@@ -1023,7 +1126,9 @@ pages:
         config:
           api-key:
             label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            description: >-
+              Amazon Bedrock API key (generate in AWS Console → Bedrock → API
+              Keys)
             placeholder: bedrock-...
           region:
             label: AWS Region
@@ -1034,14 +1139,15 @@ pages:
         helpinfo:
           title: Trước khi bắt đầu
           description:
-            part1: >-
-              Anthropic gần đây công bố hỗ trợ beta cho SDK OpenAI
+            part1: Anthropic gần đây công bố hỗ trợ beta cho SDK OpenAI
             part2: (xem thêm tại đây)
             part3: nhưng do chi tiết triển khai đi kèm
             part4: >-
-              với hạn chế không tương thích hoàn toàn với SDK OpenAI, hiện chưa thể dùng nhà cung cấp này trong trình duyệt.
+              với hạn chế không tương thích hoàn toàn với SDK OpenAI, hiện chưa
+              thể dùng nhà cung cấp này trong trình duyệt.
             part5: >-
-              Nếu cần dùng, bạn phải có proxy backend riêng như Serverless Function
+              Nếu cần dùng, bạn phải có proxy backend riêng như Serverless
+              Function
             part6: hoặc dịch vụ bypass CORS để vượt hạn chế.
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -1105,19 +1211,26 @@ pages:
               placeholder: http://localhost:8188
           cors:
             title: Yêu Cầu Bị Chặn Bởi CORS
-            description: ComfyUI mặc định chặn các yêu cầu từ các ứng dụng khác. Để cho phép AIRI kết nối, bạn phải bắt đầu ComfyUI với flag `--enable-cors-header "*"`.
+            description: >-
+              ComfyUI mặc định chặn các yêu cầu từ các ứng dụng khác. Để cho
+              phép AIRI kết nối, bạn phải bắt đầu ComfyUI với flag
+              `--enable-cors-header "*"`.
             command: python main.py --enable-cors-header "*"
           workflows:
             title: Mẫu Workflow
             upload: Tải Workflow
             cancel_upload: Hủy
-            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            empty: >-
+              No workflows uploaded yet. Click "Upload Workflow" to import a
+              workflow_api.json from ComfyUI.
             exposed_parameters: Exposed Parameters
             summary: '{nodes} nodes · {fields} exposed fields'
             remove: Remove
             config_snippet: Artistry Config Snippet
             copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            paste_hint: >-
+              Paste this into your AIRI Card artistry config to override these
+              nodes.
           upload:
             prompt: Drop or select a workflow_api.json file
             invalid_json: Invalid JSON
@@ -1139,7 +1252,9 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Mô Hình Mặc Định
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            description: >-
+              Fallback owner/model string to use if the character card doesn't
+              specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Tỉ Lệ Khung Hình
@@ -1147,7 +1262,9 @@ pages:
             placeholder: '16:9'
           inference_steps:
             label: Các Bước Suy Luận
-            description: Số lượng bước cho quá trình khử nhiễu (giá trị thấp thì nhanh hơn, giá trị cao thì chất lượng tốt hơn)
+            description: >-
+              Số lượng bước cho quá trình khử nhiễu (giá trị thấp thì nhanh hơn,
+              giá trị cao thì chất lượng tốt hơn)
       nanobanana:
         settings:
           title: Nano Banana
@@ -1219,7 +1336,8 @@ pages:
         models:
           fp32-webgpu:
             description: >-
-              Mô hình độ chính xác cao dùng WebGPU - Khuyên dùng cho thiết bị hỗ trợ
+              Mô hình độ chính xác cao dùng WebGPU - Khuyên dùng cho thiết bị hỗ
+              trợ
           fp32:
             description: Độ chính xác đầy đủ (Full precision)
           fp16:
@@ -1372,7 +1490,9 @@ pages:
         speech-title: Official Speech Provider
         speech-description: Official text-to-speech provider by AIRI.
         speech-streaming-title: Nhà Cung Cấp Giọng Nói Thời Gian Thực (Streaming) Chính Thức
-        speech-streaming-description: Nhà cung cấp text-to-speech độ trễ thấp chính thức bởi AIRI (WebSocket hai chiều).
+        speech-streaming-description: >-
+          Nhà cung cấp text-to-speech độ trễ thấp chính thức bởi AIRI (WebSocket
+          hai chiều).
         transcription-title: Nhà Cung Cấp Phiên Âm Chính Thức
         transcription-description: Nhà cung cấp speech-to-text chính thức bởi AIRI.
       transcriptions:
@@ -1381,6 +1501,11 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (Giảm giá 10%)
+      prompt-api:
+        description: >-
+          Với Prompt API, bạn có thể gửi yêu cầu bằng ngôn ngữ tự nhiên đến mô
+          hình cơ sở trong Chrome.
+        title: Prompt API
     title: Nhà cung cấp
   connection:
     description: Cấu hình kết nối máy chủ WebSocket
@@ -1392,10 +1517,12 @@ pages:
     server-hostname:
       label: Expose On Network
       description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+        Choose whether the AIRI gateway only listens on this device or can be
+        reached from your local network.
       advanced-label: Bind Hostname
       advanced-description: >-
-        Use a specific hostname or IP address when you need manual network binding.
+        Use a specific hostname or IP address when you need manual network
+        binding.
       options:
         this-device: This device
         all: All
@@ -1403,17 +1530,20 @@ pages:
     server-auth-token:
       label: Auth Token
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+        Security token required by remote clients that connect to this gateway.
+        When left empty, AIRI generates a new token automatically.
       placeholder: Auto-generate
     qr:
       title: Connect from Stage Pocket
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+        Scan this QR code from Stage Pocket to try all reachable local network
+        addresses and save the first working one.
       refresh: Refresh
       image-alt: AIRI server channel connection QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        The QR code includes the auth token so Stage Pocket can authenticate
+        after connecting. Do not share it publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1484,8 +1614,7 @@ pages:
                 title: Polaroid
                 description: Công cụ chụp ảnh mô hình
               context-flow:
-                description: >-
-                  Kiểm tra các bản cập nhật ngữ cảnh và sự kiện luồng chat
+                description: Kiểm tra các bản cập nhật ngữ cảnh và sự kiện luồng chat
               websocket-inspector:
                 title: Kiểm tra WebSocket
                 description: Theo dõi lưu lượng WebSocket thô
@@ -1495,7 +1624,8 @@ pages:
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun Real-time Transcriber
                 description: >-
-                  Truyền âm thanh micro tới Aliyun NLS và kiểm tra văn bản trực tiếp
+                  Truyền âm thanh micro tới Aliyun NLS và kiểm tra văn bản trực
+                  tiếp
               performance-playground:
                 title: Khu thử nghiệm hiệu năng
                 description: VRM expressions + TTS lip sync playground
@@ -1565,7 +1695,8 @@ pages:
                 color-7: Xanh lam
                 color-8: Thổ hoàng
               description: >-
-                Màu sắc truyền thống Trung Hoa, lấy cảm hứng từ dệt may, gốm sứ và hội họa cổ
+                Màu sắc truyền thống Trung Hoa, lấy cảm hứng từ dệt may, gốm sứ
+                và hội họa cổ
               title: Màu truyền thống Trung Hoa
           title: Bộ Màu Có Sẵn
     title: Giao Diện
@@ -1580,10 +1711,15 @@ pages:
     title: Scenes
     description: Customize the virtual environment for your characters.
     beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    beta_description: >-
+      Each character card specifies its own preferred background from this
+      gallery. Setting it here will set it as the default for the currently
+      active character.
     background_image:
       title: Active Character Background
-      no_background: No background active for this character. Upload a square or landscape image for best results.
+      no_background: >-
+        No background active for this character. Upload a square or landscape
+        image for best results.
       upload: Upload to Gallery
       change: Change Background
       clear: Clear Default
@@ -1597,7 +1733,9 @@ pages:
       delete_confirm: Are you sure you want to delete this background?
     tip:
       label: Tip!
-      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
+      description: >-
+        Using a square image will leverage <b>cover</b> cropping in portrait
+        mode, focusing on the center of the scene.
 sections:
   section:
     general:
@@ -1682,8 +1820,10 @@ spine:
 websocket-secure-enabled:
   title: Bật WebSocket bảo mật (WSS)
   description: >-
-    Bật WSS để hỗ trợ kết nối HTTPS cho thiết bị di động trong quá trình phát triển. Chứng chỉ tự ký sẽ được tạo tự động.
+    Bật WSS để hỗ trợ kết nối HTTPS cho thiết bị di động trong quá trình phát
+    triển. Chứng chỉ tự ký sẽ được tạo tự động.
 wip:
   title: Đang phát triển
   description: >-
-    Tính năng này hiện đang được hoàn thiện và chưa sẵn sàng công khai. Hãy chờ bản cập nhật trong tương lai nhé!
+    Tính năng này hiện đang được hoàn thiện và chưa sẵn sàng công khai. Hãy chờ
+    bản cập nhật trong tương lai nhé!

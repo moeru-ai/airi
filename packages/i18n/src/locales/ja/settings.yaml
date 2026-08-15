@@ -4,8 +4,7 @@ animations:
   stage-transitions:
     title: ステージ遷移を無効にする
   use-page-specific-transitions:
-    description: >-
-      一部のページには独自の遷移アニメーションがあり、ステージ遷移アニメーションを上書きします
+    description: 一部のページには独自の遷移アニメーションがあり、ステージ遷移アニメーションを上書きします
     title: ページ固有の遷移を使用する
 dialogs:
   onboarding:
@@ -36,10 +35,8 @@ dialogs:
     credentialsSafeLabel: APIキーと認証情報は安全に管理してください！
     credentialsSafeLocal: >-
       AIRIはあなたのPC上で完全にローカル環境で動作しており、AI/LLMプロバイダー向けの認証情報を無断で取得することはありません。ただし、APIキーは機密情報であることを十分に認識してください。これらのキーは厳重に管理し、決して第三者と共有しないようご注意ください。
-    credentialsSafeOpenSource: >-
-      AIRIのソースコードは{github}で公開されています。認証情報の取り扱い方法を確認したい場合は、お気軽にコードをご確認ください。
-    enableChatCheck: >-
-      Airiが最初に利用できるチャットモデルに「ping」メッセージを送信して利用可能状況を確認することを許可する
+    credentialsSafeOpenSource: AIRIのソースコードは{github}で公開されています。認証情報の取り扱い方法を確認したい場合は、お気軽にコードをご確認ください。
+    enableChatCheck: Airiが最初に利用できるチャットモデルに「ping」メッセージを送信して利用可能状況を確認することを許可する
     start: 始めましょう！
     loginPrompt: 最適な体験を提供するAIRI公式プロバイダーを利用するには、ログインしてください。
     loginAction: サインイン
@@ -48,8 +45,7 @@ dialogs:
     buyFlux: Fluxをチャージ
     select-model: モデルを選択
     no-models: 利用可能なモデルがありません
-    no-models-help: >-
-      前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
+    no-models-help: 前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
     permissions:
       title: 通知
       description: 今すぐ通知を許可するか、続行して後で設定できます。
@@ -65,7 +61,9 @@ dialogs:
       stateNotGranted: 許可されていません
   bug-report:
     title: バク報告(´;ω;`)ヾ(･∀･`)
-    subtitle: "予期せぬエラーが発生しました\n何が起こったか報告してくれませんか？"
+    subtitle: |-
+      予期せぬエラーが発生しました
+      何が起こったか報告してくれませんか？
     trigger-label: バグを報告
     submit-label: バグ報告を送信
     triage-description: この問題の解決のためにページ内容とスクリーンショットを含める。
@@ -94,8 +92,7 @@ controls-island:
 analytics:
   notice:
     title: 使用状況の分析
-    description: >-
-      AIRIは匿名の利用分析データを収集し、アプリの使用方法の把握と安定性の向上に役立てています。個人を特定できる情報は一切収集されません。
+    description: AIRIは匿名の利用分析データを収集し、アプリの使用方法の把握と安定性の向上に役立てています。個人を特定できる情報は一切収集されません。
     privacyPrefix: 読む
     privacyLink: プライバシーポリシー
     onboardingHint: 分析機能は「設定」>「システム」>「一般」で後からオフにすることができます。
@@ -109,9 +106,12 @@ model-select:
   panel-callout:
     support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for
+      Live2D and Spine models) and {vrm} (for VRM models) are supported.
     model-type-example: >
-      Neuro-sama uses 2D model driven by framework developed by Live2D Inc, while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open formats.
+      Neuro-sama uses 2D model driven by framework developed by Live2D Inc,
+      while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open
+      formats.
   select-model:
     title: Model Selector
     button: モデルを選択
@@ -144,14 +144,18 @@ live2d:
   theme-color-from-model:
     title: モデルから色を抽出
     description: >
-      Extract prominent colors from current rendering canvas. Click on the color to apply it to AIRI. Try to extract multiple times, with the model in different poses, if the colors are not desirable.
+      Extract prominent colors from current rendering canvas. Click on the color
+      to apply it to AIRI. Try to extract multiple times, with the model in
+      different poses, if the colors are not desirable.
     button-extract:
       title: 抽出
   animation:
     title: アニメーション
     focus:
       title: Enable mouse tracking
-      description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
+      description: >-
+        Look at the cursor while it is moving. Idle eye movement resumes after
+        the cursor stops.
       offset: Eye offset(%)
     force-idle-eye-animation:
       title: Idle eye movement
@@ -182,14 +186,14 @@ live2d:
       title: FPS
       description: Limit rendering frame rate
       options:
-        unlimited: '∞'
+        unlimited: ∞
     shadow: Drop shadow
     reset-parameters: デフォルトのパラメータにリセット
   clear-model-cache: Clear model cache
   expressions:
     title: Expressions
     override-toggle: Expression system
-    sdk-preset-preserved-notice: >
+    sdk-preset-preserved-notice: |
       SDK expression manager and eye blink are preserved when disabled.
     no-expression: No expressions available for this model.
     llm-integration-wip: LLM tool integration is not yet wired up.
@@ -231,7 +235,9 @@ pages:
     connections:
       tab: 接続済みアカウント
       title: 接続済みアカウント
-      description: Sign in to AIRI through these providers. Unlink to revoke access, then link again to switch to a different account.
+      description: >-
+        Sign in to AIRI through these providers. Unlink to revoke access, then
+        link again to switch to a different account.
       status:
         linked: リンク済
         notLinked: Not linked
@@ -248,14 +254,20 @@ pages:
         listFailed: Could not load connected accounts.
         unlinkFailed: Could not unlink this account.
         linkFailed: Could not start the link flow.
-        accountAlreadyLinkedToDifferentUser: この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーアカウントを選ぶか、先に別の AIRI アカウントから連携を解除してください。
+        accountAlreadyLinkedToDifferentUser: >-
+          この OAuth アカウントは別の AIRI アカウントにすでに連携されています。別のプロバイダーアカウントを選ぶか、先に別の AIRI
+          アカウントから連携を解除してください。
         oauthCallbackFailed: この OAuth アカウントを連携できませんでした。もう一度試すか、別のプロバイダーアカウントを選んでください。
-        lastAccount: "これはあなたの唯一のサインイン方法です。\nリンクを解除する前にパスワードを設定してください。"
+        lastAccount: |-
+          これはあなたの唯一のサインイン方法です。
+          リンクを解除する前にパスワードを設定してください。
     security:
       tab: セキュリティ
       title: セキュリティ
       description: Change your password. Your other devices will be signed out.
-      setDescription: You signed in via a social provider, so there is no current password yet. We'll email a secure link to set one.
+      setDescription: >-
+        You signed in via a social provider, so there is no current password
+        yet. We'll email a secure link to set one.
       currentPassword:
         label: 現在のパスワード
         placeholder: 現在のパスワードを入力してください
@@ -286,7 +298,9 @@ pages:
         action: Delete account
         modal:
           title: Delete account?
-          warning: This cannot be undone. Active subscription will be canceled, Flux balance cleared.
+          warning: >-
+            This cannot be undone. Active subscription will be canceled, Flux
+            balance cleared.
           confirmEmail:
             label: Type your email to confirm
             placeholder: ''
@@ -339,26 +353,22 @@ pages:
         scenario: あなたは最近目覚め、前世のすべてを忘れてしまいました。
         systemprompt: 受け取ったメッセージに、本物の人間のように答えてください。
         posthistoryinstructions: 人間の真似をすることを忘れないでください。
-      modules_info: >-
-        このキャラクターカード用のモジュールを設定してください。設定されていない場合は、デフォルトのモジュール設定が使用されます。
+      modules_info: このキャラクターカード用のモジュールを設定してください。設定されていない場合は、デフォルトのモジュール設定が使用されます。
       use_default: デフォルトを使用
       use_default_not_configured: デフォルトを使用 (未設定)
       fields_info:
-        subtitle: >-
-          ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
+        subtitle: ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
         name: このキャラクターの正式名称です。
         nickname: 優先的に使用されるニックネームも設定できます。
         description: このキャラクターの説明です。
         notes: 個人的なメモを追加したい場合はここに。
-        personality: >-
-          ここにキャラクターの性格を記述してください。 恥ずかしがり屋？好奇心旺盛？他には？
+        personality: ここにキャラクターの性格を記述してください。 恥ずかしがり屋？好奇心旺盛？他には？
         scenario: 周囲の状況はどうなっていますか？現在の状況は？
         greetings_field: 挨拶
         greetings: キャラクターはどのように「こんにちは」と言うべきですか？
         systemprompt: AI LLMに対して、質問された際にどのように回答すべきかをここで説明してください。
         posthistoryinstructions: メッセージ履歴の後にAI LLMに読んでほしい内容をここに配置してください。
-        version: >-
-          カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
+        version: カードのバージョン。以前のカードから変更を加える場合は、これを増やす必要があります。
         consciousness_model: このキャラクターの意識モデル(AIモデル)を選択してください。
         speech_model: このキャラクターの音声合成モデルと音声を選択してください。
       errors:
@@ -441,7 +451,7 @@ pages:
         reset: デスクトップのデータをリセット
     confirmations:
       tooltip: 本当によろしいですか？
-      'yes': 'はい'
+      'yes': はい
     status:
       exported: チャットセッションをエクスポートしました。
       imported: チャットセッションをインポートしました。
@@ -484,23 +494,19 @@ pages:
           title: パラメーター
           parameters:
             adaptive_threshold:
-              description: >-
-                時間の経過に伴う信号の変動に基づいて補正閾値を適用するかどうか。
+              description: 時間の経過に伴う信号の変動に基づいて補正閾値を適用するかどうか。
               label: 補正閾値
             buffer_duration:
               description: 内部分析バッファの期間。
               label: バッファ期間
             envelope_filter_frequency:
-              description: >-
-                エネルギー変化を平滑化するために適用されるエンベロープフィルターの周波数。
+              description: エネルギー変化を平滑化するために適用されるエンベロープフィルターの周波数。
               label: エンベロープフィルター周波数
             highpass_filter_frequency:
-              description: >-
-                サブベースノイズのような低周波を低減するために適用される ハイパスフィルターの周波数。
+              description: サブベースノイズのような低周波を低減するために適用される ハイパスフィルターの周波数。
               label: ハイパスフィルター周波数
             lowpass_filter_frequency:
-              description: >-
-                声のような高周波を低減するために適用されるローパスフィルターの周波数。
+              description: 声のような高周波を低減するために適用されるローパスフィルターの周波数。
               label: ローパスフィルター周波数
             min_beat_interval:
               description: 最大BPM、または検出されるビート間の最小間隔。
@@ -518,7 +524,9 @@ pages:
       description: Image generation, scene background and drawing.
       page:
         title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        description: >-
+          Select the active backend provider for image generation. Characters
+          can override this in their Card settings.
       providers:
         none:
           name: None
@@ -534,12 +542,17 @@ pages:
           description: Use Google AI Studio for image preview and reactions.
       card:
         description: Configure how AIRI generates images and visual content.
-        comfyui_empty: No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI to upload a workflow template.
+        comfyui_empty: >-
+          No ComfyUI workflows configured. Go to Settings → Providers → ComfyUI
+          to upload a workflow template.
         exposed_fields: '{count} exposed fields'
         open_on_replicate: Open on Replicate
         instruction_sync:
           title: ComfyUI Instruction Sync
-          description: A specialized prompt is ready for your {workflowName} workflow. Applying this will overwrite current widget instructions so the AI knows how to use this specific template.
+          description: >-
+            A specialized prompt is ready for your {workflowName} workflow.
+            Applying this will overwrite current widget instructions so the AI
+            knows how to use this specific template.
           apply: Apply Recommended Prompt
           keep: Keep Existing
       provider: Artistry Provider
@@ -553,9 +566,14 @@ pages:
           bg_widget: Dual (Background + Widget)
       autonomous:
         title: Cinematic Autonomy (Autonomous Artist)
-        description: When enabled, the "Producer" runs in parallel to the character to decide if a visual is needed. This prevents the character from forgetting to manifest scenes.
+        description: >-
+          When enabled, the "Producer" runs in parallel to the character to
+          decide if a visual is needed. This prevents the character from
+          forgetting to manifest scenes.
         threshold: Manifestation Threshold
-        threshold_description: Use {min} for aggressive scene creation or {max} to require stronger evidence before generating.
+        threshold_description: >-
+          Use {min} for aggressive scene creation or {max} to require stronger
+          evidence before generating.
         threshold_min: Always Generate (0%)
         threshold_max: Strict (100%)
       model:
@@ -568,7 +586,9 @@ pages:
         label: Artistry Provider Options (JSON)
       widget-instructions:
         label: Widget System Prompt
-        description: Custom instructions for the AI on how to use the generation capabilities.
+        description: >-
+          Custom instructions for the AI on how to use the generation
+          capabilities.
     categories:
       essential: 必須
       messaging: Messaging
@@ -581,7 +601,7 @@ pages:
           provider-model-selection:
             collapse: 折りたたむ
             custom_model_placeholder: カスタムモデル名を入力…
-            current_model_label: '現在のモデル：'
+            current_model_label: 現在のモデル：
             description: 意識に適したLLMプロバイダーを選択
             error: モデルの読み込みエラー
             health_check_failed: ヘルスチェックに失敗しました
@@ -623,8 +643,7 @@ pages:
       description: Minecraftをプレイ！
       title: Minecraft
       enable: Minecraft連携を有効にする
-      enable-description: >-
-        ステージチャットにMinecraftの自己知識を含め、パッシブな実行時可視性を有効に維持する。
+      enable-description: ステージチャットにMinecraftの自己知識を含め、パッシブな実行時可視性を有効に維持する。
       configured: Minecraftは適切に設定されています！
       read-only:
         title: 読み取り専用シェル
@@ -632,8 +651,7 @@ pages:
           ステージは現在、Minecraftをパッシブなシェルとして公開しています。実行状態やトラフィックはここで確認できますが、サービスの構成設定については、引き続きMinecraftのサービスファイル側で管理されます。
       setup:
         title: セットアップ
-        description: >-
-          ボットのセットアップ手順については、以下のファイルで確認できます
+        description: ボットのセットアップ手順については、以下のファイルで確認できます
       runtime:
         title: 観察されたランタイム
         connection: 接続
@@ -660,12 +678,13 @@ pages:
           confidence-threshold:
             title: 信頼度の閾値
             description: >-
-              信頼度の低い音声認識結果を除外することで、Whisperの幻覚現象を抑制します。0に近い値ほど厳格なフィルタリングとなり、左端までドラッグすると機能が無効になります。この機能はWhisper APIをサポートするプロバイダー（例：OpenAI、Groq）でのみ有効です。
+              信頼度の低い音声認識結果を除外することで、Whisperの幻覚現象を抑制します。0に近い値ほど厳格なフィルタリングとなり、左端までドラッグすると機能が無効になります。この機能はWhisper
+              APIをサポートするプロバイダー（例：OpenAI、Groq）でのみ有効です。
             disabled: 無効
-            verbose-json-note: >-
-              注意：プロバイダーが verbose_json レスポンスをサポートしていない場合、この設定は無効になります。
+            verbose-json-note: 注意：プロバイダーが verbose_json レスポンスをサポートしていない場合、この設定は無効になります。
             verbose-json-unsupported: >-
-              プロバイダーから verbose_json セグメントが返されませんでした。信頼度フィルタリングは最後の文字起こしに影響を及ぼしませんでした。
+              プロバイダーから verbose_json
+              セグメントが返されませんでした。信頼度フィルタリングは最後の文字起こしに影響を及ぼしませんでした。
     memory-long-term:
       description: 長期記憶固有の設定と管理
       title: 長期記憶
@@ -715,7 +734,9 @@ pages:
             search_voices_results: 結果{total}個中{count}個の音声が見つかりました
             unsupported_voice_warning_title: サポートされている音声がありません
             unsupported_voice_warning_content: >-
-              別のモデルまたはプロバイダーを試してください。このモデルのすべての音声をできるだけ早くサポートできるように取り組んでいます。 緊急に必要な場合は、GitHubの https://github.com/moeru-ai/airi/issues でお知らせください。
+              別のモデルまたはプロバイダーを試してください。このモデルのすべての音声をできるだけ早くサポートできるように取り組んでいます。
+              緊急に必要な場合は、GitHubの https://github.com/moeru-ai/airi/issues
+              でお知らせください。
             show_less: 表示を減らす
             show_more: もっと表示
             title: プロバイダー
@@ -753,7 +774,9 @@ pages:
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: ランタイムの状態
-      empty: No MCP servers yet — click "Add server" below to create one, or paste a config via "Edit JSON".
+      empty: >-
+        No MCP servers yet — click "Add server" below to create one, or paste a
+        config via "Edit JSON".
       error-title: Oops
       success-title: Done!
       existing:
@@ -762,7 +785,9 @@ pages:
         empty: Nothing here yet. Add one below!
       add:
         title: New
-        description: "Fill in a new server, then click \"Save and restart\" — it'll move into \"Configured\" above."
+        description: >-
+          Fill in a new server, then click "Save and restart" — it'll move into
+          "Configured" above.
         pending-badge: Unsaved
       status:
         unknown: not loaded
@@ -794,7 +819,10 @@ pages:
         args:
           label: Arguments
           description: One per line, in order.
-          placeholder: "-y\nsome-package-name\n/tmp"
+          placeholder: |-
+            -y
+            some-package-name
+            /tmp
         cwd:
           label: Working directory
           description: Optional directory used as the process working directory.
@@ -808,11 +836,15 @@ pages:
           label: Enabled
       json:
         title: Edit mcp.json
-        description: 'Edit the raw JSON directly. Click "Apply" to load it into the form, then "Save and restart" to write it to disk.'
+        description: >-
+          Edit the raw JSON directly. Click "Apply" to load it into the form,
+          then "Save and restart" to write it to disk.
         placeholder: Paste mcp.json here…
       test:
         title: Test connection
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        description: >-
+          We'll spawn the server briefly to check the command works and see what
+          tools it exposes.
         pick-server-label: Server
         no-servers: Nothing to test yet
         no-server-selected: Pick a server first.
@@ -823,13 +855,17 @@ pages:
         success: Connected! Found {count} tools in {ms}ms.
         failure: Connection failed after {ms}ms
       errors:
-        empty-identifier: Server # {index} is missing an identifier.
+        empty-identifier: Server
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
         empty-command: '"{name}" is missing a command.'
-        invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
+        invalid-shape: >-
+          That doesn't look like a valid mcp.json — the root needs an
+          "mcpServers" field.
       messages:
         opened: Opened {path} in your file manager
-        json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
+        json-applied: >-
+          JSON applied to the form. Click "Save and restart" to persist it to
+          disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
     title: Flux
@@ -871,8 +907,7 @@ pages:
         validation:
           failed:
             title: プロバイダ設定を確認してください。認証に失敗しました。
-            description: >-
-              続行する場合は、現在の設定を保存することができます。
+            description: 続行する場合は、現在の設定を保存することができます。
             action: このまま保存
         config:
           common:
@@ -885,7 +920,8 @@ pages:
                 base-url:
                   label: ベースURL
                   description: >-
-                    リモートサービスへの接続に使用されるベースURL。多くの場合、http://localhost:11434/v1 または https://example.com/v1 のようになります。
+                    リモートサービスへの接続に使用されるベースURL。多くの場合、http://localhost:11434/v1 または
+                    https://example.com/v1 のようになります。
                   placeholder: ベースURL…
                 headers:
                   label: カスタムHTTPヘッダー
@@ -896,7 +932,7 @@ pages:
                     placeholder: 値
                 thinking-mode:
                   label: 思考モード
-                  description: >
+                  description: |
                     Ollamaの思考動作を制御します。GPT-OSSでは低/中/高レベルのみをサポートします。
                   options:
                     auto: 自動（プロバイダのデフォルト）
@@ -905,6 +941,9 @@ pages:
                     low: 低
                     medium: 中
                     high: 高
+                download-model:
+                  description: Chromium Prompt API モデルをダウンロードする
+                  label: モデルをダウンロード
         validators:
           actions:
             validate: 検証
@@ -923,6 +962,9 @@ pages:
             valid: 検証成功
             invalid: エラー
           title: チェック
+          prompt-api:
+            check-availability:
+              title: 可用性
         providers:
           provider:
             ollama:
@@ -931,7 +973,9 @@ pages:
                   openai-compatible-check-connectivity:
                     label: Ollamaに追加設定が必要です
                     content: >-
-                      残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
+                      残念ながら、Ollamaの接続チェックが失敗したようです。Ollamaインスタンスの場合、正常に動作させるためには追加の設定が必要です。OllamaアプリケーションまたはOllama
+                      CLIサーバーを起動する際には、<code>OLLAMA_HOST</code>環境変数を明示的に設定する必要があります。詳細な手順については、<a
+                      href="https://airi.moeru.ai/docs/en/docs/manual/integrations/providers/chat/ollama">Ollama統合ガイド</a>をご参照ください。
     common:
       continueAnyway: 続行する
       goToModelSelection: モデルを選択 →
@@ -976,11 +1020,14 @@ pages:
         description: Vision model providers for image understanding.
       speech:
         title: Speech
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
+        description: >-
+          Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure
+          Speech.
       transcription:
         title: Transcription
         description: >-
-          Transcription (speech-to-text) model providers. e.g. Whisper.cpp, OpenAI, Azure Speech
+          Transcription (speech-to-text) model providers. e.g. Whisper.cpp,
+          OpenAI, Azure Speech
       artistry:
         title: Artistry
         description: Image generation and design model providers. e.g. ComfyUI, Replicate.
@@ -994,12 +1041,12 @@ pages:
     helpinfo:
       title: ここを初めて利用しますか？
       description: >
-        AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。 これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
+        AIRIが正常に思考し動作するためには、少なくとも1つの{chat}プロバイダーの設定が必要です。
+        これはAIRIシステム内に存在するキャラクターの脳と考えることができます。
     explained:
       chat: テキスト生成モデルプロバイダー。例： OpenRouter, OpenAI, Ollama。
       Speech: 音声 (テキスト読み上げ) モデルプロバイダー。例： ElevenLabs, Azure Speech。
-      Transcription: >-
-        音声認識 (speech-to-text) モデルプロバイダー。例： Whisper.cpp, OpenAI, Azure Speech
+      Transcription: 音声認識 (speech-to-text) モデルプロバイダー。例： Whisper.cpp, OpenAI, Azure Speech
     description: LLM、音声プロバイダーなど。
     provider:
       app-local-audio-transcription:
@@ -1023,7 +1070,9 @@ pages:
         config:
           api-key:
             label: Bedrock API Key
-            description: Amazon Bedrock API key (generate in AWS Console → Bedrock → API Keys)
+            description: >-
+              Amazon Bedrock API key (generate in AWS Console → Bedrock → API
+              Keys)
             placeholder: bedrock-...
           region:
             label: AWS Region
@@ -1034,14 +1083,11 @@ pages:
         helpinfo:
           title: 始める前に
           description:
-            part1: >-
-              Anthropicは最近、OpenAI SDK互換のベータサポートを発表しましたが
+            part1: Anthropicは最近、OpenAI SDK互換のベータサポートを発表しましたが
             part2: (詳細はこちら)
             part3: 詳細な実装を見ると、
-            part4: >-
-              OpenAI SDKと一致しない制限があり、現在このプロバイダーをブラウザで使用することはできません。
-            part5: >-
-              このプロバイダーを使用する必要がある場合は、 Serverless Function で実行される専用のプロキシバックエンド、
+            part4: OpenAI SDKと一致しない制限があり、現在このプロバイダーをブラウザで使用することはできません。
+            part5: このプロバイダーを使用する必要がある場合は、 Serverless Function で実行される専用のプロキシバックエンド、
             part6: またはCORS制限をバイパスするためのCORSバイパスサービスが必要です。
       cloudflare-workers-ai:
         description: cloudflare.com
@@ -1105,19 +1151,26 @@ pages:
               placeholder: http://localhost:8188
           cors:
             title: CORS Block Detected
-            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
+            description: >-
+              ComfyUI blocks requests from other applications by default. To
+              allow AIRI to connect, you must start ComfyUI with the
+              `--enable-cors-header "*"` flag.
             command: python main.py --enable-cors-header "*"
           workflows:
             title: Workflow Templates
             upload: Upload Workflow
             cancel_upload: Cancel
-            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
+            empty: >-
+              No workflows uploaded yet. Click "Upload Workflow" to import a
+              workflow_api.json from ComfyUI.
             exposed_parameters: Exposed Parameters
             summary: '{nodes} nodes · {fields} exposed fields'
             remove: Remove
             config_snippet: Artistry Config Snippet
             copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            paste_hint: >-
+              Paste this into your AIRI Card artistry config to override these
+              nodes.
           upload:
             prompt: Drop or select a workflow_api.json file
             invalid_json: 無効なJSON形式です
@@ -1139,7 +1192,9 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Default Model
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            description: >-
+              Fallback owner/model string to use if the character card doesn't
+              specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Aspect Ratio
@@ -1147,7 +1202,9 @@ pages:
             placeholder: '16:9'
           inference_steps:
             label: Inference Steps
-            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+            description: >-
+              Number of steps for the diffusion process (lower is faster, higher
+              is better quality)
       nanobanana:
         settings:
           title: Nano Banana
@@ -1218,8 +1275,7 @@ pages:
               description: モデルが小さいほど読み込みは速くなりますが、品質が若干低下する可能性があります。
         models:
           fp32-webgpu:
-            description: >-
-              WebGPU を使用した単精度モデル - 対応デバイスでの使用を推奨します
+            description: WebGPU を使用した単精度モデル - 対応デバイスでの使用を推奨します
           fp32:
             description: 単精度モデル
           fp16:
@@ -1372,7 +1428,9 @@ pages:
         speech-title: 公式音声プロバイダー
         speech-description: AIRIが提供する公式テキスト読み上げプロバイダー。
         speech-streaming-title: Official Streaming Speech Provider
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
+        speech-streaming-description: >-
+          Official low-latency text-to-speech provider by AIRI (bidirectional
+          WebSocket).
         transcription-title: 公式文字起こしプロバイダー
         transcription-description: AIRIが提供する公式の音声テキスト変換プロバイダー。
       transcriptions:
@@ -1381,6 +1439,9 @@ pages:
       aihubmix:
         title: AIHubMix
         description: https://aihubmix.com (10% off)
+      prompt-api:
+        description: Prompt API を使用すると、自然言語リクエストを Chrome の基盤モデルに送信できます。
+        title: Prompt API
     title: プロバイダー
   connection:
     description: WebSocketサーバー接続の設定
@@ -1392,10 +1453,12 @@ pages:
     server-hostname:
       label: Expose On Network
       description: >-
-        Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
+        Choose whether the AIRI gateway only listens on this device or can be
+        reached from your local network.
       advanced-label: Bind Hostname
       advanced-description: >-
-        Use a specific hostname or IP address when you need manual network binding.
+        Use a specific hostname or IP address when you need manual network
+        binding.
       options:
         this-device: この端末
         all: All
@@ -1403,17 +1466,20 @@ pages:
     server-auth-token:
       label: 認証トークン
       description: >-
-        Security token required by remote clients that connect to this gateway. When left empty, AIRI generates a new token automatically.
+        Security token required by remote clients that connect to this gateway.
+        When left empty, AIRI generates a new token automatically.
       placeholder: Auto-generate
     qr:
       title: Connect from Stage Pocket
       description: >-
-        Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
+        Scan this QR code from Stage Pocket to try all reachable local network
+        addresses and save the first working one.
       refresh: Refresh
       image-alt: AIRI server channel connection QR code
       candidates: Candidate addresses
       token-hint: >-
-        The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
+        The QR code includes the auth token so Stage Pocket can authenticate
+        after connecting. Do not share it publicly.
       errors:
         title: QR code unavailable
         unavailable: Failed to prepare the connection QR code.
@@ -1484,8 +1550,7 @@ pages:
                 title: ポラロイド
                 description: モデルを撮影するためのユーティリティ
               context-flow:
-                description: >-
-                  受信コンテキストの更新とチャットストリームの送信イベントを調査する
+                description: 受信コンテキストの更新とチャットストリームの送信イベントを調査する
               websocket-inspector:
                 title: WebSocketインスペクタ
                 description: 生のWebSocketトラフィックを調査する
@@ -1494,8 +1559,7 @@ pages:
                 description: テスト色の抽出
               providers-transcription-realtime-aliyun-nls:
                 title: Aliyun リアルタイム文字起こし
-                description: >-
-                  マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
+                description: マイクの音声をAliyun NLSにストリーミングし、リアルタイムの文字起こしを確認する
               performance-playground:
                 title: 機能実験場
                 description: VRM表情 + TTSリップシンク プレイグラウンド
@@ -1564,8 +1628,7 @@ pages:
                 color-6: 黄金色
                 color-7: 群青
                 color-8: 黄土色
-              description: >-
-                古代の染織品や陶磁器、絵画に由来する中国の伝統色
+              description: 古代の染織品や陶磁器、絵画に由来する中国の伝統色
               title: 中国の伝統色
           title: 配色プリセット
     title: システム
@@ -1580,10 +1643,15 @@ pages:
     title: Scenes
     description: Customize the virtual environment for your characters.
     beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background from this gallery. Setting it here will set it as the default for the currently active character.
+    beta_description: >-
+      Each character card specifies its own preferred background from this
+      gallery. Setting it here will set it as the default for the currently
+      active character.
     background_image:
       title: Active Character Background
-      no_background: No background active for this character. Upload a square or landscape image for best results.
+      no_background: >-
+        No background active for this character. Upload a square or landscape
+        image for best results.
       upload: Upload to Gallery
       change: Change Background
       clear: Clear Default
@@ -1597,7 +1665,9 @@ pages:
       delete_confirm: Are you sure you want to delete this background?
     tip:
       label: Tip!
-      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
+      description: >-
+        Using a square image will leverage <b>cover</b> cropping in portrait
+        mode, focusing on the center of the scene.
 sections:
   section:
     general:
@@ -1682,8 +1752,8 @@ spine:
 websocket-secure-enabled:
   title: セキュア WebSocket (WSS) を有効にする
   description: >-
-    開発モードでモバイル（pocket）のHTTPS接続を許可するために、WSS（WebSocket Secure）を有効にします。これにより自己署名証明書が自動的に生成されます。
+    開発モードでモバイル（pocket）のHTTPS接続を許可するために、WSS（WebSocket
+    Secure）を有効にします。これにより自己署名証明書が自動的に生成されます。
 wip:
   title: 開発中
-  description: >-
-    この機能は現在開発中で、まだ一般には公開されていません。今後のアップデートで利用可能になる予定ですので、しばらくお待ちください。
+  description: この機能は現在開発中で、まだ一般には公開されていません。今後のアップデートで利用可能になる予定ですので、しばらくお待ちください。

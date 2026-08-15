@@ -925,6 +925,9 @@ pages:
                     The base url used to connect to remote service. Often looks
                     like http://localhost:11434/v1 or https://example.com/v1.
                   placeholder: Base url...
+                download-model:
+                  label: Download Model
+                  description: Download Chromium Prompt API model
                 headers:
                   label: Custom HTTP Headers
                   description: Add custom HTTP headers
