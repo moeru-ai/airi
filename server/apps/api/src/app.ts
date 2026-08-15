@@ -55,7 +55,7 @@ import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
-import { createConfigKVStore } from './services/adapters/config-kv-store'
+import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createPosthogSink } from './services/adapters/posthog'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
@@ -485,11 +485,7 @@ export async function createApp() {
 
   const configKV = injeca.provide('datastore:configKV', {
     dependsOn: { db, redis },
-    build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis, {
-      onCacheError: ({ error, key, operation }) => {
-        logger.withError(error).withFields({ key, operation }).warn('ConfigKV cache operation failed; using PostgreSQL')
-      },
-    })),
+    build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
   const posthogSink = injeca.provide('services:posthogSink', {

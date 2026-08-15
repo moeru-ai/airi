@@ -1,11 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import type { ConfigKVStore } from './config-kv-store'
-
-import { errorMessageFrom } from '@moeru/std'
-import { any, array, boolean, check, nonEmpty, number, object, optional, parse, picklist, pipe, record, regex, string } from 'valibot'
-
-import { createServiceUnavailableError } from '../../utils/error'
+import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -241,7 +236,7 @@ export const llmRouterConfigSchema = object({
  * - default values
  * - stored JSON shape
  */
-const ConfigEntrySchemas = {
+export const configEntrySchemas = {
   FLUX_PER_REQUEST: optional(number(), 5),
   INITIAL_USER_FLUX: optional(number(), 0),
   FLUX_PER_1K_TOKENS: optional(number(), 1),
@@ -281,97 +276,13 @@ const ConfigEntrySchemas = {
   UNSPEECH_UPSTREAM: optional(unspeechUpstreamSchema),
 } as const
 
-type ConfigDefinitions = {
-  [K in keyof typeof ConfigEntrySchemas]: InferOutput<(typeof ConfigEntrySchemas)[K]>
+export type ConfigDefinitions = {
+  [K in keyof typeof configEntrySchemas]: InferOutput<(typeof configEntrySchemas)[K]>
 }
 
-type ConfigKey = keyof ConfigDefinitions
+export type ConfigKey = keyof ConfigDefinitions
 
-function parseValue<K extends ConfigKey>(key: K, raw: string): ConfigDefinitions[K] {
-  try {
-    return parse(ConfigEntrySchemas[key], JSON.parse(raw)) as ConfigDefinitions[K]
-  }
-  catch (error) {
-    throw createServiceUnavailableError(
-      'Service configuration is invalid',
-      'CONFIG_INVALID',
-      {
-        key,
-        message: errorMessageFrom(error) ?? 'Unknown config parse error',
-      },
-    )
-  }
+/** Returns whether a wire key belongs to the ConfigKV schema. */
+export function isConfigKey(key: string): key is ConfigKey {
+  return Object.hasOwn(configEntrySchemas, key)
 }
-
-/**
- * Resolves a config value and applies the Valibot default when the row is missing.
- */
-function resolveWithDefault<K extends ConfigKey>(key: K, raw: string | null): ConfigDefinitions[K] | undefined {
-  if (raw !== null)
-    return parseValue(key, raw)
-
-  // Use the per-key schema with `undefined` to trigger the key default
-  try {
-    return parse(ConfigEntrySchemas[key], undefined) as ConfigDefinitions[K]
-  }
-  catch {
-    return undefined
-  }
-}
-
-/**
- * Creates the API's typed, read-only ConfigKV boundary.
- *
- * The shared store owns PostgreSQL and Redis cache-aside behavior. This layer
- * preserves the API's existing validation, defaults, and error contract.
- */
-export function createConfigKVService(store: ConfigKVStore) {
-  async function loadRaw(key: ConfigKey, fresh = false): Promise<string | null> {
-    try {
-      return fresh ? await store.getFreshRaw(key) : await store.getRaw(key)
-    }
-    catch (error) {
-      throw createServiceUnavailableError(
-        'Service configuration is unavailable',
-        'CONFIG_UNAVAILABLE',
-        {
-          key,
-          message: errorMessageFrom(error) ?? 'Unknown config store error',
-        },
-      )
-    }
-  }
-
-  return {
-    async getOptional<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K] | null> {
-      const raw = await loadRaw(key)
-      const value = resolveWithDefault(key, raw)
-      return value ?? null
-    },
-
-    async getOrThrow<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
-      const raw = await loadRaw(key)
-      const value = resolveWithDefault(key, raw)
-      if (value === undefined)
-        throw createServiceUnavailableError('Service configuration is incomplete', 'CONFIG_NOT_SET')
-
-      return value as Exclude<ConfigDefinitions[K], undefined>
-    },
-
-    async get<K extends ConfigKey>(key: K): Promise<Exclude<ConfigDefinitions[K], undefined>> {
-      return this.getOrThrow(key)
-    },
-
-    async refresh<K extends ConfigKey>(key: K): Promise<ConfigDefinitions[K] | null> {
-      const raw = await loadRaw(key, true)
-      const value = resolveWithDefault(key, raw)
-      return value ?? null
-    },
-
-    async invalidateCache<K extends ConfigKey>(key: K): Promise<void> {
-      await store.invalidateCache(key)
-    },
-  }
-}
-
-export type ConfigKVService = ReturnType<typeof createConfigKVService>

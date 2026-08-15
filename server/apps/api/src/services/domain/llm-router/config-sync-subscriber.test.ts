@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { createTestRedis } from '../../../libs/tests/redis'
-import { CONFIG_KV_INVALIDATION_CHANNEL } from '../../adapters/config-kv-contracts'
+import { CONFIG_KV_INVALIDATION_CHANNEL } from '../../adapters/config-kv/contracts'
 import { createConfigSyncSubscriber } from './config-sync-subscriber'
 
 function createHarness() {

@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 
-import { createConfigKVService } from './config-kv'
+import { createConfigKVService } from './index'
 
 function createMockStore() {
   const store = new Map<string, string>()
@@ -19,6 +19,10 @@ describe('configKVService', () => {
   beforeEach(() => {
     store = createMockStore()
     service = createConfigKVService(store)
+  })
+
+  it('uses the ConfigKV schema as the key type', () => {
+    expectTypeOf(service.get('FLUX_PER_REQUEST')).toEqualTypeOf<Promise<number>>()
   })
 
   it('get should throw 503 when key is not set', async () => {

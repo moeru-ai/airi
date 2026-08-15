@@ -1,19 +1,19 @@
+import type { ConfigKey } from './definitions'
+
+import { isConfigKey } from './definitions'
+
 export const CONFIG_KV_CACHE_TTL_SECONDS = 300
 export const CONFIG_KV_INVALIDATION_CHANNEL = 'configkv:invalidate'
 
 export interface ConfigKVInvalidation {
-  key: string
+  key: ConfigKey
   version: number
   publishedAt: number
 }
 
 /** Returns the Redis cache key for one ConfigKV entry. */
-export function configKVCacheKey(key: string): string {
-  const normalizedKey = key.trim()
-  if (!normalizedKey)
-    throw new TypeError('ConfigKV key must not be empty')
-
-  return `cache:config:${normalizedKey}`
+export function configKVCacheKey(key: ConfigKey): string {
+  return `cache:config:${key}`
 }
 
 /** Parses one ConfigKV invalidation message. */
@@ -23,15 +23,15 @@ export function parseConfigKVInvalidation(raw: string): ConfigKVInvalidation {
     throw new TypeError('ConfigKV invalidation must be an object')
 
   const payload = value as Record<string, unknown>
-  if (typeof payload.key !== 'string' || !payload.key.trim())
-    throw new TypeError('ConfigKV invalidation key must not be empty')
+  if (typeof payload.key !== 'string' || !isConfigKey(payload.key))
+    throw new TypeError('ConfigKV invalidation key is unknown')
   if (typeof payload.version !== 'number' || !Number.isFinite(payload.version))
     throw new TypeError('ConfigKV invalidation version must be a number')
   if (typeof payload.publishedAt !== 'number' || !Number.isFinite(payload.publishedAt))
     throw new TypeError('ConfigKV invalidation publishedAt must be a number')
 
   return {
-    key: payload.key.trim(),
+    key: payload.key,
     version: payload.version,
     publishedAt: payload.publishedAt,
   }

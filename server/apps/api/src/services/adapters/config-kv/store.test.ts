@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { mockDB } from '../../libs/mock-db'
-import { createTestRedis } from '../../libs/tests/redis'
-import { configKV } from '../../schemas'
-import { createConfigKVStore } from './config-kv-store'
+import { mockDB } from '../../../libs/mock-db'
+import { createTestRedis } from '../../../libs/tests/redis'
+import { configKV } from '../../../schemas'
+import { createConfigKVStore } from './store'
 
 describe('configKV store', () => {
   let db: Awaited<ReturnType<typeof mockDB>>
@@ -32,18 +32,13 @@ describe('configKV store', () => {
     expect(set).toHaveBeenCalledWith('cache:config:FLUX_PER_REQUEST', '8', 'EX', 300)
   })
 
-  it('continues with PostgreSQL when Redis reads fail', async () => {
+  it('fails when Redis reads fail', async () => {
     await db.insert(configKV).values({ key: 'FLUX_PER_REQUEST', value: '9' })
     const redis = createTestRedis()
     vi.spyOn(redis, 'get').mockRejectedValueOnce(new Error('redis offline'))
-    const onCacheError = vi.fn()
-    const store = createConfigKVStore(db, redis, { onCacheError })
+    const store = createConfigKVStore(db, redis)
 
-    await expect(store.getRaw('FLUX_PER_REQUEST')).resolves.toBe('9')
-    expect(onCacheError).toHaveBeenCalledWith(expect.objectContaining({
-      key: 'FLUX_PER_REQUEST',
-      operation: 'read',
-    }))
+    await expect(store.getRaw('FLUX_PER_REQUEST')).rejects.toThrow('redis offline')
   })
 
   it('returns null when PostgreSQL has no row', async () => {
@@ -51,8 +46,17 @@ describe('configKV store', () => {
     const set = vi.spyOn(redis, 'set')
     const store = createConfigKVStore(db, redis)
 
-    await expect(store.getRaw('MISSING')).resolves.toBeNull()
+    await expect(store.getRaw('DEFAULT_CHAT_MODEL')).resolves.toBeNull()
     expect(set).not.toHaveBeenCalled()
+  })
+
+  it('fails when Redis cannot store a PostgreSQL value', async () => {
+    await db.insert(configKV).values({ key: 'FLUX_PER_REQUEST', value: '9' })
+    const redis = createTestRedis()
+    vi.spyOn(redis, 'set').mockRejectedValueOnce(new Error('redis offline'))
+    const store = createConfigKVStore(db, redis)
+
+    await expect(store.getRaw('FLUX_PER_REQUEST')).rejects.toThrow('redis offline')
   })
 
   it('deletes the derived cache entry during invalidation', async () => {
@@ -65,6 +69,14 @@ describe('configKV store', () => {
 
     expect(del).toHaveBeenCalledWith('cache:config:LLM_ROUTER_CONFIG')
     await expect(redis.get('cache:config:LLM_ROUTER_CONFIG')).resolves.toBeNull()
+  })
+
+  it('fails invalidation when Redis cannot delete the derived value', async () => {
+    const redis = createTestRedis()
+    vi.spyOn(redis, 'del').mockRejectedValueOnce(new Error('redis offline'))
+    const store = createConfigKVStore(db, redis)
+
+    await expect(store.invalidateCache('LLM_ROUTER_CONFIG')).rejects.toThrow('redis offline')
   })
 
   it('removes a stale cache entry when a fresh database read is missing', async () => {
