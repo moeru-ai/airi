@@ -92,8 +92,7 @@ if (isLinux) {
   const isWayland = Boolean(
     env.WAYLAND_DISPLAY
     || env.XDG_SESSION_TYPE === 'wayland'
-    || env.ELECTRON_OZONE_PLATFORM_HINT === 'wayland'
-    || env.ELECTRON_OZONE_PLATFORM_HINT === 'auto',
+    || env.ELECTRON_OZONE_PLATFORM_HINT === 'wayland',
   )
 
   if (isWayland) {
