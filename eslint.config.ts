@@ -21,6 +21,8 @@ export default defineConfig({
     'apps/stage-tamagotchi/src/bindings/**',
     'apps/stage-tamagotchi-electron/out/**',
     'apps/stage-tamagotchi-electron/src/renderer/bindings/**',
+    '**/flatpak/**',
+    '**/flatpak-repo/**',
     'apps/stage-pocket/ios/**',
     'apps/stage-pocket/android/**',
     '**/drizzle/**',
@@ -35,6 +37,7 @@ export default defineConfig({
     'pnpm/json-valid-catalog': 'off',
     'pnpm/json-enforce-catalog': 'off',
     'pnpm/yaml-enforce-settings': 'off',
+    'pnpm/yaml-no-unused-catalog-item': 'off',
     'antfu/import-dedupe': 'error',
     // TODO: remove this
     'depend/ban-dependencies': 'warn',

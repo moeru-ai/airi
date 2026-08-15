@@ -50,6 +50,8 @@ coverage/
 # Build
 out/
 bundle/
+flatpak/
+flatpak-repo/
 .flatpak-builder/
 .flatpak-repo/
 *.flatpak

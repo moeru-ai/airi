@@ -231,7 +231,7 @@ function createWidgetsWindow() {
       sandbox: false,
     },
     // Top-level overlay style like other overlay windows
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
     ...spotlightLikeWindowConfig(),
   })
@@ -249,7 +249,12 @@ function createWidgetsWindow() {
 
 function applyAlwaysOnTop(window: BrowserWindow, enabled: boolean) {
   if (enabled) {
-    window.setAlwaysOnTop(true, 'screen-saver', 1)
+    if (isMacOS) {
+      window.setAlwaysOnTop(true, 'screen-saver', 1)
+    }
+    else {
+      window.setAlwaysOnTop(true)
+    }
     return
   }
 
