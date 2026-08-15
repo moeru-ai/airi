@@ -18,4 +18,9 @@ describe('configKV invalidation contract', () => {
       publishedAt: 1,
     }))).toThrow('ConfigKV invalidation key is unknown')
   })
+
+  it('rejects a non-finite message version', () => {
+    expect(() => parseConfigKVInvalidation('{"key":"FLUX_PER_REQUEST","version":1e999,"publishedAt":1}'))
+      .toThrow('ConfigKV invalidation version must be a number')
+  })
 })

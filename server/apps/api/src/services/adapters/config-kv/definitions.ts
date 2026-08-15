@@ -281,8 +281,3 @@ export type ConfigDefinitions = {
 }
 
 export type ConfigKey = keyof ConfigDefinitions
-
-/** Returns whether a wire key belongs to the ConfigKV schema. */
-export function isConfigKey(key: string): key is ConfigKey {
-  return Object.hasOwn(configEntrySchemas, key)
-}
