@@ -450,6 +450,9 @@ catalogs:
     '@types/hast':
       specifier: ^3.0.4
       version: 3.0.4
+    '@types/ioredis-mock':
+      specifier: ^8.2.8
+      version: 8.2.8
     '@types/markdown-it':
       specifier: ^14.1.2
       version: 14.1.2
@@ -759,6 +762,9 @@ catalogs:
     ioredis:
       specifier: ^5.10.1
       version: 5.10.1
+    ioredis-mock:
+      specifier: ^8.13.1
+      version: 8.13.1
     is-network-error:
       specifier: ^1.3.1
       version: 1.3.1
@@ -5480,6 +5486,12 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@types/ioredis-mock':
+        specifier: 'catalog:'
+        version: 8.2.8(ioredis@5.10.1)
+      ioredis-mock:
+        specifier: 'catalog:'
+        version: 8.13.1(@types/ioredis-mock@8.2.8(ioredis@5.10.1))(ioredis@5.10.1)
       '@types/pg':
         specifier: 'catalog:'
         version: 8.20.0
@@ -5652,6 +5664,33 @@ importers:
         version: 8.18.1
 
 packages:
+  '@ioredis/as-callback@3.0.0':
+    resolution: {integrity: sha512-Kqv1rZ3WbgOrS+hgzJ5xG5WQuhvzzSTRYvNeyPMLOAM78MHSnuKI20JeJGbpuAt//LCuP0vsexZcorqW7kWhJg==}
+
+  '@types/ioredis-mock@8.2.8':
+    resolution: {integrity: sha512-Nxr1CXk8NtGVzWQ8WoGCOyo+HARd4CFc/Nt2+ITt3WWLNlj1InW38SzZwOJNqzA38iplrpBFp6Ny4KjPfeI+bA==}
+    peerDependencies:
+      ioredis: ^5
+
+  fengari-interop@0.1.4:
+    resolution: {integrity: sha512-4/CW/3PJUo3ebD4ACgE1g/3NGEYSq7OQAyETyypsAl/WeySDBbxExikkayNkZzbpgyC9GyJp8v1DU2VOXxNq7Q==}
+    peerDependencies:
+      fengari: ^0.1.0
+
+  fengari@0.1.5:
+    resolution: {integrity: sha512-0DS4Nn4rV8qyFlQCpKK8brT61EUtswynrpfFTcgLErcilBIBskSMQ86fO2WVuybr14ywyKdRjv91FiRZwnEuvQ==}
+
+  ioredis-mock@8.13.1:
+    resolution: {integrity: sha512-Wsi50AU+cMiI32nAgfwpUaJVBtb4iQdVsOHl9M6R3tePCO/8vGsToCVIG82XWAxN4Se55TZoOzVseu+QngFLyw==}
+    engines: {node: '>=12.22'}
+    peerDependencies:
+      '@types/ioredis-mock': ^8
+      ioredis: ^5
+
+  readline-sync@1.4.10:
+    resolution: {integrity: sha512-gNva8/6UAe8QYepIQH/jQ2qn91Qj0B9sYjMBBs3QOB8F2CXcKgLxQaJRP76sWVRQt+QU+8fAkCbCvjjMFu7Ycw==}
+    engines: {node: '>= 0.8.0'}
+
 
   7zip-bin@5.2.0:
     resolution: {integrity: sha512-ukTPVhqG4jNzMro2qA9HSCSSVJN3aN7tlb+hfqYCt3ER0yWroeA2VR38MNrOHLQ/cVj+DaIMad0kFCtWWowh/A==}
@@ -20096,6 +20135,34 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+  '@ioredis/as-callback@3.0.0': {}
+
+  '@types/ioredis-mock@8.2.8(ioredis@5.10.1)':
+    dependencies:
+      ioredis: 5.10.1
+
+  fengari-interop@0.1.4(fengari@0.1.5):
+    dependencies:
+      fengari: 0.1.5
+
+  fengari@0.1.5:
+    dependencies:
+      readline-sync: 1.4.10
+      sprintf-js: 1.1.3
+      tmp: 0.2.5
+
+  ioredis-mock@8.13.1(@types/ioredis-mock@8.2.8(ioredis@5.10.1))(ioredis@5.10.1):
+    dependencies:
+      '@ioredis/as-callback': 3.0.0
+      '@ioredis/commands': 1.5.1
+      '@types/ioredis-mock': 8.2.8(ioredis@5.10.1)
+      fengari: 0.1.5
+      fengari-interop: 0.1.4(fengari@0.1.5)
+      ioredis: 5.10.1
+      semver: 7.7.4
+
+  readline-sync@1.4.10: {}
+
 
   7zip-bin@5.2.0: {}
 

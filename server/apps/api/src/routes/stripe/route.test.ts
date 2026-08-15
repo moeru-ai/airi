@@ -9,6 +9,7 @@ import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createStripeRoutes, formatPrice } from '.'
+import { createTestRedis } from '../../libs/tests/redis'
 import { ApiError } from '../../utils/error'
 import { createCheckoutOperation } from './operations/checkout'
 import { createWebhookOperation } from './operations/webhook'
@@ -81,15 +82,6 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
   } as any
 }
 
-function createMockRedis(): any {
-  const store = new Map<string, string>()
-  return {
-    get: vi.fn(async (key: string) => store.get(key) ?? null),
-    set: vi.fn(async (key: string, value: string) => { store.set(key, value) }),
-    del: vi.fn(async (key: string) => { store.delete(key) }),
-  }
-}
-
 const testEnv = {
   STRIPE_SECRET_KEY: 'sk_test_fake',
   STRIPE_WEBHOOK_SECRET: 'whsec_test_fake',
@@ -155,7 +147,7 @@ function createTestApp(
   configKV: ConfigKVService,
   envOverrides: Record<string, any> = {},
 ) {
-  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, { ...testEnv, ...envOverrides }, createMockRedis())
+  const routes = createStripeRoutes(fluxService, stripeService, billingService, configKV, { ...testEnv, ...envOverrides }, createTestRedis())
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {

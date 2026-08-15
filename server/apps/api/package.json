@@ -66,8 +66,10 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/ioredis-mock": "catalog:",
     "@types/pg": "catalog:",
     "@types/ws": "catalog:",
-    "drizzle-kit": "catalog:"
+    "drizzle-kit": "catalog:",
+    "ioredis-mock": "catalog:"
   }
 }
