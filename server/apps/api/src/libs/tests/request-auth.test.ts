@@ -20,7 +20,6 @@ const mockEnv = {
   TEST_AUTH_USER_ID: 'test-user',
   TEST_AUTH_USER_EMAIL: 'test@example.com',
   TEST_AUTH_USER_NAME: 'Test User',
-  TEST_AUTH_USER_ROLE: '',
 } as const
 
 function createUser(overrides: Partial<RequestAuthSession['user']> = {}): RequestAuthSession['user'] {
@@ -31,7 +30,6 @@ function createUser(overrides: Partial<RequestAuthSession['user']> = {}): Reques
     name: 'User',
     emailVerified: true,
     image: null,
-    role: null,
     banned: false,
     banReason: null,
     banExpires: null,
@@ -147,14 +145,12 @@ describe('resolveRequestAuth', () => {
         TEST_AUTH_USER_ID: 'test-user-1',
         TEST_AUTH_USER_EMAIL: 'Test@Example.com',
         TEST_AUTH_USER_NAME: 'Local Test User',
-        TEST_AUTH_USER_ROLE: 'admin',
       },
       new Headers({ Authorization: 'Bearer test-secret' }),
     )
 
     expect(result?.user.id).toBe('test-user-1')
     expect(result?.user.email).toBe('test@example.com')
-    expect(result?.user.role).toBe('admin')
     expect(mockedJwtVerify).not.toHaveBeenCalled()
   })
 
