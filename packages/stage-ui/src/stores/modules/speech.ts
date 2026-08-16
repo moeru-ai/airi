@@ -1,4 +1,5 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type {} from 'pinia-plugin-synced'
 
 import type { VoiceInfo } from '../providers/provider'
 
@@ -7,7 +8,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, onMounted, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
@@ -35,6 +36,12 @@ interface SpeechInputOptions {
 interface SpeechInput {
   input: string
   providerConfig: Record<string, unknown>
+}
+
+interface SpeechAnalytics {
+  trigger: 'auto' | 'manual'
+  source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
 }
 
 export const useSpeechStore = defineStore('speech', () => {
@@ -236,15 +243,6 @@ export const useSpeechStore = defineStore('speech', () => {
     },
   )
 
-  onMounted(() => {
-    ensureActiveSpeechModel()
-    loadVoicesForProvider(activeSpeechProvider.value, activeSpeechModel.value || undefined).then(() => {
-      if (activeSpeechVoiceId.value) {
-        activeSpeechVoice.value = availableVoices.value[activeSpeechProvider.value]?.find(voice => voice.id === activeSpeechVoiceId.value)
-      }
-    })
-  })
-
   setupOfficialSpeechAutoPick({
     activeSpeechProvider,
     activeSpeechVoiceId,
@@ -301,14 +299,15 @@ export const useSpeechStore = defineStore('speech', () => {
     input: string,
     voice: string,
     providerConfig: Record<string, any> = {},
+    analytics: SpeechAnalytics = {
+      trigger: 'manual',
+      source: 'manual_preview',
+      voice_type: resolveVoiceType(voice),
+    },
   ): Promise<ArrayBuffer> {
     const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
       || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-      ? withAiriTtsAnalytics(providerConfig, {
-          trigger: 'manual',
-          source: 'manual_preview',
-          voice_type: resolveVoiceType(voice),
-        })
+      ? withAiriTtsAnalytics(providerConfig, analytics)
       : providerConfig
     const response = await generateSpeech({
       ...provider.speech(model, requestProviderConfig),
@@ -321,11 +320,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   function withAiriTtsAnalytics(
     providerConfig: Record<string, any>,
-    analytics: {
-      trigger: 'auto' | 'manual'
-      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
-    },
+    analytics: SpeechAnalytics,
   ): Record<string, any> {
     return {
       ...providerConfig,
@@ -466,4 +461,8 @@ export const useSpeechStore = defineStore('speech', () => {
     resolveSpeechInput,
     resetState,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })

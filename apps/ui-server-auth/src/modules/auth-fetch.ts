@@ -1,5 +1,5 @@
 /**
- * Shared HTTP plumbing for the ui-server-auth → server/apps/api auth surface.
+ * Shared HTTP plumbing for the ui-server-auth → server/apps/auth surface.
  *
  * Use when:
  * - Hitting any `/api/auth/...` endpoint from the UI (sign-in, sign-up,

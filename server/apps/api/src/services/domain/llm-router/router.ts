@@ -180,7 +180,7 @@ export interface CreateLlmRouterServiceOptions {
  *   only way the catalog changes is unspeech redeploy. 24h is conservative
  *   and avoids hammering unspeech on every voice-picker open.
  *
- * Admin config writes invalidate every cache entry directly through
+ * Configuration writes invalidate every cache entry directly through
  * `invalidateTtsVoicesCache`, so a key rotation or unspeech URL change
  * propagates immediately and doesn't have to wait out the TTL.
  */
@@ -1079,7 +1079,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     listTtsVoices,
     /**
      * Expose the loader's invalidate hook so U7's Pub/Sub subscriber and
-     * the admin endpoint (U9) can flush the cache without a separate
+     * a configuration writer can flush the cache without a separate
      * service wrapper.
      */
     invalidateConfig: configLoader.invalidate,

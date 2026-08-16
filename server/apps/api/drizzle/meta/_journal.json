@@ -141,6 +141,20 @@
       "when": 1785843526589,
       "tag": "0019_low_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786787455390,
+      "tag": "0020_smart_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786864179375,
+      "tag": "0021_chilly_starjammers",
+      "breakpoints": true
     }
   ]
 }

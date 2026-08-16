@@ -7,7 +7,7 @@ import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
-import { setupSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -18,6 +18,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { i18n } from './modules/i18n'
+import { resolveRendererWindowContext } from './window-context'
 
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
@@ -45,8 +46,11 @@ configureAnalyticsAdapter(async (options) => {
 })
 
 const pinia = createPinia()
-const synced = setupSynced()
+const synced = setupSynced({
+  leadership: resolveRendererWindowContext().leadership,
+})
 pinia.use(synced.pinia)
+pinia.use(piniaPluginTracing)
 
 const router = createRouter({
   history: createWebHashHistory(),

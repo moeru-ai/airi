@@ -137,7 +137,9 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard'))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {
+    query: { 'synced-leader': 'false' },
+  }))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

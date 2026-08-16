@@ -1,14 +1,8 @@
-import type Redis from 'ioredis'
-
-import type { AuthInstance } from './libs/auth'
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
-import type { AdminFluxGrantsService } from './services/domain/admin/flux-grants'
-import type { AdminRouterConfigService } from './services/domain/admin/router-config'
-import type { AdminUsersService } from './services/domain/admin/users'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { FluxMeter } from './services/domain/billing/flux-meter'
 import type { CharacterService } from './services/domain/characters'
@@ -28,10 +22,10 @@ import type { EnvelopeCrypto } from './utils/envelope-crypto'
 
 import process from 'node:process'
 
+import Redis from 'ioredis'
 import Stripe from 'stripe'
 
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
-import { serve } from '@hono/node-server'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
 import { Hono } from 'hono'
@@ -40,43 +34,29 @@ import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
-import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './libs/auth'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
-import { createRedis } from './libs/redis'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
-import { createDiscardingUserMetricsSnapshotRecorder, registerUserMetricsSnapshotGauges } from './otel/gauges/user-metrics-snapshot'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
-import { createAdminRoutes } from './routes/admin'
-import { createAdminUiRoutes } from './routes/admin-ui'
-import { createAdminCapabilityAliasRoutes } from './routes/admin/capability-aliases'
-import { createAdminRouterConfigRoutes } from './routes/admin/config/router'
-import { createAdminFluxGrantsRoutes } from './routes/admin/flux-grants'
-import { createAdminProviderCatalogRoutes } from './routes/admin/provider-catalog'
-import { createAdminUsersRoutes } from './routes/admin/users'
-import { createAdminVoicePackRoutes } from './routes/admin/voice-packs'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
-import { createAuthRoutes } from './routes/auth'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
+import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
-import { createEmailService } from './services/adapters/email'
+import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createPosthogSink } from './services/adapters/posthog'
-import { createAdminFluxGrantsService } from './services/domain/admin/flux-grants'
-import { createAdminRouterConfigService } from './services/domain/admin/router-config'
-import { createAdminUsersService } from './services/domain/admin/users'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -97,7 +77,6 @@ import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
-  auth: AuthInstance
   db: Database
   characterService: CharacterService
   chatService: ChatService
@@ -106,9 +85,6 @@ interface AppDeps {
   fluxTransactionService: FluxTransactionService
   stripeService: StripeService
   billingService: BillingService
-  adminFluxGrantsService: AdminFluxGrantsService
-  adminRouterConfigService: AdminRouterConfigService
-  adminUsersService: AdminUsersService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
   voicePackService: VoicePackService
@@ -125,17 +101,13 @@ interface AppDeps {
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
-  const userMetricsRecorder = deps.otel
-    ? registerUserMetricsSnapshotGauges(deps.otel.auth)
-    : createDiscardingUserMetricsSnapshotRecorder()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
       await next()
 
-      // NOTICE: All API responses should be non-cacheable. Auth responses can
-      // carry session state through redirects, and stale API payloads are not
-      // safe to serve from edge caches after user/account mutations.
+      // NOTICE: Stale API payloads are unsafe to serve from edge caches after
+      // user, billing, or configuration mutations.
       c.res.headers.set('Cache-Control', 'no-store, no-cache, private, max-age=0')
       c.res.headers.set('Pragma', 'no-cache')
       c.res.headers.set('Expires', '0')
@@ -183,7 +155,7 @@ export async function buildApp(deps: AppDeps) {
       return createUnauthorizedWsEvents()
 
     const session = await resolveRequestAuth(
-      deps.auth,
+      deps.db,
       deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
@@ -211,7 +183,7 @@ export async function buildApp(deps: AppDeps) {
       return createUnauthorizedWsEvents()
 
     const session = await resolveRequestAuth(
-      deps.auth,
+      deps.db,
       deps.env,
       new Headers({ Authorization: `Bearer ${token}` }),
     )
@@ -229,7 +201,7 @@ export async function buildApp(deps: AppDeps) {
   // the request body is a live microphone PCM stream rather than a bounded JSON
   // payload. Auth is resolved manually here for the same reason.
   app.post('/api/v1/audio/transcriptions/stream', createAudioTranscriptionStreamHandler({
-    auth: deps.auth,
+    db: deps.db,
     env: deps.env,
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
@@ -240,6 +212,7 @@ export async function buildApp(deps: AppDeps) {
   // connection + lifecycle metrics; see services/llm-router/config-sync-subscriber.ts.
   createConfigSyncSubscriber({
     redis: deps.redis,
+    configKV: deps.configKV,
     llmRouter: deps.llmRouter,
     gatewayMetrics: deps.otel?.gateway ?? null,
     instanceId: deps.env.OTEL_SERVICE_NAME,
@@ -265,7 +238,7 @@ export async function buildApp(deps: AppDeps) {
   })
 
   const builtApp = app
-    .use('*', sessionMiddleware(deps.auth, deps.env))
+    .use('*', sessionMiddleware(deps.db, deps.env))
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError((err, c) => {
       if (err instanceof ApiError) {
@@ -343,24 +316,10 @@ export async function buildApp(deps: AppDeps) {
       ui: 'https://airi.moeru.ai',
     }))
 
-    /**
-     * Auth routes: sign-in page, token auth helpers, electron callback
-     * relay, well-known metadata, and better-auth catch-all.
-     */
-    .route('/', await createAuthRoutes({
-      auth: deps.auth,
-      db: deps.db,
-      env: deps.env,
-      configKV: deps.configKV,
-      rateLimitMetrics: deps.otel?.rateLimit,
+    .route('/internal/auth', createInternalAuthRoutes({
+      userDeletionService: deps.userDeletionService,
+      productEventService: deps.productEventService,
     }))
-
-    /**
-     * Admin dashboard entrypoint. Auth is enforced by `/api/admin/*`; the
-     * standalone UI itself is public so unauthenticated users can be redirected
-     * cleanly.
-     */
-    .route('/', createAdminUiRoutes(deps.env))
 
     /**
      * Character routes are handled by the character service.
@@ -400,64 +359,6 @@ export async function buildApp(deps: AppDeps) {
      * Stripe routes.
      */
     .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.productEventService))
-
-    /**
-     * Admin routes — guarded by the `adminGuard` role check (`role === 'admin'`,
-     * better-auth `admin` plugin). v1 only includes synchronous one-shot promo
-     * flux grants.
-     */
-    .route('/api/admin/flux-grants', createAdminFluxGrantsRoutes(deps.adminFluxGrantsService))
-
-    /**
-     * Admin per-user balance override (set balance, incl. 0 for testing).
-     * Account ban/unban live under the better-auth admin plugin at
-     * `/api/auth/admin/ban-user` / `/api/auth/admin/unban-user`.
-     */
-    .route('/api/admin/users', createAdminUsersRoutes(deps.adminUsersService))
-
-    /**
-     * Admin Voice Pack curation routes.
-     */
-    .route('/api/admin/voice-packs', createAdminVoicePackRoutes({
-      productEventService: deps.productEventService,
-      service: deps.voicePackService,
-    }))
-
-    /**
-     * Admin product capability alias curation routes.
-     */
-    .route('/api/admin/capability-aliases', createAdminCapabilityAliasRoutes({
-      configKV: deps.configKV,
-      service: deps.providerCatalogService,
-    }))
-
-    /**
-     * Admin provider catalog curation routes.
-     */
-    .route('/api/admin/provider-catalog', createAdminProviderCatalogRoutes({
-      configKV: deps.configKV,
-      llmRouter: deps.llmRouter,
-      service: deps.providerCatalogService,
-    }))
-
-    /**
-     * Admin LLM router config seeding/patching. Single entry point for
-     * writing `LLM_ROUTER_CONFIG`, `UNSPEECH_UPSTREAM`, and the
-     * `DEFAULT_{CHAT,TTS}_MODEL` aliases — see
-     * `routes/admin/config/router/index.ts` for the body shape.
-     */
-    .route('/api/admin/config/router', createAdminRouterConfigRoutes(deps.adminRouterConfigService))
-
-    /**
-     * Admin dashboard support APIs: user search, balance adjustments, metrics,
-     * and editable LLM router config.
-     */
-    .route('/api/admin', createAdminRoutes({
-      db: deps.db,
-      billingService: deps.billingService,
-      configKV: deps.configKV,
-      userMetricsRecorder,
-    }))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -561,7 +462,7 @@ export async function createApp() {
         'Redis',
         logger,
         async (attempt) => {
-          const instance = createRedis(dependsOn.env.REDIS_URL)
+          const instance = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
 
           try {
             await instance.connect()
@@ -583,17 +484,8 @@ export async function createApp() {
   })
 
   const configKV = injeca.provide('datastore:configKV', {
-    dependsOn: { redis },
-    build: ({ dependsOn }) => createConfigKVService(dependsOn.redis),
-  })
-
-  const emailService = injeca.provide('services:email', {
-    dependsOn: { env: parsedEnv, otel },
-    build: ({ dependsOn }) => createEmailService({
-      apiKey: dependsOn.env.RESEND_API_KEY,
-      fromEmail: dependsOn.env.RESEND_FROM_EMAIL,
-      fromName: dependsOn.env.RESEND_FROM_NAME,
-    }, undefined, dependsOn.otel?.email),
+    dependsOn: { db, redis },
+    build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
   const posthogSink = injeca.provide('services:posthogSink', {
@@ -678,24 +570,6 @@ export async function createApp() {
     },
   })
 
-  const auth = injeca.provide('services:auth', {
-    dependsOn: { db, env: parsedEnv, otel, email: emailService, userDeletionService, productEventService },
-    build: async ({ dependsOn }) => {
-      // Seed trusted OIDC clients into DB so FK constraints on oauth_access_token are satisfied
-      await seedTrustedClients(dependsOn.db, dependsOn.env)
-      const trustedClients = getTrustedClientSeedSummaries(dependsOn.env)
-      logger.withField('apiServerUrl', dependsOn.env.API_SERVER_URL).log('OIDC startup configuration')
-      for (const client of trustedClients) {
-        logger.withFields({
-          clientId: client.clientId,
-          clientName: client.name,
-          redirectUris: client.redirectUris.join(', '),
-        }).log('OIDC trusted client ready')
-      }
-      return createAuth(dependsOn.db, dependsOn.env, dependsOn.email, dependsOn.otel?.auth, dependsOn.userDeletionService, dependsOn.productEventService)
-    },
-  })
-
   const requestLogService = injeca.provide('services:requestLog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createRequestLogService(dependsOn.db),
@@ -714,24 +588,6 @@ export async function createApp() {
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
-  })
-
-  const adminFluxGrantsService = injeca.provide('services:adminFluxGrants', {
-    dependsOn: { db, billingService },
-    build: ({ dependsOn }) => createAdminFluxGrantsService({
-      db: dependsOn.db,
-      billingService: dependsOn.billingService,
-    }),
-  })
-
-  // Per-user admin operations (balance override). Delegates the balance write
-  // to billingService.setFlux so the ledger stays single-sourced.
-  const adminUsersService = injeca.provide('services:adminUsers', {
-    dependsOn: { db, billingService },
-    build: ({ dependsOn }) => createAdminUsersService({
-      db: dependsOn.db,
-      billingService: dependsOn.billingService,
-    }),
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
@@ -763,18 +619,6 @@ export async function createApp() {
     }),
   })
 
-  // Admin router-config seeding service. Reuses the shared envelope crypto
-  // so written ciphertexts decrypt cleanly under the same master key the
-  // gateway already uses. Mounted at POST /api/admin/config/router.
-  const adminRouterConfigService = injeca.provide('services:adminRouterConfig', {
-    dependsOn: { configKV, envelopeCrypto, redis },
-    build: ({ dependsOn }) => createAdminRouterConfigService({
-      configKV: dependsOn.configKV,
-      envelope: dependsOn.envelopeCrypto,
-      redis: dependsOn.redis,
-    }),
-  })
-
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
@@ -799,7 +643,6 @@ export async function createApp() {
   await injeca.start()
   const resolved = await injeca.resolve({
     db,
-    auth,
     characterService,
     chatService,
     providerService,
@@ -810,9 +653,6 @@ export async function createApp() {
     productEventService,
     stripeService,
     billingService,
-    adminFluxGrantsService,
-    adminRouterConfigService,
-    adminUsersService,
     ttsMeter,
     configKV,
     envelopeCrypto,
@@ -829,8 +669,7 @@ export async function createApp() {
     registerWsOnlineUsersGauge(resolved.otel.engagement.wsUsersOnline, resolved.redis, resolved.otel.observability.metricReadErrors)
   }
 
-  const { app, injectWebSocket } = await buildApp({
-    auth: resolved.auth,
+  const appDeps = {
     db: resolved.db,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
@@ -840,9 +679,6 @@ export async function createApp() {
     stripeService: resolved.stripeService,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
-    adminFluxGrantsService: resolved.adminFluxGrantsService,
-    adminRouterConfigService: resolved.adminRouterConfigService,
-    adminUsersService: resolved.adminUsersService,
     ttsMeter: resolved.ttsMeter,
     requestLogService: resolved.requestLogService,
     productEventService: resolved.productEventService,
@@ -854,9 +690,11 @@ export async function createApp() {
     userDeletionService: resolved.userDeletionService,
     llmRouter: resolved.llmRouter,
     providerCatalogService: resolved.providerCatalogService,
-  })
+  }
 
-  logger.withFields({ hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
+  const { app, injectWebSocket } = await buildApp(appDeps)
+
+  logger.withFields({ role: 'api', hostname: resolved.env.HOST, port: resolved.env.PORT }).log('Server started')
 
   return {
     app,
@@ -864,22 +702,4 @@ export async function createApp() {
     port: resolved.env.PORT,
     hostname: resolved.env.HOST,
   }
-}
-
-function handleProcessError(error: unknown, type: string) {
-  useLogger().withError(error).error(type)
-}
-
-export async function runApiServer(): Promise<void> {
-  const { app: honoApp, injectWebSocket, port, hostname } = await createApp()
-  const server = serve({ fetch: honoApp.fetch, port, hostname })
-  injectWebSocket(server)
-
-  process.on('uncaughtException', error => handleProcessError(error, 'Uncaught exception'))
-  process.on('unhandledRejection', error => handleProcessError(error, 'Unhandled rejection'))
-
-  await new Promise<void>((resolve, reject) => {
-    server.once('close', () => resolve())
-    server.once('error', error => reject(error))
-  })
 }

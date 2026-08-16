@@ -3,9 +3,10 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     projects: [
+      'server/apps/auth',
       'server/apps/api',
       'apps/ui-server-auth',
-      'apps/stage-tamagotchi',
+      'apps/stage-tamagotchi/vitest.node.config.ts',
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',
@@ -18,6 +19,7 @@ export default defineConfig({
       'packages/server-runtime',
       'packages/server-sdk',
       'packages/stage-shared',
+      'packages/vitest-plugin-fakemic',
     ],
   },
 })

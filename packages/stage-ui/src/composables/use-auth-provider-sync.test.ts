@@ -4,6 +4,7 @@ import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthProviderSync } from './use-auth-provider-sync'
 
 const syncState = vi.hoisted(() => ({
+  isLeader: false,
   authenticatedHook: undefined as (() => Promise<void>) | undefined,
   logoutHook: undefined as (() => void) | undefined,
   activeProvider: '',
@@ -20,6 +21,8 @@ const syncState = vi.hoisted(() => ({
 const syncMocks = vi.hoisted(() => ({
   initializeAuth: vi.fn(async () => {}),
   leadershipHook: undefined as ((isLeader: boolean) => void) | undefined,
+  disposeAuthenticatedHook: vi.fn(),
+  disposeLogoutHook: vi.fn(),
   forceProviderConfigured: vi.fn(),
   setProviderUnconfigured: vi.fn(),
   setProviderAvailabilityOverride: vi.fn(),
@@ -35,6 +38,7 @@ vi.mock('../libs/auth', () => ({
 
 vi.mock('../libs/pinia', () => ({
   usePiniaSynced: () => ({
+    isLeader: () => syncState.isLeader,
     onLeadershipChange: (hook: (isLeader: boolean) => void) => {
       syncMocks.leadershipHook = hook
       return vi.fn()
@@ -51,9 +55,17 @@ vi.mock('../stores/auth', () => ({
   useAuthStore: () => ({
     onAuthenticated: (hook: () => Promise<void>) => {
       syncState.authenticatedHook = hook
+      return () => {
+        syncState.authenticatedHook = undefined
+        syncMocks.disposeAuthenticatedHook()
+      }
     },
     onLogout: (hook: () => void) => {
       syncState.logoutHook = hook
+      return () => {
+        syncState.logoutHook = undefined
+        syncMocks.disposeLogoutHook()
+      }
     },
   }),
 }))
@@ -118,6 +130,7 @@ vi.mock('./use-analytics', () => ({
 
 describe('useAuthProviderSync', () => {
   beforeEach(() => {
+    syncState.isLeader = false
     syncState.authenticatedHook = undefined
     syncState.logoutHook = undefined
     syncMocks.leadershipHook = undefined
@@ -134,17 +147,57 @@ describe('useAuthProviderSync', () => {
     syncMocks.fetchModelsForProvider.mockResolvedValue([])
   })
 
-  it('restores auth initialization when this renderer becomes the leader', async () => {
+  it('starts auth initialization when this renderer becomes the leader', async () => {
     useAuthProviderSync()
-    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(1)
+    expect(syncMocks.initializeAuth).not.toHaveBeenCalled()
 
+    syncState.isLeader = true
     syncMocks.leadershipHook?.(true)
     await Promise.resolve()
 
+    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not activate providers in a follower renderer', () => {
+    useAuthProviderSync()
+
+    expect(syncState.authenticatedHook).toBeUndefined()
+    expect(syncMocks.initializeAuth).not.toHaveBeenCalled()
+    expect(syncMocks.forceProviderConfigured).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A renderer kept its auth hooks after it lost leadership. Those hooks
+  // could mutate provider state while the new leader handled the same auth
+  // transition.
+  //
+  // https://github.com/moeru-ai/airi/pull/2304
+  it('removes auth hooks on demotion and restores them after reacquiring leadership', () => {
+    syncState.isLeader = true
+    useAuthProviderSync()
+
+    expect(syncState.authenticatedHook).toBeDefined()
+    expect(syncState.logoutHook).toBeDefined()
+
+    syncState.isLeader = false
+    syncMocks.leadershipHook?.(false)
+
+    expect(syncMocks.disposeAuthenticatedHook).toHaveBeenCalledTimes(1)
+    expect(syncMocks.disposeLogoutHook).toHaveBeenCalledTimes(1)
+    expect(syncState.authenticatedHook).toBeUndefined()
+    expect(syncState.logoutHook).toBeUndefined()
+
+    syncState.isLeader = true
+    syncMocks.leadershipHook?.(true)
+
     expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(2)
+    expect(syncState.authenticatedHook).toBeDefined()
+    expect(syncState.logoutHook).toBeDefined()
   })
 
   it('activates every official provider after direct sign-in when no custom provider is selected', async () => {
+    syncState.isLeader = true
     useAuthProviderSync()
 
     await syncState.authenticatedHook?.()
@@ -165,6 +218,7 @@ describe('useAuthProviderSync', () => {
     // The auth hook marked the session synchronized before model and streaming
     // provider bootstrap completed. A transient failure therefore made every
     // later authentication notification return early for the whole session.
+    syncState.isLeader = true
     syncMocks.fetchModelsForProvider.mockImplementation(async (providerId: string) => {
       if (providerId === 'official-provider-speech-streaming')
         throw new Error('temporary catalog failure')

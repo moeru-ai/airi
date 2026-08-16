@@ -3,6 +3,7 @@ import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@p
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -33,6 +34,9 @@ const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
 const chatSessionStore = useChatSessionStore()
+const syncedPinia = usePiniaSynced()
+chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
+const stopLeadershipListener = syncedPinia.onLeadershipChange(isLeader => chatSessionStore.setCloudSyncOwnership(isLeader))
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -85,7 +89,8 @@ watch(settings.themeColorsHueDynamic, () => {
 onMounted(async () => {
   initializeAnalytics()
   await displayModelsStore.initialize()
-  cardStore.initialize()
+  cardStore.startRuntime(syncedPinia)
+  await cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -105,6 +110,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopLeadershipListener()
+  cardStore.disposeRuntime()
   contextBridgeStore.dispose()
 })
 

@@ -3,6 +3,74 @@ import { describe, expect, it } from 'vitest'
 import { streamTranscription } from './index'
 
 describe('streamTranscription', () => {
+  it('sets half-duplex transport for the browser audio upload', async () => {
+    // ROOT CAUSE:
+    //
+    // Browser fetch requires `duplex: 'half'` when the request body is a
+    // ReadableStream. The official provider set this in its fetch wrapper,
+    // but that wrapper does not own this adapter's stream transport.
+    //
+    // Report: T-3, Official provider transcription does not work reliably.
+    let requestInit: RequestInit | undefined
+    const audioStream = new ReadableStream<ArrayBuffer>({
+      start(controller) {
+        controller.close()
+      },
+    })
+
+    const result = streamTranscription({
+      baseURL: 'https://example.invalid/transcription',
+      fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+        requestInit = init
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close()
+          },
+        }))
+      },
+      inputAudioStream: audioStream,
+    })
+
+    await expect(result.text).resolves.toBe('')
+    expect((requestInit as RequestInit & { duplex?: string }).duplex).toBe('half')
+  })
+
+  it('normalizes T-3 ArrayBuffer audio chunks before browser fetch', async () => {
+    // ROOT CAUSE:
+    //
+    // The VAD audio stream emits ArrayBuffer chunks. Chromium rejects these
+    // chunks in a streaming request body and reports `TypeError: Failed to fetch`.
+    // Fetch requires each request stream chunk to be a Uint8Array.
+    let uploadedChunk: unknown
+    const audioStream = new ReadableStream<ArrayBuffer>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3, 4]).buffer)
+        controller.close()
+      },
+    })
+
+    const result = streamTranscription({
+      baseURL: 'https://example.invalid/transcription',
+      fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+        if (!(init?.body instanceof ReadableStream))
+          throw new TypeError('Expected a readable request body.')
+
+        const reader = init.body.getReader()
+        uploadedChunk = (await reader.read()).value
+        return new Response(new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close()
+          },
+        }))
+      },
+      inputAudioStream: audioStream,
+    })
+
+    await expect(result.text).resolves.toBe('')
+    expect(uploadedChunk).toBeInstanceOf(Uint8Array)
+    expect(uploadedChunk).toEqual(new Uint8Array([1, 2, 3, 4]))
+  })
+
   it('parses split SSE chunks and joins transcription deltas', async () => {
     const encoder = new TextEncoder()
     const responseBody = new ReadableStream<Uint8Array>({

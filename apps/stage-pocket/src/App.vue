@@ -2,6 +2,7 @@
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -35,6 +36,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
+const syncedPinia = usePiniaSynced()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -74,7 +76,8 @@ watch(settings.themeColorsHueDynamic, () => {
 onMounted(async () => {
   initializeAnalytics()
   await displayModelsStore.initialize()
-  cardStore.initialize()
+  cardStore.startRuntime(syncedPinia)
+  await cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -93,6 +96,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  cardStore.disposeRuntime()
   contextBridgeStore.dispose()
 })
 

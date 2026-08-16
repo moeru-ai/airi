@@ -1191,6 +1191,10 @@ pages:
             nano_banana: Nano Banana（Gemini 2.5 Flash Image）
       deepseek:
         description: DeepSeek.com
+        fields:
+          field:
+            thinking-mode:
+              description: 控制 DeepSeek 推理模型是否在聊天请求中启用深度思考。
         title: 深度求索 DeepSeek
       elevenlabs:
         description: Elevenlabs.io
