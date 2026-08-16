@@ -184,6 +184,7 @@ catalog:
   '@types/culori': ^4.0.1
   '@types/d3': ^7.4.3
   '@types/hast': ^3.0.4
+  '@types/ioredis-mock': ^8.2.8
   '@types/markdown-it': ^14.1.2
   '@types/node': ^24.12.2
   '@types/nprogress': ^0.2.3
@@ -287,6 +288,7 @@ catalog:
   idb-keyval: ^6.2.2
   injeca: ^0.2.0
   ioredis: ^5.10.1
+  ioredis-mock: ^8.13.1
   is-network-error: ^1.3.1
   isolated-vm: ^7.0.0
   jose: ^6.2.2

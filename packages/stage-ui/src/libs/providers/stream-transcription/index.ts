@@ -42,12 +42,30 @@ function createDeferred<T>() {
   return { promise, resolve, reject }
 }
 
-function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream<AudioChunk> {
+/**
+ * Normalizes an audio chunk for a streaming fetch body.
+ *
+ * @example
+ * normalizeAudioChunk(new Uint8Array([1, 2]).buffer)
+ * // => Uint8Array([1, 2])
+ */
+function normalizeAudioChunk(chunk: AudioChunk): Uint8Array {
+  if (ArrayBuffer.isView(chunk))
+    return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength)
+
+  return new Uint8Array(chunk)
+}
+
+function resolveAudioStream(options: StreamTranscriptionOptions): ReadableStream<Uint8Array> {
   const stream = options.inputAudioStream ?? options.inputStream ?? options.file?.stream()
   if (!stream)
     throw new TypeError('Audio stream or file is required for streaming transcription.')
 
-  return stream as ReadableStream<AudioChunk>
+  return (stream as ReadableStream<AudioChunk>).pipeThrough(new TransformStream<AudioChunk, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(normalizeAudioChunk(chunk))
+    },
+  }))
 }
 
 function parseSSELine(line: string): AIRIStreamTranscriptionDelta | undefined {
