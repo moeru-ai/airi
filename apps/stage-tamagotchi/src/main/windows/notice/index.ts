@@ -13,7 +13,7 @@ import { BrowserWindow as ElectronBrowserWindow } from 'electron'
 import icon from '../../../../resources/icon.png?asset'
 
 import { noticeWindowEventa } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
 import { createReferencedWindowManager } from '../shared/referenced-window'
 import { protectPrivilegedWindowNavigation } from '../shared/window'
 
@@ -47,7 +47,7 @@ export function setupNoticeWindowManager(params: {
 
   async function loadNoticeRoute(window: BrowserWindow, payload: RequestWindowPayload & { id: string }) {
     const routeWithId = `${payload.route}?id=${payload.id}`
-    await load(window, withHashRoute(rendererBase, routeWithId))
+    await load(window, withRendererWindow(rendererBase, 'notice', routeWithId))
   }
 
   const manager = createReferencedWindowManager({

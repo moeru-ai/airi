@@ -4,6 +4,7 @@ import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthProviderSync } from './use-auth-provider-sync'
 
 const syncState = vi.hoisted(() => ({
+  isLeader: false,
   authenticatedHook: undefined as (() => Promise<void>) | undefined,
   logoutHook: undefined as (() => void) | undefined,
   activeProvider: '',
@@ -35,6 +36,7 @@ vi.mock('../libs/auth', () => ({
 
 vi.mock('../libs/pinia', () => ({
   usePiniaSynced: () => ({
+    isLeader: () => syncState.isLeader,
     onLeadershipChange: (hook: (isLeader: boolean) => void) => {
       syncMocks.leadershipHook = hook
       return vi.fn()
@@ -118,6 +120,7 @@ vi.mock('./use-analytics', () => ({
 
 describe('useAuthProviderSync', () => {
   beforeEach(() => {
+    syncState.isLeader = false
     syncState.authenticatedHook = undefined
     syncState.logoutHook = undefined
     syncMocks.leadershipHook = undefined
@@ -134,17 +137,27 @@ describe('useAuthProviderSync', () => {
     syncMocks.fetchModelsForProvider.mockResolvedValue([])
   })
 
-  it('restores auth initialization when this renderer becomes the leader', async () => {
+  it('starts auth initialization when this renderer becomes the leader', async () => {
     useAuthProviderSync()
-    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(1)
+    expect(syncMocks.initializeAuth).not.toHaveBeenCalled()
 
+    syncState.isLeader = true
     syncMocks.leadershipHook?.(true)
     await Promise.resolve()
 
-    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(2)
+    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not activate providers in a follower renderer', () => {
+    useAuthProviderSync()
+
+    expect(syncState.authenticatedHook).toBeUndefined()
+    expect(syncMocks.initializeAuth).not.toHaveBeenCalled()
+    expect(syncMocks.forceProviderConfigured).not.toHaveBeenCalled()
   })
 
   it('activates every official provider after direct sign-in when no custom provider is selected', async () => {
+    syncState.isLeader = true
     useAuthProviderSync()
 
     await syncState.authenticatedHook?.()
@@ -165,6 +178,7 @@ describe('useAuthProviderSync', () => {
     // The auth hook marked the session synchronized before model and streaming
     // provider bootstrap completed. A transient failure therefore made every
     // later authentication notification return early for the whole session.
+    syncState.isLeader = true
     syncMocks.fetchModelsForProvider.mockImplementation(async (providerId: string) => {
       if (providerId === 'official-provider-speech-streaming')
         throw new Error('temporary catalog failure')

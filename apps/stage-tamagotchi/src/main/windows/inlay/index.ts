@@ -8,7 +8,7 @@ import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig } from '../shared/window'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
@@ -66,7 +66,7 @@ export async function setupInlayWindow(params: {
 
   await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay'))
+  await load(window, withRendererWindow(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), 'inlay', '/inlay'))
 
   return window
 }

@@ -24,7 +24,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdateEvent } from '../../../shared/eventa'
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
@@ -440,7 +440,7 @@ export function setupWidgetsWindowManager(params: {
   }
 
   async function loadWithRoute(window: BrowserWindow, route: string) {
-    await load(window, withHashRoute(rendererBase, route))
+    await load(window, withRendererWindow(rendererBase, 'widgets', route))
     currentRoute = route
   }
 

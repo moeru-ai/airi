@@ -1,4 +1,5 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type {} from 'pinia-plugin-synced'
 
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
@@ -291,7 +292,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  function initialize() {
+  async function initialize() {
     if (!cards.value.has('default')) {
       cards.value.set('default', newAiriCard({
         name: 'ReLU',
@@ -427,4 +428,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }),
     systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
   }
+}, {
+  synced: {
+    actions: ['initialize'],
+    state: true,
+  },
 })

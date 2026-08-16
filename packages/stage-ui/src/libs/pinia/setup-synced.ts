@@ -5,6 +5,8 @@ import type { InjectionKey, Plugin } from 'vue'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { inject } from 'vue'
 
+export type { LeadershipMode } from 'pinia-plugin-synced'
+
 /** Provides the synchronization runtime installed by {@link setupSynced}. */
 export const injectKeyPiniaSynced: InjectionKey<SyncedPiniaRuntime> = Symbol('stage-synced-pinia-runtime')
 

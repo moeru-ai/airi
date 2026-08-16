@@ -38,15 +38,27 @@ const STREAMING_SPEECH_PROVIDER_ID = 'official-provider-speech-streaming'
  * auxiliary windows do not depend on the transient Stage scene lifecycle.
  */
 export function useAuthProviderSync() {
-  void initializeAuth()
+  const syncedPinia = usePiniaSynced()
+  let leaderSyncInitialized = false
 
-  // A replacement leader has no active refresh timer. Restore the auth
-  // lifecycle when this renderer acquires leadership after another closes.
-  usePiniaSynced().onLeadershipChange((isLeader) => {
+  function initializeLeaderSync() {
+    if (!syncedPinia.isLeader() || leaderSyncInitialized)
+      return
+
+    leaderSyncInitialized = true
+    void initializeAuth()
+    setupAuthenticatedProviderSync()
+  }
+
+  syncedPinia.onLeadershipChange((isLeader) => {
     if (isLeader)
-      void initializeAuth()
+      initializeLeaderSync()
   })
 
+  initializeLeaderSync()
+}
+
+function setupAuthenticatedProviderSync() {
   const authStore = useAuthStore()
   const providersStore = useProviderStore()
   const consciousnessStore = useConsciousnessStore()

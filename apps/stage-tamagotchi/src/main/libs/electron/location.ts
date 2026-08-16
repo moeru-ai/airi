@@ -1,9 +1,13 @@
 import type { BrowserWindow, LoadFileOptions, LoadURLOptions } from 'electron'
 
+import type { RendererWindowType } from '../../../shared/renderer-window'
+
 import { join } from 'node:path'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
+
+import { rendererWindowQueryKey } from '../../../shared/renderer-window'
 
 let electronMainDirname: string = ''
 
@@ -121,4 +125,41 @@ export function withHashRoute(baseUrl: string | { url: string } | { file: string
   baseURLinURL.hash = hashRoute
 
   return { url: baseURLinURL.toString() } satisfies { url: string, options?: LoadURLOptions }
+}
+
+/**
+ * Adds the renderer window identity to an Electron location.
+ *
+ * @example
+ * withRendererWindow({ url: 'http://localhost:5173' }, 'chat', '/chat')
+ * // => { url: 'http://localhost:5173/?window=chat#/chat' }
+ */
+export function withRendererWindow(
+  baseUrl: string | { url: string, options?: LoadURLOptions } | { file: string, options?: LoadFileOptions },
+  windowType: RendererWindowType,
+  hashRoute?: string,
+) {
+  if (typeof baseUrl === 'object' && 'file' in baseUrl) {
+    return {
+      file: baseUrl.file,
+      options: {
+        ...baseUrl.options,
+        ...(hashRoute ? { hash: hashRoute } : {}),
+        query: {
+          ...baseUrl.options?.query,
+          [rendererWindowQueryKey]: windowType,
+        },
+      },
+    } satisfies { file: string, options: LoadFileOptions }
+  }
+
+  const url = new URL(typeof baseUrl === 'string' ? baseUrl : baseUrl.url)
+  url.searchParams.set(rendererWindowQueryKey, windowType)
+  if (hashRoute)
+    url.hash = hashRoute
+
+  return {
+    url: url.toString(),
+    ...(typeof baseUrl === 'object' && baseUrl.options ? { options: baseUrl.options } : {}),
+  } satisfies { url: string, options?: LoadURLOptions }
 }

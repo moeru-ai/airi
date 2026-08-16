@@ -22,7 +22,7 @@ import {
   electronSpotlightShowResultNotification,
 } from '../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../shared/spotlight-shortcut'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
 
@@ -140,7 +140,7 @@ export function setupSpotlightWindowManager(params: {
       showNotification(payload.body, () => void openChatWindowFromNotification())
     })
 
-    await load(window, withHashRoute(rendererBase, '/spotlight'))
+    await load(window, withRendererWindow(rendererBase, 'spotlight', '/spotlight'))
 
     return window
   })

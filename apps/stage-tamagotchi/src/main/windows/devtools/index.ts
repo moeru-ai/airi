@@ -4,7 +4,7 @@ import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
 
@@ -50,7 +50,7 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
       })
       protectPrivilegedWindowNavigation(window)
 
-      await load(window, withHashRoute(rendererBase, route))
+      await load(window, withRendererWindow(rendererBase, 'devtools', route))
       return window
     })
 

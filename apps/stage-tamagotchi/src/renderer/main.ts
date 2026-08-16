@@ -18,7 +18,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { i18n } from './modules/i18n'
-import { resolveWindowSyncLeadership } from './window-route'
+import { resolveRendererWindowContext } from './window-context'
 
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
@@ -47,7 +47,7 @@ configureAnalyticsAdapter(async (options) => {
 
 const pinia = createPinia()
 const synced = setupSynced({
-  leadership: resolveWindowSyncLeadership('/'),
+  leadership: resolveRendererWindowContext().leadership,
 })
 pinia.use(synced.pinia)
 pinia.use(piniaPluginTracing)

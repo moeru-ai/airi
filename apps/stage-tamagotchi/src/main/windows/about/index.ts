@@ -8,7 +8,7 @@ import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupAboutWindowElectronInvokes } from './rpc/index.electron'
@@ -44,7 +44,7 @@ export function setupAboutWindowReusable(params: {
       serverChannel: params.serverChannel,
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about'))
+    await load(window, withRendererWindow(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), 'about', '/about'))
 
     return window
   }).getWindow

@@ -62,7 +62,7 @@ import {
   useTamagotchiMcpToolsStore,
   useTamagotchiPluginToolsStore,
 } from './stores/tools'
-import { resolveInitialWindowRoutePath, resolveWindowSyncLeadership, shouldInitializeFullStageRuntime } from './window-route'
+import { resolveRendererWindowContext } from './window-context'
 
 const { isDark: dark } = useTheme()
 const settingsStore = useSettings()
@@ -73,21 +73,17 @@ const chatSessionStore = useChatSessionStore()
 const context = useElectronEventaContext()
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
-const initialWindowRoutePath = resolveInitialWindowRoutePath(route.path)
+const windowContext = resolveRendererWindowContext()
 useChatStore()
 const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
-const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
-const isSettingsWindowRoute = initialWindowRoutePath === '/settings' || initialWindowRoutePath.startsWith('/settings/')
-const ownsSyncedSideEffects = resolveWindowSyncLeadership(initialWindowRoutePath, '') === 'leader-only'
+const isSpotlightWindow = windowContext.type === 'spotlight'
+const isSettingsWindow = windowContext.type === 'settings'
 
-// Auth refresh, provider activation, and their network side effects belong to
-// the main Stage renderer. Auxiliary windows consume its synchronized state.
-if (ownsSyncedSideEffects)
-  useAuthProviderSync()
+useAuthProviderSync()
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -118,10 +114,7 @@ function createFullStageRuntime() {
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()
-  // AIRI Card activation mutates the active inference modules and therefore
-  // instantiates their network watchers. Settings pages create this store on
-  // demand; the root lifecycle owner is the main Stage renderer only.
-  const cardStore = ownsSyncedSideEffects ? useAiriCardStore() : null
+  const cardStore = useAiriCardStore()
   const serverChannelStore = useModsServerChannelStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const inferencePreload = useInferencePreload()
@@ -142,9 +135,8 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const isAuxiliaryChatRoute = initialWindowRoutePath === '/chat'
-  const isGodotStageRoute = () => route.path === '/' || route.path.startsWith('/settings')
-  const isWidgetsWindowRoute = () => route.path === '/widgets'
+  const usesGodotStage = windowContext.type === 'main' || windowContext.type === 'settings'
+  const isWidgetsWindow = windowContext.type === 'widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
     if (state.state === 'running') {
@@ -164,9 +156,7 @@ function createFullStageRuntime() {
   initializeElectronAuthCallbackBridge()
   void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 
-  watch(() => route.path, () => {
-    contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindowRoute() ? 'client' : 'main')
-  }, { immediate: true })
+  contextBridgeStore.setSparkNotifyHostRole(isWidgetsWindow ? 'client' : 'main')
 
   // NOTICE: register plugin host bridge during setup to avoid race with pages using it in immediate watchers.
   pluginHostInspectorStore.setBridge({
@@ -223,13 +213,13 @@ function createFullStageRuntime() {
     async initialize() {
       initializeAnalytics()
       await displayModelsStore.initialize()
-      cardStore?.initialize()
+      await cardStore.initialize()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
       await settingsAudioDeviceStore.initialize()
 
-      if (isGodotStageRoute()) {
+      if (usesGodotStage) {
         try {
           syncGodotStageRenderer(await getGodotStageStatus())
         }
@@ -247,12 +237,10 @@ function createFullStageRuntime() {
         token: serverChannelConfig.authToken || undefined,
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-      if (!isAuxiliaryChatRoute) {
-        contextBridgeStore.initialize()
-        if (!isWidgetsWindowRoute()) {
-          characterOrchestratorStore.initialize()
-          await startTrackingCursorPoint()
-        }
+      contextBridgeStore.initialize()
+      if (!isWidgetsWindow) {
+        characterOrchestratorStore.initialize()
+        await startTrackingCursorPoint()
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -270,13 +258,12 @@ function createFullStageRuntime() {
       inferencePreload.triggerPreload()
     },
     dispose() {
-      if (!isAuxiliaryChatRoute)
-        contextBridgeStore.dispose()
+      contextBridgeStore.dispose()
     },
   }
 }
 
-const fullStageRuntime = shouldInitializeFullStageRuntime(initialWindowRoutePath, '')
+const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
   : null
 
@@ -287,7 +274,7 @@ watch(dark, () => updateThemeColor(), { immediate: true })
 watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
-if (isSettingsWindowRoute) {
+if (isSettingsWindow) {
   context.value.on(electronSettingsNavigate, (event) => {
     const targetRoute = event?.body?.route
     if (!targetRoute || route.fullPath === targetRoute) {
@@ -332,7 +319,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindowRoute" />
+  <ResizeHandler v-if="!isSpotlightWindow" />
   <RouterView />
 </template>
 

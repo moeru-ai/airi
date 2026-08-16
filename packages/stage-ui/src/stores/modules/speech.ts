@@ -1,4 +1,5 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type {} from 'pinia-plugin-synced'
 
 import type { VoiceInfo } from '../providers/provider'
 
@@ -460,4 +461,8 @@ export const useSpeechStore = defineStore('speech', () => {
     resolveSpeechInput,
     resetState,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })
