@@ -3,7 +3,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { CONFIDENCE_THRESHOLD_DISABLED, resolveOpenAICompatibleTranscriptionModel, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { CONFIDENCE_THRESHOLD_DISABLED, hasExplicitlyClearedTranscriptionModel, resolveOpenAICompatibleTranscriptionModel, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -306,8 +306,12 @@ watch(activeTranscriptionProvider, async (provider, previousProvider) => {
   syncOpenAICompatibleSettings()
 
   const models = providerModels.value
-  if (models.length > 0 && !models.some(model => model.id === activeTranscriptionModel.value))
+  const providerConfig = providerStore.getProviderConfig(provider)
+  if (!hasExplicitlyClearedTranscriptionModel(providerConfig)
+    && models.length > 0
+    && !models.some(model => model.id === activeTranscriptionModel.value)) {
     activeTranscriptionModel.value = models[0].id
+  }
 
   if (shouldRestartMonitoring)
     isMonitoring.value = await setupAudioMonitoring()

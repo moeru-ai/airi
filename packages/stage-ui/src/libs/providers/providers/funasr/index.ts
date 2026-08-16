@@ -151,7 +151,7 @@ export const providerFunASRAudioTranscription = defineProvider<FunASRConfig>({
     }),
   }),
   createProvider: createFunASRProvider,
-  validationRequiredWhen: config => Boolean(config.baseUrl?.trim() && config.model?.trim()),
+  validationRequiredWhen: config => config.baseUrl !== undefined || config.model !== undefined,
   validators: createFunASRValidators(),
   extraMethods: {
     listModels: async () => FUNASR_TRANSCRIPTION_MODELS.map(model => ({ ...model })),

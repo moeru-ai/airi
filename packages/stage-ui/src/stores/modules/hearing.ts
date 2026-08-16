@@ -297,6 +297,12 @@ export function resolveOpenAICompatibleTranscriptionModel(providerConfig?: Recor
   return 'whisper-1'
 }
 
+export function hasExplicitlyClearedTranscriptionModel(providerConfig?: Record<string, unknown>) {
+  return Object.hasOwn(providerConfig ?? {}, 'model')
+    && typeof providerConfig?.model === 'string'
+    && providerConfig.model.trim() === ''
+}
+
 /**
  * Resolves extra transcription request options from provider config and UI locale.
  *

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from './config'
-import { useProviderStore } from './provider'
+import { isProviderConfigDifferentFromDefaults, useProviderStore } from './provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -80,9 +80,27 @@ describe('provider store synchronization boundary', () => {
 
     const listModels = vi.spyOn(store.getProviderDefinition(providerId).extraMethods!, 'listModels')
     configStore.getProviderConfig(providerId)!.model = 'paraformer'
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await store.refreshModelsForChangedCredentials()
 
     expect(listModels).not.toHaveBeenCalled()
+  })
+
+  it('does not mark a legacy config dirty only because a new default field is absent', () => {
+    const legacyConfig = {
+      apiKey: '',
+      baseUrl: 'https://api.openai.com/v1/',
+    }
+    const currentDefaults = {
+      apiKey: '',
+      baseUrl: 'https://api.openai.com/v1/',
+      model: 'gpt-4o-transcribe',
+    }
+
+    expect(isProviderConfigDifferentFromDefaults(legacyConfig, currentDefaults)).toBe(false)
+    expect(isProviderConfigDifferentFromDefaults({
+      ...legacyConfig,
+      apiKey: 'changed',
+    }, currentDefaults)).toBe(true)
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757361703

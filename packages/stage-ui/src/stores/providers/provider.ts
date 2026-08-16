@@ -149,6 +149,21 @@ const useProviderStateStore = defineStore('provider-state', () => {
   },
 })
 
+export function isProviderConfigDifferentFromDefaults(
+  config: Record<string, unknown>,
+  defaultOptions: Record<string, unknown>,
+) {
+  return JSON.stringify({ ...defaultOptions, ...config }) !== JSON.stringify(defaultOptions)
+}
+
+function modelCatalogCredentialHash(providerId: string, config: Record<string, unknown>) {
+  if (providerId !== 'funasr-audio-transcription')
+    return JSON.stringify(config)
+
+  const { model: _selectedModel, ...connectionConfig } = config
+  return JSON.stringify(connectionConfig)
+}
+
 /**
  * Owns executable provider instances and inference-specific runtime state.
  *
@@ -818,7 +833,7 @@ export const useProviderStore = defineStore('provider', () => {
     const changedProviders: string[] = []
 
     for (const [providerId, currentConfig] of Object.entries(providerCredentials.value)) {
-      const currentHash = JSON.stringify(currentConfig)
+      const currentHash = modelCatalogCredentialHash(providerId, currentConfig)
       const previousHash = previousCredentialHashes.get(providerId)
 
       if (currentHash !== previousHash) {
@@ -1006,7 +1021,7 @@ export const useProviderStore = defineStore('provider', () => {
       return false
 
     const defaultOptions = getDefaultProviderConfig(providerId)
-    return JSON.stringify(config) !== JSON.stringify(defaultOptions)
+    return isProviderConfigDifferentFromDefaults(config, defaultOptions)
   }
 
   function shouldListProvider(providerId: string) {

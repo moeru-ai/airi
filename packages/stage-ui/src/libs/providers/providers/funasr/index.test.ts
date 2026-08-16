@@ -55,6 +55,14 @@ describe('providerFunASRAudioTranscription', () => {
     }, { t })).resolves.toMatchObject({ valid: false })
   })
 
+  it('runs configuration validation for explicitly cleared settings', () => {
+    expect(providerFunASRAudioTranscription.validationRequiredWhen?.({
+      apiKey: '',
+      baseUrl: '',
+      model: 'sensevoice',
+    })).toBe(true)
+  })
+
   it('normalizes the base URL and preserves transcription options', () => {
     const provider = providerFunASRAudioTranscription.createProvider({
       apiKey: 'gateway-secret',

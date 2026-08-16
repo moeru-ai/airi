@@ -4,7 +4,7 @@ import { nextTick } from 'vue'
 
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
-import { useHearingStore } from './hearing'
+import { hasExplicitlyClearedTranscriptionModel, useHearingStore } from './hearing'
 
 const TRANSCRIPTION_PROVIDER_IDS = [
   'funasr-audio-transcription',
@@ -83,6 +83,13 @@ describe('funASR Hearing model synchronization', () => {
       expect(hearingStore.activeTranscriptionModel).toBe('')
       expect(providerConfigStore.getProviderConfig('funasr-audio-transcription')?.model).toBe('')
     })
+  })
+
+  it('does not select a listed fallback for an explicitly cleared model', () => {
+    expect(hasExplicitlyClearedTranscriptionModel({ model: '' })).toBe(true)
+    expect(hasExplicitlyClearedTranscriptionModel({ model: '   ' })).toBe(true)
+    expect(hasExplicitlyClearedTranscriptionModel({})).toBe(false)
+    expect(hasExplicitlyClearedTranscriptionModel({ model: 'gpt-4o-transcribe' })).toBe(false)
   })
 
   it('restores the FunASR configured model when the provider is selected', async () => {
@@ -202,8 +209,9 @@ describe('funASR Hearing model synchronization', () => {
   //
   // Before the patch, the provider transition always assigned an empty string.
   // We fixed this by resolving and persisting the destination provider's model during the transition.
-  it('selects the OpenAI displayed default after leaving FunASR (GitHub #2122)', async () => {
+  it('preserves the legacy OpenAI default after leaving FunASR (GitHub #2122)', async () => {
     const providerConfigStore = useProviderConfigStore()
+    delete providerConfigStore.getProviderConfig('openai-audio-transcription')!.model
     const hearingStore = useHearingStore()
 
     hearingStore.activeTranscriptionProvider = 'funasr-audio-transcription'
@@ -214,8 +222,8 @@ describe('funASR Hearing model synchronization', () => {
     hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
 
     await vi.waitFor(() => {
-      expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
-      expect(providerConfigStore.getProviderConfig('openai-audio-transcription')?.model).toBe('whisper-1')
+      expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
+      expect(providerConfigStore.getProviderConfig('openai-audio-transcription')?.model).toBe('gpt-4o-transcribe')
     })
   })
 
@@ -427,7 +435,7 @@ describe('funASR Hearing model synchronization', () => {
 
     hearingStore.activeTranscriptionProvider = 'openai-audio-transcription'
     await vi.waitFor(() => {
-      expect(hearingStore.activeTranscriptionModel).toBe('whisper-1')
+      expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
     })
 
     hearingStore.activeTranscriptionProvider = 'mimo-audio-transcription'

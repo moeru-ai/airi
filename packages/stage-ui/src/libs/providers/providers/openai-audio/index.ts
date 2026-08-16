@@ -14,7 +14,7 @@ const openAIAudioConfigSchema = z.object({
 })
 
 const openAITranscriptionConfigSchema = openAIAudioConfigSchema.extend({
-  model: z.string().default('whisper-1'),
+  model: z.string().default('gpt-4o-transcribe'),
 })
 
 const openAICompatibleAudioConfigSchema = z.object({
