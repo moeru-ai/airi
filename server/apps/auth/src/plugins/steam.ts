@@ -92,6 +92,7 @@ export function steam() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: verifyParams.toString(),
         responseType: 'text',
+        timeout: 10_000,
       })
       return body.split('\n').some(line => line.trim() === 'is_valid:true')
     }
