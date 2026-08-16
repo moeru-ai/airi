@@ -8,13 +8,16 @@ import { defineProvider } from '../registry'
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1/'
 
+/** Default model shared by OpenAI transcription settings and Hearing. */
+export const OPENAI_TRANSCRIPTION_DEFAULT_MODEL = 'gpt-4o-transcribe'
+
 const openAIAudioConfigSchema = z.object({
   apiKey: z.string(),
   baseUrl: z.string().default(OPENAI_BASE_URL),
 })
 
 const openAITranscriptionConfigSchema = openAIAudioConfigSchema.extend({
-  model: z.string().default('gpt-4o-transcribe'),
+  model: z.string().default(OPENAI_TRANSCRIPTION_DEFAULT_MODEL),
 })
 
 const openAICompatibleAudioConfigSchema = z.object({

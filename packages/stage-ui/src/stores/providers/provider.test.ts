@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from './config'
-import { isProviderConfigDifferentFromDefaults, useProviderStore } from './provider'
+import { useProviderStore } from './provider'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -83,24 +83,53 @@ describe('provider store synchronization boundary', () => {
     await store.refreshModelsForChangedCredentials()
 
     expect(listModels).not.toHaveBeenCalled()
+    await new Promise(resolve => setTimeout(resolve, 0))
   })
 
-  it('does not mark a legacy config dirty only because a new default field is absent', () => {
-    const legacyConfig = {
-      apiKey: '',
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3792335745
+  it('does not refresh OpenAI models when only the selected model changes (GitHub #2122)', async () => {
+    const providerId = 'openai-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    store.initializeProvider(providerId)
+    configStore.getProviderConfig(providerId)!.apiKey = 'test-key'
+    await new Promise(resolve => setTimeout(resolve, 0))
+    configStore.setProviderStatus(providerId, 'configured')
+    await store.refreshModelsForChangedCredentials()
+    expect(configStore.getProvider(providerId)?.status).toBe('configured')
+
+    const listModels = vi.spyOn(store.getProviderDefinition(providerId).extraMethods!, 'listModels')
+    configStore.getProviderConfig(providerId)!.model = 'whisper-1'
+    await store.refreshModelsForChangedCredentials()
+
+    expect(listModels).not.toHaveBeenCalled()
+    await new Promise(resolve => setTimeout(resolve, 0))
+  })
+
+  it('does not validate a legacy provider only because a new default field is absent', async () => {
+    const providerId = 'openai-audio-transcription'
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider(providerId, providerId, {
       baseUrl: 'https://api.openai.com/v1/',
-    }
-    const currentDefaults = {
-      apiKey: '',
+    })
+    const store = useProviderStore()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    store.initializeProvider(providerId)
+    expect(store.getDefaultProviderConfig(providerId)).toEqual({
       baseUrl: 'https://api.openai.com/v1/',
       model: 'gpt-4o-transcribe',
-    }
+    })
 
-    expect(isProviderConfigDifferentFromDefaults(legacyConfig, currentDefaults)).toBe(false)
-    expect(isProviderConfigDifferentFromDefaults({
-      ...legacyConfig,
-      apiKey: 'changed',
-    }, currentDefaults)).toBe(true)
+    const config = configStore.getProviderConfig(providerId)!
+    configStore.unmarkProviderAdded(providerId)
+    configStore.setProviderStatus(providerId, 'unconfigured')
+
+    await store.refreshListedProviderValidation()
+    expect(configStore.getProvider(providerId)?.status).toBe('unconfigured')
+
+    config.apiKey = 'changed'
+    await store.refreshListedProviderValidation()
+    expect(configStore.getProvider(providerId)?.status).toBe('configured')
   })
 
   // https://github.com/moeru-ai/airi/pull/2122#discussion_r3757361703

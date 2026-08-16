@@ -22,6 +22,7 @@ import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
 import { createVadStreamingSession } from '../../libs/audio/vad-streaming-session'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { streamWebSpeechAPITranscription } from '../../libs/providers/providers/browser-web-speech-api'
+import { OPENAI_TRANSCRIPTION_DEFAULT_MODEL } from '../../libs/providers/providers/openai-audio'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
@@ -294,9 +295,15 @@ export function resolveOpenAICompatibleTranscriptionModel(providerConfig?: Recor
   if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
     return providerConfig.model
 
-  return 'whisper-1'
+  return OPENAI_TRANSCRIPTION_DEFAULT_MODEL
 }
 
+/**
+ * Returns whether a provider explicitly owns a blank transcription model.
+ *
+ * Missing or non-string model fields are not explicit clearance. A provider
+ * owns the cleared state only when its own string model value trims to empty.
+ */
 export function hasExplicitlyClearedTranscriptionModel(providerConfig?: Record<string, unknown>) {
   return Object.hasOwn(providerConfig ?? {}, 'model')
     && typeof providerConfig?.model === 'string'
@@ -401,8 +408,14 @@ export const useHearingStore = defineStore('hearing-store', () => {
       activeTranscriptionModel.value = activeFunASRConfiguredModel.value
       await loadModelsForProvider(providerId)
     }
-    else if (previousProviderId !== undefined) {
-      activeTranscriptionModel.value = ''
+    else if (providerId) {
+      const providerConfig = providerStore.getProviderConfig(providerId)
+      const ownsConfiguredModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string'
+      if (previousProviderId === undefined && !ownsConfiguredModel && activeTranscriptionModel.value.trim())
+        return
+
+      if (previousProviderId !== undefined)
+        activeTranscriptionModel.value = ''
       pendingDestinationModelRequest = { providerId }
       if (syncDestinationModel(providerId))
         pendingDestinationModelRequest = undefined
@@ -425,6 +438,20 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     void loadModelsForProvider('funasr-audio-transcription')
   })
+
+  watch(() => {
+    const providerId = activeTranscriptionProvider.value
+    const providerConfig = providerStore.getProviderConfig(providerId)
+    const configuredModel = providerConfig?.model
+    const ownsConfiguredModel = Object.hasOwn(providerConfig ?? {}, 'model') && typeof configuredModel === 'string'
+    return [providerId, ownsConfiguredModel, ownsConfiguredModel ? configuredModel.trim() : undefined] as const
+  }, ([providerId, ownsConfiguredModel, configuredModel]) => {
+    if (!providerId || !ownsConfiguredModel || configuredModel === undefined)
+      return
+
+    if (activeTranscriptionProvider.value === providerId && activeTranscriptionModel.value !== configuredModel)
+      activeTranscriptionModel.value = configuredModel
+  }, { flush: 'sync' })
 
   watch(activeTranscriptionModel, (model) => {
     const providerId = activeTranscriptionProvider.value

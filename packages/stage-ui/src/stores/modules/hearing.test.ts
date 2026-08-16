@@ -94,7 +94,7 @@ describe('resolveOpenAICompatibleTranscriptionModel', () => {
   })
 
   it('uses the displayed default only when the provider has never stored a model', () => {
-    expect(resolveOpenAICompatibleTranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('whisper-1')
+    expect(resolveOpenAICompatibleTranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('gpt-4o-transcribe')
   })
 })
 

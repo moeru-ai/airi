@@ -149,15 +149,20 @@ const useProviderStateStore = defineStore('provider-state', () => {
   },
 })
 
-export function isProviderConfigDifferentFromDefaults(
+function isProviderConfigDifferentFromDefaults(
   config: Record<string, unknown>,
   defaultOptions: Record<string, unknown>,
 ) {
   return JSON.stringify({ ...defaultOptions, ...config }) !== JSON.stringify(defaultOptions)
 }
 
+const PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG = new Set([
+  'funasr-audio-transcription',
+  'openai-audio-transcription',
+])
+
 function modelCatalogCredentialHash(providerId: string, config: Record<string, unknown>) {
-  if (providerId !== 'funasr-audio-transcription')
+  if (!PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG.has(providerId))
     return JSON.stringify(config)
 
   const { model: _selectedModel, ...connectionConfig } = config

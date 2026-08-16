@@ -85,6 +85,38 @@ describe('funASR Hearing model synchronization', () => {
     })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3792335742
+  it('hydrates the shared OpenAI default for a legacy provider on startup (GitHub #2122)', () => {
+    persistedSettings.set('settings/hearing/active-provider', 'openai-audio-transcription')
+    persistedSettings.set('settings/hearing/active-model', '')
+
+    const providerConfigStore = useProviderConfigStore()
+    delete providerConfigStore.getProviderConfig('openai-audio-transcription')!.model
+
+    const hearingStore = useHearingStore()
+
+    expect(hearingStore.activeTranscriptionModel).toBe('gpt-4o-transcribe')
+    expect(providerConfigStore.getProviderConfig('openai-audio-transcription')?.model).toBe('gpt-4o-transcribe')
+  })
+
+  it('honors an explicitly cleared OpenAI model over stale Hearing state', async () => {
+    persistedSettings.set('settings/hearing/active-provider', 'openai-audio-transcription')
+    persistedSettings.set('settings/hearing/active-model', 'whisper-1')
+
+    const providerConfigStore = useProviderConfigStore()
+    const providerConfig = providerConfigStore.getProviderConfig('openai-audio-transcription')!
+    providerConfig.model = ''
+
+    const hearingStore = useHearingStore()
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+
+    providerConfig.model = 'gpt-4o-mini-transcribe'
+    await nextTick()
+    providerConfig.model = ''
+
+    expect(hearingStore.activeTranscriptionModel).toBe('')
+  })
+
   it('does not select a listed fallback for an explicitly cleared model', () => {
     expect(hasExplicitlyClearedTranscriptionModel({ model: '' })).toBe(true)
     expect(hasExplicitlyClearedTranscriptionModel({ model: '   ' })).toBe(true)
