@@ -1,5 +1,5 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
-import type {} from 'pinia-plugin-synced'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
@@ -360,10 +360,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  let stopRuntimeModules: (() => void) | undefined
+  let stopLeadershipListener: (() => void) | undefined
+  let stopRuntimeModuleWatcher: (() => void) | undefined
 
   function initializeRuntimeModules() {
-    if (stopRuntimeModules)
+    if (stopRuntimeModuleWatcher)
       return
 
     applyActiveCardSettings()
@@ -371,15 +372,37 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Activation changes the stable card ID, while card editors replace the
     // active card object without changing that ID. Only the Stage lifecycle
     // owner applies those settings; metadata-only consumers stay lightweight.
-    stopRuntimeModules = watch([activeCardId, activeCard], ([, newCard]) => {
+    stopRuntimeModuleWatcher = watch([activeCardId, activeCard], ([, newCard]) => {
       applyActiveCardSettings(newCard)
     }, { flush: 'sync' })
   }
 
-  /** Stops renderer-local card watchers without clearing synchronized state. */
+  function stopRuntimeModules() {
+    stopRuntimeModuleWatcher?.()
+    stopRuntimeModuleWatcher = undefined
+  }
+
+  /**
+   * Keeps renderer-local card settings active only in the current leader.
+   * Repeated calls keep the first listener until {@link disposeRuntime} runs.
+   */
+  function startRuntime(syncedPinia: Pick<SyncedPiniaRuntime, 'onLeadershipChange'>) {
+    if (stopLeadershipListener)
+      return
+
+    stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
+      if (isLeader)
+        initializeRuntimeModules()
+      else
+        stopRuntimeModules()
+    })
+  }
+
+  /** Stops renderer-local card settings and leadership tracking. */
   function disposeRuntime() {
-    stopRuntimeModules?.()
-    stopRuntimeModules = undefined
+    stopRuntimeModules()
+    stopLeadershipListener?.()
+    stopLeadershipListener = undefined
   }
 
   function resetState() {
@@ -404,6 +427,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     getCard,
     resetState,
     initialize,
+    startRuntime,
     disposeRuntime,
 
     currentModels: computed(() => {

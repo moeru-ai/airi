@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { useAiriCardRuntime } from '@proj-airi/stage-ui/composables/use-airi-card-runtime'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -10,6 +9,7 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ErrorBoundary, useTheme } from '@proj-airi/ui'
@@ -42,7 +42,7 @@ const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
-const cardRuntime = useAiriCardRuntime()
+const cardStore = useAiriCardStore()
 const inferencePreload = useInferencePreload()
 
 const primaryColor = computed(() => {
@@ -89,7 +89,8 @@ watch(settings.themeColorsHueDynamic, () => {
 onMounted(async () => {
   initializeAnalytics()
   await displayModelsStore.initialize()
-  await cardRuntime.initialize()
+  cardStore.startRuntime(syncedPinia)
+  await cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -110,7 +111,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopLeadershipListener()
-  cardRuntime.dispose()
+  cardStore.disposeRuntime()
   contextBridgeStore.dispose()
 })
 

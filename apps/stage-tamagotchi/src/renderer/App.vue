@@ -5,7 +5,6 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
-import { useAiriCardRuntime } from '@proj-airi/stage-ui/composables/use-airi-card-runtime'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/analytics'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -16,6 +15,7 @@ import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
@@ -115,7 +115,7 @@ function createFullStageRuntime() {
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()
-  const cardRuntime = useAiriCardRuntime()
+  const cardStore = useAiriCardStore()
   const serverChannelStore = useModsServerChannelStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const inferencePreload = useInferencePreload()
@@ -214,7 +214,8 @@ function createFullStageRuntime() {
     async initialize() {
       initializeAnalytics()
       await displayModelsStore.initialize()
-      await cardRuntime.initialize()
+      cardStore.startRuntime(syncedPinia)
+      await cardStore.initialize()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
@@ -259,7 +260,7 @@ function createFullStageRuntime() {
       inferencePreload.triggerPreload()
     },
     dispose() {
-      cardRuntime.dispose()
+      cardStore.disposeRuntime()
       contextBridgeStore.dispose()
     },
   }
