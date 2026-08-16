@@ -9,7 +9,7 @@ import { BrowserWindow as ElectronBrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupEditorWindowInvokes } from './rpc/index.electron'
@@ -55,7 +55,12 @@ export function setupEditorWindowManager(params: {
       i18n: params.i18n,
       serverChannel: params.serverChannel,
     })
-    await load(window, withRendererWindow(rendererBase, 'editor', '/editor'))
+    await load(window, withHashRoute(rendererBase, '/editor', {
+      query: {
+        'stage-runtime': 'minimal',
+        'synced-leader': 'false',
+      },
+    }))
 
     return window
   })

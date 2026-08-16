@@ -22,7 +22,7 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupDashboardWindowElectronInvokes } from './rpc/index.electron'
@@ -137,7 +137,9 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
-  await load(window, withRendererWindow(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), 'dashboard', '/dashboard'))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {
+    query: { 'synced-leader': 'false' },
+  }))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

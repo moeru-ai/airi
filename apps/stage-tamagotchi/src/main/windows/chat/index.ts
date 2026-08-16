@@ -9,7 +9,7 @@ import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupChatWindowElectronInvokes } from './rpc/index.electron'
@@ -44,7 +44,12 @@ export function setupChatWindowReusableFunc(params: {
       i18n: params.i18n,
     })
 
-    await load(window, withRendererWindow(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), 'chat', '/chat'))
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/chat', {
+      query: {
+        'stage-runtime': 'minimal',
+        'synced-leader': 'false',
+      },
+    }))
 
     return window
   }).getWindow

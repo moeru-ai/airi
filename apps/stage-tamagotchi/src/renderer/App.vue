@@ -80,8 +80,8 @@ const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
-const isSpotlightWindow = windowContext.type === 'spotlight'
-const isSettingsWindow = windowContext.type === 'settings'
+const isSpotlightWindow = route.path === '/spotlight'
+const isSettingsWindow = route.path === '/settings' || route.path.startsWith('/settings/')
 
 useAuthProviderSync()
 
@@ -135,8 +135,8 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const usesGodotStage = windowContext.type === 'main' || windowContext.type === 'settings'
-  const isWidgetsWindow = windowContext.type === 'widgets'
+  const usesGodotStage = route.path === '/' || route.path.startsWith('/settings')
+  const isWidgetsWindow = route.path === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
     if (state.state === 'running') {

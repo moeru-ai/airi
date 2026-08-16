@@ -29,7 +29,7 @@ import { env } from 'node:process'
 import { BrowserWindow, screen } from 'electron'
 
 import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { protectPrivilegedWindowNavigation } from '../shared/window'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
@@ -118,12 +118,12 @@ export async function setupDesktopOverlayWindow(params: {
   // Load the overlay renderer page
   await load(
     overlayWindow,
-    withRendererWindow(
+    withHashRoute(
       baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')),
-      'desktop-overlay',
       isDesktopOverlayPollHeartbeatEnabled()
         ? `/desktop-overlay?${desktopOverlayPollHeartbeatQueryParam}=1`
         : '/desktop-overlay',
+      { query: { 'synced-leader': 'false' } },
     ),
   )
 

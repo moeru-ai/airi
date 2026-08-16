@@ -18,7 +18,7 @@ import { boolean, number, object, optional, record, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
@@ -344,7 +344,9 @@ export function setupCaptionWindowManager(params: {
 
     const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
 
-    await load(window, withRendererWindow(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), 'caption', '/caption'))
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption', {
+      query: { 'synced-leader': 'false' },
+    }))
 
     try {
       context.emit(captionIsFollowingWindowChanged, isFollowing)

@@ -12,7 +12,7 @@ import { isMacOS } from 'std-env'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronOnboardingClose } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { createAuthService } from '../../services/airi/auth'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
@@ -74,7 +74,9 @@ export function setupOnboardingWindowManager(params: {
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
     createAuthService({ context, window: newWindow })
 
-    await load(newWindow, withRendererWindow(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), 'onboarding', '/onboarding'))
+    await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding', {
+      query: { 'synced-leader': 'false' },
+    }))
 
     newWindow.on('closed', () => {
       for (const cb of closeCallbacks) {

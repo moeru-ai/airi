@@ -16,7 +16,7 @@ import { BrowserWindow } from 'electron'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronSettingsNavigate } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withRendererWindow } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
@@ -78,7 +78,9 @@ export function setupSettingsWindowReusableFunc(params: {
       spotlightWindow: params.spotlightWindow,
     })
 
-    await load(window, withRendererWindow(rendererBase, 'settings', currentRoute))
+    await load(window, withHashRoute(rendererBase, currentRoute, {
+      query: { 'synced-leader': 'false' },
+    }))
 
     window.on('closed', () => {
       if (settingsContext)
