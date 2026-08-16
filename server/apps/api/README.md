@@ -12,6 +12,22 @@ auth/OIDC routes.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
+## Payment
+
+`src/services/domain/payment` owns `payment_order`, `provider_account`,
+provider adapters, and the ConfigKV pack mapping (`FLUX_PACKS`).
+
+Each provider keeps its own HTTP paths: Stripe stays on `/api/v1/stripe/*`;
+Apple and Steam add `/api/v1/apple-iap/*` and `/api/v1/steam/*`. CORE never
+sees a raw provider event.
+
+- Claim is the order transition `pending` → `paid`; one transaction writes
+  `credited_at` and calls `creditFlux`. Replay returns `applied: false`.
+- Pack snapshots (`pack_key`, `flux_amount`) live on the order row, not in
+  `provider_data`.
+- `FLUX_PACKS` maps pack key -> Stripe price id + Flux amount; display prices
+  and currencies come from Stripe through the provider adapter.
+
 ## Run locally
 
 ```sh
