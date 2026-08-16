@@ -1,6 +1,6 @@
 import type { Database } from '../../../../libs/db'
 import type { ConfigKVService } from '../../../adapters/config-kv'
-import type { FluxPack } from '../types'
+import type { FluxPack, PaymentProvider, ProviderCreateInput } from '../types'
 
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,7 +9,6 @@ import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
 import { userFluxRedisKey } from '../../../../utils/redis-keys'
 import { createBillingService } from '../../billing/billing-service'
-import { createFakePaymentProvider } from '../adapters/fake'
 import { createPaymentService } from '../index'
 
 import * as schema from '../../../../schemas'
@@ -20,6 +19,37 @@ const starterPack: FluxPack = {
   fluxAmount: 500,
   recommended: false,
   providers: { stripe: { priceId: 'price_starter' } },
+}
+
+function createTestPaymentProvider(options?: {
+  onCreate?: (input: ProviderCreateInput) => Promise<void> | void
+}): PaymentProvider {
+  return {
+    async create(input) {
+      await options?.onCreate?.(input)
+      return {
+        providerOrderId: `cs_test_${input.paymentOrderId}`,
+        url: `https://checkout.stripe.test/${input.paymentOrderId}`,
+      }
+    },
+    async listPackages(packs) {
+      return packs.map(pack => ({
+        packKey: pack.key,
+        stripePriceId: pack.providers.stripe?.priceId,
+        label: pack.name,
+        defaultCurrency: 'usd',
+        currencies: { usd: '$5.00' },
+        recommended: pack.recommended,
+      }))
+    },
+    confirmed() {
+      throw new Error('test adapter does not map native payloads')
+    },
+    async cancel() {},
+    async getStatus() {
+      return null
+    },
+  }
 }
 
 function createPacksConfigKV(initial: FluxPack[]): ConfigKVService & { setPacks: (packs: FluxPack[]) => void } {
@@ -63,18 +93,18 @@ describe('payment CORE', () => {
     const billing = createBillingService(db, redis, configKV)
 
     let service: ReturnType<typeof createPaymentService>
-    const fake = createFakePaymentProvider({
+    const stripe = createTestPaymentProvider({
       onCreate: async (input) => {
         if (!applyDuringCreate)
           return
         await service.applyConfirmation({
-          provider: 'fake',
+          provider: 'stripe',
           paymentOrderId: input.paymentOrderId,
-          providerOrderId: `fake_${input.paymentOrderId}`,
+          providerOrderId: `cs_test_${input.paymentOrderId}`,
           status: 'paid',
           amount: 500,
           currency: 'usd',
-          providerCustomerId: 'cus_fake',
+          providerCustomerId: 'cus_test',
         })
       },
     })
@@ -83,7 +113,7 @@ describe('payment CORE', () => {
       db,
       billing,
       configKV,
-      providers: { fake },
+      providers: { stripe },
     })
     payment = service
 
@@ -96,7 +126,7 @@ describe('payment CORE', () => {
   async function startStarterPack() {
     return payment.startPack({
       userId: 'user-pay-1',
-      provider: 'fake',
+      provider: 'stripe',
       packKey: 'starter',
       startContext: {
         currency: 'usd',
@@ -110,16 +140,16 @@ describe('payment CORE', () => {
   it('startPack snapshots the pack and applyConfirmation credits Flux', async () => {
     const started = await startStarterPack()
     expect(started.kind).toBe('redirect')
-    expect(started.url).toContain('fake.pay.test')
+    expect(started.url).toContain('checkout.stripe.test')
 
     const result = await payment.applyConfirmation({
-      provider: 'fake',
+      provider: 'stripe',
       paymentOrderId: started.paymentOrderId,
-      providerOrderId: `fake_${started.paymentOrderId}`,
+      providerOrderId: `cs_test_${started.paymentOrderId}`,
       status: 'paid',
       amount: 500,
       currency: 'usd',
-      providerCustomerId: 'cus_fake',
+      providerCustomerId: 'cus_test',
     })
 
     expect(result).toMatchObject({ applied: true, fluxAmount: 500, balanceAfter: 500 })
@@ -141,7 +171,7 @@ describe('payment CORE', () => {
   })
 
   it('listPacks returns platform price items through the provider', async () => {
-    const items = await payment.listPacks('fake')
+    const items = await payment.listPacks('stripe')
     expect(items).toEqual([{
       packKey: 'starter',
       stripePriceId: 'price_starter',
@@ -164,9 +194,9 @@ describe('payment CORE', () => {
   it('applyConfirmation replay returns applied false and does not double credit', async () => {
     const started = await startStarterPack()
     const facts = {
-      provider: 'fake' as const,
+      provider: 'stripe' as const,
       paymentOrderId: started.paymentOrderId,
-      providerOrderId: `fake_${started.paymentOrderId}`,
+      providerOrderId: `cs_test_${started.paymentOrderId}`,
       status: 'paid' as const,
     }
 
@@ -188,9 +218,9 @@ describe('payment CORE', () => {
     configKV.setPacks([{ ...starterPack, fluxAmount: 9999 }])
 
     const result = await payment.applyConfirmation({
-      provider: 'fake',
+      provider: 'stripe',
       paymentOrderId: started.paymentOrderId,
-      providerOrderId: `fake_${started.paymentOrderId}`,
+      providerOrderId: `cs_test_${started.paymentOrderId}`,
       status: 'paid',
     })
 
@@ -211,32 +241,17 @@ describe('payment CORE', () => {
 
     const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, started.paymentOrderId))
     expect(order?.status).toBe('paid')
-    expect(order?.providerOrderId).toBe(`fake_${started.paymentOrderId}`)
+    expect(order?.providerOrderId).toBe(`cs_test_${started.paymentOrderId}`)
   })
 
   it('throws when applyConfirmation runs before the order exists so the channel can retry', async () => {
     await expect(payment.applyConfirmation({
-      provider: 'fake',
+      provider: 'stripe',
       paymentOrderId: 'missing-order',
-      providerOrderId: 'fake_missing',
+      providerOrderId: 'cs_test_missing',
       status: 'paid',
     })).rejects.toMatchObject({
       statusCode: 500,
     })
-  })
-
-  it('maps Fake.confirmed native payload onto applyConfirmation', async () => {
-    const started = await startStarterPack()
-    const fake = createFakePaymentProvider()
-    const facts = fake.confirmed({
-      paymentOrderId: started.paymentOrderId,
-      providerOrderId: `fake_${started.paymentOrderId}`,
-      status: 'paid',
-      amount: 500,
-      currency: 'usd',
-    })
-
-    const result = await payment.applyConfirmation(facts)
-    expect(result).toMatchObject({ applied: true, fluxAmount: 500 })
   })
 })

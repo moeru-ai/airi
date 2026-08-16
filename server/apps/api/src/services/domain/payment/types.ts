@@ -1,4 +1,4 @@
-export const PAYMENT_PROVIDERS = ['stripe', 'apple_iap', 'steam', 'fake'] as const
+export const PAYMENT_PROVIDERS = ['stripe', 'apple_iap', 'steam'] as const
 
 export type PaymentProviderName = typeof PAYMENT_PROVIDERS[number]
 
@@ -92,7 +92,7 @@ export interface ProviderCreateResult {
 }
 
 /**
- * Internal Provider seam. Stripe and Fake satisfy this in Phase 1.
+ * Internal Provider seam. Stripe satisfies this.
  *
  * Channel routes call {@link PaymentProvider.confirmed} after they verify
  * the native payload. CORE calls {@link PaymentProvider.create}.

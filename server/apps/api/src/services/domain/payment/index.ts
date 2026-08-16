@@ -20,7 +20,6 @@ import { createBadRequestError, createInternalError, createServiceUnavailableErr
 
 import * as schema from '../../../schemas/payment'
 
-export { createFakePaymentProvider } from './adapters/fake'
 export { createStripePaymentProvider } from './adapters/stripe'
 export type { ApplyConfirmationResult, ConfirmationFacts, FluxPack, FluxPackListItem, PackStartContext, PaymentProvider, StartPackInput, StartPackResult } from './types'
 
