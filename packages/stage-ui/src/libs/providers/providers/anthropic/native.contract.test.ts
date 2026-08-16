@@ -1,4 +1,4 @@
-import type { Tool } from '@xsai/shared-chat'
+import type { Event, Tool } from '@xsai/shared-chat'
 
 import { generateText } from '@xsai/generate-text'
 import { stepCountAtLeast } from '@xsai/shared-chat'
@@ -47,7 +47,7 @@ describe('xsai consumer contract', () => {
     const baseFetch = vi.fn().mockResolvedValueOnce(sseResponse(textRoundFrames))
     const nativeFetch = createNativeAnthropicFetch({ apiKey: 'sk-ant-test', fetch: baseFetch })
 
-    const events: Array<Record<string, unknown>> = []
+    const events: Event[] = []
     const result = streamText({
       apiKey: 'sk-ant-test',
       baseURL: BASE_URL,
@@ -55,17 +55,17 @@ describe('xsai consumer contract', () => {
       messages: [{ role: 'user', content: 'hi' }],
       fetch: nativeFetch,
       streamOptions: { includeUsage: true },
-      onEvent: event => void events.push(event as Record<string, unknown>),
+      onEvent: event => void events.push(event),
     })
 
     const steps = await result.steps
     expect(steps).toHaveLength(1)
     expect(steps[0].text).toBe('Hello')
     expect(steps[0].finishReason).toBe('stop')
-    expect(steps[0].usage).toEqual({ prompt_tokens: 9, completion_tokens: 4, total_tokens: 13 })
+    expect(steps[0].usage).toEqual({ inputTokens: 9, outputTokens: 4, totalTokens: 13 })
 
     // Thinking deltas surface on xsai's native reasoning channel.
-    expect(events.some(event => event.type === 'reasoning-delta' && event.text === 'let me think')).toBe(true)
+    expect(events.some(event => event.type === 'reasoning.delta' && event.delta === 'let me think')).toBe(true)
 
     const messages = await result.messages
     const assistantTurn = messages[messages.length - 1]
