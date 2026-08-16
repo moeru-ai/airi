@@ -146,7 +146,7 @@ macOS, Windows, Linux, Android, iOS 등에서 12개 이상 언어에 걸쳐 18�
 
 #### xsAI 🤗 Transformers.js의 탄생
 
-VAD, ASR, Chat, TTS 데모 작업 덕분에 [xsAI 🤗 Transformers.js](https://github.com/proj-airi/xsai-transformers)
+VAD, ASR, Chat, TTS 데모 작업 덕분에 [xsAI 🤗 Transformers.js](https://github.com/moeru-ai/xsai-transformers)
 라는 새 사이드 프로젝트가 태어났습니다. WebGPU 기반 모델 추론과 워커를 통한 서빙을 간단히 호출할 수 있게 하면서도,
 앞서 성공한 프로젝트 [xsAI](https://github.com/moeru-ai/xsai)와 API 호환성을 유지합니다.
 
