@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveRendererWindowContext } from './window-context'
+import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
+
+describe('resolveInitialRendererRoutePath', () => {
+  // ROOT CAUSE:
+  //
+  // Vue Router reports `/` during App setup, before it hydrates the hash
+  // route. Window-specific setup therefore used the main-window behavior in
+  // widgets and settings renderers.
+  //
+  // https://github.com/moeru-ai/airi/pull/2304
+  it('uses the hash route before Vue Router hydrates', () => {
+    expect(resolveInitialRendererRoutePath('/', '#/widgets')).toBe('/widgets')
+    expect(resolveInitialRendererRoutePath('/', '#/settings/providers?source=tray')).toBe('/settings/providers')
+  })
+
+  it('uses the router path when no hash route exists', () => {
+    expect(resolveInitialRendererRoutePath('/settings/data', '')).toBe('/settings/data')
+  })
+})
 
 describe('resolveRendererWindowContext', () => {
   it('assigns synchronized leadership from the explicit query', () => {

@@ -8,6 +8,23 @@ export interface RendererWindowContext {
   stageRuntime: 'full' | 'minimal'
 }
 
+function normalizeRoutePath(routePath: string) {
+  const [path = ''] = routePath.split(/[?#]/)
+  return path || '/'
+}
+
+/**
+ * Resolves the initial renderer route before Vue Router hydrates the hash.
+ *
+ * @example
+ * resolveInitialRendererRoutePath('/', '#/widgets?source=tray')
+ * // => '/widgets'
+ */
+export function resolveInitialRendererRoutePath(routePath: string, hash = globalThis.location?.hash ?? ''): string {
+  const hashPath = hash.startsWith('#') ? hash.slice(1) : ''
+  return normalizeRoutePath(hashPath || routePath)
+}
+
 /**
  * Resolves renderer ownership from the query that the main process supplies.
  *

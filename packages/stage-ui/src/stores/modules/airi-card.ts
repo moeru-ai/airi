@@ -360,21 +360,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  let runtimeModulesInitialized = false
+  let stopRuntimeModules: (() => void) | undefined
 
   function initializeRuntimeModules() {
-    if (runtimeModulesInitialized)
+    if (stopRuntimeModules)
       return
 
-    runtimeModulesInitialized = true
     applyActiveCardSettings()
 
     // Activation changes the stable card ID, while card editors replace the
     // active card object without changing that ID. Only the Stage lifecycle
     // owner applies those settings; metadata-only consumers stay lightweight.
-    watch([activeCardId, activeCard], ([, newCard]) => {
+    stopRuntimeModules = watch([activeCardId, activeCard], ([, newCard]) => {
       applyActiveCardSettings(newCard)
     }, { flush: 'sync' })
+  }
+
+  /** Stops renderer-local card watchers without clearing synchronized state. */
+  function disposeRuntime() {
+    stopRuntimeModules?.()
+    stopRuntimeModules = undefined
   }
 
   function resetState() {
@@ -399,6 +404,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     getCard,
     resetState,
     initialize,
+    disposeRuntime,
 
     currentModels: computed(() => {
       const {

@@ -21,6 +21,8 @@ const syncState = vi.hoisted(() => ({
 const syncMocks = vi.hoisted(() => ({
   initializeAuth: vi.fn(async () => {}),
   leadershipHook: undefined as ((isLeader: boolean) => void) | undefined,
+  disposeAuthenticatedHook: vi.fn(),
+  disposeLogoutHook: vi.fn(),
   forceProviderConfigured: vi.fn(),
   setProviderUnconfigured: vi.fn(),
   setProviderAvailabilityOverride: vi.fn(),
@@ -53,9 +55,17 @@ vi.mock('../stores/auth', () => ({
   useAuthStore: () => ({
     onAuthenticated: (hook: () => Promise<void>) => {
       syncState.authenticatedHook = hook
+      return () => {
+        syncState.authenticatedHook = undefined
+        syncMocks.disposeAuthenticatedHook()
+      }
     },
     onLogout: (hook: () => void) => {
       syncState.logoutHook = hook
+      return () => {
+        syncState.logoutHook = undefined
+        syncMocks.disposeLogoutHook()
+      }
     },
   }),
 }))
@@ -154,6 +164,36 @@ describe('useAuthProviderSync', () => {
     expect(syncState.authenticatedHook).toBeUndefined()
     expect(syncMocks.initializeAuth).not.toHaveBeenCalled()
     expect(syncMocks.forceProviderConfigured).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A renderer kept its auth hooks after it lost leadership. Those hooks
+  // could mutate provider state while the new leader handled the same auth
+  // transition.
+  //
+  // https://github.com/moeru-ai/airi/pull/2304
+  it('removes auth hooks on demotion and restores them after reacquiring leadership', () => {
+    syncState.isLeader = true
+    useAuthProviderSync()
+
+    expect(syncState.authenticatedHook).toBeDefined()
+    expect(syncState.logoutHook).toBeDefined()
+
+    syncState.isLeader = false
+    syncMocks.leadershipHook?.(false)
+
+    expect(syncMocks.disposeAuthenticatedHook).toHaveBeenCalledTimes(1)
+    expect(syncMocks.disposeLogoutHook).toHaveBeenCalledTimes(1)
+    expect(syncState.authenticatedHook).toBeUndefined()
+    expect(syncState.logoutHook).toBeUndefined()
+
+    syncState.isLeader = true
+    syncMocks.leadershipHook?.(true)
+
+    expect(syncMocks.initializeAuth).toHaveBeenCalledTimes(2)
+    expect(syncState.authenticatedHook).toBeDefined()
+    expect(syncState.logoutHook).toBeDefined()
   })
 
   it('activates every official provider after direct sign-in when no custom provider is selected', async () => {

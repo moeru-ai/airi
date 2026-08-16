@@ -3,8 +3,25 @@ import type { AiriCard } from './airi-card'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useAiriCardRuntime } from '../../composables/use-airi-card-runtime'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
+
+const syncedRuntime = vi.hoisted(() => ({
+  isLeader: false,
+  leadershipListener: undefined as ((isLeader: boolean) => void) | undefined,
+  stopLeadershipListener: vi.fn(),
+}))
+
+vi.mock('../../libs/pinia', () => ({
+  usePiniaSynced: () => ({
+    onLeadershipChange: (listener: (isLeader: boolean) => void) => {
+      syncedRuntime.leadershipListener = listener
+      listener(syncedRuntime.isLeader)
+      return syncedRuntime.stopLeadershipListener
+    },
+  }),
+}))
 
 // NOTICE:
 // Vitest runs these store tests in Node, where localforage cannot select a
@@ -96,6 +113,38 @@ vi.mock('vue-i18n', () => ({
 describe('airi-card store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    syncedRuntime.isLeader = false
+    syncedRuntime.leadershipListener = undefined
+    syncedRuntime.stopLeadershipListener.mockClear()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A follower forwards its startup initialization to the current leader.
+  // The follower therefore has no local active-card watcher when it becomes
+  // the next leader.
+  //
+  // https://github.com/moeru-ai/airi/pull/2304
+  it('reinitializes the card runtime when a follower becomes the leader', async () => {
+    const cardStore = useAiriCardStore()
+    const initialize = vi.spyOn(cardStore, 'initialize')
+    const disposeRuntime = vi.spyOn(cardStore, 'disposeRuntime')
+    const cardRuntime = useAiriCardRuntime()
+
+    await cardRuntime.initialize()
+    expect(initialize).toHaveBeenCalledTimes(1)
+
+    syncedRuntime.leadershipListener?.(false)
+    expect(initialize).toHaveBeenCalledTimes(1)
+    expect(disposeRuntime).toHaveBeenCalledTimes(1)
+
+    syncedRuntime.leadershipListener?.(true)
+    await Promise.resolve()
+    expect(initialize).toHaveBeenCalledTimes(2)
+
+    cardRuntime.dispose()
+    expect(disposeRuntime).toHaveBeenCalledTimes(2)
+    expect(syncedRuntime.stopLeadershipListener).toHaveBeenCalledTimes(1)
   })
 
   it('does not create runtime module stores for metadata-only consumers', () => {

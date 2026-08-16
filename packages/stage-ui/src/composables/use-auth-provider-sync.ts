@@ -40,6 +40,7 @@ const STREAMING_SPEECH_PROVIDER_ID = 'official-provider-speech-streaming'
 export function useAuthProviderSync() {
   const syncedPinia = usePiniaSynced()
   let leaderSyncInitialized = false
+  let disposeAuthenticatedProviderSync: (() => void) | undefined
 
   function initializeLeaderSync() {
     if (!syncedPinia.isLeader() || leaderSyncInitialized)
@@ -47,12 +48,23 @@ export function useAuthProviderSync() {
 
     leaderSyncInitialized = true
     void initializeAuth()
-    setupAuthenticatedProviderSync()
+    disposeAuthenticatedProviderSync = setupAuthenticatedProviderSync()
+  }
+
+  function disposeLeaderSync() {
+    if (!leaderSyncInitialized)
+      return
+
+    disposeAuthenticatedProviderSync?.()
+    disposeAuthenticatedProviderSync = undefined
+    leaderSyncInitialized = false
   }
 
   syncedPinia.onLeadershipChange((isLeader) => {
     if (isLeader)
       initializeLeaderSync()
+    else
+      disposeLeaderSync()
   })
 
   initializeLeaderSync()
@@ -74,7 +86,7 @@ function setupAuthenticatedProviderSync() {
   let authGeneration = 0
   let syncInFlight: Promise<void> | undefined
 
-  authStore.onAuthenticated(async () => {
+  const stopAuthenticatedHook = authStore.onAuthenticated(async () => {
     if (hasSynced)
       return
 
@@ -214,7 +226,7 @@ function setupAuthenticatedProviderSync() {
     speechStore.activeSpeechVoiceId = ''
   }
 
-  authStore.onLogout(() => {
+  const stopLogoutHook = authStore.onLogout(() => {
     authGeneration++
     hasSynced = false
 
@@ -261,4 +273,10 @@ function setupAuthenticatedProviderSync() {
       }
     }
   })
+
+  return () => {
+    authGeneration++
+    stopAuthenticatedHook()
+    stopLogoutHook()
+  }
 }
