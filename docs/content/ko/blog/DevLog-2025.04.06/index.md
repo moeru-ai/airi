@@ -421,7 +421,7 @@ setAccentColor('#ff6b6b')
 - **문서 개선**: 많은 커뮤니티 멤버가 문서 개선을 도와주고 있습니다
 
 모든 지원과 기여에 감사드립니다. 기여하고 싶으시다면
-[기여 가이드라인](https://github.com/moeru-ai/airi/blob/main/CONTRIBUTING.md)을 확인해 주세요.
+[기여 가이드라인](https://github.com/moeru-ai/airi/blob/main/.github/CONTRIBUTING.md)을 확인해 주세요.
 
 ## 다음 계획
 
