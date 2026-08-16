@@ -9,7 +9,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { useProvidersStore } from '../stores/providers'
+import { selectProviderMetadata } from '../libs/providers/metadata'
+import { useProviderConfigStore } from '../stores/providers/config'
+import { useProviderStore } from '../stores/providers/provider'
 import { useAnalytics } from './use-analytics'
 
 /**
@@ -27,15 +29,22 @@ function providerModeForAnalytics(providerId: string): ProviderMode {
 export function useProviderValidation(providerId: string) {
   const { t } = useI18n()
   const router = useRouter()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
+  const providerStore = useProviderConfigStore()
   const {
     trackProviderConfigFailed,
     trackProviderConfigStarted,
     trackProviderConfigSucceeded,
   } = useAnalytics()
-  const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+  const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-  const providerMetadata = computed(() => providersStore.getProviderMetadata(providerId))
+  const providerMetadata = computed(() => {
+    const definition = providersStore.getProviderDefinition(providerId)
+    return selectProviderMetadata(definition, t, {
+      id: providerId,
+      configured: providerStore.getProvider(providerId)?.status === 'configured',
+    })
+  })
 
   // --- Internal Computed Properties for Credentials ---
   const credentials = computed(() => providers.value[providerId] || {})
@@ -74,7 +83,7 @@ export function useProviderValidation(providerId: string) {
   const validationMessage = ref('')
 
   // Manual chat ping check state (settings pages only)
-  const hasManualValidators = computed(() => !!providerMetadata.value?.validators.chatPingCheckAvailable)
+  const hasManualValidators = computed(() => providersStore.hasManualProviderValidators(providerId))
   const isManualTesting = ref(false)
   const manualTestPassed = ref(false)
   const manualTestMessage = ref('')
@@ -109,7 +118,7 @@ export function useProviderValidation(providerId: string) {
 
       // Settings pages always skip chat ping check during automatic validation
       // to avoid unexpected API billing. Users can trigger it manually.
-      const validationResult = await providerMetadata.value.validators.validateProviderConfig(config, {
+      const validationResult = await providersStore.validateProviderConfig(providerId, config, {
         skipChatPingCheck: true,
       })
       isValid.value = validationResult.valid
@@ -128,7 +137,7 @@ export function useProviderValidation(providerId: string) {
       // This fixes providers like LM Studio that use default config and may not
       // need an API key, yet should be selectable after successful validation.
       if (isValid.value) {
-        providersStore.markProviderAdded(providerId)
+        providerStore.markProviderAdded(providerId)
         trackProviderConfigSucceeded({
           ...providerConfigAnalyticsBase('settings_auto_validate'),
           duration_ms: Math.round(performance.now() - startValidationTimestamp),
@@ -170,7 +179,7 @@ export function useProviderValidation(providerId: string) {
       if (config.baseUrl)
         config.baseUrl = config.baseUrl.trim()
 
-      const result = await providerMetadata.value.validators.validateProviderConfig(config, {
+      const result = await providersStore.validateProviderConfig(providerId, config, {
         onlyChatPingCheck: true,
       })
       manualTestPassed.value = result.valid
@@ -240,7 +249,7 @@ export function useProviderValidation(providerId: string) {
   }, { deep: true })
 
   function handleResetSettings() {
-    const defaultOptions = providerMetadata.value?.defaultOptions ? providerMetadata.value.defaultOptions() : {}
+    const defaultOptions = providerMetadata.value?.defaultConfig ?? {}
     providers.value[providerId] = { ...defaultOptions }
     isValid.value = false
     validationMessage.value = ''

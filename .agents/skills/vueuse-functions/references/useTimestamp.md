@@ -67,7 +67,7 @@ export interface UseTimestampOptions<
    * @deprecated Please use `scheduler` option instead
    * @default requestAnimationFrame
    */
-  interval?: 'requestAnimationFrame' | number
+  interval?: "requestAnimationFrame" | number
   /**
    * Callback on each update
    */
@@ -75,8 +75,8 @@ export interface UseTimestampOptions<
 }
 export type UseTimestampReturn<Controls extends boolean> = Controls extends true
   ? {
-    timestamp: ShallowRef<number>
-  } & Pausable
+      timestamp: ShallowRef<number>
+    } & Pausable
   : ShallowRef<number>
 /**
  * Reactive current timestamp.

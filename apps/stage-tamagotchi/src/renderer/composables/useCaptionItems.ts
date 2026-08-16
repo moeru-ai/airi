@@ -1,8 +1,6 @@
-import { readonly, shallowRef } from 'vue'
+import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
-export type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
+import { readonly, shallowRef } from 'vue'
 
 export interface CaptionItem {
   /** Stable render key and timer owner for one broadcast caption event. */
@@ -68,9 +66,44 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
     items.value = items.value.filter(item => item.type !== type)
   }
 
+  function scheduleExpiry(item: CaptionItem) {
+    expiryTimers.set(item.id, setTimeout(() => {
+      remove(item.id)
+    }, ttlMs))
+  }
+
+  function replace(event: CaptionChannelEvent) {
+    const matchedItems = items.value.filter(item => item.type === event.type)
+    const currentItem = matchedItems.at(-1)
+    if (!currentItem) {
+      const item: CaptionItem = {
+        id: nextId++,
+        type: event.type,
+        text: event.text,
+      }
+      items.value = [...items.value, item]
+      scheduleExpiry(item)
+      return
+    }
+
+    for (const item of matchedItems)
+      clearTimer(item.id)
+
+    const replacement = { ...currentItem, text: event.text }
+    items.value = items.value
+      .filter(item => item.type !== event.type || item.id === currentItem.id)
+      .map(item => item.id === currentItem.id ? replacement : item)
+    scheduleExpiry(replacement)
+  }
+
   function add(event: CaptionChannelEvent) {
     if (!event.text.trim()) {
       clearType(event.type)
+      return
+    }
+
+    if (event.operation === 'replace') {
+      replace(event)
       return
     }
 
@@ -80,9 +113,7 @@ export function useCaptionItems(options: UseCaptionItemsOptions = {}) {
       text: event.text,
     }
     items.value = [...items.value, item]
-    expiryTimers.set(item.id, setTimeout(() => {
-      remove(item.id)
-    }, ttlMs))
+    scheduleExpiry(item)
   }
 
   function dispose() {

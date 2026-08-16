@@ -93,13 +93,34 @@ function createHarness(messages: ChatHistoryItem[]) {
   })
 }
 
-/**
- * @example
- * describe('ChatHistory retry actions', () => {
- *   it('emits retry-message when the retry button is clicked for an error after a user message', async () => {})
- * })
- */
-describe('chatHistory retry actions', () => {
+describe('chat history', () => {
+  // ROOT CAUSE:
+  //
+  // Cross-window synchronization can publish `sending` before it publishes the new stream.
+  // The initial stream object has a timestamp but no message id, which rendered a short-lived bubble.
+  //
+  // We fixed this by rendering only a stream that has the stable id assigned to the assistant turn.
+  it('does not render the initial empty stream while a synchronized send starts', async () => {
+    await render(ChatHistory, {
+      props: {
+        messages: [],
+        sending: true,
+        streamingMessage: {
+          role: 'assistant',
+          content: '',
+          slices: [],
+          tool_results: [],
+          createdAt: 1710000000000,
+        },
+      },
+      global: {
+        plugins: [createTestI18n()],
+      },
+    })
+
+    expect(document.querySelectorAll('[data-chat-message-role="assistant"]')).toHaveLength(0)
+  })
+
   /**
    * @example
    * it('emits retry-message when the retry button is clicked for an error after a user message', async () => {

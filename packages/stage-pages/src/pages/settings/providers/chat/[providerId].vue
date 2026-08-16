@@ -13,16 +13,17 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
 const providerId = route.params.providerId as string
-const providersStore = useProvidersStore()
+const providerStore = useProviderConfigStore()
 const consciousnessStore = useConsciousnessStore()
-const { providers } = storeToRefs(providersStore) as { providers: RemovableRef<Record<string, any>> }
+const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 const { activeProvider } = storeToRefs(consciousnessStore)
 
 // Define computed properties for credentials
@@ -43,6 +44,17 @@ const baseUrl = computed({
     providers.value[providerId].baseUrl = value
   },
 })
+
+const thinkingMode = computed({
+  get: () => providers.value[providerId]?.thinkingMode || 'auto',
+  set: (value) => {
+    if (!providers.value[providerId])
+      providers.value[providerId] = {}
+    providers.value[providerId].thinkingMode = value
+  },
+})
+
+const supportsDeepSeekThinkingMode = computed(() => providerId === 'deepseek')
 
 // Use the composable to get validation logic and state
 const {
@@ -105,7 +117,19 @@ function goToModelSelection() {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           v-model="baseUrl"
-          :placeholder="providerMetadata?.defaultOptions?.().baseUrl as string || 'Base URL of your provider'"
+          :placeholder="providerMetadata?.defaultConfig.baseUrl as string || 'Base URL of your provider'"
+        />
+
+        <FieldCombobox
+          v-if="supportsDeepSeekThinkingMode"
+          v-model="thinkingMode"
+          :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.label')"
+          :description="t('settings.pages.providers.provider.deepseek.fields.field.thinking-mode.description')"
+          :options="[
+            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.auto'), value: 'auto' },
+            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.disable'), value: 'disable' },
+            { label: t('settings.pages.providers.catalog.edit.config.common.fields.field.thinking-mode.options.enable'), value: 'enable' },
+          ]"
         />
       </ProviderAdvancedSettings>
 

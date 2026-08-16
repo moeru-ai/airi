@@ -77,8 +77,8 @@ const myColorMode = computed(() => store.value === 'auto' ? system.value : store
 ## Type Declarations
 
 ```ts
-export type BasicColorMode = 'light' | 'dark'
-export type BasicColorSchema = BasicColorMode | 'auto'
+export type BasicColorMode = "light" | "dark"
+export type BasicColorSchema = BasicColorMode | "auto"
 export interface UseColorModeOptions<
   T extends string = BasicColorMode,
 > extends UseStorageOptions<T | BasicColorMode> {

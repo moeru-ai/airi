@@ -1,6 +1,6 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
-import type { VoiceInfo } from '../providers'
+import type { VoiceInfo } from '../providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -13,7 +13,8 @@ import { toXml } from 'xast-util-to-xml'
 import { x } from 'xastscript'
 
 import { getDefaultSpeechModel, getDefaultStreamingModel, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, setupOfficialSpeechAutoPick } from '../../libs/providers/providers/official'
-import { useProvidersStore } from '../providers'
+import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 
 export function toSignedPercent(value: number): string {
   if (value > 0)
@@ -36,8 +37,15 @@ interface SpeechInput {
   providerConfig: Record<string, unknown>
 }
 
+interface SpeechAnalytics {
+  trigger: 'auto' | 'manual'
+  source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
+}
+
 export const useSpeechStore = defineStore('speech', () => {
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
+  const providerStore = useProviderConfigStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
   const { locale } = useI18n()
 
@@ -60,7 +68,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // Computed properties
   const supportsModelListing = computed(() => {
-    return providersStore.getProviderMetadata(activeSpeechProvider.value)?.capabilities.listModels !== undefined
+    return providersStore.supportsModelListing(activeSpeechProvider.value)
   })
 
   const providerModels = computed(() => {
@@ -105,7 +113,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // Streaming provider visibility is server-driven and only confirmed after
     // the auth probe force-configures it. Keep the gate at the public loader so
     // pages cannot bypass it and issue `/voices/streaming` while unavailable.
-    if (provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && !providersStore.configuredProviders[provider]) {
+    if (provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID && !providerStore.configuredProviders[provider]) {
       return []
     }
 
@@ -113,7 +121,7 @@ export const useSpeechStore = defineStore('speech', () => {
     speechProviderError.value = null
 
     try {
-      const voices = await providersStore.getProviderMetadata(provider).capabilities.listVoices?.(providersStore.getProviderConfig(provider), model) || []
+      const voices = await providersStore.listProviderVoices(provider, model)
       // Reassign to trigger reactivity when adding/updating provider entries
       availableVoices.value = {
         ...availableVoices.value,
@@ -299,14 +307,15 @@ export const useSpeechStore = defineStore('speech', () => {
     input: string,
     voice: string,
     providerConfig: Record<string, any> = {},
+    analytics: SpeechAnalytics = {
+      trigger: 'manual',
+      source: 'manual_preview',
+      voice_type: resolveVoiceType(voice),
+    },
   ): Promise<ArrayBuffer> {
     const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
       || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
-      ? withAiriTtsAnalytics(providerConfig, {
-          trigger: 'manual',
-          source: 'manual_preview',
-          voice_type: resolveVoiceType(voice),
-        })
+      ? withAiriTtsAnalytics(providerConfig, analytics)
       : providerConfig
     const response = await generateSpeech({
       ...provider.speech(model, requestProviderConfig),
@@ -319,11 +328,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   function withAiriTtsAnalytics(
     providerConfig: Record<string, any>,
-    analytics: {
-      trigger: 'auto' | 'manual'
-      source: 'chat_auto_tts' | 'manual_preview' | 'settings_test'
-      voice_type?: 'official_default' | 'official_selected' | 'custom_configured' | 'voice_pack'
-    },
+    analytics: SpeechAnalytics,
   ): Record<string, any> {
     return {
       ...providerConfig,
@@ -408,7 +413,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
     // For OpenAI Compatible providers, check provider config as fallback
     if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
-      const providerConfig = providersStore.getProviderConfig(activeSpeechProvider.value)
+      const providerConfig = providerStore.getProviderConfig(activeSpeechProvider.value)
       hasModel ||= !!providerConfig?.model
       hasVoice ||= !!providerConfig?.voice
     }

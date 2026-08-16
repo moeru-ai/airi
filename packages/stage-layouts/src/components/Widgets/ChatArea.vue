@@ -1,16 +1,11 @@
 <script setup lang="ts">
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
@@ -26,7 +21,6 @@ import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
 const messageInput = ref<string>('')
 const hearingPopoverOpen = ref(false)
-const sessionsDrawerOpen = ref(false)
 const isComposing = ref(false)
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -35,16 +29,12 @@ type SendMode = (typeof SEND_MODES)[number]
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const lastEnterTime = ref(0)
 
-const providersStore = useProvidersStore()
-const { activeProvider, activeModel } = storeToRefs(useConsciousnessStore())
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 
 const { askPermission } = useSettingsAudioDevice()
 const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
-const chatOrchestrator = useChatOrchestratorStore()
+const chatOrchestrator = useChatStore()
 const chatSession = useChatSessionStore()
-const { ingest, onAfterMessageComposed } = chatOrchestrator
-const { messages } = storeToRefs(chatSession)
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 const sendModeLabels = computed<Record<SendMode, string>>(() => ({
@@ -68,27 +58,24 @@ async function handleSend() {
   }
 
   const textToSend = messageInput.value
+  const targetSessionId = chatSession.activeSessionId
   messageInput.value = ''
 
   try {
-    const providerConfig = providersStore.getProviderConfig(activeProvider.value)
-
-    await ingest(textToSend, {
-      chatProvider: await providersStore.getProviderInstance(activeProvider.value) as ChatProvider,
-      model: activeModel.value,
-      providerConfig,
+    await chatOrchestrator.send({
+      sessionId: targetSessionId,
+      text: textToSend,
     })
   }
   catch (error) {
-    // preserve any user input when failed to send the message
-    messageInput.value = [textToSend, messageInput.value.trim()].filter(Boolean).join(' ')
-    chatSession.setSessionMessages(chatSession.activeSessionId, [
-      ...messages.value.slice(0, -1),
-      {
-        role: 'error',
-        content: errorMessageFrom(error) ?? 'Failed to send message',
-      },
-    ])
+    const errorMessage = errorMessageFrom(error) ?? String(error)
+    const wasCancelledForDeletedSession
+      = errorMessage.includes('Chat session was reset before send could start')
+        || errorMessage.includes('Chat session was removed before send completed')
+    if (!wasCancelledForDeletedSession && chatSession.activeSessionId === targetSessionId) {
+      const currentDraft = messageInput.value
+      messageInput.value = currentDraft ? `${textToSend}\n${currentDraft}` : textToSend
+    }
   }
 }
 
@@ -136,9 +123,6 @@ watch(hearingPopoverOpen, async (value) => {
   if (value) {
     await askPermission()
   }
-})
-
-onAfterMessageComposed(async () => {
 })
 
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -205,24 +189,10 @@ watch(sendMode, () => {
         @compositionend="isComposing = false"
       />
 
-      <!-- Bottom-left action button: Microphone -->
+      <!-- Input configuration controls -->
       <div
         absolute bottom-2 left-2 z-10 flex items-center gap-2
       >
-        <!-- Conversations drawer trigger -->
-        <button
-          :class="[
-            'h-8 w-8 flex items-center justify-center rounded-md outline-none transition-all duration-200 active:scale-95',
-            'text-lg text-neutral-500 dark:text-neutral-400',
-          ]"
-          title="Conversations"
-          @click="sessionsDrawerOpen = true"
-        >
-          <div class="i-solar:chat-line-bold-duotone h-5 w-5" />
-        </button>
-
-        <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
-
         <DropdownMenuRoot>
           <DropdownMenuTrigger as-child>
             <button
@@ -302,7 +272,7 @@ watch(sendMode, () => {
       </div>
 
       <div
-        absolute bottom-2 right-2 z-10 flex items-center
+        absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
         <button
           v-if="showStopSpeakingButton"

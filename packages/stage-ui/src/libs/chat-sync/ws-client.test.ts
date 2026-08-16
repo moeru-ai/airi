@@ -119,10 +119,8 @@ describe('ws_CLOSE_UNAUTHORIZED', () => {
   //
   // The server accepts the upgrade and closes with this custom code so
   // the client can distinguish "auth failed, stop reconnecting" from
-  // "network blip, keep retrying". The matching constant on the server
-  // lives at `apps/server/src/libs/ws-auth.ts:WS_CLOSE_UNAUTHORIZED` and
-  // is exercised by `apps/server/src/libs/ws-auth.test.ts`. If either
-  // value drifts the close-code contract breaks silently.
+  // "network blip, keep retrying". The matching server-side constant must
+  // stay aligned or the close-code contract breaks silently.
   it('matches the server-side close code contract (4001, IANA private range)', () => {
     expect(WS_CLOSE_UNAUTHORIZED).toBe(4001)
   })
@@ -192,10 +190,8 @@ describe('wS_CLOSE_UNAUTHORIZED', () => {
   //
   // The server accepts the upgrade and closes with this custom code so
   // the client can distinguish "auth failed, stop reconnecting" from
-  // "network blip, keep retrying". The matching constant on the server
-  // lives at `apps/server/src/libs/ws-auth.ts:WS_CLOSE_UNAUTHORIZED` and
-  // is exercised by `apps/server/src/libs/ws-auth.test.ts`. If either
-  // value drifts the close-code contract breaks silently.
+  // "network blip, keep retrying". The matching server-side constant must
+  // stay aligned or the close-code contract breaks silently.
   it('matches the server-side close code contract (4001, IANA private range)', () => {
     expect(WS_CLOSE_UNAUTHORIZED).toBe(4001)
   })

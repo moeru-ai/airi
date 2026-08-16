@@ -14,12 +14,22 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+render-error:
+  title: '{renderer} でこのモデルを描画できませんでした'
+  description: モデルは選択されていますが、ステージに表示できませんでした。
+  report-description: |-
+    {renderer} で選択したモデルを描画できませんでした。
+    モデル ID: {modelId}
+    エラー: {error}
 message: 何か話しかけてみましょう…
 send-mode:
   title: キーを送信
   enter: Enter
   ctrl-enter: Ctrl + Enter
   double-enter: Enter二回
+speech-output:
+  mute: 音声をミュート
+  unmute: ミュートを解除
 operations:
   load-models: モデルの読み込み
   load-models-status:

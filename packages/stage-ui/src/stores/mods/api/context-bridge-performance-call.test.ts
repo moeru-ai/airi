@@ -2,7 +2,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { useLlmStreamingControlStore } from '../../llm-streaming-control'
+import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
 import { useContextBridgeStore } from './context-bridge'
 
 type SparkNotifyReactionMock = (event: {
@@ -24,7 +24,7 @@ vi.mock('../../character', () => ({
 }))
 
 vi.mock('../../chat', () => ({
-  useChatOrchestratorStore: () => ({}),
+  useChatStore: () => ({}),
 }))
 
 vi.mock('../../chat/session-store', () => ({
@@ -54,8 +54,8 @@ vi.mock('../../modules/consciousness', () => ({
   }),
 }))
 
-vi.mock('../../providers', () => ({
-  useProvidersStore: () => ({}),
+vi.mock('../../providers/provider', () => ({
+  useProviderStore: () => ({}),
 }))
 
 vi.mock('./channel-server', () => ({

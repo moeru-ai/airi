@@ -7,6 +7,9 @@ import NProgress from 'nprogress'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
+import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
+import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/analytics'
+import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -26,7 +29,15 @@ import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
 
+configureAnalyticsAdapter(async (options) => {
+  const { createPosthogAdapter } = await import('@proj-airi/stage-ui/libs/analytics/posthog')
+  return createPosthogAdapter(options)
+})
+
 const pinia = createPinia()
+const synced = setupSynced()
+pinia.use(synced.pinia)
+pinia.use(piniaPluginTracing)
 
 // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
@@ -47,6 +58,7 @@ router.afterEach(() => {
 })
 
 createApp(App)
+  .use(synced.vue)
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)
@@ -55,6 +67,7 @@ createApp(App)
   .use(PiniaColada)
   .use(i18n)
   .use(Tres)
+  .use(trackButtonPlugin)
   .mount('#app')
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {

@@ -8,7 +8,8 @@ import {
   SpeechProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldRange } from '@proj-airi/ui'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,7 +18,8 @@ const providerId = 'player2-speech'
 const defaultModel = 'v1'
 const speedRatio = ref<number>(1.0)
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
 const { t } = useI18n()
 // Get available voices for Player2
 const availableVoices = computed(() => {
@@ -30,7 +32,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
     throw new Error('Failed to initialize speech provider')
   }
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   // Get model from configuration or use default
   const model = providerConfig.model as string | undefined || defaultModel
   // Player2 doesn't need SSML conversion, but if SSML is provided, use it directly
@@ -46,9 +48,8 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 }
 const hasPlayer2 = ref(true)
 onMounted(async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
-  const providerMetadata = providersStore.getProviderMetadata(providerId)
-  if (await providerMetadata.validators.validateProviderConfig(providerConfig)) {
+  const providerConfig = providerStore.getProviderConfig(providerId)
+  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
@@ -70,7 +71,7 @@ onMounted(async () => {
   }
 })
 watch(speedRatio, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.speed = speedRatio.value
 })
 </script>

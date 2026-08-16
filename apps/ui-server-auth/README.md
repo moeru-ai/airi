@@ -1,6 +1,6 @@
 # AIRI Server Auth UI
 
-Auth UI for the hosted AIRI server. It is a Vue/Vite app deployed separately from `apps/server` and used for Better Auth sign-in, email verification, password reset, profile, and Electron OIDC callback relay flows.
+Auth UI for the hosted AIRI server. It is a Vue/Vite app deployed separately from `server/apps/api` and used for Better Auth sign-in, email verification, password reset, profile, and Electron OIDC callback relay flows.
 
 ## Use When
 
@@ -23,7 +23,7 @@ pnpm -F @proj-airi/ui-server-auth build
 
 ## Deployment
 
-`pnpm -F @proj-airi/ui-server-auth build` writes to `apps/ui-server-auth/dist`. Vue Router owns `/ui/*`, while Vite assets are served from root `/assets/*` so Cloudflare Pages can serve static files without rewriting nested asset paths. Cloudflare Pages uses `public/_redirects` to route `/ui/*` back to the SPA HTML.
+`pnpm -F @proj-airi/ui-server-auth build` writes to `apps/ui-server-auth/dist`. Vue Router owns `/ui/*`, while Vite assets are served from root `/assets-v2/*` so Cloudflare Pages can serve static files without rewriting nested asset paths. The versioned namespace moves existing clients away from previously poisoned `/assets/*` browser cache entries. Both namespaces use `Cache-Control: public, no-cache`, allowing browsers to retain files only when Pages revalidates them. `public/_redirects` scopes the SPA rewrite to `/ui/*`, and the top-level `public/404.html` keeps missing assets and other unknown paths as HTTP 404 responses.
 
 The production GitHub Actions workflow deploys this app to the Cloudflare Pages project `moeru-ai-airi-auth` with separate auth-account credentials:
 
@@ -42,4 +42,4 @@ VITE_SERVER_URL=https://api.airi.build
 
 The server redirects historical `/auth/*` URLs to `AUTH_UI_URL`, which defaults to `https://accounts.airi.build/ui`.
 
-The `server-dev` workflow deploys a Cloudflare Pages branch build at `https://server-dev.moeru-ai-airi-auth.pages.dev/ui/` with `VITE_SERVER_URL=https://airi-server-dev.up.railway.app`. Set the server-dev API environment variable `AUTH_UI_URL=https://server-dev.moeru-ai-airi-auth.pages.dev/ui` when the full dev auth redirect chain should stay on server-dev.
+The `server-dev` workflow deploys a Cloudflare Pages branch build at `https://server-dev.airi-server-auth.pages.dev/ui/` with `VITE_SERVER_URL=https://airi-server-dev.up.railway.app`. Set the server-dev API environment variable `AUTH_UI_URL=https://server-dev.airi-server-auth.pages.dev/ui` when the full dev auth redirect chain should stay on server-dev.

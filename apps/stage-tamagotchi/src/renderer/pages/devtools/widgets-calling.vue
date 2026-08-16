@@ -281,21 +281,21 @@ function applyExtensionUiPreset() {
       </div>
       <div class="flex flex-wrap gap-2">
         <Button
-          variant="secondary"
+
           :disabled="busy"
           @click="applyWeatherPreset"
         >
           Weather Preset
         </Button>
         <Button
-          variant="secondary"
+
           :disabled="busy"
           @click="applyMapPreset"
         >
           Map Preset
         </Button>
         <Button
-          variant="secondary"
+
           :disabled="busy"
           @click="applyExtensionUiPreset"
         >
@@ -306,21 +306,21 @@ function applyExtensionUiPreset() {
 
     <div class="flex flex-wrap gap-3">
       <Button
-        variant="primary"
+
         :disabled="busy"
         @click="handleAdd"
       >
         Spawn / Replace
       </Button>
       <Button
-        variant="secondary"
+
         :disabled="busy"
         @click="handleUpdate"
       >
         Update Props
       </Button>
       <Button
-        variant="secondary"
+
         :disabled="busy"
         @click="handleRemove"
       >
@@ -328,9 +328,10 @@ function applyExtensionUiPreset() {
       </Button>
       <Button
         class="ml-auto"
-        variant="danger"
+
         :disabled="busy"
-        @click="handleClear"
+        color="red"
+        variant="primary" @click="handleClear"
       >
         Clear All
       </Button>

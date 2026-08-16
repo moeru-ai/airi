@@ -40,7 +40,7 @@ export interface EyeDropper {
   open: (options?: EyeDropperOpenOptions) => Promise<{
     sRGBHex: string
   }>
-  [Symbol.toStringTag]: 'EyeDropper'
+  [Symbol.toStringTag]: "EyeDropper"
 }
 export interface UseEyeDropperOptions {
   /**
@@ -54,8 +54,8 @@ export interface UseEyeDropperReturn extends Supportable {
   sRGBHex: ShallowRef<string>
   open: (openOptions?: EyeDropperOpenOptions) => Promise<
     | {
-      sRGBHex: string
-    }
+        sRGBHex: string
+      }
     | undefined
   >
 }

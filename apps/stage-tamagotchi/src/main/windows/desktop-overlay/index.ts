@@ -30,6 +30,7 @@ import { BrowserWindow, screen } from 'electron'
 
 import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { protectPrivilegedWindowNavigation } from '../shared/window'
 import { setupDesktopOverlayElectronInvokes } from './rpc/index.electron'
 import {
   applyDesktopOverlayInputIsolation,
@@ -81,6 +82,7 @@ export async function setupDesktopOverlayWindow(params: {
     bounds: primaryDisplay.bounds,
     preloadPath,
   }))
+  protectPrivilegedWindowNavigation(overlayWindow)
   applyDesktopOverlayInputIsolation(overlayWindow)
 
   overlayWindow.on('ready-to-show', () => {

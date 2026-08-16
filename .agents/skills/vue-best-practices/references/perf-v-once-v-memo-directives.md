@@ -28,7 +28,7 @@ Use `v-once` for truly static content and `v-memo` for conditionally-static cont
   <div class="terms-content">
     <h1>Terms of Service</h1>
     <p>Version: {{ termsVersion }}</p>
-    <div v-html="termsContent" />
+    <div v-html="termsContent"></div>
   </div>
 
   <!-- This content NEVER changes, but Vue checks it every render -->
@@ -40,20 +40,12 @@ Use `v-once` for truly static content and `v-memo` for conditionally-static cont
 
 **GOOD:**
 ```vue
-<script setup>
-// These values are set once at component creation
-const termsVersion = '2.1'
-const termsContent = fetchedTermsHTML
-const copyrightYear = 2024
-const companyName = 'Acme Corp'
-</script>
-
 <template>
   <!-- GOOD: Rendered once, skipped on all future updates -->
-  <div v-once class="terms-content">
+  <div class="terms-content" v-once>
     <h1>Terms of Service</h1>
     <p>Version: {{ termsVersion }}</p>
-    <div v-html="termsContent" />
+    <div v-html="termsContent"></div>
   </div>
 
   <!-- v-once tells Vue this never needs to update -->
@@ -61,6 +53,14 @@ const companyName = 'Acme Corp'
     <p>Copyright {{ copyrightYear }} {{ companyName }}</p>
   </footer>
 </template>
+
+<script setup>
+// These values are set once at component creation
+const termsVersion = '2.1'
+const termsContent = fetchedTermsHTML
+const copyrightYear = 2024
+const companyName = 'Acme Corp'
+</script>
 ```
 
 ## v-memo: Conditional Memoization for Lists
@@ -79,18 +79,6 @@ const companyName = 'Acme Corp'
 
 **GOOD:**
 ```vue
-<script setup>
-import { ref } from 'vue'
-
-const list = ref([/* many items */])
-const selectedId = ref(null)
-
-// When selectedId changes:
-// - Only the previously-selected item re-renders (selected: true -> false)
-// - Only the newly-selected item re-renders (selected: false -> true)
-// - All other items are SKIPPED (v-memo values unchanged)
-</script>
-
 <template>
   <!-- GOOD: Items only re-render when their selection state changes -->
   <div
@@ -103,17 +91,23 @@ const selectedId = ref(null)
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref } from 'vue'
+
+const list = ref([/* many items */])
+const selectedId = ref(null)
+
+// When selectedId changes:
+// - Only the previously-selected item re-renders (selected: true -> false)
+// - Only the newly-selected item re-renders (selected: false -> true)
+// - All other items are SKIPPED (v-memo values unchanged)
+</script>
 ```
 
 ## v-memo with Multiple Dependencies
 
 ```vue
-<script setup>
-const selectedId = ref(null)
-const editingId = ref(null)
-const items = ref([/* ... */])
-</script>
-
 <template>
   <!-- Re-render only when item's selection OR editing state changes -->
   <div
@@ -128,6 +122,12 @@ const items = ref([/* ... */])
     />
   </div>
 </template>
+
+<script setup>
+const selectedId = ref(null)
+const editingId = ref(null)
+const items = ref([/* ... */])
+</script>
 ```
 
 ## v-memo with Empty Array = v-once

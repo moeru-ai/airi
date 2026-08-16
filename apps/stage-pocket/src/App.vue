@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
-import { isPosthogAvailableInBuild, useSharedAnalyticsStore } from '@proj-airi/stage-ui/stores/analytics'
+import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -35,7 +35,6 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
-const analyticsStore = useSharedAnalyticsStore()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -73,7 +72,7 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
-  analyticsStore.initialize()
+  initializeAnalytics()
   await displayModelsStore.initialize()
   cardStore.initialize()
 
@@ -108,7 +107,7 @@ function handleSetupSkipped() {
 
 const extraSteps = computed(() => [
   ...(
-    isPosthogAvailableInBuild()
+    isAnalyticsAvailableInBuild()
       ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
       : []
   ),

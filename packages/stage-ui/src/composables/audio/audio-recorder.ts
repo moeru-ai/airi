@@ -72,15 +72,11 @@ export function useAudioRecorder(
     }
   }
 
-  /**
-   * Finalizes the active recording and runs stop hooks without blocking the next recording.
-   */
-  async function stopRecord() {
+  async function finalizeRecord(notifyStopHooks: boolean) {
     const activeOutput = mediaOutput.value
     const activeFormat = mediaFormat.value
-    if (!activeOutput) {
+    if (!activeOutput)
       return
-    }
 
     // Clear the active output before running transcription hooks so VAD can start the next utterance
     // while the previous blob is still being sent to the ASR provider.
@@ -88,6 +84,9 @@ export function useAudioRecorder(
     mediaFormat.value = undefined
 
     await activeOutput.finalize()
+    if (!notifyStopHooks)
+      return
+
     const bufferTarget = activeOutput.target as BufferTarget | undefined
     const buffer = bufferTarget?.buffer
     const audioBlob = buffer ? new Blob([buffer], { type: activeFormat }) : undefined
@@ -107,9 +106,22 @@ export function useAudioRecorder(
     return audioBlob
   }
 
+  /**
+   * Finalizes the active recording and runs stop hooks without blocking the next recording.
+   */
+  async function stopRecord() {
+    return await finalizeRecord(true)
+  }
+
+  /** Finalizes the active recording without creating a blob or running stop hooks. */
+  async function discardRecord() {
+    await finalizeRecord(false)
+  }
+
   return {
     startRecord,
     stopRecord,
+    discardRecord,
     onStopRecord,
 
     isRecording,

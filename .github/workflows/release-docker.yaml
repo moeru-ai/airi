@@ -20,7 +20,7 @@ jobs:
       # failed to build archive at `/home/runner/work/airi/airi/target/x86_64-unknown-linux-gnu/release/deps/libapp_lib.rlib`:
       # No space left on device (os error 28)
       - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
 
       - uses: actions/checkout@v6
 
@@ -51,5 +51,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           push: true
+          provenance: mode=max
+          sbom: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

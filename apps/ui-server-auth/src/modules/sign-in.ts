@@ -1,7 +1,10 @@
 import type { OAuthProvider } from '@proj-airi/stage-ui/libs/auth'
 
+import { getAuthClient } from './auth-client'
 import { extractAuthError } from './auth-fetch'
 import { buildAuthUiPath } from './auth-ui-base'
+
+const SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS = 15_000
 
 const TRUSTED_ADMIN_REDIRECT_ORIGINS = [
   'https://admin.airi.build',
@@ -25,6 +28,20 @@ export interface SocialSignInRedirectParams {
   provider: OAuthProvider
   callbackURL: string
   fetchImpl?: typeof fetch
+  /**
+   * Maximum wait for provider discovery before the UI restores sign-in controls.
+   * @default 15_000
+   */
+  timeoutMs?: number
+}
+
+/** Identifies a provider discovery timeout without exposing its internal message to the UI. */
+export class SocialSignInTimeoutError extends Error {
+  /** Creates the stable timeout error handled by the localized sign-in page. */
+  constructor() {
+    super('Provider sign-in request timed out')
+    this.name = 'SocialSignInTimeoutError'
+  }
 }
 
 export function createServerSignInContext(currentUrl: string, apiServerUrl: string): ServerSignInContext {
@@ -100,27 +117,56 @@ function normalizeTrustedAdminRedirect(redirect: string): string | null {
 }
 
 export async function requestSocialSignInRedirect(params: SocialSignInRedirectParams): Promise<string> {
-  const fetchImpl = params.fetchImpl ?? fetch
-  const endpoint = new URL('/api/auth/sign-in/social', params.apiServerUrl)
-  const response = await fetchImpl(endpoint.toString(), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      provider: params.provider,
-      callbackURL: params.callbackURL,
-    }),
-    credentials: 'include',
-    redirect: 'manual',
+  const requestController = new AbortController()
+  const client = getAuthClient({
+    apiServerUrl: params.apiServerUrl,
+    fetchImpl: params.fetchImpl,
+    requestSignal: requestController.signal,
   })
 
-  if (response.type === 'opaqueredirect' || response.status === 302) {
-    return response.headers.get('location') || '/'
+  // Steam is OpenID 2.0, not OAuth2 — the server steam plugin exposes
+  // `/sign-in/steam`, surfaced here as the typed `signIn.steam` action.
+  // Other providers use the standard `/sign-in/social`.
+  const request = params.provider === 'steam'
+    ? client.signIn.steam({ callbackURL: params.callbackURL, disableRedirect: true })
+    : client.signIn.social({ provider: params.provider, callbackURL: params.callbackURL, disableRedirect: true })
+  const result = await settleSocialSignInRequest(
+    request,
+    params.timeoutMs ?? SOCIAL_SIGN_IN_REQUEST_TIMEOUT_MS,
+    requestController,
+  )
+
+  const url = result.data?.url
+  if (typeof url === 'string')
+    return url
+
+  throw new Error(extractAuthError(result.data ?? result.error) ?? 'Unexpected response')
+}
+
+/**
+ * Bounds and cancels provider discovery so a timed-out request cannot apply a
+ * stale OAuth state cookie after the user starts another sign-in attempt.
+ */
+async function settleSocialSignInRequest<T>(
+  request: Promise<T>,
+  timeoutMs: number,
+  requestController: AbortController,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+  try {
+    return await Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new SocialSignInTimeoutError())
+          requestController.abort()
+        }, timeoutMs)
+      }),
+    ])
   }
-
-  const data = await response.json() as { url?: unknown }
-
-  if (typeof data.url === 'string')
-    return data.url
-
-  throw new Error(extractAuthError(data) ?? 'Unexpected response')
+  finally {
+    if (timeoutId)
+      clearTimeout(timeoutId)
+  }
 }

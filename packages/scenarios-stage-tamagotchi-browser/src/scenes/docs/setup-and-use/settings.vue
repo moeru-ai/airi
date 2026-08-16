@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSceneReady } from '@proj-airi/vishot-runtime/vue'
+import { useSceneReady } from '@vishot/mockup-desktop-vue'
 
 import settingsShot from '../../../../artifacts/raw/02-settings-window.avif'
 import websocketSettingsShot from '../../../../artifacts/raw/03-websocket-settings.avif'

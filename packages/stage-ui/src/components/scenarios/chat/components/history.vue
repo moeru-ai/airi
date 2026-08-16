@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatAssistantMessage, ChatHistoryItem, ContextMessage } from '../../../../types/chat'
+import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { computed, provide, ref } from 'vue'
@@ -15,7 +15,7 @@ import { getChatHistoryItemKey } from '../utils'
 
 const props = withDefaults(defineProps<{
   messages: ChatHistoryItem[]
-  streamingMessage?: ChatAssistantMessage & { createdAt?: number }
+  streamingMessage?: StreamingAssistantMessage
   sending?: boolean
   assistantLabel?: string
   userLabel?: string
@@ -47,25 +47,20 @@ const labels = computed(() => ({
   retry: props.retryLabel ?? t('stage.chat.actions.retry'),
 }))
 
-const streaming = computed<ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number }>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
+const streaming = computed<StreamingAssistantMessage>(() => props.streamingMessage ?? { role: 'assistant', content: '', slices: [], tool_results: [] })
 const showStreamingPlaceholder = computed(() => (streaming.value.slices?.length ?? 0) === 0 && !streaming.value.content)
-const streamingTs = computed(() => streaming.value?.createdAt)
 function shouldShowPlaceholder(message: ChatHistoryItem) {
-  const ts = streamingTs.value
-  if (ts == null)
-    return false
-
-  return message.context?.createdAt === ts || message.createdAt === ts
+  return !!streaming.value.id && message.id === streaming.value.id
 }
 const renderMessages = computed<ChatHistoryItem[]>(() => {
   if (!props.sending)
     return props.messages
 
-  const streamTs = streamingTs.value
-  if (!streamTs)
+  const streamId = streaming.value.id
+  if (!streamId)
     return props.messages
 
-  const hasStreamAlready = streamTs && props.messages.some(msg => msg?.role === 'assistant' && msg?.createdAt === streamTs)
+  const hasStreamAlready = props.messages.some(message => message.role === 'assistant' && message.id === streamId)
   if (hasStreamAlready)
     return props.messages
 

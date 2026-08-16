@@ -1,13 +1,14 @@
 import { nextTick } from 'vue'
 
 import { initializeAuth } from '../libs/auth'
+import { usePiniaSynced } from '../libs/pinia'
 import { getStreamingTtsAvailable, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../libs/providers'
 import { useAuthStore } from '../stores/auth'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useVisionStore } from '../stores/modules/vision'
-import { useProvidersStore } from '../stores/providers'
+import { useProviderStore } from '../stores/providers/provider'
 import { useAnalytics } from './use-analytics'
 
 /**
@@ -37,10 +38,17 @@ const STREAMING_SPEECH_PROVIDER_ID = 'official-provider-speech-streaming'
  * auxiliary windows do not depend on the transient Stage scene lifecycle.
  */
 export function useAuthProviderSync() {
-  initializeAuth()
+  void initializeAuth()
+
+  // A replacement leader has no active refresh timer. Restore the auth
+  // lifecycle when this renderer acquires leadership after another closes.
+  usePiniaSynced().onLeadershipChange((isLeader) => {
+    if (isLeader)
+      void initializeAuth()
+  })
 
   const authStore = useAuthStore()
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const consciousnessStore = useConsciousnessStore()
   const visionStore = useVisionStore()
   const speechStore = useSpeechStore()
@@ -81,7 +89,7 @@ export function useAuthProviderSync() {
       return
 
     const toActivate = AUTH_ACTIVATED_PROVIDERS.filter(
-      p => providersStore.getProviderMetadata(p.id) != null,
+      p => providersStore.findProviderDefinition(p.id) != null,
     )
 
     for (const { id } of toActivate) {
@@ -157,7 +165,7 @@ export function useAuthProviderSync() {
   // settings card + picker); force-configure makes it selectable. It is never
   // set as the active speech provider — the HTTP TTS provider stays default.
   async function syncStreamingSpeechProvider() {
-    if (providersStore.getProviderMetadata(STREAMING_SPEECH_PROVIDER_ID) == null)
+    if (providersStore.findProviderDefinition(STREAMING_SPEECH_PROVIDER_ID) == null)
       return
 
     await providersStore.fetchModelsForProvider(STREAMING_SPEECH_PROVIDER_ID)

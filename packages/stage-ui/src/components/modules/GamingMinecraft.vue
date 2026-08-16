@@ -69,7 +69,7 @@ onMounted(() => {
       </div>
       <div :class="['flex flex-col gap-2 text-sm text-neutral-600 dark:text-neutral-300']">
         <p>{{ t('settings.pages.modules.gaming-minecraft.setup.description') }}</p>
-        <code :class="['w-fit rounded-md bg-neutral-950/90 px-2 py-1 text-xs text-neutral-100']">services/minecraft/README.md</code>
+        <code :class="['w-fit rounded-md bg-neutral-950/90 px-2 py-1 text-xs text-neutral-100']">integrations/minecraft/README.md</code>
       </div>
     </div>
 

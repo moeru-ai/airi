@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
 import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
@@ -13,7 +14,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-import { IS_DEV } from '@proj-airi/stage-shared'
+import { hearingInputChannelName, IS_DEV } from '@proj-airi/stage-shared'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
@@ -24,6 +25,8 @@ import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -38,9 +41,9 @@ import StatusIsland from '../components/stage-islands/status-island/index.vue'
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { modelSettingsRuntimeSnapshotChannelName } from '../../shared/model-settings-runtime'
-import { useChatSyncStore } from '../stores/chat-sync'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 import { createVoiceInputInteractionLifecycle } from '../utils/voice-input-lifecycle'
 import {
@@ -84,6 +87,16 @@ const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   relativeMouseY,
   { regionRadius: 25 },
 )
+const isTransparentByPixelsExact = useCanvasPixelIsTransparentAtPoint(
+  stageCanvas,
+  relativeMouseX,
+  relativeMouseY,
+)
+const isTransparentByThreeExact = useThreeSceneIsTransparentAtPoint(
+  widgetStageRef,
+  relativeMouseX,
+  relativeMouseY,
+)
 
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedUrl } = storeToRefs(settingsStore)
@@ -106,8 +119,20 @@ const isTransparent = computed(() => {
   if (stageModelRenderer.value === 'vrm')
     return shouldUseThreeTransparencyHitTest.value ? isTransparentByThree.value : true
 
-  if (stageModelRenderer.value === 'live2d')
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
     return isTransparentByPixels.value
+
+  return true
+})
+const isTransparentForMouseEvents = computed(() => {
+  if (stagePaused.value || componentStateStage.value !== 'mounted' || !fadeOnHoverEnabled.value)
+    return true
+
+  if (stageModelRenderer.value === 'vrm')
+    return shouldUseThreeTransparencyHitTest.value ? isTransparentByThreeExact.value : true
+
+  if (stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'tachie')
+    return isTransparentByPixelsExact.value
 
   return true
 })
@@ -116,10 +141,6 @@ const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBo
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
-
-const { pause, resume } = watch(isTransparent, (transparent) => {
-  shouldFadeOnCursorWithin.value = fadeOnHoverEnabled.value && !transparent
-}, { immediate: true })
 
 const hearingDialogOpen = computed(() => controlsIslandRef.value?.hearingDialogOpen ?? false)
 
@@ -168,6 +189,34 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
     })
   }
 
+  if (stageModelRenderer.value === 'tachie') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'tachie',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
+  if (stageModelRenderer.value === 'mmd') {
+    const phase = resolveComponentStateToRuntimePhase(componentStateStage.value, { hasModel })
+
+    return createEmptyModelSettingsRuntimeSnapshot({
+      ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
+      renderer: 'mmd',
+      phase,
+      controlsLocked: hasModel ? phase !== 'mounted' : false,
+      previewAvailable: hasModel,
+      canCapturePreview: false,
+      updatedAt: Date.now(),
+    })
+  }
+
   if (stageModelRenderer.value === 'godot') {
     return createEmptyModelSettingsRuntimeSnapshot({
       ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,
@@ -186,12 +235,29 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
   })
 })
 
-watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, hearingDialogOpen, fadeOnHoverEnabled, stagePaused], () => {
+/**
+ * Keeps the rendered fade state and Electron click-through state synchronized.
+ *
+ * Triggering workflow:
+ *
+ * {@link watch}
+ *   -> `fade-on-hover reactive state change`
+ *     -> {@link handleFadeOnHoverInteractionChange}
+ *
+ * Upstream:
+ * - {@link isOutsideFor250Ms}, {@link isOutsideStatusIslandFor250Ms}, and {@link isAroundWindowBorderFor250Ms}
+ * - {@link isOutsideWindow}, {@link isTransparent}, and {@link isTransparentForMouseEvents}
+ * - {@link hearingDialogOpen}, {@link fadeOnHoverEnabled}, and {@link stagePaused}
+ *
+ * Downstream:
+ * - {@link resolveFadeOnHoverInteraction}
+ * - {@link setIgnoreMouseEvents}
+ */
+function handleFadeOnHoverInteractionChange() {
   if (stagePaused.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
@@ -200,7 +266,6 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
     return
   }
 
@@ -212,20 +277,26 @@ watch([isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
-    pause()
   }
   else {
-    const fadeEnabled = fadeOnHoverEnabled.value
-    // Otherwise allow click-through while we fade UI based on transparency (when enabled)
-    isIgnoringMouseEvents.value = fadeEnabled
-    shouldFadeOnCursorWithin.value = fadeEnabled && !isOutsideWindow.value && !isTransparent.value
-    setIgnoreMouseEvents([fadeEnabled, { forward: true }])
-    if (fadeEnabled)
-      resume()
-    else
-      pause()
+    const interaction = resolveFadeOnHoverInteraction({
+      cursorInsideWindow: !isOutsideWindow.value,
+      enabled: fadeOnHoverEnabled.value,
+      transparentForFade: isTransparent.value,
+      transparentForPointer: isTransparentForMouseEvents.value,
+    })
+
+    isIgnoringMouseEvents.value = interaction.ignoreMouseEvents
+    shouldFadeOnCursorWithin.value = interaction.fadeStage
+    setIgnoreMouseEvents([interaction.ignoreMouseEvents, { forward: true }])
   }
-})
+}
+
+watch(
+  [isOutsideFor250Ms, isOutsideStatusIslandFor250Ms, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, hearingDialogOpen, fadeOnHoverEnabled, stagePaused],
+  handleFadeOnHoverInteractionChange,
+  { immediate: true },
+)
 
 // Emit runtime snapshot on change and on request from settings panel
 /**
@@ -255,9 +326,11 @@ const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
 const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
-const chatSyncStore = useChatSyncStore()
+const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
+const chatStore = useChatStore()
+const chatSession = useChatSessionStore()
 const streamingTranscriptionUnavailable = ref(false)
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffer = createTranscriptBuffer({
@@ -284,10 +357,47 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
 })
 
 // Caption overlay broadcast channel
-type CaptionChannelEvent
-  = | { type: 'caption-speaker', text: string }
-    | { type: 'caption-assistant', text: string }
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
+const { post: postHearingInput } = useBroadcastChannel<HearingInputChannelEvent, HearingInputChannelEvent>({ name: hearingInputChannelName })
+const hearingInputClearTimers = new Map<ReturnType<typeof setTimeout>, string>()
+let hearingInputSequence = 0
+let activeHearingInputSourceId: string | undefined
+
+function currentHearingInputSourceId() {
+  activeHearingInputSourceId ??= `stage-tamagotchi:${++hearingInputSequence}`
+  return activeHearingInputSourceId
+}
+
+function postHearingInputEvent(event: HearingInputChannelEvent) {
+  const { error } = tryCatch(() => postHearingInput(event))
+  if (error)
+    console.warn('[Main Page] Failed to post Hearing input text:', error)
+}
+
+function replaceHearingInput(text: string) {
+  postHearingInputEvent({
+    operation: 'replace',
+    sourceId: currentHearingInputSourceId(),
+    text,
+  })
+}
+
+function clearHearingInput(sourceId = activeHearingInputSourceId) {
+  if (!sourceId)
+    return
+
+  postHearingInputEvent({ operation: 'clear', sourceId })
+  if (sourceId === activeHearingInputSourceId)
+    activeHearingInputSourceId = undefined
+}
+
+function scheduleHearingInputClear(sourceId: string) {
+  const timer = setTimeout(() => {
+    hearingInputClearTimers.delete(timer)
+    clearHearingInput(sourceId)
+  }, 250)
+  hearingInputClearTimers.set(timer, sourceId)
+}
 
 /**
  * Reports a voice input pipeline failure to both the console and visible app UI.
@@ -426,8 +536,8 @@ async function ensureLiveAudioInputStream() {
 /**
  * Sends voice captions as best-effort overlay updates without interrupting chat ingestion.
  */
-function postSpeakerCaption(text: string) {
-  const { error } = tryCatch(() => postCaption({ type: 'caption-speaker', text }))
+function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelEvent['operation']> = 'append') {
+  const { error } = tryCatch(() => postCaption({ operation, type: 'caption-speaker', text }))
   if (error)
     console.warn('[Main Page] Failed to post voice input caption:', error)
 }
@@ -437,7 +547,10 @@ function postSpeakerCaption(text: string) {
  */
 async function sendVoiceInputTextToChat(text: string) {
   try {
-    await chatSyncStore.requestIngest({ text })
+    await chatStore.send({
+      sessionId: chatSession.activeSessionId,
+      text,
+    })
   }
   catch (err) {
     reportVoiceInputFailure('send to chat', err)
@@ -453,8 +566,21 @@ function handleStreamingSentenceEnd(delta: string) {
   if (!finalText || !finalText.trim())
     return
 
-  postSpeakerCaption(finalText)
+  const sourceId = currentHearingInputSourceId()
+  replaceHearingInput(finalText)
+  scheduleHearingInputClear(sourceId)
+  activeHearingInputSourceId = undefined
+  postSpeakerCaption(finalText, 'replace')
   void sendVoiceInputTextToChat(finalText)
+}
+
+/** Replaces the caption with the provider's current volatile transcript. */
+function handleStreamingTranscriptionUpdate(text: string) {
+  if (isVoiceInputSuppressed())
+    return
+
+  replaceHearingInput(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Publishes the provider's final streaming-ASR text to the caption overlay. */
@@ -462,7 +588,7 @@ function handleStreamingSpeechEnd(text: string) {
   if (isVoiceInputSuppressed())
     return
 
-  postSpeakerCaption(text)
+  postSpeakerCaption(text, 'replace')
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -472,6 +598,18 @@ function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
 
 const voiceInputSession = useVoiceInputSession(stream, {
   shouldUseStreamInput,
+  onLog(level, event, message, details) {
+    const output = `[Voice Input] ${event}: ${message}`
+    if (level === 'error') {
+      console.error(output, details ?? {})
+      return
+    }
+    if (level === 'warn') {
+      console.warn(output, details ?? {})
+      return
+    }
+    console.info(output, details ?? {})
+  },
   canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
@@ -514,8 +652,10 @@ async function startAudioInteractionConsumers() {
       return
 
     await transcribeForMediaStream(currentStream, {
+      consumerId: transcriptionConsumerId,
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
+      onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
     })
 
     if (inspectVoiceInputStreamingRequestGate().skip) {
@@ -541,6 +681,7 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
   const flushTranscript = options.flushTranscript ?? true
 
   clearAssistantSpeechResumeTimer()
+  clearHearingInput()
   voiceInputGeneration += 1
 
   await Promise.all([
@@ -609,6 +750,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+  for (const [timer, sourceId] of hearingInputClearTimers) {
+    clearTimeout(timer)
+    clearHearingInput(sourceId)
+  }
+  hearingInputClearTimers.clear()
+  clearHearingInput()
   postModelSettingsRuntimeEvent({
     type: 'owner-gone',
     ownerInstanceId: modelSettingsRuntimeOwnerInstanceId,

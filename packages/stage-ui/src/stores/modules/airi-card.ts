@@ -1,88 +1,40 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
+import type { AiriCard, AiriExtension } from '../../types/airiCard'
+
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { capturePosthogEvent } from '../analytics/posthog'
+import { captureAnalyticsEvent } from '../../libs/analytics'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
-export interface AiriExtension {
-  modules: {
-    consciousness: {
-      provider: string // Example: "openai"
-      model: string // Example: "gpt-4o"
-    }
+export type { AiriCard, AiriExtension } from '../../types/airiCard'
 
-    vision: {
-      provider: string // Example: "ollama"
-      model: string // Example: "llava"
-    }
+function resolveSystemPrompt(card: AiriCard | undefined): string {
+  if (!card)
+    return ''
 
-    speech: {
-      provider: string // Example: "elevenlabs"
-      model: string // Example: "eleven_multilingual_v2"
-      voice_id: string // Example: "alloy"
+  // Position-sensitive CCv3 fields are deliberately excluded until provider
+  // message assembly owns their ordering and role semantics.
+  const systemPromptParts = [
+    card.systemPrompt,
+    card.description,
+    card.personality,
+    card.scenario,
+    card.extensions.airi.modules.artistry?.widgetInstruction,
+  ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
 
-      pitch?: number
-      rate?: number
-      ssml?: boolean
-      language?: string
-    }
-
-    vrm?: {
-      source?: 'file' | 'url'
-      file?: string // Example: "vrm/model.vrm"
-      url?: string // Example: "https://example.com/vrm/model.vrm"
-    }
-
-    live2d?: {
-      source?: 'file' | 'url'
-      file?: string // Example: "live2d/model.json"
-      url?: string // Example: "https://example.com/live2d/model.json"
-    }
-
-    // ID from display-models store (e.g. 'preset-live2d-1', 'display-model-<nanoid>')
-    displayModelId?: string
-    activeBackgroundId?: string
-
-    artistry?: {
-      enabled?: boolean
-      provider?: string
-      model?: string
-      promptPrefix?: string
-      workflowId?: string
-      widgetInstruction?: string
-      spawnMode?: 'bg' | 'widget' | 'inline' | 'bg_widget'
-      options?: Record<string, any>
-      autonomousEnabled?: boolean
-      autonomousThreshold?: number
-      autonomousTarget?: 'user' | 'assistant'
-    }
-  }
-
-  agents: {
-    [key: string]: { // example: minecraft
-      prompt: string
-      enabled?: boolean
-    }
-  }
-}
-
-export interface AiriCard extends Card {
-  extensions: {
-    airi: AiriExtension
-  } & Card['extensions']
+  return systemPromptParts.join('\n\n')
 }
 
 export const useAiriCardStore = defineStore('airi-card', () => {
@@ -124,13 +76,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
-    capturePosthogEvent('card_created', { card_id: newCardId, source })
+    captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
 
   const removeCard = (id: string) => {
-    cards.value.delete(id)
-    capturePosthogEvent('character_deleted', { character_id: id })
+    // The built-in card is the guaranteed fallback for every runtime profile.
+    if (id === 'default')
+      return false
+
+    const removed = cards.value.delete(id)
+    if (!removed)
+      return false
+
+    // The active id is persisted independently from the card map. Reset it
+    // before consumers observe a dangling runtime profile after deletion.
+    if (activeCardId.value === id)
+      activeCardId.value = 'default'
+
+    captureAnalyticsEvent('character_deleted', { character_id: id })
+    return true
   }
 
   const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
@@ -331,21 +296,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function initialize() {
-    if (cards.value.has('default'))
-      return
-    cards.value.set('default', newAiriCard({
-      name: 'ReLU',
-      version: '1.0.0',
-      description: SystemPromptV2(
-        t('base.prompt.prefix'),
-        t('base.prompt.suffix'),
-      ).content,
-    }))
-    if (!activeCardId.value)
+    if (!cards.value.has('default')) {
+      cards.value.set('default', newAiriCard({
+        name: 'ReLU',
+        version: '1.0.0',
+        description: SystemPromptV2(
+          t('base.prompt.prefix'),
+          t('base.prompt.suffix'),
+        ).content,
+      }))
+    }
+
+    // The active id and card map are persisted separately. Older versions
+    // could delete the selected card without repairing its stored id.
+    if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
+
+    applyActiveCardSettings()
   }
 
-  watchDebounced(activeCard, (newCard: AiriCard | undefined) => {
+  function applyActiveCardSettings(newCard = activeCard.value) {
     artistryStore.resetToGlobal()
 
     if (!newCard)
@@ -383,11 +353,21 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       if (extension.modules.artistry.options)
         artistryStore.providerOptions = extension.modules.artistry.options
     }
-  }, { debounce: 300, maxWait: 1000 })
+  }
+
+  // Activation changes the stable card ID, while card editors replace the
+  // active card object without changing that ID. Observe both transitions so
+  // switching cards and saving edits to the current card apply consistently.
+  watch([activeCardId, activeCard], ([, newCard]) => {
+    applyActiveCardSettings(newCard)
+  }, { flush: 'sync', immediate: true })
 
   function resetState() {
-    activeCardId.reset()
+    // Clear card data before the selected ID. Otherwise the synchronous
+    // activation watcher can briefly resolve the old default card and restore
+    // its display model during a full settings reset.
     cards.reset()
+    activeCardId.reset()
   }
 
   return {
@@ -424,20 +404,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
       } satisfies AiriExtension['modules']
     }),
-
-    systemPrompt: computed(() => {
-      const card = activeCard.value
-      if (!card)
-        return ''
-
-      const components = [
-        card.systemPrompt,
-        card.description,
-        card.personality,
-        card.extensions?.airi?.modules?.artistry?.widgetInstruction,
-      ].filter(Boolean)
-
-      return components.join('\n\n')
-    }),
+    systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
   }
 })

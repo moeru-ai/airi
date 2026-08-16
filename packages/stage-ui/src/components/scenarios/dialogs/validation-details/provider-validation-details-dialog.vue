@@ -42,7 +42,7 @@ const selectedSteps = computed(() => {
           <DialogTitle :class="['text-lg', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">
             {{ props.title }}
           </DialogTitle>
-          <Button size="sm" variant="secondary" @click="() => showDialog = false">
+          <Button size="sm" @click="() => showDialog = false">
             Close
           </Button>
         </div>
@@ -81,7 +81,7 @@ const selectedSteps = computed(() => {
           <div :class="['text-lg', 'font-semibold', 'text-neutral-900', 'dark:text-neutral-100']">
             {{ props.title }}
           </div>
-          <Button size="sm" variant="secondary" @click="() => showDialog = false">
+          <Button size="sm" @click="() => showDialog = false">
             Close
           </Button>
         </div>

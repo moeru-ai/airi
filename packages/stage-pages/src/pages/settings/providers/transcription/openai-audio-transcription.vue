@@ -6,14 +6,16 @@ import {
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
 const hearingStore = useHearingStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 
 // Get provider metadata
 const providerId = 'openai-audio-transcription'
@@ -55,7 +57,7 @@ async function handleGenerateTranscription(file: File) {
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
   const modelToUse = providerConfig.model as string | undefined || defaultModel
@@ -70,7 +72,7 @@ async function handleGenerateTranscription(file: File) {
 }
 
 watch(model, async () => {
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
   providerConfig.model = model.value
 })
 </script>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Use Vishot"
+  short_description: "Capture deterministic UI screenshots"
+  default_prompt: "Use $use-vishot to capture the requested UI states with Vishot."

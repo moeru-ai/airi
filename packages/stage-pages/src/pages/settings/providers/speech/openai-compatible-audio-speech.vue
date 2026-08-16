@@ -9,15 +9,17 @@ import {
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const speechStore = useSpeechStore()
-const providersStore = useProvidersStore()
-const { providers } = storeToRefs(providersStore)
+const providersStore = useProviderStore()
+const providerStore = useProviderConfigStore()
+const { configs: providers } = storeToRefs(providerStore)
 const { t } = useI18n()
 
 const defaultVoiceSettings = {
@@ -110,7 +112,7 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   }
 
   // Get provider configuration
-  const providerConfig = providersStore.getProviderConfig(providerId)
+  const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Use the reactive model computed property (not a local variable)
   const modelToUse = modelId || model.value || defaultModel

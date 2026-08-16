@@ -1,6 +1,6 @@
 import type { Ref, WatchSource } from 'vue'
 
-import type { ModelInfo, VoiceInfo } from '../../../../stores/providers'
+import type { ModelInfo, VoiceInfo } from '../../types'
 
 import { ref, watch } from 'vue'
 import { z } from 'zod'

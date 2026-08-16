@@ -47,16 +47,14 @@ dialogs:
     no-models: 利用可能なモデルがありません
     no-models-help: 前のステップに戻ってAPIキーを確認するか、ネットワーク接続を確認してください。
     permissions:
-      title: 通知
-      description: 今すぐ通知を許可するか、続行して後で設定できます。
+      title: 権限管理
+      description: 今すぐ必要な権限を許可するか、続行して後で設定できます。
       notificationsTitle: 通知
       notificationsDescription: リマインダーと重要なステータス更新を許可する。
-      notificationsAction: 通知権限を要求
-      notificationsNotGrantedHint: 通知を拒否した場合は、iOS の設定から後で通知を有効にできます。
-      openSettings: iOSの設定を開く
-      optionalHint: 通知権限を許可しない場合でも続行できます。
-      stateUnknown: リクエストされていません
-      stateRequesting: リクエスト中…
+      microphoneTitle: マイク
+      microphoneDescription: AIRI が音声入力と文字起こしにマイクを使用することを許可します。
+      requestAction: アクセスをリクエスト
+      optionalHint: これらの権限を許可しない場合でも続行できます。
       stateGranted: 許可済み
       stateNotGranted: 許可されていません
   bug-report:
@@ -106,8 +104,7 @@ model-select:
   panel-callout:
     support-status-header: 私たちは2Dと3Dのモデル両方をサポートしています
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for
-      Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models), {vrm} (for VRM models), and {mmd} (for MMD models, zipped with their textures) are supported.
     model-type-example: >
       Neuro-sama uses 2D model driven by framework developed by Live2D Inc,
       while Grok Ani (in Grok Companion) uses 3D model driven by VRM / MMD open
@@ -315,8 +312,10 @@ pages:
     activate: 有効化
     active: 有効
     active_badge: 現在有効
+    activation_notice: '{name} に切り替えました。現在の会話ではこのキャラクターが使用されます。'
     cancel: 操作の取消
     save: 変更を保存
+    save_and_activate: 保存して有効化
     card_not_found: カードが見つかりません
     character: キャラクター
     close: 閉じる
@@ -423,7 +422,7 @@ pages:
         delete: 全てのチャットセッションを削除
       models:
         title: モデル
-        description: インポートされた Live2D/VRM モデルを削除。
+        description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: すべてのモデルを削除
       modules:
         title: モジュール
@@ -464,7 +463,7 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: デスクトップのデータをリセットしました。
   models:
-    description: Live2D、VRM、Spine、など。
+    description: Live2D, VRM, Spine, MMD, etc.
     title: モデル
     sections:
       section:
@@ -769,6 +768,15 @@ pages:
       access-token-secret-description: あなたのX / Twitterアクセストークンシークレット
       access-token-secret-placeholder: あなたのX / Twitterアクセストークンシークレットを入力
       configured: X / Twitterは適切に設定されています！
+    web-search:
+      title: Web Search
+      description: Let AIRI search the web for current information
+      enable: Enable Web Search
+      enable-description: Allow AIRI to search the web during chat
+      api-key: Tavily API Key
+      api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
+      api-key-placeholder: Enter your Tavily API key
+      configured: Web search is ready to use!
     mcp-server:
       title: MCPサーバー
       description: Configure MCP servers and bring their tools into AIRI.
@@ -1354,6 +1362,9 @@ pages:
       n1n:
         description: n1n.ai - 高性能なAI APIプロバイダー。
         title: n1n
+      openpaths:
+        description: openpaths.io
+        title: OpenPaths
       openrouter:
         description: openrouter.ai
         title: OpenRouter
@@ -1504,6 +1515,9 @@ pages:
     general:
       description: ダークテーマ、言語など。
       title: 一般
+    permissions:
+      description: 現在の権限状態を確認します。
+      title: 権限管理
     description: ステージをカスタマイズしよう！
     sections:
       section:
@@ -1749,6 +1763,67 @@ spine:
   fps:
     options:
       unlimited: Unlimited
+mmd:
+  title: MMD Settings
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+    rotation: Rotation
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  physics:
+    title: Physics & Rig
+    enabled: Enable physics (hair, skirt, accessories)
+    ik: Enable IK (inverse kinematics)
+    grant: Enable append-bone propagation
+    gravity: Gravity strength
+  gaze:
+    title: Gaze
+    tracking: Looking at
+    options:
+      cursor: Mouse
+      camera: Camera
+      none: Disabled
+  animation:
+    title: Animation
+    idle-motion: Idle Motion
+    import-motion: Import Motion (.vmd)
+    play-once: Preview Animation
+    remove: Remove motion
+    description: >-
+      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
+  morphs:
+    title: Morphs
+    auto: (auto)
+    revert: Revert to auto
+    no-morphs: This model exposes no morphs.
+    description: >-
+      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
+  materials:
+    title: Materials
+    no-materials: This model exposes no materials.
+    description: >-
+      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
+tachie:
+  title: Tachie Settings
+  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
+  scale-and-position:
+    title: Scale And Position
+    scale: Scale
+    x: X
+    'y': 'Y'
+  theme-color-from-model:
+    title: Extract colors from model
+    button-extract:
+      title: Extract
+  rendering:
+    title: Rendering
+    render-scale: Render Scale
+    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: セキュア WebSocket (WSS) を有効にする
   description: >-

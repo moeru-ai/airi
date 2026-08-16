@@ -1,6 +1,5 @@
-import { getPosthogIdentitySnapshot } from '../stores/analytics/posthog'
 import { useAuthStore } from '../stores/auth'
-import { getAuthToken } from './auth'
+import { getAnalyticsIdentitySnapshot } from './analytics'
 import { SERVER_URL } from './server'
 
 /**
@@ -23,11 +22,12 @@ export async function authedFetch(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
+  const authStore = useAuthStore()
   const doFetch = (token: string | null): Promise<Response> => {
     const headers = new Headers(init?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
-    const posthogIdentity = shouldAttachPosthogIdentity(input) ? getPosthogIdentitySnapshot() : null
+    const posthogIdentity = shouldAttachPosthogIdentity(input) ? getAnalyticsIdentitySnapshot() : null
     if (posthogIdentity) {
       headers.set('x-posthog-distinct-id', posthogIdentity.distinctId)
       if (posthogIdentity.sessionId)
@@ -36,7 +36,7 @@ export async function authedFetch(
     return fetch(input, { ...init, headers, credentials: 'omit' })
   }
 
-  const response = await doFetch(getAuthToken())
+  const response = await doFetch(authStore.token)
   if (response.status !== 401)
     return response
 
@@ -47,16 +47,15 @@ export async function authedFetch(
   if (url.includes('/oauth2/token'))
     return response
 
-  const authStore = useAuthStore()
   const newToken = await authStore.refreshTokenNow()
   if (!newToken) {
-    promptReLogin(authStore)
+    await promptReLogin(authStore)
     return response
   }
 
   const retried = await doFetch(newToken)
   if (retried.status === 401)
-    promptReLogin(authStore)
+    await promptReLogin(authStore)
   return retried
 }
 
@@ -68,7 +67,7 @@ function shouldAttachPosthogIdentity(input: RequestInfo | URL): boolean {
   return new URL(url, SERVER_URL).origin === new URL(SERVER_URL).origin
 }
 
-function promptReLogin(authStore: ReturnType<typeof useAuthStore>): void {
-  authStore.clearAllAuthState()
+async function promptReLogin(authStore: ReturnType<typeof useAuthStore>): Promise<void> {
+  await authStore.clearAllAuthState()
   authStore.needsLogin = true
 }

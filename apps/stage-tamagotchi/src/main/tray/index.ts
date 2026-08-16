@@ -102,7 +102,6 @@ export function setupTray(params: {
     trayImage.setTemplateImage(isMacOS)
 
     const appTray = new Tray(trayImage)
-    onAppBeforeQuit(() => appTray.destroy())
 
     const rebuildContextMenu = debounce((): void => {
       if (isRendererUnavailable(params.mainWindow)) {
@@ -225,14 +224,28 @@ export function setupTray(params: {
 
     params.mainWindow.on('resize', rebuildContextMenu)
     params.mainWindow.on('move', rebuildContextMenu)
-    params.captionWindow.onVisibilityChanged(rebuildContextMenu)
+    const visibilityChangeUnListener = params.captionWindow.onVisibilityChanged(rebuildContextMenu)
 
     rebuildContextMenu()
 
-    effect(() => {
+    const stopLocaleEffect = effect(() => {
       const locale = params.i18n.locale as (() => string | LocaleDetector<any[]> | undefined)
       locale()
       rebuildContextMenu()
+    })
+
+    onAppBeforeQuit(() => {
+      // Stop every menu rebuild source before canceling its pending trailing call.
+      // The tray must remain alive until no callback can reach it.
+      params.mainWindow.off('resize', rebuildContextMenu)
+      params.mainWindow.off('move', rebuildContextMenu)
+
+      visibilityChangeUnListener()
+      stopLocaleEffect()
+
+      rebuildContextMenu.cancel()
+
+      appTray.destroy()
     })
 
     appTray.setToolTip('Project AIRI')

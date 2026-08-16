@@ -14,10 +14,10 @@ import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatOrchestratorStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useProvidersStore } from '@proj-airi/stage-ui/stores/providers'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -43,14 +43,17 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { transcribeForRecording } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const providersStore = useProvidersStore()
+const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
-const chatStore = useChatOrchestratorStore()
+const chatStore = useChatStore()
+
+/** Identifies this page in the shared streaming transcription session. */
+const transcriptionConsumerId = 'stage-web:voice-input'
 
 const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
@@ -63,9 +66,26 @@ const {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
   onSpeechEnd: () => handleSpeechEnd(),
+  onSpeechCancel: () => handleSpeechCancel(),
 })
 
 let stopOnStopRecord: (() => void) | undefined
+
+async function sendVoiceInputTextToChat(text: string | undefined) {
+  if (!text?.trim())
+    return
+
+  try {
+    const provider = await providersStore.getProviderInstance(activeChatProvider.value)
+    if (!provider || !activeChatModel.value)
+      return
+
+    await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
+  }
+  catch (error) {
+    console.error('Failed to send chat from voice:', error)
+  }
+}
 
 async function startAudioInteraction() {
   try {
@@ -73,22 +93,18 @@ async function startAudioInteraction() {
     if (stream.value)
       await startVAD(stream.value)
 
+    if (shouldUseStreamInput.value && stream.value) {
+      await transcribeForMediaStream(stream.value, {
+        consumerId: transcriptionConsumerId,
+        onSentenceEnd: text => void sendVoiceInputTextToChat(text),
+      })
+      return
+    }
+
     // Hook once
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
-      if (!text || !text.trim())
-        return
-
-      try {
-        const provider = await providersStore.getProviderInstance(activeChatProvider.value)
-        if (!provider || !activeChatModel.value)
-          return
-
-        await chatStore.ingest(text, { model: activeChatModel.value, chatProvider: provider as ChatProvider })
-      }
-      catch (err) {
-        console.error('Failed to send chat from voice:', err)
-      }
+      await sendVoiceInputTextToChat(text)
     })
   }
   catch (e) {
@@ -115,10 +131,17 @@ async function handleSpeechEnd() {
   stopRecord()
 }
 
+async function handleSpeechCancel() {
+  if (!shouldUseStreamInput.value)
+    await discardRecord()
+}
+
 function stopAudioInteraction() {
   try {
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
     stopOnStopRecord?.()
     stopOnStopRecord = undefined
+    void stopStreamingTranscription(true)
     disposeVAD()
   }
   catch {}

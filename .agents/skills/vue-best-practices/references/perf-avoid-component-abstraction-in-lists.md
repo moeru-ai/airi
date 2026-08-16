@@ -49,13 +49,6 @@ Don't avoid abstraction entirely, but be mindful of component depth in frequentl
 **GOOD:**
 ```vue
 <!-- GOOD: Flattened structure in list items -->
-<script setup>
-defineProps({
-  user: Object
-})
-</script>
-
-<!-- UserCard.vue - Flattened, uses native elements -->
 <template>
   <div class="user-list">
     <!-- For 100 users: Creates 100 component instances -->
@@ -63,6 +56,7 @@ defineProps({
   </div>
 </template>
 
+<!-- UserCard.vue - Flattened, uses native elements -->
 <template>
   <div class="card">
     <div class="card-header">
@@ -73,6 +67,12 @@ defineProps({
     </div>
   </div>
 </template>
+
+<script setup>
+defineProps({
+  user: Object
+})
+</script>
 
 <style scoped>
 /* Styles that would have been in Card, CardHeader, etc. */
@@ -111,19 +111,17 @@ defineProps({
 
 ```javascript
 // In development, profile component counts
-import { getCurrentInstance, onMounted } from 'vue'
+import { onMounted, getCurrentInstance } from 'vue'
 
 onMounted(() => {
   const instance = getCurrentInstance()
   let count = 0
 
   function countComponents(vnode) {
-    if (vnode.component)
-      count++
+    if (vnode.component) count++
     if (vnode.children) {
-      vnode.children.forEach((child) => {
-        if (child.component || child.children)
-          countComponents(child)
+      vnode.children.forEach(child => {
+        if (child.component || child.children) countComponents(child)
       })
     }
   }
@@ -137,14 +135,10 @@ onMounted(() => {
 
 ```vue
 <!-- Instead of a <Button> component for styling: -->
-<button class="btn btn-primary">
-Click
-</button>
+<button class="btn btn-primary">Click</button>
 
 <!-- Instead of a <Text> component: -->
-<span class="text-body">
-{{ content }}
-</span>
+<span class="text-body">{{ content }}</span>
 
 <!-- Instead of layout wrapper components in lists: -->
 <div class="flex items-center gap-2">

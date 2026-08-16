@@ -47,14 +47,23 @@ function createShisihangshiSettingsText(): string {
   })
 }
 
-function createNonAsciiSettingsText(): string {
+function createCjkPathSettingsText(): string {
   return JSON.stringify({
     Version: 3,
     FileReferences: {
-      Moc: '模型文件.moc3',
-      Textures: ['模型贴图.4096/texture_00.png'],
-      Physics: '模型文件.physics3.json',
-      DisplayInfo: '模型文件.cdi3.json',
+      Moc: '测试角色.moc3',
+      Textures: ['中文纹理/texture_00.png'],
+    },
+    Groups: [],
+  })
+}
+
+function createSpacePathSettingsText(): string {
+  return JSON.stringify({
+    Version: 3,
+    FileReferences: {
+      Moc: 'Avatar Model.moc3',
+      Textures: ['Avatar Model.4096/texture 00.png'],
     },
     Groups: [],
   })
@@ -94,6 +103,87 @@ describe('live2d zip loader settings sanitization', () => {
       '302301_shisihangshi/motions/t_idle.motion3.json',
       '302301_shisihangshi/textures/302301_shisihangshi_00.png',
     ])
+  })
+
+  it('loads a zip model whose settings and resources use CJK paths', async () => {
+    await import('./live2d-zip-loader')
+    const { FileLoader, Live2DModel, ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('中文路径模型/测试角色.model3.json', createCjkPathSettingsText())
+    zip.file('中文路径模型/测试角色.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('中文路径模型/中文纹理/texture_00.png', new Uint8Array([1, 2, 3]))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = Object.assign(await ZipLoader.unzip(reader, settings), { settings })
+    const objectUrl = `zip://test/${settings.url}`
+    Object.assign(settings, { _objectURL: objectUrl })
+
+    // ROOT CAUSE:
+    //
+    // FileLoader encoded each webkitRelativePath before comparing it with settings.resolveURL().
+    // CJK names therefore became percent-encoded on only one side of the comparison.
+    //
+    // settings.resolveURL('测试角色.moc3') !== encodeURI(file.webkitRelativePath)
+    //
+    // The loader now keeps both sides as decoded archive paths, matching its unzip and upload stages.
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
+
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+        URL.revokeObjectURL(resourceUrl)
+      delete FileLoader.filesMap[objectUrl]
+    }
+  })
+
+  it('loads a zip model whose settings and resources contain spaces', async () => {
+    await import('./live2d-zip-loader')
+    const { FileLoader, Live2DModel, ZipLoader } = await import('pixi-live2d-display/cubism4')
+
+    const zip = new JSZip()
+    zip.file('Model Package/Avatar Model.model3.json', createSpacePathSettingsText())
+    zip.file('Model Package/Avatar Model.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('Model Package/Avatar Model.4096/texture 00.png', new Uint8Array([1, 2, 3]))
+
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = Object.assign(await ZipLoader.unzip(reader, settings), { settings })
+    const objectUrl = `zip://test/${settings.url}`
+    Object.assign(settings, { _objectURL: objectUrl })
+
+    // ROOT CAUSE:
+    //
+    // ModelSettings.resolveURL percent-encodes spaces while ZipLoader and OPFS preserve
+    // decoded archive paths. FileLoader therefore rejects resources that are present.
+    //
+    // Model Package/Avatar Model.moc3
+    // !== Model%20Package/Avatar%20Model.moc3
+    //
+    // We fixed this by comparing canonical decoded archive paths at the loader boundary.
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
+
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+        URL.revokeObjectURL(resourceUrl)
+      delete FileLoader.filesMap[objectUrl]
+    }
   })
 
   it('loads a zip model when a macOS AppleDouble settings sidecar is present before the real settings file', async () => {
@@ -147,90 +237,51 @@ describe('live2d zip loader settings sanitization', () => {
     const settings = await FileLoader.createSettings(files)
 
     expect(settings.physics).toBeUndefined()
-    expect(() => settings.validateFiles(files.map(file => encodeURI(file.webkitRelativePath)))).not.toThrow()
+    expect(() => settings.validateFiles(files.map(file => file.webkitRelativePath))).not.toThrow()
   })
 
-  it('loads an OPFS-restored file directory when model3.json references non-ASCII file names', async () => {
+  it('loads an OPFS-restored file directory whose settings and resources use CJK paths', async () => {
     await import('./live2d-zip-loader')
-    const { FileLoader } = await import('pixi-live2d-display/cubism4')
+    const { FileLoader, Live2DModel } = await import('pixi-live2d-display/cubism4')
 
     const files = [
       fileWithRelativePath(
-        createNonAsciiSettingsText(),
-        '模型文件.model3.json',
-        '非ASCII模型26045/模型文件.model3.json',
+        createCjkPathSettingsText(),
+        '测试角色.model3.json',
+        '中文路径模型/测试角色.model3.json',
       ),
       fileWithRelativePath(
         new Uint8Array([77, 79, 67, 51]),
-        '模型文件.moc3',
-        '非ASCII模型26045/模型文件.moc3',
+        '测试角色.moc3',
+        '中文路径模型/测试角色.moc3',
       ),
       fileWithRelativePath(
         new Uint8Array([1, 2, 3]),
         'texture_00.png',
-        '非ASCII模型26045/模型贴图.4096/texture_00.png',
-      ),
-      fileWithRelativePath(
-        '{}',
-        '模型文件.physics3.json',
-        '非ASCII模型26045/模型文件.physics3.json',
-      ),
-      fileWithRelativePath(
-        '{}',
-        '模型文件.cdi3.json',
-        '非ASCII模型26045/模型文件.cdi3.json',
+        '中文路径模型/中文纹理/texture_00.png',
       ),
     ]
+    const existingObjectUrls = new Set(Object.keys(FileLoader.filesMap))
+    const context = {
+      source: files,
+      options: {},
+      live2dModel: new Live2DModel(),
+    }
 
-    const settings = await FileLoader.createSettings(files)
+    try {
+      await expect(FileLoader.factory(context, async () => {})).resolves.toBeUndefined()
+    }
+    finally {
+      for (const objectUrl of Object.keys(FileLoader.filesMap)) {
+        if (existingObjectUrls.has(objectUrl))
+          continue
 
-    // ROOT CAUSE:
-    //
-    // pixi-live2d-display validates OPFS-restored File objects against
-    // encodeURI(file.webkitRelativePath), but the settings created from the
-    // original model3.json currently keep non-ASCII file references unencoded.
-    //
-    // Before the fix, the settings expect "模型文件.moc3" while the available
-    // file list contains URI-encoded non-ASCII directory paths, so validation
-    // reports that the moc3 file does not exist.
-    expect(() => settings.validateFiles(files.map(file => encodeURI(file.webkitRelativePath)))).not.toThrow()
-  })
-
-  it('does not double encode existing URI-encoded model3.json file references', async () => {
-    await import('./live2d-zip-loader')
-    const { FileLoader } = await import('pixi-live2d-display/cubism4')
-
-    const files = [
-      fileWithRelativePath(
-        JSON.stringify({
-          Version: 3,
-          FileReferences: {
-            Moc: '%E6%A8%A1%E5%9E%8B%E6%96%87%E4%BB%B6.moc3',
-            Textures: ['%E6%A8%A1%E5%9E%8B%E8%B4%B4%E5%9B%BE.4096/texture_00.png'],
-          },
-          Groups: [],
-        }),
-        '模型文件.model3.json',
-        '非ASCII模型26045/模型文件.model3.json',
-      ),
-      fileWithRelativePath(
-        new Uint8Array([77, 79, 67, 51]),
-        '模型文件.moc3',
-        '非ASCII模型26045/模型文件.moc3',
-      ),
-      fileWithRelativePath(
-        new Uint8Array([1, 2, 3]),
-        'texture_00.png',
-        '非ASCII模型26045/模型贴图.4096/texture_00.png',
-      ),
-    ]
-
-    const settings = await FileLoader.createSettings(files)
-
-    expect(settings.moc).toBe('%E6%A8%A1%E5%9E%8B%E6%96%87%E4%BB%B6.moc3')
-    expect(settings.textures).toEqual(['%E6%A8%A1%E5%9E%8B%E8%B4%B4%E5%9B%BE.4096/texture_00.png'])
-    expect(settings.moc).not.toContain('%25E6')
-    expect(() => settings.validateFiles(files.map(file => encodeURI(file.webkitRelativePath)))).not.toThrow()
+        for (const resourceUrl of Object.values(FileLoader.filesMap[objectUrl] ?? {}))
+          URL.revokeObjectURL(resourceUrl)
+        URL.revokeObjectURL(objectUrl)
+        delete FileLoader.filesMap[objectUrl]
+      }
+    }
   })
 
   it('loads an OPFS-restored file directory when a macOS AppleDouble settings sidecar is present before the real settings file', async () => {

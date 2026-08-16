@@ -1,17 +1,17 @@
 import type { TraceEvent } from '@proj-airi/stage-shared'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 
-import type { StreamEvent } from './llm'
+import type { StreamEvent } from './ai/chat-llm/llm'
 
 import { defaultPerfTracer, exportCsv as exportCsvFile } from '@proj-airi/stage-shared'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
-import { useChatOrchestratorStore } from './chat'
-import { useLLM } from './llm'
+import { useLLM } from './ai/chat-llm/llm'
+import { useChatStore } from './chat'
 import { useConsciousnessStore } from './modules/consciousness'
 import { usePerfTracerBridgeStore } from './perf-tracer-bridge'
-import { useProvidersStore } from './providers'
+import { useProviderStore } from './providers/provider'
 
 interface DeterministicTimer {
   now: () => number
@@ -166,7 +166,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   const canRunOnline = ref(true)
   const mockModelId = 'markdown-stress-mock'
 
-  const providersStore = useProvidersStore()
+  const providersStore = useProviderStore()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const perfTracerBridge = usePerfTracerBridgeStore()
@@ -292,7 +292,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   }
 
   async function runOnlineScenario() {
-    const chatStore = useChatOrchestratorStore()
+    const chatStore = useChatStore()
     const targetScenario = ensureScenario()
 
     const provider = await providersStore.getProviderInstance(activeProvider.value) as ChatProvider | undefined
@@ -323,7 +323,7 @@ export const useMarkdownStressStore = defineStore('markdownStress', () => {
   }
 
   async function runMockScenario() {
-    const chatStore = useChatOrchestratorStore()
+    const chatStore = useChatStore()
     const llm = useLLM()
     const targetScenario = ensureScenario()
     const modelToUse = mockModelId
