@@ -45,6 +45,39 @@ function createSession(userId: string): BanSession {
 }
 
 describe('banGuard', () => {
+  // Review: https://github.com/moeru-ai/airi/pull/2303
+  // ROOT CAUSE:
+  //
+  // Better Auth generates the shared schema from registered plugin schemas.
+  // The removed admin plugin declared the ban fields.
+  // Without this declaration, a later generated migration can remove them.
+  //
+  // The ban guard now owns this schema contract.
+  it('keeps ban fields in the generated schema', () => {
+    expect(banGuard().schema).toMatchObject({
+      user: {
+        fields: {
+          banned: {
+            defaultValue: false,
+            input: false,
+            required: false,
+            type: 'boolean',
+          },
+          banReason: {
+            input: false,
+            required: false,
+            type: 'string',
+          },
+          banExpires: {
+            input: false,
+            required: false,
+            type: 'date',
+          },
+        },
+      },
+    })
+  })
+
   it('allows a session for an account that is not banned', async () => {
     const before = await getSessionCreateHook()
     const { context, updateUser } = createContext({ banned: false, banExpires: null })
@@ -73,7 +106,15 @@ describe('banGuard', () => {
     expect(updateUser).not.toHaveBeenCalled()
   })
 
-  it('clears an expired temporary ban before it creates a session', async () => {
+  // Review: https://github.com/moeru-ai/airi/pull/2303
+  // ROOT CAUSE:
+  //
+  // The old cleanup read an expired ban, then cleared it in a later write.
+  // A management request can renew the ban before the cleanup write.
+  // The stale write can then clear the renewed ban.
+  //
+  // The guard now reads the active-ban rule without writing ban state.
+  it('allows an expired temporary ban without changing persisted ban state', async () => {
     const before = await getSessionCreateHook()
     const { context, updateUser } = createContext({
       banned: true,
@@ -85,11 +126,7 @@ describe('banGuard', () => {
       context,
     )).resolves.toBeUndefined()
 
-    expect(updateUser).toHaveBeenCalledWith('user-1', {
-      banned: false,
-      banReason: null,
-      banExpires: null,
-    })
+    expect(updateUser).not.toHaveBeenCalled()
   })
 
   it('rejects a session for an account with an active temporary ban', async () => {
