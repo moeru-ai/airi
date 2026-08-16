@@ -6,7 +6,6 @@ export interface AuthSession {
     email: string
     emailVerified: boolean
     image?: string | null
-    role?: string | null
     banned?: boolean | null
     banReason?: string | null
     banExpires?: Date | null
@@ -23,7 +22,6 @@ export interface AuthSession {
     updatedAt: Date
     ipAddress?: string | null
     userAgent?: string | null
-    impersonatedBy?: string | null
   }
 }
 

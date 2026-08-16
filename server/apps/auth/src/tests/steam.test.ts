@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import * as schema from '@proj-airi/auth-shared'
 
-import { steam } from '../steam'
+import { steam } from '../plugins/steam'
 import { createTestDatabase } from './mock-db'
 
 /** Test fixture: arbitrary valid-format SteamID64 used in fake OpenID callbacks. */
