@@ -771,6 +771,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   function projectProvider(providerId: string): ProviderMetadata | undefined {
     const configuredProvider = providerConfigStore.getProvider(providerId)
+    const definition = findProviderDefinition(providerId)
     const metadata = providerMetadata[providerId]
       ?? providerMetadata[configuredProvider?.definitionId ?? '']
 
@@ -786,7 +787,7 @@ export const useProviderStore = defineStore('provider', () => {
       localizedDescription: metadata.descriptionKey === metadata.description
         ? metadata.description
         : t(metadata.descriptionKey, metadata.description),
-      configured: configuredProvider?.status === 'configured',
+      configured: configuredProvider?.status === 'configured' || definition?.autoConfigureWhenAvailable === true,
     }
   }
 
@@ -912,19 +913,19 @@ export const useProviderStore = defineStore('provider', () => {
   })
 
   const configuredChatProvidersMetadata = computed(() => {
-    return allChatProvidersMetadata.value.filter(metadata => providerConfigStore.configuredProviders[metadata.id])
+    return allChatProvidersMetadata.value.filter(metadata => metadata.configured)
   })
 
   const configuredSpeechProvidersMetadata = computed(() => {
-    return allAudioSpeechProvidersMetadata.value.filter(metadata => providerConfigStore.configuredProviders[metadata.id])
+    return allAudioSpeechProvidersMetadata.value.filter(metadata => metadata.configured)
   })
 
   const configuredTranscriptionProvidersMetadata = computed(() => {
-    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => providerConfigStore.configuredProviders[metadata.id])
+    return allAudioTranscriptionProvidersMetadata.value.filter(metadata => metadata.configured)
   })
 
   const configuredVisionProvidersMetadata = computed(() => {
-    return allVisionProvidersMetadata.value.filter(metadata => providerConfigStore.configuredProviders[metadata.id])
+    return allVisionProvidersMetadata.value.filter(metadata => metadata.configured)
   })
 
   function isProviderConfigDirty(providerId: string) {

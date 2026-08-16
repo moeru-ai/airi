@@ -234,6 +234,7 @@ export function resolveTranscriptionFileName(file: File, explicitFileName?: stri
 
 const STREAM_TRANSCRIPTION_EXECUTORS: Record<string, StreamTranscription> = {
   'aliyun-nls-transcription': streamTranscription,
+  'apple-speech-transcription': streamTranscription,
   [OFFICIAL_TRANSCRIPTION_PROVIDER_ID]: streamTranscription,
   // Web Speech API is handled specially in transcribeForMediaStream since it works directly with MediaStream
 }

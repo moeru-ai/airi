@@ -1024,6 +1024,9 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      apple-speech-transcription:
+        title: Apple 语音识别
+        description: macOS 26 提供的设备端语音转写。
       app-local-audio-transcription:
         title: 应用内（本地）
         description: https://github.com/moeru-ai/xsai-transformers

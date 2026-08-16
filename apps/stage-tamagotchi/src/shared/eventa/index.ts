@@ -46,6 +46,60 @@ export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrat
 export const electronOpenSettingsDevtools = defineInvokeEventa('eventa:invoke:electron:windows:settings:devtools:open')
 export const electronOpenDevtoolsWindow = defineInvokeEventa<void, { key: string, route?: string, width?: number, height?: number, x?: number, y?: number }>('eventa:invoke:electron:windows:devtools:open')
 
+/** Runtime support and locale inventory reported by the macOS Speech framework. */
+export interface ElectronAppleSpeechCapabilities {
+  available: boolean
+  installedLocales: string[]
+  reason?: string
+  supportedLocales: string[]
+}
+
+/** Final result returned by one on-device Apple Speech transcription request. */
+export interface ElectronAppleSpeechTranscriptionResult {
+  durationMilliseconds: number
+  isFinal: true
+  locale: string
+  text: string
+}
+
+/** One control or PCM frame in an Apple Speech streaming request. */
+export type ElectronAppleSpeechStreamInput
+  = | {
+    /** Opens the native analyzer before any audio frames arrive. */
+    type: 'start'
+    locale: string
+    sampleRate: number
+  }
+  | {
+    /** Mono PCM16 audio in native byte order. */
+    type: 'audio'
+    audio: Uint8Array
+  }
+
+/** A replaceable transcript snapshot from Apple Speech. */
+export interface ElectronAppleSpeechStreamUpdate {
+  /** Duration of the Apple result range that caused this snapshot. */
+  durationMilliseconds: number
+  /** Whether the Apple result range is final. Other text can still be volatile. */
+  isFinal: boolean
+  locale: string
+  /** Start of the Apple result range that caused this snapshot. */
+  startMilliseconds: number
+  /** Current transcript for all received audio. This value replaces the previous snapshot. */
+  text: string
+}
+
+export const electronAppleSpeechGetCapabilities = defineInvokeEventa<ElectronAppleSpeechCapabilities>('eventa:invoke:electron:apple-speech:get-capabilities')
+export const electronAppleSpeechTranscribe = defineInvokeEventa<ElectronAppleSpeechTranscriptionResult, {
+  audio: Uint8Array
+  fileExtension: string
+  locale: string
+}>('eventa:invoke:electron:apple-speech:transcribe')
+export const electronAppleSpeechTranscribeStream = defineInvokeEventa<
+  ElectronAppleSpeechStreamUpdate,
+  ElectronAppleSpeechStreamInput
+>('eventa:invoke:electron:apple-speech:transcribe-stream')
+
 export interface ElectronServerChannelConfig {
   tlsConfig?: ServerOptions['tlsConfig'] | null
   authToken: string

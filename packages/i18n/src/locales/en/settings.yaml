@@ -1075,6 +1075,9 @@ pages:
         OpenAI, Azure Speech
     description: LLMs, speech providers, etc.
     provider:
+      apple-speech-transcription:
+        title: Apple Speech
+        description: On-device transcription provided by macOS 26.
       app-local-audio-transcription:
         title: App (Local)
         description: https://github.com/moeru-ai/xsai-transformers

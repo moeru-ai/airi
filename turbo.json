@@ -5,6 +5,9 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "@proj-airi/apple-speech-transcription#build": {
+      "outputs": ["native/**/*.node"]
+    },
     "@proj-airi/drizzle-migration#build": {
       "cache": false
     },

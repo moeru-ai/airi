@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
+import { defineProvider } from '../../libs/providers/providers/registry'
 import { useProviderStore } from './provider'
 
 vi.mock('vue-i18n', () => ({
@@ -63,5 +65,41 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState['official-provider']?.models).toEqual([
       expect.objectContaining({ id: 'auto' }),
     ])
+  })
+
+  // ROOT CAUSE:
+  //
+  // The configured-provider lists read only persisted validation state. A
+  // local provider whose availability probe is its complete configuration
+  // never entered the list that Hearing uses for transcription selection.
+  it('lists an available provider that opts into automatic configuration', async () => {
+    const providerId = 'test-local-transcription'
+    defineProvider({
+      id: providerId,
+      name: 'Test Local Transcription',
+      nameLocalize: () => 'Test Local Transcription',
+      description: 'Local transcription for this test.',
+      descriptionLocalize: () => 'Local transcription for this test.',
+      tasks: ['speech-to-text'],
+      requiresCredentials: false,
+      autoConfigureWhenAvailable: true,
+      isAvailableBy: () => true,
+      createProviderConfig: () => z.object({}),
+      createProvider: () => ({
+        transcription: (model: string) => ({
+          baseURL: 'https://example.invalid/',
+          model,
+        }),
+      }),
+    })
+    setActivePinia(createPinia())
+
+    const store = useProviderStore()
+
+    await vi.waitFor(() => {
+      expect(store.configuredTranscriptionProvidersMetadata).toContainEqual(
+        expect.objectContaining({ configured: true, id: providerId }),
+      )
+    })
   })
 })

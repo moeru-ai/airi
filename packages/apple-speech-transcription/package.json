@@ -1,0 +1,24 @@
+{
+  "name": "@proj-airi/apple-speech-transcription",
+  "type": "module",
+  "version": "0.11.3",
+  "private": true,
+  "description": "macOS 26 Apple Speech transcription bridge for Electron",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.mjs"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node ./scripts/build.mjs",
+    "smoke": "node ./scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:"
+  }
+}

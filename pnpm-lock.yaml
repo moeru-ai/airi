@@ -1866,6 +1866,9 @@ importers:
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.2.1(pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)))(vue@3.5.32(typescript@5.9.3))
+      '@proj-airi/apple-speech-transcription':
+        specifier: workspace:^
+        version: link:../../packages/apple-speech-transcription
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -3429,6 +3432,12 @@ importers:
       vscode-ext-gen:
         specifier: 'catalog:'
         version: 1.6.0
+
+  packages/apple-speech-transcription:
+    dependencies:
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
 
   packages/audio:
     dependencies:
