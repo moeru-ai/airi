@@ -106,6 +106,31 @@ describe('provider store synchronization boundary', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
   })
 
+  // https://github.com/moeru-ai/airi/pull/2122#discussion_r3792532254
+  it('matches fixed model catalogs through a configured provider definition (GitHub #2122)', async () => {
+    const providerId = 'local-funasr-instance'
+    const definitionId = 'funasr-audio-transcription'
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider(providerId, definitionId, {
+      baseUrl: 'http://localhost:8000/v1/',
+      model: 'sensevoice',
+    })
+    store.initializeProvider(providerId)
+    await new Promise(resolve => setTimeout(resolve, 0))
+    configStore.setProviderStatus(providerId, 'configured')
+    await store.refreshModelsForChangedCredentials()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    const providerInstance = await store.getProviderInstance(providerId)
+    const listModels = vi.spyOn(store.getProviderDefinition(definitionId).extraMethods!, 'listModels')
+    configStore.getProviderConfig(providerId)!.model = 'paraformer'
+    await store.refreshModelsForChangedCredentials()
+
+    expect(listModels).not.toHaveBeenCalled()
+    expect(await store.getProviderInstance(providerId)).toBe(providerInstance)
+  })
+
   it('does not validate a legacy provider only because a new default field is absent', async () => {
     const providerId = 'openai-audio-transcription'
     const configStore = useProviderConfigStore()

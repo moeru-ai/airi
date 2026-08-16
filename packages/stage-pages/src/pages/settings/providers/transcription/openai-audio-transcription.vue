@@ -6,7 +6,7 @@ import {
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { OPENAI_TRANSCRIPTION_DEFAULT_MODEL } from '@proj-airi/stage-ui/libs/providers/providers/openai-audio'
-import { resolveOpenAICompatibleTranscriptionModel, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { resolveOpenAITranscriptionModel, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCombobox } from '@proj-airi/ui'
@@ -24,7 +24,7 @@ const defaultModel = OPENAI_TRANSCRIPTION_DEFAULT_MODEL
 
 // Model selection
 const model = computed({
-  get: () => resolveOpenAICompatibleTranscriptionModel(providers.value[providerId]),
+  get: () => resolveOpenAITranscriptionModel(providers.value[providerId]),
   set: (value) => {
     if (!providers.value[providerId])
       providers.value[providerId] = {}
@@ -61,7 +61,7 @@ async function handleGenerateTranscription(file: File) {
   const providerConfig = providerStore.getProviderConfig(providerId)
 
   // Get model from configuration or use default
-  const modelToUse = resolveOpenAICompatibleTranscriptionModel(providerConfig)
+  const modelToUse = resolveOpenAITranscriptionModel(providerConfig)
 
   return await hearingStore.transcription(
     providerId,

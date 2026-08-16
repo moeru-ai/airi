@@ -7,6 +7,7 @@ import {
   resolveActiveTranscriptionModel,
   resolveActiveTranscriptionProviderError,
   resolveOpenAICompatibleTranscriptionModel,
+  resolveOpenAITranscriptionModel,
   resolveStreamTranscriptionExecutor,
   resolveTranscriptionFileName,
   resolveTranscriptionProviderOptions,
@@ -94,7 +95,17 @@ describe('resolveOpenAICompatibleTranscriptionModel', () => {
   })
 
   it('uses the displayed default only when the provider has never stored a model', () => {
-    expect(resolveOpenAICompatibleTranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('gpt-4o-transcribe')
+    expect(resolveOpenAICompatibleTranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('whisper-1')
+  })
+})
+
+describe('resolveOpenAITranscriptionModel', () => {
+  it('preserves an explicitly cleared provider model', () => {
+    expect(resolveOpenAITranscriptionModel({ model: '' })).toBe('')
+  })
+
+  it('uses the OpenAI default only when the provider has never stored a model', () => {
+    expect(resolveOpenAITranscriptionModel({ apiKey: '', baseUrl: '' })).toBe('gpt-4o-transcribe')
   })
 })
 

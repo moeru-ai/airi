@@ -29,6 +29,8 @@ import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { StreamingTranscriptionConsumers } from './streaming-transcription-consumers'
 
+const OPENAI_COMPATIBLE_TRANSCRIPTION_DEFAULT_MODEL = 'whisper-1'
+
 function errorMessage(err: unknown): string {
   const msg = errorMessageFromValue(err)
   // Browsers hide the real reason (CORS, timeout, DNS, …) behind this generic string.
@@ -292,6 +294,17 @@ export function resolveActiveTranscriptionModel(activeModel: string, providerCon
  * An explicitly stored empty string is user-owned state; only a missing model receives the UI default.
  */
 export function resolveOpenAICompatibleTranscriptionModel(providerConfig?: Record<string, unknown>) {
+  if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
+    return providerConfig.model
+
+  return OPENAI_COMPATIBLE_TRANSCRIPTION_DEFAULT_MODEL
+}
+
+/**
+ * Resolves the model displayed by the OpenAI transcription settings page.
+ * An explicitly stored empty string is user-owned state; only a missing model receives the OpenAI default.
+ */
+export function resolveOpenAITranscriptionModel(providerConfig?: Record<string, unknown>) {
   if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
     return providerConfig.model
 

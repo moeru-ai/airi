@@ -161,8 +161,8 @@ const PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG = new Set([
   'openai-audio-transcription',
 ])
 
-function modelCatalogCredentialHash(providerId: string, config: Record<string, unknown>) {
-  if (!PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG.has(providerId))
+function modelCatalogCredentialHash(providerDefinitionId: string, config: Record<string, unknown>) {
+  if (!PROVIDERS_WITH_SELECTION_IN_FIXED_MODEL_CATALOG.has(providerDefinitionId))
     return JSON.stringify(config)
 
   const { model: _selectedModel, ...connectionConfig } = config
@@ -838,7 +838,7 @@ export const useProviderStore = defineStore('provider', () => {
     const changedProviders: string[] = []
 
     for (const [providerId, currentConfig] of Object.entries(providerCredentials.value)) {
-      const currentHash = modelCatalogCredentialHash(providerId, currentConfig)
+      const currentHash = modelCatalogCredentialHash(getProviderDefinitionId(providerId), currentConfig)
       const previousHash = previousCredentialHashes.get(providerId)
 
       if (currentHash !== previousHash) {
