@@ -25,4 +25,24 @@ describe('withHashRoute', () => {
     const result = withHashRoute({ url: 'file:////home/workspace/project/index.html' }, '/test/inner-test')
     expect(result).toEqual({ url: `file:////home/workspace/project/index.html#/test/inner-test` })
   })
+
+  it('adds query options before the hash route for development URLs', () => {
+    expect(withHashRoute({ url: 'http://localhost:5173' }, '/about', {
+      query: { 'synced-leader': 'false' },
+    })).toEqual({
+      url: 'http://localhost:5173/?synced-leader=false#/about',
+    })
+  })
+
+  it('passes query options to Electron for packaged renderer URLs', () => {
+    expect(withHashRoute({ file: '/opt/airi/renderer/index.html' }, '/settings', {
+      query: { 'synced-leader': 'false' },
+    })).toEqual({
+      file: '/opt/airi/renderer/index.html',
+      options: {
+        hash: '/settings',
+        query: { 'synced-leader': 'false' },
+      },
+    })
+  })
 })
