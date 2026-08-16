@@ -18,7 +18,6 @@ interface RequestAuthEnv {
   TEST_AUTH_USER_ID: string
   TEST_AUTH_USER_EMAIL: string
   TEST_AUTH_USER_NAME: string
-  TEST_AUTH_USER_ROLE: string
 }
 
 interface TokenIssuerEnv {
@@ -49,8 +48,6 @@ function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): AuthSes
 
   const now = new Date()
   const expiresAt = new Date(now.getTime() + 60 * 60 * 1000)
-  const role = env.TEST_AUTH_USER_ROLE.trim()
-
   return {
     user: {
       id: env.TEST_AUTH_USER_ID,
@@ -58,7 +55,6 @@ function resolveTestAuthToken(env: RequestAuthEnv, accessToken: string): AuthSes
       name: env.TEST_AUTH_USER_NAME,
       emailVerified: true,
       image: null,
-      role: role || null,
       banned: false,
       banReason: null,
       banExpires: null,

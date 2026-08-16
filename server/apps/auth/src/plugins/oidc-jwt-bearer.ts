@@ -1,7 +1,7 @@
 import type { BetterAuthPlugin } from 'better-auth'
 import type { JSONWebKeySet } from 'jose'
 
-import type { AuthEnv } from './env'
+import type { AuthEnv } from '../env'
 
 import { createHmac } from 'node:crypto'
 

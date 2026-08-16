@@ -47,7 +47,6 @@ describe('parseEnv', () => {
     expect(env.TEST_AUTH_USER_ID).toBe('test-user')
     expect(env.TEST_AUTH_USER_EMAIL).toBe('test@example.com')
     expect(env.TEST_AUTH_USER_NAME).toBe('Test User')
-    expect(env.TEST_AUTH_USER_ROLE).toBe('')
   })
 
   it('parses TEST_AUTH_TOKEN virtual user overrides', () => {
@@ -57,13 +56,11 @@ describe('parseEnv', () => {
       TEST_AUTH_USER_ID: 'admin-user',
       TEST_AUTH_USER_EMAIL: 'admin@example.com',
       TEST_AUTH_USER_NAME: 'Admin User',
-      TEST_AUTH_USER_ROLE: 'admin',
     })
 
     expect(env.TEST_AUTH_USER_ID).toBe('admin-user')
     expect(env.TEST_AUTH_USER_EMAIL).toBe('admin@example.com')
     expect(env.TEST_AUTH_USER_NAME).toBe('Admin User')
-    expect(env.TEST_AUTH_USER_ROLE).toBe('admin')
   })
 
   it('lLM_ROUTER_MASTER_KEY decodes a valid 32-byte base64 value into a Buffer', () => {
