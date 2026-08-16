@@ -7,6 +7,14 @@ import * as schema from '@proj-airi/auth-shared'
 import { steam } from '../plugins/steam'
 import { createTestDatabase } from './mock-db'
 
+const { ofetchMock } = vi.hoisted(() => ({
+  ofetchMock: vi.fn(),
+}))
+
+vi.mock('ofetch', () => ({
+  ofetch: ofetchMock,
+}))
+
 /** Test fixture: arbitrary valid-format SteamID64 used in fake OpenID callbacks. */
 const STEAM_ID = '76561198012345678'
 
@@ -74,21 +82,15 @@ describe('steam auth plugin', () => {
     auth = await createTestAuth()
   })
 
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => ofetchMock.mockReset())
 
   // NOTICE:
-  // We mock the module-global `fetch` for Steam's `check_authentication`
-  // dumb-mode verification POST instead of hitting the real
-  // steamcommunity.com endpoint, keeping this test hermetic and fast.
+  // We mock `ofetch` at the external Steam boundary instead of hitting the
+  // real steamcommunity.com endpoint, keeping this test hermetic and fast.
   // Root cause of picking dumb mode over signature verification: see the
   // plugin's own doc comment in ./steam.ts.
   function mockSteamVerification(isValid: boolean) {
-    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
-      if (url.toString() === 'https://steamcommunity.com/openid/login') {
-        return new Response(`ns:http://specs.openid.net/auth/2.0\nis_valid:${isValid}`, { status: 200 })
-      }
-      throw new Error(`Unexpected fetch to ${url}`)
-    }))
+    ofetchMock.mockResolvedValue(`ns:http://specs.openid.net/auth/2.0\nis_valid:${isValid}`)
   }
 
   it('redirects to the Steam OpenID login URL on sign-in start', async () => {
@@ -171,6 +173,31 @@ describe('steam auth plugin', () => {
 
     expect(callbackResponse.status).toBe(302)
     expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_verification_failed')
+  })
+
+  it('sets a 10-second timeout for Steam callback verification', async () => {
+    mockSteamVerification(true)
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    await auth.handler(
+      new Request(`http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState)}`, {
+        headers: { cookie: forwardableCookieHeader(startHeaders) },
+      }),
+    )
+
+    expect(ofetchMock).toHaveBeenCalledWith(
+      'https://steamcommunity.com/openid/login',
+      expect.objectContaining({
+        method: 'POST',
+        responseType: 'text',
+        timeout: 10_000,
+      }),
+    )
   })
 
   it('links a second Steam account to the already-signed-in user instead of creating a new one', async () => {
