@@ -1,16 +1,22 @@
 import type { Database } from '../../../libs/db'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { BillingService } from '../billing/billing-service'
-import type { ClaimReceipt, FluxPack, SettleResult } from './types'
+import type {
+  ClaimReceipt,
+  EvidenceReceipt,
+  FluxPack,
+  Receipt,
+  SettleResult,
+} from './types'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { createInternalError } from '../../../utils/error'
+import { createBadRequestError, createInternalError } from '../../../utils/error'
 
 import * as schema from '../../../schemas/payment'
 
-export type { ClaimReceipt, FluxPack, SettleResult } from './types'
+export type { ClaimReceipt, EvidenceReceipt, FluxPack, Receipt, SettleResult } from './types'
 
 const logger = useLogger('payment')
 
@@ -37,8 +43,36 @@ export async function loadFluxPacks(configKV: ConfigKVService): Promise<FluxPack
  * -> channel maps session to {@link ClaimReceipt}
  * -> {@link createPaymentService} `settle`
  * -> {@link BillingService.creditFlux}
+ *
+ * Apple `POST /transactions` (after JWS verify)
+ * -> channel maps transaction to {@link EvidenceReceipt}
+ * -> {@link createPaymentService} `settle`
+ * -> {@link BillingService.creditFlux}
  */
-export function createPaymentService(db: Database, billing: BillingService) {
+export function createPaymentService(db: Database, billing: BillingService, configKV: ConfigKVService) {
+  async function resolveEvidencePack(receipt: EvidenceReceipt): Promise<FluxPack> {
+    const packs = await loadFluxPacks(configKV)
+    const pack = packs.find((item) => {
+      switch (receipt.provider) {
+        case 'apple_iap':
+          return item.providers.appleIap?.productId === String(receipt.productId)
+        case 'steam':
+          return false
+        default: {
+          const exhaustive: never = receipt.provider
+          throw createInternalError(`Unhandled evidence provider: ${String(exhaustive)}`)
+        }
+      }
+    })
+    if (!pack) {
+      throw createBadRequestError('Unknown product', 'UNKNOWN_PRODUCT', {
+        provider: receipt.provider,
+        productId: receipt.productId,
+      })
+    }
+    return pack
+  }
+
   async function upsertProviderAccount(
     tx: Pick<Database, 'insert' | 'update' | 'select'>,
     userId: string,
@@ -168,9 +202,88 @@ export function createPaymentService(db: Database, billing: BillingService) {
     return result
   }
 
+  async function claimEvidenceOrder(receipt: EvidenceReceipt): Promise<SettleResult> {
+    const pack = await resolveEvidencePack(receipt)
+
+    const [existing] = await db
+      .select({ id: schema.paymentOrder.id })
+      .from(schema.paymentOrder)
+      .where(and(
+        eq(schema.paymentOrder.provider, receipt.provider),
+        eq(schema.paymentOrder.providerOrderId, receipt.providerOrderId),
+      ))
+      .limit(1)
+
+    if (existing)
+      return { applied: false }
+
+    try {
+      const result = await db.transaction(async (tx) => {
+        const [inserted] = await tx.insert(schema.paymentOrder).values({
+          userId: receipt.userId,
+          provider: receipt.provider,
+          providerOrderId: receipt.providerOrderId,
+          status: 'paid',
+          packKey: pack.key,
+          fluxAmount: pack.fluxAmount,
+          amount: receipt.amount,
+          currency: receipt.currency,
+          creditedAt: new Date(),
+          providerData: receipt.extras,
+        }).returning()
+
+        if (!inserted)
+          throw createInternalError('Failed to create payment order')
+
+        const credit = await billing.creditFlux({
+          userId: receipt.userId,
+          amount: pack.fluxAmount,
+          requestId: inserted.id,
+          description: `Flux pack ${pack.key}`,
+          source: 'payment.pack',
+          tx,
+        })
+
+        if (receipt.providerCustomerId) {
+          await upsertProviderAccount(tx, receipt.userId, receipt.provider, receipt.providerCustomerId)
+        }
+
+        return {
+          applied: true as const,
+          userId: receipt.userId,
+          fluxAmount: pack.fluxAmount,
+          balanceAfter: credit.balanceAfter,
+        }
+      })
+
+      if (result.applied) {
+        await billing.syncFluxCache(result.userId, result.balanceAfter, {
+          amount: result.fluxAmount,
+          source: 'payment.pack',
+        })
+      }
+
+      return result
+    }
+    catch (error) {
+      if (!isUniqueViolation(error))
+        throw error
+      return { applied: false }
+    }
+  }
+
   return {
-    async settle(receipt: ClaimReceipt): Promise<SettleResult> {
-      return claimExistingOrder(receipt)
+    async settle(receipt: Receipt): Promise<SettleResult> {
+      switch (receipt.kind) {
+        case 'claim':
+          return claimExistingOrder(receipt)
+        case 'evidence':
+          return claimEvidenceOrder(receipt)
+        default: {
+          const exhaustive: never = receipt
+          throw createInternalError(`Unhandled payment receipt: ${String(exhaustive)}`)
+        }
+      }
     },
 
     /**
@@ -200,3 +313,13 @@ export function createPaymentService(db: Database, billing: BillingService) {
 }
 
 export type PaymentService = ReturnType<typeof createPaymentService>
+
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error
+  for (let i = 0; i < 5 && current && typeof current === 'object'; i++) {
+    if ('code' in current && current.code === '23505')
+      return true
+    current = 'cause' in current ? current.cause : undefined
+  }
+  return false
+}

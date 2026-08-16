@@ -16,6 +16,7 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "catalog:",
     "@dotenvx/dotenvx": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@guiiai/logg": "catalog:",
@@ -59,6 +60,7 @@
     "posthog-node": "catalog:",
     "stripe": "catalog:",
     "unspeech": "catalog:xsai",
+    "uuid": "catalog:",
     "valibot": "catalog:",
     "ws": "catalog:",
     "zod": "catalog:"

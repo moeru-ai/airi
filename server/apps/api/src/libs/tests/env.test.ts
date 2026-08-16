@@ -97,4 +97,23 @@ describe('parseEnv', () => {
     expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
   })
+
+  it('parses optional Apple IAP env defaults', () => {
+    const env = parseEnv(baseEnv())
+    expect(env.APPLE_BUNDLE_ID).toBeUndefined()
+    expect(env.APPLE_IAP_ENV).toBe('sandbox')
+    expect(env.APPLE_APP_APPLE_ID).toBeUndefined()
+  })
+
+  it('parses Apple IAP production env', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      APPLE_BUNDLE_ID: 'ai.moeru.airi-pocket',
+      APPLE_IAP_ENV: 'production',
+      APPLE_APP_APPLE_ID: '1234567890',
+    })
+    expect(env.APPLE_BUNDLE_ID).toBe('ai.moeru.airi-pocket')
+    expect(env.APPLE_IAP_ENV).toBe('production')
+    expect(env.APPLE_APP_APPLE_ID).toBe(1234567890)
+  })
 })

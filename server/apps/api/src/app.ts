@@ -11,6 +11,7 @@ import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
 import type { PaymentService } from './services/domain/payment'
+import type { AppleIapVerifier } from './services/domain/payment/adapters/apple-verifier'
 import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
@@ -44,6 +45,7 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
+import { createAppleIapRoutes } from './routes/apple-iap'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
@@ -69,6 +71,7 @@ import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createPaymentService } from './services/domain/payment'
+import { createAppleIapVerifier } from './services/domain/payment/adapters/apple-verifier'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
@@ -88,6 +91,7 @@ interface AppDeps {
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
   paymentService: PaymentService
+  appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
   billingService: BillingService
   ttsMeter: FluxMeter
@@ -411,6 +415,15 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
+     * Apple IAP routes (StoreKit 2 JWS).
+     */
+    .route('/api/v1/apple-iap', createAppleIapRoutes({
+      payment: deps.paymentService,
+      verifier: deps.appleIapVerifier,
+      rateLimitMetrics: deps.otel?.rateLimit,
+    }))
+
+    /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
      * Found" so unmatched routes (typos, stale email links, scanners) get a
      * structured response and a hint at where to go for the real product UI.
@@ -587,6 +600,25 @@ export async function createApp() {
     },
   })
 
+  const appleIapVerifier = injeca.provide('services:appleIapVerifier', {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn }) => {
+      if (!dependsOn.env.APPLE_BUNDLE_ID)
+        return null
+      try {
+        return await createAppleIapVerifier({
+          bundleId: dependsOn.env.APPLE_BUNDLE_ID,
+          env: dependsOn.env.APPLE_IAP_ENV,
+          appAppleId: dependsOn.env.APPLE_APP_APPLE_ID,
+        })
+      }
+      catch (error) {
+        useLogger().withError(error).error('Failed to create Apple IAP verifier')
+        return null
+      }
+    },
+  })
+
   const fluxTransactionService = injeca.provide('services:fluxTransaction', {
     dependsOn: { db },
     build: ({ dependsOn }) => createFluxTransactionService(dependsOn.db),
@@ -618,8 +650,8 @@ export async function createApp() {
   })
 
   const paymentService = injeca.provide('services:payment', {
-    dependsOn: { db, billingService },
-    build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
+    dependsOn: { db, billingService, configKV },
+    build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService, dependsOn.configKV),
   })
 
   // NOTICE:
@@ -706,6 +738,7 @@ export async function createApp() {
     voicePackService,
     productEventService,
     paymentService,
+    appleIapVerifier,
     stripe,
     billingService,
     ttsMeter,
@@ -732,6 +765,7 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,

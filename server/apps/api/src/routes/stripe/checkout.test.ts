@@ -60,8 +60,9 @@ describe('stripe checkout', () => {
 
   beforeEach(async () => {
     const redis = createTestRedis()
-    const billing = createBillingService(db, redis, createPacksConfigKV([starterPack]))
-    payment = createPaymentService(db, billing)
+    const configKV = createPacksConfigKV([starterPack])
+    const billing = createBillingService(db, redis, configKV)
+    payment = createPaymentService(db, billing, configKV)
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))

@@ -21,15 +21,19 @@ Checkout, package list, and session mapping live in the Stripe channel
 at `src/routes/stripe`. Each provider keeps its own HTTP paths. Stripe
 stays on `/api/v1/stripe/*`. CORE never sees a raw provider event.
 
-- `settle` claims a pending order (`pending` to `paid`). One transaction
-  writes `credited_at` and calls `creditFlux`. Replay returns `applied: false`.
-- Pack snapshots (`pack_key`, `flux_amount`) live on the order row.
+- `settle` claims a pending Stripe order, or inserts a paid Apple evidence
+  order. One transaction writes `credited_at` and calls `creditFlux`.
+  Replay returns `applied: false`.
+- Pack snapshots (`pack_key`, `flux_amount`) live on the order row. Evidence
+  channels pass `productId`. CORE reads flux from `FLUX_PACKS`.
 - The Stripe channel reads `FLUX_PACKS` through payment CORE and Stripe Price
   objects for display prices.
 - `POST /api/v1/stripe/checkout` inserts the pending order, then creates
   the Checkout Session.
 - `POST /api/v1/stripe/webhook` verifies the signature, maps the session
   to a `ClaimReceipt`, and calls `settle`.
+- `POST /api/v1/apple-iap/transactions` verifies StoreKit 2 JWS, maps the
+  transaction to an `EvidenceReceipt`, and calls `settle`.
 
 ## Run locally
 
