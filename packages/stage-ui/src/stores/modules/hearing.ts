@@ -302,7 +302,8 @@ export function resolveOpenAICompatibleTranscriptionModel(providerConfig?: Recor
 
 /**
  * Resolves the model displayed by the OpenAI transcription settings page.
- * An explicitly stored empty string is user-owned state; only a missing model receives the OpenAI default.
+ * An own string model, including an explicitly stored empty string, is user-owned state.
+ * Missing or non-string models receive the OpenAI default.
  */
 export function resolveOpenAITranscriptionModel(providerConfig?: Record<string, unknown>) {
   if (Object.hasOwn(providerConfig ?? {}, 'model') && typeof providerConfig?.model === 'string')
