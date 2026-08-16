@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { OFFICIAL_SPEECH_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderStore } from './provider'
 
 vi.mock('vue-i18n', () => ({
@@ -63,5 +64,39 @@ describe('provider store synchronization boundary', () => {
     expect(store.providerRuntimeState['official-provider']?.models).toEqual([
       expect.objectContaining({ id: 'auto' }),
     ])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Speech startup previously had both an immediate watcher and a mounted
+  // refresh. Multiple renderers could also request the same catalog through
+  // the synchronized provider action. Each caller created its own request.
+  //
+  // We keep one leader-owned request per provider, model, and configuration
+  // until it settles, so concurrent callers share the same result.
+  it('shares concurrent voice catalog requests', async () => {
+    const store = useProviderStore()
+    let resolveRequest: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveRequest = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    try {
+      const first = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+      const second = store.listProviderVoices(OFFICIAL_SPEECH_PROVIDER_ID, 'auto')
+
+      await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+      resolveRequest?.(new Response(JSON.stringify({ voices: [], recommended: {} }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+
+      await expect(Promise.all([first, second])).resolves.toEqual([[], []])
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
   })
 })

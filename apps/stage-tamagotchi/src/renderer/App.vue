@@ -62,7 +62,7 @@ import {
   useTamagotchiMcpToolsStore,
   useTamagotchiPluginToolsStore,
 } from './stores/tools'
-import { resolveInitialWindowRoutePath } from './window-route'
+import { resolveInitialWindowRoutePath, resolveWindowSyncLeadership, shouldInitializeFullStageRuntime } from './window-route'
 
 const { isDark: dark } = useTheme()
 const settingsStore = useSettings()
@@ -82,12 +82,12 @@ const syncedPinia = usePiniaSynced()
 chatSessionStore.setCloudSyncOwnership(syncedPinia.isLeader())
 const isSpotlightWindowRoute = initialWindowRoutePath === '/spotlight'
 const isSettingsWindowRoute = initialWindowRoutePath === '/settings' || initialWindowRoutePath.startsWith('/settings/')
-const isEditorWindowRoute = initialWindowRoutePath === '/editor'
+const ownsSyncedSideEffects = resolveWindowSyncLeadership(initialWindowRoutePath, '') === 'leader-only'
 
-// Every renderer participates in leader election. Keep provider state ready in
-// auxiliary windows so a newly elected leader can execute chat actions after
-// the previous window closes.
-useAuthProviderSync()
+// Auth refresh, provider activation, and their network side effects belong to
+// the main Stage renderer. Auxiliary windows consume its synchronized state.
+if (ownsSyncedSideEffects)
+  useAuthProviderSync()
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -98,8 +98,8 @@ async function refreshPluginRuntimeTools() {
   }
 }
 
-// Every renderer creates the runtime tool stores because every renderer can
-// become the leader. Only the leader discovers tools and keeps executors.
+// Every renderer creates the runtime tool stores for synchronized state. Only
+// the main Stage renderer discovers tools and keeps executors.
 const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
   chatSessionStore.setCloudSyncOwnership(isLeader)
   if (!isLeader)
@@ -118,7 +118,10 @@ function createFullStageRuntime() {
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()
-  const cardStore = useAiriCardStore()
+  // AIRI Card activation mutates the active inference modules and therefore
+  // instantiates their network watchers. Settings pages create this store on
+  // demand; the root lifecycle owner is the main Stage renderer only.
+  const cardStore = ownsSyncedSideEffects ? useAiriCardStore() : null
   const serverChannelStore = useModsServerChannelStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const inferencePreload = useInferencePreload()
@@ -155,6 +158,9 @@ function createFullStageRuntime() {
 
   usePerfTracerBridgeStore()
   initializeStageThreeRuntimeTraceBridge()
+  // The main process returns the callback only to the renderer that started
+  // sign-in. Each login-capable window listens locally, while the synchronized
+  // auth action still executes once in the main Stage leader.
   initializeElectronAuthCallbackBridge()
   void stageWindowLifecycleStore.initializeWindowLifecycleBridge()
 
@@ -217,7 +223,7 @@ function createFullStageRuntime() {
     async initialize() {
       initializeAnalytics()
       await displayModelsStore.initialize()
-      cardStore.initialize()
+      cardStore?.initialize()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
@@ -270,7 +276,9 @@ function createFullStageRuntime() {
   }
 }
 
-const fullStageRuntime = isSpotlightWindowRoute || isEditorWindowRoute ? null : createFullStageRuntime()
+const fullStageRuntime = shouldInitializeFullStageRuntime(initialWindowRoutePath, '')
+  ? createFullStageRuntime()
+  : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 

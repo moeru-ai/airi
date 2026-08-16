@@ -8,3 +8,16 @@ export function resolveInitialWindowRoutePath(routePath: string, hash = globalTh
   const hashPath = hash.startsWith('#') ? hash.slice(1) : ''
   return normalizeRoutePath(hashPath || routePath)
 }
+
+/** Keeps Electron side effects in the main Stage renderer. */
+export function resolveWindowSyncLeadership(routePath: string, hash = globalThis.location?.hash ?? '') {
+  return resolveInitialWindowRoutePath(routePath, hash) === '/'
+    ? 'leader-only'
+    : 'follower-only'
+}
+
+/** Returns whether a renderer owns the Stage model and integration runtime. */
+export function shouldInitializeFullStageRuntime(routePath: string, hash = globalThis.location?.hash ?? ''): boolean {
+  const initialRoutePath = resolveInitialWindowRoutePath(routePath, hash)
+  return !['/chat', '/editor', '/spotlight'].includes(initialRoutePath)
+}

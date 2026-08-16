@@ -98,6 +98,22 @@ describe('airi-card store', () => {
     setActivePinia(createPinia())
   })
 
+  it('does not create runtime module stores for metadata-only consumers', () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+
+    // ROOT CAUSE:
+    //
+    // The chat session store only reads the active card ID and system prompt,
+    // but creating the card store also created every runtime module store.
+    // The speech store then loaded provider voices in each auxiliary window.
+    useAiriCardStore(pinia)
+
+    expect(pinia.state.value.speech).toBeUndefined()
+    expect(pinia.state.value.consciousness).toBeUndefined()
+    expect(pinia.state.value.vision).toBeUndefined()
+  })
+
   /**
    * @example
    * it('persists selected module config on active card', () => {})
