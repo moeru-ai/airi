@@ -10,11 +10,11 @@ import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
+import type { PaymentProvider, PaymentService } from './services/domain/payment'
 import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
-import type { StripeService } from './services/domain/stripe'
 import type { UserDeletionService } from './services/domain/user-deletion'
 import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
@@ -68,11 +68,11 @@ import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createPaymentService, createStripePaymentProvider } from './services/domain/payment'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
-import { createStripeService } from './services/domain/stripe'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
@@ -87,7 +87,9 @@ interface AppDeps {
   providerService: ProviderService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
-  stripeService: StripeService
+  paymentService: PaymentService
+  stripeAdapter: PaymentProvider
+  stripe: Stripe | null
   billingService: BillingService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
@@ -397,7 +399,15 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.productEventService))
+    .route('/api/v1/stripe', createStripeRoutes({
+      payment: deps.paymentService,
+      stripeAdapter: deps.stripeAdapter,
+      stripe: deps.stripe,
+      env: deps.env,
+      metrics: deps.otel?.revenue,
+      rateLimitMetrics: deps.otel?.rateLimit,
+      productEventService: deps.productEventService,
+    }))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -567,15 +577,19 @@ export async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
-  const stripeService = injeca.provide('services:stripe', {
-    dependsOn: { db, env: parsedEnv },
+  const stripe = injeca.provide('libs:stripe', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
       // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
       // billing routes degrade gracefully and the user-deletion pipeline
       // skips the API cancel call.
-      const stripe = dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
-      return createStripeService(dependsOn.db, stripe)
+      return dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
     },
+  })
+
+  const stripeAdapter = injeca.provide('services:stripeAdapter', {
+    dependsOn: { stripe, configKV },
+    build: ({ dependsOn }) => createStripePaymentProvider(dependsOn.stripe, dependsOn.configKV),
   })
 
   const fluxTransactionService = injeca.provide('services:fluxTransaction', {
@@ -586,29 +600,6 @@ export async function createApp() {
   const fluxService = injeca.provide('services:flux', {
     dependsOn: { db, redis, configKV },
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
-  })
-
-  // NOTICE:
-  // The deletion service is a thin scheduler that delegates to each business
-  // service's own `deleteAllForUser` method. Adding a new business module:
-  //   1. give it a `deleteAllForUser(userId)` method
-  //   2. add one `service.register(...)` line below
-  // Domain knowledge stays inside each service instead of being copied into
-  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
-  const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { stripeService, fluxService, providerService, characterService, chatService },
-    build: ({ dependsOn }) => {
-      const service = createUserDeletionService()
-      // priority: 10 = external side-effects (Stripe API cancel — unrollable),
-      //           20 = financial / cache state (Flux balance + Redis),
-      //           30 = pure DB soft-delete (no external touch).
-      service.register({ name: 'stripe', priority: 10, softDelete: ({ userId }) => dependsOn.stripeService.deleteAllForUser(userId) })
-      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
-      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
-      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
-      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
-      return service
-    },
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
@@ -629,6 +620,39 @@ export async function createApp() {
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
+  })
+
+  const paymentService = injeca.provide('services:payment', {
+    dependsOn: { db, billingService, configKV, stripeAdapter },
+    build: ({ dependsOn }) => createPaymentService({
+      db: dependsOn.db,
+      billing: dependsOn.billingService,
+      configKV: dependsOn.configKV,
+      providers: { stripe: dependsOn.stripeAdapter },
+    }),
+  })
+
+  // NOTICE:
+  // The deletion service is a thin scheduler that delegates to each business
+  // service's own `deleteAllForUser` method. Adding a new business module:
+  //   1. give it a `deleteAllForUser(userId)` method
+  //   2. add one `service.register(...)` line below
+  // Domain knowledge stays inside each service instead of being copied into
+  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
+  const userDeletionService = injeca.provide('services:userDeletion', {
+    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    build: ({ dependsOn }) => {
+      const service = createUserDeletionService()
+      // priority: 10 = external side-effects (Stripe API cancel — unrollable),
+      //           20 = financial / cache state (Flux balance + Redis),
+      //           30 = pure DB soft-delete (no external touch).
+      service.register({ name: 'payment', priority: 10, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
+      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
+      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
+      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      return service
+    },
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
@@ -692,7 +716,9 @@ export async function createApp() {
     requestLogService,
     voicePackService,
     productEventService,
-    stripeService,
+    paymentService,
+    stripeAdapter,
+    stripe,
     billingService,
     ttsMeter,
     configKV,
@@ -717,7 +743,9 @@ export async function createApp() {
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
-    stripeService: resolved.stripeService,
+    paymentService: resolved.paymentService,
+    stripeAdapter: resolved.stripeAdapter,
+    stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
     ttsMeter: resolved.ttsMeter,
