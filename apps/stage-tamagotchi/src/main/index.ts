@@ -87,13 +87,22 @@ if (isLinux) {
 
   app.commandLine.appendSwitch('enable-unsafe-webgpu')
 
-  // NOTICE: In Flatpak or certain container environments, XDG_SESSION_TYPE may not be set
-  // even when running on Wayland. We check WAYLAND_DISPLAY and ELECTRON_OZONE_PLATFORM_HINT as well.
-  const isWayland = Boolean(
-    env.WAYLAND_DISPLAY
-    || env.XDG_SESSION_TYPE === 'wayland'
-    || env.ELECTRON_OZONE_PLATFORM_HINT === 'wayland',
-  )
+  // Check explicit command-line switches before falling back to session environment variables.
+  // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
+  // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
+  const explicitOzonePlatform = app.commandLine.getSwitchValue('ozone-platform')
+  const ozonePlatformHint = app.commandLine.getSwitchValue('ozone-platform-hint') || env.ELECTRON_OZONE_PLATFORM_HINT
+
+  let isWayland = false
+  if (explicitOzonePlatform) {
+    isWayland = explicitOzonePlatform === 'wayland'
+  }
+  else if (ozonePlatformHint && ozonePlatformHint !== 'auto') {
+    isWayland = ozonePlatformHint === 'wayland'
+  }
+  else {
+    isWayland = Boolean(env.WAYLAND_DISPLAY || env.XDG_SESSION_TYPE === 'wayland')
+  }
 
   if (isWayland) {
     enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
