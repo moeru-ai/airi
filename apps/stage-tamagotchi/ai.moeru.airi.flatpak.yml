@@ -100,4 +100,4 @@ modules:
             if [ -n "$WAYLAND_DISPLAY" ]; then
               export ELECTRON_OZONE_PLATFORM_HINT=auto
             fi
-          - exec zypak-wrapper /app/bin/airi/airi "$@"
+          - exec zypak-wrapper /app/lib/airi/airi "$@"

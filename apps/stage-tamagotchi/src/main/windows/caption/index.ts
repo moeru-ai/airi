@@ -12,7 +12,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
-import { isMacOS } from 'std-env'
+import { isMacOS, isWindows } from 'std-env'
 import { boolean, number, object, optional, record, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -134,6 +134,9 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     window.setAlwaysOnTop(true, 'screen-saver', 2)
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
+  }
+  else if (isWindows) {
+    window.setAlwaysOnTop(true, 'screen-saver', 2)
   }
   else {
     window.setAlwaysOnTop(true)

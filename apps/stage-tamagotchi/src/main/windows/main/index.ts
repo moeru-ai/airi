@@ -22,7 +22,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain } from 'electron'
-import { isLinux, isMacOS } from 'std-env'
+import { isLinux, isMacOS, isWindows } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -166,6 +166,9 @@ export async function setupMainWindow(params: {
     window.setAlwaysOnTop(true, 'screen-saver', 1)
     window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
+  }
+  else if (isWindows) {
+    window.setAlwaysOnTop(true, 'screen-saver', 1)
   }
   else {
     window.setAlwaysOnTop(true)
