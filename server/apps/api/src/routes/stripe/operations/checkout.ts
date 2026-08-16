@@ -41,7 +41,13 @@ export function createCheckoutOperation(deps: CheckoutOperationDeps) {
     if (planKey)
       throw createBadRequestError('Subscription checkout is not available', 'PLAN_CHECKOUT_UNAVAILABLE')
 
-    const resolvedPackKey = packKey ?? await deps.payment.resolvePackKeyFromStripePriceId(stripePriceId!)
+    let resolvedPackKey = packKey
+    if (!resolvedPackKey) {
+      const pack = await deps.payment.resolvePack({ provider: 'stripe', providerProductId: stripePriceId! })
+      if (!pack)
+        throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
+      resolvedPackKey = pack.key
+    }
 
     const redirectBase = resolveCheckoutRedirectBase(input.request, deps.env.ADDITIONAL_TRUSTED_ORIGINS, deps.env.WEB_APP_URL)
     const posthogIdentity = readPosthogIdentityHeaders(input.request)

@@ -10,14 +10,21 @@ export const CONFIRMATION_STATUSES = ['paid', 'canceled', 'expired'] as const
 
 export type ConfirmationStatus = typeof CONFIRMATION_STATUSES[number]
 
+export interface CatalogProviderIds {
+  stripe?: { priceId: string }
+}
+
+export interface ProviderProductRef {
+  provider: PaymentProviderName
+  providerProductId: string | number
+}
+
 export interface FluxPack {
   key: string
   name: string
   fluxAmount: number
   recommended: boolean
-  providers: {
-    stripe?: { priceId: string }
-  }
+  providers: CatalogProviderIds
 }
 
 export interface FluxPackListItem {

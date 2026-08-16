@@ -8,6 +8,7 @@ import type {
   FluxPackListItem,
   PaymentProvider,
   PaymentProviderName,
+  ProviderProductRef,
   StartPackInput,
   StartPackResult,
 } from './types'
@@ -74,11 +75,11 @@ export function createPaymentService(deps: PaymentServiceDeps) {
     return pack
   }
 
-  async function resolvePackKeyFromStripePriceId(stripePriceId: string): Promise<string> {
-    const pack = (await loadFluxPacks()).find(item => item.providers.stripe?.priceId === stripePriceId)
-    if (!pack)
-      throw createBadRequestError('Invalid price', 'INVALID_PACKAGE', { stripePriceId })
-    return pack.key
+  async function resolvePack(ref: ProviderProductRef): Promise<FluxPack | null> {
+    const packs = await loadFluxPacks()
+    if (ref.provider === 'stripe')
+      return packs.find(item => item.providers.stripe?.priceId === ref.providerProductId) ?? null
+    return null
   }
 
   async function upsertProviderAccount(
@@ -116,7 +117,7 @@ export function createPaymentService(deps: PaymentServiceDeps) {
       return adapter.listPackages(await loadFluxPacks())
     },
 
-    resolvePackKeyFromStripePriceId: (stripePriceId: string) => resolvePackKeyFromStripePriceId(stripePriceId),
+    resolvePack,
 
     async getProviderAccount(input: { userId: string, provider: PaymentProviderName }) {
       const row = await deps.db.query.providerAccount.findFirst({

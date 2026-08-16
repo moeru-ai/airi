@@ -152,6 +152,15 @@ describe('payment CORE', () => {
     }])
   })
 
+  it('resolvePack finds a pack by Stripe price id', async () => {
+    await expect(payment.resolvePack({ provider: 'stripe', providerProductId: 'price_starter' }))
+      .resolves
+      .toMatchObject({ key: 'starter', fluxAmount: 500 })
+    await expect(payment.resolvePack({ provider: 'stripe', providerProductId: 'price_unknown' }))
+      .resolves
+      .toBeNull()
+  })
+
   it('applyConfirmation replay returns applied false and does not double credit', async () => {
     const started = await startStarterPack()
     const facts = {
