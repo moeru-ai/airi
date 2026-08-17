@@ -163,7 +163,6 @@ catalog:
   '@pnpm/find-workspace-dir': ^1000.1.5
   '@proj-airi/chromatic': ^1.1.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.5.0
-  '@proj-airi/drizzle-orm-browser-migrator': ^0.1.6
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^1.1.1

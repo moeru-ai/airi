@@ -63,4 +63,4 @@ service contract.
 - Importing modules from `server/apps/api`.
 - Running the shared database migration history during normal process startup.
 
-Auth tables and principal contracts live in `@proj-airi/auth-shared`. The API reads the shared migration files during startup and remains the migration owner.
+Auth tables and principal contracts live in `@proj-airi/auth-shared`. Drizzle reads shared migration files during API startup. The API remains the migration owner.

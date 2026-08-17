@@ -384,9 +384,6 @@ catalogs:
     '@proj-airi/drizzle-duckdb-wasm':
       specifier: ^0.5.0
       version: 0.5.0
-    '@proj-airi/drizzle-orm-browser-migrator':
-      specifier: ^0.1.6
-      version: 0.1.6
     '@proj-airi/iconify-meteocons':
       specifier: ^0.1.5
       version: 0.1.5
@@ -5425,9 +5422,6 @@ importers:
       '@proj-airi/auth-shared':
         specifier: workspace:*
         version: link:../../packages/auth-shared
-      '@proj-airi/drizzle-orm-browser-migrator':
-        specifier: 'catalog:'
-        version: 0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../../packages/server-sdk-shared
@@ -10124,11 +10118,6 @@ packages:
     peerDependenciesMeta:
       web-worker:
         optional: true
-
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.6':
-    resolution: {integrity: sha512-7A7Ay5vSLBer2P+Ydbrl9AktE7geIlh396zB/3a9odwI/1GT89Pljzvjz5SVxG0e17+wMOPLRKnTnCzukL1B9Q==}
-    peerDependencies:
-      drizzle-orm: '>=0.44.0'
 
   '@proj-airi/duckdb-wasm@0.5.0':
     resolution: {integrity: sha512-kI29wDhmgWXQ7dpbBNA2bSK/S4RXBO54hRqOQR8SQPnQB8F2010leUmvdf7kjtFgvIacfAMc0L1BxaOMmnA7ig==}
@@ -24778,11 +24767,6 @@ snapshots:
       web-worker: 1.5.0
     transitivePeerDependencies:
       - '@75lb/nature'
-
-  '@proj-airi/drizzle-orm-browser-migrator@0.1.6(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))':
-    dependencies:
-      '@guiiai/logg': 1.2.11
-      drizzle-orm: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
 
   '@proj-airi/duckdb-wasm@0.5.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9))(web-worker@1.5.0)':
     dependencies:
