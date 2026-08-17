@@ -1,8 +1,20 @@
 import type { PosthogSink } from '../adapters/posthog'
 
+import { createHash } from 'node:crypto'
+
 import { useLogger } from '@guiiai/logg'
 
 const logger = useLogger('product-events')
+
+const RESERVED_POSTHOG_METADATA_KEYS = new Set([
+  '$insert_id',
+  '$session_id',
+  'airi_user_id',
+  'app_surface',
+  'feature',
+  'source',
+  'status',
+])
 
 export type ProductFeature = 'auth' | 'billing'
 
@@ -91,6 +103,18 @@ function stringMetadata(input: ProductEventInput, key: string): string | undefin
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
+function posthogEventUuid(event: string, eventId: string): string {
+  const digest = createHash('sha256').update(`airi:posthog:${event}:${eventId}`, 'utf8').digest()
+  digest[6] = (digest[6] & 0x0F) | 0x50
+  digest[8] = (digest[8] & 0x3F) | 0x80
+  const hex = digest.subarray(0, 16).toString('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+function hasReservedMetadataKey(metadata: ProductEventMetadata | undefined): boolean {
+  return metadata != null && Object.keys(metadata).some(key => RESERVED_POSTHOG_METADATA_KEYS.has(key))
+}
+
 /**
  * Creates AIRI's server-side PostHog product analytics writer.
  *
@@ -154,6 +178,11 @@ export function createProductEventService(posthog?: PosthogSink | null) {
       if (!posthog || !forwardedEvent)
         return
 
+      if (hasReservedMetadataKey(input.metadata)) {
+        logger.withFields({ action: input.action }).warn('Rejected reserved PostHog product event metadata')
+        return
+      }
+
       const posthogDistinctId = stringMetadata(input, 'posthog_distinct_id')
       const posthogSessionId = stringMetadata(input, 'posthog_session_id')
       if (posthogDistinctId && posthogDistinctId !== input.userId) {
@@ -167,6 +196,7 @@ export function createProductEventService(posthog?: PosthogSink | null) {
               airi_user_id: input.userId,
               ...(posthogSessionId && { $session_id: posthogSessionId }),
             },
+            ...(input.eventId && { uuid: posthogEventUuid('$identify', input.eventId) }),
           })
         }
         catch (err) {
@@ -179,6 +209,7 @@ export function createProductEventService(posthog?: PosthogSink | null) {
           distinctId: input.userId,
           event: forwardedEvent,
           properties: {
+            ...input.metadata,
             ...(input.eventId && { $insert_id: input.eventId }),
             app_surface: 'server',
             airi_user_id: input.userId,
@@ -187,8 +218,8 @@ export function createProductEventService(posthog?: PosthogSink | null) {
             feature: input.feature,
             status: input.status,
             ...(input.source && { source: input.source }),
-            ...input.metadata,
           },
+          ...(input.eventId && { uuid: posthogEventUuid(forwardedEvent, input.eventId) }),
         })
       }
       catch (err) {

@@ -1467,12 +1467,13 @@ describe('v1CompletionsRoutes', () => {
      * POST /api/v1/audio/speech { "voice": "alloy" }
      */
     it('routes TTS requests with Voice Pack metadata', async () => {
-      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
       }))
 
       const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter({ routeTts })
       const voicePackService = createMockVoicePackService({
         findEnabledByVoiceId: vi.fn(async () => ({
           id: 'vp-premium',
@@ -1496,13 +1497,13 @@ describe('v1CompletionsRoutes', () => {
         undefined,
         undefined,
         undefined,
-        undefined,
+        llmRouter,
         createMockLlmTracing(),
         productEventService,
         voicePackService,
       )
 
-      await app.fetch(
+      const response = await app.fetch(
         new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1520,6 +1521,16 @@ describe('v1CompletionsRoutes', () => {
         }),
         { user: testUser } as any,
       )
+
+      expect(response.status).toBe(200)
+      expect(routeTts).toHaveBeenCalledWith(expect.objectContaining({
+        modelName: 'tts-1',
+        input: expect.objectContaining({
+          text: 'hello',
+          voice: 'upstream-alloy',
+        }),
+      }), expect.any(Object))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
 
     it('should not charge when routeTts upstream returns error', async () => {

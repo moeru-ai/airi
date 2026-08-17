@@ -631,6 +631,7 @@ describe('stripeRoutes', () => {
       const stripeService = createMockStripeService({
         getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
+      const productEventService = { track: vi.fn(async () => undefined) }
       const webhook = createWebhookOperation({
         stripe: {
           webhooks: {
@@ -641,9 +642,20 @@ describe('stripeRoutes', () => {
         fluxService: createMockFluxService(),
         stripeService,
         billingService: createMockBillingService(),
+        productEventService: productEventService as any,
       })
 
       await webhook({ signature: 'test_sig', body: '{}' })
+
+      expect(stripeService.upsertSubscription).toHaveBeenCalledWith(expect.objectContaining({
+        userId: 'user-1',
+        stripeSubscriptionId: 'sub_1',
+        stripeCustomerId: 'cus_1',
+        stripePriceId: 'price_1',
+        status: 'active',
+        cancelAtPeriodEnd: false,
+      }))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
 
     it('records subscription renewals only for subscription-cycle paid invoices', async () => {
@@ -678,6 +690,7 @@ describe('stripeRoutes', () => {
       const stripeService = createMockStripeService({
         getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
+      const productEventService = { track: vi.fn(async () => undefined) }
       const webhook = createWebhookOperation({
         stripe: {
           webhooks: {
@@ -688,9 +701,21 @@ describe('stripeRoutes', () => {
         fluxService: createMockFluxService(),
         stripeService,
         billingService: createMockBillingService(),
+        productEventService: productEventService as any,
       })
 
       await webhook({ signature: 'test_sig', body: '{}' })
+
+      expect(stripeService.upsertInvoice).toHaveBeenCalledWith(expect.objectContaining({
+        userId: 'user-1',
+        stripeInvoiceId: 'inv_1',
+        stripeCustomerId: 'cus_1',
+        stripeSubscriptionId: 'sub_1',
+        status: 'paid',
+        amountDue: 1_200,
+        amountPaid: 1_200,
+      }))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
   })
 })

@@ -11,6 +11,8 @@ export interface PosthogCaptureInput {
   distinctId: string
   event: string
   properties: Record<string, unknown>
+  /** Stable event UUID used by PostHog ingestion for replay deduplication. */
+  uuid?: string
 }
 
 /**
@@ -50,6 +52,7 @@ export function createPosthogSink(options: { projectKey: string, host: string })
           distinctId: input.distinctId,
           event: input.event,
           properties: input.properties,
+          ...(input.uuid && { uuid: input.uuid }),
         })
       }
       catch (err) {
@@ -63,6 +66,7 @@ export function createPosthogSink(options: { projectKey: string, host: string })
           distinctId: input.distinctId,
           event: input.event,
           properties: input.properties,
+          ...(input.uuid && { uuid: input.uuid }),
         })
       }
       catch (err) {
