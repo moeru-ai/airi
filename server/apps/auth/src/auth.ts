@@ -787,11 +787,6 @@ export function createAuth(
               .set({ lastSeenAt: new Date() })
               .where(eq(authSchema.user.id, session.userId))
               .catch(err => logger.withError(err).withFields({ userId: session.userId }).warn('Failed to update user lastSeenAt; continuing session create'))
-            void resourceApi?.trackAuthEvent({
-              userId: session.userId,
-              action: 'session_started',
-              source: 'better-auth.session.create',
-            })
           },
         },
       },

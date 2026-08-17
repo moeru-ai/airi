@@ -74,6 +74,7 @@ describe('productEventService', () => {
       feature: 'billing',
       action: 'payment_completed',
       status: 'succeeded',
+      eventId: 'cs_123',
       metadata: {
         posthog_distinct_id: 'anon-browser-1',
         posthog_session_id: 'ph-session-1',
@@ -84,6 +85,7 @@ describe('productEventService', () => {
       distinctId: 'user-1',
       event: '$identify',
       properties: {
+        $insert_id: 'cs_123',
         $anon_distinct_id: 'anon-browser-1',
         $session_id: 'ph-session-1',
         airi_user_id: 'user-1',
@@ -92,27 +94,30 @@ describe('productEventService', () => {
     expect(capture).toHaveBeenNthCalledWith(2, expect.objectContaining({
       distinctId: 'user-1',
       event: 'payment_completed',
+      properties: expect.objectContaining({ $insert_id: 'cs_123' }),
     }))
   })
 
-  it('does not capture request-volume events', async () => {
-    const capture = vi.fn(async () => {})
+  it('still captures the funnel event when identity merging fails', async () => {
+    const capture = vi.fn()
+      .mockRejectedValueOnce(new Error('identify failed'))
+      .mockResolvedValueOnce(undefined)
     const service = createProductEventService({ capture, shutdown: vi.fn(async () => {}) })
 
-    await service.track({
+    await expect(service.track({
       userId: 'user-1',
-      feature: 'gen_ai_chat',
-      action: 'completion_succeeded',
+      feature: 'billing',
+      action: 'payment_completed',
       status: 'succeeded',
-    })
-    await service.track({
-      userId: 'user-1',
-      feature: 'tts',
-      action: 'speech_succeeded',
-      status: 'succeeded',
-    })
+      eventId: 'cs_456',
+      metadata: { posthog_distinct_id: 'anon-browser-1' },
+    })).resolves.toBeUndefined()
 
-    expect(capture).not.toHaveBeenCalled()
+    expect(capture).toHaveBeenCalledTimes(2)
+    expect(capture).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      event: 'payment_completed',
+      properties: expect.objectContaining({ $insert_id: 'cs_456' }),
+    }))
   })
 
   it('does not fail a business path when capture throws', async () => {

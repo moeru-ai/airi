@@ -175,7 +175,6 @@ export async function buildApp(deps: AppDeps) {
     fluxService: deps.fluxService,
     ttsMeter: deps.ttsMeter,
     requestLogService: deps.requestLogService,
-    productEventService: deps.productEventService,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -522,8 +521,8 @@ export async function createApp() {
   })
 
   const chatService = injeca.provide('services:chats', {
-    dependsOn: { db, otel, productEventService },
-    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement, dependsOn.productEventService),
+    dependsOn: { db, otel },
+    build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
   const stripeService = injeca.provide('services:stripe', {

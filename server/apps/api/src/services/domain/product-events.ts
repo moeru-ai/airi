@@ -12,28 +12,10 @@ export type ProductEventMetadata = Record<string, string | number | boolean | nu
 
 export type ProductAction
   = | 'user_signed_up'
-    | 'session_started'
-    | 'message_pushed'
-    | 'completion_requested'
-    | 'completion_succeeded'
-    | 'completion_failed'
-    | 'speech_requested'
-    | 'speech_succeeded'
-    | 'speech_failed'
-    | 'speech_blocked'
-    | 'voice_pack_created'
-    | 'voice_pack_updated'
-    | 'voice_pack_disabled'
     | 'checkout_started'
     | 'payment_completed'
-    | 'subscription_started'
-    | 'subscription_renewed'
-    | 'subscription_cancelled'
-    | 'topic_classified'
 
-/**
- * Product event fact written to AIRI's own Postgres analytics table.
- */
+/** Product funnel fact forwarded to PostHog from the server. */
 export interface ProductEventInput {
   /** Better Auth user id. Kept in Postgres only; never emitted as a Prometheus label. */
   userId: string
@@ -53,8 +35,8 @@ export interface ProductEventInput {
   reason?: string
   /** Optional primitive metadata for product analysis. Avoid PII and raw prompts. */
   metadata?: ProductEventMetadata
-  /** Retained for call-site compatibility. Product analytics uses capture time. */
-  createdAt?: Date
+  /** Stable source event id used by PostHog for replay-safe deduplication. */
+  eventId?: string
 }
 
 /** Product runtime where the user initiated the AI generation. */
@@ -123,7 +105,7 @@ function stringMetadata(input: ProductEventInput, key: string): string | undefin
  *
  * Expects:
  * - Callers pass only bounded `feature` / `action` / `status` values.
- * - Callers pass only the typed action values in this module.
+ * - Callers pass only the typed funnel actions in this module.
  *
  * Returns:
  * - A best-effort event writer. Capture errors never change the business flow.
@@ -178,25 +160,32 @@ export function createProductEventService(posthog?: PosthogSink | null) {
       if (!posthog || !forwardedEvent)
         return
 
-      try {
-        const posthogDistinctId = stringMetadata(input, 'posthog_distinct_id')
-        const posthogSessionId = stringMetadata(input, 'posthog_session_id')
-        if (posthogDistinctId && posthogDistinctId !== input.userId) {
+      const posthogDistinctId = stringMetadata(input, 'posthog_distinct_id')
+      const posthogSessionId = stringMetadata(input, 'posthog_session_id')
+      if (posthogDistinctId && posthogDistinctId !== input.userId) {
+        try {
           await posthog.capture({
             distinctId: input.userId,
             event: '$identify',
             properties: {
+              ...(input.eventId && { $insert_id: input.eventId }),
               $anon_distinct_id: posthogDistinctId,
               airi_user_id: input.userId,
               ...(posthogSessionId && { $session_id: posthogSessionId }),
             },
           })
         }
+        catch (err) {
+          logger.withError(err).withFields({ action: input.action }).warn('PostHog anonymous identity capture failed')
+        }
+      }
 
+      try {
         await posthog.capture({
           distinctId: input.userId,
           event: forwardedEvent,
           properties: {
+            ...(input.eventId && { $insert_id: input.eventId }),
             app_surface: 'server',
             airi_user_id: input.userId,
             ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),

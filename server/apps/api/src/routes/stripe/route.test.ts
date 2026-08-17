@@ -591,6 +591,7 @@ describe('stripeRoutes', () => {
         feature: 'billing',
         action: 'payment_completed',
         status: 'succeeded',
+        eventId: 'cs_1',
         source: 'stripe.webhook',
         metadata: {
           amount_total: 500,
@@ -604,7 +605,7 @@ describe('stripeRoutes', () => {
       })
     })
 
-    it('records subscription lifecycle product events from Stripe webhooks', async () => {
+    it('processes subscription lifecycle webhooks without product events', async () => {
       const subscriptionEvent = {
         id: 'evt_sub_created',
         type: 'customer.subscription.created',
@@ -627,7 +628,6 @@ describe('stripeRoutes', () => {
           },
         },
       }
-      const productEventService = { track: vi.fn() }
       const stripeService = createMockStripeService({
         getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
@@ -641,22 +641,9 @@ describe('stripeRoutes', () => {
         fluxService: createMockFluxService(),
         stripeService,
         billingService: createMockBillingService(),
-        productEventService: productEventService as any,
       })
 
       await webhook({ signature: 'test_sig', body: '{}' })
-
-      expect(productEventService.track).toHaveBeenCalledWith({
-        userId: 'user-1',
-        feature: 'billing',
-        action: 'subscription_started',
-        status: 'succeeded',
-        source: 'stripe.webhook',
-        metadata: {
-          stripe_price_id: 'price_1',
-          stripe_subscription_status: 'active',
-        },
-      })
     })
 
     it('records subscription renewals only for subscription-cycle paid invoices', async () => {
@@ -688,7 +675,6 @@ describe('stripeRoutes', () => {
           },
         },
       }
-      const productEventService = { track: vi.fn() }
       const stripeService = createMockStripeService({
         getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
@@ -702,23 +688,9 @@ describe('stripeRoutes', () => {
         fluxService: createMockFluxService(),
         stripeService,
         billingService: createMockBillingService(),
-        productEventService: productEventService as any,
       })
 
       await webhook({ signature: 'test_sig', body: '{}' })
-
-      expect(productEventService.track).toHaveBeenCalledWith({
-        userId: 'user-1',
-        feature: 'billing',
-        action: 'subscription_renewed',
-        status: 'succeeded',
-        source: 'stripe.webhook',
-        metadata: {
-          amount_paid: 1200,
-          currency: 'usd',
-          stripe_price_id: null,
-        },
-      })
     })
   })
 })
