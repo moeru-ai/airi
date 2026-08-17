@@ -1,3 +1,5 @@
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
+
 import type { AiriCard } from './airi-card'
 
 import { createPinia, setActivePinia } from 'pinia'
@@ -5,6 +7,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
+
+const syncedRuntime = {
+  isLeader: false,
+  leadershipListener: undefined as ((isLeader: boolean) => void) | undefined,
+  stopLeadershipListener: vi.fn(() => {
+    syncedRuntime.leadershipListener = undefined
+  }),
+}
+
+const syncedPinia = {
+  onLeadershipChange(listener) {
+    syncedRuntime.leadershipListener = listener
+    listener(syncedRuntime.isLeader)
+    return syncedRuntime.stopLeadershipListener
+  },
+} satisfies Pick<SyncedPiniaRuntime, 'onLeadershipChange'>
 
 // NOTICE:
 // Vitest runs these store tests in Node, where localforage cannot select a
@@ -96,6 +114,91 @@ vi.mock('vue-i18n', () => ({
 describe('airi-card store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    syncedRuntime.isLeader = false
+    syncedRuntime.leadershipListener = undefined
+    syncedRuntime.stopLeadershipListener.mockClear()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A follower forwards its startup initialization to the current leader.
+  // The follower therefore has no local active-card watcher when it becomes
+  // the next leader.
+  //
+  // https://github.com/moeru-ai/airi/pull/2304
+  it('reinstalls the card watcher when a follower becomes the leader', async () => {
+    const stageModelStore = useSettingsStageModel()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    const vrmCardId = cardStore.addCard({
+      name: 'VRM card',
+      version: '1.0.0',
+      description: 'Card for the promoted leader.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
+            displayModelId: 'preset-vrm-1',
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+    const live2dCardId = cardStore.addCard({
+      name: 'Live2D card',
+      version: '1.0.0',
+      description: 'Card for the active leader.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: 'mock-consciousness-provider', model: 'mock-consciousness-model' },
+            vision: { provider: 'mock-vision-provider', model: 'mock-vision-model' },
+            speech: { provider: 'mock-speech-provider', model: 'mock-speech-model', voice_id: 'mock-speech-voice' },
+            displayModelId: 'preset-live2d-1',
+          },
+          agents: {},
+        },
+      },
+    }, 'scratch')
+
+    stageModelStore.stageModelSelected = 'preset-live2d-1'
+    cardStore.startRuntime(syncedPinia)
+    cardStore.activeCardId = vrmCardId
+
+    expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
+
+    syncedRuntime.leadershipListener?.(true)
+    expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+
+    cardStore.activeCardId = live2dCardId
+    expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
+
+    syncedRuntime.leadershipListener?.(false)
+    cardStore.activeCardId = vrmCardId
+    expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
+
+    cardStore.disposeRuntime()
+    expect(syncedRuntime.stopLeadershipListener).toHaveBeenCalledTimes(1)
+    expect(syncedRuntime.leadershipListener).toBeUndefined()
+  })
+
+  it('does not create runtime module stores for metadata-only consumers', () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+
+    // ROOT CAUSE:
+    //
+    // The chat session store only reads the active card ID and system prompt,
+    // but creating the card store also created every runtime module store.
+    // The speech store then loaded provider voices in each auxiliary window.
+    useAiriCardStore(pinia)
+
+    expect(pinia.state.value.speech).toBeUndefined()
+    expect(pinia.state.value.consciousness).toBeUndefined()
+    expect(pinia.state.value.vision).toBeUndefined()
   })
 
   /**
