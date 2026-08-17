@@ -91,7 +91,7 @@ if (isLinux) {
   // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
   // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
   const explicitOzonePlatform = app.commandLine.getSwitchValue('ozone-platform')
-  const ozonePlatformHint = app.commandLine.getSwitchValue('ozone-platform-hint') || env.ELECTRON_OZONE_PLATFORM_HINT
+  const ozonePlatformHint = app.commandLine.getSwitchValue('ozone-platform-hint')
 
   let isWayland = false
   if (explicitOzonePlatform) {
