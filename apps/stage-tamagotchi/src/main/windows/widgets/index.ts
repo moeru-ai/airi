@@ -448,7 +448,9 @@ export function setupWidgetsWindowManager(params: {
   }
 
   async function loadWithRoute(window: BrowserWindow, route: string) {
-    await load(window, withHashRoute(rendererBase, route))
+    await load(window, withHashRoute(rendererBase, route, {
+      query: { 'synced-leader': 'false' },
+    }))
     currentRoute = route
   }
 

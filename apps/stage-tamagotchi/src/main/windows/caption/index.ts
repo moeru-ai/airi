@@ -350,7 +350,9 @@ export function setupCaptionWindowManager(params: {
 
     const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption'))
+    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption', {
+      query: { 'synced-leader': 'false' },
+    }))
 
     try {
       context.emit(captionIsFollowingWindowChanged, isFollowing)

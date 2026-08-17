@@ -1,3 +1,5 @@
+import type {} from 'pinia-plugin-synced'
+
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -86,4 +88,8 @@ export const useVisionStore = defineStore('vision', () => {
     getModelsForProvider,
     resetState,
   }
+}, {
+  synced: {
+    state: true,
+  },
 })
