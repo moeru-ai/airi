@@ -4,9 +4,9 @@ import { useLogger } from '@guiiai/logg'
 
 const logger = useLogger('product-events')
 
-export type ProductFeature = 'auth' | 'chat' | 'gen_ai_chat' | 'tts' | 'billing' | 'voice_pack'
+export type ProductFeature = 'auth' | 'billing'
 
-export type ProductEventStatus = 'started' | 'succeeded' | 'failed' | 'blocked'
+export type ProductEventStatus = 'succeeded'
 
 export type ProductEventMetadata = Record<string, string | number | boolean | null>
 
@@ -27,12 +27,6 @@ export interface ProductEventInput {
   status: ProductEventStatus
   /** Optional bounded route/surface label such as `openai.chat.completions`. */
   source?: string
-  /** Optional model alias retained for call-site compatibility. */
-  model?: string
-  /** Optional provider name retained for call-site compatibility. */
-  provider?: string
-  /** Optional bounded failure reason or business outcome. */
-  reason?: string
   /** Optional primitive metadata for product analysis. Avoid PII and raw prompts. */
   metadata?: ProductEventMetadata
   /** Stable source event id used by PostHog for replay-safe deduplication. */
@@ -193,7 +187,6 @@ export function createProductEventService(posthog?: PosthogSink | null) {
             feature: input.feature,
             status: input.status,
             ...(input.source && { source: input.source }),
-            ...(input.reason && { reason: input.reason }),
             ...input.metadata,
           },
         })
