@@ -3,6 +3,7 @@ import type { AuthEnv } from '../env'
 
 import { generateKeyPairSync } from 'node:crypto'
 
+import { getAuthTables } from 'better-auth/db'
 import { decodeJwt, decodeProtectedHeader, importSPKI, jwtVerify } from 'jose'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -57,6 +58,31 @@ describe('createAuth', () => {
     } as unknown as AuthEnv)
 
     expect(auth.options.account?.accountLinking?.allowDifferentEmails).toBe(true)
+  })
+
+  it('registers lastSeenAt as a server-managed Better Auth user field', () => {
+    const auth = createAuth({} as unknown as AuthDatabase, {
+      PUBLIC_URL: 'http://localhost:3000',
+      AUTH_GOOGLE_CLIENT_ID: 'google-client',
+      AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+      AUTH_GITHUB_CLIENT_ID: 'github-client',
+      AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as AuthEnv)
+
+    expect(auth.options.user?.additionalFields?.lastSeenAt).toMatchObject({
+      type: 'date',
+      required: false,
+      input: false,
+      returned: true,
+    })
+    expect(getAuthTables(auth.options).user.fields.lastSeenAt).toMatchObject({
+      type: 'date',
+      required: false,
+      input: false,
+      returned: true,
+    })
   })
 
   it('asks social providers to show the account picker during OAuth authorization', () => {

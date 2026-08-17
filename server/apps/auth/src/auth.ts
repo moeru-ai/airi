@@ -542,6 +542,17 @@ export function createAuth(
     },
 
     user: {
+      // Keep this server-managed activity field in Better Auth's declared
+      // schema so `better-auth generate` preserves it in auth-shared.
+      // Session creation updates it below; clients must never supply it.
+      additionalFields: {
+        lastSeenAt: {
+          type: 'date',
+          required: false,
+          input: false,
+          returned: true,
+        },
+      },
       changeEmail: {
         enabled: true,
         // NOTICE:
