@@ -149,7 +149,6 @@ function createMockProductEventService(): ProductEventService {
   return {
     track: vi.fn(async () => undefined),
     trackGeneration: vi.fn(async () => undefined),
-    countDistinctUsersByFeature: vi.fn(async () => []),
   }
 }
 
@@ -1467,13 +1466,14 @@ describe('v1CompletionsRoutes', () => {
      * @example
      * POST /api/v1/audio/speech { "voice": "alloy" }
      */
-    it('records TTS voice and Voice Pack metadata in product events', async () => {
-      globalThis.fetch = vi.fn(async () => new Response(new Uint8Array([1]), {
+    it('routes TTS requests with Voice Pack metadata', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
         status: 200,
         headers: { 'Content-Type': 'audio/mpeg' },
       }))
 
       const productEventService = createMockProductEventService()
+      const llmRouter = createMockLlmRouter({ routeTts })
       const voicePackService = createMockVoicePackService({
         findEnabledByVoiceId: vi.fn(async () => ({
           id: 'vp-premium',
@@ -1497,13 +1497,13 @@ describe('v1CompletionsRoutes', () => {
         undefined,
         undefined,
         undefined,
-        undefined,
+        llmRouter,
         createMockLlmTracing(),
         productEventService,
         voicePackService,
       )
 
-      await app.fetch(
+      const response = await app.fetch(
         new Request('http://localhost/api/v1/audio/speech', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1522,23 +1522,15 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
 
-      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'speech_succeeded',
-        source: 'manual_preview',
-        metadata: expect.objectContaining({
-          voice_id: 'alloy',
-          voice_type: 'voice_pack',
-          voice_pack_id: 'vp-premium',
+      expect(response.status).toBe(200)
+      expect(routeTts).toHaveBeenCalledWith(expect.objectContaining({
+        modelName: 'tts-1',
+        input: expect.objectContaining({
+          text: 'hello',
+          voice: 'upstream-alloy',
         }),
-      }))
-      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'speech_requested',
-        metadata: expect.objectContaining({
-          voice_id: 'alloy',
-          voice_type: 'voice_pack',
-          voice_pack_id: 'vp-premium',
-        }),
-      }))
+      }), expect.any(Object))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
 
     it('should not charge when routeTts upstream returns error', async () => {
@@ -1568,7 +1560,7 @@ describe('v1CompletionsRoutes', () => {
      * @example
      * routeTts throws ApiError(429, 'TOO_MANY_REQUESTS', 'Too many requests')
      */
-    it('records routeTts ApiError status and reason in product events', async () => {
+    it('preserves routeTts ApiError status and reason', async () => {
       const productEventService = createMockProductEventService()
       const llmRouter = createMockLlmRouter({
         routeTts: vi.fn(async () => {
@@ -1596,19 +1588,9 @@ describe('v1CompletionsRoutes', () => {
       )
 
       expect(res.status).toBe(429)
-      expect(productEventService.track).toHaveBeenCalledWith(
-        expect.objectContaining({
-          action: 'speech_failed',
-          reason: 'TOO_MANY_REQUESTS',
-          metadata: expect.objectContaining({
-            failure_reason: 'TOO_MANY_REQUESTS',
-            http_status: 429,
-          }),
-        }),
-      )
     })
 
-    it('returns 402 and records blocked event for manual TTS when flux is insufficient', async () => {
+    it('returns 402 for manual TTS when flux is insufficient', async () => {
       const productEventService = createMockProductEventService()
       const llmRouter = createMockLlmRouter()
       const app = createTestApp(
@@ -1632,21 +1614,9 @@ describe('v1CompletionsRoutes', () => {
       )
       expect(res.status).toBe(402)
       expect(llmRouter.routeTts).not.toHaveBeenCalled()
-      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'speech_blocked',
-        status: 'blocked',
-        source: 'audio.speech',
-        reason: 'insufficient_balance',
-        metadata: expect.objectContaining({
-          trigger: 'manual',
-          block_reason: 'insufficient_balance',
-          balance_state: 'insufficient',
-          flux_balance_bucket: 'zero',
-        }),
-      }))
     })
 
-    it('returns 204 and records blocked event for auto TTS when flux is insufficient', async () => {
+    it('returns 204 for auto TTS when flux is insufficient', async () => {
       const productEventService = createMockProductEventService()
       const llmRouter = createMockLlmRouter()
       const app = createTestApp(
@@ -1680,18 +1650,6 @@ describe('v1CompletionsRoutes', () => {
       )
       expect(res.status).toBe(204)
       expect(llmRouter.routeTts).not.toHaveBeenCalled()
-      expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
-        action: 'speech_blocked',
-        status: 'blocked',
-        source: 'chat_auto_tts',
-        reason: 'insufficient_balance',
-        metadata: expect.objectContaining({
-          trigger: 'auto',
-          block_reason: 'insufficient_balance',
-          balance_state: 'insufficient',
-          flux_balance_bucket: 'zero',
-        }),
-      }))
     })
 
     it('should not charge when input is empty', async () => {
