@@ -401,7 +401,7 @@ function normalizeVoiceType(value: unknown): TtsVoiceType {
 }
 
 /**
- * Builds reusable low-cardinality voice metadata for every TTS product event.
+ * Builds reusable low-cardinality voice metadata for TTS request telemetry.
  */
 function ttsVoiceMetadata(input: {
   voice?: string

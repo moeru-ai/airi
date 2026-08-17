@@ -389,7 +389,7 @@ function parseTtsSource(
 }
 
 /**
- * Normalizes the client-provided streaming TTS voice bucket for product events.
+ * Normalizes the client-provided streaming TTS voice bucket for request telemetry.
  */
 function parseTtsVoiceType(
   value: string | undefined,
@@ -507,8 +507,8 @@ export async function createApp() {
   })
 
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { db, otel, posthogSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.db, dependsOn.otel?.product, dependsOn.posthogSink),
+    dependsOn: { posthogSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.posthogSink),
   })
 
   const characterService = injeca.provide('services:characters', {
