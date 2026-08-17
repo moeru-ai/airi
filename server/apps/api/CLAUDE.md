@@ -40,7 +40,7 @@ Local observability is maintained in `proj-airi/airi-railway`; run its `otel/doc
 **Layering**:
 - **Routes** (`src/routes/`): thin — param validation (Valibot), auth guards, error mapping. No business logic here.
 - **Services** (`src/services/`): core business logic and DB transactions.
-- **Schemas** (`src/schemas/`): Drizzle table definitions. Migrations in `@proj-airi/drizzle-migration`.
+- **Schemas** (`src/schemas/`): Drizzle table definitions. Drizzle loads migrations from `drizzle/` at startup.
 
 **Middleware chain** (`/api/*`): CORS → hono/logger → optional otel → sessionMiddleware → bodyLimit(1MB) → per-route guards. WebSocket `/ws/chat` registered before bodyLimit.
 
