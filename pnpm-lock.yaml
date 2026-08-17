@@ -1223,6 +1223,9 @@ patchedDependencies:
   sponsorkit@17.1.0:
     hash: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
     path: patches/sponsorkit@17.1.0.patch
+  tab-election@4.6.2:
+    hash: ff8fe3c9aed66469fa00180f039fbf9f4f8e682430bfb3f6a07d9baf3f850674
+    path: patches/tab-election@4.6.2.patch
   uiohook-napi@1.5.5:
     hash: 012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd
     path: patches/uiohook-napi@1.5.5.patch
@@ -33056,7 +33059,7 @@ snapshots:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.50.0
       pinia: 3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3))
-      tab-election: 4.6.2
+      tab-election: 4.6.2(patch_hash=ff8fe3c9aed66469fa00180f039fbf9f4f8e682430bfb3f6a07d9baf3f850674)
       vue: 3.5.32(typescript@5.9.3)
 
   pinia@3.0.4(typescript@5.9.3)(vue@3.5.32(typescript@5.9.3)):
@@ -34700,7 +34703,7 @@ snapshots:
     dependencies:
       '@pkgr/core': 0.2.9
 
-  tab-election@4.6.2: {}
+  tab-election@4.6.2(patch_hash=ff8fe3c9aed66469fa00180f039fbf9f4f8e682430bfb3f6a07d9baf3f850674): {}
 
   tabbable@6.4.0: {}
 

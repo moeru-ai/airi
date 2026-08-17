@@ -34,6 +34,7 @@ patchedDependencies:
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
+  tab-election@4.6.2: patches/tab-election@4.6.2.patch
   uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
