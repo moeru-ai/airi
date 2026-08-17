@@ -10,7 +10,7 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.json ./
 COPY patches/ ./patches/
 COPY server/apps/api server/apps/api
 COPY server/packages/auth-shared server/packages/auth-shared
-COPY packages/server-sdk-shared packages/server-sdk-shared
+COPY server/packages/server-sdk-shared server/packages/server-sdk-shared
 
 RUN pnpm install --frozen-lockfile --ignore-scripts
 

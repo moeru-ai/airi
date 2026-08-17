@@ -1,6 +1,6 @@
 # @proj-airi/server-sdk-shared
 
-Shared event contracts and types for AIRI server SDK consumers and server-side handlers.
+Versioned Eventa contracts for the hosted chat WebSocket.
 
 ## Usage
 
@@ -15,6 +15,11 @@ import type { WireMessage } from '@proj-airi/server-sdk-shared'
 import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 ```
 
+The package exports two Eventa contract sets:
+
+- `@proj-airi/server-sdk-shared/v1` keeps the Eventa `0.3.0` wire format.
+- `@proj-airi/server-sdk-shared/v2` uses Eventa `1.0.0-beta.15`.
+
 ## License
 
-[MIT](../../LICENSE)
+[MIT](../../../LICENSE)

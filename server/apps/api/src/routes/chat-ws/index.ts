@@ -1,22 +1,60 @@
+import type { HonoWsInvocableEventContext } from '@moeru/eventa/adapters/websocket/hono'
 import type Redis from 'ioredis'
 
 import type { EngagementMetrics } from '../../otel'
 import type { ChatService } from '../../services/domain/chats'
+import type { ChatWsRuntime } from './runtime'
 
 import { useLogger } from '@guiiai/logg'
 import { createPeerHooks, wsDisconnectedEvent } from '@moeru/eventa/adapters/websocket/hono'
+import { newMessages } from '@proj-airi/server-sdk-shared/v2'
 
-import { createChatBroadcastCoordinator } from './broadcast'
-import { createChatConnectionRegistry } from './connection-registry'
+import { nanoid } from '../../utils/id'
 import { registerChatRpcHandlers } from './rpc'
+import { createChatWsRuntime } from './runtime'
 
 const log = useLogger('chat-ws').useGlobalConfig()
+
+interface ChatWsHandlerDependencies {
+  chatService: ChatService
+  runtime: ChatWsRuntime
+  metrics?: EngagementMetrics | null
+}
+
+function registerAuthenticatedPeer(
+  ctx: HonoWsInvocableEventContext,
+  userId: string,
+  deps: ChatWsHandlerDependencies,
+): void {
+  const connectionId = nanoid()
+  deps.runtime.registry.add(userId, connectionId, (payload) => {
+    void ctx.emit(newMessages, payload)
+  })
+  deps.runtime.broadcast.ensureSubscribed(userId)
+  log.withFields({ userId }).log('WS connected')
+
+  ctx.on(wsDisconnectedEvent, () => {
+    deps.runtime.registry.remove(userId, connectionId)
+    deps.runtime.broadcast.maybeUnsubscribe(userId)
+    log.withFields({ userId }).log('WS disconnected')
+  })
+
+  registerChatRpcHandlers({
+    ctx,
+    connectionId,
+    userId,
+    chatService: deps.chatService,
+    registry: deps.runtime.registry,
+    broadcast: deps.runtime.broadcast,
+    metrics: deps.metrics,
+  })
+}
 
 /**
  * Creates websocket handlers for chat sync RPC and message fanout.
  *
  * Use when:
- * - Mounting `/ws/chat` after bearer-token auth has resolved a user id.
+ * - Mounting an already authenticated chat peer.
  *
  * Expects:
  * - `instanceId` is stable for this process so Redis echo suppression works.
@@ -30,39 +68,14 @@ export function createChatWsHandlers(
   redis: Redis,
   instanceId: string,
   metrics?: EngagementMetrics | null,
+  runtime?: ChatWsRuntime,
 ) {
-  const registry = createChatConnectionRegistry()
-  const broadcast = createChatBroadcastCoordinator({ redis, registry, instanceId })
-
-  // Pull-based active-connection gauge: walk the local registry on each
-  // export interval and report the actual live count. Registered exactly
-  // once per process here (factory runs once via injeca); duplicate
-  // registration would double-count.
-  metrics?.wsConnectionsActive.addCallback((result) => {
-    result.observe(registry.activeCount())
-  })
+  const chatRuntime = runtime ?? createChatWsRuntime(redis, instanceId, metrics)
 
   return function setupPeer(userId: string) {
     const { hooks } = createPeerHooks({
       onContext: (ctx) => {
-        registry.add(userId, ctx)
-        broadcast.ensureSubscribed(userId)
-        log.withFields({ userId }).log('WS connected')
-
-        ctx.on(wsDisconnectedEvent, () => {
-          registry.remove(userId, ctx)
-          broadcast.maybeUnsubscribe(userId)
-          log.withFields({ userId }).log('WS disconnected')
-        })
-
-        registerChatRpcHandlers({
-          ctx,
-          userId,
-          chatService,
-          registry,
-          broadcast,
-          metrics,
-        })
+        registerAuthenticatedPeer(ctx, userId, { chatService, runtime: chatRuntime, metrics })
       },
     })
     return hooks

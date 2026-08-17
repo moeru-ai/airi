@@ -117,6 +117,7 @@ catalog:
   '@modelcontextprotocol/sdk': ^1.29.0
   '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.0-beta.15
+  '@moeru/eventa-legacy': npm:@moeru/eventa@0.3.0
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.1.0-beta.7
   '@moeru/three-mmd-physics-ammo': 0.1.0-beta.7

@@ -1,5 +1,3 @@
-import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa'
-
 export interface WireMessage {
   id: string
   chatId: string
@@ -39,7 +37,3 @@ export interface NewMessagesPayload {
   fromSeq: number
   toSeq: number
 }
-
-export const sendMessages = defineInvokeEventa<SendMessagesResponse, SendMessagesRequest>('chat:send-messages')
-export const pullMessages = defineInvokeEventa<PullMessagesResponse, PullMessagesRequest>('chat:pull-messages')
-export const newMessages = defineOutboundEventa<NewMessagesPayload>('chat:new-messages')

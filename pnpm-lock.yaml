@@ -246,6 +246,9 @@ catalogs:
     '@moeru/eventa':
       specifier: 1.0.0-beta.15
       version: 1.0.0-beta.15
+    '@moeru/eventa-legacy':
+      specifier: npm:@moeru/eventa@0.3.0
+      version: 0.3.0
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -3926,11 +3929,14 @@ importers:
         specifier: 'catalog:'
         version: 1.4.2(typescript@5.9.3)
 
-  packages/server-sdk-shared:
+  server/packages/server-sdk-shared:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+      '@moeru/eventa-legacy':
+        specifier: 'catalog:'
+        version: '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(web-worker@1.5.0)'
 
   packages/server-shared:
     dependencies:
@@ -4290,7 +4296,7 @@ importers:
         version: link:../server-sdk
       '@proj-airi/server-sdk-shared':
         specifier: workspace:^
-        version: link:../server-sdk-shared
+        version: link:../../server/packages/server-sdk-shared
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared
@@ -5368,6 +5374,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+      '@moeru/eventa-legacy':
+        specifier: 'catalog:'
+        version: '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(web-worker@1.5.0)'
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5427,7 +5436,7 @@ importers:
         version: link:../../packages/auth-shared
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
-        version: link:../../../packages/server-sdk-shared
+        version: link:../../packages/server-sdk-shared
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)

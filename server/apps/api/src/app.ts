@@ -48,6 +48,8 @@ import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsHandlers } from './routes/chat-ws'
+import { createLegacyChatWsHandlers } from './routes/chat-ws/legacy'
+import { createChatWsRuntime } from './routes/chat-ws/runtime'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
@@ -148,9 +150,29 @@ export async function buildApp(deps: AppDeps) {
   // SERVER_INSTANCE_ID, which is fine because we only need uniqueness across
   // simultaneously-running api instances, not across restarts.
   const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
-  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null)
+  const chatWsRuntime = createChatWsRuntime(deps.redis, instanceId, deps.otel?.engagement ?? null)
+  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
+  const legacyChatWsSetup = createLegacyChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 
+  // v1 keeps query-token auth and the Eventa 0.3.0 wire format for deployed
+  // clients. v2 uses the Eventa 1.0.0-beta.15 wire format below.
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
+    const token = c.req.query('token')
+    if (!token)
+      return createUnauthorizedWsEvents()
+
+    const session = await resolveRequestAuth(
+      deps.db,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
+    if (!session?.user)
+      return createUnauthorizedWsEvents()
+
+    return legacyChatWsSetup(session.user.id)
+  }))
+
+  app.get('/ws/v2/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
     if (!token)
       return createUnauthorizedWsEvents()
