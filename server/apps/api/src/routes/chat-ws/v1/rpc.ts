@@ -1,17 +1,18 @@
+import type { HonoWsInvocableEventContext } from '@moeru/eventa-v1/adapters/websocket/hono'
+
 import type { EngagementMetrics } from '../../../otel'
 import type { ChatService } from '../../../services/domain/chats'
 import type { ChatBroadcastCoordinator } from '../broadcast'
 import type { ChatConnectionRegistry } from '../connection-registry'
-import type { ChatWsV1Context } from './adapter'
 
 import { useLogger } from '@guiiai/logg'
-import { defineInvokeHandler } from '@moeru/eventa-legacy'
+import { defineInvokeHandler } from '@moeru/eventa-v1'
 import { pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v1'
 
 const log = useLogger('chat-ws:v1').useGlobalConfig()
 
 interface RegisterChatWsV1RpcHandlersOptions {
-  ctx: ChatWsV1Context
+  ctx: HonoWsInvocableEventContext
   userId: string
   chatService: ChatService
   registry: ChatConnectionRegistry

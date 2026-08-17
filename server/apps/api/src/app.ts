@@ -154,7 +154,7 @@ export async function buildApp(deps: AppDeps) {
   const chatWsV2Setup = createChatWsV2Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
   const chatWsV1Setup = createChatWsV1Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 
-  // v1 keeps query-token auth and the Eventa 0.3.0 wire format for deployed
+  // v1 keeps query-token auth and the Eventa 1.0.0-beta.13 wire format for deployed
   // clients. v2 uses the Eventa 1.0.0-beta.15 wire format below.
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')

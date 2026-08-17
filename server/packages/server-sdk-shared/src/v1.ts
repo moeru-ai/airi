@@ -1,6 +1,6 @@
 import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from './chat'
 
-import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa-legacy'
+import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa-v1'
 
 export type {
   MessageRole,

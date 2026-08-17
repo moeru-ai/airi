@@ -246,9 +246,9 @@ catalogs:
     '@moeru/eventa':
       specifier: 1.0.0-beta.15
       version: 1.0.0-beta.15
-    '@moeru/eventa-legacy':
-      specifier: npm:@moeru/eventa@0.3.0
-      version: 0.3.0
+    '@moeru/eventa-v1':
+      specifier: npm:@moeru/eventa@1.0.0-beta.13
+      version: 1.0.0-beta.13
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -3929,15 +3929,6 @@ importers:
         specifier: 'catalog:'
         version: 1.4.2(typescript@5.9.3)
 
-  server/packages/server-sdk-shared:
-    dependencies:
-      '@moeru/eventa':
-        specifier: 'catalog:'
-        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
-      '@moeru/eventa-legacy':
-        specifier: 'catalog:'
-        version: '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(web-worker@1.5.0)'
-
   packages/server-shared:
     dependencies:
       '@proj-airi/plugin-protocol':
@@ -5374,9 +5365,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
-      '@moeru/eventa-legacy':
+      '@moeru/eventa-v1':
         specifier: 'catalog:'
-        version: '@moeru/eventa@0.3.0(electron@41.2.1)(h3@2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22)))(web-worker@1.5.0)'
+        version: '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)'
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5637,6 +5628,15 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.4.4)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.20.0)(better-sqlite3@12.5.0)(kysely@0.29.4)(pg@8.20.0)(postgres@3.4.9)
+
+  server/packages/server-sdk-shared:
+    dependencies:
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.0-beta.15(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)
+      '@moeru/eventa-v1':
+        specifier: 'catalog:'
+        version: '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)'
 
   services/computer-use-mcp:
     dependencies:
@@ -8240,6 +8240,26 @@ packages:
       electron:
         optional: true
       h3:
+        optional: true
+      web-worker:
+        optional: true
+
+  '@moeru/eventa@1.0.0-beta.13':
+    resolution: {integrity: sha512-zar2haIEkttvDJkBMSv4nEjo3OMhePDwr65nOBJFb6rXLbUjZQ+El6OuPDQZMbuxA+pcKwZhOT6AvamNXxjHfQ==}
+    peerDependencies:
+      '@tauri-apps/api': '>=2'
+      electron: '>=39'
+      h3: '>=2.0.1-rc.22'
+      hono: '>=4.12.25'
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      '@tauri-apps/api':
+        optional: true
+      electron:
+        optional: true
+      h3:
+        optional: true
+      hono:
         optional: true
       web-worker:
         optional: true
@@ -23072,6 +23092,16 @@ snapshots:
     optionalDependencies:
       electron: 41.2.1
       h3: 2.0.1-rc.20(crossws@0.4.5(srvx@0.11.22))
+      web-worker: 1.5.0
+
+  '@moeru/eventa@1.0.0-beta.13(electron@41.2.1)(h3@2.0.1-rc.25)(hono@4.11.3)(web-worker@1.5.0)':
+    dependencies:
+      nanoid: 6.0.1
+      picomatch: 4.0.4
+    optionalDependencies:
+      electron: 41.2.1
+      h3: 2.0.1-rc.25
+      hono: 4.11.3
       web-worker: 1.5.0
 
   '@moeru/eventa@1.0.0-beta.15(electron@40.8.5)(h3@2.0.1-rc.25)(web-worker@1.5.0)':
