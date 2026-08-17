@@ -2,26 +2,26 @@ import type { WSEvents } from 'hono/ws'
 
 import { createPeerContext } from '@moeru/eventa-legacy/adapters/websocket/h3'
 
-import { nanoid } from '../../utils/id'
+import { nanoid } from '../../../utils/id'
 
-export type LegacyChatWsContext = ReturnType<typeof createPeerContext>['context']
+export type ChatWsV1Context = ReturnType<typeof createPeerContext>['context']
 
-interface LegacyChatWsHooksOptions {
-  onContext: (ctx: LegacyChatWsContext) => void
+interface ChatWsV1HooksOptions {
+  onContext: (ctx: ChatWsV1Context) => void
   onDisconnected: () => void
 }
 
 /**
  * Adapts Eventa `0.3.0`'s crossws peer adapter to Hono's WebSocket hooks.
  *
- * The old adapter has no Hono integration. Keep this bridge on `/ws/chat` so
- * deployed clients that use the old Eventa wire format remain supported.
+ * The v1 adapter has no Hono integration. Keep this bridge on `/ws/chat` so
+ * deployed clients that use the v1 Eventa wire format remain supported.
  */
-export function createLegacyChatWsHooks(options: LegacyChatWsHooksOptions): WSEvents {
-  type LegacyPeer = Parameters<typeof createPeerContext>[0]
-  type LegacyMessage = Parameters<NonNullable<ReturnType<typeof createPeerContext>['hooks']['message']>>[1]
+export function createChatWsV1Hooks(options: ChatWsV1HooksOptions): WSEvents {
+  type ChatWsV1Peer = Parameters<typeof createPeerContext>[0]
+  type ChatWsV1Message = Parameters<NonNullable<ReturnType<typeof createPeerContext>['hooks']['message']>>[1]
 
-  let peer: LegacyPeer | undefined
+  let peer: ChatWsV1Peer | undefined
   let messageHandler: ReturnType<typeof createPeerContext>['hooks']['message'] | undefined
 
   return {
@@ -29,7 +29,7 @@ export function createLegacyChatWsHooks(options: LegacyChatWsHooksOptions): WSEv
       peer = {
         id: nanoid(),
         send: data => ws.send(String(data)),
-      } as LegacyPeer
+      } as ChatWsV1Peer
 
       const created = createPeerContext(peer)
       messageHandler = created.hooks.message
@@ -41,7 +41,7 @@ export function createLegacyChatWsHooks(options: LegacyChatWsHooksOptions): WSEv
 
       const message = {
         text: () => String(event.data),
-      } as LegacyMessage
+      } as ChatWsV1Message
       messageHandler(peer, message)
     },
     onClose() {

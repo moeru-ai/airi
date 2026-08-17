@@ -1,26 +1,46 @@
-import type { EngagementMetrics } from '../../otel'
-import type { ChatService } from '../../services/domain/chats'
-import type { ChatBroadcastCoordinator } from './broadcast'
-import type { ChatConnectionRegistry } from './connection-registry'
-import type { LegacyChatWsContext } from './legacy-adapter'
+import type { HonoWsInvocableEventContext } from '@moeru/eventa/adapters/websocket/hono'
+
+import type { EngagementMetrics } from '../../../otel'
+import type { ChatService } from '../../../services/domain/chats'
+import type { ChatBroadcastCoordinator } from '../broadcast'
+import type { ChatConnectionRegistry } from '../connection-registry'
 
 import { useLogger } from '@guiiai/logg'
-import { defineInvokeHandler } from '@moeru/eventa-legacy'
-import { pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v1'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 
-const log = useLogger('chat-ws:v1').useGlobalConfig()
+const log = useLogger('chat-ws').useGlobalConfig()
 
-interface RegisterLegacyChatRpcHandlersOptions {
-  ctx: LegacyChatWsContext
+export interface RegisterChatRpcHandlersOptions {
+  /** Eventa websocket context for the connected peer. */
+  ctx: HonoWsInvocableEventContext
+  /** Authenticated user that owns this websocket connection. */
   userId: string
+  /** Domain service that persists and reads chat messages. */
   chatService: ChatService
+  /** Local websocket registry for same-instance fanout. */
   registry: ChatConnectionRegistry
+  /** Stable id for this connection in the shared version-aware registry. */
   connectionId: string
+  /** Redis coordinator for cross-instance fanout. */
   broadcast: ChatBroadcastCoordinator
+  /** Optional engagement metrics. */
   metrics?: EngagementMetrics | null
 }
 
-export function registerLegacyChatRpcHandlers(options: RegisterLegacyChatRpcHandlersOptions): void {
+/**
+ * Registers chat Eventa RPC handlers on one websocket context.
+ *
+ * Use when:
+ * - A peer context has just been created by the Hono Eventa adapter.
+ *
+ * Expects:
+ * - `chatService` enforces membership and message sequencing.
+ *
+ * Returns:
+ * - Nothing; handlers are attached to the provided context.
+ */
+export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions): void {
   const { ctx, userId, chatService, registry, connectionId, broadcast, metrics } = options
 
   defineInvokeHandler(ctx, sendMessages, async (req) => {

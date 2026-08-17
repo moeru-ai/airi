@@ -47,9 +47,9 @@ import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
-import { createChatWsHandlers } from './routes/chat-ws'
-import { createLegacyChatWsHandlers } from './routes/chat-ws/legacy'
 import { createChatWsRuntime } from './routes/chat-ws/runtime'
+import { createChatWsV1Handlers } from './routes/chat-ws/v1'
+import { createChatWsV2Handlers } from './routes/chat-ws/v2'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
@@ -151,8 +151,8 @@ export async function buildApp(deps: AppDeps) {
   // simultaneously-running api instances, not across restarts.
   const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
   const chatWsRuntime = createChatWsRuntime(deps.redis, instanceId, deps.otel?.engagement ?? null)
-  const chatWsSetup = createChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
-  const legacyChatWsSetup = createLegacyChatWsHandlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
+  const chatWsV2Setup = createChatWsV2Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
+  const chatWsV1Setup = createChatWsV1Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 
   // v1 keeps query-token auth and the Eventa 0.3.0 wire format for deployed
   // clients. v2 uses the Eventa 1.0.0-beta.15 wire format below.
@@ -169,7 +169,7 @@ export async function buildApp(deps: AppDeps) {
     if (!session?.user)
       return createUnauthorizedWsEvents()
 
-    return legacyChatWsSetup(session.user.id)
+    return chatWsV1Setup(session.user.id)
   }))
 
   app.get('/ws/v2/chat', upgradeWebSocket(async (c) => {
@@ -185,7 +185,7 @@ export async function buildApp(deps: AppDeps) {
     if (!session?.user)
       return createUnauthorizedWsEvents()
 
-    return chatWsSetup(session.user.id)
+    return chatWsV2Setup(session.user.id)
   }))
 
   // Bidirectional streaming TTS proxy. The handler factory builds one ws-to-ws
