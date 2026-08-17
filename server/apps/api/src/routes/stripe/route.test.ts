@@ -591,6 +591,7 @@ describe('stripeRoutes', () => {
         feature: 'billing',
         action: 'payment_completed',
         status: 'succeeded',
+        eventId: 'cs_1',
         source: 'stripe.webhook',
         metadata: {
           amount_total: 500,
@@ -604,7 +605,7 @@ describe('stripeRoutes', () => {
       })
     })
 
-    it('records subscription lifecycle product events from Stripe webhooks', async () => {
+    it('processes subscription lifecycle webhooks without product events', async () => {
       const subscriptionEvent = {
         id: 'evt_sub_created',
         type: 'customer.subscription.created',
@@ -627,10 +628,10 @@ describe('stripeRoutes', () => {
           },
         },
       }
-      const productEventService = { track: vi.fn() }
       const stripeService = createMockStripeService({
         getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
+      const productEventService = { track: vi.fn(async () => undefined) }
       const webhook = createWebhookOperation({
         stripe: {
           webhooks: {
@@ -646,17 +647,15 @@ describe('stripeRoutes', () => {
 
       await webhook({ signature: 'test_sig', body: '{}' })
 
-      expect(productEventService.track).toHaveBeenCalledWith({
+      expect(stripeService.upsertSubscription).toHaveBeenCalledWith(expect.objectContaining({
         userId: 'user-1',
-        feature: 'billing',
-        action: 'subscription_started',
-        status: 'succeeded',
-        source: 'stripe.webhook',
-        metadata: {
-          stripe_price_id: 'price_1',
-          stripe_subscription_status: 'active',
-        },
-      })
+        stripeSubscriptionId: 'sub_1',
+        stripeCustomerId: 'cus_1',
+        stripePriceId: 'price_1',
+        status: 'active',
+        cancelAtPeriodEnd: false,
+      }))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
 
     it('records subscription renewals only for subscription-cycle paid invoices', async () => {
@@ -688,10 +687,10 @@ describe('stripeRoutes', () => {
           },
         },
       }
-      const productEventService = { track: vi.fn() }
       const stripeService = createMockStripeService({
         getCustomerByStripeId: vi.fn(async () => createMockStripeCustomer()),
       })
+      const productEventService = { track: vi.fn(async () => undefined) }
       const webhook = createWebhookOperation({
         stripe: {
           webhooks: {
@@ -707,18 +706,16 @@ describe('stripeRoutes', () => {
 
       await webhook({ signature: 'test_sig', body: '{}' })
 
-      expect(productEventService.track).toHaveBeenCalledWith({
+      expect(stripeService.upsertInvoice).toHaveBeenCalledWith(expect.objectContaining({
         userId: 'user-1',
-        feature: 'billing',
-        action: 'subscription_renewed',
-        status: 'succeeded',
-        source: 'stripe.webhook',
-        metadata: {
-          amount_paid: 1200,
-          currency: 'usd',
-          stripe_price_id: null,
-        },
-      })
+        stripeInvoiceId: 'inv_1',
+        stripeCustomerId: 'cus_1',
+        stripeSubscriptionId: 'sub_1',
+        status: 'paid',
+        amountDue: 1_200,
+        amountPaid: 1_200,
+      }))
+      expect(productEventService.track).not.toHaveBeenCalled()
     })
   })
 })

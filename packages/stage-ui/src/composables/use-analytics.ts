@@ -351,11 +351,9 @@ export function useAnalytics() {
   }
 
   // ─── LLM round events (client-known fields only) ──────────────────────
-  // Source-of-truth for HTTP status / token usage / billing stage is the
-  // server, which records them as
-  // Postgres `product_events` rows — deliberately NOT forwarded to PostHog
-  // (per-request volume stays in DB/Grafana). These client emits supply the
-  // user-facing latency picture (TTFT, render time) the server cannot see.
+  // The server owns HTTP status, token usage, and billing state. It records
+  // these request-level facts in operational telemetry, not product analytics.
+  // These client events supply latency data the server cannot observe.
 
   function trackMessageSendStarted(properties: ChatRoundCorrelationProperties & { source: 'text' | 'voice', model?: string }) {
     if (!canCapture())
