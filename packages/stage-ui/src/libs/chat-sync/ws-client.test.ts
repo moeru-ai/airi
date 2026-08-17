@@ -6,18 +6,18 @@ import { buildChatWsUrl, computeReconnectDelay, createChatWsUrlRef, mapStatus, W
 describe('buildChatWsUrl', () => {
   /**
    * @example
-   * "https://api.example.com" + "abc" → "wss://api.example.com/ws/v2/chat?token=abc"
+   * "https://api.example.com" → "wss://api.example.com/ws/v2/chat"
    */
-  it('upgrades https → wss and appends the version-two chat path with a token', () => {
-    expect(buildChatWsUrl('https://api.example.com', 'abc')).toBe('wss://api.example.com/ws/v2/chat?token=abc')
+  it('upgrades https → wss and appends the version-two chat path without a token', () => {
+    expect(buildChatWsUrl('https://api.example.com')).toBe('wss://api.example.com/ws/v2/chat')
   })
 
   /**
    * @example
-   * "http://localhost:3000" + "tok" → "ws://localhost:3000/ws/v2/chat?token=tok"
+   * "http://localhost:3000" → "ws://localhost:3000/ws/v2/chat"
    */
   it('upgrades http → ws on plain origins', () => {
-    expect(buildChatWsUrl('http://localhost:3000', 'tok')).toBe('ws://localhost:3000/ws/v2/chat?token=tok')
+    expect(buildChatWsUrl('http://localhost:3000')).toBe('ws://localhost:3000/ws/v2/chat')
   })
 
   /**
@@ -25,16 +25,16 @@ describe('buildChatWsUrl', () => {
    * Trailing slashes on the server URL must not double up the path.
    */
   it('normalizes trailing slashes', () => {
-    expect(buildChatWsUrl('https://api.example.com/', 'a')).toBe('wss://api.example.com/ws/v2/chat?token=a')
-    expect(buildChatWsUrl('https://api.example.com//', 'a')).toBe('wss://api.example.com/ws/v2/chat?token=a')
+    expect(buildChatWsUrl('https://api.example.com/')).toBe('wss://api.example.com/ws/v2/chat')
+    expect(buildChatWsUrl('https://api.example.com//')).toBe('wss://api.example.com/ws/v2/chat')
   })
 
   /**
    * @example
-   * URL-unsafe token characters get percent-encoded by URLSearchParams.
+   * Existing query parameters, including a legacy token, are removed.
    */
-  it('encodes tokens safely', () => {
-    expect(buildChatWsUrl('https://api.example.com', 'a b+c=')).toBe('wss://api.example.com/ws/v2/chat?token=a+b%2Bc%3D')
+  it('removes query parameters so tokens cannot leak through the URL', () => {
+    expect(buildChatWsUrl('https://api.example.com?token=a%20b%2Bc%3D')).toBe('wss://api.example.com/ws/v2/chat')
   })
 })
 
@@ -142,15 +142,16 @@ describe('createChatWsUrlRef', () => {
   // ROOT CAUSE:
   //
   // The client must read a reactive token source so the client can react to
-  // token rotation. The URL carries the current token for the next upgrade.
+  // token rotation. The URL remains stable; the current token is sent through
+  // chat:authenticate after the socket opens.
   it('rebuilds the URL when getToken reads a reactive ref (token rotation)', () => {
     const enabled = ref(true)
     const tokenRef = ref<string | null>('old-token')
     const url = createChatWsUrlRef(enabled, () => tokenRef.value, 'https://api.example.com')
 
-    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=old-token')
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat')
     tokenRef.value = 'new-token'
-    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=new-token')
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat')
   })
 
   it('freezes ws URL when getToken is non-reactive (regression guard)', () => {
@@ -160,10 +161,11 @@ describe('createChatWsUrlRef', () => {
     let storage: string | null = 'frozen-token'
     const url = createChatWsUrlRef(enabled, () => storage, 'https://api.example.com')
 
-    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=frozen-token')
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat')
     storage = 'rotated-token'
-    // Still the old value. This is the stale-token reconnect regression guard.
-    expect(url.value).toBe('wss://api.example.com/ws/v2/chat?token=frozen-token')
+    // Still the same URL; the token is read at connection time for the
+    // post-connect authenticate invoke.
+    expect(url.value).toBe('wss://api.example.com/ws/v2/chat')
   })
 })
 

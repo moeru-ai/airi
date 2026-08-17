@@ -4,7 +4,7 @@ import type { ComputedRef, Ref } from 'vue'
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
+import { authenticate, newMessages, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -109,17 +109,20 @@ export interface ChatWsClient {
  * - "https://api.airi.build"
  *
  * After:
- * - "wss://api.airi.build/ws/v2/chat?token=abc"
+ * - "wss://api.airi.build/ws/v2/chat"
+ *
+ * The v2 bearer token is sent through `chat:authenticate` after the socket
+ * opens, so it must never be serialized into the WebSocket URL.
  *
  * @internal
  */
-export function buildChatWsUrl(serverUrl: string, token: string): string {
+export function buildChatWsUrl(serverUrl: string): string {
   // Use URL parsing instead of string concat so trailing slashes / paths in
   // serverUrl are normalized cleanly.
   const url = new URL(serverUrl)
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
   url.pathname = `${url.pathname.replace(/\/+$/, '')}/ws/v2/chat`
-  url.searchParams.set('token', token)
+  url.search = ''
   return url.toString()
 }
 
@@ -167,8 +170,8 @@ export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolea
  *
  * Expects:
  * - `serverUrl` includes scheme (https/http). `getToken()` returns a valid JWT
- *   when the socket opens. The token is sent as a query parameter during the
- *   WebSocket upgrade.
+ *   when the socket opens. The token is sent through `chat:authenticate` after
+ *   the WebSocket upgrade.
  *
  * Returns:
  * - A handle exposing connect/disconnect/destroy, RPC functions, and event
@@ -182,7 +185,9 @@ export function mapStatus(vue: 'OPEN' | 'CONNECTING' | 'CLOSED', enabled: boolea
  * Build the reactive ws URL ref `useWebSocket` watches.
  *
  * `getToken` MUST read from a reactive source (Pinia store ref, Vue ref,
- * computed). The reactive dependency rebuilds the URL when the token changes.
+ * computed). The reactive dependency controls whether the client has a token
+ * available to authenticate after the socket opens; the token is not part of
+ * the URL.
  */
 export function createChatWsUrlRef(
   enabled: Ref<boolean>,
@@ -195,7 +200,7 @@ export function createChatWsUrlRef(
     const token = getToken()
     if (!token)
       return undefined
-    return buildChatWsUrl(serverUrl, token)
+    return buildChatWsUrl(serverUrl)
   })
 }
 
@@ -204,7 +209,9 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   // The url ref returns `undefined` when disabled, which makes useWebSocket
   // close cleanly without firing the auto-reconnect loop.
   const enabled = ref(false)
-  const urlRef = createChatWsUrlRef(enabled, options.getToken, options.serverUrl)
+  const tokenRef = computed(options.getToken)
+  const urlRef = createChatWsUrlRef(enabled, () => tokenRef.value, options.serverUrl)
+  const authenticated = ref(false)
 
   // The eventa context is rebuilt on every `onConnected` so RPC + push
   // listeners survive a reconnect by re-binding to the fresh ws.
@@ -270,7 +277,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     }))
   }
 
-  // The URL ref controls the user connection intent and token presence.
+  // The URL ref controls the user connection intent and token presence. The
+  // token itself is sent only after the socket opens through Eventa.
   const ws = useWebSocket<string>(urlRef, {
     immediate: false,
     autoClose: true,
@@ -282,9 +290,26 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       const created = createWsContext(rawWs)
       context.value = created.context
       attachContextListeners(created.context)
+      authenticated.value = false
+
+      const token = tokenRef.value
+      if (!token) {
+        rawWs.close()
+        return
+      }
+
+      void defineInvoke(getAuthenticationContext, authenticate)({ token })
+        .then(() => {
+          authenticated.value = true
+        })
+        .catch((error) => {
+          console.warn('[chat-ws] post-connect authentication failed:', errorMessageFrom(error))
+          rawWs.close(WS_CLOSE_UNAUTHORIZED, 'unauthorized')
+        })
     },
     onDisconnected(_rawWs, ev) {
       disposeContext()
+      authenticated.value = false
       // ROOT CAUSE:
       //
       // useWebSocket's autoReconnect treats every onclose as worth
@@ -295,7 +320,8 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // rotation"; calling `ws.close()` here sets
       // useWebSocket's internal `explicitlyClosed` flag so the next
       // onclose path skips the reconnect schedule. A token change below
-      // closes the old context and starts a new connection with the new URL.
+      // closes the old context and starts a new connection that authenticates
+      // with the new token after opening.
       if (ev.code === WS_CLOSE_UNAUTHORIZED) {
         console.warn('[chat-ws] server rejected auth (4001), pausing reconnect until token rotates')
         ws.close()
@@ -321,7 +347,23 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
     { immediate: true },
   )
 
+  const stopTokenWatch = watch(tokenRef, (token, previousToken) => {
+    if (!enabled.value || token === previousToken)
+      return
+
+    authenticated.value = false
+    ws.close()
+    if (token)
+      ws.open()
+  })
+
   function getContext(): WsEventContext {
+    if (!context.value || !authenticated.value)
+      throw new Error('chat-ws not authenticated')
+    return context.value
+  }
+
+  function getAuthenticationContext(): WsEventContext {
     if (!context.value)
       throw new Error('chat-ws not connected')
     return context.value
@@ -361,6 +403,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       ws.close()
       disposeContext()
       stopStatusWatch()
+      stopTokenWatch()
     },
     sendMessages: req => invokeSendMessages(req),
     pullMessages: req => invokePullMessages(req),

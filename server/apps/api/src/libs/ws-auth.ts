@@ -5,18 +5,20 @@ import type { WSEvents } from 'hono/ws'
  * signal "auth failed, do not reconnect with this token".
  *
  * Use when:
- * - Rejecting a WebSocket connection because the bearer token in the
- *   `?token=` query parameter is missing, invalid, expired, or revoked.
+ * - Rejecting a WebSocket connection because its bearer token is missing,
+ *   invalid, expired, or revoked. Legacy chat clients send it as `?token=`;
+ *   version-two chat clients send it after the upgrade.
  *
  * Expects:
  * - Server: accept the upgrade first, then close with this code inside
- *   `onOpen`. Throwing inside `upgradeWebSocket` produces an HTTP 401
+ *   `onOpen` or an authenticated protocol handler. Throwing inside
+ *   `upgradeWebSocket` produces an HTTP 401
  *   that browsers swallow before the connection enters the WS state
  *   machine, leaving clients with only `code=1006` — indistinguishable
  *   from a transient network drop.
  * - Client: in `onDisconnected`, treat `ev.code === 4001` as a terminal
  *   auth failure for the current token and stop the autoReconnect loop
- *   until a fresh token rotates the URL.
+ *   until a fresh token rotates the connection.
  *
  * NOTICE:
  * - This constant is duplicated in

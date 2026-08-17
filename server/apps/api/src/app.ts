@@ -151,12 +151,26 @@ export async function buildApp(deps: AppDeps) {
   // simultaneously-running api instances, not across restarts.
   const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
   const chatWsRuntime = createChatWsRuntime(deps.redis, instanceId, deps.otel?.engagement ?? null)
-  const chatWsV2Setup = createChatWsV2Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
+  const chatWsV2Setup = createChatWsV2Handlers(
+    deps.chatService,
+    deps.redis,
+    instanceId,
+    async (token) => {
+      const session = await resolveRequestAuth(
+        deps.db,
+        deps.env,
+        new Headers({ Authorization: `Bearer ${token}` }),
+      )
+      return session?.user?.id ?? null
+    },
+    deps.otel?.engagement ?? null,
+    chatWsRuntime,
+  )
   const chatWsV1Setup = createChatWsV1Handlers(deps.chatService, deps.redis, instanceId, deps.otel?.engagement ?? null, chatWsRuntime)
 
   // `/ws/chat` keeps query-token authentication for deployed clients. The
   // Eventa beta.15 adapter accepts their beta.13 envelopes. `/ws/v2/chat`
-  // keeps the versioned endpoint for its updated authentication flow.
+  // authenticates after the connection opens.
   app.get('/ws/chat', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
     if (!token)
@@ -173,21 +187,7 @@ export async function buildApp(deps: AppDeps) {
     return chatWsV1Setup(session.user.id)
   }))
 
-  app.get('/ws/v2/chat', upgradeWebSocket(async (c) => {
-    const token = c.req.query('token')
-    if (!token)
-      return createUnauthorizedWsEvents()
-
-    const session = await resolveRequestAuth(
-      deps.db,
-      deps.env,
-      new Headers({ Authorization: `Bearer ${token}` }),
-    )
-    if (!session?.user)
-      return createUnauthorizedWsEvents()
-
-    return chatWsV2Setup(session.user.id)
-  }))
+  app.get('/ws/v2/chat', upgradeWebSocket(() => chatWsV2Setup()))
 
   // Bidirectional streaming TTS proxy. The handler factory builds one ws-to-ws
   // bridge per connection: client ↔ server/apps/api ↔ unspeech ↔ upstream

@@ -18,6 +18,15 @@ export {
   SendMessagesRequestSchema,
 } from './chat'
 
+export interface AuthenticateRequest {
+  token: string
+}
+
+export interface AuthenticateResponse {
+  userId: string
+}
+
+export const authenticate = defineInvokeEventa<AuthenticateResponse, AuthenticateRequest>('chat:authenticate')
 export const sendMessages = defineInvokeEventa<SendMessagesResponse, SendMessagesRequest>('chat:send-messages')
 export const pullMessages = defineInvokeEventa<PullMessagesResponse, PullMessagesRequest>('chat:pull-messages')
 export const newMessages = defineOutboundEventa<NewMessagesPayload>('chat:new-messages')
