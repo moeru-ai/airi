@@ -106,7 +106,9 @@ if (isLinux) {
 
   if (isWayland) {
     enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
-    app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+    if (!app.commandLine.hasSwitch('ozone-platform-hint')) {
+      app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+    }
   }
   else {
     // NOTICE: Vulkan is incompatible with '--ozone-platform=wayland' in Chromium surface factory.
