@@ -13,14 +13,6 @@ export const user = pgTable('user', {
   banned: boolean('banned').default(false),
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
-  // NOTICE:
-  // Touched in `databaseHooks.session.create.after` (see auth.ts) which
-  // fires on sign-in AND on every OIDC access-token refresh (~hourly), so
-  // this is effectively "last activity" for any user with a live client.
-  // Better Auth has `session.updatedAt` but that's per-session-row; we
-  // want one stable per-user timestamp for DAU-style queries without
-  // joining/aggregating session rows. Nullable so existing rows backfill
-  // lazily on next login instead of needing a migration-time seed.
   lastSeenAt: timestamp('last_seen_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at')

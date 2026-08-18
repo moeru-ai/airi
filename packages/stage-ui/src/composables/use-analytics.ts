@@ -351,11 +351,9 @@ export function useAnalytics() {
   }
 
   // ─── LLM round events (client-known fields only) ──────────────────────
-  // Source-of-truth for HTTP status / token usage / billing stage is the
-  // server, which records them as
-  // Postgres `product_events` rows — deliberately NOT forwarded to PostHog
-  // (per-request volume stays in DB/Grafana). These client emits supply the
-  // user-facing latency picture (TTFT, render time) the server cannot see.
+  // The server owns HTTP status, token usage, and billing state. It records
+  // these request-level facts in operational telemetry, not product analytics.
+  // These client events supply latency data the server cannot observe.
 
   function trackMessageSendStarted(properties: ChatRoundCorrelationProperties & { source: 'text' | 'voice', model?: string }) {
     if (!canCapture())
@@ -525,34 +523,6 @@ export function useAnalytics() {
     if (!canCapture())
       return
     captureAnalyticsEvent('second_turn_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackModelListLoaded(properties: {
-    provider_id: string
-    provider_mode: ProviderMode
-    model_count: number
-    duration_ms: number
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('model_list_loaded', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackModelListFailed(properties: {
-    provider_id: string
-    provider_mode: ProviderMode
-    error_code: string
-    duration_ms: number
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('model_list_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
     })
@@ -1288,8 +1258,6 @@ export function useAnalytics() {
     trackChatActivationFailed,
     trackOfficialProviderSelected,
     trackSecondTurnStarted,
-    trackModelListLoaded,
-    trackModelListFailed,
     trackProviderConfigStarted,
     trackProviderConfigSucceeded,
     trackProviderConfigFailed,
