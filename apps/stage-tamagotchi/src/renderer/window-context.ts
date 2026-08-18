@@ -2,6 +2,8 @@ import type { LeadershipMode } from '@proj-airi/stage-ui/libs/pinia'
 
 /** Describes the synchronization and Stage runtime policy for one renderer. */
 export interface RendererWindowContext {
+  /** Determines whether this renderer represents one user-visible app open. */
+  appEntry: 'primary' | 'auxiliary'
   /** Determines whether this renderer can own synchronized actions. */
   leadership: LeadershipMode
   /** Determines whether this renderer initializes Stage integrations. */
@@ -30,7 +32,7 @@ export function resolveInitialRendererRoutePath(routePath: string, hash = global
  *
  * @example
  * resolveRendererWindowContext('?synced-leader=false&stage-runtime=minimal')
- * // => { leadership: 'follower-only', stageRuntime: 'minimal' }
+ * // => { appEntry: 'auxiliary', leadership: 'follower-only', stageRuntime: 'minimal' }
  */
 export function resolveRendererWindowContext(search = globalThis.location?.search ?? ''): RendererWindowContext {
   const query = new URLSearchParams(search)
@@ -45,6 +47,7 @@ export function resolveRendererWindowContext(search = globalThis.location?.searc
     throw new TypeError(`Invalid stage-runtime query: ${stageRuntime}`)
 
   return {
+    appEntry: syncedLeader === 'true' ? 'primary' : 'auxiliary',
     leadership: syncedLeader === 'true' ? 'leader-only' : 'follower-only',
     stageRuntime: stageRuntime === 'minimal' ? 'minimal' : 'full',
   }

@@ -24,13 +24,13 @@ describe('analytics client', () => {
     }))
 
     expect(client.ensureInitialized(true)).toBe(true)
-    expect(client.capture('app_loaded', { platform: 'web' })).toBe(true)
+    expect(client.capture('app_opened', { app_surface: 'web' })).toBe(true)
     client.identify('user-1')
     await Promise.resolve()
     install?.(adapter)
 
     await vi.waitFor(() => {
-      expect(adapter.capture).toHaveBeenCalledWith('app_loaded', { platform: 'web' }, undefined)
+      expect(adapter.capture).toHaveBeenCalledWith('app_opened', { app_surface: 'web' }, undefined)
     })
     expect(adapter.identify).toHaveBeenCalledWith('user-1')
   })
@@ -41,7 +41,7 @@ describe('analytics client', () => {
     })
 
     expect(client.ensureInitialized(true)).toBe(true)
-    expect(client.capture('app_loaded', { platform: 'web' })).toBe(true)
+    expect(client.capture('app_opened', { app_surface: 'web' })).toBe(true)
     await vi.waitFor(() => {
       expect(client.capture('first_message_sent', {})).toBe(false)
     })

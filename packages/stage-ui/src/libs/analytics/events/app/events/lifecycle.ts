@@ -1,9 +1,9 @@
 import { defineEvent } from '../../../utils/dsl'
 
-export const appLoadedEvent = defineEvent<{
-  platform: 'web' | 'desktop' | 'mobile'
+export const appOpenedEvent = defineEvent<{
+  app_surface: 'web' | 'electron' | 'mobile'
   version: string
-}>('app_loaded')
+}>('app_opened')
 
 export const analyticsSettingChangedEvent = defineEvent<{
   setting_name: 'analytics_enabled'

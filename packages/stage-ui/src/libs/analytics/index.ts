@@ -22,7 +22,7 @@ import {
 } from './client'
 import {
   analyticsSettingChangedEvent,
-  appLoadedEvent,
+  appOpenedEvent,
   characterSwitchedEvent,
   firstMessageSentEvent,
   firstModelSelectedEvent,
@@ -40,6 +40,8 @@ export { defineEvent } from './utils/dsl'
 
 type AnyAnalyticsEvent = AnalyticsEvent<object>
 
+export type AnalyticsAppEntry = 'primary' | 'auxiliary'
+
 /** Minimal analytics boundary that product event modules can depend on. */
 export interface AnalyticsRecorder {
   /** Emits one typed product event when capture is enabled. */
@@ -51,6 +53,14 @@ export interface AnalyticsRecorder {
 function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
   return isStageTamagotchi()
     ? 'desktop'
+    : isStageCapacitor()
+      ? 'mobile'
+      : 'web'
+}
+
+function productAppSurface(): 'web' | 'electron' | 'mobile' {
+  return isStageTamagotchi()
+    ? 'electron'
     : isStageCapacitor()
       ? 'mobile'
       : 'web'
@@ -69,7 +79,7 @@ class Analytics implements AnalyticsRecorder {
   private firstModelSelectedRecorded = false
   private initialized = false
 
-  initialize(): void {
+  initialize(appEntry: AnalyticsAppEntry): void {
     if (this.initialized)
       return
 
@@ -80,10 +90,12 @@ class Analytics implements AnalyticsRecorder {
 
     if (settingsAnalytics.analyticsEnabled && enableAnalytics()) {
       registerAnalyticsBuildInfo(buildInfo)
-      this.emit(appLoadedEvent, {
-        platform: analyticsSurface(),
-        version: buildInfo.version,
-      })
+      if (appEntry === 'primary') {
+        this.emit(appOpenedEvent, {
+          app_surface: productAppSurface(),
+          version: buildInfo.version,
+        })
+      }
     }
 
     if (authStore.isAuthenticated && authStore.user?.id)
@@ -240,8 +252,8 @@ export function disableAnalytics(): void {
 }
 
 /** Starts analytics lifecycle observers after Pinia is available. */
-export function initializeAnalytics(): void {
-  analytics.initialize()
+export function initializeAnalytics(appEntry: AnalyticsAppEntry): void {
+  analytics.initialize(appEntry)
 }
 
 export { configureAnalyticsAdapter, getAnalyticsIdentitySnapshot, isAnalyticsAvailableInBuild }
