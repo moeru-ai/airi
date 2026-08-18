@@ -452,6 +452,29 @@ describe('channel-server store reconnect', () => {
     ])
   })
 
+  it('issue #2313 review: ensureReady resolves false when the connection is disposed while waiting', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    let result: boolean | undefined
+    const readyPromise = store.ensureReady().then((ready) => {
+      result = ready
+    })
+
+    await Promise.resolve()
+    expect(result).toBeUndefined()
+
+    // The app unmounts between authenticated and ready.
+    store.dispose()
+    await readyPromise
+    expect(result).toBe(false)
+  })
+
   it('does not reconnect while the url scheme is not valid', async () => {
     const store = useModsServerChannelStore()
 

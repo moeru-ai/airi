@@ -201,7 +201,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = true
           flush()
           initializeListeners()
-          resolveReadyWaiters()
+          resolveReadyWaiters(true)
 
           if (isReconnect) {
             for (const callback of reconnectedCallbacks) {
@@ -255,21 +255,25 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   // Callers whose messages must not be silently dropped (the consumer-group
   // registration is the load-bearing one: losing it makes the runtime drop
   // every `input:*` until the next reconnect) await this instead.
-  const readyWaiters = new Set<() => void>()
+  const readyWaiters = new Set<(ready: boolean) => void>()
 
-  function resolveReadyWaiters() {
+  function resolveReadyWaiters(ready: boolean) {
     const waiters = [...readyWaiters]
     readyWaiters.clear()
     for (const waiter of waiters) {
-      waiter()
+      waiter(ready)
     }
   }
 
-  function ensureReady(): Promise<void> {
+  // Resolves true once the transport is ready. Resolves false when the
+  // connection is disposed or enters a terminal failure first, so callers
+  // holding the initialize mutex do not hang across an unmount (#2313
+  // review) and can simply skip the work they were waiting to do.
+  function ensureReady(): Promise<boolean> {
     if (client.value?.isReady) {
-      return Promise.resolve()
+      return Promise.resolve(true)
     }
-    return new Promise<void>((resolve) => {
+    return new Promise<boolean>((resolve) => {
       readyWaiters.add(resolve)
     })
   }
@@ -383,6 +387,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function dispose() {
     connectionAttempt += 1
     connectionIdentity = null
+    resolveReadyWaiters(false)
     flush()
     hasEverConnected.value = false
     connected.value = false
