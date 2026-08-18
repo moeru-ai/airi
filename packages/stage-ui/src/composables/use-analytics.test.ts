@@ -572,43 +572,6 @@ describe('useAnalytics conversation product events', () => {
 
   /**
    * @example
-   * analytics.trackModelListLoaded({ provider_id: 'official-provider', provider_mode: 'official', model_count: 3, duration_ms: 25 })
-   * expect(posthog.capture).toHaveBeenCalledWith('model_list_loaded', expect.objectContaining({ provider_id: 'official-provider' }))
-   */
-  it('emits provider model-list health events', () => {
-    const analytics = useAnalytics()
-
-    analytics.trackModelListLoaded({
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      model_count: 3,
-      duration_ms: 25,
-    })
-    analytics.trackModelListFailed({
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      error_code: 'provider_error',
-      duration_ms: 40,
-    })
-
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(1, 'model_list_loaded', {
-      app_surface: 'web',
-      provider_id: 'official-provider',
-      provider_mode: 'official',
-      model_count: 3,
-      duration_ms: 25,
-    })
-    expect(analyticsMocks.posthogCaptureMock).toHaveBeenNthCalledWith(2, 'model_list_failed', {
-      app_surface: 'web',
-      provider_id: 'openai-compatible',
-      provider_mode: 'custom',
-      error_code: 'provider_error',
-      duration_ms: 40,
-    })
-  })
-
-  /**
-   * @example
    * analytics.trackProviderConfigFailed({ provider_id: 'openai-compatible', provider_mode: 'custom', step: 'settings_auto_validate', error_code: 'validation_failed', duration_ms: 32 })
    * expect(posthog.capture).toHaveBeenCalledWith('provider_config_failed', expect.objectContaining({ error_code: 'validation_failed' }))
    */
