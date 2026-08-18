@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
+import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { refDebounced, useIntervalFn } from '@vueuse/core'
@@ -8,6 +9,7 @@ import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import StatusIsland from '../status-island/index.vue'
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
@@ -302,6 +304,12 @@ function resetMainWindowPosition() {
             {{ expanded ? t('tamagotchi.stage.controls-island.collapse') : t('tamagotchi.stage.controls-island.expand') }}
           </template>
         </ControlButtonTooltip>
+
+        <StatusIsland
+          v-if="IS_DEV"
+          :button-style="adjustStyleClasses.button"
+          :icon-class="adjustStyleClasses.icon"
+        />
 
         <ControlButtonTooltip side="left">
           <ControlButton
