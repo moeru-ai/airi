@@ -447,6 +447,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       }
 
       await serverChannelStore.ensureConnected()
+      // #2305: authenticated lands in the transport's prepare phase; the
+      // registration only sticks once the transport is ready, or the runtime
+      // drops every external input:* until the stage reconnects.
+      await serverChannelStore.ensureReady()
 
       registerConsumers()
       disposeHookFns.value.push(serverChannelStore.onReconnected(() => registerConsumers()))

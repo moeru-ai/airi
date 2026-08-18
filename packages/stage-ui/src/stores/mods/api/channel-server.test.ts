@@ -377,6 +377,81 @@ describe('channel-server store reconnect', () => {
     ]))
   })
 
+  it('issue #2305: ensureReady only resolves once the transport reports ready, not at authenticated', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    // The store is connected from the store's perspective, but the transport
+    // has not reached ready yet: ensureReady must still be pending.
+    let resolved = false
+    const readyPromise = store.ensureReady().then(() => {
+      resolved = true
+    })
+
+    await Promise.resolve()
+    expect(resolved).toBe(false)
+
+    client.simulateReconnectReady()
+    await readyPromise
+    expect(resolved).toBe(true)
+  })
+
+  it('issue #2305: flush keeps messages the transport refused instead of dropping them', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+    client.simulateReconnectReady()
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    } as any)
+
+    expect(store.pendingSendCount).toBe(0)
+
+    // The transport goes back to a non-ready state after a transient error;
+    // a queued message must survive a flush that cannot send it.
+    client.simulateTransientDisconnect()
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:voice', mode: 'consumer-group', group: 'chat-ingestion' },
+    } as any)
+    expect(store.pendingSendCount).toBe(1)
+
+    // Refuse one send round: the ready-flush must keep the message queued...
+    const originalSend = client.send.bind(client)
+    client.send = () => false
+    client.simulateReconnectReady()
+    expect(store.pendingSendCount).toBe(1)
+    client.send = originalSend
+
+    // ...and the next ready-flush delivers it exactly once.
+    client.simulateReconnectReady()
+    expect(store.pendingSendCount).toBe(0)
+    const registrations = client.sent.filter((event: any) => event?.type === 'module:consumer:register')
+    expect(registrations).toEqual([
+      // First ready-flush: the input:text registration from before the
+      // transient disconnect.
+      expect.objectContaining({
+        data: expect.objectContaining({ event: 'input:text' }),
+      }),
+      // Second ready-flush: the input:voice registration the refused round
+      // kept queued, delivered exactly once.
+      expect.objectContaining({
+        data: expect.objectContaining({ event: 'input:voice' }),
+      }),
+    ])
+  })
+
   it('does not reconnect while the url scheme is not valid', async () => {
     const store = useModsServerChannelStore()
 

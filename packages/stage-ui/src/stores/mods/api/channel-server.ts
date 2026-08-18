@@ -187,6 +187,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
             connected.value = false
             initializing.value = null
+            resolveReadyWaiters()
             console.warn('WebSocket server connection failed')
           }
         },
@@ -200,6 +201,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = true
           flush()
           initializeListeners()
+          resolveReadyWaiters()
 
           if (isReconnect) {
             for (const callback of reconnectedCallbacks) {
@@ -245,6 +247,31 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!connected.value) {
       return await initialize()
     }
+  }
+
+  // #2305: `module:authenticated` is delivered during the transport's prepare
+  // phase, so `ensureConnected()` resolving there is NOT a guarantee that
+  // `Client.send()` will accept anything — better-ws requires state `ready`.
+  // Callers whose messages must not be silently dropped (the consumer-group
+  // registration is the load-bearing one: losing it makes the runtime drop
+  // every `input:*` until the next reconnect) await this instead.
+  const readyWaiters = new Set<() => void>()
+
+  function resolveReadyWaiters() {
+    const waiters = [...readyWaiters]
+    readyWaiters.clear()
+    for (const waiter of waiters) {
+      waiter()
+    }
+  }
+
+  function ensureReady(): Promise<void> {
+    if (client.value?.isReady) {
+      return Promise.resolve()
+    }
+    return new Promise<void>((resolve) => {
+      readyWaiters.add(resolve)
+    })
   }
 
   function clearListeners() {
@@ -312,11 +339,17 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   function flush() {
     if (client.value && connected.value) {
+      // Keep whatever the transport refused (it returns false outside the
+      // `ready` state) so a later flush — e.g. the one `onReady` runs —
+      // retries it instead of the message being dropped (#2305).
+      const unsent: WebSocketEvent[] = []
       for (const update of pendingSend.value) {
-        client.value.send(update)
+        if (!client.value.send(update)) {
+          unsent.push(update)
+        }
       }
 
-      pendingSend.value = []
+      pendingSend.value = unsent
     }
   }
 
@@ -382,6 +415,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     websocketAuthToken,
     websocketUrl,
     ensureConnected,
+    ensureReady,
 
     initialize,
     send,
