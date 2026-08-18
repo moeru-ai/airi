@@ -92,7 +92,7 @@ onClickOutside(containerRef, () => {
   cancelCreate()
 })
 
-function handleSelection(value: ProfileSelectValue) {
+async function handleSelection(value: ProfileSelectValue) {
   if (value === CREATE_PROFILE_ACTION) {
     selectedProfile.value = activeCardId.value
     void showCreateInput()
@@ -105,7 +105,7 @@ function handleSelection(value: ProfileSelectValue) {
     return
   }
 
-  activeCardId.value = value
+  await cardStore.activateCard(value)
 }
 
 async function showCreateInput() {
@@ -117,19 +117,19 @@ async function showCreateInput() {
   nameInputRef.value?.select()
 }
 
-function confirmCreate() {
+async function confirmCreate() {
   const current = activeCard.value
   const name = newProfileName.value.trim()
   if (!current || !name || isDuplicateName.value) {
     return
   }
 
-  const newId = cardStore.addCard({
+  const newId = await cardStore.addCard({
     ...structuredClone(toRaw(current)),
     name,
   }, 'duplicate')
 
-  activeCardId.value = newId
+  await cardStore.activateCard(newId)
   cancelCreate()
 }
 

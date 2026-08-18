@@ -1,12 +1,11 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
-import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SystemPromptV2 from '../../constants/prompts/system-v2'
@@ -41,11 +40,13 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
 
-  const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map())
-  const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default')
+  // Pinia synchronization owns cross-window updates. Local storage only loads
+  // and saves this renderer's durable copy; listening to storage events here
+  // would create a second cross-window state channel and echo cloned maps.
+  const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map(), { listenToStorageChanges: false })
+  const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default', { listenToStorageChanges: false })
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
-
   function useRuntimeModuleStores() {
     return {
       artistry: useArtistryStore(),
@@ -62,14 +63,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * from an existing card (profile switcher). Required so a new call site
    * can't silently degrade creation attribution.
    */
-  const addCard = (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
+  const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
     captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
 
-  const removeCard = (id: string) => {
+  const removeCard = async (id: string) => {
     // The built-in card is the guaranteed fallback for every runtime profile.
     if (id === 'default')
       return false
@@ -80,14 +81,16 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     // The active id is persisted independently from the card map. Reset it
     // before consumers observe a dangling runtime profile after deletion.
-    if (activeCardId.value === id)
+    if (activeCardId.value === id) {
       activeCardId.value = 'default'
+      applyActiveCardSettings()
+    }
 
     captureAnalyticsEvent('character_deleted', { character_id: id })
     return true
   }
 
-  const updateCard = (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
+  const updateCard = async (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
     const existingCard = cards.value.get(id)
     if (!existingCard)
       return false
@@ -97,7 +100,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       ...updates,
     }
 
-    cards.value.set(id, newAiriCard(updatedCard))
+    const card = newAiriCard(updatedCard)
+    cards.value.set(id, card)
+    if (id === activeCardId.value)
+      applyActiveCardSettings(card)
+
     return true
   }
 
@@ -129,25 +136,37 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  function updateActiveCardDisplayModel(displayModelId: string | undefined) {
-    return updateActiveCardModules(() => ({ displayModelId }))
+  async function updateActiveCardDisplayModel(displayModelId: string | undefined) {
+    const updated = updateActiveCardModules(() => ({ displayModelId }))
+    if (updated)
+      applyActiveCardSettings()
+    return updated
   }
 
-  function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
-    return updateActiveCardModules(() => ({ consciousness }))
+  async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
+    const updated = updateActiveCardModules(() => ({ consciousness }))
+    if (updated)
+      applyActiveCardSettings()
+    return updated
   }
 
-  function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
-    return updateActiveCardModules(() => ({ vision }))
+  async function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
+    const updated = updateActiveCardModules(() => ({ vision }))
+    if (updated)
+      applyActiveCardSettings()
+    return updated
   }
 
-  function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
-    return updateActiveCardModules(({ modules }) => ({
+  async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+    const updated = updateActiveCardModules(({ modules }) => ({
       speech: {
         ...modules.speech,
         ...speech,
       },
     }))
+    if (updated)
+      applyActiveCardSettings()
+    return updated
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
@@ -309,7 +328,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
-    initializeRuntimeModules()
+    applyActiveCardSettings()
+  }
+
+  /**
+   * Selects a card and applies its module settings in the synchronization
+   * leader. Replicated state snapshots never invoke this command.
+   */
+  async function activateCard(id: string) {
+    if (!cards.value.has(id))
+      return false
+
+    activeCardId.value = id
+    applyActiveCardSettings()
+    return true
   }
 
   function applyActiveCardSettings(newCard = activeCard.value) {
@@ -360,55 +392,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
-  let stopLeadershipListener: (() => void) | undefined
-  let stopRuntimeModuleWatcher: (() => void) | undefined
-
-  function initializeRuntimeModules() {
-    if (stopRuntimeModuleWatcher)
-      return
-
-    applyActiveCardSettings()
-
-    // Activation changes the stable card ID, while card editors replace the
-    // active card object without changing that ID. Only the Stage lifecycle
-    // owner applies those settings; metadata-only consumers stay lightweight.
-    stopRuntimeModuleWatcher = watch([activeCardId, activeCard], ([, newCard]) => {
-      applyActiveCardSettings(newCard)
-    }, { flush: 'sync' })
-  }
-
-  function stopRuntimeModules() {
-    stopRuntimeModuleWatcher?.()
-    stopRuntimeModuleWatcher = undefined
-  }
-
-  /**
-   * Keeps renderer-local card settings active only in the current leader.
-   * Repeated calls keep the first listener until {@link disposeRuntime} runs.
-   */
-  function startRuntime(syncedPinia: Pick<SyncedPiniaRuntime, 'onLeadershipChange'>) {
-    if (stopLeadershipListener)
-      return
-
-    stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
-      if (isLeader)
-        initializeRuntimeModules()
-      else
-        stopRuntimeModules()
-    })
-  }
-
-  /** Stops renderer-local card settings and leadership tracking. */
-  function disposeRuntime() {
-    stopRuntimeModules()
-    stopLeadershipListener?.()
-    stopLeadershipListener = undefined
-  }
-
   function resetState() {
-    // Clear card data before the selected ID. Otherwise the synchronous
-    // activation watcher can briefly resolve the old default card and restore
-    // its display model during a full settings reset.
     cards.reset()
     activeCardId.reset()
   }
@@ -427,8 +411,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     getCard,
     resetState,
     initialize,
-    startRuntime,
-    disposeRuntime,
+    activateCard,
 
     currentModels: computed(() => {
       const {
@@ -460,7 +443,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 }, {
   synced: {
-    actions: ['initialize'],
+    actions: [
+      'activateCard',
+      'addCard',
+      'initialize',
+      'removeCard',
+      'updateActiveCardConsciousness',
+      'updateActiveCardDisplayModel',
+      'updateActiveCardSpeech',
+      'updateActiveCardVision',
+      'updateCard',
+    ],
     state: true,
   },
 })

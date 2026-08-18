@@ -302,7 +302,7 @@ watch(() => props.modelValue, (isOpen) => {
 const showError = ref<boolean>(false)
 const errorMessage = ref<string>('')
 
-function saveCard(card: Card, activate: boolean): boolean {
+async function saveCard(card: Card, activate: boolean): Promise<boolean> {
   const draftResult = safeParseAiriCardDraft(toRaw(card), selectedArtistryConfigStr.value)
   if (!draftResult.success) {
     showError.value = true
@@ -342,7 +342,7 @@ function saveCard(card: Card, activate: boolean): boolean {
   let savedCardId: string
   if (isEditMode.value && props.cardId) {
     // Edit mode: update existing card
-    if (!cardStore.updateCard(props.cardId, cardWithModules)) {
+    if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
       showError.value = true
       errorMessage.value = t('settings.pages.card.card_not_found')
       return false
@@ -351,11 +351,11 @@ function saveCard(card: Card, activate: boolean): boolean {
     trackCardEdited({ card_id: props.cardId })
   }
   else {
-    savedCardId = cardStore.addCard(cardWithModules, 'scratch')
+    savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
   }
 
   if (activate)
-    cardStore.activeCardId = savedCardId
+    await cardStore.activateCard(savedCardId)
 
   modelValue.value = false // Close this
   return true

@@ -29,7 +29,7 @@ const activeBackgroundId = computed({
 
     extension.airi.modules.activeBackgroundId = val
 
-    cardStore.updateCard(cardStore.activeCardId, {
+    void cardStore.updateCard(cardStore.activeCardId, {
       ...cardStore.activeCard,
       extensions: extension,
     })

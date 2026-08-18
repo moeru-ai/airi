@@ -61,7 +61,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   // provider's model and chat requests failed upstream with model_not_found.
   //
   // The watcher is synchronous on purpose: call sites assign the provider
-  // first and a new model right after (e.g. use-auth-provider-sync), so a
+  // first and a new model right after, so a
   // deferred reset would wipe the model they just chose. Synchronous flush
   // makes "set provider, then set model" a safe, ordered operation.
   //

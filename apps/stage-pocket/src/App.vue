@@ -1,15 +1,19 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useAuthProviderSync } from '@proj-airi/stage-ui/composables/use-auth-provider-sync'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
-import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
@@ -22,9 +26,8 @@ import OnboardingPermissionsStep from './components/onboarding/step-permissions.
 
 import { getHostWebSocketConnector } from './modules/websocket-bridge'
 
-useAuthProviderSync()
-
 const contextBridgeStore = useContextBridgeStore()
+const authStore = useAuthStore()
 const i18n = useI18n()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
@@ -36,7 +39,11 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
-const syncedPinia = usePiniaSynced()
+useArtistryStore()
+useConsciousnessStore()
+useSpeechStore()
+useSettingsStageModel()
+useVisionStore()
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -75,8 +82,8 @@ watch(settings.themeColorsHueDynamic, () => {
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
   initializeAnalytics()
+  await authStore.initialize()
   await displayModelsStore.initialize()
-  cardStore.startRuntime(syncedPinia)
   await cardStore.initialize()
 
   if (onboardingStore.needsOnboarding) {
@@ -96,7 +103,6 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  cardStore.disposeRuntime()
   contextBridgeStore.dispose()
 })
 
