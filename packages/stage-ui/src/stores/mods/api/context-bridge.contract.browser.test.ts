@@ -26,6 +26,7 @@ const resetStreamMock = vi.fn()
 const refreshSessionMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
+const ensureReadyMock = vi.fn().mockResolvedValue(true)
 const onReconnectedMock = vi.fn(() => () => {})
 const onContextUpdateMock = vi.fn((callback: HookCallback) => registerHook(contextUpdateHooks, callback))
 const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registerServerEventHook(eventName, callback))
@@ -282,6 +283,7 @@ vi.mock('../../providers/provider', () => ({
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
     ensureConnected: ensureConnectedMock,
+    ensureReady: ensureReadyMock,
     onReconnected: onReconnectedMock,
     onContextUpdate: onContextUpdateMock,
     onEvent: onEventMock,
@@ -305,6 +307,8 @@ describe('context bridge contract', () => {
     serverSendMock.mockReset()
     ensureConnectedMock.mockClear()
     ensureConnectedMock.mockResolvedValue(undefined)
+    ensureReadyMock.mockClear()
+    ensureReadyMock.mockResolvedValue(true)
     onReconnectedMock.mockClear()
     onContextUpdateMock.mockClear()
     onEventMock.mockClear()
@@ -344,6 +348,27 @@ describe('context bridge contract', () => {
     disposePinia(pinia)
     vi.restoreAllMocks()
     localStorage.clear()
+  })
+
+  it('skips consumer registration when the ready wait reports the connection went away (#2313)', async () => {
+    ensureReadyMock.mockResolvedValue(false)
+    await useContextBridgeStore().initialize()
+    await Promise.resolve()
+
+    const registrations = serverSendMock.mock.calls.filter(
+      call => call[0]?.type === 'module:consumer:register',
+    )
+    expect(registrations).toEqual([])
+  })
+
+  it('registers consumers once the ready wait reports the transport is ready (#2313)', async () => {
+    await useContextBridgeStore().initialize()
+    await Promise.resolve()
+
+    const registrations = serverSendMock.mock.calls.filter(
+      call => call[0]?.type === 'module:consumer:register',
+    )
+    expect(registrations.length).toBe(3)
   })
 
   it('lists the images and recordings of the turn in the chat message event', async () => {
