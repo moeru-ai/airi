@@ -22,11 +22,13 @@ function handleToggleExpanded(visible: boolean, setVisible: (value: boolean) => 
   if (visible)
     trackDevicePairingQrShown()
 }
-const { authToken, hostname, tlsConfig } = storeToRefs(useServerChannelSettingsStore())
+const { appliedConfig } = storeToRefs(useServerChannelSettingsStore())
 
 const loading = shallowRef(false)
 const payload = shallowRef<ServerChannelQrPayload>()
 const errorMessage = shallowRef('')
+// Only the latest applied-config snapshot can update the rendered QR state.
+let refreshRequestId = 0
 
 const payloadText = computed(() => {
   if (!payload.value) {
@@ -63,22 +65,31 @@ const qrCodeSource = computed(() => {
 })
 
 async function refreshPayload() {
+  const requestId = ++refreshRequestId
   loading.value = true
   errorMessage.value = ''
 
   try {
-    payload.value = await getServerChannelQrPayload()
+    const nextPayload = await getServerChannelQrPayload()
+    if (requestId !== refreshRequestId)
+      return
+
+    payload.value = nextPayload
   }
   catch (error) {
+    if (requestId !== refreshRequestId)
+      return
+
     payload.value = undefined
     errorMessage.value = errorMessageFrom(error) ?? t('settings.pages.connection.qr.errors.unavailable')
   }
   finally {
-    loading.value = false
+    if (requestId === refreshRequestId)
+      loading.value = false
   }
 }
 
-watch([hostname, tlsConfig, authToken], () => {
+watch(appliedConfig, () => {
   void refreshPayload()
 }, { immediate: true })
 </script>
