@@ -2,10 +2,10 @@ import type { AnalyticsSurface } from '../../../surface'
 
 import { defineEvent } from '../../../utils/dsl'
 
-export const appLoadedEvent = defineEvent<{
-  platform: AnalyticsSurface
+export const appOpenedEvent = defineEvent<{
+  app_surface: AnalyticsSurface
   version: string
-}>('app_loaded')
+}>('app_opened')
 
 export const analyticsSettingChangedEvent = defineEvent<{
   setting_name: 'analytics_enabled'
