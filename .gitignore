@@ -85,6 +85,11 @@ components.d.ts
 **/assets/live2d/models/*
 **/assets/vrm/models/*
 
+# Cubism 2 Core provisioned at build time by the Live2D SDK Vite plugin. The Core is
+# proprietary Live2D software and is never redistributed through this repository; each
+# checkout resolves its own copy from a configured source into this working directory.
+packages/stage-ui-live2d/.cubism2/
+
 # Serving fonts locally
 **/public/assets/fonts/
 

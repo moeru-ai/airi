@@ -72,10 +72,13 @@ function createSpacePathSettingsText(): string {
 const appleDoubleHeader = new Uint8Array([0, 5, 22, 7, 0, 2, 0, 0, 77, 97, 99, 32, 79, 83, 32, 88])
 
 describe('live2d zip loader settings sanitization', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.stubGlobal('window', { Live2DCubismCore: {} })
     vi.stubGlobal('FileReader', TestFileReader)
     vi.resetModules()
+    const runtime = await import('pixi-live2d-display/cubism4')
+    const { configureLive2DLoaders } = await import('./live2d-zip-loader')
+    configureLive2DLoaders(runtime)
   })
 
   afterEach(() => {
@@ -238,6 +241,31 @@ describe('live2d zip loader settings sanitization', () => {
 
     expect(settings.physics).toBeUndefined()
     expect(() => settings.validateFiles(files.map(file => file.webkitRelativePath))).not.toThrow()
+  })
+
+  it('keeps loose Cubism 3 archives importable without model3.json', async () => {
+    const { ZipLoader } = await import('pixi-live2d-display/cubism4')
+    const zip = new JSZip()
+    zip.file('loose/avatar.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('loose/textures/avatar.png', new Uint8Array([1, 2, 3]))
+
+    const settings = await ZipLoader.createSettings(zip)
+
+    expect(settings.moc).toBe('loose/avatar.moc3')
+    expect(settings.textures).toEqual(['loose/textures/avatar.png'])
+  })
+
+  it('keeps loose Cubism 3 importable after FileLoader replay', async () => {
+    const { FileLoader } = await import('pixi-live2d-display/cubism4')
+    const files = [
+      fileWithRelativePath(new Uint8Array([77, 79, 67, 51]), 'avatar.moc3', 'loose/avatar.moc3'),
+      fileWithRelativePath(new Uint8Array([1, 2, 3]), 'avatar.png', 'loose/textures/avatar.png'),
+    ]
+
+    const settings = await FileLoader.createSettings(files)
+
+    expect(settings.moc).toBe('loose/avatar.moc3')
+    expect(settings.textures).toEqual(['loose/textures/avatar.png'])
   })
 
   it('loads an OPFS-restored file directory whose settings and resources use CJK paths', async () => {

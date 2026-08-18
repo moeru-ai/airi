@@ -396,9 +396,6 @@ catalogs:
     '@proj-airi/unplugin-fetch':
       specifier: ^0.2.3
       version: 0.2.3
-    '@proj-airi/unplugin-live2d-sdk':
-      specifier: ^0.1.7
-      version: 0.1.7
     '@radix-ui/colors':
       specifier: ^3.0.0
       version: 3.0.0
@@ -1192,6 +1189,7 @@ catalogs:
       version: 0.1.14
 
 overrides:
+  '@proj-airi/unplugin-live2d-sdk': file:./proj-airi-unplugin-live2d-sdk-0.1.7.tgz
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
@@ -1726,8 +1724,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@shikijs/markdown-it':
         specifier: 'catalog:'
         version: 4.0.2
@@ -2204,8 +2202,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.97
@@ -2625,8 +2623,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@shikijs/markdown-it':
         specifier: 'catalog:'
         version: 4.0.2
@@ -4667,6 +4665,9 @@ importers:
       '@lemonneko/crop-empty-pixels':
         specifier: 'catalog:'
         version: 0.1.1
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@pixi/app':
         specifier: 'catalog:'
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -4749,6 +4750,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
       '@types/culori':
         specifier: 'catalog:'
         version: 4.0.1
@@ -10142,8 +10146,9 @@ packages:
     peerDependencies:
       vite: '>= 7'
 
-  '@proj-airi/unplugin-live2d-sdk@0.1.7':
-    resolution: {integrity: sha512-F+yvVx6GLyOxrylnMYVngjFtBbIJp56/4Cl5V6MZzfihu4gRXVRpw6D7xM1B/6vvd3mzyKGV0T/t6DbmEOagng==}
+  '@proj-airi/unplugin-live2d-sdk@file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz':
+    resolution: {integrity: sha512-fyf45VgdQTNxJKQ16oYeSkNgFSvADrTpm7mqLAaRA8eErGX4pYxq8DOkdjlP0rtEKQLBBjGxfmkMHLXHJ9iyxg==, tarball: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz}
+    version: 0.1.7
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -24773,7 +24778,7 @@ snapshots:
       ofetch: 1.5.1
       vite: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)
 
-  '@proj-airi/unplugin-live2d-sdk@0.1.7(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
+  '@proj-airi/unplugin-live2d-sdk@file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)':
     dependencies:
       ofetch: 1.5.1
       vite: 8.0.8(@types/node@25.6.0)(esbuild@0.27.2)(jiti@2.7.0)(less@4.6.4)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3)

@@ -21,6 +21,16 @@ packages:
   - '!**/dist/**'
 
 overrides:
+  # NOTICE:
+  # Resolves the SDK from a packed artifact instead of the registry release.
+  # Every stage app's Vite config imports `Cubism2Core`, which only exists in
+  # the unreleased Cubism 2 Core provisioning work; registry 0.1.7 predates it,
+  # so resolving there makes those configs fail to load. The catalog keeps the
+  # `^0.1.7` range because pnpm catalogs reject the `file:` protocol.
+  # Source/context: built from proj-airi/unplugin-live2d-sdk#2 at
+  # f22d777ba4474dc86a7e3f37dfdcc5609cc6f0e5.
+  # Removal condition: upstream publishes a release that exports `Cubism2Core`.
+  '@proj-airi/unplugin-live2d-sdk': file:./proj-airi-unplugin-live2d-sdk-0.1.7.tgz
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39

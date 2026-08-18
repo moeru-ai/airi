@@ -16,7 +16,8 @@ const validReport: Live2DValidationReport = {
   totalFiles: 42,
   status: 'VALID',
   entryPoint: 'Hiyori/Hiyori.model3.json',
-  structureType: 'Standard (model3.json)',
+  runtimeFamily: 'cubism3-plus',
+  structureType: 'Cubism 3+ (model3.json)',
   errors: [],
   warnings: [],
   checks: [
@@ -24,6 +25,7 @@ const validReport: Live2DValidationReport = {
     'MOC3 Header Valid (Sub-version: 5, Size: 8.74 MB)',
   ],
   mocInfo: {
+    format: 'moc3',
     header: 'MOC3',
     ver: 5,
     size: 9164554,
@@ -35,7 +37,8 @@ const warningReport: Live2DValidationReport = {
   totalFiles: 186,
   status: 'WARNING',
   entryPoint: 'model/elena.model3.json',
-  structureType: 'Standard (model3.json)',
+  runtimeFamily: 'cubism3-plus',
+  structureType: 'Cubism 3+ (model3.json)',
   errors: [],
   warnings: [
     'HEAVY RESOURCE: MOC file is 45.28 MB. This may cause performance issues in web browsers.',
@@ -46,6 +49,7 @@ const warningReport: Live2DValidationReport = {
     'MOC3 Header Valid (Sub-version: 5, Size: 45.28 MB)',
   ],
   mocInfo: {
+    format: 'moc3',
     header: 'MOC3',
     ver: 5,
     size: 47479521,
@@ -57,6 +61,7 @@ const invalidReport: Live2DValidationReport = {
   totalFiles: 17,
   status: 'INVALID',
   entryPoint: null,
+  runtimeFamily: null,
   structureType: 'Unknown',
   errors: [
     'Invalid Structure: No .model3.json found and 0 .moc3 files encountered.',

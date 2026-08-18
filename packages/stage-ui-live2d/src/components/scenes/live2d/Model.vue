@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Application } from '@pixi/app'
+import type { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
 
 import type { PixiLive2DInternalModel } from '../../../composables/live2d'
 
@@ -11,11 +12,11 @@ import { formatHex } from 'culori'
 import { Mutex } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
-import { Live2DFactory, Live2DModel, MotionPriority } from 'pixi-live2d-display/cubism4'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
 import {
   createBeatSyncController,
+  resolveIdleMotionGroup,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -27,7 +28,10 @@ import {
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { disableIdleEyeMovement } from '../../../generations/loader'
 import { useL2dViewControl, useLive2dParams } from '../../../stores'
+import { resolveLive2DRuntime, setupLive2DModel } from '../../../utils/live2d-runtime'
+import { useModelParameterSync } from './model-parameter-sync'
 
 const props = withDefaults(defineProps<{
   modelSrc?: string
@@ -93,12 +97,13 @@ const offset = computed(() => ({
 const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
-const model = ref<Live2DModel<PixiLive2DInternalModel>>()
+const model = shallowRef<PixiLive2DModel<PixiLive2DInternalModel>>()
+const forceMotionPriority = shallowRef<number>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
 const nowSpeaking = toRef(() => props.nowSpeaking)
-const lastUpdateTime = ref(0)
+const lastUpdateAtMs = ref(0)
 
 const { isDark: dark } = useTheme()
 const dropShadowFilter = shallowRef(new DropShadowFilter({
@@ -163,6 +168,7 @@ const {
   motionMap,
   modelParameters,
 } = storeToRefs(live2dStore)
+const applyStoredModelParameters = useModelParameterSync(model, modelParameters)
 
 const themeColorsHue = toRef(() => props.themeColorsHue)
 const themeColorsHueDynamic = toRef(() => props.themeColorsHueDynamic)
@@ -250,16 +256,15 @@ async function loadModel() {
       return
     }
 
+    const { runtime } = await resolveLive2DRuntime()
+    const { Live2DModel, MotionPriority } = runtime
+    forceMotionPriority.value = MotionPriority.FORCE
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await Live2DFactory.setupLive2DModel(live2DModel, { url: modelSrcRef.value, id: props.modelId }, { autoInteract: false })
-    availableMotions.value.forEach((motion) => {
-      if (motion.motionName in Emotion) {
-        motionMap.value[motion.fileName] = motion.motionName
-      }
-      else {
-        motionMap.value[motion.fileName] = EmotionNeutralMotionName
-      }
-    })
+    await setupLive2DModel(runtime, live2DModel, { url: modelSrcRef.value, id: props.modelId }, pixiApp.value!.renderer, { autoInteract: false })
+    if (isUnmounted) {
+      live2DModel.destroy()
+      return
+    }
 
     // --- Scene
 
@@ -285,32 +290,30 @@ async function loadModel() {
     const motionManager = internalModel.motionManager
     coreModel.setParameterValueById('ParamMouthOpenY', mouthOpenSize.value)
 
+    const detectedIdleGroup = resolveIdleMotionGroup(motionManager.definitions)
+    if (detectedIdleGroup)
+      motionManager.groups.idle = detectedIdleGroup
+
+    disableIdleEyeMovement(internalModel)
+
     availableMotions.value = Object
       .entries(motionManager.definitions)
       .flatMap(([motionName, definition]) => (definition?.map((motion: any, index: number) => ({
         motionName,
         motionIndex: index,
-        fileName: motion.File,
+        fileName: motion.File ?? motion.file,
       })) || []))
       .filter(Boolean)
+
+    availableMotions.value.forEach((motion) => {
+      motionMap.value[motion.fileName] = motion.motionName in Emotion
+        ? motion.motionName
+        : EmotionNeutralMotionName
+    })
 
     // Check if user has selected a runtime motion to play as idle
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
     const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
-
-    // Configure the selected motion to loop
-    if (selectedMotionGroup !== null && selectedMotionIndex) {
-      const groupIndex = (motionManager.groups as Record<string, any>)[selectedMotionGroup]
-      if (groupIndex !== undefined && motionManager.motionGroups[groupIndex]) {
-        const motionIndex = Number.parseInt(selectedMotionIndex)
-        const motion = motionManager.motionGroups[groupIndex][motionIndex]
-        if (motion && motion._looper) {
-          // Force the motion to loop
-          motion._looper.loopDuration = 0 // 0 means infinite loop
-          console.info('Configured motion to loop infinitely:', selectedMotionGroup, motionIndex)
-        }
-      }
-    }
 
     if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
       setTimeout(() => {
@@ -320,20 +323,6 @@ async function loadModel() {
           index: Number.parseInt(selectedMotionIndex),
         }
       }, 300)
-    }
-
-    // Remove eye ball movements from idle motion group to prevent conflicts
-    // This is too hacky
-    // FIXME: it cannot blink if loading a model only have idle motion
-    if (motionManager.groups.idle) {
-      motionManager.motionGroups[motionManager.groups.idle]?.forEach((motion) => {
-        motion._motionData.curves.forEach((curve: any) => {
-        // TODO: After emotion mapper, stage editor, eye related parameters should be take cared to be dynamical instead of hardcoding
-          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
-            curve.id = `_${curve.id}`
-          }
-        })
-      })
     }
 
     // This is hacky too
@@ -347,12 +336,12 @@ async function loadModel() {
       live2dForceIdleEyeAnimation,
       live2dAutoBlinkEnabled,
       live2dForceAutoBlinkEnabled,
-      lastUpdateTime,
+      lastUpdateAtMs,
     })
 
     motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
-    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
+    motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'final')
     // Both run in 'final' stage (ignores handled state).
     // Expression first: sets desired parameter values (e.g. closed eyes = 0).
     // Blink second: reads post-expression eye values, Multiply-modulates on top.
@@ -388,28 +377,7 @@ async function loadModel() {
       }
     })
 
-    // Apply all stored parameters to the model
-    coreModel.setParameterValueById('ParamAngleX', modelParameters.value.angleX)
-    coreModel.setParameterValueById('ParamAngleY', modelParameters.value.angleY)
-    coreModel.setParameterValueById('ParamAngleZ', modelParameters.value.angleZ)
-    coreModel.setParameterValueById('ParamEyeLOpen', modelParameters.value.leftEyeOpen)
-    coreModel.setParameterValueById('ParamEyeROpen', modelParameters.value.rightEyeOpen)
-    coreModel.setParameterValueById('ParamEyeSmile', modelParameters.value.leftEyeSmile)
-    coreModel.setParameterValueById('ParamBrowLX', modelParameters.value.leftEyebrowLR)
-    coreModel.setParameterValueById('ParamBrowRX', modelParameters.value.rightEyebrowLR)
-    coreModel.setParameterValueById('ParamBrowLY', modelParameters.value.leftEyebrowY)
-    coreModel.setParameterValueById('ParamBrowRY', modelParameters.value.rightEyebrowY)
-    coreModel.setParameterValueById('ParamBrowLAngle', modelParameters.value.leftEyebrowAngle)
-    coreModel.setParameterValueById('ParamBrowRAngle', modelParameters.value.rightEyebrowAngle)
-    coreModel.setParameterValueById('ParamBrowLForm', modelParameters.value.leftEyebrowForm)
-    coreModel.setParameterValueById('ParamBrowRForm', modelParameters.value.rightEyebrowForm)
-    coreModel.setParameterValueById('ParamMouthOpenY', modelParameters.value.mouthOpen)
-    coreModel.setParameterValueById('ParamMouthForm', modelParameters.value.mouthForm)
-    coreModel.setParameterValueById('ParamCheek', modelParameters.value.cheek)
-    coreModel.setParameterValueById('ParamBodyAngleX', modelParameters.value.bodyAngleX)
-    coreModel.setParameterValueById('ParamBodyAngleY', modelParameters.value.bodyAngleY)
-    coreModel.setParameterValueById('ParamBodyAngleZ', modelParameters.value.bodyAngleZ)
-    coreModel.setParameterValueById('ParamBreath', modelParameters.value.breath)
+    applyStoredModelParameters(coreModel)
 
     // Save SDK manager references so they can be restored if expression is
     // toggled off at runtime.
@@ -453,7 +421,7 @@ async function loadModel() {
 
 /**
  * Initialise the expression controller by reading expression definitions from
- * the model settings (model3.json) and parsing each referenced exp3.json file.
+ * the model settings and parsing each referenced expression file.
  *
  * This is intentionally fire-and-forget from loadModel so that a failure in
  * expression loading does not prevent the model itself from rendering.
@@ -466,8 +434,10 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   if (!settings)
     return
 
-  // model3.json stores expressions as { Name, File }[] under settings.expressions
-  const expressionRefs: { Name: string, File: string }[] = settings.expressions ?? []
+  const expressionRefs: { Name: string, File: string }[] = (settings.expressions ?? []).map((expression: any) => ({
+    Name: expression.Name ?? expression.name,
+    File: expression.File ?? expression.file,
+  }))
   if (expressionRefs.length === 0)
     return
 
@@ -475,6 +445,12 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel)
   // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
   // models the resolved URL points to an in-memory blob/object URL.
   const readExpFile = async (filePath: string): Promise<string> => {
+    const embeddedExpression = settings._expFiles?.find((expression: any) =>
+      expression.fileName === filePath || expression.fileName.endsWith(`/${filePath}`),
+    )
+    if (embeddedExpression)
+      return JSON.stringify(embeddedExpression.data)
+
     const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
     const response = await fetch(resolvedUrl)
     if (!response.ok)
@@ -494,7 +470,7 @@ async function setMotion(motionName: string, index?: number) {
 
   console.info('Setting motion:', motionName, 'index:', index)
   try {
-    await model.value.motion(motionName, index, MotionPriority.FORCE)
+    await model.value.motion(motionName, index, forceMotionPriority.value)
     console.info('Motion started successfully:', motionName)
   }
   catch (error) {
@@ -550,148 +526,6 @@ watch([themeColorsHueDynamic, live2dShadowEnabled], ([dynamic, shadowEnabled]) =
 
 watch(currentMotion, value => setMotion(value.group, value.index))
 watch(paused, value => value ? pixiApp.value?.stop() : pixiApp.value?.start())
-
-// Watch and apply model parameters
-watch(() => modelParameters.value.angleX, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleX', value)
-  }
-})
-
-watch(() => modelParameters.value.angleY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleY', value)
-  }
-})
-
-watch(() => modelParameters.value.angleZ, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamAngleZ', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyeOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeLOpen', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyeOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamEyeROpen', value)
-  }
-})
-
-watch(() => modelParameters.value.mouthOpen, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthOpenY', value)
-  }
-})
-
-watch(() => modelParameters.value.mouthForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamMouthForm', value)
-  }
-})
-
-watch(() => modelParameters.value.cheek, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamCheek', value)
-  }
-})
-
-watch(() => modelParameters.value.bodyAngleX, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleX', value)
-  }
-})
-
-watch(() => modelParameters.value.bodyAngleY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleY', value)
-  }
-})
-
-watch(() => modelParameters.value.bodyAngleZ, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBodyAngleZ', value)
-  }
-})
-
-watch(() => modelParameters.value.breath, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBreath', value)
-  }
-})
-
-// Watch eyebrow parameters
-watch(() => modelParameters.value.leftEyebrowLR, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLX', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowLR, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRX', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyebrowY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLY', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowY, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRY', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyebrowAngle, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLAngle', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowAngle, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRAngle', value)
-  }
-})
-
-watch(() => modelParameters.value.leftEyebrowForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowLForm', value)
-  }
-})
-
-watch(() => modelParameters.value.rightEyebrowForm, (value) => {
-  if (model.value) {
-    const internalModel = model.value.internalModel
-    internalModel.coreModel.setParameterValueById('ParamBrowRForm', value)
-  }
-})
 
 // Watch for idle animation setting changes and stop motions if disabled
 watch(live2dIdleAnimationEnabled, (enabled) => {

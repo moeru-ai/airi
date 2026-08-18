@@ -1,9 +1,10 @@
-import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
+import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display'
 import type { Ref } from 'vue'
 
 import type { BeatSyncController } from './beat-sync'
 import type { useExpressionController } from './expression-controller'
 
+import { loaderForModel } from '../../generations/loader'
 import { useLive2DIdleEyeFocus } from './animation'
 
 type CubismModel = Cubism4InternalModel['coreModel']
@@ -16,10 +17,20 @@ export type PixiLive2DInternalModel = InternalModel & {
 
 export interface MotionManagerUpdateContext {
   model: CubismModel
-  // in seconds
-  now: number
-  // in seconds
-  timeDelta: number
+  /**
+   * Elapsed model time in milliseconds, normalized from whatever unit this
+   * model's generation reports (see {@link useLive2DMotionManagerUpdate}).
+   *
+   * Model-relative, not page-relative. `Live2DModel.elapsedTime` seeds from
+   * `performance.now()` but only advances once the model finishes loading and
+   * joins the shared ticker, and each frame adds a `Ticker.deltaMS` clamped to
+   * `maxElapsedMS`. It is monotonic and every plugin sees the same value, so it
+   * is fine for scheduling *within* the frame loop; it must never be compared
+   * against a timestamp taken outside it.
+   */
+  nowMs: number
+  /** Time since the previous hooked frame, in milliseconds. `0` on the first frame. */
+  deltaMs: number
   hookedUpdate?: (model: CubismModel, now: number) => boolean
 }
 
@@ -40,6 +51,25 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
 
 export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 
+/**
+ * Picks the motion group a model actually idles on, given its motion definitions.
+ *
+ * Cubism 2 archives name the group freely — `idle`, `Idle`, `idle01`, `idle_01`
+ * — while the SDK only ever looks up the single name held in
+ * `motionManager.groups.idle`. Every idle-gated plugin below keys off that
+ * lookup through `ctx.isIdleMotion`, so a model whose group is spelled
+ * differently reads as permanently non-idle: no idle gaze, no forced blink, no
+ * idle-disable handling.
+ *
+ * Returns `undefined` when nothing matches, which leaves the SDK default in place.
+ */
+export function resolveIdleMotionGroup(definitions: Record<string, unknown>): string | undefined {
+  // The separator is optional because both `idle01` and `idle_01` ship in the
+  // wild; the trailing digits are optional because a bare `idle` is the most
+  // common spelling of all.
+  return Object.keys(definitions).find(group => /^idle[-_]?\d*$/i.test(group))
+}
+
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
@@ -50,9 +80,19 @@ export interface UseLive2DMotionManagerUpdateOptions {
   live2dForceIdleEyeAnimation: Ref<boolean>
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
-  lastUpdateTime: Ref<number>
+  /** Owned by the caller so it survives plugin re-registration across model reloads. */
+  lastUpdateAtMs: Ref<number>
 }
 
+/**
+ * Wraps `motionManager.update` so AIRI plugins can read and write model
+ * parameters around the SDK's own motion pass.
+ *
+ * Plugins run in three stages: `pre` (before the SDK update, may claim the frame
+ * via `markHandled`), `post` (after it, skipped once the frame is claimed), and
+ * `final` (after it, always runs). All three receive the same context, and every
+ * timing value on that context is milliseconds regardless of Cubism generation.
+ */
 export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpdateOptions) {
   const {
     internalModel,
@@ -64,8 +104,26 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
     live2dForceIdleEyeAnimation,
     live2dAutoBlinkEnabled,
     live2dForceAutoBlinkEnabled,
-    lastUpdateTime,
+    lastUpdateAtMs,
   } = options
+
+  // NOTICE:
+  // `motionManager.update(model, now)` is handed elapsed *milliseconds* on
+  // Cubism 2 but elapsed *seconds* on Cubism 4: `Cubism4InternalModel.update`
+  // runs `dt /= 1e3; now /= 1e3` before delegating, while
+  // `Cubism2InternalModel.update` forwards the values it received from
+  // `Live2DModel._render` untouched.
+  //
+  // Every constant in the plugins below was originally calibrated against the
+  // Cubism 4 seconds, which made each of them 1000x off once the same hook
+  // started serving Cubism 2 models. Normalizing once here keeps that decision
+  // in one place instead of asking every plugin to guess its own unit.
+  //
+  // Source/context: `node_modules/pixi-live2d-display/dist/cubism4.es.js` and
+  // `dist/cubism2.es.js`, both `update(dt, now)`.
+  //
+  // Removal condition: upstream passes the same unit to both generations.
+  const generationLoader = loaderForModel(internalModel)
 
   const prePlugins: MotionManagerPlugin[] = []
   const postPlugins: MotionManagerPlugin[] = []
@@ -89,7 +147,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   }
 
   function hookUpdate(model: CubismModel, now: number, hookedUpdate?: (model: CubismModel, now: number) => boolean) {
-    const timeDelta = lastUpdateTime.value ? now - lastUpdateTime.value : 0
+    const nowMs = generationLoader.runtimeTimeToMilliseconds(now)
+    const deltaMs = lastUpdateAtMs.value ? nowMs - lastUpdateAtMs.value : 0
     const selectedMotionGroup = localStorage.getItem('selected-runtime-motion-group')
     const isIdleMotion = !motionManager.state.currentGroup
       || motionManager.state.currentGroup === motionManager.groups.idle
@@ -97,8 +156,8 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
     const ctx: MotionManagerPluginContext = {
       model,
-      now,
-      timeDelta,
+      nowMs,
+      deltaMs,
       hookedUpdate,
       internalModel,
       motionManager,
@@ -131,7 +190,7 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
       plugin(ctx)
     }
 
-    lastUpdateTime.value = now
+    lastUpdateAtMs.value = nowMs
     return ctx.handled
   }
 
@@ -145,12 +204,24 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
 export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
   return (ctx) => {
-    beatSync.updateTargets(ctx.now)
+    // Beat segments are stamped by `scheduleBeat` off the audio pipeline, on the
+    // page clock the controller owns; evaluating them has to read that same
+    // clock. `ctx.nowMs` is the model's own elapsed time, which trails page time
+    // by the model's load duration plus every clamped frame since, so segment
+    // starts would sit permanently in its future and the head would never move.
+    beatSync.updateTargets()
 
     // Semi-implicit Euler approach
     const stiffness = 120 // Higher -> Snappier
     const damping = 16 // Higher -> Less bounce
     const mass = 1
+    // The spring integrates against the render loop, so it keeps using the
+    // generation-normalized frame delta rather than the beat clock. Both
+    // coefficients are per-second, so the step has to be seconds too:
+    // integrating with a millisecond step puts it far past the explicit-Euler
+    // stability limit (~2/sqrt(stiffness) = 0.18s) and it diverges within a
+    // couple of frames instead of settling on the target.
+    const dt = ctx.deltaMs / 1000
 
     let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
     let paramAngleY = ctx.model.getParameterValueById('ParamAngleY') as number
@@ -162,8 +233,8 @@ export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): Mot
       const pos = paramAngleX
       const vel = beatSync.velocityX.value
       const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityX.value = vel + accel * ctx.timeDelta
-      paramAngleX = pos + beatSync.velocityX.value * ctx.timeDelta
+      beatSync.velocityX.value = vel + accel * dt
+      paramAngleX = pos + beatSync.velocityX.value * dt
 
       if (Math.abs(target - paramAngleX) < 0.01 && Math.abs(beatSync.velocityX.value) < 0.01) {
         paramAngleX = target
@@ -177,8 +248,8 @@ export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): Mot
       const pos = paramAngleY
       const vel = beatSync.velocityY.value
       const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityY.value = vel + accel * ctx.timeDelta
-      paramAngleY = pos + beatSync.velocityY.value * ctx.timeDelta
+      beatSync.velocityY.value = vel + accel * dt
+      paramAngleY = pos + beatSync.velocityY.value * dt
 
       // Snap
       if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSync.velocityY.value) < 0.01) {
@@ -193,8 +264,8 @@ export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): Mot
       const pos = paramAngleZ
       const vel = beatSync.velocityZ.value
       const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityZ.value = vel + accel * ctx.timeDelta
-      paramAngleZ = pos + beatSync.velocityZ.value * ctx.timeDelta
+      beatSync.velocityZ.value = vel + accel * dt
+      paramAngleZ = pos + beatSync.velocityZ.value * dt
 
       // Snap
       if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSync.velocityZ.value) < 0.01) {
@@ -219,9 +290,11 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
       ctx.motionManager.stopAllMotions()
 
       if (ctx.live2dForceIdleEyeAnimation.value && (!ctx.live2dEyeTrackingEnabled.value || !ctx.live2dEyeFocusSourceActive.value))
-        idleEyeFocus.update(ctx.internalModel, ctx.now)
+        idleEyeFocus.update(ctx.internalModel, ctx.nowMs)
+      // Only Cubism 4 reaches this: `adaptInternalModel` nulls the unusable
+      // Cubism 2 blink. `CubismEyeBlink.updateParameters` takes seconds.
       if (ctx.internalModel.eyeBlink != null) {
-        ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.timeDelta / 1000)
+        ctx.internalModel.eyeBlink.updateParameters(ctx.model, ctx.deltaMs / 1000)
       }
 
       // Apply manual eye parameters after auto eye blink
@@ -233,16 +306,35 @@ export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEye
   }
 }
 
+/**
+ * Drives idle eye saccades, and through `internalModel.focusController` the head
+ * sway the SDK derives from them.
+ *
+ * Register this in the `final` phase. It deliberately ignores `ctx.handled`,
+ * which is set for every frame an idle motion actually updates parameters, so
+ * the saccade schedule keeps advancing while an idle motion plays instead of
+ * stalling until the motion queue happens to go quiet.
+ *
+ * The plugin only retargets the focus controller; both generations apply
+ * `updateFocus()` additively once `motionManager.update` returns
+ * (`Cubism2InternalModel.update` and `Cubism4InternalModel.update`), so the
+ * gaze lands on top of the idle motion's own curves the same way on each.
+ */
 export function useMotionUpdatePluginIdleFocus(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
   return (ctx) => {
-    if (!ctx.isIdleMotion || ctx.handled)
+    if (!ctx.isIdleMotion)
+      return
+    // Idle animation being off is `useMotionUpdatePluginIdleDisable`'s branch: it
+    // stops the motion queue and calls idle focus itself. Running here as well
+    // would drive a second, competing saccade schedule against the same model.
+    if (!ctx.live2dIdleAnimationEnabled.value)
       return
     if (!ctx.live2dForceIdleEyeAnimation.value)
       return
     if (ctx.live2dEyeTrackingEnabled.value && ctx.live2dEyeFocusSourceActive.value)
       return
 
-    idleEyeFocus.update(ctx.internalModel, ctx.now)
+    idleEyeFocus.update(ctx.internalModel, ctx.nowMs)
   }
 }
 
@@ -352,8 +444,8 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
       // Force ON or eyeBlink null: timer blink + markHandled.
       if (ctx.live2dForceAutoBlinkEnabled.value || !ctx.internalModel.eyeBlink) {
-        const safeDt = ctx.timeDelta * 1000 || 16
-        const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDt, baseLeft, baseRight)
+        const safeDtMs = ctx.deltaMs || 16
+        const { eyeLOpen, eyeROpen } = updateForcedBlink(safeDtMs, baseLeft, baseRight)
         ctx.model.setParameterValueById('ParamEyeLOpen', eyeLOpen)
         ctx.model.setParameterValueById('ParamEyeROpen', eyeROpen)
         ctx.markHandled()
@@ -361,7 +453,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
       }
 
       // SDK eyeBlink path: explicit call → read back → multiply by base → markHandled.
-      ctx.internalModel.eyeBlink!.updateParameters(ctx.model, ctx.timeDelta / 1000)
+      ctx.internalModel.eyeBlink!.updateParameters(ctx.model, ctx.deltaMs / 1000)
       const blinkLeft = ctx.model.getParameterValueById('ParamEyeLOpen') as number
       const blinkRight = ctx.model.getParameterValueById('ParamEyeROpen') as number
       ctx.model.setParameterValueById('ParamEyeLOpen', clamp01(blinkLeft * baseLeft))
@@ -419,8 +511,8 @@ export function useMotionUpdatePluginAutoEyeBlink(
 
     // Advance blink timer.
     const wasActive = blinkState.phase !== 'idle'
-    const safeDt = ctx.timeDelta * 1000 || 16
-    const { eyeLOpen: blinkFactorL, eyeROpen: blinkFactorR } = updateForcedBlink(safeDt, 1.0, 1.0)
+    const safeDtMs = ctx.deltaMs || 16
+    const { eyeLOpen: blinkFactorL, eyeROpen: blinkFactorR } = updateForcedBlink(safeDtMs, 1.0, 1.0)
 
     // Blink cycle complete: restore exact pre-blink values.
     if (wasActive && blinkState.phase === 'idle') {
@@ -504,13 +596,13 @@ export function useMotionUpdatePluginLipSync(
         // hold so a non-zero idle motion curve cannot reopen it on the first
         // idle frame. After the hold we stop owning the parameter and let
         // motion/expression plugins drive it again.
-        handoffRemainingMs = Math.max(0, handoffRemainingMs - ctx.timeDelta * 1000)
+        handoffRemainingMs = Math.max(0, handoffRemainingMs - ctx.deltaMs)
         ctx.model.setParameterValueById('ParamMouthOpenY', 0)
       }
       return
     }
 
-    releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.timeDelta * 1000)
+    releaseRemainingMs = Math.max(0, releaseRemainingMs - ctx.deltaMs)
     const blend = smoothstep(1 - releaseRemainingMs / RELEASE_DURATION_MS)
 
     // ParamMouthOpenY was already written by motion + expression plugins this frame.
