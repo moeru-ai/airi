@@ -14,7 +14,7 @@ import type { ProviderMetadata, ProviderValidationPlan } from '../../libs/provid
 import type { ModelInfo, ProviderDefinition, ProviderInstance, VoiceInfo } from '../../libs/providers/types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { isCustomProvidersDisabled, isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { computedAsync, useIntervalFn } from '@vueuse/core'
 import { listModels } from '@xsai/model'
 import { uniqBy } from 'es-toolkit'
@@ -22,7 +22,6 @@ import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { captureAnalyticsEvent, enableAnalytics, isAnalyticsAvailableInBuild } from '../../libs/analytics'
 import {
   CHAT_COMPLETIONS_VALIDATOR_ID,
   getProviderValidationIntervalMs,
@@ -33,80 +32,7 @@ import {
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
 import { useAuthStore } from '../auth'
-import { useSettingsAnalytics } from '../settings/analytics'
 import { useProviderConfigStore } from './config'
-
-/**
- * Classifies provider ids into bounded analytics buckets.
- */
-function analyticsProviderMode(providerId: string): 'official' | 'custom' | 'unknown' {
-  if (!providerId)
-    return 'unknown'
-  return providerId.startsWith('official-provider') || providerId.startsWith('vision-official-provider') ? 'official' : 'custom'
-}
-
-/**
- * Resolves the current app surface without importing the analytics store.
- */
-function analyticsSurface(): 'web' | 'mobile' | 'electron' {
-  if (isStageTamagotchi())
-    return 'electron'
-
-  if (isStageCapacitor())
-    return 'mobile'
-
-  return 'web'
-}
-
-/**
- * Checks analytics settings and initializes PostHog without loading build metadata.
- */
-function canCaptureProviderAnalytics(): boolean {
-  if (!isAnalyticsAvailableInBuild())
-    return false
-
-  const settingsAnalytics = useSettingsAnalytics()
-  if (!settingsAnalytics.analyticsEnabled)
-    return false
-
-  return enableAnalytics()
-}
-
-/**
- * Emits model-list analytics from the provider store without loading build metadata.
- */
-function trackModelListLoaded(properties: {
-  provider_id: string
-  provider_mode: 'official' | 'custom' | 'unknown'
-  model_count: number
-  duration_ms: number
-}) {
-  if (!canCaptureProviderAnalytics())
-    return
-
-  captureAnalyticsEvent('model_list_loaded', {
-    ...properties,
-    app_surface: analyticsSurface(),
-  })
-}
-
-/**
- * Emits model-list failure analytics from the provider store without loading build metadata.
- */
-function trackModelListFailed(properties: {
-  provider_id: string
-  provider_mode: 'official' | 'custom' | 'unknown'
-  error_code: string
-  duration_ms: number
-}) {
-  if (!canCaptureProviderAnalytics())
-    return
-
-  captureAnalyticsEvent('model_list_failed', {
-    ...properties,
-    app_surface: analyticsSurface(),
-  })
-}
 
 export type { ModelInfo, VoiceInfo } from '../../libs/providers/types'
 
@@ -652,7 +578,6 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Function to fetch models for a specific provider
   async function fetchModelsForProvider(providerId: string) {
-    const startedAt = Date.now()
     const definition = findProviderDefinition(providerId)
     if (!definition)
       return []
@@ -698,22 +623,10 @@ export const useProviderStore = defineStore('provider', () => {
             modelError: null,
           },
         }
-        trackModelListLoaded({
-          provider_id: providerId,
-          provider_mode: analyticsProviderMode(providerId),
-          model_count: normalizedModels.length,
-          duration_ms: Date.now() - startedAt,
-        })
         // Synced action results pass through structuredClone. Return the local
         // array because reading the same array from state returns a Vue proxy.
         return normalizedModels
       }
-      trackModelListLoaded({
-        provider_id: providerId,
-        provider_mode: analyticsProviderMode(providerId),
-        model_count: 0,
-        duration_ms: Date.now() - startedAt,
-      })
       return []
     }
     catch (error) {
@@ -729,12 +642,6 @@ export const useProviderStore = defineStore('provider', () => {
           },
         }
       }
-      trackModelListFailed({
-        provider_id: providerId,
-        provider_mode: analyticsProviderMode(providerId),
-        error_code: 'provider_error',
-        duration_ms: Date.now() - startedAt,
-      })
       return []
     }
   }

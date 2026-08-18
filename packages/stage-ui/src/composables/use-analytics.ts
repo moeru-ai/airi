@@ -528,34 +528,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackModelListLoaded(properties: {
-    provider_id: string
-    provider_mode: ProviderMode
-    model_count: number
-    duration_ms: number
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('model_list_loaded', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackModelListFailed(properties: {
-    provider_id: string
-    provider_mode: ProviderMode
-    error_code: string
-    duration_ms: number
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('model_list_failed', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
   function trackProviderConfigStarted(properties: ProviderConfigBaseProperties) {
     if (!canCapture())
       return
@@ -1286,8 +1258,6 @@ export function useAnalytics() {
     trackChatActivationFailed,
     trackOfficialProviderSelected,
     trackSecondTurnStarted,
-    trackModelListLoaded,
-    trackModelListFailed,
     trackProviderConfigStarted,
     trackProviderConfigSucceeded,
     trackProviderConfigFailed,
