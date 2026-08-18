@@ -168,12 +168,12 @@ export interface GatewayMetrics {
    */
   upstreamErrors: Counter
   /**
-   * All keys (across all upstreams) failed in a single request — the user gets
-   * a 5xx. Primary alert source for user-facing degradation.
-   * Recommended label: `provider`.
+   * The configured route exhausted every allowed key and upstream in one
+   * request. The user gets a 5xx. Primary alert source for user-facing
+   * degradation. Recommended labels: `provider`, `status_code`, `surface`.
    *
    * Recommended alert:
-   *   `increase(airi_gen_ai_gateway_key_exhausted_total[5m]) > 0` → page on-call.
+   *   Filter to operational status codes before paging on this metric.
    */
   keyExhaustedCount: Counter
   /**
