@@ -9,6 +9,8 @@ import {
   computeResizedBoundsAnchoredToDominantDisplay,
   heightFrom,
   mapForBreakpoints,
+  rectanglesOverlap,
+  restoreWindowBounds,
   widthFrom,
 } from './display'
 
@@ -237,5 +239,59 @@ describe('centerWindowOnDisplay', () => {
       show: vi.fn(),
     })).toThrowError('Main AIRI window is not available.')
     expect(getBounds).not.toHaveBeenCalled()
+  })
+})
+
+describe('restoreWindowBounds', () => {
+  const primaryWorkArea = { x: 0, y: 25, width: 1440, height: 875 }
+
+  // ROOT CAUSE:
+  //
+  // Issue #2181: https://github.com/moeru-ai/airi/issues/2181
+  //
+  // If saved main-window bounds are outside the current display work area, the AIRI window can restore off-screen.
+  // This happens because persisted Electron bounds may come from a removed display or a prior partially visible position.
+  //
+  // Before the patch, startup reused those persisted coordinates directly and left the window unreachable.
+  //
+  // We fixed this by clamping saved bounds into the matching work area, and by falling back to the primary work area
+  // when the saved display is no longer available.
+  it('moves a fully off-screen window from Issue #2181 into the matching display work area', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: -2000, y: -900, width: 450, height: 600 },
+      matchingWorkArea: primaryWorkArea,
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 0, y: 25, width: 450, height: 600 })
+  })
+
+  it('keeps a partially off-screen window fully reachable', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: -200, y: 700, width: 450, height: 600 },
+      matchingWorkArea: primaryWorkArea,
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 0, y: 300, width: 450, height: 600 })
+  })
+
+  it('uses the fallback work area when the saved display is unavailable', () => {
+    expect(restoreWindowBounds({
+      savedBounds: { x: 5000, y: 5000, width: 450, height: 600 },
+      fallbackWorkArea: primaryWorkArea,
+    })).toEqual({ x: 990, y: 300, width: 450, height: 600 })
+  })
+})
+
+describe('rectanglesOverlap', () => {
+  it('recognizes a window that intersects a current display', () => {
+    expect(rectanglesOverlap(
+      { x: 1200, y: 100, width: 450, height: 600 },
+      { x: 0, y: 0, width: 1440, height: 900 },
+    )).toBe(true)
+  })
+
+  it('rejects bounds that belong to a disconnected display', () => {
+    expect(rectanglesOverlap(
+      { x: 5000, y: 5000, width: 450, height: 600 },
+      { x: 0, y: 0, width: 1440, height: 900 },
+    )).toBe(false)
   })
 })
