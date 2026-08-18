@@ -74,7 +74,7 @@ watch(settings.themeColorsHueDynamic, () => {
 
 // Initialize first-time setup check when app mounts
 onMounted(async () => {
-  initializeAnalytics()
+  initializeAnalytics('primary')
   await displayModelsStore.initialize()
   cardStore.startRuntime(syncedPinia)
   await cardStore.initialize()

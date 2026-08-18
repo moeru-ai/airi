@@ -212,7 +212,7 @@ function createFullStageRuntime() {
 
   return {
     async initialize() {
-      initializeAnalytics()
+      initializeAnalytics(windowContext.appEntry)
       await displayModelsStore.initialize()
       cardStore.startRuntime(syncedPinia)
       await cardStore.initialize()

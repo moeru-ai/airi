@@ -30,6 +30,11 @@ describe('resolveRendererWindowContext', () => {
     })
   })
 
+  it('counts only the main renderer as an app entry', () => {
+    expect(resolveRendererWindowContext('?synced-leader=true').appEntry).toBe('primary')
+    expect(resolveRendererWindowContext('?synced-leader=false').appEntry).toBe('auxiliary')
+  })
+
   it('uses the full Stage runtime unless the query selects the minimal runtime', () => {
     expect(resolveRendererWindowContext('?synced-leader=true').stageRuntime).toBe('full')
     expect(resolveRendererWindowContext('?synced-leader=false').stageRuntime).toBe('full')
