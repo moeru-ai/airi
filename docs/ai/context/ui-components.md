@@ -258,6 +258,7 @@ Basic text/number input.
 | `type` | `InputType?` | — | HTML input type |
 | `variant` | `'primary' \| 'secondary' \| 'primary-dimmed'` | `'primary'` | Visual variant |
 | `size` | `'sm' \| 'md' \| 'lg'` | `'md'` | Size |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 
 **v-model**: `modelValue: string | number`
 
@@ -517,6 +518,7 @@ All Field components wrap a base input with `label`, `description`, and consiste
 | `description` | `string?` | — | Helper text |
 | `placeholder` | `string?` | — | Placeholder |
 | `required` | `boolean?` | — | Required indicator |
+| `disabled` | `boolean?` | — | Disable editing and focus |
 | `type` | `InputType?` | — | Input type |
 | `autocomplete` | `string?` | — | Native autocomplete hint |
 | `inputClass` | `string?` | — | Custom input class |

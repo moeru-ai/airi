@@ -1,6 +1,6 @@
 import { defineStageTamagotchiScenario } from '../context'
 
-const websocketServerAddressPattern = /WebSocket Server Address|WebSocket 服务器地址/i
+const websocketServerAddressPattern = /(?:WebSocket )?Server Address|(?:WebSocket )?服务器地址/i
 
 export default defineStageTamagotchiScenario({
   id: 'settings-connection',
