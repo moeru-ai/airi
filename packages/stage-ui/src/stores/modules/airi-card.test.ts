@@ -5,6 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
+import { useConsciousnessStore } from './consciousness'
+import { useSpeechStore } from './speech'
+import { useVisionStore } from './vision'
 
 const { resetArtistryToGlobal } = vi.hoisted(() => ({
   resetArtistryToGlobal: vi.fn(),
@@ -101,6 +104,105 @@ describe('airi-card store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     resetArtistryToGlobal.mockClear()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Authentication installed the official module defaults before card startup
+  // completed. Initializing the default card then assigned its missing module
+  // fields as empty values and erased those defaults.
+  //
+  // We fixed this by applying only module fields that a card actually owns.
+  it('keeps runtime module selections when the active card omits them', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const cardStore = useAiriCardStore()
+
+    await cardStore.initialize()
+
+    expect(consciousnessStore.activeProvider).toBe('mock-consciousness-provider')
+    expect(consciousnessStore.activeModel).toBe('mock-consciousness-model')
+    expect(speechStore.activeSpeechProvider).toBe('mock-speech-provider')
+    expect(speechStore.activeSpeechModel).toBe('mock-speech-model')
+    expect(speechStore.activeSpeechVoiceId).toBe('mock-speech-voice')
+    expect(visionStore.activeProvider).toBe('mock-vision-provider')
+    expect(visionStore.activeModel).toBe('mock-vision-model')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Each Electron window called the synchronized initialize action. The leader
+  // applied the active card again for every new window. An older card selection
+  // then replaced module defaults that the authentication hook had configured.
+  //
+  // We fixed this by making card initialization idempotent in the leader.
+  it('does not reapply active card settings for a second window', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    consciousnessStore.activeProvider = 'official-provider'
+    consciousnessStore.activeModel = 'auto'
+    speechStore.activeSpeechProvider = 'official-provider-speech'
+    speechStore.activeSpeechModel = 'auto'
+    visionStore.activeProvider = 'vision-official-provider'
+    visionStore.activeModel = 'auto'
+
+    await cardStore.initialize()
+
+    expect(consciousnessStore.activeProvider).toBe('official-provider')
+    expect(consciousnessStore.activeModel).toBe('auto')
+    expect(speechStore.activeSpeechProvider).toBe('official-provider-speech')
+    expect(speechStore.activeSpeechModel).toBe('auto')
+    expect(visionStore.activeProvider).toBe('vision-official-provider')
+    expect(visionStore.activeModel).toBe('auto')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The authentication hook updated the runtime module stores, but the active
+  // card kept its older empty selections. A later card activation restored
+  // speech-noop and erased the authenticated defaults.
+  //
+  // We fixed this by persisting the resolved runtime selections in one card
+  // command without applying the card back to the runtime.
+  it('persists runtime module selections without reapplying the active card', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    resetArtistryToGlobal.mockClear()
+
+    consciousnessStore.activeProvider = 'official-provider'
+    consciousnessStore.activeModel = 'auto'
+    speechStore.activeSpeechProvider = 'official-provider-speech'
+    speechStore.activeSpeechModel = 'auto'
+    speechStore.activeSpeechVoiceId = ''
+    visionStore.activeProvider = 'vision-official-provider'
+    visionStore.activeModel = 'auto'
+
+    await expect(cardStore.persistActiveCardModuleSelections()).resolves.toBe(true)
+
+    expect(cardStore.activeCard?.extensions.airi.modules.consciousness).toEqual({
+      provider: 'official-provider',
+      model: 'auto',
+    })
+    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
+      provider: 'official-provider-speech',
+      model: 'auto',
+      voice_id: '',
+    })
+    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({
+      provider: 'vision-official-provider',
+      model: 'auto',
+    })
+    expect(resetArtistryToGlobal).not.toHaveBeenCalled()
+
+    await expect(cardStore.persistActiveCardModuleSelections()).resolves.toBe(false)
   })
 
   // ROOT CAUSE:

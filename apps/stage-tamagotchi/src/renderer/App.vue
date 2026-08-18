@@ -20,8 +20,11 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
 import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from '@proj-airi/stage-ui/stores/plugin-host-capabilities'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -118,6 +121,7 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
 
 function createFullStageRuntime() {
   const authStore = useAuthStore()
+  const onboardingStore = useOnboardingStore()
   const contextBridgeStore = useContextBridgeStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelSettingsStore = useServerChannelSettingsStore()
@@ -130,9 +134,23 @@ function createFullStageRuntime() {
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   const artistryStore = useArtistryStore()
   useConsciousnessStore()
+  useHearingStore()
   useSpeechStore()
   useSettingsStageModel()
   useVisionStore()
+
+  let stopAuthenticatedSetup: (() => void) | undefined
+  function registerAuthenticatedSetup() {
+    stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
+      if (!syncedPinia.isLeader())
+        return
+
+      if (await configureAsDefaultsIfEmpty())
+        await cardStore.persistActiveCardModuleSelections()
+      await onboardingStore.closeAfterAuthentication()
+    })
+  }
+
   const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
@@ -235,6 +253,7 @@ function createFullStageRuntime() {
       await authStore.initialize()
       await displayModelsStore.initialize()
       await cardStore.initialize()
+      registerAuthenticatedSetup()
 
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
@@ -279,6 +298,7 @@ function createFullStageRuntime() {
       inferencePreload.triggerPreload()
     },
     dispose() {
+      stopAuthenticatedSetup?.()
       contextBridgeStore.dispose()
     },
   }

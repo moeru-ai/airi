@@ -13,9 +13,34 @@ import { electronAuthStartLogin, electronOnboardingClose } from '../../shared/ev
 const authStore = useAuthStore()
 const { needsLogin, isAuthenticated } = storeToRefs(authStore)
 const onboardingStore = useOnboardingStore()
+const { closeRequestId } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
+let closing = false
+
+async function closeOnboardingWindow() {
+  if (closing)
+    return
+
+  closing = true
+  try {
+    await closeWindow()
+  }
+  catch (error) {
+    closing = false
+    console.error('[Onboarding] Failed to close the onboarding window.', error)
+  }
+}
+
+// The shared action publishes a close request from the renderer that finishes
+// authentication. This renderer remains the sole owner of the Electron close
+// side effect. The auth check also handles a window mounted after the request.
+watch([isAuthenticated, closeRequestId], ([authenticated, requestId], previous) => {
+  const previousRequestId = previous?.[1]
+  if (authenticated || (previousRequestId !== undefined && requestId !== previousRequestId))
+    void closeOnboardingWindow()
+}, { immediate: true })
 
 // The onboarding window is a separate Electron process with its own Pinia instance.
 // When step-welcome sets needsLogin=true, we must invoke the IPC login from here
@@ -24,7 +49,7 @@ watch(needsLogin, async (val) => {
   if (val && !isAuthenticated.value) {
     await startLogin()
     needsLogin.value = false
-    await closeWindow()
+    await closeOnboardingWindow()
   }
 })
 
@@ -37,12 +62,12 @@ const extraSteps = computed(() => {
 
 async function handleSkipped() {
   onboardingStore.markSetupSkipped()
-  await closeWindow()
+  await closeOnboardingWindow()
 }
 
 async function handleConfigured() {
   onboardingStore.markSetupCompleted()
-  await closeWindow()
+  await closeOnboardingWindow()
 }
 </script>
 

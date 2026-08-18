@@ -43,6 +43,10 @@ export interface ProviderRuntimeState {
   modelError: string | null
 }
 
+/** Stable fallback for reactive consumers when a provider has no cached catalog. */
+const emptyProviderModels: ModelInfo[] = []
+Object.freeze(emptyProviderModels)
+
 // Only the provider data plane crosses renderer boundaries. Async derived refs
 // stay in useProviderStore and recompute locally instead of being patched as
 // authoritative state by pinia-plugin-synced.
@@ -631,7 +635,7 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
-    return providerRuntimeState.value[providerId]?.models || []
+    return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
 
   // Load models for all configured providers

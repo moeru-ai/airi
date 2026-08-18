@@ -89,6 +89,22 @@ describe('provider store synchronization boundary', () => {
 
   // ROOT CAUSE:
   //
+  // getModelsForProvider created a new empty array for every cache miss.
+  // Reactive consumers observed a false list change after each synced patch.
+  //
+  // We fixed this by returning one frozen fallback until a catalog exists.
+  it('reuses the empty model-list fallback', () => {
+    const store = useProviderStore()
+
+    const first = store.getModelsForProvider('missing-provider')
+    const second = store.getModelsForProvider('missing-provider')
+
+    expect(second).toBe(first)
+    expect(second).toEqual([])
+  })
+
+  // ROOT CAUSE:
+  //
   // A model request kept a reference to its runtime entry across an await.
   // A synced snapshot replaced that entry before the request completed. The
   // request then wrote ready to the detached entry and left the current entry

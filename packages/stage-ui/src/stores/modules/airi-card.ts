@@ -45,6 +45,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // would create a second cross-window state channel and echo cloned maps.
   const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map(), { listenToStorageChanges: false })
   const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default', { listenToStorageChanges: false })
+  let initialized = false
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
   function useRuntimeModuleStores() {
@@ -167,6 +168,54 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (updated)
       applyActiveCardSettings()
     return updated
+  }
+
+  /**
+   * Persists the current inference selections in the active card.
+   *
+   * This command snapshots runtime state after a higher-level operation, such
+   * as authenticated default setup. It deliberately does not apply the card
+   * back to the runtime, so one persistence write cannot start another module
+   * transition.
+   */
+  async function persistActiveCardModuleSelections() {
+    const card = cards.value.get(activeCardId.value)
+    if (!card)
+      return false
+
+    const {
+      consciousness,
+      speech,
+      vision,
+    } = useRuntimeModuleStores()
+    const modules = card.extensions?.airi?.modules
+    const alreadyPersisted = modules?.consciousness?.provider === consciousness.activeProvider
+      && modules.consciousness.model === consciousness.activeModel
+      && modules?.speech?.provider === speech.activeSpeechProvider
+      && modules.speech.model === speech.activeSpeechModel
+      && modules.speech.voice_id === speech.activeSpeechVoiceId
+      && modules?.vision?.provider === vision.activeProvider
+      && modules.vision.model === vision.activeModel
+
+    if (alreadyPersisted)
+      return false
+
+    return updateActiveCardModules(({ modules }) => ({
+      consciousness: {
+        provider: consciousness.activeProvider,
+        model: consciousness.activeModel,
+      },
+      speech: {
+        ...modules.speech,
+        provider: speech.activeSpeechProvider,
+        model: speech.activeSpeechModel,
+        voice_id: speech.activeSpeechVoiceId,
+      },
+      vision: {
+        provider: vision.activeProvider,
+        model: vision.activeModel,
+      },
+    }))
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
@@ -312,6 +361,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function initialize() {
+    // This synchronized action executes in the leader. Each window calls it,
+    // but only the first call can apply persisted card settings to the runtime.
+    if (initialized)
+      return
+
+    initialized = true
     if (!cards.value.has('default')) {
       cards.value.set('default', newAiriCard({
         name: 'ReLU',
@@ -363,15 +418,25 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!extension)
       return
 
-    consciousness.activeProvider = extension?.modules?.consciousness?.provider
-    consciousness.activeModel = extension?.modules?.consciousness?.model
+    const consciousnessSettings = extension.modules?.consciousness
+    if (consciousnessSettings?.provider)
+      consciousness.activeProvider = consciousnessSettings.provider
+    if (consciousnessSettings?.model)
+      consciousness.activeModel = consciousnessSettings.model
 
-    vision.activeProvider = extension?.modules?.vision?.provider
-    vision.activeModel = extension?.modules?.vision?.model
+    const visionSettings = extension.modules?.vision
+    if (visionSettings?.provider)
+      vision.activeProvider = visionSettings.provider
+    if (visionSettings?.model)
+      vision.activeModel = visionSettings.model
 
-    speech.activeSpeechProvider = extension?.modules?.speech?.provider
-    speech.activeSpeechModel = extension?.modules?.speech?.model
-    speech.activeSpeechVoiceId = extension?.modules?.speech?.voice_id
+    const speechSettings = extension.modules?.speech
+    if (speechSettings?.provider)
+      speech.activeSpeechProvider = speechSettings.provider
+    if (speechSettings?.model)
+      speech.activeSpeechModel = speechSettings.model
+    if (speechSettings?.voice_id)
+      speech.activeSpeechVoiceId = speechSettings.voice_id
 
     // Apply body model if the card has a display model configured.
     // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
@@ -393,6 +458,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   function resetState() {
+    initialized = false
     cards.reset()
     activeCardId.reset()
   }
@@ -406,6 +472,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateCard,
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
+    persistActiveCardModuleSelections,
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
@@ -448,6 +515,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'addCard',
       'initialize',
       'removeCard',
+      'persistActiveCardModuleSelections',
       'updateActiveCardConsciousness',
       'updateActiveCardDisplayModel',
       'updateActiveCardSpeech',

@@ -10,10 +10,15 @@ import { useProviderStore } from '../providers/provider'
 export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
 
+  // Pinia synchronization owns live cross-window state. localStorage remains
+  // durable persistence, but storage events must not reflect state back into
+  // the store and publish another synchronized snapshot.
+  const persistenceOptions = { listenToStorageChanges: false }
+
   // State
-  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '')
-  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '')
-  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '')
+  const activeProvider = useLocalStorageManualReset<string>('settings/consciousness/active-provider', '', persistenceOptions)
+  const activeModel = useLocalStorageManualReset<string>('settings/consciousness/active-model', '', persistenceOptions)
+  const activeCustomModelName = useLocalStorageManualReset<string>('settings/consciousness/active-custom-model', '', persistenceOptions)
   const expandedDescriptions = refManualReset<Record<string, boolean>>(() => ({}))
   const modelSearchQuery = refManualReset<string>('')
 

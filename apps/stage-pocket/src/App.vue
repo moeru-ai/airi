@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
@@ -9,6 +10,8 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
@@ -33,6 +36,7 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
+const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
@@ -41,9 +45,22 @@ const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 useArtistryStore()
 useConsciousnessStore()
+useHearingStore()
 useSpeechStore()
 useSettingsStageModel()
 useVisionStore()
+
+let stopAuthenticatedSetup: (() => void) | undefined
+function registerAuthenticatedSetup() {
+  stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
+    if (!syncedPinia.isLeader())
+      return
+
+    if (await configureAsDefaultsIfEmpty())
+      await cardStore.persistActiveCardModuleSelections()
+    await onboardingStore.closeAfterAuthentication()
+  })
+}
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -85,6 +102,7 @@ onMounted(async () => {
   await authStore.initialize()
   await displayModelsStore.initialize()
   await cardStore.initialize()
+  registerAuthenticatedSetup()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -103,6 +121,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopAuthenticatedSetup?.()
   contextBridgeStore.dispose()
 })
 

@@ -12,6 +12,8 @@ import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/conte
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { configureAsDefaultsIfEmpty } from '@proj-airi/stage-ui/stores/modules/default'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
@@ -50,9 +52,23 @@ const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 useArtistryStore()
 useConsciousnessStore()
+useHearingStore()
 useSpeechStore()
 useSettingsStageModel()
 useVisionStore()
+
+let stopAuthenticatedSetup: (() => void) | undefined
+function registerAuthenticatedSetup() {
+  stopAuthenticatedSetup ??= authStore.onAuthenticated(async () => {
+    if (!syncedPinia.isLeader())
+      return
+
+    if (await configureAsDefaultsIfEmpty())
+      await cardStore.persistActiveCardModuleSelections()
+    await onboardingStore.closeAfterAuthentication()
+  })
+}
+
 const inferencePreload = useInferencePreload()
 
 const primaryColor = computed(() => {
@@ -101,6 +117,7 @@ onMounted(async () => {
   await authStore.initialize()
   await displayModelsStore.initialize()
   await cardStore.initialize()
+  registerAuthenticatedSetup()
 
   if (onboardingStore.needsOnboarding) {
     onboardingStore.showingSetup = true
@@ -120,6 +137,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopAuthenticatedSetup?.()
   stopLeadershipListener()
   contextBridgeStore.dispose()
 })
